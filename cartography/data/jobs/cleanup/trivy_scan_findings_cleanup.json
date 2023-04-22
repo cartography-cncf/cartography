@@ -1,0 +1,41 @@
+{
+  "statements": [
+    {
+      "query": "MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:TrivyPackage)-[:DEPLOYED]->(:ECRImage)<-[:IMAGE]-(:ECRRepositoryImage)<-[:REPO_IMAGE]-(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID}) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (n:TrivyPackage)-[:DEPLOYED]->(:ECRImage)<-[:IMAGE]-(:ECRRepositoryImage)<-[:REPO_IMAGE]-(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID}) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (:TrivyPackage)-[r:DEPLOYED]->(:ECRImage)<-[:IMAGE]-(:ECRRepositoryImage)<-[:REPO_IMAGE]-(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID}) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+      "iterative": true,
+      "iterationsize": 1000,
+      "__comment__": "In testing, setting this to 1000 made this job 10x faster. There may have been other problems too but this was worth playing with."
+    },
+    {
+      "query": "MATCH (:TrivyImageFinding)-[r:AFFECTS]->(:ECRImage)<-[:IMAGE]-(:ECRRepositoryImage)<-[:REPO_IMAGE]-(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID}) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (:TrivyFix)-[r:APPLIES_TO]->(:TrivyImageFinding) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (:TrivyPackage)-[r:SHOULD_UPDATE_TO]->(:TrivyFix) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (n:TrivyImageFinding) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DELETE (n)",
+      "iterative": true,
+      "iterationsize": 100
+    }
+  ],
+  "name": "cleanup Trivy image scan findings"
+}
