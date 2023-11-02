@@ -34,7 +34,7 @@ services:
         timeout: 10s
         retries: 10
   cartography:
-    image: ghcr.io/lyft/cartography
+    image: ghcr.io/lyft/cartography@sha256:eeb17a3782c555d04320a95f607aa49b46b5b8fac9a3bcbd7ff7e0672d649ec9
     # EXAMPLE: Our ENTRYPOINT is cartography, running specific command to sync AWS
     # command: ["-v", "--neo4j-uri=bolt://neo4j:7687", "--aws-sync-all-profiles"]
     user: cartography
