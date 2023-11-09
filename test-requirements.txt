@@ -5,4 +5,4 @@ pytest-mock
 pytest-cov==2.10.0
 
 types-PyYAML
-types-requests
+types-requests<2.31.0.7

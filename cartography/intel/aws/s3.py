@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -20,6 +21,8 @@ from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+from cartography.util import to_asynchronous
+from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -55,7 +58,9 @@ def get_s3_bucket_details(
     # a local store for s3 clients so that we may re-use clients for an AWS region
     s3_regional_clients: Dict[Any, Any] = {}
 
-    for bucket in bucket_data['Buckets']:
+    BucketDetail = Tuple[str, Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Any]]
+
+    async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetail:
         # Note: bucket['Region'] is sometimes None because
         # client.get_bucket_location() does not return a location constraint for buckets
         # in us-east-1 region
@@ -63,12 +68,23 @@ def get_s3_bucket_details(
         if not client:
             client = boto3_session.client('s3', bucket['Region'])
             s3_regional_clients[bucket['Region']] = client
-        acl = get_acl(bucket, client)
-        policy = get_policy(bucket, client)
-        encryption = get_encryption(bucket, client)
-        versioning = get_versioning(bucket, client)
-        public_access_block = get_public_access_block(bucket, client)
-        yield bucket['Name'], acl, policy, encryption, versioning, public_access_block
+        (
+            acl,
+            policy,
+            encryption,
+            versioning,
+            public_access_block,
+        ) = await asyncio.gather(
+            to_asynchronous(get_acl, bucket, client),
+            to_asynchronous(get_policy, bucket, client),
+            to_asynchronous(get_encryption, bucket, client),
+            to_asynchronous(get_versioning, bucket, client),
+            to_asynchronous(get_public_access_block, bucket, client),
+        )
+        return bucket['Name'], acl, policy, encryption, versioning, public_access_block
+
+    bucket_details = to_synchronous(*[_get_bucket_detail(bucket) for bucket in bucket_data['Buckets']])
+    yield from bucket_details
 
 
 @timeit
@@ -206,7 +222,12 @@ def _is_common_exception(e: Exception, bucket: Dict) -> bool:
 
 
 @timeit
-def _load_s3_acls(neo4j_session: neo4j.Session, acls: Dict, aws_account_id: str, update_tag: int) -> None:
+def _load_s3_acls(
+        neo4j_session: neo4j.Session,
+        acls: List[Dict[str, Any]],
+        aws_account_id: str,
+        update_tag: int,
+) -> None:
     """
     Ingest S3 ACL into neo4j.
     """

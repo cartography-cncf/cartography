@@ -5,8 +5,8 @@ LIST_CLUSTERS = [
     "cluster_2",
 ]
 
-DESCRIBE_CLUSTERS = {
-    "cluster_1": {
+DESCRIBE_CLUSTERS = [
+    {
         "name": "cluster_1",
         "arn": "arn:aws:eks:eu-west-1:111111111111:cluster/cluster_1",
         "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
@@ -35,7 +35,7 @@ DESCRIBE_CLUSTERS = {
         },
         "tags": {},
     },
-    "cluster_2": {
+    {
         "name": "cluster_2",
         "arn": "arn:aws:eks:eu-west-2:222222222222:cluster/cluster_2",
         "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
@@ -64,4 +64,4 @@ DESCRIBE_CLUSTERS = {
         },
         "tags": {},
     },
-}
+]

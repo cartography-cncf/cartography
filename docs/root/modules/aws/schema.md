@@ -691,6 +691,9 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 | lastupdated |  Timestamp of the last time the node was updated
 | createdate | Date when access key was created |
 | status | Active: valid for API calls.  Inactive: not valid for API calls|
+| lastuseddate | Date when the key was last used |
+| lastusedservice | The service that was last used with the access key |
+| lastusedregion | The region where the access key was last used |
 | **accesskeyid** | The ID for this access key|
 
 #### Relationships

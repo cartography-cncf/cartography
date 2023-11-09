@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from typing import Dict
 from typing import List
 
@@ -9,6 +10,8 @@ from cartography.util import aws_handle_regions
 from cartography.util import batch
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+from cartography.util import to_asynchronous
+from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +142,25 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     run_cleanup_job('aws_import_ecr_cleanup.json', neo4j_session, common_job_parameters)
 
 
+def _get_image_data(
+    boto3_session: boto3.session.Session,
+    region: str,
+    repositories: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    '''
+    Given a list of repositories, get the image data for each repository,
+    return as a mapping from repositoryUri to image object
+    '''
+    image_data = {}
+
+    async def async_get_images(repo: Dict[str, Any]) -> None:
+        repo_image_obj = await to_asynchronous(get_ecr_repository_images, boto3_session, region, repo['repositoryName'])
+        image_data[repo['repositoryUri']] = repo_image_obj
+    to_synchronous(*[async_get_images(repo) for repo in repositories])
+
+    return image_data
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
@@ -148,9 +170,7 @@ def sync(
         logger.info("Syncing ECR for region '%s' in account '%s'.", region, current_aws_account_id)
         image_data = {}
         repositories = get_ecr_repositories(boto3_session, region)
-        for repo in repositories:
-            repo_image_obj = get_ecr_repository_images(boto3_session, region, repo['repositoryName'])
-            image_data[repo['repositoryUri']] = repo_image_obj
+        image_data = _get_image_data(boto3_session, region, repositories)
         load_ecr_repositories(neo4j_session, repositories, region, current_aws_account_id, update_tag)
         repo_images_list = transform_ecr_repository_images(image_data)
         load_ecr_repository_images(neo4j_session, repo_images_list, region, update_tag)

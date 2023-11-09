@@ -1,7 +1,7 @@
 {
   "statements": [
     {
-      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(n:OktaUser)-[:FACTOR]->(n:OktaUserFactor) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaUser)-[:FACTOR]->(n:OktaUserFactor) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
       "iterative": true,
       "iterationsize": 100,
       "__comment__": "Delete stale OktaUserFactor nodes"

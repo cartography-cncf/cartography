@@ -6,8 +6,10 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.aws.eks.clusters import EKSClusterSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -15,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 @timeit
 @aws_handle_regions
-def get_eks_clusters(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
+def get_eks_clusters(boto3_session: boto3.session.Session, region: str) -> List[str]:
     client = boto3_session.client('eks', region_name=region)
-    clusters: List[Dict] = []
+    clusters: List[str] = []
     paginator = client.get_paginator('list_clusters')
     for page in paginator.paginate():
         clusters.extend(page['clusters'])
@@ -33,49 +35,20 @@ def get_eks_describe_cluster(boto3_session: boto3.session.Session, region: str, 
 
 @timeit
 def load_eks_clusters(
-    neo4j_session: neo4j.Session, cluster_data: Dict, region: str, current_aws_account_id: str,
-    aws_update_tag: int,
+        neo4j_session: neo4j.Session,
+        cluster_data: List[Dict[str, Any]],
+        region: str,
+        current_aws_account_id: str,
+        aws_update_tag: int,
 ) -> None:
-    query: str = """
-    MERGE (cluster:EKSCluster{id: $ClusterArn})
-    ON CREATE SET cluster.firstseen = timestamp(),
-                cluster.arn = $ClusterArn,
-                cluster.name = $ClusterName,
-                cluster.region = $Region,
-                cluster.created_at = $CreatedAt
-    SET cluster.lastupdated = $aws_update_tag,
-        cluster.endpoint = $ClusterEndpoint,
-        cluster.endpoint_public_access = $ClusterEndointPublic,
-        cluster.rolearn = $ClusterRoleArn,
-        cluster.version = $ClusterVersion,
-        cluster.platform_version = $ClusterPlatformVersion,
-        cluster.status = $ClusterStatus,
-        cluster.audit_logging = $ClusterLogging
-    WITH cluster
-    MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (owner)-[r:RESOURCE]->(cluster)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-
-    for cd in cluster_data:
-        cluster = cluster_data[cd]
-        neo4j_session.run(
-            query,
-            ClusterArn=cluster['arn'],
-            ClusterName=cluster['name'],
-            ClusterEndpoint=cluster.get('endpoint'),
-            ClusterEndointPublic=cluster.get('resourcesVpcConfig', {}).get('endpointPublicAccess'),
-            ClusterRoleArn=cluster.get('roleArn'),
-            ClusterVersion=cluster.get('version'),
-            ClusterPlatformVersion=cluster.get('platformVersion'),
-            ClusterStatus=cluster.get('status'),
-            CreatedAt=str(cluster.get('createdAt')),
-            ClusterLogging=_process_logging(cluster),
-            Region=region,
-            aws_update_tag=aws_update_tag,
-            AWS_ACCOUNT_ID=current_aws_account_id,
-        )
+    load(
+        neo4j_session,
+        EKSClusterSchema(),
+        cluster_data,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=aws_update_tag,
+    )
 
 
 def _process_logging(cluster: Dict) -> bool:
@@ -91,24 +64,43 @@ def _process_logging(cluster: Dict) -> bool:
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_eks_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+    logger.info("Running EKS cluster cleanup")
+    GraphJob.from_node_schema(EKSClusterSchema(), common_job_parameters).run(neo4j_session)
+
+
+def transform(cluster_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    transformed_list = []
+    for cluster_name, cluster_dict in cluster_data.items():
+        transformed_dict = cluster_dict.copy()
+        transformed_dict['ClusterLogging'] = _process_logging(transformed_dict)
+        transformed_dict['ClusterEndpointPublic'] = transformed_dict.get('resourcesVpcConfig', {}).get(
+            'endpointPublicAccess',
+        )
+        if 'createdAt' in transformed_dict:
+            transformed_dict['created_at'] = str(transformed_dict['createdAt'])
+        transformed_list.append(transformed_dict)
+    return transformed_list
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+        neo4j_session: neo4j.Session,
+        boto3_session: boto3.session.Session,
+        regions: List[str],
+        current_aws_account_id: str,
+        update_tag: int,
+        common_job_parameters: Dict[str, Any],
 ) -> None:
     for region in regions:
         logger.info("Syncing EKS for region '%s' in account '%s'.", region, current_aws_account_id)
 
-        clusters: List[Dict] = get_eks_clusters(boto3_session, region)
-
-        cluster_data: Dict = {}
+        clusters: List[str] = get_eks_clusters(boto3_session, region)
+        cluster_data = {}
         for cluster_name in clusters:
-            cluster_data[cluster_name] = get_eks_describe_cluster(boto3_session, region, cluster_name)  # type: ignore
+            cluster_data[cluster_name] = get_eks_describe_cluster(boto3_session, region, cluster_name)
+        transformed_list = transform(cluster_data)
 
-        load_eks_clusters(neo4j_session, cluster_data, region, current_aws_account_id, update_tag)
+        load_eks_clusters(neo4j_session, transformed_list, region, current_aws_account_id, update_tag)
 
     cleanup(neo4j_session, common_job_parameters)

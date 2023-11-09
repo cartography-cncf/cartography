@@ -23,6 +23,69 @@ LIST_BUCKETS = {
     },
 }
 
+OPEN_BUCKET_ACLS = {
+    "bucket-1": {
+        "Owner": {
+            "DisplayName": "my-display-name-1",
+            "ID": "3cb8",
+        },
+        "Grants": [
+            {
+                "Grantee": {
+                    "DisplayName": "my-display-name-1",
+                    "ID": "3cb8",
+                    "Type": "CanonicalUser",
+                },
+                "Permission": "FULL_CONTROL",
+            },
+        ],
+    },
+    "bucket-2": {
+        "Owner": {
+            "DisplayName": "my-display-name-2",
+            "ID": "828a",
+        },
+        "Grants": [
+            {
+                "Grantee": {
+                    "Type": "Group",
+                    "URI": "http://acs.amazonaws.com/groups/global/AllUsers",
+                },
+                "Permission": "READ",
+            },
+            {
+                "Grantee": {
+                    "Type": "Group",
+                    "URI": "http://acs.amazonaws.com/groups/global/AuthenticatedUsers",
+                },
+                "Permission": "READ_ACP",
+            },
+        ],
+    },
+    "bucket-3": {
+        "Owner": {
+            "DisplayName": "my-display-name-2",
+            "ID": "828a",
+        },
+        "Grants": [
+            {
+                "Grantee": {
+                    "Type": "Group",
+                    "URI": "http://acs.amazonaws.com/groups/global/AllUsers",
+                },
+                "Permission": "WRITE_ACP",
+            },
+            {
+                "Grantee": {
+                    "Type": "Group",
+                    "URI": "http://acs.amazonaws.com/groups/global/AuthenticatedUsers",
+                },
+                "Permission": "WRITE",
+            },
+        ],
+    },
+}
+
 GET_ENCRYPTION = {
     'bucket': 'bucket-1',
     'default_encryption': True,

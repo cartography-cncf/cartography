@@ -1,27 +1,11 @@
 from datetime import datetime
-from unittest import mock
 
-from cartography.intel.aws.inspector import cleanup
-from cartography.intel.aws.inspector import get_inspector_findings
-from cartography.intel.aws.inspector import load_inspector_findings
-from cartography.intel.aws.inspector import load_inspector_packages
-from cartography.intel.aws.inspector import sync
 from cartography.intel.aws.inspector import transform_inspector_findings
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
 
 
 TEST_UPDATE_TAG = 123456789
-
-
-def test_get_inspector_findings():
-    mock_boto = mock.MagicMock()
-
-    ret = get_inspector_findings(mock_boto, 'us-east-1', '1234')
-
-    assert ret == []
-    mock_boto.client.assert_called_once_with('inspector2', region_name='us-east-1')
-    mock_boto.client().get_paginator.assert_called_with('list_findings')
 
 
 def test_transform_inspector_findings_network():
@@ -114,87 +98,3 @@ def test_transform_inspector_findings_package():
             'version': '4.9.17',
         },
     ]
-
-
-@mock.patch("cartography.intel.aws.inspector._load_findings_tx")
-def test_load_inspector_findings(load_mock):
-    mock_neo4j = mock.MagicMock()
-    findings = ['any']
-    region = 'us-east-1'
-    aws_update_tag = 0
-
-    load_inspector_findings(mock_neo4j, findings, region, aws_update_tag)
-
-    mock_neo4j.write_transaction.assert_called_once_with(
-        load_mock, findings=['any'], region='us-east-1', aws_update_tag=0,
-    )
-
-
-@mock.patch("cartography.intel.aws.inspector._load_packages_tx")
-def test_load_inspector_packages(load_mock):
-    mock_neo4j = mock.MagicMock()
-    packages = []
-    region = 'us-east-1'
-    aws_update_tag = 0
-
-    load_inspector_packages(mock_neo4j, packages, region, aws_update_tag)
-
-    mock_neo4j.write_transaction.assert_called_once_with(
-        load_mock, packages=[], region='us-east-1', aws_update_tag=0,
-    )
-
-
-@mock.patch("cartography.intel.aws.inspector.run_cleanup_job")
-def test_cleanup(run_cleanup_mock):
-    mock_neo4j = mock.MagicMock()
-
-    cleanup(mock_neo4j, {})
-
-    run_cleanup_mock.assert_called_once_with(
-        'aws_import_inspector_cleanup.json', mock_neo4j, {},
-    )
-
-
-@mock.patch("cartography.intel.aws.inspector.get_inspector_findings")
-@mock.patch("cartography.intel.aws.inspector.transform_inspector_findings")
-@mock.patch("cartography.intel.aws.inspector.load_inspector_packages")
-@mock.patch("cartography.intel.aws.inspector.load_inspector_findings")
-@mock.patch("cartography.intel.aws.inspector.cleanup")
-def test_sync(
-    cleanup_mock,
-    load_findings_mock,
-    load_packages_mock,
-    transform_mock,
-    get_findings_mock,
-):
-    get_findings_mock.return_value = []
-    transform_mock.return_value = [], []
-    mock_neo4j = mock.MagicMock()
-    mock_boto3 = mock.MagicMock()
-    regions = ['us-east-1', 'us-east-2']
-    current_aws_account_id = "1234"
-    update_tag = 0
-    common_job_parameters = {}
-
-    sync(mock_neo4j, mock_boto3, regions, current_aws_account_id, update_tag, common_job_parameters)
-
-    get_findings_mock.assert_has_calls([
-        mock.call(mock_boto3, 'us-east-1', current_aws_account_id),
-        mock.call(mock_boto3, 'us-east-2', current_aws_account_id),
-    ])
-    transform_mock.assert_has_calls([
-        mock.call([]),
-        mock.call([]),
-    ])
-    load_packages_mock.assert_has_calls([
-        mock.call(mock_neo4j, [], 'us-east-1', 0),
-        mock.call(mock_neo4j, [], 'us-east-2', 0),
-    ])
-    load_findings_mock.assert_has_calls([
-        mock.call(mock_neo4j, [], 'us-east-1', 0),
-        mock.call(mock_neo4j, [], 'us-east-2', 0),
-    ])
-    cleanup_mock.assert_has_calls([
-        mock.call(mock_neo4j, {}),
-        mock.call(mock_neo4j, {}),
-    ])

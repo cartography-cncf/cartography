@@ -14,23 +14,49 @@ from statsd import StatsClient
 import cartography.intel.analysis
 import cartography.intel.aws
 import cartography.intel.azure
+import cartography.intel.bigfix
 import cartography.intel.create_indexes
 import cartography.intel.crowdstrike
 import cartography.intel.crxcavator.crxcavator
 import cartography.intel.cve
 import cartography.intel.digitalocean
+import cartography.intel.duo
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gsuite
 import cartography.intel.kubernetes
+import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
+import cartography.intel.semgrep
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
 from cartography.util import STATUS_SUCCESS
 
 logger = logging.getLogger(__name__)
+
+
+TOP_LEVEL_MODULES = OrderedDict({  # preserve order so that the default sync always runs `analysis` at the very end
+    'create-indexes': cartography.intel.create_indexes.run,
+    'aws': cartography.intel.aws.start_aws_ingestion,
+    'azure': cartography.intel.azure.start_azure_ingestion,
+    'crowdstrike': cartography.intel.crowdstrike.start_crowdstrike_ingestion,
+    'gcp': cartography.intel.gcp.start_gcp_ingestion,
+    'gsuite': cartography.intel.gsuite.start_gsuite_ingestion,
+    'crxcavator': cartography.intel.crxcavator.start_extension_ingestion,
+    'cve': cartography.intel.cve.start_cve_ingestion,
+    'oci': cartography.intel.oci.start_oci_ingestion,
+    'okta': cartography.intel.okta.start_okta_ingestion,
+    'github': cartography.intel.github.start_github_ingestion,
+    'digitalocean': cartography.intel.digitalocean.start_digitalocean_ingestion,
+    'kubernetes': cartography.intel.kubernetes.start_k8s_ingestion,
+    'lastpass': cartography.intel.lastpass.start_lastpass_ingestion,
+    'bigfix': cartography.intel.bigfix.start_bigfix_ingestion,
+    'duo': cartography.intel.duo.start_duo_ingestion,
+    'semgrep': cartography.intel.semgrep.start_semgrep_ingestion,
+    'analysis': cartography.intel.analysis.run,
+})
 
 
 class Sync:
@@ -172,19 +198,42 @@ def build_default_sync() -> Sync:
     """
     sync = Sync()
     sync.add_stages([
-        ('create-indexes', cartography.intel.create_indexes.run),
-        ('aws', cartography.intel.aws.start_aws_ingestion),
-        ('azure', cartography.intel.azure.start_azure_ingestion),
-        ('crowdstrike', cartography.intel.crowdstrike.start_crowdstrike_ingestion),
-        ('gcp', cartography.intel.gcp.start_gcp_ingestion),
-        ('gsuite', cartography.intel.gsuite.start_gsuite_ingestion),
-        ('crxcavator', cartography.intel.crxcavator.start_extension_ingestion),
-        ('cve', cartography.intel.cve.start_cve_ingestion),
-        ('oci', cartography.intel.oci.start_oci_ingestion),
-        ('okta', cartography.intel.okta.start_okta_ingestion),
-        ('github', cartography.intel.github.start_github_ingestion),
-        ('digitalocean', cartography.intel.digitalocean.start_digitalocean_ingestion),
-        ('kubernetes', cartography.intel.kubernetes.start_k8s_ingestion),
-        ('analysis', cartography.intel.analysis.run),
+        (stage_name, stage_func) for stage_name, stage_func in TOP_LEVEL_MODULES.items()
     ])
+    return sync
+
+
+def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
+    """
+    Ensures that user-selected modules passed through the CLI are valid and parses them to a list of str.
+    :param selected_modules: comma separated string of module names provided by user
+    :return: A validated list of module names that we will run
+    """
+    validated_modules: List[str] = []
+    for module in selected_modules.split(','):
+        module = module.strip()
+
+        if module in TOP_LEVEL_MODULES.keys():
+            validated_modules.append(module)
+        else:
+            valid_modules = ', '.join(TOP_LEVEL_MODULES.keys())
+            raise ValueError(
+                f'Error parsing `selected_modules`. You specified "{selected_modules}". '
+                f'Please check that your string is formatted properly. '
+                f'Example valid input looks like "aws,gcp,analysis" or "azure, oci, crowdstrike". '
+                f'Our full list of valid values is: {valid_modules}.',
+            )
+    return validated_modules
+
+
+def build_sync(selected_modules_as_str: str) -> Sync:
+    """
+    Returns a cartography sync object where all the sync stages are from the user-specified comma separated list of
+    modules to run.
+    """
+    selected_modules = parse_and_validate_selected_modules(selected_modules_as_str)
+    sync = Sync()
+    sync.add_stages(
+        [(sync_name, TOP_LEVEL_MODULES[sync_name]) for sync_name in selected_modules],
+    )
     return sync

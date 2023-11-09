@@ -227,6 +227,16 @@ def get_account_access_key_data(boto3_session: boto3.session.Session, username: 
         logger.warning(
             f"Could not get access key for user {username} due to NoSuchEntityException; skipping.",
         )
+    for access_key in access_keys['AccessKeyMetadata']:
+        access_key_id = access_key['AccessKeyId']
+        last_used_info = client.get_access_key_last_used(
+            AccessKeyId=access_key_id,
+        )['AccessKeyLastUsed']
+        # only LastUsedDate may be null
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/iam/client/get_access_key_last_used.html
+        access_key['LastUsedDate'] = last_used_info.get('LastUsedDate')
+        access_key['LastUsedService'] = last_used_info['ServiceName']
+        access_key['LastUsedRegion'] = last_used_info['Region']
     return access_keys
 
 
@@ -490,7 +500,11 @@ def load_user_access_keys(neo4j_session: neo4j.Session, user_access_keys: Dict, 
     WITH user
     MERGE (key:AccountAccessKey{accesskeyid: $AccessKeyId})
     ON CREATE SET key.firstseen = timestamp(), key.createdate = $CreateDate
-    SET key.status = $Status, key.lastupdated = $aws_update_tag
+    SET key.status = $Status,
+        key.lastupdated = $aws_update_tag,
+        key.lastuseddate = $LastUsedDate,
+        key.lastusedservice = $LastUsedService,
+        key.lastusedregion = $LastUsedRegion
     WITH user,key
     MERGE (user)-[r:AWS_ACCESS_KEY]->(key)
     ON CREATE SET r.firstseen = timestamp()
@@ -506,6 +520,9 @@ def load_user_access_keys(neo4j_session: neo4j.Session, user_access_keys: Dict, 
                     AccessKeyId=key['AccessKeyId'],
                     CreateDate=str(key['CreateDate']),
                     Status=key['Status'],
+                    LastUsedDate=key['LastUsedDate'],
+                    LastUsedService=key['LastUsedService'],
+                    LastUsedRegion=key['LastUsedRegion'],
                     aws_update_tag=aws_update_tag,
                 )
 

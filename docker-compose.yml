@@ -34,7 +34,9 @@ services:
         timeout: 10s
         retries: 10
   cartography:
-    image: ghcr.io/lyft/cartography
+    # As seen in docs, we build with `cd /path/to/cartography && docker build -t lyft/cartography .`
+    # and then run with `docker-compose up -d`.
+    image: lyft/cartography
     # EXAMPLE: Our ENTRYPOINT is cartography, running specific command to sync AWS
     # command: ["-v", "--neo4j-uri=bolt://neo4j:7687", "--aws-sync-all-profiles"]
     user: cartography
@@ -44,3 +46,6 @@ services:
       - neo4j
     volumes:
       - ~/.aws:/cartography/.aws/
+    environment:
+      # Point to the neo4j service defined in this docker-compose file.
+      - NEO4J_URL=bolt://cartography-neo4j-1:7687

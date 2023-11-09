@@ -33,4 +33,8 @@ Representation of a [CVE](https://github.com/CVEProject/automation-working-group
 
 #### Relationships
 
-None
+- A CVE linked to a SemgrepSCAFinding (optional)
+
+    ```
+    (CVE)-[:LINKED_TO]->(:SemgrepSCAFinding)
+    ```
