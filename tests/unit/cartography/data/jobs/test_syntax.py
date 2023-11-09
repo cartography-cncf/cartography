@@ -28,3 +28,14 @@ def test_cleanup_jobs_are_valid_json():
             json.loads(blob)
         except Exception as e:
             pytest.fail(f"json.loads failed for cleanup job '{job_name}' with exception: {e}")
+
+
+def test_scoped_analysis_jobs_are_valid_json():
+    for job_name in contents('cartography.data.jobs.scoped_analysis'):
+        if not job_name.endswith('.json'):
+            continue
+        blob = read_text('cartography.data.jobs.scoped_analysis', job_name)
+        try:
+            json.loads(blob)
+        except Exception as e:
+            pytest.fail(f"json.loads failed for scoped analysis job '{job_name}' with exception: {e}")

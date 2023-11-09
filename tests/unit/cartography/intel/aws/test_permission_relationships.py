@@ -36,7 +36,7 @@ def test_not_action_statement():
         "action": [
             "*",
         ],
-        "notaction":[
+        "notaction": [
             "S3:GetObject",
         ],
         "resource": [
@@ -209,7 +209,7 @@ def test_non_matching_notresource():
             "action": [
                 "s3:Get*",
             ],
-            "resource":["*"],
+            "resource": ["*"],
             "notresource": [
                 "arn:aws:s3:::nottest",
             ],
@@ -417,7 +417,7 @@ def test_single_comma():
             "action": [
                 "s3:?et*",
             ],
-            "resource":["arn:aws:s3:::testbucke?"],
+            "resource": ["arn:aws:s3:::testbucke?"],
             "effect": "Allow",
         },
     ]
@@ -432,7 +432,7 @@ def test_multiple_comma():
             "action": [
                 "s3:?et*",
             ],
-            "resource":["arn:aws:s3:::????bucket"],
+            "resource": ["arn:aws:s3:::????bucket"],
             "effect": "Allow",
         },
     ]

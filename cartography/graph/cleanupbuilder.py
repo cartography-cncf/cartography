@@ -1,9 +1,11 @@
 from dataclasses import asdict
 from string import Template
+from typing import Dict
 from typing import List
 
 from cartography.graph.querybuilder import _build_match_clause
 from cartography.graph.querybuilder import rel_present_on_node_schema
+from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -150,11 +152,12 @@ def _validate_target_node_matcher_for_cleanup_job(tgm: TargetNodeMatcher):
     class injects the sub resource id via a query kwarg parameter. See GraphJob and GraphStatement classes.
     This is a private function meant only to be called when we clean up the sub resource relationship.
     """
-    tgm_asdict = asdict(tgm)
+    tgm_asdict: Dict[str, PropertyRef] = asdict(tgm)
 
     for key, prop_ref in tgm_asdict.items():
         if not prop_ref.set_in_kwargs:
             raise ValueError(
                 f"TargetNodeMatcher PropertyRefs in the sub_resource_relationship must have set_in_kwargs=True. "
-                f"{key} has set_in_kwargs=False, please check.",
+                f"{key} has set_in_kwargs=False, please check by reviewing the full stack trace to know which object"
+                f"this message was raised from. Debug information: PropertyRef name = {prop_ref.name}.",
             )

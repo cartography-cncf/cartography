@@ -1,11 +1,6 @@
 {
   "statements": [
   {
-      "query": "MATCH (n:EC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID}) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-      "iterative": true,
-      "iterationsize": 100
-  },
-  {
       "query": "MATCH (n:IpRule)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(:EC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID}) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
       "iterative": true,
       "iterationsize": 100

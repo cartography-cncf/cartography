@@ -59,5 +59,8 @@
 ## SyncMetadata
 - Click [here](syncmetadata.md)
 
+## Semgrep
+- Click [here](https://lyft.github.io/cartography/modules/semgrep/schema.html)
+
 ## More to come!
 👍

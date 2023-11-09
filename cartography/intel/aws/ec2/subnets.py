@@ -6,6 +6,8 @@ import boto3
 import neo4j
 
 from .util import get_botocore_config
+from cartography.graph.job import GraphJob
+from cartography.models.aws.ec2.subnet_instance import EC2SubnetInstanceSchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -76,6 +78,7 @@ def load_subnets(
 @timeit
 def cleanup_subnets(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     run_cleanup_job('aws_ingest_subnets_cleanup.json', neo4j_session, common_job_parameters)
+    GraphJob.from_node_schema(EC2SubnetInstanceSchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit

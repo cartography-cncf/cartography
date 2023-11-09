@@ -1,9 +1,12 @@
+import asyncio
 import logging
 import re
 import sys
+from functools import partial
 from functools import wraps
 from string import Template
 from typing import Any
+from typing import Awaitable
 from typing import BinaryIO
 from typing import Callable
 from typing import cast
@@ -25,6 +28,7 @@ from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
 from cartography.stats import ScopedStatsClient
 
+
 if sys.version_info >= (3, 7):
     from importlib.resources import open_binary, read_text
 else:
@@ -45,6 +49,14 @@ def run_analysis_job(
     common_job_parameters: Dict,
     package: str = 'cartography.data.jobs.analysis',
 ) -> None:
+    """
+    Enriches existing graph data with analysis jobs. This is designed for use with the sync stage
+    cartography.intel.analysis.
+    Runs the queries in the given Python `package` directory (cartography.data.jobs.analysis by default) for the given
+    `filename`. All queries in this directory are intended to be run at the end of a full graph sync. As such, they are
+    not scoped to a single sub resource. That is they will apply to _all_ AWS accounts/_all_ GCP projects/_all_ Okta
+    organizations/etc.
+    """
     GraphJob.run_from_json(
         neo4j_session,
         read_text(
@@ -84,6 +96,25 @@ def run_analysis_and_ensure_deps(
         analysis_job_name,
         neo4j_session,
         common_job_parameters,
+    )
+
+
+def run_scoped_analysis_job(
+    filename: str,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+    package: str = 'cartography.data.jobs.scoped_analysis',
+) -> None:
+    """
+    Enriches existing graph data scoped to a given sub resource - e.g. the current AWS account.
+    Runs the queries in the cartography.data.jobs.scoped_analysis directory for the given `filename`. View the queries
+    in cartography.data.jobs.scoped_analysis for specifics.
+    """
+    run_analysis_job(
+        filename,
+        neo4j_session,
+        common_job_parameters,
+        package,
     )
 
 
@@ -141,6 +172,7 @@ def load_resource_binary(package: str, resource_name: str) -> BinaryIO:
     return open_binary(package, resource_name)
 
 
+R = TypeVar('R')
 F = TypeVar('F', bound=Callable[..., Any])
 
 
@@ -225,6 +257,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         'AccessDeniedException',
         'AuthFailure',
         'InvalidClientTokenId',
+        'UnauthorizedOperation',
         'UnrecognizedClientException',
         'InternalServerErrorException',
     ]
@@ -297,3 +330,94 @@ def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> List[List]:
         items[i: i + size]
         for i in range(0, len(items), size)
     ]
+
+
+def is_throttling_exception(exc: Exception) -> bool:
+    '''
+    Returns True if the exception is caused by a client libraries throttling mechanism
+    '''
+    # https://boto3.amazonaws.com/v1/documentation/api/1.19.9/guide/error-handling.html
+    if isinstance(exc, botocore.exceptions.ClientError):
+        if exc.response['Error']['Code'] in ['LimitExceededException', 'Throttling']:
+            return True
+    # add other exceptions here, if needed, like:
+    # https://cloud.google.com/python/docs/reference/storage/1.39.0/retry_timeout#configuring-retries
+    # if isinstance(exc, google.api_core.exceptions.TooManyRequests):
+    #     return True
+    return False
+
+
+def to_asynchronous(func: Callable[..., R], *args: Any, **kwargs: Any) -> Awaitable[R]:
+    '''
+    Returns a Future that will run a function and its arguments in the default threadpool.
+    Helper until we start using python 3.9's asyncio.to_thread
+
+    Calls are also wrapped within a backoff decorator to handle throttling errors.
+
+    :param func: the function to be wrapped by the Future
+    :param args: a series of arguments to be passed into func
+    :param kwargs: a series of keyword arguments to be passed into func
+
+    example:
+    def my_func(arg1, arg2, kwarg1):
+        return arg1 + arg2 + kwarg1
+
+    # normal synchronous call:
+    result = my_func(1, 2, kwarg1=3)
+
+    # asynchronous call:
+    future = to_asynchronous(my_func, 1, 2, kwarg1=3)
+
+    # the result is stored in the future, and can be retrieved
+    # from within another async function with:
+    await future
+
+    # or from within a synchronous function with our helper:
+    to_synchronous(future)
+
+    NOTE: to use this in a Jupyter notebook, you need to do:
+    # import nest_asyncio
+    # nest_asyncio.apply()
+    '''
+    CartographyThrottlingException = type('CartographyThrottlingException', (Exception,), {})
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> R:
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:
+            if is_throttling_exception(exc):
+                raise CartographyThrottlingException from exc
+            raise
+
+    # don't use @backoff as decorator, to preserve typing
+    wrapped = backoff.on_exception(backoff.expo, CartographyThrottlingException)(wrapper)
+    call = partial(wrapped, *args, **kwargs)
+    return asyncio.get_event_loop().run_in_executor(None, call)
+
+
+def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
+    '''
+    Synchronously waits for the Awaitable(s) to complete and returns their result(s).
+    See https://docs.python.org/3.8/library/asyncio-task.html#asyncio-awaitables
+
+    :param awaitables: a series of Awaitable objects, with each object being its own argument.
+        i.e., not a single list of Awaitables
+
+    example:
+    async def my_async_func(my_arg):
+        return my_arg
+
+    async def another_async_func(my_arg2):
+        return my_arg2
+
+    remember that an invocation of an async function returns a Future (Awaitable),
+    which needs to be awaited to get the result. You cannot await a Future from within
+    a non-async function, so you could use this helper to get the result from a Future
+
+    future_1 = my_async_func(1)
+    future_2 = another_async_func(2)
+
+    results = to_synchronous(future_1, future_2)
+    '''
+    return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))

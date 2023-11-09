@@ -287,7 +287,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             (
                 "There are duplicate AWS accounts in your AWS configuration. It is strongly recommended that you run "
                 "cartography with an AWS configuration which has exactly one profile for each AWS account you want to "
-                "sync. Doing otherwise will result in undefined and untested behavior."
+                f"sync. Doing otherwise will result in undefined and untested behavior. Account list: {aws_accounts}"
             ),
         )
 

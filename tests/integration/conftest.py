@@ -1,7 +1,12 @@
+import logging
+
 import neo4j
 import pytest
 
 from tests.integration import settings
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger('neo4j').setLevel(logging.WARNING)
 
 
 @pytest.fixture(scope="module")

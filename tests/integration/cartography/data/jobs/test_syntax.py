@@ -15,6 +15,7 @@ def test_analysis_jobs_cypher_syntax(neo4j_session):
         'OCI_TENANCY_ID': 'my_oci_tenant_id',
         'UPDATE_TAG': 'my_update_tag',
         'OKTA_ORG_ID': 'my_okta_org_id',
+        'DEPLOYMENT_ID': 'my_deployment_id',
     }
 
     for job_name in contents('cartography.data.jobs.analysis'):
@@ -22,6 +23,14 @@ def test_analysis_jobs_cypher_syntax(neo4j_session):
             continue
         try:
             cartography.util.run_analysis_job(job_name, neo4j_session, parameters)
+        except Exception as e:
+            pytest.fail(f"run_analysis_job failed for analysis job '{job_name}' with exception: {e}")
+
+    for job_name in contents('cartography.data.jobs.scoped_analysis'):
+        if not job_name.endswith('.json'):
+            continue
+        try:
+            cartography.util.run_scoped_analysis_job(job_name, neo4j_session, parameters)
         except Exception as e:
             pytest.fail(f"run_analysis_job failed for analysis job '{job_name}' with exception: {e}")
 

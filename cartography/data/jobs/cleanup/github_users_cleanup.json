@@ -15,31 +15,6 @@
     "iterationsize": 100
   },
   {
-    "query": "MATCH (:GitHubUser)-[r:OUTSIDE_COLLAB_ADMIN]->(:GitHubRepository) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-    "iterative": true,
-    "iterationsize": 100
-  },
-  {
-    "query": "MATCH (:GitHubUser)-[r:OUTSIDE_COLLAB_MAINTAIN]->(:GitHubRepository) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-    "iterative": true,
-    "iterationsize": 100
-  },
-  {
-    "query": "MATCH (:GitHubUser)-[r:OUTSIDE_COLLAB_READ]->(:GitHubRepository) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-    "iterative": true,
-    "iterationsize": 100
-  },
-  {
-    "query": "MATCH (:GitHubUser)-[r:OUTSIDE_COLLAB_TRIAGE]->(:GitHubRepository) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-    "iterative": true,
-    "iterationsize": 100
-  },
-  {
-    "query": "MATCH (:GitHubUser)-[r:OUTSIDE_COLLAB_WRITE]->(:GitHubRepository) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
-    "iterative": true,
-    "iterationsize": 100
-  },
-  {
     "query": "MATCH (:GitHubUser)-[r:MEMBER_OF]->(:GitHubOrganization) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
     "iterative": true,
     "iterationsize": 100

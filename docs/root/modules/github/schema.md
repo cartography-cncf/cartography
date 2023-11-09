@@ -54,6 +54,11 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
     ```
    (GitHubRepository)-[:BRANCH]->(GitHubBranch)
     ```
+- GitHubTeams can have various levels of [access](https://docs.github.com/en/graphql/reference/enums#repositorypermission) to GitHubRepositories.
+
+  ```
+  (GitHubTeam)-[ADMIN|READ|WRITE|TRIAGE|MAINTAIN]->(GitHubRepository)
+  ```
 
 ### GitHubOrganization
 
@@ -74,6 +79,41 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
     ```
     (GitHubOrganization)-[OWNER]->(GitHubRepository)
+    ```
+
+- GitHubTeams are resources under GitHubOrganizations
+
+    ```
+    (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
+    ```
+
+
+### GitHubTeam
+
+A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/objects#team).
+
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The URL of the GitHub Team |
+| name | The name (a.k.a URL slug) of the GitHub Team |
+| description | Description of the GitHub team |
+
+
+#### Relationships
+
+- GitHubTeams can have various levels of [access](https://docs.github.com/en/graphql/reference/enums#repositorypermission) to GitHubRepositories.
+
+    ```
+    (GitHubTeam)-[ADMIN|READ|WRITE|TRIAGE|MAINTAIN]->(GitHubRepository)
+    ```
+
+- GitHubTeams are resources under GitHubOrganizations
+
+    ```
+    (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
     ```
 
 ### GitHubUser
@@ -176,3 +216,9 @@ Within a setup.cfg file, cartography will load everything from `install_requires
     ```
 
     - specifier: A string describing this library's version e.g. "<4.0,>=3.0" or "==1.0.2". This field is only present on the `:REQUIRES` edge if the repo's requirements file provided a version pin.
+
+- A Python Dependency is affected by a SemgrepSCAFinding (optional)
+
+    ```
+    (:SemgrepSCAFinding)-[:AFFECTS]->(:PythonLibrary)
+    ```

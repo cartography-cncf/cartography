@@ -26,6 +26,13 @@ def test_run_analysis_job_custom_package(mocker):
     read_text_mock.assert_called_once_with('a.b.c', 'test.json')
 
 
+def test_run_scoped_analysis_job_default_package(mocker):
+    mocker.patch('cartography.util.GraphJob')
+    read_text_mock = mocker.patch('cartography.util.read_text')
+    util.run_scoped_analysis_job('test.json', mocker.Mock(), mocker.Mock())
+    read_text_mock.assert_called_once_with('cartography.data.jobs.scoped_analysis', 'test.json')
+
+
 @patch(
     'cartography.util.backoff', Mock(
         on_exception=lambda *args, **kwargs: lambda func: func,

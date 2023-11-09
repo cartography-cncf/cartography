@@ -6,8 +6,9 @@ import boto3
 import neo4j
 
 from .util import get_botocore_config
+from cartography.graph.job import GraphJob
+from cartography.models.aws.ec2.keypairs import EC2KeyPairSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ def load_ec2_key_pairs(
 
 @timeit
 def cleanup_ec2_key_pairs(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_ec2_key_pairs_cleanup.json', neo4j_session, common_job_parameters)
+    GraphJob.from_node_schema(EC2KeyPairSchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit

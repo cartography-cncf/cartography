@@ -23,7 +23,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
         {
             url
             login
-            repositories(first: 100, after: $cursor){
+            repositories(first: 50, after: $cursor){
                 pageInfo{
                     endCursor
                     hasNextPage
@@ -59,7 +59,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                         login
                         __typename
                     }
-                    collaborators(affiliation: OUTSIDE, first: 100) {
+                    collaborators(affiliation: OUTSIDE, first: 50) {
                         edges {
                             permission
                         }
@@ -101,8 +101,14 @@ def get(token: str, api_url: str, organization: str) -> List[Dict]:
     :return: A list of dicts representing repos. See tests.data.github.repos for data shape.
     """
     # TODO: link the Github organization to the repositories
-    repos, _ = fetch_all(token, api_url, organization, GITHUB_ORG_REPOS_PAGINATED_GRAPHQL, 'repositories', 'nodes')
-    return repos
+    repos, _ = fetch_all(
+        token,
+        api_url,
+        organization,
+        GITHUB_ORG_REPOS_PAGINATED_GRAPHQL,
+        'repositories',
+    )
+    return repos.nodes
 
 
 def transform(repos_json: List[Dict]) -> Dict:
@@ -306,14 +312,13 @@ def _transform_python_requirements(
             continue
         try:
             req = Requirement(stripped_line)
+            parsed_list.append(req)
         except InvalidRequirement:
             # INFO and not WARN/ERROR as we intentionally don't support all ways to specify Python requirements
             logger.info(
                 f"Failed to parse line \"{line}\" in repo {repo_url}'s requirements.txt; skipping line.",
                 exc_info=True,
             )
-            continue
-        parsed_list.append(req)
 
     for req in parsed_list:
         pinned_version = None
@@ -539,8 +544,11 @@ def load_python_requirements(neo4j_session: neo4j.Session, update_tag: int, requ
 
 
 def sync(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict, github_api_key: str, github_url: str,
-    organization: str,
+        neo4j_session: neo4j.Session,
+        common_job_parameters: Dict[str, Any],
+        github_api_key: str,
+        github_url: str,
+        organization: str,
 ) -> None:
     """
     Performs the sequential tasks to collect, transform, and sync github data
