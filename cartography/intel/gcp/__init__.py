@@ -139,11 +139,13 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
     """
     try:
         req = serviceusage.services().list(parent=f'projects/{project_id}', filter='state:ENABLED')
-        res = req.execute()
-        if 'services' in res:
-            return {svc['config']['name'] for svc in res['services']}
-        else:
-            return set()
+        services = set()
+        while req is not None:
+            res = req.execute()
+            if 'services' in res:
+                services.update({svc['config']['name'] for svc in res['services']})
+            req = serviceusage.services().list_next(previous_request=req, previous_response=res)
+        return services
     except googleapiclient.discovery.HttpError as http_error:
         http_error = json.loads(http_error.content.decode('utf-8'))
         # This is set to log-level `info` because Google creates many projects under the hood that cartography cannot
