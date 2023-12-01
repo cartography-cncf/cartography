@@ -1706,6 +1706,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
         ```
         (LoadBalancerV2)-[EXPOSE]->(EC2Instance)
         ```
+`EXPOSE` relationshiohip also holds the protocol, port and TargetGroupArn the load balancer points to.
 
 - LoadBalancerV2's can be part of EC2SecurityGroups but only if their `type` = "application". NLBs don't have SGs.
 
