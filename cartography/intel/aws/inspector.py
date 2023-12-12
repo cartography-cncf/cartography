@@ -85,7 +85,7 @@ def transform_inspector_findings(results: List[Dict[str, Any]]) -> Tuple[List[Di
         if f['resources'][0]['type'] == "AWS_EC2_INSTANCE":
             finding['instanceid'] = f['resources'][0]['id']
         if f['resources'][0]['type'] == "AWS_ECR_CONTAINER_IMAGE":
-            finding['ecrimageid'] = f['resources'][0]['id']
+            finding['ecrimageid'] = f['resources'][0]['id'].split('/')[2]
         if f['resources'][0]['type'] == "AWS_ECR_REPOSITORY":
             finding['ecrrepositoryid'] = f['resources'][0]['id']
         if f.get('networkReachabilityDetails'):
