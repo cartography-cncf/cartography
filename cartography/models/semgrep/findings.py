@@ -32,6 +32,8 @@ class SemgrepSCAFindingNodeProperties(CartographyNodeProperties):
     dependency_file: PropertyRef = PropertyRef('dependencyFileLocation_path', extra_index=True)
     dependency_file_url: PropertyRef = PropertyRef('dependencyFileLocation_url', extra_index=True)
     scan_time: PropertyRef = PropertyRef('openedAt')
+    published_time: PropertyRef = PropertyRef('announcedAt')
+    fix_status: PropertyRef = PropertyRef('fixStatus')
 
 
 @dataclass(frozen=True)

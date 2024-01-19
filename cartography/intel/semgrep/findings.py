@@ -3,6 +3,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
+from urllib.error import HTTPError
 
 import neo4j
 import requests
@@ -20,6 +21,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 _TIMEOUT = (60, 60)
+_MAX_RETRIES = 3
 
 
 @timeit
@@ -57,6 +59,7 @@ def get_sca_vulns(semgrep_app_token: str, deployment_id: str) -> List[Dict[str, 
     has_more = True
     cursor: Dict[str, str] = {}
     page = 1
+    retries = 0
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {semgrep_app_token}",
@@ -78,16 +81,23 @@ def get_sca_vulns(semgrep_app_token: str, deployment_id: str) -> List[Dict[str, 
                     "issueOffset": cursor["issueOffset"],
                 },
             })
-
-        response = requests.post(sca_url, json=request_data, headers=headers, timeout=_TIMEOUT)
-        response.raise_for_status()
-        data = response.json()
+        try:
+            response = requests.post(sca_url, json=request_data, headers=headers, timeout=_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+        except HTTPError as e:
+            logger.warning(f"Failed to retrieve Semgrep SCA vulns for page {page}. Retrying...")
+            retries += 1
+            if retries >= _MAX_RETRIES:
+                raise e
+            continue
         vulns = data["vulns"]
         cursor = data.get("cursor")
         has_more = data.get("hasMore", False)
-        all_vulns.extend(vulns)
         if page % 10 == 0:
             logger.info(f"Processed {page} pages of Semgrep SCA vulnerabilities so far.")
+        all_vulns.extend(vulns)
+        retries = 0
 
     return all_vulns
 
@@ -128,6 +138,8 @@ def transform_sca_vulns(raw_vulns: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
         if vuln["advisory"].get("references", {}).get("urls", []):
             sca_vuln["ref_urls"] = vuln["advisory"].get("references", {}).get("urls", [])
         sca_vuln["openedAt"] = vuln.get("openedAt", None)
+        sca_vuln["announcedAt"] = vuln.get("announcedAt", None)
+        sca_vuln["fixStatus"] = vuln["triage"]["status"]
         for usage in vuln.get("usages", []):
             usage_dict = {}
             usage_dict["SCA_ID"] = sca_vuln["id"]
