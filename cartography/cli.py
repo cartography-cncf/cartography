@@ -336,9 +336,9 @@ class CLI:
         parser.add_argument(
             '--nist-cve-url',
             type=str,
-            default='https://nvd.nist.gov/feeds/json/cve/1.1',
+            default='https://services.nvd.nist.gov/rest/json/cves/2.0/',
             help=(
-                'The base url for the NIST CVE data. Default = https://nvd.nist.gov/feeds/json/cve/1.1'
+                'The base url for the NIST CVE data. Default = https://services.nvd.nist.gov/rest/json/cves/2.0/'
             ),
         )
         parser.add_argument(
@@ -346,6 +346,14 @@ class CLI:
             action='store_true',
             help=(
                 'If set, CVE data will be synced from NIST.'
+            ),
+        )
+        parser.add_argument(
+            '--cve-api-key-env-var',
+            type=str,
+            default=None,
+            help=(
+                'If set, uses the provided NIST NVD API v2.0 key.'
             ),
         )
         parser.add_argument(
@@ -684,6 +692,13 @@ class CLI:
             config.semgrep_app_token = os.environ.get(config.semgrep_app_token_env_var)
         else:
             config.semgrep_app_token = None
+
+        # CVE feed config
+        if config.cve_api_key_env_var:
+            logger.debug(f"Reading NVD CVE API key environment variable {config.cve_api_key_env_var}")
+            config.cve_api_key = os.environ.get(config.cve_api_key_env_var)
+        else:
+            config.cve_api_key = None
 
         # Run cartography
         try:

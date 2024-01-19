@@ -146,6 +146,7 @@ class Config:
         pagerduty_request_timeout=None,
         nist_cve_url=None,
         cve_enabled=False,
+        cve_api_key=None,
         crowdstrike_client_id=None,
         crowdstrike_client_secret=None,
         crowdstrike_api_url=None,
@@ -198,6 +199,7 @@ class Config:
         self.pagerduty_request_timeout = pagerduty_request_timeout
         self.nist_cve_url = nist_cve_url
         self.cve_enabled = cve_enabled
+        self.cve_api_key = cve_api_key
         self.crowdstrike_client_id = crowdstrike_client_id
         self.crowdstrike_client_secret = crowdstrike_client_secret
         self.crowdstrike_api_url = crowdstrike_api_url
