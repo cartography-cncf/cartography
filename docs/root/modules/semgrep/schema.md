@@ -58,6 +58,8 @@ Represents a [Semgre Supply Chain](https://semgrep.dev/docs/semgrep-supply-chain
 | dependency_file | Path of the file where the finding was discovered (e.g. lock.json, requirements.txt) |
 | dependency_file_url | URL of the file where the finding was discovered |
 | scan_time | Date and time when the finding was discovered in UTC |
+| published_time | Date and time when the finding reference (CVE or GHSA) was published in UTC |
+| fix_status | Whether the finding is fixed or not based on triage (e.g. UNKNOWN_STATUS, NEW, IN_PROGRESS, IGNORED, CLOSED) |
 
 
 #### Relationships
