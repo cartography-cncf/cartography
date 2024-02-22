@@ -2,7 +2,7 @@
 
 .. _cartography-installation:
 
-Time to set up the server that will run Cartography.  Cartography _should_ work on both Linux and Windows servers, but bear in mind we've only tested it in Linux so far.  Cartography supports Python 3.8. Older versions of Python may work but are not explicitly supported.
+Time to set up the server that will run Cartography.  Cartography _should_ work on both Linux and Windows servers, but bear in mind we've only tested it in Linux so far.  Cartography supports Python 3.10. Older versions of Python may work but are not explicitly supported.
 
 1. **Run the Neo4j graph database version 4.x** on your server.
 

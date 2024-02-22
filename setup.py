@@ -1,7 +1,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
-__version__ = '0.89.0'
+__version__ = '0.90.0rc1'
 
 
 setup(
@@ -83,7 +83,7 @@ setup(
         'Natural Language :: English',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.10',
         'Topic :: Security',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',

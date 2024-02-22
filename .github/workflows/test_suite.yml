@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v3
         with:
-          python-version: "3.8"
+          python-version: "3.10"
       - uses: pre-commit/action@v3.0.0
         with:
           extra_args: --all-files --show-diff-on-failure
@@ -38,7 +38,7 @@ jobs:
             neo4j:4.4-community
       - uses: actions/setup-python@v2
         with:
-          python-version: "3.8"
+          python-version: "3.10"
       # Cache our pip dir for efficiency; see https://medium.com/ai2-blog/python-caching-in-github-actions-e9452698e98d.
       - uses: actions/cache@v2
         with:
@@ -72,7 +72,7 @@ jobs:
             neo4j:5
       - uses: actions/setup-python@v2
         with:
-          python-version: "3.8"
+          python-version: "3.10"
       # Cache our pip dir for efficiency; see https://medium.com/ai2-blog/python-caching-in-github-actions-e9452698e98d.
       - uses: actions/cache@v2
         with:
