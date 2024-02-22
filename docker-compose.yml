@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   neo4j:
-    image: neo4j:4.4.36-community@sha256:aabffcd90de6b6b870c88de952cd626874cb1e13adec5c9b50915077870eeee4
+    image: neo4j:4.4.5-community@sha256:ae01da5496ce89f582df09e7331dc079f247ea524a93dad2047a92418dc920fa
     restart: unless-stopped
     ports:
       - 7474:7474
@@ -36,7 +36,7 @@ services:
   cartography:
     # As seen in docs, we build with `cd /path/to/cartography && docker build -t lyft/cartography .`
     # and then run with `docker-compose up -d`.
-    image: lyft/cartography@sha256:d9f260e2f8841c8dc03737ef34dc91190afd9698069d05d940a65b6ea1ca4606
+    image: lyft/cartography
     # EXAMPLE: Our ENTRYPOINT is cartography, running specific command to sync AWS
     # command: ["-v", "--neo4j-uri=bolt://neo4j:7687", "--aws-sync-all-profiles"]
     user: cartography
