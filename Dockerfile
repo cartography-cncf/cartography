@@ -4,11 +4,11 @@ WORKDIR /srv/cartography
 
 ENV PATH=/venv/bin:$PATH
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3.8-dev python3-pip python3-setuptools openssl libssl-dev gcc pkg-config libffi-dev libxml2-dev libxmlsec1-dev curl make git && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3.10-dev python3-pip python3-setuptools openssl libssl-dev gcc pkg-config libffi-dev libxml2-dev libxmlsec1-dev curl make git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Installs pip supported by python3.8
+# Installs pip supported by python3.10
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python3.10 get-pip.py
 
 # Create cartography user so that we can give it ownership of the directory later for unit&integ tests
