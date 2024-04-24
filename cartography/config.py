@@ -69,6 +69,12 @@ class Config:
     :param jamf_user: User name used to authenticate to the Jamf data provider. Optional.
     :type jamf_password: string
     :param jamf_password: Password used to authenticate to the Jamf data provider. Optional.
+    :type kandji_base_uri: string
+    :param kandji_base_uri: Kandji data provider base URI, e.g. https://company.api.kandji.io. Optional.
+    :type kandji_tenant_id: string
+    :param kandji_tenant_id: Kandji tenant id. e.g. company Optional.
+    :type kandji_token: string
+    :param kandji_token: Token used to authenticate to the Kandji data provider. Optional.
     :type statsd_enabled: bool
     :param statsd_enabled: Whether to collect statsd metrics such as sync execution times. Optional.
     :type statsd_host: str
@@ -137,6 +143,9 @@ class Config:
         jamf_base_uri=None,
         jamf_user=None,
         jamf_password=None,
+        kandji_base_uri=None,
+        kandji_tenant_id=None,
+        kandji_token=None,
         k8s_kubeconfig=None,
         statsd_enabled=False,
         statsd_prefix=None,
@@ -190,6 +199,9 @@ class Config:
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password
+        self.kandji_base_uri = kandji_base_uri
+        self.kandji_tenant_id = kandji_tenant_id
+        self.kandji_token = kandji_token
         self.k8s_kubeconfig = k8s_kubeconfig
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
