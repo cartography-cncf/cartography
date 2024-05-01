@@ -772,9 +772,5 @@ def main(argv=None):
     :rtype: int
     :return: The return code.
     """
-    logging.basicConfig(level=logging.INFO)
-    logging.getLogger('botocore').setLevel(logging.WARNING)
-    logging.getLogger('googleapiclient').setLevel(logging.WARNING)
-    logging.getLogger('neo4j').setLevel(logging.WARNING)
     argv = argv if argv is not None else sys.argv[1:]
     sys.exit(CLI(prog='cartography').main(argv))
