@@ -19,6 +19,8 @@ class Config:
     :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
     settings to infer which database is set to default.
     See https://neo4j.com/docs/api/python-driver/4.4/api.html#database. Optional.
+    :type logging_config: str
+    :param logging_config: Path to the file containing logging configuration.
     :type selected_modules: str
     :param selected_modules: Comma-separated list of cartography top-level modules to sync. Optional.
     :type update_tag: int
@@ -120,6 +122,7 @@ class Config:
         neo4j_password=None,
         neo4j_max_connection_lifetime=None,
         neo4j_database=None,
+        logging_config=None,
         selected_modules=None,
         update_tag=None,
         aws_sync_all_profiles=False,
@@ -176,6 +179,7 @@ class Config:
         self.neo4j_password = neo4j_password
         self.neo4j_max_connection_lifetime = neo4j_max_connection_lifetime
         self.neo4j_database = neo4j_database
+        self.logging_config - logging_config
         self.selected_modules = selected_modules
         self.update_tag = update_tag
         self.aws_sync_all_profiles = aws_sync_all_profiles

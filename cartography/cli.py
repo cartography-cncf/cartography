@@ -1,6 +1,7 @@
 import argparse
 import getpass
 import logging
+import logging.config
 import os
 import sys
 from typing import Optional
@@ -109,6 +110,14 @@ class CLI:
                 'The name of the database in Neo4j to connect to. If not specified, uses the config settings of your '
                 'Neo4j database itself to infer which database is set to default. '
                 'See https://neo4j.com/docs/api/python-driver/4.4/api.html#database.'
+            ),
+        )
+        parser.add_argument(
+            '--logging-config',
+            type=str,
+            default=None,
+            help=(
+                'Path to file containing Python logging configuration'
             ),
         )
         parser.add_argument(
