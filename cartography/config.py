@@ -179,7 +179,7 @@ class Config:
         self.neo4j_password = neo4j_password
         self.neo4j_max_connection_lifetime = neo4j_max_connection_lifetime
         self.neo4j_database = neo4j_database
-        self.logging_config - logging_config
+        self.logging_config = logging_config
         self.selected_modules = selected_modules
         self.update_tag = update_tag
         self.aws_sync_all_profiles = aws_sync_all_profiles
