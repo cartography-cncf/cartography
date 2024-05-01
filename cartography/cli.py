@@ -562,6 +562,9 @@ class CLI:
         # TODO support parameter lookup in environment variables if not present on command line
         config: argparse.Namespace = self.parser.parse_args(argv)
         # Logging config
+        if config.logging_config:
+            logging.config.fileConfig(config.logging_config)
+            logger.info("Using logging config from %s", config.logging_config)
         if config.verbose:
             logging.getLogger('cartography').setLevel(logging.DEBUG)
         elif config.quiet:
