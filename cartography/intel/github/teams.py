@@ -57,10 +57,13 @@ def _get_team_repos_for_multiple_teams(
 
         team_repos = _get_team_repos(org, api_url, token, team_name) if repo_count > 0 else None
 
-        # Shape = [(repo_url, 'WRITE'), ...]]
-        repo_urls = [t['url'] for t in team_repos.nodes] if team_repos else []
-        repo_permissions = [t['permission'] for t in team_repos.edges] if team_repos else []
+        repo_urls = []
+        repo_permissions = []
+        if team_repos:
+            repo_urls = [t['url'] for t in team_repos.nodes] if team_repos.nodes else []
+            repo_permissions = [t['permission'] for t in team_repos.edges] if team_repos.edges else []
 
+        # Shape = [(repo_url, 'WRITE'), ...]]
         result[team_name] = list(zip(repo_urls, repo_permissions))
     return result
 
