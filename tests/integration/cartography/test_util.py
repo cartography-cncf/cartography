@@ -35,7 +35,8 @@ def test_merge_module_sync_metadata(mock_stat_incr, neo4j_session):
         stat_handler=stat_handler,
     )
     # Assert
-    nodes = neo4j_session.run(f"""
+    nodes = neo4j_session.run(
+        f"""
         MATCH (m:ModuleSyncMetadata{{id:'AWSAccount_{TEST_ACCOUNT_ID}_S3Bucket'}})
         RETURN
             m.id,
@@ -43,7 +44,8 @@ def test_merge_module_sync_metadata(mock_stat_incr, neo4j_session):
             m.grouptype,
             m.groupid,
             m.lastupdated
-    """)
+    """,
+    )
     # Assert
     actual_nodes = {
         (
