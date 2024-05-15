@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   neo4j:
-    image: neo4j:4.4.34-community@sha256:eb37f58646a901dc7727cf448cae36daaefaba79de33b5058dab79aa4c04aefb
+    image: neo4j:4.4.34-community@sha256:fd2558ef6a2ed0bff579f19c0100e59b67e2db254a31427ce37e31c934586f32
     restart: unless-stopped
     ports:
       - 7474:7474
