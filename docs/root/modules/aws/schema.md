@@ -555,6 +555,12 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSRole)-[TRUSTS_AWS_PRINCIPAL]->(AWSPrincipal)
     ```
 
+- Members of an Okta group can assume associated AWS roles if Okta SAML is configured with AWS.
+
+    ```
+    (AWSRole)-[ALLOWED_BY]->(OktaGroup)
+    ```
+
 - AWS Roles are defined in AWS Accounts.
 
     ```
