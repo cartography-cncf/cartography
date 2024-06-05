@@ -1,4 +1,4 @@
-FROM ubuntu:focal@sha256:e4c02475c7c9c43f8f5bf595d5260a84e1b44e49d9c5ece6d3e5dc6a0a5835a0
+FROM ubuntu:focal@sha256:0b897358ff6624825fb50d20ffb605ab0eaea77ced0adb8c6a4b756513dec6fc
 
 WORKDIR /srv/cartography
 
