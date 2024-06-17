@@ -6,6 +6,7 @@ import neo4j
 
 from .util import get_botocore_config
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.models.aws.ec2.launch_template_versions import LaunchTemplateVersionSchema
 from cartography.models.aws.ec2.launch_templates import LaunchTemplateSchema
 from cartography.util import aws_handle_regions
@@ -115,6 +116,16 @@ def load_launch_template_versions(
 
 
 @timeit
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+    logger.info("Running launch template cleanup job.")
+    cleanup_job = GraphJob.from_node_schema(LaunchTemplateSchema(), common_job_parameters)
+    cleanup_job.run(neo4j_session)
+
+    cleanup_job = GraphJob.from_node_schema(LaunchTemplateVersionSchema(), common_job_parameters)
+    cleanup_job.run(neo4j_session)
+
+
+@timeit
 def sync_ec2_launch_templates(
         neo4j_session: neo4j.Session,
         boto3_session: boto3.session.Session,
@@ -132,3 +143,5 @@ def sync_ec2_launch_templates(
         versions = get_launch_template_versions(boto3_session, templates, region)
         versions = transform_launch_template_versions(versions)
         load_launch_template_versions(neo4j_session, versions, region, current_aws_account_id, update_tag)
+
+    cleanup(neo4j_session, common_job_parameters)
