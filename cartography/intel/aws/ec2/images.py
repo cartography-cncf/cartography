@@ -51,6 +51,7 @@ def get_images(boto3_session: boto3.session.Session, region: str, image_ids: Lis
         logger.warning(f"Failed retrieve images for region - {region}. Error - {e}")
     try:
         if image_ids:
+            image_ids = [image_id for image_id in image_ids if image_id is not None]
             images_in_use = client.describe_images(ImageIds=image_ids)['Images']
             # Ensure we're not adding duplicates
             _ids = [image["ImageId"] for image in images]
