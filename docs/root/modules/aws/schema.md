@@ -2875,6 +2875,12 @@ Representation of an AWS [Launch Template Version](https://docs.aws.amazon.com/A
         (AWSAccount)-[RESOURCE]->(LaunchTemplateVersion)
         ```
 
+- Launch templates have Launch Template Versions
+
+        ```
+        (LaunchTemplate)-[VERSION]->(LaunchTemplateVersion)
+        ```
+
 ### ElasticIPAddress
 
 Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Address.html)
