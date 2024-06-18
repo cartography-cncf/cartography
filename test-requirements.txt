@@ -3,6 +3,8 @@ pre-commit
 pytest>=6.2.4
 pytest-mock
 pytest-cov==2.10.0
+# To avoid flaky integration tests
+pytest-rerunfailures
 
 types-PyYAML
 types-requests<2.31.0.7
