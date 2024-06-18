@@ -1,6 +1,6 @@
 import cartography.intel.aws.ec2
 import tests.data.aws.ec2.subnets
-
+from tests.integration.util import check_nodes
 
 TEST_ACCOUNT_ID = '000000000000'
 TEST_REGION = 'eu-north-1'
@@ -16,21 +16,21 @@ def test_load_subnets(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-
-    expected_nodes = {
-        "arn:aws:ec2:eu-north-1:000000000000:subnet/subnet-0773409557644dca4",
-        "arn:aws:ec2:eu-north-1:000000000000:subnet/subnet-020b2f3928f190ce8",
-        "arn:aws:ec2:eu-north-1:000000000000:subnet/subnet-0fa9c8fa7cb241479",
+    # Assert that we create EC2Subnet nodes and correctly include their subnetid field
+    assert check_nodes(neo4j_session, 'EC2Subnet', ['subnetid', 'subnet_arn']) == {
+        (
+            'subnet-020b2f3928f190ce8',
+            'arn:aws:ec2:eu-north-1:000000000000:subnet/subnet-020b2f3928f190ce8',
+        ),
+        (
+            'subnet-0773409557644dca4',
+            'arn:aws:ec2:eu-north-1:000000000000:subnet/subnet-0773409557644dca4',
+        ),
+        (
+            'subnet-0fa9c8fa7cb241479',
+            'arn:aws:ec2:eu-north-1:000000000000:subnet/subnet-0fa9c8fa7cb241479',
+        ),
     }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (s:EC2Subnet) RETURN s.subnet_arn;
-        """,
-    )
-    actual_nodes = {n['s.subnet_arn'] for n in nodes}
-
-    assert actual_nodes == expected_nodes
 
 
 def test_load_subnet_relationships(neo4j_session):
