@@ -11,6 +11,7 @@ List of community members who have shown they are committed to Cartography's con
 - Marco Lancini (https://github.com/marco-lancini): Deployment and use-cases
 - Kedar Ghule (https://github.com/kedarghule): Plugin development
 - Purusottam Mupunu (https://https://github.com/mpurusottamc): Deployment and use-cases
+- Chandan Chowdhury (https://github.com/chandanchowdhury): Plugin development
 
 
 ## Friends of Cartography
