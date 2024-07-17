@@ -225,7 +225,7 @@ If not, then the AWS datatype somehow does not have this key.''',
     return items
 
 
-AWSGetFunc = TypeVar('AWSGetFunc', bound=Callable[..., List])
+AWSGetFunc = TypeVar('AWSGetFunc', bound=Callable[..., Iterable])
 
 # fix for AWS TooManyRequestsException
 # https://github.com/lyft/cartography/issues/297

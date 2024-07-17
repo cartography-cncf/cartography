@@ -1,3 +1,11 @@
+from unittest.mock import patch
+
+import boto3
+from botocore.exceptions import ClientError
+from moto import mock_aws
+
+import cartography.intel.aws.ec2.launch_templates
+from cartography.intel.aws.ec2.launch_templates import get_launch_templates
 from cartography.intel.aws.ec2.launch_templates import load_launch_template_versions
 from cartography.intel.aws.ec2.launch_templates import load_launch_templates
 from cartography.intel.aws.ec2.launch_templates import transform_launch_template_versions
@@ -9,6 +17,48 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = '000000000000'
 TEST_REGION = 'us-east-1'
 TEST_UPDATE_TAG = 123456789
+
+
+@mock_aws(config={'core': {'reset_boto3_session': True, 'mock_credentials': True}})
+@patch.object(
+    cartography.intel.aws.ec2.launch_templates,
+    'get_launch_template_versions_by_template',
+)
+def test_get_launch_template_throws_exception(mock_get_template_versions, *args):
+    # Arrange
+    template_data = {
+        "ImageId": "ami-abc123",
+        "TagSpecifications": [
+            {
+                "ResourceType": "instance", "Tags": [
+                    {"Key": "eks:cluster-name", "Value": "eks-cluster-example"},
+                    {"Key": "eks:nodegroup-name", "Value": "private-node-group-example"},
+                ],
+            },
+        ],
+        "SecurityGroupIds": ["sg-1234"],
+    }
+    client = boto3.client('ec2', region_name=TEST_REGION)
+    mock_template = client.create_launch_template(
+        LaunchTemplateName='eks-00000000-0000-0000-0000-000000000000',
+        LaunchTemplateData=template_data,
+    )
+    template_id = mock_template['LaunchTemplate']['LaunchTemplateId']
+    error_response = {
+        "Error": {
+            "Code": "InvalidLaunchTemplateId.NotFound",
+            "Message": f"The specified launch template, with template ID {template_id}, does not exist.",
+        },
+    }
+    mock_get_template_versions.side_effect = ClientError(error_response, "DescribeLaunchTemplateVersions")
+    session = boto3.Session(region_name=TEST_REGION)
+    # Act: get the launch template versions
+
+    templates, versions = get_launch_templates(session, TEST_REGION)
+
+    # Assert: the launch template versions are as expected
+    assert len(templates) == 1
+    assert len(versions) == 0
 
 
 def test_load_launch_templates(neo4j_session, *args):
