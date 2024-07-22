@@ -1,4 +1,6 @@
 import logging
+from collections import namedtuple
+from time import sleep
 from typing import Any
 from typing import Dict
 from typing import List
@@ -14,6 +16,8 @@ from cartography.models.github.teams import GitHubTeamSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+RepoPermission = namedtuple('RepoPermission', ['repo_url', 'permission'])
 
 
 @timeit
@@ -45,26 +49,53 @@ def get_teams(org: str, api_url: str, token: str) -> Tuple[PaginatedGraphqlData,
 
 @timeit
 def _get_team_repos_for_multiple_teams(
-        team_raw_data: List[Dict[str, Any]],
+        team_raw_data: list[dict[str, Any]],
         org: str,
         api_url: str,
         token: str,
-) -> Dict[str, Any]:
-    result = {}
+) -> dict[str, list[RepoPermission]]:
+    result: dict[str, list[RepoPermission]] = {}
     for team in team_raw_data:
         team_name = team['slug']
         repo_count = team['repositories']['totalCount']
 
-        team_repos = _get_team_repos(org, api_url, token, team_name) if repo_count > 0 else None
+        if repo_count == 0:
+            # This team has access to no repos so let's move on
+            result[team_name] = []
+            continue
 
         repo_urls = []
         repo_permissions = []
-        if team_repos:
-            repo_urls = [t['url'] for t in team_repos.nodes] if team_repos.nodes else []
-            repo_permissions = [t['permission'] for t in team_repos.edges] if team_repos.edges else []
+
+        max_tries = 5
+
+        for current_try in range(1, max_tries + 1):
+            team_repos = _get_team_repos(org, api_url, token, team_name)
+
+            try:
+                # The `or []` is because `.nodes` can be None. See:
+                # https://docs.github.com/en/graphql/reference/objects#teamrepositoryconnection
+                for repo in team_repos.nodes or []:
+                    repo_urls.append(repo['url'])
+
+                # The `or []` is because `.edges` can be None.
+                for edge in team_repos.edges or []:
+                    repo_permissions.append(edge['permission'])
+                # We're done! Break out of the retry loop.
+                break
+
+            except TypeError:
+                # Handles issue #1334
+                logger.warning(
+                    f"GitHub returned None when trying to find repo or permission data for team {team_name}.",
+                    exc_info=True,
+                )
+                if current_try == max_tries:
+                    raise RuntimeError(f"GitHub returned a None repo url for team {team_name}, retries exhausted.")
+                sleep(current_try ** 2)
 
         # Shape = [(repo_url, 'WRITE'), ...]]
-        result[team_name] = list(zip(repo_urls, repo_permissions))
+        result[team_name] = [RepoPermission(url, perm) for url, perm in zip(repo_urls, repo_permissions)]
     return result
 
 
@@ -114,8 +145,8 @@ def _get_team_repos(org: str, api_url: str, token: str, team: str) -> PaginatedG
 def transform_teams(
         team_paginated_data: PaginatedGraphqlData,
         org_data: Dict[str, Any],
-        team_repo_data: Dict[str, Any],
-) -> List[Dict[str, Any]]:
+        team_repo_data: dict[str, list[RepoPermission]],
+) -> list[dict[str, Any]]:
     result = []
     for team in team_paginated_data.nodes:
         team_name = team['slug']
