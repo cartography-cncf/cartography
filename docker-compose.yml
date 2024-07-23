@@ -36,7 +36,7 @@ services:
   cartography:
     # As seen in docs, we build with `cd /path/to/cartography && docker build -t lyft/cartography .`
     # and then run with `docker-compose up -d`.
-    image: lyft/cartography@sha256:13c8b17c9bba6339c57587e487bed17914dd57c321e605e051fc08c1d6e219ff
+    image: lyft/cartography@sha256:2fc594f63bcbcc640f38cefb1c3d194acd47195aec0b8f956fe7344fa0b21f53
     # EXAMPLE: Our ENTRYPOINT is cartography, running specific command to sync AWS
     # command: ["-v", "--neo4j-uri=bolt://neo4j:7687", "--aws-sync-all-profiles"]
     user: cartography
