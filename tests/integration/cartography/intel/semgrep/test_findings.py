@@ -10,9 +10,9 @@ from cartography.intel.semgrep.findings import sync
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_REPO_ID = "https://github.com/yourorg/yourrepo"
-TEST_REPO_FULL_NAME = "yourorg/yourrepo"
-TEST_REPO_NAME = "yourrepo"
+TEST_REPO_ID = "https: //github.com/org/repository"
+TEST_REPO_FULL_NAME = "org/repository"
+TEST_REPO_NAME = "repository"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -59,7 +59,7 @@ def _create_dependency_nodes(neo4j_session):
         ON CREATE SET dep.firstseen = timestamp()
         SET dep.lastupdated = $update_tag
         """,
-        dep_id="grav|1.7.42.0",
+        dep_id="moment|2.29.2",
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -72,7 +72,7 @@ def _create_cve_nodes(neo4j_session):
         ON CREATE SET cve.firstseen = timestamp()
         SET cve.lastupdated = $update_tag
         """,
-        cve_id="CVE-2023-37897",
+        cve_id="CVE-2022-31129",
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -106,7 +106,7 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         neo4j_session,
         "SemgrepDeployment",
         ["id", "name", "slug"],
-    ) == {("123456", "YourOrg", "yourorg")}
+    ) == {("123456", "Org", "org")}
 
     assert _check_nodes_as_list(
         neo4j_session,
@@ -115,6 +115,7 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "id",
             "lastupdated",
             "repository",
+            "branch",
             "rule_id",
             "summary",
             "description",
@@ -132,27 +133,27 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "scan_time",
         ],
     ) == [
-        "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+        tests.data.semgrep.sca.VULN_ID,
         TEST_UPDATE_TAG,
-        "yourorg/yourrepo",
-        "ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590",
-        "Reachable vuln",
+        "org/repository",
+        "main",
+        "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
+        "moment:Denial-of-Service (DoS)",
         "description",
-        "go",
+        "npm",
         "HIGH",
-        "CVE-2023-37897",
-        "MANUAL_REVIEW_REACHABLE",
+        "CVE-2022-31129",
+        "REACHABLE",
         "REACHABLE",
         "DIRECT",
-        "grav|1.7.42.0",
-        "grav|1.7.42.2",
-        "go.mod",
-        "https://github.com/yourorg/yourrepo/blame/71bbed12f950de8335006d7f91112263d8504f1b/go.mod#L111",
+        "moment|2.29.2",
+        "moment|2.29.4",
+        "package-lock.json",
+        "https: //github.com/org/repository/blob/commit_id/package-lock.json#L14373",
         [
-            "https://github.com/advisories//GHSA-9436-3gmp-4f53",
-            "https://nvd.nist.gov/vuln/detail/CVE-2023-37897",
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-31129",
         ],
-        "2023-07-19T12:51:53Z",
+        "2024-07-11T20:46:25.269650Z",
     ]
 
     assert check_nodes(
@@ -169,22 +170,13 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         ],
     ) == {
         (
-            "20128504",
-            "src/packages/directory/file1.go",
-            "24",
-            "57",
-            "24",
-            "78",
-            "https://github.com/yourorg/yourrepo/blame/6fdee8f2727f4506cfbbe553e23b895e27956588/src/packages/directory/file1.go.ts#L24",  # noqa E501
-        ),
-        (
-            "20128505",
-            "src/packages/directory/file2.go",
-            "24",
-            "37",
-            "24",
-            "54",
-            "https://github.com/yourorg/yourrepo/blame/6fdee8f2727f4506cfbbe553e23b895e27956588/src/packages/directory/file2.go.ts#L24",  # noqa E501
+            tests.data.semgrep.sca.USAGE_ID,
+            "src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx",
+            274,
+            37,
+            274,
+            62,
+            "https: //github.com/org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
         ),
     }
 
@@ -198,7 +190,7 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     ) == {
         (
             "123456",
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+            tests.data.semgrep.sca.VULN_ID,
         ),
     }
 
@@ -212,11 +204,7 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     ) == {
         (
             "123456",
-            "20128504",
-        ),
-        (
-            "123456",
-            "20128505",
+            tests.data.semgrep.sca.USAGE_ID,
         ),
     }
 
@@ -230,8 +218,8 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         rel_direction_right=False,
     ) == {
         (
-            "yourorg/yourrepo",
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+            "org/repository",
+            tests.data.semgrep.sca.VULN_ID,
         ),
     }
 
@@ -244,12 +232,8 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         "USAGE_AT",
     ) == {
         (
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
-            "20128504",
-        ),
-        (
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
-            "20128505",
+            tests.data.semgrep.sca.VULN_ID,
+            tests.data.semgrep.sca.USAGE_ID,
         ),
     }
 
@@ -262,8 +246,8 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         "AFFECTS",
     ) == {
         (
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
-            "grav|1.7.42.0",
+            tests.data.semgrep.sca.VULN_ID,
+            "moment|2.29.2",
         ),
     }
 
@@ -276,8 +260,8 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         "LINKED_TO",
     ) == {
         (
-            "CVE-2023-37897",
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+            "CVE-2022-31129",
+            tests.data.semgrep.sca.VULN_ID,
         ),
     }
 
@@ -293,10 +277,10 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         ],
     ) == {
         (
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+            tests.data.semgrep.sca.VULN_ID,
             "REACHABLE",
-            "MANUAL_REVIEW_REACHABLE",
+            "REACHABLE",
             "HIGH",
-            "MEDIUM",
+            "HIGH",
         ),
     }

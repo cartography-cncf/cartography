@@ -1,120 +1,97 @@
 DEPLOYMENTS = {
     "id": "123456",
-    "name": "YourOrg",
-    "slug": "yourorg",
+    "name": "Org",
+    "slug": "org",
 }
+VULN_ID = 73537136
+USAGE_ID = hash(
+    "org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",
+)
 
 SCA_RESPONSE = {
-    "vulns": [
+    "findings": [
         {
-            "title": "Reachable vuln",
-            "advisory": {
-                "ruleId": "ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590",
-                "title": "Reachable vuln",
-                "description": "description",
-                "ecosystem": "go",
-                "severity": "HIGH",
-                "references": {
-                    "cveIds": ["CVE-2023-37897"],
-                    "cweIds": ["CWE-617: Reachable Assertion"],
-                    "owaspIds": ["A06:2021 - Vulnerable and Outdated Components"],
-                    "urls": [
-                        "https://github.com/advisories//GHSA-9436-3gmp-4f53",
-                        "https://nvd.nist.gov/vuln/detail/CVE-2023-37897",
-                    ],
-                },
-                "announcedAt": "2023-07-19T21:15:08Z",
-                "ruleText": '{\n  "id": "ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590",\n  "languages": [\n    "python",\n    "java",\n    "ruby"\n  ],\n  "message": "message ",\n }',  # noqa E501
-                "reachability": "MANUAL_REVIEW_REACHABLE",
-                "vulnerableDependencies": [
-                    {"name": "grav", "versionSpecifier": "<  1.7.42.1"},
+            "id": VULN_ID,
+            "ref": "main",
+            "syntactic_id": "91f6bebf5c374b3db9ae6b0afeb8ba4f",
+            "match_based_id": "cf89274a455b0f7dae15d218af143cf317fb9886d12f3dcbe0e37cad02d0d29411cecb9a2c3fedc9e973de",
+            "repository": {
+                "name": "org/repository",
+                "url": "https: //github.com/org/repository",
+            },
+            "line_of_code_url": "https: //github.com/org/repository/blob/71bbed12f950de8335006d7f91112263d8504f1b/src/packages/components/AccountsTable/constants.tsx#L274",  # noqa E501
+            "first_seen_scan_id": 30469982,
+            "state": "unresolved",
+            "triage_state": "untriaged",
+            "status": "open",
+            "confidence": "high",
+            "created_at": "2024-07-11T20:46:25.269650Z",
+            "relevant_since": "2024-07-11T20:46:25.268845Z",
+            "rule_name": "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
+            "rule_message": "description",
+            "location": {
+                "file_path": "src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx",
+                "line": 274,
+                "column": 37,
+                "end_line": 274,
+                "end_column": 62,
+            },
+            "triaged_at": None,
+            "triage_comment": None,
+            "triage_reason": None,
+            "state_updated_at": None,
+            "categories": ["security"],
+            "rule": {
+                "name": "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
+                "message": "description",
+                "confidence": "high",
+                "category": "security",
+                "subcategories": [],
+                "vulnerability_classes": ["Denial-of-Service (DoS)"],
+                "cwe_names": [
+                    "CWE-1333: Inefficient Regular Expression Complexity",
+                    "CWE-400: Uncontrolled Resource Consumption",
                 ],
-                "safeDependencies": [
-                    {"name": "grav", "versionSpecifier": "1.7.42.2"},
-                ],
-                "reachableIf": "a non-administrator, user account that has Admin panel access and Create/Update page permissions",  # noqa E501
+                "owasp_names": ["A06: 2021 - Vulnerable and Outdated Components"],
             },
-            "exposureType": "REACHABLE",
-            "repositoryId": "123456",
-            "matchedDependency": {"name": "grav", "versionSpecifier": "1.7.42.0"},
-            "dependencyFileLocation": {
-                "path": "go.mod",
-                "startLine": "111",
-                "url": "https://github.com/yourorg/yourrepo/blame/71bbed12f950de8335006d7f91112263d8504f1b/go.mod#L111",
-                "startCol": "0",
-                "endLine": "0",
-                "endCol": "0",
+            "severity": "high",
+            "vulnerability_identifier": "CVE-2022-31129",
+            "reachability": "reachable",
+            "reachable_condition": None,
+            "found_dependency": {
+                "package": "moment",
+                "version": "2.29.2",
+                "ecosystem": "npm",
+                "transitivity": "direct",
+                "lockfile_line_url": "https: //github.com/org/repository/blob/commit_id/package-lock.json#L14373",
             },
-            "usages": [
-                {
-                    "findingId": "20128504",
-                    "location": {
-                        "path": "src/packages/directory/file1.go",
-                        "startLine": "24",
-                        "startCol": "57",
-                        "endLine": "24",
-                        "endCol": "78",
-                        "url": "https://github.com/yourorg/yourrepo/blame/6fdee8f2727f4506cfbbe553e23b895e27956588/src/packages/directory/file1.go.ts#L24",  # noqa E501
-                        "committedAt": "1970-01-01T00:00:00Z",
-                    },
+            "fix_recommendations": [{"package": "moment", "version": "2.29.4"}],
+            "usage": {
+                "location": {
+                    "path": "src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx",
+                    "start_line": 274,
+                    "start_col": 37,
+                    "end_line": 274,
+                    "end_col": 62,
+                    "url": "https: //github.com/org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
                 },
-                {
-                    "findingId": "20128505",
-                    "location": {
-                        "path": "src/packages/directory/file2.go",
-                        "startLine": "24",
-                        "startCol": "37",
-                        "endLine": "24",
-                        "endCol": "54",
-                        "url": "https://github.com/yourorg/yourrepo/blame/6fdee8f2727f4506cfbbe553e23b895e27956588/src/packages/directory/file2.go.ts#L24",  # noqa E501
-                        "committedAt": "1970-01-01T00:00:00Z",
-                    },
-                },
-            ],
-            "triage": {
-                "status": "NEW",
-                "dismissReason": "UNKNOWN_REASON",
-                "issueUrl": "",
-                "prUrl": "",
+                "external_ticket": None,
             },
-            "groupKey": "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
-            "closestSafeDependency": {"name": "grav", "versionSpecifier": "1.7.42.2"},
-            "repositoryName": "yourorg/yourrepo",
-            "openedAt": "2023-07-19T12:51:53Z",
-            "firstTriagedAt": "1970-01-01T00:00:00Z",
-            "transitivity": "DIRECT",
-            "subdirectory": "",
-            "packageManager": "no_package_manager",
         },
     ],
-    "hasMore": True,
-    "cursor": {
-        "vulnOffset": "1",
-        "issueOffset": "19311309",
-    },
 }
 
-RAW_VULNS = SCA_RESPONSE["vulns"]
-VULN_ID = "yourorg/yourrepo|ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590"
+RAW_VULNS = SCA_RESPONSE["findings"]
+
 USAGES = [
-                {
-                    "SCA_ID": VULN_ID,
-                    "findingId": "20128504",
-                    "path": "src/packages/directory/file1.go",
-                    "startLine": "24",
-                    "startCol": "57",
-                    "endLine": "24",
-                    "endCol": "78",
-                    "url": "https://github.com/yourorg/yourrepo/blame/6fdee8f2727f4506cfbbe553e23b895e27956588/src/packages/directory/file1.go.ts#L24",  # noqa E501
-                },
-                {
-                    "SCA_ID": VULN_ID,
-                    "findingId": "20128505",
-                    "path": "src/packages/directory/file2.go",
-                    "startLine": "24",
-                    "startCol": "37",
-                    "endLine": "24",
-                    "endCol": "54",
-                    "url": "https://github.com/yourorg/yourrepo/blame/6fdee8f2727f4506cfbbe553e23b895e27956588/src/packages/directory/file2.go.ts#L24",  # noqa E501
-                },
+    {
+        "SCA_ID": VULN_ID,
+        "findingId": USAGE_ID,
+        "path": "src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx",
+        "start_line": 274,
+        "start_col": 37,
+        "end_line": 274,
+        "end_col": 62,
+        "url": "https: //github.com/org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
+    },
 ]
