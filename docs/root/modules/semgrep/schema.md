@@ -39,9 +39,10 @@ Represents a [Semgre Supply Chain](https://semgrep.dev/docs/semgrep-supply-chain
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first discovered this node  |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | A composed id based using the repository path and the rule that triggered the finding |
+| **id** | Unique id of the finding taken from Semgrep API |
 | **rule_id** | The rule that triggered the finding |
 | **repository** | The repository path where the finding was discovered |
+| **branch** | The branch where the finding was discovered |
 | summary | A short title summarizing of the finding |
 | description | Description of the vulnerability. |
 | package_manager | The ecosystem of the dependency where the finding was discovered (e.g. pypi, npm, maven) |
@@ -58,8 +59,9 @@ Represents a [Semgre Supply Chain](https://semgrep.dev/docs/semgrep-supply-chain
 | dependency_file | Path of the file where the finding was discovered (e.g. lock.json, requirements.txt) |
 | dependency_file_url | URL of the file where the finding was discovered |
 | scan_time | Date and time when the finding was discovered in UTC |
-| published_time | Date and time when the finding reference (CVE or GHSA) was published in UTC |
-| fix_status | Whether the finding is fixed or not based on triage (e.g. UNKNOWN_STATUS, NEW, IN_PROGRESS, IGNORED, CLOSED) |
+| fix_status | Whether the finding is fixed or not based on triage (e.g. open, fixed, ignored) |
+| triage_status | Whether the finding is triaged or not (e.g. untriaged, ignored, reopened) |
+| confidence | Confidence of the finding based on Semgrep analysis (e.g. high, medium, low) |
 
 
 #### Relationships
