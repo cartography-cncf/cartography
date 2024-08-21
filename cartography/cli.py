@@ -549,6 +549,28 @@ class CLI:
                 'Required if you are using the Semgrep intel module. Ignored otherwise.'
             ),
         )
+        parser.add_argument(
+            '--snipeit-base-uri',
+            type=str,
+            default=None,
+            help=(
+                'Your SnipeIT base URI'
+                'Required if you are using the SnipeIT intel module. Ignored otherwise.'
+            ),
+        )
+        parser.add_argument(
+            '--snipeit-token-env-var',
+            type=str,
+            default=None,
+            help='The name of an environment variable containing token with which to authenticate to SnipeIT.',
+        )
+        parser.add_argument(
+            '--snipeit-tenant-id',
+            type=str,
+            default=None,
+            help='An ID for the SnipeIT tenant.',
+        )
+
         return parser
 
     def main(self, argv: str) -> int:
@@ -754,6 +776,26 @@ class CLI:
             config.cve_api_key = os.environ.get(config.cve_api_key_env_var)
         else:
             config.cve_api_key = None
+
+        # SnipeIT config
+        if config.snipeit_base_uri:
+            if config.snipeit_token_env_var:
+                logger.debug(
+                    "Reading SnipeIT API token from environment variable '%s'.",
+                    config.snipeit_token_env_var,
+                )
+                config.snipeit_token = os.environ.get(config.snipeit_token_env_var)
+            elif os.environ.get('SNIPEIT_TOKEN'):
+                logger.debug(
+                    "Reading SnipeIT API token from environment variable 'SNIPEIT_TOKEN'.",
+                )
+                config.snipeit_token = os.environ.get('SNIPEIT_TOKEN')
+            else:
+                logger.warning("A SnipeIT base URI was provided but a token was not.")
+                config.kandji_token = None
+        else:
+            logger.warning("A SnipeIT base URI was not provided.")
+            config.snipeit_base_uri = None
 
         # Run cartography
         try:

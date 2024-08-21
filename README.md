@@ -34,7 +34,8 @@ Start [here](https://lyft.github.io/cartography/install.html).
 - [Lastpass](https://lyft.github.io/cartography/modules/lastpass/index.html) - users
 - [BigFix](https://lyft.github.io/cartography/modules/bigfix/index.html) - Computers
 - [Duo](https://lyft.github.io/cartography/modules/duo/index.html) - Users, Groups, Endpoints
-
+- [Kandji](https://lyft.github.io/cartography/modules/kandji/index.html) - Devices
+- [SnipeIT](https://lyft.github.io/cartography/modules/snipeit/index.html) - Users, Assets
 
 ## Usage
 Start with our [tutorial](https://lyft.github.io/cartography/usage/tutorial.html). Our [data schema](https://lyft.github.io/cartography/usage/schema.html) is a helpful reference when you get stuck.
@@ -74,6 +75,7 @@ and follow the instructions to sign the CLA.
 1. [MessageBird](https://messagebird.com)
 1. [Cloudanix](https://www.cloudanix.com/)
 1. [ZeusCloud](https://www.zeuscloud.io/)
+1. [Corelight](https://www.corelight.com/)
 1. {Your company here} :-)
 
 If your organization uses Cartography, please file a PR and update this list. Say hi on Slack too!

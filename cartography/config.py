@@ -113,6 +113,12 @@ class Config:
     :param duo_api_hostname: The Duo api hostname, e.g. "api-abc123.duosecurity.com". Optional.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
+    :type snipeit_base_uri: string
+    :param snipeit_base_uri: SnipeIT data provider base URI. Optional.
+    :type snipeit_token: string
+    :param snipeit_token: Token used to authenticate to the SnipeIT data provider. Optional.
+    :type snipeit_tenant_id: string
+    :param snipeit_tenant_id: Token used to authenticate to the SnipeIT data provider. Optional.
     """
 
     def __init__(
@@ -173,6 +179,9 @@ class Config:
         duo_api_secret=None,
         duo_api_hostname=None,
         semgrep_app_token=None,
+        snipeit_base_uri=None,
+        snipeit_token=None,
+        snipeit_tenant_id=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -230,3 +239,6 @@ class Config:
         self.duo_api_secret = duo_api_secret
         self.duo_api_hostname = duo_api_hostname
         self.semgrep_app_token = semgrep_app_token
+        self.snipeit_base_uri = snipeit_base_uri
+        self.snipeit_token = snipeit_token
+        self.snipeit_tenant_id = snipeit_tenant_id
