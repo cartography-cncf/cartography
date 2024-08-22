@@ -1,5 +1,35 @@
 ## Sample queries
 
+Note: you might want to add `LIMIT 30` at the end of these queries to make sure they return
+quickly in case you have a large graph.
+
+### Which AWS IAM roles have admin permissions in my accounts?
+```
+MATCH (stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow"
+AND any(x IN stmt.action WHERE x = '*')
+RETURN *
+```
+
+### Which AWS IAM roles in my environment have the ability to delete policies?
+```
+MATCH (stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(acc:AWSAccount)
+WHERE stmt.effect = "Allow"
+AND any(x IN stmt.action WHERE x="iam:DeletePolicy" )
+RETURN *
+```
+
+Note: can replace "`iam:DeletePolicy`" to search for other IAM actions.
+
+
+### Which AWS IAM roles in my environment have an action that contains the word "create"?
+```
+MATCH (stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(acc:AWSAccount)
+WHERE stmt.effect = "Allow"
+AND any(x IN stmt.action WHERE toLower(x) contains "create")
+RETURN *
+```
+
 ### What [RDS](https://aws.amazon.com/rds/) instances are installed in my [AWS](https://aws.amazon.com/) accounts?
 ```
 MATCH (aws:AWSAccount)-[r:RESOURCE]->(rds:RDSInstance)
