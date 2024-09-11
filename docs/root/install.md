@@ -4,11 +4,11 @@
 
 Time to set up the server that will run Cartography.  Cartography _should_ work on both Linux and Windows servers, but bear in mind we've only tested it in Linux so far.  Cartography supports Python 3.10. Older versions of Python may work but are not explicitly supported.
 
-1. **Run the Neo4j graph database version 4.x** on your server.
+1. **Run the Neo4j graph database version 4.4.\*** or higher on your server.
 
         ⚠️ Neo4j 5.x will probably work but Cartography does not explicitly support it yet.
 
-    1. If you prefer **Docker**, follow the Neo4j Docker [official docs](https://github.com/neo4j/docker-neo4j) to run a version 4.x container.
+    1. If you prefer **Docker**, follow the Neo4j Docker [official docs](https://github.com/neo4j/docker-neo4j) to run a container with version 4.4.\* or higher.
 
         - If you are using an ARM-based machine like an M1 Mac, you should use an ARM image otherwise performance will be very slow - Neo4j keeps ARM builds [here](https://hub.docker.com/r/arm64v8/neo4j/).
 
