@@ -5,16 +5,14 @@ Cartography is a Python tool that consolidates infrastructure assets and the rel
 ![Visualization of RDS nodes and AWS nodes](docs/root/images/accountsandrds.png)
 
 ## Why Cartography?
-Cartography aims to enable a broad set of exploration and automation scenarios.  It is particularly good at exposing otherwise hidden dependency relationships between your service's assets so that you may validate assumptions about security risks.
+Cartography aims to enable a broad set of exploration and automation scenarios. It is particularly good at exposing otherwise hidden dependency relationships between your service's assets so that you may validate assumptions about security risks.
 
-Service owners can generate asset reports, Red Teamers can discover attack paths, and Blue Teamers can identify areas for security improvement.   All can benefit from using the graph for manual exploration through a web frontend interface, or in an automated fashion by calling the APIs.
+Service owners can generate asset reports, Red Teamers can discover attack paths, and Blue Teamers can identify areas for security improvement. All can benefit from using the graph for manual exploration through a web frontend interface, or in an automated fashion by calling the APIs.
 
-Cartography is not the only [security](https://github.com/dowjones/hammer) [graph](https://github.com/BloodHoundAD/BloodHound) [tool](https://github.com/Netflix/security_monkey) [out](https://github.com/vysecurity/ANGRYPUPPY) [there](https://github.com/duo-labs/cloudmapper), but it differentiates itself by being fully-featured yet generic and [extensible](https://lyft.github.io/cartography/dev/writing-analysis-jobs.html) enough to help make anyone better understand their risk exposure, regardless of what platforms they use.  Rather than being focused on one core scenario or attack vector like the other linked tools, Cartography focuses on flexibility and exploration.
+Cartography is not the only [security](https://github.com/dowjones/hammer) [graph](https://github.com/BloodHoundAD/BloodHound) [tool](https://github.com/Netflix/security_monkey) [out](https://github.com/vysecurity/ANGRYPUPPY) [there](https://github.com/duo-labs/cloudmapper), but it differentiates itself by being fully-featured yet generic and [extensible](https://lyft.github.io/cartography/dev/writing-analysis-jobs.html) enough to help make anyone better understand their risk exposure, regardless of what platforms they use. Rather than being focused on one core scenario or attack vector like the other linked tools, Cartography focuses on flexibility and exploration.
 
 You can learn more about the story behind Cartography in our [presentation at BSidesSF 2019](https://www.youtube.com/watch?v=ZukUmZSKSek).
 
-## Install and configure
-Start [here](https://lyft.github.io/cartography/install.html).
 
 ## Supported platforms
 
@@ -29,7 +27,7 @@ Start [here](https://lyft.github.io/cartography/install.html).
 - [Microsoft Azure](https://lyft.github.io/cartography/modules/azure/index.html) -  CosmosDB, SQL, Storage, Virtual Machine
 - [Kubernetes](https://lyft.github.io/cartography/modules/kubernetes/index.html) - Cluster, Namespace, Service, Pod, Container
 - [PagerDuty](https://lyft.github.io/cartography/modules/pagerduty/index.html) - Users, teams, services, schedules, escalation policies, integrations, vendors
-- [Crowdstrike Falcon](https://lyft.github.io/cartography/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilites, CVEs
+- [Crowdstrike Falcon](https://lyft.github.io/cartography/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
 - [NIST CVE](https://lyft.github.io/cartography/modules/cve/index.html) - Common Vulnerabilities and Exposures (CVE) data from NIST database
 - [Lastpass](https://lyft.github.io/cartography/modules/lastpass/index.html) - users
 - [BigFix](https://lyft.github.io/cartography/modules/bigfix/index.html) - Computers
@@ -37,8 +35,49 @@ Start [here](https://lyft.github.io/cartography/install.html).
 - [Kandji](https://lyft.github.io/cartography/modules/kandji/index.html) - Devices
 - [SnipeIT](https://lyft.github.io/cartography/modules/snipeit/index.html) - Users, Assets
 
+
+## Philosophy
+Here are some points that can help you decide if adopting Cartography is a good fit for your problem.
+
+### What Cartography is
+- A simple Python script that pulls data from multiple providers and writes it to a Neo4j graph database in batches.
+- A powerful analysis tool that captures the current snapshot of the environment, building a uniquely useful inventory where you can ask complex questions such as:
+  - Which identities have access to which datastores?
+  - What are the cross-tenant permission relationships in the environment?
+  - What are the network paths in and out of the environment?
+  - What are the backup policies for my datastores?
+- Battle-tested in production by [many companies](#who-uses-cartography).
+- Straightforward to extend with your own custom plugins.
+- Provides a useful data-plane that you can build CSPM applications on top of.
+
+### What Cartography is not
+- A near-real time capability.
+  - Cartography is not designed for very fast updates. Cartography writes to the database in a batches (not streamed).
+  - Cartography is also limited by how most upstream sources only provide APIs to retrieve assets in a batched manner.
+- By itself, Cartography does not capture data changes over time.
+  - Although we do include a [drift detection](docs/root/usage/drift-detect.md) feature.
+  - It's also possible to implement other processes in your Cartography installation to make this happen.
+
+
+## Install and configure
+
+### Trying out Cartography on a test machine
+Start [here](https://lyft.github.io/cartography/install.html) to set up a test graph and get data into it.
+
+### Setting up Cartography in production
+When you are ready to try it in production, read [here](docs/root/ops.md) for recommendations on getting cartography spun up in your environment.
+
 ## Usage
-Start with our [tutorial](https://lyft.github.io/cartography/usage/tutorial.html). Our [data schema](https://lyft.github.io/cartography/usage/schema.html) is a helpful reference when you get stuck.
+
+### Querying the database directly
+
+![poweruser.png](docs/root/images/poweruser.png)
+
+Now that data is in the graph, you can quickly start with our [querying tutorial](https://lyft.github.io/cartography/usage/tutorial.html). Our [data schema](https://lyft.github.io/cartography/usage/schema.html) is a helpful reference when you get stuck.
+
+### Building applications around Cartography
+Directly querying Neo4j is already very useful as a sort of "swiss army knife" for security data problems, but you can also build applications and data pipelines around Cartography. View this doc on [applications](docs/root/usage/applications.md).
+
 
 ## Community
 

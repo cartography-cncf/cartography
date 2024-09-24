@@ -1,6 +1,30 @@
-# Cartography operations guide
+# Cartography Production Operations
 
 This document contains tips for running Cartography in production.
+
+## Deployments
+
+### Simple
+
+The simplest production deployment involving Cartography looks something like this:
+
+![basic-dataflow.png](images/basic-dataflow.png)
+
+- Configure a Neo4j database. Specifics on this are out of scope of this document; refer to Neo4j's resources on how to
+  do this.
+- Configure a scheduled task (e.g. a cron job) to be able to access one or more data providers. See the
+  [modules](../root/modules) section for specifics on each. We recommend that you run the cron job on a separate machine
+  from the Neo4j database.
+
+### Parallel jobs
+If a single cartography job takes longer than you would like, you can configure jobs to run in parallel where each job syncs different resources.
+
+![parallel-crons.png](images/parallel-crons.png)
+
+Making sure that 2 resources of the same type never run at the same time is critical: you will encounter race conditions where one job may delete the resources synced by the other.
+
+The above diagram shows AWS and GitHub running on different jobs, but you can get more granular than that: as an example, you can have job 1 run AWS S3 and job 2 run AWS RDS in parallel with no negative effects.
+
 
 ## Maintaining a up-to-date picture of your infrastructure
 
