@@ -30,7 +30,7 @@ Time to set up a test machine to run Cartography. Cartography _should_ work on b
 
             ⚠️ For local testing, you might want to turn off authentication via property `dbms.security.auth_enabled` in file NEO4J_PATH/conf/neo4j.conf
 
-1. Configure your data sources. See the configuration section of [each relevant intel module](../root/modules) for more details.
+1. Configure your data sources. See the configuration section of [each relevant intel module](https://lyft.github.io/cartography/modules) for more details.
 
 1. **Get and run Cartography**
 
@@ -38,7 +38,7 @@ Time to set up a test machine to run Cartography. Cartography _should_ work on b
 
         - This will install cartography in the current Python virtual environment. We recommend creating a separate virtual environment for just Cartography and its dependencies.
 
-    1. Finally, let's sync some data into the test graph. In this example we will use AWS. Refer to each module's [specific configuration section](../root/modules) on how to set them up.
+    1. Finally, let's sync some data into the test graph. In this example we will use AWS. Refer to each module's [specific configuration section](https://lyft.github.io/cartography/modules) on how to set them up.
 
         - For one account using the `default` profile defined in your AWS config file, run
 
@@ -67,4 +67,4 @@ Time to set up a test machine to run Cartography. Cartography _should_ work on b
         - Review the various AWS environment variables: https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html
         - Cartography uses the boto3 Python library to access AWS, so remember that boto3's standard order of precedence when retrieving credentials applies: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials
 
-    1. Enjoy! Next set up other data providers, see our [Operations Guide](ops.html) for tips on running Cartography in production, view our [usage instructions](../../README.md#usage) for querying tips, and think of [applications](../root/usage/applications.md) to build around it.
+    1. Enjoy! Next set up other data providers, see our [Operations Guide](ops.html) for tips on running Cartography in production, view our [usage instructions](https://lyft.github.io/cartography/usage/tutorial.html) and [schema](https://lyft.github.io/cartography/usage/schema.html) for querying help, and think of [applications](https://lyft.github.io/cartography/usage/applications.html) to build around it.

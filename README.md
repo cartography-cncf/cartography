@@ -48,14 +48,14 @@ Here are some points that can help you decide if adopting Cartography is a good 
   - What are the backup policies for my datastores?
 - Battle-tested in production by [many companies](#who-uses-cartography).
 - Straightforward to extend with your own custom plugins.
-- Provides a useful data-plane that you can build CSPM applications on top of.
+- Provides a useful data-plane that you can build automation and CSPM (Cloud Security Posture Management) applications on top of.
 
 ### What Cartography is not
 - A near-real time capability.
   - Cartography is not designed for very fast updates. Cartography writes to the database in a batches (not streamed).
   - Cartography is also limited by how most upstream sources only provide APIs to retrieve assets in a batched manner.
 - By itself, Cartography does not capture data changes over time.
-  - Although we do include a [drift detection](docs/root/usage/drift-detect.md) feature.
+  - Although we do include a [drift detection](https://lyft.github.io/cartography/usage/drift-detect.html) feature.
   - It's also possible to implement other processes in your Cartography installation to make this happen.
 
 
@@ -65,7 +65,7 @@ Here are some points that can help you decide if adopting Cartography is a good 
 Start [here](https://lyft.github.io/cartography/install.html) to set up a test graph and get data into it.
 
 ### Setting up Cartography in production
-When you are ready to try it in production, read [here](docs/root/ops.md) for recommendations on getting cartography spun up in your environment.
+When you are ready to try it in production, read [here](https://lyft.github.io/cartography/ops.html) for recommendations on getting cartography spun up in your environment.
 
 ## Usage
 
@@ -76,7 +76,7 @@ When you are ready to try it in production, read [here](docs/root/ops.md) for re
 Now that data is in the graph, you can quickly start with our [querying tutorial](https://lyft.github.io/cartography/usage/tutorial.html). Our [data schema](https://lyft.github.io/cartography/usage/schema.html) is a helpful reference when you get stuck.
 
 ### Building applications around Cartography
-Directly querying Neo4j is already very useful as a sort of "swiss army knife" for security data problems, but you can also build applications and data pipelines around Cartography. View this doc on [applications](docs/root/usage/applications.md).
+Directly querying Neo4j is already very useful as a sort of "swiss army knife" for security data problems, but you can also build applications and data pipelines around Cartography. View this doc on [applications](https://lyft.github.io/cartography/usage/applications.html).
 
 
 ## Community

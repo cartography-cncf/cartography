@@ -24,6 +24,6 @@ It can be beneficial to periodically extract graph data into data warehouses lik
 
 ## Other useful dashboard options
 
-[Neodash]() is great for mocking up views on top of graph data and can help you build a "home-made CSPM" very quickly.
+[Neodash](https://github.com/neo4j-labs/neodash) ([video tutorial](https://www.youtube.com/watch?v=Ygzj0Y4cYm4)) is great for mocking up views on top of graph data and can help you build a "home-made CSPM" very quickly.
 
 ![pipeline-neodash.png](../images/pipeline-neodash.png)

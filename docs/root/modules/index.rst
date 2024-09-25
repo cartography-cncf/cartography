@@ -1,5 +1,4 @@
 .. toctree::
-    :hidden:
     :glob:
 
     */index
