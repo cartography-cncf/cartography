@@ -65,8 +65,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:AccountAccessKey) ON (n.accesskeyid);
 CREATE INDEX IF NOT EXISTS FOR (n:AccountAccessKey) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:AutoScalingGroup) ON (n.arn);
 CREATE INDEX IF NOT EXISTS FOR (n:AutoScalingGroup) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:ChromeExtension) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:ChromeExtension) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:CrowdstrikeHost) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:CrowdstrikeHost) ON (n.instance_id);
 CREATE INDEX IF NOT EXISTS FOR (n:CrowdstrikeHost) ON (n.lastupdated);

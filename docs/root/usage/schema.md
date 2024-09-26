@@ -25,7 +25,6 @@
 .. mdinclude:: ../modules/_cartography-metadata/schema.md
 .. mdinclude:: ../modules/aws/schema.md
 .. mdinclude:: ../modules/azure/schema.md
-.. mdinclude:: ../modules/crxcavator/schema.md
 .. mdinclude:: ../modules/digitalocean/schema.md
 .. mdinclude:: ../modules/gcp/schema.md
 .. mdinclude:: ../modules/github/schema.md

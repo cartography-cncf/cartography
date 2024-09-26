@@ -229,23 +229,6 @@ class CLI:
             ),
         )
         parser.add_argument(
-            '--crxcavator-api-base-uri',
-            type=str,
-            default='https://api.crxcavator.io/v1',
-            help=(
-                'Base URI for the CRXcavator API. Defaults to public API endpoint.'
-            ),
-        )
-        parser.add_argument(
-            '--crxcavator-api-key-env-var',
-            type=str,
-            default=None,
-            help=(
-                'The name of an environment variable containing a key with which to auth to the CRXcavator API. '
-                'Required if you are using the CRXcavator intel module. Ignored otherwise.'
-            ),
-        )
-        parser.add_argument(
             '--analysis-job-directory',
             type=str,
             default=None,
@@ -636,13 +619,6 @@ class CLI:
             config.okta_api_key = os.environ.get(config.okta_api_key_env_var)
         else:
             config.okta_api_key = None
-
-        # CRXcavator config
-        if config.crxcavator_api_base_uri and config.crxcavator_api_key_env_var:
-            logger.debug(f"Reading API key for CRXcavator from env variable {config.crxcavator_api_key_env_var}.")
-            config.crxcavator_api_key = os.environ.get(config.crxcavator_api_key_env_var)
-        else:
-            config.crxcavator_api_key = None
 
         # GitHub config
         if config.github_config_env_var:

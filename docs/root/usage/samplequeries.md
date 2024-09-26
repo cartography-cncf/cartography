@@ -77,21 +77,6 @@ WHERE rds.storage_encrypted = false
 return a.name as AWSAccount, count(rds) as UnencryptedInstances
 ```
 
-### What users have the TotallyFake Chrome extension installed?
-```
-MATCH (u:GSuiteUser)-[r:INSTALLS]->(ext:ChromeExtension)
-WHERE ext.name CONTAINS 'TotallyFake'
-return ext.name, ext.version, u.email
-```
-
-### What users have installed extensions that are risky based on [CRXcavator scoring](https://crxcavator.io/docs#/risk_breakdown)?
-Risk > 200 is evidence of 3 or more critical risks or many high risks in the extension.
-```
-MATCH (u:GSuiteUser)-[r:INSTALLS]->(ext:ChromeExtension)
-WHERE ext.risk_total > 200
-return ext.name, ext.version, u.email
-```
-
 ### What languages are used in a given GitHub repository?
 ```
 MATCH (:GitHubRepository{name:"myrepo"})-[:LANGUAGE]->(lang:ProgrammingLanguage)

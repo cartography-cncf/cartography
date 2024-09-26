@@ -19,7 +19,6 @@ You can learn more about the story behind Cartography in our [presentation at BS
 - [Amazon Web Services](https://lyft.github.io/cartography/modules/aws/index.html) - API Gateway, Config, EC2, ECS, ECR, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager, Security Hub, SQS, SSM, STS, Tags
 - [Google Cloud Platform](https://lyft.github.io/cartography/modules/gcp/index.html) - Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
 - [Google GSuite](https://lyft.github.io/cartography/modules/gsuite/index.html) - users, groups
-- [Duo CRXcavator](https://lyft.github.io/cartography/modules/crxcavator/index.html) - Chrome extensions, GSuite users
 - [Oracle Cloud Infrastructure](docs/setup/config/oci.md) - IAM
 - [Okta](https://lyft.github.io/cartography/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs
 - [Github](https://lyft.github.io/cartography/modules/github/index.html) - repos, branches, users, teams
