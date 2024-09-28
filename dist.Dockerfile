@@ -1,4 +1,4 @@
-FROM python:3.9-slim@sha256:e65183e4ee98ed10d0732e20275acd768ada3eac1fdc194cdc0d04d9457daed7
+FROM python:3.9-slim@sha256:b1397d09820a51e4b02b10d416f56080d1fc84ee45f27b0857c5dd486e35f950
 
 # the UID and GID to run cartography as
 # (https://github.com/hexops/dockerfile#do-not-use-a-uid-below-10000).
