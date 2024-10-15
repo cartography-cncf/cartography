@@ -157,7 +157,7 @@ def get_dependencies(semgrep_app_token: str, deployment_id: str) -> List[Dict[st
         "dependencyFilter": {
             "ecosystem": ["gomod"],
             # "transitivity": ["DIRECT"]
-            # "repositoryId": [135415] # kitchensink repo
+            # "repositoryId": [135415]
         },
     }
 
