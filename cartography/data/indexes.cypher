@@ -169,6 +169,8 @@ CREATE INDEX IF NOT EXISTS FOR (n:GitHubUser) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GitHubUser) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:GKECluster) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GKECluster) ON (n.lastupdated);
+CREATE INDEX IF NOT EXISTS FOR (n:GoLibrary) ON (n.id);
+CREATE INDEX IF NOT EXISTS FOR (n:GoLibrary) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:GSuiteGroup) ON (n.email);
 CREATE INDEX IF NOT EXISTS FOR (n:GSuiteGroup) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GSuiteGroup) ON (n.lastupdated);

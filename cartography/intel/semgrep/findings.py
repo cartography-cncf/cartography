@@ -11,6 +11,9 @@ from requests.exceptions import ReadTimeout
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.semgrep.dependencies import get_dependencies
+from cartography.intel.semgrep.dependencies import load_dependencies
+from cartography.intel.semgrep.dependencies import transform_dependencies
 from cartography.models.semgrep.deployment import SemgrepDeploymentSchema
 from cartography.models.semgrep.findings import SemgrepSCAFindingSchema
 from cartography.models.semgrep.locations import SemgrepSCALocationSchema
@@ -133,60 +136,6 @@ def _build_vuln_url(vuln: str) -> str | None:
     if 'GHSA' in vuln:
         return f"https://github.com/advisories/{vuln}"
     return None
-
-
-@timeit
-def get_dependencies(semgrep_app_token: str, deployment_id: str) -> List[Dict[str, Any]]:
-    """
-    Gets the list of dependencies associated with the passed Semgrep App token and deployment id.
-    param: semgrep_app_token: The Semgrep App token to use for authentication.
-    param: deployment_id: The Semgrep deployment ID to use for retrieving SCA vulns.
-    """
-    all_deps = []
-    deps_url = f"https://semgrep.dev/api/v1/deployments/{deployment_id}/dependencies"
-    has_more = True
-    page = 0
-    retries = 0
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {semgrep_app_token}",
-    }
-
-    request_data: dict[str, Any] = {
-        "pageSize": 10000,  # TODO: const
-        "dependencyFilter": {
-            "ecosystem": ["gomod"],
-            # "transitivity": ["DIRECT"]
-            # "repositoryId": [135415]
-        },
-    }
-
-    logger.info(f"Retrieving Semgrep dependencies for deployment '{deployment_id}'.")
-    while has_more:
-
-        try:
-            response = requests.post(deps_url, json=request_data, headers=headers, timeout=_TIMEOUT)
-            response.raise_for_status()
-            data = response.json()
-        except (ReadTimeout, HTTPError) as e:
-            logger.warning(f"Failed to retrieve Semgrep dependencies for page {page}. Retrying...")
-            retries += 1
-            if retries >= _MAX_RETRIES:
-                raise e
-            continue
-        deps = data.get("dependencies", [])
-        has_more = data.get("hasMore", False)
-        # if page % 10 == 0:
-        #     logger.info(f"Processed page {page} of Semgrep dependencies.")
-        print(f"Processed page {page} of Semgrep dependencies.")
-        all_deps.extend(deps)
-        retries = 0
-        page += 1
-        request_data["cursor"] = data.get("cursor")
-
-    logger.info(f"Retrieved {len(all_deps)} Semgrep dependencies in {page} pages.")
-    print(f"Retrieved {len(all_deps)} Semgrep dependencies in {page} pages.")
-    return all_deps
 
 
 def transform_sca_vulns(raw_vulns: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, str]]]:
@@ -337,7 +286,9 @@ def sync(
     load_semgrep_sca_usages(neo4j_sesion, usages, deployment_id, update_tag)
     run_scoped_analysis_job('semgrep_sca_risk_analysis.json', neo4j_sesion, common_job_parameters)
 
-    get_dependencies(semgrep_app_token, deployment_id)
+    raw_deps = get_dependencies(semgrep_app_token, deployment_id)
+    deps = transform_dependencies(raw_deps)
+    load_dependencies(neo4j_sesion, deps, deployment_id, update_tag)
 
     cleanup(neo4j_sesion, common_job_parameters)
     merge_module_sync_metadata(
