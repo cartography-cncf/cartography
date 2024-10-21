@@ -64,9 +64,9 @@ class SemgrepSCAFindngToDependencyRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class SemgrepDependencySchema(CartographyNodeSchema):
-    label: str = 'SemgrepDependency'
-    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(['Dependency'])
+class SemgrepGoLibrarySchema(CartographyNodeSchema):
+    label: str = 'GoLibrary'
+    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(['Dependency', 'SemgrepDependency'])
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentSchema = SemgrepDependencyToSemgrepDeploymentSchema()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -74,10 +74,3 @@ class SemgrepDependencySchema(CartographyNodeSchema):
             SemgrepDependencyToGithubRepoRel(),
         ],
     )
-
-
-@dataclass(frozen=True)
-class SemgrepGoLibrarySchema(SemgrepDependencySchema):
-    label: str = 'GoLibrary'
-    # can these labels be inherited from the base class?
-    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(['Dependency', 'SemgrepDependency'])

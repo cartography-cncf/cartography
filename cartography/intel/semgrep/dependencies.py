@@ -23,10 +23,11 @@ _MAX_RETRIES = 3
 @timeit
 def get_dependencies(semgrep_app_token: str, deployment_id: str, ecosystems: List[str]) -> List[Dict[str, Any]]:
     """
-    Gets the list of dependencies associated with the passed Semgrep App token and deployment id.
+    Gets all dependencies for the given ecosystems within the given Semgrep deployment ID.
     param: semgrep_app_token: The Semgrep App token to use for authentication.
-    param: deployment_id: The Semgrep deployment ID to use for retrieving SCA deps.
-    param: ecosystems: One or more ecosystems to import dependencies for. The full list is defined here:
+    param: deployment_id: The Semgrep deployment ID to use for retrieving dependencies.
+    param: ecosystems: One or more ecosystems to import dependencies from, e.g. "gomod" or "pypi".
+    The list of supported ecosystems is defined here:
     https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion
     """
     all_deps = []
