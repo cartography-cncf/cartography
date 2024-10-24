@@ -22,7 +22,7 @@ This is the quickest way to get started (assuming docker does what it's supposed
 
 1. **Configure and run Cartography.**
 
-    In this example we will run Cartography on [AWS](https://lyft.github.io/cartography/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".
+    In this example we will run Cartography on [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".
 
     ```bash
     docker-compose run \
@@ -40,7 +40,7 @@ This is the quickest way to get started (assuming docker does what it's supposed
     **Notes:**
     - You can view a full list of Cartography's CLI arguments by running `docker-compose run cartography --help`.
 
-    - Also see the configuration section of [each relevant intel module](https://lyft.github.io/cartography/modules) to set up each data source. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.
+    - Also see the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) to set up each data source. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.
 
         - You can pass in environment variables to the cartography container using the docker-compose format like this: `-e VARIABLE1 -e VARIABLE2=value2`.
         - You can make files available to the cartography container by editing the volumes in the docker-compose.yml file. See docker-compose documentation on how to do that.
@@ -114,7 +114,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 
 1. **Configure and run Cartography.**
 
-    See the configuration section of [each relevant intel module](https://lyft.github.io/cartography/modules) to set up each data source. In this example we will use [AWS](https://lyft.github.io/cartography/modules/aws/config.html).
+    See the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) to set up each data source. In this example we will use [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html).
 
     This command runs cartography on an AWS profile called "1234_testprofile" on region us-east-1. We also expose the host machine's ~/.aws directory to ~/var/cartography/.aws in the container so that AWS configs work.
 
@@ -189,7 +189,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 1. **Configure your data sources.**
 
-    See the configuration section of [each relevant intel module](https://lyft.github.io/cartography/modules) for more details. In this example we will use [AWS](https://lyft.github.io/cartography/modules/aws/config.html).
+    See the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) for more details. In this example we will use [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html).
 
 1. **Run cartography.**
 
@@ -229,8 +229,8 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 ## Things to do next
 Here's some ideas to get the most out of Cartography:
-- [Set up other data providers](https://lyft.github.io/cartography/modules)
+- [Set up other data providers](https://cartography-cncf.github.io/cartography/modules)
 - View our [Operations Guide](ops.html) for tips on running Cartography in production
-- Read our [usage instructions](https://lyft.github.io/cartography/usage/tutorial.html) and [schema](https://lyft.github.io/cartography/usage/schema.html) to learn how to query the graph
-- Think of [applications](https://lyft.github.io/cartography/usage/applications.html) to build around it
+- Read our [usage instructions](https://cartography-cncf.github.io/cartography/usage/tutorial.html) and [schema](https://cartography-cncf.github.io/cartography/usage/schema.html) to learn how to query the graph
+- Think of [applications](https://cartography-cncf.github.io/cartography/usage/applications.html) to build around it
 - Consider [writing your own Cartography custom modules](dev/writing-intel-modules.md)

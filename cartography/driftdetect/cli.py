@@ -30,7 +30,7 @@ class CLI:
                 'graph database and reports the deviations.'
             ),
             epilog='For more documentation please visit: '
-                   'https://lyft.github.io/cartography/usage/drift-detect.html',
+                   'https://cartography-cncf.github.io/cartography/usage/drift-detect.html',
         )
         parser.add_argument(
             '-v',
