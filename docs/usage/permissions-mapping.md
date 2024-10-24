@@ -1,1 +1,1 @@
-This document has been moved [here](https://lyft.github.io/cartography/modules/aws/permissions-mapping.html)
+This document has been moved [here](https://cartography-cncf.github.io/cartography/modules/aws/permissions-mapping.html)

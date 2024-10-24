@@ -21,7 +21,7 @@ In a nutshell, Cartography uses the [boto3](https://github.com/boto/boto3) libra
 
 ### Multiple AWS Account Setup
 
-There are many ways to allow Cartography to pull from more than one AWS account.  We can't cover all of them, but we _can_ show you the way we have things set up at Lyft.  In this scenario we will assume that you are going to run Cartography on an EC2 instance.
+There are many ways to allow Cartography to pull from more than one AWS account.  We can't cover all of them, but here's one way that works at Lyft.  In this scenario we will assume that you are going to run Cartography on an EC2 instance.
 
 1. Pick one of your AWS accounts to be the "**Hub**" account.  This Hub account will pull data from all of your other accounts - we'll call those "**Spoke**" accounts.
 

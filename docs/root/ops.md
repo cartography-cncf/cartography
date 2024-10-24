@@ -35,13 +35,13 @@ how that process works.
 
 Each sync run has an `update_tag` associated with it,
 which is the [Unix timestamp of when the sync started](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134).
-See our [docs for more details](https://lyft.github.io/cartography/dev/writing-intel-modules.html#handling-cartographys-update_tag).
+See our [docs for more details](https://cartography-cncf.github.io/cartography/dev/writing-intel-modules.html#handling-cartographys-update_tag).
 
 ### Cleanup jobs
 
 Each node and relationship created or updated during the sync will have their `lastupdated` field set to the
 `update_tag`. At the end of a sync run, nodes and relationships with out-of-date `lastupdated` fields are considered
-stale and will be deleted via a [cleanup job](https://lyft.github.io/cartography/dev/writing-intel-modules.html#cleanup).
+stale and will be deleted via a [cleanup job](https://cartography-cncf.github.io/cartography/dev/writing-intel-modules.html#cleanup).
 
 ### Sync frequency
 
