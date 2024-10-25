@@ -8,6 +8,7 @@ import boto3
 import botocore
 import neo4j
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -21,7 +22,7 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     """
     Create an Lambda boto3 client and grab all the lambda functions.
     """
-    client = boto3_session.client('lambda', region_name=region)
+    client = boto3_session.client('lambda', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('list_functions')
     lambda_functions = []
     for page in paginator.paginate():
@@ -111,7 +112,7 @@ def get_event_source_mappings(lambda_function: Dict, client: botocore.client.Bas
 def get_lambda_function_details(
         boto3_session: boto3.session.Session, data: List[Dict], region: str,
 ) -> List[Tuple[str, List[Any], List[Any], List[Any]]]:
-    client = boto3_session.client('lambda', region_name=region)
+    client = boto3_session.client('lambda', region_name=region, config=get_botocore_config())
     details = []
     for lambda_function in data:
         function_aliases = get_function_aliases(lambda_function, client)

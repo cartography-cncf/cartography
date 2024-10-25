@@ -8,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.models.aws.ssm.instance_information import SSMInstanceInformationSchema
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
 from cartography.util import aws_handle_regions
@@ -38,7 +39,7 @@ def get_instance_information(
         region: str,
         instance_ids: List[str],
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client('ssm', region_name=region)
+    client = boto3_session.client('ssm', region_name=region, config=get_botocore_config())
     instance_information: List[Dict[str, Any]] = []
     paginator = client.get_paginator('describe_instance_information')
     for i in range(0, len(instance_ids), 50):
@@ -67,7 +68,7 @@ def get_instance_patches(
         region: str,
         instance_ids: List[str],
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client('ssm', region_name=region)
+    client = boto3_session.client('ssm', region_name=region, config=get_botocore_config())
     instance_patches: List[Dict[str, Any]] = []
     paginator = client.get_paginator('describe_instance_patches')
     for instance_id in instance_ids:

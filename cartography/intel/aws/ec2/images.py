@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.models.aws.ec2.images import EC2ImageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit

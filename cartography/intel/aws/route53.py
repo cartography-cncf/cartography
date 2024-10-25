@@ -8,6 +8,7 @@ import boto3
 import botocore
 import neo4j
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -421,7 +422,7 @@ def sync(
     update_tag: int, common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing Route53 for account '%s'.", current_aws_account_id)
-    client = boto3_session.client('route53')
+    client = boto3_session.client('route53', config=get_botocore_config())
     zones = get_zones(client)
     load_dns_details(neo4j_session, zones, current_aws_account_id, update_tag)
     link_sub_zones(neo4j_session, update_tag)

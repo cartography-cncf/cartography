@@ -6,6 +6,7 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
@@ -24,7 +25,7 @@ def get_rds_cluster_data(boto3_session: boto3.session.Session, region: str) -> L
     """
     Create an RDS boto3 client and grab all the DBClusters.
     """
-    client = boto3_session.client('rds', region_name=region)
+    client = boto3_session.client('rds', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('describe_db_clusters')
     instances: List[Any] = []
     for page in paginator.paginate():
@@ -117,7 +118,7 @@ def get_rds_instance_data(boto3_session: boto3.session.Session, region: str) -> 
     """
     Create an RDS boto3 client and grab all the DBInstances.
     """
-    client = boto3_session.client('rds', region_name=region)
+    client = boto3_session.client('rds', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('describe_db_instances')
     instances: List[Any] = []
     for page in paginator.paginate():
@@ -223,7 +224,7 @@ def get_rds_snapshot_data(boto3_session: boto3.session.Session, region: str) -> 
     """
     Create an RDS boto3 client and grab all the DBSnapshots.
     """
-    client = boto3_session.client('rds', region_name=region)
+    client = boto3_session.client('rds', region_name=region, config=get_botocore_config())
     return aws_paginate(client, 'describe_db_snapshots', 'DBSnapshots')
 
 

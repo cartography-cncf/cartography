@@ -6,7 +6,7 @@ import boto3
 import botocore
 import neo4j
 
-from .util import get_botocore_config
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit

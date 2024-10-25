@@ -11,6 +11,7 @@ import neo4j
 
 from cartography.intel.aws.permission_relationships import parse_statement_node
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -34,7 +35,7 @@ def get_policy_name_from_arn(arn: str) -> str:
 
 @timeit
 def get_group_policies(boto3_session: boto3.session.Session, group_name: str) -> Dict:
-    client = boto3_session.client('iam')
+    client = boto3_session.client('iam', config=get_botocore_config())
     paginator = client.get_paginator('list_group_policies')
     policy_names: List[Dict] = []
     for page in paginator.paginate(GroupName=group_name):
@@ -46,13 +47,13 @@ def get_group_policies(boto3_session: boto3.session.Session, group_name: str) ->
 def get_group_policy_info(
         boto3_session: boto3.session.Session, group_name: str, policy_name: str,
 ) -> Any:
-    client = boto3_session.client('iam')
+    client = boto3_session.client('iam', config=get_botocore_config())
     return client.get_group_policy(GroupName=group_name, PolicyName=policy_name)
 
 
 @timeit
 def get_group_membership_data(boto3_session: boto3.session.Session, group_name: str) -> Dict:
-    client = boto3_session.client('iam')
+    client = boto3_session.client('iam', config=get_botocore_config())
     try:
         memberships = client.get_group(GroupName=group_name)
         return memberships
@@ -187,7 +188,7 @@ def get_role_tags(boto3_session: boto3.session.Session) -> List[Dict]:
 
 @timeit
 def get_user_list_data(boto3_session: boto3.session.Session) -> Dict:
-    client = boto3_session.client('iam')
+    client = boto3_session.client('iam', config=get_botocore_config())
 
     paginator = client.get_paginator('list_users')
     users: List[Dict] = []
@@ -198,7 +199,7 @@ def get_user_list_data(boto3_session: boto3.session.Session) -> Dict:
 
 @timeit
 def get_group_list_data(boto3_session: boto3.session.Session) -> Dict:
-    client = boto3_session.client('iam')
+    client = boto3_session.client('iam', config=get_botocore_config())
     paginator = client.get_paginator('list_groups')
     groups: List[Dict] = []
     for page in paginator.paginate():
@@ -208,7 +209,7 @@ def get_group_list_data(boto3_session: boto3.session.Session) -> Dict:
 
 @timeit
 def get_role_list_data(boto3_session: boto3.session.Session) -> Dict:
-    client = boto3_session.client('iam')
+    client = boto3_session.client('iam', config=get_botocore_config())
     paginator = client.get_paginator('list_roles')
     roles: List[Dict] = []
     for page in paginator.paginate():
@@ -218,7 +219,7 @@ def get_role_list_data(boto3_session: boto3.session.Session) -> Dict:
 
 @timeit
 def get_account_access_key_data(boto3_session: boto3.session.Session, username: str) -> Dict:
-    client = boto3_session.client('iam')
+    client = boto3_session.client('iam', config=get_botocore_config())
     # NOTE we can get away without using a paginator here because users are limited to two access keys
     access_keys: Dict = {}
     try:

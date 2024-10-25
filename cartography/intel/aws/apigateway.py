@@ -12,6 +12,7 @@ import neo4j
 from botocore.exceptions import ClientError
 from policyuniverse.policy import Policy
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 @timeit
 @aws_handle_regions
 def get_apigateway_rest_apis(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client('apigateway', region_name=region)
+    client = boto3_session.client('apigateway', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('get_rest_apis')
     apis: List[Any] = []
     for page in paginator.paginate():
@@ -38,7 +39,7 @@ def get_rest_api_details(
     """
     Iterates over all API Gateway REST APIs.
     """
-    client = boto3_session.client('apigateway', region_name=region)
+    client = boto3_session.client('apigateway', region_name=region, config=get_botocore_config())
     apis = []
     for api in rest_apis:
         stages = get_rest_api_stages(api, client)

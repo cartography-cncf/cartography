@@ -8,7 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.models.aws.dynamodb.gsi import DynamoDBGSISchema
 from cartography.models.aws.dynamodb.tables import DynamoDBTableSchema
 from cartography.stats import get_stats_client

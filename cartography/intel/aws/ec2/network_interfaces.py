@@ -8,9 +8,9 @@ from typing import List
 import boto3
 import neo4j
 
-from .util import get_botocore_config
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.models.aws.ec2.networkinterfaces import EC2NetworkInterfaceSchema
 from cartography.models.aws.ec2.privateip_networkinterface import EC2PrivateIpNetworkInterfaceSchema
 from cartography.models.aws.ec2.securitygroup_networkinterface import EC2SecurityGroupNetworkInterfaceSchema

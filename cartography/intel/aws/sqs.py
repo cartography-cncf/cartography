@@ -9,6 +9,7 @@ import boto3
 import neo4j
 from botocore.exceptions import ClientError
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 @timeit
 @aws_handle_regions
 def get_sqs_queue_list(boto3_session: boto3.session.Session, region: str) -> List[str]:
-    client = boto3_session.client('sqs', region_name=region)
+    client = boto3_session.client('sqs', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('list_queues')
     queues: List[Any] = []
     for page in paginator.paginate():
@@ -36,7 +37,7 @@ def get_sqs_queue_attributes(
     """
     Iterates over all SQS queues. Returns a dict with url as key, and attributes as value.
     """
-    client = boto3_session.client('sqs')
+    client = boto3_session.client('sqs', config=get_botocore_config())
 
     queue_attributes = []
     for queue_url in queue_urls:

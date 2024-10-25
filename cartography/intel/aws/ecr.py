@@ -6,6 +6,7 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import batch
 from cartography.util import run_cleanup_job
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 @aws_handle_regions
 def get_ecr_repositories(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
     logger.info("Getting ECR repositories for region '%s'.", region)
-    client = boto3_session.client('ecr', region_name=region)
+    client = boto3_session.client('ecr', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('describe_repositories')
     ecr_repositories: List[Dict] = []
     for page in paginator.paginate():
@@ -32,7 +33,7 @@ def get_ecr_repositories(boto3_session: boto3.session.Session, region: str) -> L
 @aws_handle_regions
 def get_ecr_repository_images(boto3_session: boto3.session.Session, region: str, repository_name: str) -> List[Dict]:
     logger.debug("Getting ECR images in repository '%s' for region '%s'.", repository_name, region)
-    client = boto3_session.client('ecr', region_name=region)
+    client = boto3_session.client('ecr', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('list_images')
     ecr_repository_images: List[Dict] = []
     for page in paginator.paginate(repositoryName=repository_name):

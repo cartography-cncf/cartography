@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
 from cartography.util import aws_handle_regions
@@ -34,7 +35,7 @@ def get_inspector_findings(
         session: boto3.session.Session,
         region: str,
         current_aws_account_id: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     We must list_findings by filtering the request, otherwise the request could tiemout.
     First, we filter by account_id. And since there may be millions of CLOSED findings that may never go away,
@@ -42,7 +43,7 @@ def get_inspector_findings(
     list_members will get us all the accounts that
     have delegated access to the account specified by current_aws_account_id.
     """
-    client = session.client('inspector2', region_name=region)
+    client = session.client('inspector2', region_name=region, config=get_botocore_config())
 
     members = aws_paginate(client, 'list_members', 'members')
     # the current host account may not be considered a "member", but we still fetch its findings

@@ -6,6 +6,7 @@ from typing import Set
 import boto3
 import neo4j
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
@@ -39,7 +40,7 @@ def transform_elasticache_topics(cluster_data: List[Dict]) -> List[Dict]:
 @aws_handle_regions
 def get_elasticache_clusters(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
     logger.debug(f"Getting ElastiCache Clusters in region '{region}'.")
-    client = boto3_session.client('elasticache', region_name=region)
+    client = boto3_session.client('elasticache', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('describe_cache_clusters')
     clusters: List[Dict] = []
     for page in paginator.paginate():

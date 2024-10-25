@@ -16,6 +16,7 @@ from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from policyuniverse.policy import Policy
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_job
@@ -30,7 +31,7 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
-    client = boto3_session.client('s3')
+    client = boto3_session.client('s3', config=get_botocore_config())
     # NOTE no paginator available for this operation
     buckets = client.list_buckets()
     for bucket in buckets['Buckets']:
@@ -66,7 +67,7 @@ def get_s3_bucket_details(
         # in us-east-1 region
         client = s3_regional_clients.get(bucket['Region'])
         if not client:
-            client = boto3_session.client('s3', bucket['Region'])
+            client = boto3_session.client('s3', bucket['Region'], config=get_botocore_config())
             s3_regional_clients[bucket['Region']] = client
         (
             acl,

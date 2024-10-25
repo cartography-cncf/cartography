@@ -5,6 +5,7 @@ import boto3
 import botocore.exceptions
 import neo4j
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ def get_account_from_arn(arn: str) -> str:
 
 
 def get_caller_identity(boto3_session: boto3.session.Session) -> Dict:
-    client = boto3_session.client('sts')
+    client = boto3_session.client('sts', config=get_botocore_config())
     return client.get_caller_identity()
 
 

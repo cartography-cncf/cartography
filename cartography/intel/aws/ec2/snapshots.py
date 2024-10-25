@@ -6,6 +6,7 @@ import boto3
 import neo4j
 from botocore.exceptions import ClientError
 
+from cartography.intel.aws.util.boto3 import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -27,7 +28,7 @@ def get_snapshots_in_use(neo4j_session: neo4j.Session, region: str, current_aws_
 @timeit
 @aws_handle_regions
 def get_snapshots(boto3_session: boto3.session.Session, region: str, in_use_snapshot_ids: List[str]) -> List[Dict]:
-    client = boto3_session.client('ec2', region_name=region)
+    client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('describe_snapshots')
     snapshots: List[Dict] = []
     for page in paginator.paginate(OwnerIds=['self']):
