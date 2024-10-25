@@ -54,11 +54,11 @@ def transform_network_interface_data(data_list: List[Dict[str, Any]], region: st
         elb_v2_id = None
         elb_match = re.match(r'^ELB (?:net|app)/([^\/]+)\/(.*)', network_interface.get('Description', ''))
         if elb_match:
-            elb_v1_id = f'{elb_match[1]}-{elb_match[2]}.elb.{region}.amazonaws.com'
+            elb_v2_id = elb_match[1]
         else:
             elb_match = re.match(r'^ELB (.*)', network_interface.get('Description', ''))
             if elb_match:
-                elb_v2_id = elb_match[1]
+                elb_v1_id = elb_match[1]
         # TODO issue #1024 change this to arn when ready
         network_interface_id = network_interface['NetworkInterfaceId']
         network_interface_list.append(
@@ -79,6 +79,7 @@ def transform_network_interface_data(data_list: List[Dict[str, Any]], region: st
                 'SubnetId': network_interface['SubnetId'],
                 'ElbV1Id': elb_v1_id,
                 'ElbV2Id': elb_v2_id,
+                'Region': region,
             },
         )
         if network_interface.get('PrivateIpAddresses'):

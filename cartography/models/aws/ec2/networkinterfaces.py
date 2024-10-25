@@ -63,7 +63,7 @@ class EC2NetworkInterfaceToElbV2RelProperties(CartographyRelProperties):
 class EC2NetworkInterfaceToElbV2(CartographyRelSchema):
     target_node_label: str = 'LoadBalancerV2'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('ElbV2Id')},
+        {'name': PropertyRef('ElbV2Id'), 'region': PropertyRef('Region')},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "NETWORK_INTERFACE"
