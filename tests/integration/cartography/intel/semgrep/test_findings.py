@@ -7,7 +7,6 @@ import neo4j
 import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
 import tests.data.semgrep.sca
-from cartography.intel.semgrep.deployment import get_deployment
 from cartography.intel.semgrep.deployment import load_semgrep_deployment
 from cartography.intel.semgrep.findings import sync_findings
 from tests.integration.util import check_nodes
@@ -100,15 +99,21 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         "UPDATE_TAG": TEST_UPDATE_TAG,
     }
 
-    # TODO: restructure tests to avoid this repetition
-    semgrep_deployment = get_deployment(semgrep_app_token)
-    deployment_id = semgrep_deployment["id"]
-    deployment_slug = semgrep_deployment["slug"]
+    # semgrep_deployment = cartography.intel.semgrep.deployment.get_deployment(semgrep_app_token)
+    # deployment_id = semgrep_deployment["id"]
+    # deployment_slug = semgrep_deployment["slug"]
+    # load_semgrep_deployment(neo4j_session, semgrep_deployment, TEST_UPDATE_TAG)
+    # common_job_parameters["DEPLOYMENT_ID"] = deployment_id
+
+    # # TODO: restructure tests to avoid this
+    semgrep_deployment = tests.data.semgrep.sca.DEPLOYMENTS
     load_semgrep_deployment(neo4j_session, semgrep_deployment, TEST_UPDATE_TAG)
-    common_job_parameters["DEPLOYMENT_ID"] = deployment_id
+
+    common_job_parameters["DEPLOYMENT_ID"] = semgrep_deployment["id"]
+    common_job_parameters["DEPLOYMENT_SLUG"] = semgrep_deployment["slug"]
 
     # # Act
-    sync_findings(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters, deployment_slug)
+    sync_findings(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
 
     # Assert
 

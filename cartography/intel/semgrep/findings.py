@@ -233,10 +233,10 @@ def sync_findings(
     semgrep_app_token: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
-    deployment_slug: str,
 ) -> None:
 
     deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
+    deployment_slug = common_job_parameters.get("DEPLOYMENT_SLUG")
     if not deployment_id or not deployment_slug:
         logger.warning("Missing Semgrep deployment ID or slug. Skipping SCA findings sync job.")
         return
