@@ -6,7 +6,7 @@ import neo4j
 
 import cartography.intel.semgrep.findings
 import tests.data.semgrep.sca
-from cartography.intel.semgrep.findings import sync
+from cartography.intel.semgrep.findings import sync_findings
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -87,7 +87,7 @@ def _create_cve_nodes(neo4j_session):
     "get_sca_vulns",
     return_value=tests.data.semgrep.sca.RAW_VULNS,
 )
-def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
+def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     # Arrange
     _create_github_repos(neo4j_session)
     _create_dependency_nodes(neo4j_session)
@@ -98,7 +98,7 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     }
 
     # Act
-    sync(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
+    sync_findings(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
 
     # Assert
 

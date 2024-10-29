@@ -10,7 +10,10 @@ from requests.exceptions import HTTPError
 from requests.exceptions import ReadTimeout
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
 from cartography.stats import get_stats_client
+from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -145,4 +148,49 @@ def load_dependencies(
         dependencies,
         lastupdated=update_tag,
         DEPLOYMENT_ID=deployment_id,
+    )
+
+
+@timeit
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    logger.info("Running Semgrep Go Library cleanup job.")
+    go_libraries_cleanup_job = GraphJob.from_node_schema(
+        SemgrepGoLibrarySchema(), common_job_parameters,
+    )
+    go_libraries_cleanup_job.run(neo4j_session)
+
+
+@timeit
+def sync_dependencies(
+    neo4j_session: neo4j.Session,
+    semgrep_app_token: str,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+
+    deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
+
+    if not deployment_id:
+        logger.warning("Missing Semgrep deployment ID. Skipping Semgrep dependencies sync job.")
+        return
+
+    logger.info("Running Semgrep dependencies sync job.")
+
+    # fetch and load dependencies for the Go ecosystem
+    raw_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystems=["gomod"])
+    deps = transform_dependencies(raw_deps)
+    load_dependencies(neo4j_session, SemgrepGoLibrarySchema, deps, deployment_id, update_tag)
+
+    cleanup(neo4j_session, common_job_parameters)
+
+    merge_module_sync_metadata(
+        neo4j_session=neo4j_session,
+        group_type='Semgrep',
+        group_id=deployment_id,
+        synced_type='Dependency',  # TODO: should this be "SemgrepDependency"?
+        update_tag=update_tag,
+        stat_handler=stat_handler,
     )
