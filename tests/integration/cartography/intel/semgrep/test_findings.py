@@ -7,6 +7,8 @@ import neo4j
 import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
 import tests.data.semgrep.sca
+from cartography.intel.semgrep.deployment import get_deployment
+from cartography.intel.semgrep.deployment import load_semgrep_deployment
 from cartography.intel.semgrep.findings import sync_findings
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -98,8 +100,15 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         "UPDATE_TAG": TEST_UPDATE_TAG,
     }
 
-    # Act
-    sync_findings(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
+    # TODO: restructure tests to avoid this repetition
+    semgrep_deployment = get_deployment(semgrep_app_token)
+    deployment_id = semgrep_deployment["id"]
+    deployment_slug = semgrep_deployment["slug"]
+    load_semgrep_deployment(neo4j_session, semgrep_deployment, TEST_UPDATE_TAG)
+    common_job_parameters["DEPLOYMENT_ID"] = deployment_id
+
+    # # Act
+    sync_findings(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters, deployment_slug)
 
     # Assert
 
