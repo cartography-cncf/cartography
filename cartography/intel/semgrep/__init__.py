@@ -3,7 +3,10 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.semgrep.findings import sync
+from cartography.intel.semgrep.dependencies import sync_dependencies
+from cartography.intel.semgrep.deployment import get_deployment
+from cartography.intel.semgrep.deployment import load_semgrep_deployment
+from cartography.intel.semgrep.findings import sync_findings
 from cartography.util import timeit
 
 
@@ -20,4 +23,13 @@ def start_semgrep_ingestion(
     if not config.semgrep_app_token:
         logger.info('Semgrep import is not configured - skipping this module. See docs to configure.')
         return
-    sync(neo4j_session, config.semgrep_app_token, config.update_tag, common_job_parameters)
+
+    # fetch and load the Semgrep deployment
+    semgrep_deployment = get_deployment(config.semgrep_app_token)
+    deployment_id = semgrep_deployment["id"]
+    deployment_slug = semgrep_deployment["slug"]
+    load_semgrep_deployment(neo4j_session, semgrep_deployment, config.update_tag)
+    common_job_parameters["DEPLOYMENT_ID"] = deployment_id
+
+    sync_dependencies(neo4j_session, config.semgrep_app_token, config.update_tag, common_job_parameters)
+    sync_findings(neo4j_session, config.semgrep_app_token, config.update_tag, common_job_parameters, deployment_slug)

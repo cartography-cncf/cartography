@@ -11,11 +11,6 @@ from requests.exceptions import ReadTimeout
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.semgrep.dependencies import get_dependencies
-from cartography.intel.semgrep.dependencies import load_dependencies
-from cartography.intel.semgrep.dependencies import transform_dependencies
-from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
-from cartography.models.semgrep.deployment import SemgrepDeploymentSchema
 from cartography.models.semgrep.findings import SemgrepSCAFindingSchema
 from cartography.models.semgrep.locations import SemgrepSCALocationSchema
 from cartography.stats import get_stats_client
@@ -28,29 +23,6 @@ stat_handler = get_stats_client(__name__)
 _PAGE_SIZE = 500
 _TIMEOUT = (60, 60)
 _MAX_RETRIES = 3
-
-
-@timeit
-def get_deployment(semgrep_app_token: str) -> Dict[str, Any]:
-    """
-    Gets the deployment associated with the passed Semgrep App token.
-    param: semgrep_app_token: The Semgrep App token to use for authentication.
-    """
-    deployment = {}
-    deployment_url = "https://semgrep.dev/api/v1/deployments"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {semgrep_app_token}",
-    }
-    response = requests.get(deployment_url, headers=headers, timeout=_TIMEOUT)
-    response.raise_for_status()
-
-    data = response.json()
-    deployment["id"] = data["deployments"][0]["id"]
-    deployment["name"] = data["deployments"][0]["name"]
-    deployment["slug"] = data["deployments"][0]["slug"]
-
-    return deployment
 
 
 @timeit
@@ -206,19 +178,6 @@ def transform_sca_vulns(raw_vulns: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
 
 
 @timeit
-def load_semgrep_deployment(
-    neo4j_session: neo4j.Session, deployment: Dict[str, Any], update_tag: int,
-) -> None:
-    logger.info(f"Loading Semgrep deployment info {deployment} into the graph...")
-    load(
-        neo4j_session,
-        SemgrepDeploymentSchema(),
-        [deployment],
-        lastupdated=update_tag,
-    )
-
-
-@timeit
 def load_semgrep_sca_vulns(
     neo4j_session: neo4j.Session,
     vulns: List[Dict[str, Any]],
@@ -269,32 +228,29 @@ def cleanup(
 
 
 @timeit
-def sync(
-    neo4j_sesion: neo4j.Session,
+def sync_findings(
+    neo4j_session: neo4j.Session,
     semgrep_app_token: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
+    deployment_slug: str,
 ) -> None:
+
+    deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
+    if not deployment_id or not deployment_slug:
+        logger.warning("Missing Semgrep deployment ID or slug. Skipping SCA findings sync job.")
+        return
+
     logger.info("Running Semgrep SCA findings sync job.")
-    semgrep_deployment = get_deployment(semgrep_app_token)
-    deployment_id = semgrep_deployment["id"]
-    deployment_slug = semgrep_deployment["slug"]
-    load_semgrep_deployment(neo4j_sesion, semgrep_deployment, update_tag)
-    common_job_parameters["DEPLOYMENT_ID"] = deployment_id
     raw_vulns = get_sca_vulns(semgrep_app_token, deployment_slug)
     vulns, usages = transform_sca_vulns(raw_vulns)
-    load_semgrep_sca_vulns(neo4j_sesion, vulns, deployment_id, update_tag)
-    load_semgrep_sca_usages(neo4j_sesion, usages, deployment_id, update_tag)
-    run_scoped_analysis_job('semgrep_sca_risk_analysis.json', neo4j_sesion, common_job_parameters)
+    load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
+    load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
+    run_scoped_analysis_job('semgrep_sca_risk_analysis.json', neo4j_session, common_job_parameters)
 
-    # fetch and load dependencies for the Go ecosystem
-    raw_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystems=["gomod"])
-    deps = transform_dependencies(raw_deps)
-    load_dependencies(neo4j_sesion, SemgrepGoLibrarySchema, deps, deployment_id, update_tag)
-
-    cleanup(neo4j_sesion, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters)
     merge_module_sync_metadata(
-        neo4j_session=neo4j_sesion,
+        neo4j_session=neo4j_session,
         group_type='Semgrep',
         group_id=deployment_id,
         synced_type='SCA',
