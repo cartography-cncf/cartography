@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import neo4j
 
+import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
 import tests.data.semgrep.sca
 from cartography.intel.semgrep.findings import sync_findings
@@ -78,7 +79,7 @@ def _create_cve_nodes(neo4j_session):
 
 
 @patch.object(
-    cartography.intel.semgrep.findings,
+    cartography.intel.semgrep.deployment,
     "get_deployment",
     return_value=tests.data.semgrep.sca.DEPLOYMENTS,
 )
