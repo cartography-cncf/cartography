@@ -49,3 +49,21 @@ def load_semgrep_deployment(
         [deployment],
         lastupdated=update_tag,
     )
+
+
+@timeit
+def sync_deployment(
+    neo4j_session: neo4j.Session,
+    semgrep_app_token: str,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+
+    semgrep_deployment = get_deployment(semgrep_app_token)
+    deployment_id = semgrep_deployment["id"]
+    deployment_slug = semgrep_deployment["slug"]
+    load_semgrep_deployment(neo4j_session, semgrep_deployment, update_tag)
+    common_job_parameters["DEPLOYMENT_ID"] = deployment_id
+    common_job_parameters["DEPLOYMENT_SLUG"] = deployment_slug
+
+    # TODO: cleanup? the existing code doesn't seem to clean up the deployment
