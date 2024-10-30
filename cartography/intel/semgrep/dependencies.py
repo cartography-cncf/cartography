@@ -172,9 +172,11 @@ def sync_dependencies(
 ) -> None:
 
     deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
-
     if not deployment_id:
-        logger.warning("Missing Semgrep deployment ID. Skipping Semgrep dependencies sync job.")
+        logger.warning(
+            "Missing Semgrep deployment ID, ensure that sync_deployment() has been called."
+            "Skipping Semgrep dependencies sync job.",
+        )
         return
 
     logger.info("Running Semgrep dependencies sync job.")

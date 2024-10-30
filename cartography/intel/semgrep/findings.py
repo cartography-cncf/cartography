@@ -238,7 +238,10 @@ def sync_findings(
     deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
     deployment_slug = common_job_parameters.get("DEPLOYMENT_SLUG")
     if not deployment_id or not deployment_slug:
-        logger.warning("Missing Semgrep deployment ID or slug. Skipping SCA findings sync job.")
+        logger.warning(
+            "Missing Semgrep deployment ID or slug, ensure that sync_deployment() has been called."
+            "Skipping SCA findings sync job.",
+        )
         return
 
     logger.info("Running Semgrep SCA findings sync job.")
