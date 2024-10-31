@@ -65,5 +65,3 @@ def sync_deployment(
     load_semgrep_deployment(neo4j_session, semgrep_deployment, update_tag)
     common_job_parameters["DEPLOYMENT_ID"] = deployment_id
     common_job_parameters["DEPLOYMENT_SLUG"] = deployment_slug
-
-    # TODO: cleanup? the existing code doesn't seem to clean up the deployment

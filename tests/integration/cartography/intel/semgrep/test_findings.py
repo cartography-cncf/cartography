@@ -7,7 +7,6 @@ import neo4j
 import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
 import tests.data.semgrep.sca
-from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -80,16 +79,11 @@ def _create_cve_nodes(neo4j_session):
 
 
 @patch.object(
-    cartography.intel.semgrep.deployment,
-    "get_deployment",
-    return_value=tests.data.semgrep.sca.DEPLOYMENTS,
-)
-@patch.object(
     cartography.intel.semgrep.findings,
     "get_sca_vulns",
     return_value=tests.data.semgrep.sca.RAW_VULNS,
 )
-def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
+def test_sync_findings(mock_get_sca_vulns, neo4j_session):
     # Arrange
     _create_github_repos(neo4j_session)
     _create_dependency_nodes(neo4j_session)
@@ -97,19 +91,14 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     semgrep_app_token = "your_semgrep_app_token"
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
+        "DEPLOYMENT_ID": tests.data.semgrep.sca.DEPLOYMENTS["id"],
+        "DEPLOYMENT_SLUG": tests.data.semgrep.sca.DEPLOYMENTS["slug"],
     }
 
     # # Act
-    sync_deployment(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
     sync_findings(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
 
     # Assert
-
-    assert check_nodes(
-        neo4j_session,
-        "SemgrepDeployment",
-        ["id", "name", "slug"],
-    ) == {("123456", "Org", "org")}
 
     assert _check_nodes_as_list(
         neo4j_session,
