@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
+import tests.data.semgrep.deployment
 import tests.data.semgrep.sca
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
@@ -17,7 +18,7 @@ from tests.integration.util import check_rels
 @patch.object(
     cartography.intel.semgrep.deployment,
     "get_deployment",
-    return_value=tests.data.semgrep.sca.DEPLOYMENTS,
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
 )
 @patch.object(
     cartography.intel.semgrep.findings,
