@@ -38,7 +38,6 @@ def test_sync_findings(mock_get_dependencies, mock_get_deployment, neo4j_session
     sync_dependencies(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
 
     # Assert
-
     assert check_nodes(
         neo4j_session,
         "SemgrepDeployment",
@@ -90,93 +89,20 @@ def test_sync_findings(mock_get_dependencies, mock_get_deployment, neo4j_session
         ),
     }
 
-    # assert check_rels(
-    #     neo4j_session,
-    #     "SemgrepDeployment",
-    #     "id",
-    #     "SemgrepSCALocation",
-    #     "id",
-    #     "RESOURCE",
-    # ) == {
-    #     (
-    #         "123456",
-    #         tests.data.semgrep.sca.USAGE_ID,
-    #     ),
-    # }
-
-    # assert check_rels(
-    #     neo4j_session,
-    #     "GitHubRepository",
-    #     "fullname",
-    #     "SemgrepSCAFinding",
-    #     "id",
-    #     "FOUND_IN",
-    #     rel_direction_right=False,
-    # ) == {
-    #     (
-    #         "org/repository",
-    #         tests.data.semgrep.sca.VULN_ID,
-    #     ),
-    # }
-
-    # assert check_rels(
-    #     neo4j_session,
-    #     "SemgrepSCAFinding",
-    #     "id",
-    #     "SemgrepSCALocation",
-    #     "id",
-    #     "USAGE_AT",
-    # ) == {
-    #     (
-    #         tests.data.semgrep.sca.VULN_ID,
-    #         tests.data.semgrep.sca.USAGE_ID,
-    #     ),
-    # }
-
-    # assert check_rels(
-    #     neo4j_session,
-    #     "SemgrepSCAFinding",
-    #     "id",
-    #     "Dependency",
-    #     "id",
-    #     "AFFECTS",
-    # ) == {
-    #     (
-    #         tests.data.semgrep.sca.VULN_ID,
-    #         "moment|2.29.2",
-    #     ),
-    # }
-
-    # assert check_rels(
-    #     neo4j_session,
-    #     "CVE",
-    #     "id",
-    #     "SemgrepSCAFinding",
-    #     "id",
-    #     "LINKED_TO",
-    # ) == {
-    #     (
-    #         "CVE-2022-31129",
-    #         tests.data.semgrep.sca.VULN_ID,
-    #     ),
-    # }
-
-    # assert check_nodes(
-    #     neo4j_session,
-    #     "SemgrepSCAFinding",
-    #     [
-    #         "id",
-    #         "reachability",
-    #         "reachability_check",
-    #         "severity",
-    #         "reachability_risk",
-    #     ],
-    # ) == {
-    #     (
-    #         tests.data.semgrep.sca.VULN_ID,
-    #         "REACHABLE",
-    #         "REACHABLE",
-    #         "HIGH",
-    #         "HIGH",
-    #     ),
-    # }
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "fullname",
+        "SemgrepDependency",
+        "id",
+        "REQUIRES",
+    ) == {
+        (
+            "org/repository",
+            "github.com/foo/baz|1.2.3",
+        ),
+        (
+            "org/repository",
+            "github.com/foo/buzz|4.5.0",
+        ),
+    }
