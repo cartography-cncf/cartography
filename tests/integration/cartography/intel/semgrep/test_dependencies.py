@@ -2,11 +2,11 @@ from unittest.mock import patch
 
 import cartography.intel.semgrep.dependencies
 import cartography.intel.semgrep.deployment
-import cartography.intel.semgrep.findings
 import tests.data.semgrep.dependencies
 import tests.data.semgrep.deployment
 from cartography.intel.semgrep.dependencies import sync_dependencies
 from cartography.intel.semgrep.deployment import sync_deployment
+from tests.integration.cartography.intel.semgrep.common import create_dependency_nodes
 from tests.integration.cartography.intel.semgrep.common import create_github_repos
 from tests.integration.cartography.intel.semgrep.common import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
@@ -26,6 +26,7 @@ from tests.integration.util import check_rels
 def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_session):
     # Arrange
     create_github_repos(neo4j_session)
+    create_dependency_nodes(neo4j_session)
     semgrep_app_token = "your_semgrep_app_token"
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
