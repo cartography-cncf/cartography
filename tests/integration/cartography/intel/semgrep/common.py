@@ -3,7 +3,7 @@ from typing import List
 
 import neo4j
 
-TEST_REPO_ID = "https: //github.com/org/repository"
+TEST_REPO_ID = "https://github.com/org/repository"
 TEST_REPO_FULL_NAME = "org/repository"
 TEST_REPO_NAME = "repository"
 TEST_UPDATE_TAG = 123456789
