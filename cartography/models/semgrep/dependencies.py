@@ -18,8 +18,8 @@ class SemgrepDependencyNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef('id')
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
     name: PropertyRef = PropertyRef('name')  # TODO: set extra_index=True for this or other properties?
-    version: PropertyRef = PropertyRef('version')
     ecosystem: PropertyRef = PropertyRef('ecosystem')
+    version: PropertyRef = PropertyRef('version')
 
 
 @dataclass(frozen=True)
@@ -42,6 +42,7 @@ class SemgrepDependencyToSemgrepDeploymentSchema(CartographyRelSchema):
 @dataclass(frozen=True)
 class SemgrepDependencyToGithubRepoRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    specifier: PropertyRef = PropertyRef('specifier')
     transitivity: PropertyRef = PropertyRef('transitivity')
     url: PropertyRef = PropertyRef('url')
 

@@ -52,7 +52,6 @@ def get_dependencies(semgrep_app_token: str, deployment_id: str, ecosystems: Lis
 
     logger.info(f"Retrieving Semgrep dependencies for deployment '{deployment_id}'.")
     while has_more:
-
         try:
             response = requests.post(deps_url, json=request_data, headers=headers, timeout=_TIMEOUT)
             response.raise_for_status()
@@ -82,7 +81,7 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
     """
 
     """
-    sample raw_dep:
+    sample raw_dep as of November 2024:
     {
         "repositoryId": "123456",
         "definedAt": {
@@ -106,25 +105,29 @@ def transform_dependencies(raw_deps: List[Dict[str, Any]]) -> List[Dict[str, Any
     """
     deps = []
     for raw_dep in raw_deps:
-        # repo_name = raw_dep["definedAt"]["url"].split("/")[4]
 
-        repo_url = raw_dep["definedAt"]["url"].split("/blob/", 1)[0]  # TODO: less hacky way to do this?
-        # could call a different endpoint to get all the repo IDs,
-        # but we'd need to store the mapping of ID to repo URL and this wouldn't be useful to users of the graph
+        # We could call a different endpoint to get all repo IDs and store a mapping of repo ID to URL,
+        # but it's much simpler to just extract the URL from the definedAt field.
+        repo_url = raw_dep["definedAt"]["url"].split("/blob/", 1)[0]
 
-        dep_name = raw_dep["package"]["name"]
-        dep_version = raw_dep["package"]["versionSpecifier"]
-        dep_id = f"{dep_name}|{dep_version}"
+        name = raw_dep["package"]["name"]
+        version = raw_dep["package"]["versionSpecifier"]
+        id = f"{name}|{version}"
+
+        # As of November 2024, Semgrep does not import dependencies with version specifiers such as >, <, etc.
+        # For now, hardcode the specifier to ==<version> to align with GitHub-sourced Python dependencies.
+        # If Semgrep eventually supports version specifiers, update this line accordingly.
+        specifier = f"=={version}"
 
         deps.append({
-            # existing fields:
-            "id": dep_id,
-            "name": dep_name,
-            # "specifier": spec, # TODO: consider hardcoding "==<version>" to match existing functionality?
-            "version": dep_version,
+            # existing dependency properties:
+            "id": id,
+            "name": name,
+            "specifier": specifier,
+            "version": version,
             "repo_url": repo_url,
 
-            # new fields:
+            # Semgrep-specific properties:
             "ecosystem": raw_dep["ecosystem"],
             "transitivity": raw_dep["transitivity"].lower(),
             "url": raw_dep["definedAt"]["url"],
