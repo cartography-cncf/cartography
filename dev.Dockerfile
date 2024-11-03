@@ -1,9 +1,14 @@
-# Builds cartography container for development by performing a Python editable install of the current source code.
+# This image is for dev only.
+# Performs a Python editable install of the current Cartography source.
+# Assumptions:
+# - This dockerfile will get called with .cache as a volume mount.
+# - The current working directory on the host building this container
+#   is the cartography source tree from github.
 FROM python:3.10-slim
 
 # The UID and GID to run cartography as.
 # This needs to match the gid and uid on the host.
-# In WSL this needs to be 1000 to work.
+# Update this to match. On WSL2 this is usually 1000.
 ARG uid=1000
 ARG gid=1000
 
@@ -12,21 +17,17 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy only requirements files and install dependencies
+# Install dependencies.
 WORKDIR /var/cartography
-COPY test-requirements.txt ./
 COPY . /var/cartography
 RUN pip install -r test-requirements.txt && \
     pip install -U -e . && \
     chmod -R a+w /var/cartography
 
-# now copy entire source tree
-# Assumption: current working directory is the cartography source tree from github.
-WORKDIR /var/cartography
+# Now copy the entire source tree.
 ENV HOME=/var/cartography
-
+# Necessary for pre-commit.
 RUN git config --global --add safe.directory /var/cartography && \
     git config --local user.name "cartography"
-    # assumption: this dockerfile will get called with .cache as a volume mount
 
 USER ${uid}:${gid}

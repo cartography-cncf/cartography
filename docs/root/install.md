@@ -124,7 +124,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
         -v ~/.aws:/var/cartography/.aws/ \
         -e AWS_PROFILE=1234_testprofile \
         -e AWS_DEFAULT_REGION=us-east-1 \
-        lyft/cartography --neo4j-uri bolt://cartography-neo4j:7687
+        cartography-cncf/cartography --neo4j-uri bolt://cartography-neo4j:7687
      ```
 
    If things work, your terminal will look like this where you see log messages displaying how many assets are being loaded to the graph:
@@ -139,7 +139,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 
       - `AWS_DEFAULT_REGION` must be specified.
       - Our docker-compose.yml maps in `~/.aws/` on your host machine to `/var/cartography/.aws` in the cartography container, so the container has access to AWS profile and credential files.
-    - You can view a full list of Cartography's CLI arguments by running `docker run lyft/cartography --help`.
+    - You can view a full list of Cartography's CLI arguments by running `docker run cartography-cncf/cartography --help`.
 
 1. **View the graph.**
 

@@ -38,27 +38,27 @@ services:
         timeout: 10s
         retries: 10
 
-# # Runs the standard cartography image available at ghcr.io.
-#   cartography:
-#     image: ghcr.io/cartography-cncf/cartography:latest
-#     # EXAMPLE: Our ENTRYPOINT is cartography, running specific command to sync AWS
-#     # command: ["-v", "--neo4j-uri=bolt://neo4j:7687", "--aws-sync-all-profiles"]
-#     init: true
-#     restart: on-failure
-#     depends_on:
-#       - neo4j
-#     volumes:
-#     # Provide AWS creds to the container
-#       - ~/.aws:/var/cartography/.aws/
-#     environment:
-#       # Point to the neo4j service defined in this docker-compose file.
-#       - NEO4J_URL=bolt://cartography-neo4j-1:7687
+# Runs the standard cartography image available at ghcr.io.
+  cartography:
+    image: ghcr.io/cartography-cncf/cartography:latest
+    # EXAMPLE: Our ENTRYPOINT is cartography, running specific command to sync AWS
+    # command: ["-v", "--neo4j-uri=bolt://neo4j:7687", "--aws-sync-all-profiles"]
+    init: true
+    restart: on-failure
+    depends_on:
+      - neo4j
+    volumes:
+    # Provide AWS creds to the container
+    # Add other volumes here to support other data providers.
+      - ~/.aws:/var/cartography/.aws/
+    environment:
+      # Point to the neo4j service defined in this docker-compose file.
+      - NEO4J_URL=bolt://cartography-neo4j-1:7687
 
 # Intended to run local automated tests, custom sync scripts, and local changes.
   cartography-dev:
     # See dev instructions: we assume that you have built this with
-    # `docker build -t cartography-cncf/cartography-dev -f dev.Dockerfile` ./
-    # Do not push this image remotely!
+    # `docker build -t cartography-cncf/cartography-dev -f dev.Dockerfile ./`
     image: cartography-cncf/cartography-dev
     init: true
     restart: on-failure
