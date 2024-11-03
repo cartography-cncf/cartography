@@ -7,7 +7,6 @@
 .*.swp
 .DS_Store
 /venv*
-.cache/
 build/
 .idea/
 .coverage
