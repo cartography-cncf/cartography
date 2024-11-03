@@ -41,6 +41,7 @@ services:
 # Runs the standard cartography image available at ghcr.io.
   cartography:
     image: ghcr.io/cartography-cncf/cartography:latest
+    platform: linux/x86_64
     # EXAMPLE: Our ENTRYPOINT is cartography, running specific command to sync AWS
     # command: ["-v", "--neo4j-uri=bolt://neo4j:7687", "--aws-sync-all-profiles"]
     init: true
