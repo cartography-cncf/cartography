@@ -16,11 +16,13 @@ from cartography.intel.github.util import handle_rate_limit_sleep
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 
 
+@patch('cartography.intel.github.util.time.sleep')
 @patch('cartography.intel.github.util.handle_rate_limit_sleep')
 @patch('cartography.intel.github.util.fetch_page')
 def test_fetch_all_handles_retries(
     mock_fetch_page: Mock,
     mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
 ) -> None:
     '''
     Ensures that fetch_all re-reaises the same exceptions when exceeding retry limit
