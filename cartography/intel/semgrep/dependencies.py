@@ -185,9 +185,9 @@ def sync_dependencies(
     logger.info("Running Semgrep dependencies sync job.")
 
     # fetch and load dependencies for the Go ecosystem
-    raw_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystems=["gomod"])
-    deps = transform_dependencies(raw_deps)
-    load_dependencies(neo4j_session, SemgrepGoLibrarySchema, deps, deployment_id, update_tag)
+    raw_go_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystems=["gomod"])
+    go_deps = transform_dependencies(raw_go_deps)
+    load_dependencies(neo4j_session, SemgrepGoLibrarySchema, go_deps, deployment_id, update_tag)
 
     cleanup(neo4j_session, common_job_parameters)
 
