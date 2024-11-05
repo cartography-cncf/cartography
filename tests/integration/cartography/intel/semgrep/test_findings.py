@@ -1,114 +1,52 @@
-from string import Template
-from typing import List
 from unittest.mock import patch
 
-import neo4j
-
+import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
+import tests.data.semgrep.deployment
 import tests.data.semgrep.sca
-from cartography.intel.semgrep.findings import sync
+from cartography.intel.semgrep.deployment import sync_deployment
+from cartography.intel.semgrep.findings import sync_findings
+from tests.integration.cartography.intel.semgrep.common import check_nodes_as_list
+from tests.integration.cartography.intel.semgrep.common import create_cve_nodes
+from tests.integration.cartography.intel.semgrep.common import create_dependency_nodes
+from tests.integration.cartography.intel.semgrep.common import create_github_repos
+from tests.integration.cartography.intel.semgrep.common import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_REPO_ID = "https: //github.com/org/repository"
-TEST_REPO_FULL_NAME = "org/repository"
-TEST_REPO_NAME = "repository"
-TEST_UPDATE_TAG = 123456789
-
-
-def _check_nodes_as_list(
-    neo4j_session: neo4j.Session, node_label: str, attrs: List[str],
-):
-    """
-    Like tests.integration.util.check_nodes()` but returns a list instead of a set.
-    """
-    if not attrs:
-        raise ValueError(
-            "`attrs` passed to check_nodes() must have at least one element.",
-        )
-
-    attrs = ", ".join(f"n.{attr}" for attr in attrs)
-    query_template = Template("MATCH (n:$NodeLabel) RETURN $Attrs")
-    result = neo4j_session.run(
-        query_template.safe_substitute(NodeLabel=node_label, Attrs=attrs),
-    )
-    return sum([row.values() for row in result], [])
-
-
-def _create_github_repos(neo4j_session):
-    # Creates a set of GitHub repositories in the graph
-    neo4j_session.run(
-        """
-        MERGE (repo:GitHubRepository{id: $repo_id, fullname: $repo_fullname, name: $repo_name})
-        ON CREATE SET repo.firstseen = timestamp()
-        SET repo.lastupdated = $update_tag
-        SET repo.archived = false
-        """,
-        repo_id=TEST_REPO_ID,
-        repo_fullname=TEST_REPO_FULL_NAME,
-        update_tag=TEST_UPDATE_TAG,
-        repo_name=TEST_REPO_NAME,
-    )
-
-
-def _create_dependency_nodes(neo4j_session):
-    # Creates a set of dependency nodes in the graph
-    neo4j_session.run(
-        """
-        MERGE (dep:Dependency{id: $dep_id})
-        ON CREATE SET dep.firstseen = timestamp()
-        SET dep.lastupdated = $update_tag
-        """,
-        dep_id="moment|2.29.2",
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-
-def _create_cve_nodes(neo4j_session):
-    # Creates a set of CVE nodes in the graph
-    neo4j_session.run(
-        """
-        MERGE (cve:CVE{id: $cve_id})
-        ON CREATE SET cve.firstseen = timestamp()
-        SET cve.lastupdated = $update_tag
-        """,
-        cve_id="CVE-2022-31129",
-        update_tag=TEST_UPDATE_TAG,
-    )
-
 
 @patch.object(
-    cartography.intel.semgrep.findings,
+    cartography.intel.semgrep.deployment,
     "get_deployment",
-    return_value=tests.data.semgrep.sca.DEPLOYMENTS,
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
 )
 @patch.object(
     cartography.intel.semgrep.findings,
     "get_sca_vulns",
     return_value=tests.data.semgrep.sca.RAW_VULNS,
 )
-def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
+def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     # Arrange
-    _create_github_repos(neo4j_session)
-    _create_dependency_nodes(neo4j_session)
-    _create_cve_nodes(neo4j_session)
+    create_github_repos(neo4j_session)
+    create_dependency_nodes(neo4j_session)
+    create_cve_nodes(neo4j_session)
     semgrep_app_token = "your_semgrep_app_token"
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
     }
 
     # Act
-    sync(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
+    sync_deployment(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
+    sync_findings(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
 
     # Assert
-
     assert check_nodes(
         neo4j_session,
         "SemgrepDeployment",
         ["id", "name", "slug"],
     ) == {("123456", "Org", "org")}
 
-    assert _check_nodes_as_list(
+    assert check_nodes_as_list(
         neo4j_session,
         "SemgrepSCAFinding",
         [
