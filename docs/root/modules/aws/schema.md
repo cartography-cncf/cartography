@@ -1528,15 +1528,14 @@ Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazo
 
 Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html).
 
-| Field | Description |
-|-------|-------------|
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| protocol | The protocol of this endpoint - One of `'HTTP''HTTPS''TCP''TLS''UDP''TCP_UDP'` |
-| port | The port of this endpoint |
-| ssl\_policy | Only set for HTTPS or TLS listener. The security policy that defines which protocols and ciphers are supported. |
-| targetgrouparn | The ARN of the Target Group, if the Action type is `forward`. |
-
+| Field          | Description                                                                                                     |
+|----------------|-----------------------------------------------------------------------------------------------------------------|
+| firstseen      | Timestamp of when a sync job first discovered this node                                                         |
+| lastupdated    | Timestamp of the last time the node was updated                                                                 |
+| protocol       | The protocol of this endpoint - One of `'HTTP''HTTPS''TCP''TLS''UDP''TCP_UDP'`                                  |
+| port           | The port of this endpoint                                                                                       |
+| ssl\_policy    | Only set for HTTPS or TLS listener. The security policy that defines which protocols and ciphers are supported. |
+| targetgrouparn | The ARN of the Target Group, if the Action type is `forward`.                                                   |
 
 #### Relationships
 
@@ -1546,17 +1545,117 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
         (elbv2)-[r:ELBV2_LISTENER]->(ELBV2Listener)
         ```
 
+### Endpoint::ELBV2Rule
+
+Representation of an AWS Elastic Load Balancer
+V2 [Rule](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Rule.html).
+
+| Field                    | Description                                                                                                                                                                               |
+|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| firstseen                | Timestamp of when a sync job first discovered this node                                                                                                                                   |
+| lastupdated              | Timestamp of the last time the node was updated                                                                                                                                           |
+| ***id***                 | The ARN of the rule                                                                                                                                                                       |
+| priority                 | Priority of the rule. Rules are evaluated in priority order, from the lowest value to the highest value.                                                                                  |
+| is_default               | If true this rule will be executed if no other rules have matching conditions.                                                                                                            |
+| request_method_condition | If not empty, this rule will only match requests with one of the listed request methods. Methods are separated by `,`                                                                     |
+| host_header_condition    | If not empty, this rule will only match requests for one of the listed host names. Host names are separated by `,`                                                                        |
+| path_pattern_condition   | If not empty, this rule will only match requests with a URI matching one of the listed patterns. Patterns are separated by `,` and commas are escaped with `\`.                           |
+| http_header_condition    | If not empty, this rule will only match requests with a matching header key and value. Patterns are specified as header=value, separated by `,`, and commas escaped with `\`.             |
+| query_string_condition   | If not empty, this rule will only match requests with a matching query string key and value. Patterns are specified as query-string=value, separated by `,`, and commas escaped with `\`. |
+| source_ip_condition      | If not empty, this rule will only match requests from one of the matching IP addresses. Addresses are separated by `,`.                                                                   |
+
+#### Relationships
+
+- A ELBV2Rule is attached to an ELBV2Listener.
+  ```
+  (ELBV2Listener)-[r:ELBV2_LISTENER_RULE]->(ELBV2Rule)
+  ```
+
+### ELBV2Action
+
+Representation of an AWS Elastic Load Balancer
+V2 [Action](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Action.html).
+The `ELBV2Action` defines the base label type for `ELBV2ActionForward`, `ELBV2ActionAuthenticateOIDC`,
+`ELBV2ActionAuthenticateCognito`, `ELBV2ActionRedirect`, and `ELBV2ActionFixedResponse`.
+
+| Field       | Description                                                           |
+|-------------|-----------------------------------------------------------------------|
+| firstseen   | Timestamp of when a sync job discovered this node                     |
+| lastupdated | Timestamp of the last time the node was updated                       |
+| ***id***    | A unique ID for the action of the form `listenerARN-\[order]-\[type]` |
+| order       | The position of the action                                            |
+
+#### Relationships
+
+- An ELBV2Action is linked to an ELBV2Rule
+  ```
+  (ELBV2Rule)-[r:ELBV2_LISTENER_ACTION]->(ELBV2Action)
+  ```
+
+#### ELBV2Action::AWSForwardAction
+
+Representation of an AWS Elastic Load Balancer
+V2 [Action](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Action.html)
+that will forward traffic to one or more TargetGroups.
+
+#### ELBV2Action::AWSAuthenticateOIDCAction
+
+Representation of an AWS Elastic Load Balancer
+V2 [Action](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Action.html)
+that will authenticate a request via OIDC.
+
+| Field                      | Description                                                                                      |
+|----------------------------|--------------------------------------------------------------------------------------------------|
+| on_unauthenticated_request | Behaviour when an unauthenticated request is received. One of 'deny', 'allow', or 'authenticate' |
+
+#### ELBV2Action::AWSAuthenticateCognitoAction
+
+Representation of an AWS Elastic Load Balancer
+V2 [Action](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Action.html)
+that will authenticate a request using Cognito.
+
+| Field                      | Description                                                                                       |
+|----------------------------|---------------------------------------------------------------------------------------------------|
+| user_pool_arn              | Associated Cognito pool ARN.                                                                      |
+| on_unauthenticated_request | Behaviour when an unauthenticated request is received. One of 'deny', 'allow', or 'authenticate'. |
+
+#### ELBV2Action::AWSRedirectAction
+
+Representation of an AWS Elastic Load Balancer
+V2 [Action](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Action.html)
+that will always redirect requests.
+
+| Field       | Description                                                      |
+|-------------|------------------------------------------------------------------|
+| protocol    | Protocol to which the request will be redirected                 |
+| port        | Port to which the request will be redirected                     |
+| host        | Host to which the request will be redirected                     |
+| path        | Path to which the request will be redirected                     |
+| query       | Query parameters that will be appended to the redirected request |
+| status_code | Status code used in redirect                                     |
+
+### ELBV2Action::AWSFixedResponseAction
+
+Representation of an AWS Elastic Load Balancer
+V2 [Action](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Action.html)
+that will always respond to requests with the specified response.
+
+| Field        | Description                                      |
+|--------------|--------------------------------------------------|
+| message_body | String that will be supplied as the message body |
+| status_code  | HTTP status code that will be returned           |
+| content_type | Content-type header that will be returned        |
 
 ### Ip
 
 Represents a generic IP address.
 
-| Field | Description |
-|-------|-------------|
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| **ip** | The IPv4 address |
-| **id** | Same as `ip` |
+| Field       | Description                                             |
+|-------------|---------------------------------------------------------|
+| firstseen   | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated         |
+| **ip**      | The IPv4 address                                        |
+| **id**      | Same as `ip`                                            |
 
 
 #### Relationships
