@@ -21,6 +21,7 @@ The AWS module has the following coverage:
 * SQS - Queues, Dead Letter Queues
 * STS
 * Tags - Tag support for the supported resources, if supported by the resource groups tagging API
+* WAFv2 - WebACLs
 
 .. toctree::
     :hidden:

@@ -50,7 +50,8 @@ Representation of an AWS Account.
                               SecurityHub,
                               SQSQueue
                               SSMInstanceInformation,
-                              SSMInstancePatch)
+                              SSMInstancePatch,
+                              WAFv2WebACL)
         ```
 
 - An `AWSPolicy` node is defined for an `AWSAccount`.
@@ -3297,3 +3298,53 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
         ```
         (EC2Instance)-[HAS_INFORMATION]->(SSMInstancePatch)
         ```
+
+### WAFv2WebACL
+Representation of an AWS WAFv2 [WebACL](https://docs.aws.amazon.com/waf/latest/APIReference/API_WebACL.html)
+
+| Field                    | Description                                                 |
+|--------------------------|-------------------------------------------------------------|
+| firstseen                | Timestamp of when a sync job first discovered this node     |
+| lastupdated              | Timestamp of the last time the node was updated             |
+| **id**                   | The ARN of the WebACL                                       |
+| name                     | The name of the WebACL.                                     |
+| description              | A description of the WebACL that helps with identification. |
+| managedbyfirewallmanager | Indicates whether this is managed by Firewall Manager.      |
+
+#### Relationships
+
+- WAFv2WebACL is a resource under the AWS Account.
+
+        ```
+        (AWSAccount)-[RESOURCE]->(WAFv2WebACL)
+        ```
+- WAFv2WebACL have WAFv2APIRule
+    
+          ```
+          (WAFv2WebACL)-[ENFORCE]->(WAFv2APIRule)
+          ```
+- WAFv2WebACL is associated with APIGatewayStage and/or LoadBalancerV2
+    
+          ```
+          (WAFv2WebACL)-[ASSOCIATED_WITH]->(APIGatewayStage|LoadBalancerV2)
+          ```
+
+### WAFv2APIRule
+Representation of an AWS WAFv2 [Rule](https://docs.aws.amazon.com/waf/latest/APIReference/API_Rule.html)
+
+| Field         | Description                                                                          |
+|---------------|--------------------------------------------------------------------------------------|
+| firstseen     | Timestamp of when a sync job first discovered this node                              |
+| lastupdated   | Timestamp of the last time the node was updated                                      |
+| **name**      | The name of the rule.                                                                |
+| priority      | The priority of the rule.                                                            |
+| statementtype | The type of rule, for example, `ManagedRuleGroupStatement` or `LabelMatchStatement`. |
+| vendorname    | The vendor the manages the rule (available for ManagedRules).                        |
+
+#### Relationships
+
+- WAFv2APIRule is a resource under WAFv2WebACL
+    
+          ```
+          (WAFv2WebACL)-[ENFORCE]->(WAFv2APIRule)
+          ```

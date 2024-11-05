@@ -41,6 +41,7 @@ from .ec2.tgw import sync_transit_gateways
 from .ec2.volumes import sync_ebs_volumes
 from .ec2.vpc import sync_vpc
 from .ec2.vpc_peerings import sync_vpc_peerings
+from .wafv2 import sync_wafv2
 
 RESOURCE_FUNCTIONS: Dict = {
     'iam': iam.sync,
@@ -86,4 +87,5 @@ RESOURCE_FUNCTIONS: Dict = {
     'ssm': ssm.sync,
     'inspector': inspector.sync,
     'config': config.sync,
+    'wafv2': sync_wafv2,
 }

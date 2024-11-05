@@ -113,6 +113,8 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     's3': {'label': 'S3Bucket', 'property': 'id', 'id_func': get_bucket_name_from_arn},
     'secretsmanager:secret': {'label': 'SecretsManagerSecret', 'property': 'id'},
     'sqs': {'label': 'SQSQueue', 'property': 'id'},
+    'wafv2:webacl': {'label': 'WAFv2WebACL', 'property': 'id'},
+    'wafv2:api-rule': {'label': 'WAFv2APIRule', 'property': 'name'},
 }
 
 
