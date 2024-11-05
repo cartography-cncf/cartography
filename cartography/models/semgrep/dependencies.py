@@ -17,7 +17,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class SemgrepDependencyNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef('id')
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
-    name: PropertyRef = PropertyRef('name')  # TODO: set extra_index=True for this or other properties?
+    name: PropertyRef = PropertyRef('name')
     ecosystem: PropertyRef = PropertyRef('ecosystem')
     version: PropertyRef = PropertyRef('version')
 

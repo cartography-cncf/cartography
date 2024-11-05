@@ -57,11 +57,11 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
             response = requests.get(sca_url, params=request_data, headers=headers, timeout=_TIMEOUT)
             response.raise_for_status()
             data = response.json()
-        except (ReadTimeout, HTTPError) as e:
+        except (ReadTimeout, HTTPError):
             logger.warning(f"Failed to retrieve Semgrep SCA vulns for page {page}. Retrying...")
             retries += 1
             if retries >= _MAX_RETRIES:
-                raise e
+                raise
             continue
         vulns = data["findings"]
         has_more = len(vulns) > 0
@@ -184,7 +184,7 @@ def load_semgrep_sca_vulns(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(vulns)} Semgrep SCA vulns info into the graph.")
+    logger.info(f"Loading {len(vulns)} SemgrepSCAFinding objects into the graph.")
     load(
         neo4j_session,
         SemgrepSCAFindingSchema(),
@@ -201,7 +201,7 @@ def load_semgrep_sca_usages(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(usages)} Semgrep SCA usages info into the graph.")
+    logger.info(f"Loading {len(usages)} SemgrepSCALocation objects into the graph.")
     load(
         neo4j_session,
         SemgrepSCALocationSchema(),

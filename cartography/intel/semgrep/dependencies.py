@@ -56,11 +56,11 @@ def get_dependencies(semgrep_app_token: str, deployment_id: str, ecosystems: Lis
             response = requests.post(deps_url, json=request_data, headers=headers, timeout=_TIMEOUT)
             response.raise_for_status()
             data = response.json()
-        except (ReadTimeout, HTTPError) as e:
+        except (ReadTimeout, HTTPError):
             logger.warning(f"Failed to retrieve Semgrep dependencies for page {page}. Retrying...")
             retries += 1
             if retries >= _MAX_RETRIES:
-                raise e
+                raise
             continue
         deps = data.get("dependencies", [])
         has_more = data.get("hasMore", False)
@@ -144,7 +144,7 @@ def load_dependencies(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(dependencies)} Semgrep dependencies into the graph.")
+    logger.info(f"Loading {len(dependencies)} {dependency_schema().label} objects into the graph.")
     load(
         neo4j_session,
         dependency_schema(),
@@ -195,7 +195,7 @@ def sync_dependencies(
         neo4j_session=neo4j_session,
         group_type='Semgrep',
         group_id=deployment_id,
-        synced_type='Dependency',  # TODO: should this be "SemgrepDependency"?
+        synced_type='SemgrepDependency',
         update_tag=update_tag,
         stat_handler=stat_handler,
     )
