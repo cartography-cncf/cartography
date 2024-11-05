@@ -1,8 +1,3 @@
-DEPLOYMENTS = {
-    "id": "123456",
-    "name": "Org",
-    "slug": "org",
-}
 VULN_ID = 73537136
 USAGE_ID = hash(
     "org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",
