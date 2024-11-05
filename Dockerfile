@@ -1,4 +1,5 @@
 # This is a thin distribution of the cartography software.
+# It is published at ghcr.io.
 FROM python:3.10-slim
 
 # the UID and GID to run cartography as

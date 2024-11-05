@@ -99,8 +99,7 @@ We include a dev.Dockerfile that can help streamline common dev tasks. It is dif
 To use it, build dev.Dockerfile with
 ```bash
 cd /path/to/cartography/repo
-docker build -t lyft/cartography-dev -f . dev.Dockerfile
-docker-compose --profile dev up -d
+docker build -t cartography-cncf/cartography-dev -f dev.Dockerfile ./
 ```
 
 With that, there are some interesting things you can do with it.
@@ -137,7 +136,7 @@ If you don't like docker-compose or if it doesn't work for you for any reason, h
 #### Run unit tests with dev.Dockerfile
 
 ```bash
-docker run --rm lyft/cartography-dev make test_unit
+docker run --rm cartography-cncf/cartography-dev make test_unit
 ```
 
 This is a simple command because it doesn't require any volume mounts or docker networking.
@@ -148,7 +147,7 @@ This is a simple command because it doesn't require any volume mounts or docker 
 docker run --rm \
     -v $(pwd):/var/cartography \
     -v $(pwd)/.cache/pre-commit:/var/cartography/.cache/pre-commit \
-    lyft/cartography-dev \
+    cartography-cncf/cartography-dev \
     make test_lint
 ```
 
@@ -173,7 +172,7 @@ and then call the integration test suite like this:
 docker run --rm \
   --network cartography-network \
   -e NEO4J_URL=bolt://cartography-neo4j:7687 \
-  lyft/cartography-dev \
+  cartography-cncf/cartography-dev \
   make test_integration
 ```
 
@@ -200,20 +199,20 @@ docker run --rm \
     -v $(pwd)/.cache/pre-commit:/var/cartography/.cache/pre-commit \
     --network cartography-network \
     -e NEO4J_URL=bolt://cartography-neo4j:7687 \
-    lyft/cartography-dev \
+    cartography-cncf/cartography-dev \
     make test
 ```
 
 #### Run a [custom sync script](#implementing-custom-sync-commands) with dev.Dockerfile
 
 ```bash
-docker run --rm lyft/cartography-dev python custom_sync.py
+docker run --rm cartography-cncf/cartography-dev python custom_sync.py
 ```
 
 #### Run cartography CLI with dev.Dockerfile
 
 ```bash
-docker run --rm lyft/cartography-dev cartography --help
+docker run --rm cartography-cncf/cartography-dev cartography --help
 ```
 
 ## How to write a new intel module
