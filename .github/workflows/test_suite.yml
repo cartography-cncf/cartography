@@ -90,7 +90,7 @@ jobs:
       - name: make test_integration
         run: make test_integration
 
-  build-dist-docker-image:
+  build-docker-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -106,7 +106,7 @@ jobs:
       - name: Build
         uses: docker/build-push-action@v3
         with:
-          file: dist.Dockerfile
+          file: Dockerfile
           push: false # only build the image, don't push it anywhere
           context: .
           tags: ${{ steps.meta.outputs.tags }}

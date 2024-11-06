@@ -43,10 +43,6 @@ class Config:
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
-    :type crxcavator_api_base_uri: str
-    :param crxcavator_api_base_uri: URI for CRXcavator API. Optional.
-    :type crxcavator_api_key: str
-    :param crxcavator_api_key: Auth key for CRXcavator API. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -111,6 +107,12 @@ class Config:
     :param duo_api_hostname: The Duo api hostname, e.g. "api-abc123.duosecurity.com". Optional.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
+    :type snipeit_base_uri: string
+    :param snipeit_base_uri: SnipeIT data provider base URI. Optional.
+    :type snipeit_token: string
+    :param snipeit_token: Token used to authenticate to the SnipeIT data provider. Optional.
+    :type snipeit_tenant_id: string
+    :param snipeit_tenant_id: Token used to authenticate to the SnipeIT data provider. Optional.
     """
 
     def __init__(
@@ -131,8 +133,6 @@ class Config:
         azure_client_secret=None,
         aws_requested_syncs=None,
         analysis_job_directory=None,
-        crxcavator_api_base_uri=None,
-        crxcavator_api_key=None,
         oci_sync_all_profiles=None,
         okta_org_id=None,
         okta_api_key=None,
@@ -170,6 +170,9 @@ class Config:
         duo_api_secret=None,
         duo_api_hostname=None,
         semgrep_app_token=None,
+        snipeit_base_uri=None,
+        snipeit_token=None,
+        snipeit_tenant_id=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -187,8 +190,6 @@ class Config:
         self.azure_client_secret = azure_client_secret
         self.aws_requested_syncs = aws_requested_syncs
         self.analysis_job_directory = analysis_job_directory
-        self.crxcavator_api_base_uri = crxcavator_api_base_uri
-        self.crxcavator_api_key = crxcavator_api_key
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
         self.okta_api_key = okta_api_key
@@ -226,3 +227,6 @@ class Config:
         self.duo_api_secret = duo_api_secret
         self.duo_api_hostname = duo_api_hostname
         self.semgrep_app_token = semgrep_app_token
+        self.snipeit_base_uri = snipeit_base_uri
+        self.snipeit_token = snipeit_token
+        self.snipeit_tenant_id = snipeit_tenant_id

@@ -115,4 +115,4 @@ def test_transform_policy_data_correctly_creates_lists_of_statements():
     transform_policy_data(pol_statement_map, PolicyType.inline.value)
 
     # Assert that we correctly converted the statement to a list
-    assert type(pol_statement_map['some-arn']['pol-name']) == list
+    assert isinstance(pol_statement_map['some-arn']['pol-name'], list)

@@ -221,23 +221,6 @@ class CLI:
             ),
         )
         parser.add_argument(
-            '--crxcavator-api-base-uri',
-            type=str,
-            default='https://api.crxcavator.io/v1',
-            help=(
-                'Base URI for the CRXcavator API. Defaults to public API endpoint.'
-            ),
-        )
-        parser.add_argument(
-            '--crxcavator-api-key-env-var',
-            type=str,
-            default=None,
-            help=(
-                'The name of an environment variable containing a key with which to auth to the CRXcavator API. '
-                'Required if you are using the CRXcavator intel module. Ignored otherwise.'
-            ),
-        )
-        parser.add_argument(
             '--analysis-job-directory',
             type=str,
             default=None,
@@ -541,6 +524,28 @@ class CLI:
                 'Required if you are using the Semgrep intel module. Ignored otherwise.'
             ),
         )
+        parser.add_argument(
+            '--snipeit-base-uri',
+            type=str,
+            default=None,
+            help=(
+                'Your SnipeIT base URI'
+                'Required if you are using the SnipeIT intel module. Ignored otherwise.'
+            ),
+        )
+        parser.add_argument(
+            '--snipeit-token-env-var',
+            type=str,
+            default=None,
+            help='The name of an environment variable containing token with which to authenticate to SnipeIT.',
+        )
+        parser.add_argument(
+            '--snipeit-tenant-id',
+            type=str,
+            default=None,
+            help='An ID for the SnipeIT tenant.',
+        )
+
         return parser
 
     def main(self, argv: str) -> int:
@@ -603,13 +608,6 @@ class CLI:
             config.okta_api_key = os.environ.get(config.okta_api_key_env_var)
         else:
             config.okta_api_key = None
-
-        # CRXcavator config
-        if config.crxcavator_api_base_uri and config.crxcavator_api_key_env_var:
-            logger.debug(f"Reading API key for CRXcavator from env variable {config.crxcavator_api_key_env_var}.")
-            config.crxcavator_api_key = os.environ.get(config.crxcavator_api_key_env_var)
-        else:
-            config.crxcavator_api_key = None
 
         # GitHub config
         if config.github_config_env_var:
@@ -743,6 +741,26 @@ class CLI:
             config.cve_api_key = os.environ.get(config.cve_api_key_env_var)
         else:
             config.cve_api_key = None
+
+        # SnipeIT config
+        if config.snipeit_base_uri:
+            if config.snipeit_token_env_var:
+                logger.debug(
+                    "Reading SnipeIT API token from environment variable '%s'.",
+                    config.snipeit_token_env_var,
+                )
+                config.snipeit_token = os.environ.get(config.snipeit_token_env_var)
+            elif os.environ.get('SNIPEIT_TOKEN'):
+                logger.debug(
+                    "Reading SnipeIT API token from environment variable 'SNIPEIT_TOKEN'.",
+                )
+                config.snipeit_token = os.environ.get('SNIPEIT_TOKEN')
+            else:
+                logger.warning("A SnipeIT base URI was provided but a token was not.")
+                config.kandji_token = None
+        else:
+            logger.warning("A SnipeIT base URI was not provided.")
+            config.snipeit_base_uri = None
 
         # Run cartography
         try:

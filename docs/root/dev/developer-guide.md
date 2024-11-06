@@ -1,72 +1,57 @@
 # Cartography Developer Guide
 
-## Testing
+## Running the source code
 
-_If you'd like to test using Docker and Docker Compose, see [here](testing-with-docker.html)_
+This document assumes familiarity with Python dev practices such as using [virtualenvs](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/).
 
-### Running from source
+1. **Run Neo4j**
 
-1. **Install**
+    Follow the [Install Steps](../install.html) so that you get Neo4j running locally. It's up to you if you want to use Docker or a native install.
 
-    Follow steps 1 and 2 in [Installation](../install.html#cartography-installation). Ensure that you have JVM 11 installed and Neo4j Community Edition 4.4 is running on your local machine.
+1. **Install Python 3.10**
 
-2. **Clone the source code**
+1. **Clone the source code**
 
     Run `cd {path-where-you-want-your-source-code}`. Get the source code with `git clone git://github.com/lyft/cartography.git`
 
-3. **Install from source**
+1. **Perform an editable install of the cartography source code**
 
-    Run `cd cartography` and then `pip install -e .` (yes, actually type the period into the command line) to install Cartography from source.
-
-    ℹ️You may find it beneficial to use Python [virtualenvs](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/) (or the  [virutalenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/command_ref.html#managing-environments)) so that packages installed via `pip` are easier to manage.
+    Run `cd cartography` and then `pip install -e .` (yes, actually type the period into the command line) to install Cartography from source to the current venv.
 
 4. **Run from source**
 
-    After this finishes you should be able to run Cartography from source with `cartography --neo4j-uri <uri for your neo4j instance; usually bolt://localhost:7687>`. Any changes to the source code in `{path-where-you-want-your-source-code}/cartography` are now locally testable by running `cartography` from the command line.
+    After this finishes you should be able to run Cartography from source with `cartography --neo4j-uri bolt://localhost:7687`. Any changes to the source code in `{path-where-you-want-your-source-code}/cartography` are now locally testable by running `cartography` from the command line.
 
-### Manually testing individual intel modules
-
-After completing the section above, you are now able to manually test intel modules.
-
-1. **If needed, comment out unnecessary lines**
-
-    See `cartography.intel.aws._sync_one_account()`[here](https://github.com/lyft/cartography/blob/master/cartography/intel/aws/__init__.py). This function syncs different AWS objects with your Neo4j instance. Comment out the lines that you don't want to test for.
-
-    For example, IAM can take a long time to ingest so if you're testing an intel module that doesn't require IAM nodes to already exist in the graph, then you can comment out all of the `iam.sync_*` lines.
-
-2. Save your changes and run `cartography` from a terminal as you normally would.
-
-### Automated testing
+## Automated testing
 
 1. **Install test requirements**
 
     `pip install -r test-requirements.txt`
 
-2. **(OPTIONAL) Setup environment variables for integration tests**
+1. **(OPTIONAL) Setup environment variables for integration tests**
 
-    The integration tests expect Neo4j to be running locally, listening on default ports, with auth disabled:
-
-    To disable auth, edit your `neo4j.conf` file with `dbms.security.auth_enabled=false`. Additional details on [neo4j.com](    https://neo4j.com/docs/operations-manual/current/authentication-authorization/enable/).
+    The integration tests expect Neo4j to be running locally, listening on default ports, and with auth disabled.
 
     To run the integration tests on a specific Neo4j instance, add the following environment variable:
 
     `export "NEO4J_URL=<your_neo4j_instance_bolt_url:your_neo4j_instance_port>"`
 
-3. **Run tests using `make`**
-    - `make test_lint` can be used to run [pre-commit](https://pre-commit.com) linting against the codebase. We use [pre-commit](https://pre-commit.com) to standardize our linting across our code-base at Lyft.
-    - `make test_unit` can be used to run the unit test suite.
+1. **Run tests using `make`**
+    - `make test_lint` runs [pre-commit](https://pre-commit.com) linting against the codebase.
+    - `make test_unit` runs the unit test suite.
 
     ⚠️ Important!  The below commands will **DELETE ALL NODES** on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this. ⚠️
 
-    - `make test_integration` can be used to run the integration test suite.
+    - `make test_integration` runs the integration test suite.
     For more granular testing, you can invoke `pytest` directly:
       - `pytest ./tests/integration/cartography/intel/aws/test_iam.py`
       - `pytest ./tests/integration/cartography/intel/aws/test_iam.py::test_load_groups`
+      - `pytest -k test_load_groups`
     - `make test` can be used to run all of the above.
 
 ## Implementing custom sync commands
 
-By default, cartography will try to sync every intel module included as part of the default sync. If you're not using certain intel modules you can create a custom sync script and invoke it using the cartography CLI. For example, if you're only interested in the AWS intel module you can create a sync script, `custom_sync.py`, that looks like this:
+By default, cartography will try to sync every intel module included as part of the default sync. If you're not using certain intel modules, you can create a custom sync script and invoke it using the cartography CLI. For example, if you're only interested in the AWS intel module you can create a sync script, `custom_sync.py`, that looks like this:
 
 ```python
 from cartography import cli
@@ -101,6 +86,133 @@ INFO:cartography.sync:Finishing sync stage 'create-indexes'
 INFO:cartography.sync:Starting sync stage 'aws'
 INFO:botocore.credentials:Found credentials in shared credentials file: ~/.aws/credentials
 ...
+```
+
+## dev.Dockerfile
+
+We include a dev.Dockerfile that can help streamline common dev tasks. It is different from the main Dockerfile in that
+
+1. It is strictly intended for dev purposes.
+1. It performs an editable install of the cartography source code and test requirements.
+1. It does not define a docker entrypoint. This is to allow you to run a custom sync script instead of just the main `cartography` command.
+
+To use it, build dev.Dockerfile with
+```bash
+cd /path/to/cartography/repo
+docker build -t cartography-cncf/cartography-dev -f dev.Dockerfile ./
+```
+
+With that, there are some interesting things you can do with it.
+
+### Dev with docker-compose
+
+#### Run the full test suite
+
+```bash
+docker-compose run cartography-dev make test_lint
+docker-compose run cartography-dev make test_unit
+docker-compose run cartography-dev make test_integration
+
+# for all the above
+docker-compose run cartography-dev make test
+```
+
+#### Run a [custom sync script](#implementing-custom-sync-commands)
+
+```bash
+docker-compose run cartography-dev python custom_script.py
+```
+
+#### Run the cartography CLI
+
+```bash
+docker-compose run cartography-dev cartography --help
+```
+
+### Equivalent manual docker commands
+
+If you don't like docker-compose or if it doesn't work for you for any reason, here are the equivalent manual docker commands for the previous scenarios:
+
+#### Run unit tests with dev.Dockerfile
+
+```bash
+docker run --rm cartography-cncf/cartography-dev make test_unit
+```
+
+This is a simple command because it doesn't require any volume mounts or docker networking.
+
+#### Run the linter with dev.Dockerfile
+
+```bash
+docker run --rm \
+    -v $(pwd):/var/cartography \
+    -v $(pwd)/.cache/pre-commit:/var/cartography/.cache/pre-commit \
+    cartography-cncf/cartography-dev \
+    make test_lint
+```
+
+The volume mounts are necessary to let pre-commit from within the container edit source files on the host machine, and for pre-commit's cached state to save on your host machine without needing to update itself every time you run it.
+
+#### Run integration tests with dev.Dockerfile
+
+First run a Neo4j container:
+```bash
+docker run \
+    --publish=7474:7474 \
+    --publish=7687:7687 \
+    --network cartography-network \
+    -v data:/data \
+    --name cartography-neo4j \
+    --env=NEO4J_AUTH=none \
+    neo4j:4.4-community
+```
+
+and then call the integration test suite like this:
+```bash
+docker run --rm \
+  --network cartography-network \
+  -e NEO4J_URL=bolt://cartography-neo4j:7687 \
+  cartography-cncf/cartography-dev \
+  make test_integration
+```
+
+Note that we needed to specify the `NEO4J_URL` env var so that the integration test would be able to reach the Neo4j container.
+
+#### Run the full test suite with dev.Dockerfile
+
+Bring up a neo4j container
+```bash
+docker run \
+    --publish=7474:7474 \
+    --publish=7687:7687 \
+    --network cartography-network \
+    -v data:/data \
+    --name cartography-neo4j \
+    --env=NEO4J_AUTH=none \
+    neo4j:4.4-community
+```
+
+and then run the full test suite by specifying all the necessary volumes, network, and env vars.
+```bash
+docker run --rm \
+    -v $(pwd):/var/cartography \
+    -v $(pwd)/.cache/pre-commit:/var/cartography/.cache/pre-commit \
+    --network cartography-network \
+    -e NEO4J_URL=bolt://cartography-neo4j:7687 \
+    cartography-cncf/cartography-dev \
+    make test
+```
+
+#### Run a [custom sync script](#implementing-custom-sync-commands) with dev.Dockerfile
+
+```bash
+docker run --rm cartography-cncf/cartography-dev python custom_sync.py
+```
+
+#### Run cartography CLI with dev.Dockerfile
+
+```bash
+docker run --rm cartography-cncf/cartography-dev cartography --help
 ```
 
 ## How to write a new intel module

@@ -20,4 +20,4 @@ If you are changing a node or relationship:
 - [ ] Update the [schema](https://github.com/lyft/cartography/tree/master/docs/root/modules) and [readme](https://github.com/lyft/cartography/blob/master/docs/schema/README.md).
 
 If you are implementing a new intel module:
-- [ ] Use the NodeSchema [data model](https://lyft.github.io/cartography/dev/writing-intel-modules.html#defining-a-node).
+- [ ] Use the NodeSchema [data model](https://cartography-cncf.github.io/cartography/dev/writing-intel-modules.html#defining-a-node).

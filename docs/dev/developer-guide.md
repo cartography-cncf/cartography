@@ -1,1 +1,1 @@
-This document has been moved [here](https://lyft.github.io/cartography/dev/developer-guide.html)
+This document has been moved [here](https://cartography-cncf.github.io/cartography/dev/developer-guide.html)

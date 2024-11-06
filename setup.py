@@ -1,7 +1,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
-__version__ = '0.94.0rc3'
+__version__ = '0.95.0'
 
 
 setup(
@@ -10,9 +10,8 @@ setup(
     description='Explore assets and their relationships across your technical infrastructure.',
     long_description='file: README.md',
     long_description_content_type='text/markdown',
-    url='https://www.github.com/lyft/cartography',
-    maintainer='Lyft',
-    maintainer_email='security@lyft.com',
+    url='https://www.github.com/cartography-cncf/cartography',
+    maintainer='Cartography Contributors',
     license='apache2',
     packages=find_packages(exclude=['tests*']),
     package_data={

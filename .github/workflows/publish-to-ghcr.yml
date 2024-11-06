@@ -44,7 +44,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          file: dist.Dockerfile
+          file: Dockerfile
           context: .
           push: true # push the image to ghcr
           tags: ${{ steps.meta.outputs.tags }}
