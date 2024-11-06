@@ -137,10 +137,9 @@ See [SemgrepDependency](#semgrepdependency) for details.
 - A SemgrepDependency is required by a GithubRepository (optional)
 
     ```
-    (:SemgrepDependency)<-[:REQUIRES]-(:GithubRepository)
+    (:SemgrepDependency)<-[:REQUIRES{specifier, transitivity, url}]-(:GithubRepository)
     ```
 
-   Properties on REQUIRES relationship:
     - specifier: A string describing the library version required by the repo (e.g. "==1.0.2")
     - transitivity: A string describing whether the dependency is direct or [transitive](https://en.wikipedia.org/wiki/Transitive_dependency) (e.g. direct, transitive)
-    - url: The URL where the dependency is defined (e.g. https://github.com/org/repo/blob/00000000000000000000000000000000/go.mod#L6)
+    - url: The URL where the dependency is defined (e.g. `https://github.com/org/repo/blob/00000000000000000000000000000000/go.mod#L6`)
