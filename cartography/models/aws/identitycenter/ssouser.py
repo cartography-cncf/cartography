@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties
-from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema, ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -28,7 +27,7 @@ class SSOUserToOktaUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class SSOUserToOktaUser(CartographyRelSchema):
-    target_node_label: str = 'OktaUser'
+    target_node_label: str = 'UserAccount'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {'id': PropertyRef('ExternalId')},
     )
@@ -41,7 +40,7 @@ class SSOUserToOktaUser(CartographyRelSchema):
 class SSOUserSchema(CartographyNodeSchema):
     label: str = 'AWSSSOUser'
     properties: SSOUserProperties = SSOUserProperties()
-    # role_relationship: SSOUserToRole = SSOUserToRole()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SSOUserToOktaUser(),

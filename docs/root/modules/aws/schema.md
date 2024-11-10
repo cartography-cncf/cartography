@@ -3350,10 +3350,10 @@ Representation of an AWS SSO User.
     ```
     (AWSSSOUser)<-[ALLOWED_BY]-(AWSRole)
     ```
-- OktaUser can be assumed by AWSSSOUser.
+- UserAccount can be assumed by AWSSSOUser.
 
     ```
-    (OktaUser)<-[CAN_ASSUME_IDENTITY]-(AWSSSOUser)
+    (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
     ```
 
 ### AWSPermissionSet
