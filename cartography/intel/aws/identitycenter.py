@@ -185,7 +185,7 @@ def load_permission_set_role_assignments(
     neo4j_session.run(
         """
         UNWIND $role_assignments AS ra
-        MATCH (ps:AWSIdentityCenterPermissionSet {arn: ra.PermissionSetArn})
+        MATCH (ps:AWSPermissionSet {arn: ra.PermissionSetArn})
         MATCH (role:AWSRole)
         WHERE role.arn STARTS WITH ra.RoleArn
         MERGE (ps)-[r:ASSIGNED_TO_ROLE]->(role)
@@ -290,7 +290,7 @@ def load_role_assignments(
             UNWIND $role_assignments AS ra
             MATCH (acc:AWSAccount{id:ra.AccountId}) -[:RESOURCE]->
             (role:AWSRole)<-[:ASSIGNED_TO_ROLE]-
-            (permset:AWSIdentityCenterPermissionSet {id: ra.PermissionSetArn})
+            (permset:AWSPermissionSet {id: ra.PermissionSetArn})
             MATCH (sso:AWSSSOUser {id: ra.UserId})
             MERGE (role)-[r:ALLOWED_BY]->(sso)
             SET r.lastupdated = $aws_update_tag,

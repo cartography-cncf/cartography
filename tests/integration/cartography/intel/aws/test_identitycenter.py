@@ -58,4 +58,4 @@ def test_load_permission_sets(neo4j_session):
     )
 
     # Verify that the permission sets are correctly loaded
-    check_nodes(neo4j_session, 'AWSIdentityCenterPermissionSet', ['id', 'name'])
+    check_nodes(neo4j_session, 'AWSPermissionSet', ['id', 'name'])

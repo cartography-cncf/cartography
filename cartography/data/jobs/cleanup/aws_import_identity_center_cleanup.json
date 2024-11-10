@@ -22,12 +22,12 @@
       "iterationsize": 100
     },
     {
-      "query": "MATCH (n:AWSIdentityCenterPermissionSet) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n) RETURN COUNT(*) as TotalDeleted",
+      "query": "MATCH (n:AWSPermissionSet) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n) RETURN COUNT(*) as TotalDeleted",
       "iterative": true,
       "iterationsize": 100
     },
     {
-      "query": "MATCH (:AWSIdentityCenterPermissionSet)-[r:ASSIGNED_TO_ROLE]->(:AWSRole) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r) RETURN COUNT(*) as TotalDeleted",
+      "query": "MATCH (:AWSPermissionSet)-[r:ASSIGNED_TO_ROLE]->(:AWSRole) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r) RETURN COUNT(*) as TotalDeleted",
       "iterative": true,
       "iterationsize": 100
     }

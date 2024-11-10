@@ -3322,7 +3322,7 @@ Representation of an AWS Identity Center.
 - AWSIdentityCenter has permission sets.
 
     ```
-    (AWSIdentityCenter)-[HAS_PERMISSION_SET]->(AWSIdentityCenterPermissionSet)
+    (AWSIdentityCenter)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
     ```
 
 ### AWSSSOUser
