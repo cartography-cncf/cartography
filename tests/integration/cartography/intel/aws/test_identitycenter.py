@@ -19,6 +19,7 @@ def test_load_sso_users(neo4j_session):
         'd-1234567890',
         'us-west-2',
         TEST_ACCOUNT_ID,
+        "test_tag",
     )
 
     # Use check_nodes to verify that the SSO users are correctly loaded
@@ -55,6 +56,7 @@ def test_load_permission_sets(neo4j_session):
         "arn:aws:sso:::instance/ssoins-12345678901234567",
         "us-west-2",
         TEST_ACCOUNT_ID,
+        "test_tag",
     )
 
     # Verify that the permission sets are correctly loaded

@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from typing import Dict
 from typing import List
 
@@ -6,13 +7,13 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.models.aws.identitycenter.identitycenter import IdentityCenterInstanceSchema
-from cartography.models.aws.identitycenter.permissionsets import PermissionSetSchema
-from cartography.models.aws.identitycenter.ssouser import SSOUserSchema
+from cartography.graph.job import GraphJob
+from cartography.models.aws.identitycenter.awsidentitycenter import AWSIdentityCenterInstanceSchema
+from cartography.models.aws.identitycenter.awspermissionset import AWSPermissionSetSchema
+from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
-
 logger = logging.getLogger(__name__)
 
 
@@ -50,26 +51,11 @@ def load_identity_center_instances(
     logger.info(f"Loading {len(instance_data)} Identity Center instances for region {region}")
     load(
         neo4j_session,
-        IdentityCenterInstanceSchema(),
+        AWSIdentityCenterInstanceSchema(),
         instance_data,
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
-    )
-
-
-@timeit
-def cleanup_identity_center_instances(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Remove stale Identity Center instance nodes and relationships
-    """
-    run_cleanup_job(
-        'aws_import_identity_center_cleanup.json',
-        neo4j_session,
-        common_job_parameters,
     )
 
 
@@ -131,6 +117,7 @@ def load_permission_sets(
     permission_sets: List[Dict],
     instance_arn: str,
     region: str,
+    aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     """
@@ -140,11 +127,12 @@ def load_permission_sets(
 
     load(
         neo4j_session,
-        PermissionSetSchema(),
+        AWSPermissionSetSchema(),
         permission_sets,
         lastupdated=aws_update_tag,
         InstanceArn=instance_arn,
         Region=region,
+        AWS_ID=aws_account_id,
     )
 
 
@@ -225,6 +213,7 @@ def load_sso_users(
     users: List[Dict],
     identity_store_id: str,
     region: str,
+    aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     """
@@ -234,10 +223,11 @@ def load_sso_users(
 
     load(
         neo4j_session,
-        SSOUserSchema(),
+        AWSSSOUserSchema(),
         users,
         lastupdated=aws_update_tag,
         IdentityStoreId=identity_store_id,
+        AWS_ID=aws_account_id,
         Region=region,
     )
 
@@ -300,7 +290,18 @@ def load_role_assignments(
             aws_update_tag=aws_update_tag,
         )
 
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+    GraphJob.from_node_schema(AWSIdentityCenterInstanceSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AWSPermissionSetSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AWSSSOUserSchema(), common_job_parameters).run(neo4j_session)
+    run_cleanup_job(
+        'aws_import_identity_center_cleanup.json',
+        neo4j_session,
+        common_job_parameters,
+    )
 
+
+@timeit
 def sync_identity_center_instances(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -335,6 +336,7 @@ def sync_identity_center_instances(
                 permission_sets,
                 instance_arn,
                 region,
+                current_aws_account_id,
                 update_tag,
             )
 
@@ -352,6 +354,7 @@ def sync_identity_center_instances(
                 users,
                 identity_store_id,
                 region,
+                current_aws_account_id,
                 update_tag,
             )
 
@@ -368,4 +371,4 @@ def sync_identity_center_instances(
                 update_tag,
             )
 
-    cleanup_identity_center_instances(neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters)
