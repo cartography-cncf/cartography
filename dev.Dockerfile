@@ -31,3 +31,6 @@ RUN git config --global --add safe.directory /var/cartography && \
     git config --local user.name "cartography"
 
 USER ${uid}:${gid}
+
+#RUN chmod +x /var/cartography/dev-entrypoint.sh
+ENTRYPOINT ["/var/cartography/dev-entrypoint.sh"]
