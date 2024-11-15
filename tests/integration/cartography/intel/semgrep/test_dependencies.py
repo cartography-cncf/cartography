@@ -30,9 +30,12 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
         "UPDATE_TAG": TEST_UPDATE_TAG,
     }
 
+    # TODO: add tests for npm, and param validation
+    ecosystems = "gomod"
+
     # Act
     sync_deployment(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
-    sync_dependencies(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
+    sync_dependencies(neo4j_session, semgrep_app_token, ecosystems, TEST_UPDATE_TAG, common_job_parameters)
 
     # Assert
     assert check_nodes(
