@@ -12,6 +12,7 @@ from requests.exceptions import ReadTimeout
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
+from cartography.models.semgrep.dependencies import SemgrepJavascriptLibrarySchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
@@ -159,11 +160,9 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    logger.info("Running Semgrep Go Library cleanup job.")
-    go_libraries_cleanup_job = GraphJob.from_node_schema(
-        SemgrepGoLibrarySchema(), common_job_parameters,
-    )
-    go_libraries_cleanup_job.run(neo4j_session)
+    logger.info("Running Semgrep Dependencies cleanup job.")
+    GraphJob.from_node_schema(SemgrepGoLibrarySchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(SemgrepJavascriptLibrarySchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit
@@ -188,6 +187,11 @@ def sync_dependencies(
     raw_go_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystems=["gomod"])
     go_deps = transform_dependencies(raw_go_deps)
     load_dependencies(neo4j_session, SemgrepGoLibrarySchema, go_deps, deployment_id, update_tag)
+
+    # fetch and load dependencies for the NPM ecosystem
+    raw_js_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystems=["npm"])
+    js_deps = transform_dependencies(raw_js_deps)
+    load_dependencies(neo4j_session, SemgrepJavascriptLibrarySchema, js_deps, deployment_id, update_tag)
 
     cleanup(neo4j_session, common_job_parameters)
 
