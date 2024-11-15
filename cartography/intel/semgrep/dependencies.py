@@ -23,6 +23,8 @@ _PAGE_SIZE = 10000
 _TIMEOUT = (60, 60)
 _MAX_RETRIES = 3
 
+# The keys in this dictionary must be in Semgrep's list of supported ecosystems, defined here:
+# https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion
 ECOSYSTEM_TO_SCHEMA: Dict = {
     'gomod': SemgrepGoLibrarySchema,
     'npm': SemgrepJavascriptLibrarySchema,
@@ -52,9 +54,7 @@ def get_dependencies(semgrep_app_token: str, deployment_id: str, ecosystem: str)
     Gets all dependencies for the given ecosystem within the given Semgrep deployment ID.
     param: semgrep_app_token: The Semgrep App token to use for authentication.
     param: deployment_id: The Semgrep deployment ID to use for retrieving dependencies.
-    param: ecosystem: The ecosystem to import dependencies from, e.g. "gomod" or "pypi".
-    The list of supported ecosystems is defined here:
-    https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion
+    param: ecosystem: The ecosystem to import dependencies from, e.g. "gomod" or "npm".
     """
     all_deps = []
     deps_url = f"https://semgrep.dev/api/v1/deployments/{deployment_id}/dependencies"
