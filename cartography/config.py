@@ -107,6 +107,8 @@ class Config:
     :param duo_api_hostname: The Duo api hostname, e.g. "api-abc123.duosecurity.com". Optional.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
+    :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
+    :type semgrep_dependency_ecosystems: str
     :type snipeit_base_uri: string
     :param snipeit_base_uri: SnipeIT data provider base URI. Optional.
     :type snipeit_token: string
@@ -170,6 +172,7 @@ class Config:
         duo_api_secret=None,
         duo_api_hostname=None,
         semgrep_app_token=None,
+        semgrep_dependency_ecosystems=None,
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
@@ -227,6 +230,7 @@ class Config:
         self.duo_api_secret = duo_api_secret
         self.duo_api_hostname = duo_api_hostname
         self.semgrep_app_token = semgrep_app_token
+        self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id

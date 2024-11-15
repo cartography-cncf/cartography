@@ -23,14 +23,36 @@ _PAGE_SIZE = 10000
 _TIMEOUT = (60, 60)
 _MAX_RETRIES = 3
 
+ECOSYSTEM_TO_SCHEMA: Dict = {
+    'gomod': SemgrepGoLibrarySchema,
+    'npm': SemgrepJavascriptLibrarySchema,
+}
+
+
+def _parse_and_validate_semgrep_ecosystems(ecosystems: str) -> List[str]:
+    validated_ecosystems: List[str] = []
+    for ecosystem in ecosystems.split(','):
+        ecosystem = ecosystem.strip().lower()
+
+        if ecosystem in ECOSYSTEM_TO_SCHEMA:
+            validated_ecosystems.append(ecosystem)
+        else:
+            valid_ecosystems: str = ','.join(ECOSYSTEM_TO_SCHEMA.keys())
+            raise ValueError(
+                f'Error parsing `semgrep-dependency-ecosystems`. You specified "{ecosystems}". '
+                f'Please check that your input is formatted as comma-separated values, e.g. "gomod,npm". '
+                f'Full list of supported ecosystems: {valid_ecosystems}.',
+            )
+    return validated_ecosystems
+
 
 @timeit
-def get_dependencies(semgrep_app_token: str, deployment_id: str, ecosystems: List[str]) -> List[Dict[str, Any]]:
+def get_dependencies(semgrep_app_token: str, deployment_id: str, ecosystem: str) -> List[Dict[str, Any]]:
     """
-    Gets all dependencies for the given ecosystems within the given Semgrep deployment ID.
+    Gets all dependencies for the given ecosystem within the given Semgrep deployment ID.
     param: semgrep_app_token: The Semgrep App token to use for authentication.
     param: deployment_id: The Semgrep deployment ID to use for retrieving dependencies.
-    param: ecosystems: One or more ecosystems to import dependencies from, e.g. "gomod" or "pypi".
+    param: ecosystem: The ecosystem to import dependencies from, e.g. "gomod" or "pypi".
     The list of supported ecosystems is defined here:
     https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion
     """
@@ -47,31 +69,31 @@ def get_dependencies(semgrep_app_token: str, deployment_id: str, ecosystems: Lis
     request_data: dict[str, Any] = {
         "pageSize": _PAGE_SIZE,
         "dependencyFilter": {
-            "ecosystem": ecosystems,
+            "ecosystem": [ecosystem],
         },
     }
 
-    logger.info(f"Retrieving Semgrep dependencies for deployment '{deployment_id}'.")
+    logger.info(f"Retrieving Semgrep {ecosystem} dependencies for deployment '{deployment_id}'.")
     while has_more:
         try:
             response = requests.post(deps_url, json=request_data, headers=headers, timeout=_TIMEOUT)
             response.raise_for_status()
             data = response.json()
         except (ReadTimeout, HTTPError):
-            logger.warning(f"Failed to retrieve Semgrep dependencies for page {page}. Retrying...")
+            logger.warning(f"Failed to retrieve Semgrep {ecosystem} dependencies for page {page}. Retrying...")
             retries += 1
             if retries >= _MAX_RETRIES:
                 raise
             continue
         deps = data.get("dependencies", [])
         has_more = data.get("hasMore", False)
-        logger.info(f"Processed page {page} of Semgrep dependencies.")
+        logger.info(f"Processed page {page} of Semgrep {ecosystem} dependencies.")
         all_deps.extend(deps)
         retries = 0
         page += 1
         request_data["cursor"] = data.get("cursor")
 
-    logger.info(f"Retrieved {len(all_deps)} Semgrep dependencies in {page} pages.")
+    logger.info(f"Retrieved {len(all_deps)} Semgrep {ecosystem} dependencies in {page} pages.")
     return all_deps
 
 
@@ -158,17 +180,18 @@ def load_dependencies(
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
+    dependency_schema: Callable,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    logger.info("Running Semgrep Dependencies cleanup job.")
-    GraphJob.from_node_schema(SemgrepGoLibrarySchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(SemgrepJavascriptLibrarySchema(), common_job_parameters).run(neo4j_session)
+    logger.info(f"Running Semgrep Dependencies cleanup job for {dependency_schema().label}.")
+    GraphJob.from_node_schema(dependency_schema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit
 def sync_dependencies(
     neo4j_session: neo4j.Session,
     semgrep_app_token: str,
+    ecosystems_str: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
@@ -176,24 +199,31 @@ def sync_dependencies(
     deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
     if not deployment_id:
         logger.warning(
-            "Missing Semgrep deployment ID, ensure that sync_deployment() has been called."
+            "Missing Semgrep deployment ID, ensure that sync_deployment() has been called. "
             "Skipping Semgrep dependencies sync job.",
         )
         return
 
+    if not ecosystems_str:
+        logger.warning(
+            "Semgrep is not configured to import dependencies for any ecosystems, see docs to configure. "
+            "Skipping Semgrep dependencies sync job.",
+        )
+        return
+
+    # TODO: instead of erroring out, do we want to catch and log the error thrown for an invalid ecosystem flag,
+    # to let other semgrep modules run?
+    # seems like we want to error if the user provided a value but it's invalid
+    ecosystems = _parse_and_validate_semgrep_ecosystems(ecosystems_str)
+
     logger.info("Running Semgrep dependencies sync job.")
 
-    # fetch and load dependencies for the Go ecosystem
-    raw_go_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystems=["gomod"])
-    go_deps = transform_dependencies(raw_go_deps)
-    load_dependencies(neo4j_session, SemgrepGoLibrarySchema, go_deps, deployment_id, update_tag)
-
-    # fetch and load dependencies for the NPM ecosystem
-    raw_js_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystems=["npm"])
-    js_deps = transform_dependencies(raw_js_deps)
-    load_dependencies(neo4j_session, SemgrepJavascriptLibrarySchema, js_deps, deployment_id, update_tag)
-
-    cleanup(neo4j_session, common_job_parameters)
+    for ecosystem in ecosystems:
+        schema = ECOSYSTEM_TO_SCHEMA[ecosystem]
+        raw_deps = get_dependencies(semgrep_app_token, deployment_id, ecosystem)
+        deps = transform_dependencies(raw_deps)
+        load_dependencies(neo4j_session, schema, deps, deployment_id, update_tag)
+        cleanup(neo4j_session, schema, common_job_parameters)
 
     merge_module_sync_metadata(
         neo4j_session=neo4j_session,
