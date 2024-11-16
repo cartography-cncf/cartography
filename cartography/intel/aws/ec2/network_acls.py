@@ -1,7 +1,6 @@
 import logging
 from collections import namedtuple
 from typing import Any
-from typing import Dict
 
 import boto3
 import neo4j
@@ -193,7 +192,7 @@ def sync_network_acls(
         regions: list[str],
         current_aws_account_id: str,
         update_tag: int,
-        common_job_parameters: Dict,
+        common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
         logger.info(f"Syncing EC2 network ACLs for region '{region}' in account '{current_aws_account_id}'.")
