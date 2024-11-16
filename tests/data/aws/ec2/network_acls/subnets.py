@@ -13,7 +13,7 @@ DESCRIBE_SUBNETS_FOR_ACL_TEST = [
         "PrivateDnsNameOptionsOnLaunch": {
             "HostnameType": "ip-name",
             "EnableResourceNameDnsARecord": False,
-            "EnableResourceNameDnsAAAARecord": False
+            "EnableResourceNameDnsAAAARecord": False,
         },
         "SubnetId": "subnet-0a1a",
         "State": "available",
@@ -22,7 +22,7 @@ DESCRIBE_SUBNETS_FOR_ACL_TEST = [
         "AvailableIpAddressCount": 250,
         "AvailabilityZone": "us-east-1b",
         "DefaultForAz": False,
-        "MapPublicIpOnLaunch": False
+        "MapPublicIpOnLaunch": False,
     },
     {
         "AvailabilityZoneId": "use1-az4",
@@ -36,7 +36,7 @@ DESCRIBE_SUBNETS_FOR_ACL_TEST = [
         "PrivateDnsNameOptionsOnLaunch": {
             "HostnameType": "ip-name",
             "EnableResourceNameDnsARecord": False,
-            "EnableResourceNameDnsAAAARecord": False
+            "EnableResourceNameDnsAAAARecord": False,
         },
         "SubnetId": "subnet-06ba",
         "State": "available",
@@ -45,6 +45,6 @@ DESCRIBE_SUBNETS_FOR_ACL_TEST = [
         "AvailableIpAddressCount": 251,
         "AvailabilityZone": "us-east-1a",
         "DefaultForAz": False,
-        "MapPublicIpOnLaunch": False
+        "MapPublicIpOnLaunch": False,
     },
 ]

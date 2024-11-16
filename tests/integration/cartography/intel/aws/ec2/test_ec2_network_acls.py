@@ -1,26 +1,23 @@
-from unittest.mock import MagicMock, patch
-
-from tests.integration.cartography.intel.aws.common import create_test_account
-
-from tests.integration.util import check_rels
+from typing import Any
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.aws.ec2
-
+from cartography.intel.aws.ec2.instances import sync_ec2_instances
 from cartography.intel.aws.ec2.network_acls import sync_network_acls
 from cartography.intel.aws.ec2.subnets import sync_subnets
-
 from cartography.intel.aws.ec2.vpc import sync_vpc
-
-from cartography.intel.aws.ec2.instances import sync_ec2_instances
 from tests.data.aws.ec2.network_acls.instances import INSTANCES_FOR_ACL_TEST
 from tests.data.aws.ec2.network_acls.network_acls import DESCRIBE_NETWORK_ACLS
 from tests.data.aws.ec2.network_acls.subnets import DESCRIBE_SUBNETS_FOR_ACL_TEST
 from tests.data.aws.ec2.network_acls.vpcs import DESCRIBE_VPCS_FOR_ACL_TEST
+from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = '000000000000'
 TEST_REGION = 'us-east-1'
 TEST_UPDATE_TAG = 123456789
-common_job_parameters = {
+common_job_parameters: dict[str, Any] = {
     "UPDATE_TAG": TEST_UPDATE_TAG,
     "AWS_ID": TEST_ACCOUNT_ID,
 }
@@ -106,7 +103,7 @@ def test_sync_ec2_network_acls(
         ('acl-077e', 'subnet-06ba'),
     }
 
-  # Assert that ACL is attached to account
+    # Assert that ACL is attached to account
     assert check_rels(
         neo4j_session,
         'EC2NetworkAcl',

@@ -1,11 +1,15 @@
 from dataclasses import dataclass
 
-from cartography.models.core.relationships import CartographyRelSchema, TargetNodeMatcher, make_target_node_matcher, \
-    LinkDirection, OtherRelationships, CartographyRelProperties
-
 from cartography.models.core.common import PropertyRef
-
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema, ExtraNodeLabels
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -62,15 +66,16 @@ class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
     """
     label: str = 'EC2NetworkAclRule'
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ['IpPermissionInbound']
+        ['IpPermissionInbound'],
     )
     properties: EC2NetworkAclRuleNodeProperties = EC2NetworkAclRuleNodeProperties()
     sub_resource_relationship: EC2NetworkAclRuleToAWSAccount = EC2NetworkAclRuleToAWSAccount()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             EC2NetworkAclRuleToAcl(),
-        ]
+        ],
     )
+
 
 @dataclass(frozen=True)
 class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
@@ -88,5 +93,5 @@ class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             EC2NetworkAclRuleToAcl(),
-        ]
+        ],
     )

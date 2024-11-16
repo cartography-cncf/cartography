@@ -1,9 +1,5 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.ec2.networkinterface_instance import EC2NetworkInterfaceToAWSAccount
-from cartography.models.aws.ec2.networkinterface_instance import EC2NetworkInterfaceToEC2Instance
-from cartography.models.aws.ec2.networkinterface_instance import EC2NetworkInterfaceToEC2SecurityGroup
-from cartography.models.aws.ec2.networkinterface_instance import EC2NetworkInterfaceToEC2Subnet
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -40,6 +36,7 @@ class EC2NetworkAclToVpc(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF_AWS_VPC"
     properties: EC2NetworkAclToVpcRelProperties = EC2NetworkAclToVpcRelProperties()
+
 
 @dataclass(frozen=True)
 class EC2NetworkAclToSubnetRelProperties(CartographyRelProperties):
@@ -85,5 +82,5 @@ class EC2NetworkAclSchema(CartographyNodeSchema):
         [
             EC2NetworkAclToVpc(),
             EC2NetworkAclToSubnet(),
-        ]
+        ],
     )

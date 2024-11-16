@@ -16,9 +16,9 @@ INSTANCES_FOR_ACL_TEST = [{
                         "AttachTime": "2023-08-04 22:31:02+00:00",
                         "DeleteOnTermination": True,
                         "Status": "attached",
-                        "VolumeId": "vol-0e4"
-                    }
-                }
+                        "VolumeId": "vol-0e4",
+                    },
+                },
             ],
             "ClientToken": "b20f8",
             "EbsOptimized": True,
@@ -32,14 +32,14 @@ INSTANCES_FOR_ACL_TEST = [{
                         "DeleteOnTermination": True,
                         "DeviceIndex": 0,
                         "Status": "attached",
-                        "NetworkCardIndex": 0
+                        "NetworkCardIndex": 0,
                     },
                     "Description": "",
                     "Groups": [
                         {
                             "GroupId": "sg-0564",
-                            "GroupName": "group-name-1"
-                        }
+                            "GroupName": "group-name-1",
+                        },
                     ],
                     "Ipv6Addresses": [],
                     "MacAddress": "11:22:33:44:55:66",
@@ -49,41 +49,41 @@ INSTANCES_FOR_ACL_TEST = [{
                     "PrivateIpAddresses": [
                         {
                             "Primary": True,
-                            "PrivateIpAddress": "10.190.1.148"
-                        }
+                            "PrivateIpAddress": "10.190.1.148",
+                        },
                     ],
                     "SourceDestCheck": True,
                     "Status": "in-use",
                     "SubnetId": "subnet-0a1a",
                     "VpcId": "vpc-0767",
-                    "InterfaceType": "interface"
-                }
+                    "InterfaceType": "interface",
+                },
             ],
             "RootDeviceName": "/dev/xvda",
             "RootDeviceType": "ebs",
             "SecurityGroups": [
                 {
                     "GroupId": "sg-0564",
-                    "GroupName": "group-name-1"
-                }
+                    "GroupName": "group-name-1",
+                },
             ],
             "SourceDestCheck": True,
             "Tags": [
                 {
                     "Key": "Name",
-                    "Value": "prod-tag"
-                }
+                    "Value": "prod-tag",
+                },
             ],
             "VirtualizationType": "hvm",
             "CpuOptions": {
                 "CoreCount": 1,
-                "ThreadsPerCore": 2
+                "ThreadsPerCore": 2,
             },
             "CapacityReservationSpecification": {
-                "CapacityReservationPreference": "open"
+                "CapacityReservationPreference": "open",
             },
             "HibernationOptions": {
-                "Configured": False
+                "Configured": False,
             },
             "MetadataOptions": {
                 "State": "applied",
@@ -91,10 +91,10 @@ INSTANCES_FOR_ACL_TEST = [{
                 "HttpPutResponseHopLimit": 1,
                 "HttpEndpoint": "enabled",
                 "HttpProtocolIpv6": "disabled",
-                "InstanceMetadataTags": "disabled"
+                "InstanceMetadataTags": "disabled",
             },
             "EnclaveOptions": {
-                "Enabled": False
+                "Enabled": False,
             },
             "PlatformDetails": "Linux/UNIX",
             "UsageOperation": "RunInstances",
@@ -102,17 +102,17 @@ INSTANCES_FOR_ACL_TEST = [{
             "PrivateDnsNameOptions": {
                 "HostnameType": "ip-name",
                 "EnableResourceNameDnsARecord": False,
-                "EnableResourceNameDnsAAAARecord": False
+                "EnableResourceNameDnsAAAARecord": False,
             },
             "MaintenanceOptions": {
-                "AutoRecovery": "default"
+                "AutoRecovery": "default",
             },
             "CurrentInstanceBootMode": "legacy-bios",
             "InstanceId": "i-0ba7",
             "ImageId": "ami-0414",
             "State": {
                 "Code": 16,
-                "Name": "running"
+                "Name": "running",
             },
             "PrivateDnsName": "ip-10-190-1-148.ec2.internal",
             "PublicDnsName": "",
@@ -120,18 +120,18 @@ INSTANCES_FOR_ACL_TEST = [{
             "AmiLaunchIndex": 0,
             "ProductCodes": [],
             "InstanceType": "t3.micro",
-            "LaunchTime": datetime.datetime(2023, 8, 4,22, 31, 1, tzinfo=tz.utc),
+            "LaunchTime": datetime.datetime(2023, 8, 4, 22, 31, 1, tzinfo=tz.utc),
             "Placement": {
                 "GroupName": "",
                 "Tenancy": "default",
-                "AvailabilityZone": "us-east-1b"
+                "AvailabilityZone": "us-east-1b",
             },
             "Monitoring": {
-                "State": "disabled"
+                "State": "disabled",
             },
             "SubnetId": "subnet-0a1a",
             "VpcId": "vpc-0767",
-            "PrivateIpAddress": "10.190.1.148"
-        }
-    ]
+            "PrivateIpAddress": "10.190.1.148",
+        },
+    ],
 }]

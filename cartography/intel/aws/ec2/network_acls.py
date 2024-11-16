@@ -1,22 +1,17 @@
 import logging
-import re
 from collections import namedtuple
 from typing import Any
 from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
 
-from cartography.models.aws.ec2.network_acl_rules import EC2NetworkAclInboundRuleSchema, EC2NetworkAclEgressRuleSchema
-from cartography.models.aws.ec2.network_acls import EC2NetworkAclSchema
 from .util import get_botocore_config
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.aws.ec2.networkinterfaces import EC2NetworkInterfaceSchema
-from cartography.models.aws.ec2.privateip_networkinterface import EC2PrivateIpNetworkInterfaceSchema
-from cartography.models.aws.ec2.securitygroup_networkinterface import EC2SecurityGroupNetworkInterfaceSchema
-from cartography.models.aws.ec2.subnet_networkinterface import EC2SubnetNetworkInterfaceSchema
+from cartography.models.aws.ec2.network_acl_rules import EC2NetworkAclEgressRuleSchema
+from cartography.models.aws.ec2.network_acl_rules import EC2NetworkAclInboundRuleSchema
+from cartography.models.aws.ec2.network_acls import EC2NetworkAclSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -182,6 +177,7 @@ def load_network_acl_egress_rules(
         AWS_ID=aws_account_id,
         lastupdated=update_tag,
     )
+
 
 @timeit
 def cleanup_network_acls(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
