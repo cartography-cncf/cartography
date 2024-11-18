@@ -118,6 +118,7 @@ def _build_where_clause_for_rel_match(node_var: str, matcher: TargetNodeMatcher)
     """
     match = Template("$node_var.$key = $prop_ref")
     case_insensitive_match = Template("toLower($node_var.$key) = toLower($prop_ref)")
+    fuzzy_and_ignorecase_match = Template("toLower($node_var.$key) CONTAINS toLower($prop_ref)")
 
     matcher_asdict = asdict(matcher)
 
@@ -125,7 +126,10 @@ def _build_where_clause_for_rel_match(node_var: str, matcher: TargetNodeMatcher)
     for key, prop_ref in matcher_asdict.items():
         if prop_ref.ignore_case:
             prop_line = case_insensitive_match.safe_substitute(node_var=node_var, key=key, prop_ref=prop_ref)
+        elif prop_ref.fuzzy_and_ignore_case:
+            prop_line = fuzzy_and_ignorecase_match.safe_substitute(node_var=node_var, key=key, prop_ref=prop_ref)
         else:
+            # Exact match (default; most efficient)
             prop_line = match.safe_substitute(node_var=node_var, key=key, prop_ref=prop_ref)
         result.append(prop_line)
     return ' AND\n'.join(result)
