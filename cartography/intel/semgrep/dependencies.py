@@ -12,7 +12,7 @@ from requests.exceptions import ReadTimeout
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
-from cartography.models.semgrep.dependencies import SemgrepJavascriptLibrarySchema
+from cartography.models.semgrep.dependencies import SemgrepNpmLibrarySchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
@@ -27,7 +27,7 @@ _MAX_RETRIES = 3
 # https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion
 ECOSYSTEM_TO_SCHEMA: Dict = {
     'gomod': SemgrepGoLibrarySchema,
-    'npm': SemgrepJavascriptLibrarySchema,
+    'npm': SemgrepNpmLibrarySchema,
 }
 
 

@@ -78,8 +78,8 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
 
 
 @dataclass(frozen=True)
-class SemgrepJavascriptLibrarySchema(CartographyNodeSchema):
-    label: str = 'JavascriptLibrary'
+class SemgrepNpmLibrarySchema(CartographyNodeSchema):
+    label: str = 'NpmLibrary'
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(['Dependency', 'SemgrepDependency'])
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
     sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentSchema = SemgrepDependencyToSemgrepDeploymentSchema()

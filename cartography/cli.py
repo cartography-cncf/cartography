@@ -531,7 +531,7 @@ class CLI:
             default=None,
             help=(
                 'Comma-separated list of language ecosystems for which dependencies will be retrieved from Semgrep. '
-                'For example, a value of "gomod,npm" will retrieve Go and JavaScript dependencies. '
+                'For example, a value of "gomod,npm" will retrieve Go and NPM dependencies. '
                 'See the full list of supported ecosystems in source code at cartography.intel.semgrep.dependencies. '
                 'Required if you are using the Semgrep dependencies intel module. Ignored otherwise.'
             ),
