@@ -46,28 +46,6 @@ DEPENDENCIES_RESPONSE_GOMOD = {
             ],
             "pathToTransitivity": [],
         },
-        {
-            "repositoryId": REPO_ID,
-            "definedAt": {
-                "path": "package-lock.json",
-                "startLine": "7",
-                "endLine": "7",
-                "url": "https://github.com/org/repository/blob/00000000000000000000000000000000/package-lock.json#L7",
-                "committedAt": "1970-01-01T00:00:00Z",
-                "startCol": "0",
-                "endCol": "0",
-            },
-            "transitivity": "TRANSITIVE",
-            "package": {
-                "name": "github.com/foo/biz",
-                "versionSpecifier": "5.0.0",
-            },
-            "ecosystem": "npm",
-            "licenses": [
-                "MIT",
-            ],
-            "pathToTransitivity": [],
-        },
     ],
     "hasMore": True,
     "cursor": "123456789",
