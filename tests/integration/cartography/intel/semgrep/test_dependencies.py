@@ -35,6 +35,15 @@ def test_parse_and_validate_semgrep_ecosystems():
         parse_and_validate_semgrep_ecosystems(absolute_garbage)
 
 
+def _mock_get_dependencies(semgrep_app_token: str, deployment_id: str, ecosystem: str):
+    if ecosystem == "gomod":
+        return tests.data.semgrep.dependencies.RAW_DEPS_GOMOD
+    elif ecosystem == "npm":
+        return tests.data.semgrep.dependencies.RAW_DEPS_NPM
+    else:
+        raise ValueError(f"Unexpected value for `ecosystem`: {ecosystem}")
+
+
 @patch.object(
     cartography.intel.semgrep.deployment,
     "get_deployment",
@@ -43,7 +52,7 @@ def test_parse_and_validate_semgrep_ecosystems():
 @patch.object(
     cartography.intel.semgrep.dependencies,
     "get_dependencies",
-    return_value=tests.data.semgrep.dependencies.RAW_DEPS,
+    side_effect=_mock_get_dependencies,
 )
 def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_session):
     # Arrange
