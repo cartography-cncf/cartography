@@ -45,7 +45,7 @@ def test_parse_and_validate_semgrep_ecosystems():
     "get_dependencies",
     return_value=tests.data.semgrep.dependencies.RAW_DEPS,
 )
-def test_sync_dependencies_from_single_ecosystem(mock_get_dependencies, mock_get_deployment, neo4j_session):
+def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_session):
     # Arrange
     create_github_repos(neo4j_session)
     semgrep_app_token = "your_semgrep_app_token"
