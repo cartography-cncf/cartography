@@ -31,7 +31,7 @@ ECOSYSTEM_TO_SCHEMA: Dict = {
 }
 
 
-def _parse_and_validate_semgrep_ecosystems(ecosystems: str) -> List[str]:
+def parse_and_validate_semgrep_ecosystems(ecosystems: str) -> List[str]:
     validated_ecosystems: List[str] = []
     for ecosystem in ecosystems.split(','):
         ecosystem = ecosystem.strip().lower()
@@ -211,10 +211,8 @@ def sync_dependencies(
         )
         return
 
-    # TODO: instead of erroring out, do we want to catch and log the error thrown for an invalid ecosystem flag,
-    # to let other semgrep modules run?
-    # seems like we want to error if the user provided a value but it's invalid
-    ecosystems = _parse_and_validate_semgrep_ecosystems(ecosystems_str)
+    # We don't expect an error here since we've already validated the input in cli.py
+    ecosystems = parse_and_validate_semgrep_ecosystems(ecosystems_str)
 
     logger.info("Running Semgrep dependencies sync job.")
 
