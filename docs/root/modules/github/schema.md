@@ -87,6 +87,12 @@ Representation of a single GitHubOrganization [organization object](https://deve
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
     ```
 
+- GitHubUsers are members of an organization.  In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
+
+    ```
+    (GitHubUser)-[MEMBER_OF|UNAFFILIATED]->(GitHubOrganization)
+    ```
+
 
 ### GitHubTeam
 
@@ -131,10 +137,10 @@ Representation of a single GitHubUser [user object](https://developer.github.com
 | has_2fa_enabled | Whether the user has 2-factor authentication enabled |
 | role | Either 'ADMIN' (denoting that the user is an owner of a Github organization) or 'MEMBER' |
 | is_site_admin | Whether the user is a site admin |
-| permission | Only present if the user is an [outside collaborator](https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection) of this repo.
-`permission` is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE ([ref](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
-| email | The user's publicly visible profile email.
-| company | The user's public profile company.
+| is_enterprise_owner | Whether the user is an [enterprise owner](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) |
+| permission | Only present if the user is an [outside collaborator](https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection) of this repo.  `permission` is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE ([ref](https://docs.github.com/en/graphql/reference/enums#repositorypermission)). |
+| email | The user's publicly visible profile email. |
+| company | The user's public profile company. |
 
 
 #### Relationships
@@ -150,6 +156,12 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 
     ```
     (GitHubUser)-[:OUTSIDE_COLLAB_{ACTION}]->(GitHubRepository)
+    ```
+
+- GitHubUsers are members of an organization.  In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
+
+    ```
+    (GitHubUser)-[MEMBER_OF|UNAFFILIATED]->(GitHubOrganization)
     ```
 
 ### GitHubBranch

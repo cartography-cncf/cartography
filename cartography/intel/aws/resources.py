@@ -10,6 +10,7 @@ from . import elasticache
 from . import elasticsearch
 from . import emr
 from . import iam
+from . import identitycenter
 from . import inspector
 from . import kms
 from . import lambda_function
@@ -88,4 +89,5 @@ RESOURCE_FUNCTIONS: Dict = {
     'ssm': ssm.sync,
     'inspector': inspector.sync,
     'config': config.sync,
+    'identitycenter': identitycenter.sync_identity_center_instances,
 }
