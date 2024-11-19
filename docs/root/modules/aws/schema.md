@@ -1274,6 +1274,89 @@ Representation of an AWS Elastic Container Registry [Repository](https://docs.aw
     ```
 
 
+### EC2NetworkAcl
+
+ Representation of an AWS [EC2 Network ACL](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAcl.html)
+
+ | Field          | Description                                                    |
+ |----------------|----------------------------------------------------------------|
+ | **id**         | The arn of the network ACL                                     |
+ | **arn**        | Amazon Resource Name                                           |
+ | network_acl_id | The ID of the network ACL                                      |
+ | is_default     | Indicates whether this is the default network ACL for the VPC. |
+ | vpc_id         | The ID of the VPC this ACL is associated with                  |
+ | region         | The region                                                     |
+
+
+#### Relationships
+
+-  EC2 Network ACLs have ingress and egress rules
+
+      ```
+      (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionInbound)
+      ```
+
+      ```
+      (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionEgress)
+      ```
+
+- EC2 Network ACLs define egress and ingress rules on subnets
+
+         ```
+         (:EC2NetworkAcl)-[:PART_OF_SUBNET]->(:EC2Subnet)
+         ```
+
+- EC2 Network ACLs are attached to VPCs.
+
+         ```
+         (:EC2NetworkAcl)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)
+         ```
+
+ -  EC2 Network ACLs belong to AWS Accounts
+
+         ```
+         (:AWSAccount)-[:RESOURCE]->(:EC2NetworkAcl)
+         ```
+
+
+### EC2NetworkAclRule :: IpPermissionInbound / IpPermissionEgress
+
+Representation of an AWS [EC2 Network ACL Rule Entry](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAclEntry.html)
+For additional explanation see https://docs.aws.amazon.com/vpc/latest/userguide/nacl-rules.html.
+
+| Field          | Description                                                                                 |
+|----------------|---------------------------------------------------------------------------------------------|
+| **id**         | The ID of this rule: `{network_acl_id}/{egress or inbound}/{rule_number}`                   |
+| network_acl_id | The ID of the network ACL that this belongs to                                              |
+| protocol       | Indicates whether this is the default network ACL for the VPC.                              |
+| fromport       | First port in the range that this rule applies to                                           |
+| toport         | Last port in the range that this rule applies to                                            |
+| cidrblock      | The IPv4 network range to allow or deny, in CIDR notation.                                  |
+| egress         | Indicates whether the rule is an egress rule (applied to traffic leaving the subnet).       |
+| rulenumber     | The rule number for the entry. ACL entries are processed in ascending order by rule number. |
+| ruleaction     | Indicates whether to `allow` or `den` the traffic that matches the rule.                    |
+| region         | The region                                                                                  |
+
+
+#### Relationships
+
+-  EC2 Network ACLs have ingress and egress rules
+
+      ```
+      (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionInbound)
+      ```
+
+      ```
+      (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionEgress)
+      ```
+
+ -  EC2 Network ACL Ruless belong to AWS Accounts
+
+         ```
+         (:AWSAccount)-[:RESOURCE]->(:EC2NetworkAclRule)
+         ```
+
+
 ### ECRRepositoryImage
 
 An ECR image may be referenced and tagged by more than one ECR Repository. To best represent this, we've created an
