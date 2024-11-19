@@ -52,7 +52,9 @@ def transform_launch_configurations(configurations: list[dict[str, Any]]) -> lis
     transformed_configurations = []
     for config in configurations:
         transformed_configurations.append({
+            'AssociatePublicIpAddress': config.get('AssociatePublicIpAddress'),
             'LaunchConfigurationARN': config.get('LaunchConfigurationARN'),
+            'LaunchConfigurationName': config.get('LaunchConfigurationName'),
             'CreatedTime': config.get('CreatedTime'),
             'ImageId': config.get('ImageId'),
             'KeyName': config.get('KeyName'),
@@ -64,7 +66,6 @@ def transform_launch_configurations(configurations: list[dict[str, Any]]) -> lis
             'SpotPrice': config.get('SpotPrice'),
             'IamInstanceProfile': config.get('IamInstanceProfile'),
             'EbsOptimized': config.get('EbsOptimized'),
-            'AssociatePublicIpAddress': config.get('AssociatePublicIpAddress'),
             'PlacementTenancy': config.get('PlacementTenancy'),
         })
     return transformed_configurations
@@ -121,7 +122,7 @@ def load_launch_configurations(
         data,
         Region=region,
         AWS_ID=current_aws_account_id,
-        update_tag=update_tag,
+        lastupdated=update_tag,
     )
 
 
@@ -134,7 +135,7 @@ def load_groups(
         data,
         Region=region,
         AWS_ID=current_aws_account_id,
-        update_tag=update_tag,
+        lastupdated=update_tag,
     )
 
 
@@ -147,7 +148,7 @@ def load_vpcs(
         data,
         Region=region,
         AWS_ID=current_aws_account_id,
-        update_tag=update_tag,
+        lastupdated=update_tag,
     )
 
 
@@ -160,7 +161,7 @@ def load_instances(
         data,
         Region=region,
         AWS_ID=current_aws_account_id,
-        update_tag=update_tag,
+        lastupdated=update_tag,
     )
 
 
