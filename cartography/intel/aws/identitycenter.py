@@ -26,13 +26,9 @@ def get_identity_center_instances(boto3_session: boto3.session.Session, region: 
     client = boto3_session.client('sso-admin', region_name=region)
     instances = []
 
-    try:
-        paginator = client.get_paginator('list_instances')
-        for page in paginator.paginate():
-            instances.extend(page.get('Instances', []))
-    except client.exceptions.ClientError as e:
-        logger.warning(f"Failed to get Identity Center instances in region {region}: {e}")
-        return []
+    paginator = client.get_paginator('list_instances')
+    for page in paginator.paginate():
+        instances.extend(page.get('Instances', []))
 
     return instances
 
@@ -67,28 +63,20 @@ def get_permission_sets(boto3_session: boto3.session.Session, instance_arn: str,
     client = boto3_session.client('sso-admin', region_name=region)
     permission_sets = []
 
-    try:
-        paginator = client.get_paginator('list_permission_sets')
-        for page in paginator.paginate(InstanceArn=instance_arn):
-            # Get detailed info for each permission set
-            for arn in page.get('PermissionSets', []):
-                try:
-                    details = client.describe_permission_set(
-                        InstanceArn=instance_arn,
-                        PermissionSetArn=arn,
-                    )
-                    permission_set = details.get('PermissionSet', {})
-                    if permission_set:
-                        permission_set['RoleHint'] = (
-                            f":role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_{permission_set.get('Name')}"
-                        )
-                        permission_sets.append(permission_set)
-
-                except client.exceptions.ClientError as e:
-                    logger.warning(f"Failed to get details for permission set {arn}: {e}")
-    except client.exceptions.ClientError as e:
-        logger.warning(f"Failed to get permission sets for instance {instance_arn} in region {region}: {e}")
-        return []
+    paginator = client.get_paginator('list_permission_sets')
+    for page in paginator.paginate(InstanceArn=instance_arn):
+        # Get detailed info for each permission set
+        for arn in page.get('PermissionSets', []):
+            details = client.describe_permission_set(
+                InstanceArn=instance_arn,
+                PermissionSetArn=arn,
+            )
+            permission_set = details.get('PermissionSet', {})
+            if permission_set:
+                permission_set['RoleHint'] = (
+                    f":role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_{permission_set.get('Name')}"
+                )
+                permission_sets.append(permission_set)
 
     return permission_sets
 
@@ -106,13 +94,9 @@ def get_permission_set_roles(
     client = boto3_session.client('sso-admin', region_name=region)
     accounts = []
 
-    try:
-        paginator = client.get_paginator('list_accounts_for_provisioned_permission_set')
-        for page in paginator.paginate(InstanceArn=instance_arn, PermissionSetArn=permission_set_arn):
-            accounts.extend(page.get('AccountIds', []))
-    except client.exceptions.ClientError as e:
-        logger.warning(f"Failed to get roles for permission set {permission_set_arn}: {e}")
-        return []
+    paginator = client.get_paginator('list_accounts_for_provisioned_permission_set')
+    for page in paginator.paginate(InstanceArn=instance_arn, PermissionSetArn=permission_set_arn):
+        accounts.extend(page.get('AccountIds', []))
 
     return accounts
 
@@ -154,17 +138,13 @@ def get_sso_users(
     client = boto3_session.client('identitystore', region_name=region)
     users = []
 
-    try:
-        paginator = client.get_paginator('list_users')
-        for page in paginator.paginate(IdentityStoreId=identity_store_id):
-            user_page = page.get('Users', [])
-            for user in user_page:
-                if user.get('ExternalIds', None):
-                    user['ExternalId'] = user.get('ExternalIds')[0].get('Id')
-                users.append(user)
-    except client.exceptions.ClientError as e:
-        logger.warning(f"Failed to get SSO users for identity store {identity_store_id} in region {region}: {e}")
-        return []
+    paginator = client.get_paginator('list_users')
+    for page in paginator.paginate(IdentityStoreId=identity_store_id):
+        user_page = page.get('Users', [])
+        for user in user_page:
+            if user.get('ExternalIds', None):
+                user['ExternalId'] = user.get('ExternalIds')[0].get('Id')
+            users.append(user)
 
     return users
 
@@ -211,17 +191,14 @@ def get_role_assignments(
 
     for user in users:
         user_id = user['UserId']
-        try:
-            paginator = client.get_paginator('list_account_assignments_for_principal')
-            for page in paginator.paginate(InstanceArn=instance_arn, PrincipalId=user_id, PrincipalType='USER'):
-                for assignment in page.get('AccountAssignments', []):
-                    role_assignments.append({
-                        'UserId': user_id,
-                        'PermissionSetArn': assignment.get('PermissionSetArn'),
-                        'AccountId': assignment.get('AccountId'),
-                    })
-        except client.exceptions.ClientError as e:
-            logger.warning(f"Failed to get account assignments for user {user_id}: {e}")
+        paginator = client.get_paginator('list_account_assignments_for_principal')
+        for page in paginator.paginate(InstanceArn=instance_arn, PrincipalId=user_id, PrincipalType='USER'):
+            for assignment in page.get('AccountAssignments', []):
+                role_assignments.append({
+                    'UserId': user_id,
+                    'PermissionSetArn': assignment.get('PermissionSetArn'),
+                    'AccountId': assignment.get('AccountId'),
+                })
 
     return role_assignments
 
