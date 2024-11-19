@@ -15,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AutoScalingGroupNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef('AutoScalingGroupARN')
     arn: PropertyRef = PropertyRef('AutoScalingGroupARN')
     capacityrebalance: PropertyRef = PropertyRef('CapacityRebalance')
     createdtime: PropertyRef = PropertyRef('CreatedTime')
@@ -38,13 +39,15 @@ class AutoScalingGroupNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class EC2SubnetAutoScalingGroupNodeProperties(CartographyNodeProperties):
-    subnetid: PropertyRef = PropertyRef('VPCZoneIdentifier')
+    id: PropertyRef = PropertyRef('VPCZoneIdentifier')
+    subnetid: PropertyRef = PropertyRef('VPCZoneIdentifier', extra_index=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class EC2InstanceAutoScalingGroupNodeProperties(CartographyNodeProperties):
-    instanceid: PropertyRef = PropertyRef('InstanceId')
+    id: PropertyRef = PropertyRef('InstanceId')
+    instanceid: PropertyRef = PropertyRef('InstanceId', extra_index=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
 
@@ -77,7 +80,7 @@ class AutoScalingGroupToLaunchConfigurationRelProperties(CartographyRelPropertie
 class AutoScalingGroupToEC2Subnet(CartographyRelSchema):
     target_node_label: str = 'EC2Subnet'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'subnetid': PropertyRef('VPCZoneIdentifier')},
+        {'id': PropertyRef('VPCZoneIdentifier')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "VPC_IDENTIFIER"
