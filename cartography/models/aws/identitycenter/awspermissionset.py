@@ -37,6 +37,23 @@ class PermissionSetToInstance(CartographyRelSchema):
     rel_label: str = "HAS_PERMISSION_SET"
     properties: PermissionSetToInstanceRelProperties = PermissionSetToInstanceRelProperties()
 
+
+@dataclass(frozen=True)
+class PermissionSetToAWSRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class PermissionSetToAWSRole(CartographyRelSchema):
+    target_node_label: str = 'AWSRole'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'arn': PropertyRef('RoleHint', fuzzy_and_ignore_case=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ASSIGNED_TO_ROLE"
+    properties: PermissionSetToAWSRoleRelProperties = PermissionSetToAWSRoleRelProperties()
+
+
 @dataclass(frozen=True)
 class AWSPermissionSetToAwsAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
@@ -52,13 +69,16 @@ class AWSPermissionSetToAWSAccount(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: AWSPermissionSetToAwsAccountRelProperties = AWSPermissionSetToAwsAccountRelProperties()
+
+
 @dataclass(frozen=True)
 class AWSPermissionSetSchema(CartographyNodeSchema):
     label: str = 'AWSPermissionSet'
     properties: PermissionSetProperties = PermissionSetProperties()
-    sub_resource_relationship: AWSPermissionSetToAWSAccount =AWSPermissionSetToAWSAccount()
+    sub_resource_relationship: AWSPermissionSetToAWSAccount = AWSPermissionSetToAWSAccount()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             PermissionSetToInstance(),
+            PermissionSetToAWSRole(),
         ],
     )

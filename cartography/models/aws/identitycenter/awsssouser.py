@@ -37,9 +37,11 @@ class SSOUserToOktaUser(CartographyRelSchema):
     rel_label: str = "CAN_ASSUME_IDENTITY"
     properties: SSOUserToOktaUserRelProperties = SSOUserToOktaUserRelProperties()
 
+
 @dataclass(frozen=True)
 class AWSSSOUserToAwsAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 # (:IdentityCenter)<-[:RESOURCE]-(:AWSAccount)
@@ -58,7 +60,7 @@ class AWSSSOUserSchema(CartographyNodeSchema):
     label: str = 'AWSSSOUser'
     properties: SSOUserProperties = SSOUserProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
-    sub_resource_relationship: AWSSSOUserToAWSAccount =AWSSSOUserToAWSAccount()
+    sub_resource_relationship: AWSSSOUserToAWSAccount = AWSSSOUserToAWSAccount()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SSOUserToOktaUser(),

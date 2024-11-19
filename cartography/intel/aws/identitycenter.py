@@ -77,7 +77,13 @@ def get_permission_sets(boto3_session: boto3.session.Session, instance_arn: str,
                         InstanceArn=instance_arn,
                         PermissionSetArn=arn,
                     )
-                    permission_sets.append(details.get('PermissionSet', {}))
+                    permission_set = details.get('PermissionSet', {})
+                    if permission_set:
+                        permission_set['RoleHint'] = (
+                            f":role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_{permission_set.get('Name')}"
+                        )
+                        permission_sets.append(permission_set)
+
                 except client.exceptions.ClientError as e:
                     logger.warning(f"Failed to get details for permission set {arn}: {e}")
     except client.exceptions.ClientError as e:
@@ -137,55 +143,11 @@ def load_permission_sets(
 
 
 @timeit
-def get_permission_set_role_assignments(
+def get_sso_users(
     boto3_session: boto3.session.Session,
-    instance_arn: str,
-    permission_sets: List[Dict],
+    identity_store_id: str,
     region: str,
 ) -> List[Dict]:
-    """
-    Get role assignments for Identity Center permission sets
-    """
-    role_assignments = []
-    for ps in permission_sets:
-        permission_set_arn = str(ps.get('PermissionSetArn'))
-        accounts = get_permission_set_roles(boto3_session, instance_arn, permission_set_arn, region)
-        for account_id in accounts:
-            arn = f"arn:aws:iam::{account_id}:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_{ps.get('Name')}"
-            role_assignments.append({
-                'PermissionSetArn': ps.get('PermissionSetArn'),
-                'RoleArn': arn,
-            })
-    return role_assignments
-
-
-@timeit
-def load_permission_set_role_assignments(
-    neo4j_session: neo4j.Session,
-    role_assignments: List[Dict],
-    aws_update_tag: int,
-) -> None:
-    """
-    Load Identity Center permission set role assignments into the graph
-    """
-    logger.info(f"Loading {len(role_assignments)} permission set role assignments")
-
-    neo4j_session.run(
-        """
-        UNWIND $role_assignments AS ra
-        MATCH (ps:AWSPermissionSet {arn: ra.PermissionSetArn})
-        MATCH (role:AWSRole)
-        WHERE role.arn STARTS WITH ra.RoleArn
-        MERGE (ps)-[r:ASSIGNED_TO_ROLE]->(role)
-        SET r.lastupdated = $aws_update_tag
-        """,
-        role_assignments=role_assignments,
-        aws_update_tag=aws_update_tag,
-    )
-
-
-@timeit
-def get_sso_users(boto3_session: boto3.session.Session, identity_store_id: str, region: str) -> List[Dict]:
     """
     Get all SSO users for a given Identity Store
     """
@@ -290,6 +252,7 @@ def load_role_assignments(
             aws_update_tag=aws_update_tag,
         )
 
+
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     GraphJob.from_node_schema(AWSIdentityCenterInstanceSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(AWSPermissionSetSchema(), common_job_parameters).run(neo4j_session)
@@ -331,6 +294,7 @@ def sync_identity_center_instances(
             identity_store_id = instance['IdentityStoreId']
 
             permission_sets = get_permission_sets(boto3_session, instance_arn, region)
+
             load_permission_sets(
                 neo4j_session,
                 permission_sets,
@@ -339,14 +303,6 @@ def sync_identity_center_instances(
                 current_aws_account_id,
                 update_tag,
             )
-
-            permission_set_assignments = get_permission_set_role_assignments(
-                boto3_session,
-                instance_arn,
-                permission_sets,
-                region,
-            )
-            load_permission_set_role_assignments(neo4j_session, permission_set_assignments, update_tag)
 
             users = get_sso_users(boto3_session, identity_store_id, region)
             load_sso_users(
