@@ -1,9 +1,16 @@
 from dataclasses import dataclass
-from cartography.models.aws.ec2.instances import EC2InstanceToAWSAccount, EC2InstanceToEC2Reservation
-from cartography.models.aws.ec2.subnet_instance import EC2SubnetToAWSAccount, EC2SubnetToEC2Instance
+
+from cartography.models.aws.ec2.instances import EC2InstanceToAWSAccount
+from cartography.models.aws.ec2.subnet_instance import EC2SubnetToAWSAccount
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
-from cartography.models.core.relationships import CartographyRelProperties, CartographyRelSchema, LinkDirection, OtherRelationships, TargetNodeMatcher, make_target_node_matcher
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -34,10 +41,12 @@ class EC2SubnetAutoScalingGroupNodeProperties(CartographyNodeProperties):
     subnetid: PropertyRef = PropertyRef('VPCZoneIdentifier')
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
+
 @dataclass(frozen=True)
 class EC2InstanceAutoScalingGroupNodeProperties(CartographyNodeProperties):
     instanceid: PropertyRef = PropertyRef('InstanceId')
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class AutoScalingGroupToEC2SubnetRelProperties(CartographyRelProperties):
@@ -116,7 +125,9 @@ class AutoScalingGroupToLaunchConfiguration(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_LAUNCH_CONFIG"
-    properties: AutoScalingGroupToLaunchConfigurationRelProperties = AutoScalingGroupToLaunchConfigurationRelProperties()
+    properties: AutoScalingGroupToLaunchConfigurationRelProperties = (
+        AutoScalingGroupToLaunchConfigurationRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -126,8 +137,8 @@ class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
     sub_resource_relationship: EC2SubnetToAWSAccount = EC2SubnetToAWSAccount()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AutoScalingGroupToEC2Subnet()
-        ]
+            AutoScalingGroupToEC2Subnet(),
+        ],
     )
 
 
@@ -138,10 +149,9 @@ class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
     sub_resource_relationship: EC2InstanceToAWSAccount = EC2InstanceToAWSAccount()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AutoScalingGroupToEC2Instance()
-        ]
+            AutoScalingGroupToEC2Instance(),
+        ],
     )
-
 
 
 @dataclass(frozen=True)

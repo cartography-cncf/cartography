@@ -1,14 +1,16 @@
-from collections import namedtuple
 import logging
+from collections import namedtuple
+from typing import Any
 
 import boto3
 import neo4j
 
-from cartography.client.core.tx import load
-from cartography.models.aws.ec2.auto_scaling_groups import AutoScalingGroupSchema, EC2InstanceAutoScalingGroupSchema, EC2SubnetAutoScalingGroupSchema
-from cartography.models.aws.ec2.launch_configurations import LaunchConfigurationSchema
-
 from .util import get_botocore_config
+from cartography.client.core.tx import load
+from cartography.models.aws.ec2.auto_scaling_groups import AutoScalingGroupSchema
+from cartography.models.aws.ec2.auto_scaling_groups import EC2InstanceAutoScalingGroupSchema
+from cartography.models.aws.ec2.auto_scaling_groups import EC2SubnetAutoScalingGroupSchema
+from cartography.models.aws.ec2.launch_configurations import LaunchConfigurationSchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -46,7 +48,7 @@ def get_launch_configurations(boto3_session: boto3.session.Session, region: str)
     return lcs
 
 
-def transform_launch_configurations(configurations: list[dict[str, any]]):
+def transform_launch_configurations(configurations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     transformed_configurations = []
     for config in configurations:
         transformed_configurations.append({
@@ -63,12 +65,12 @@ def transform_launch_configurations(configurations: list[dict[str, any]]):
             'IamInstanceProfile': config.get('IamInstanceProfile'),
             'EbsOptimized': config.get('EbsOptimized'),
             'AssociatePublicIpAddress': config.get('AssociatePublicIpAddress'),
-            'PlacementTenancy': config.get('PlacementTenancy')
+            'PlacementTenancy': config.get('PlacementTenancy'),
         })
     return transformed_configurations
 
 
-def transform_auto_scaling_groups(groups: list[dict[str, any]]) -> AsgData:
+def transform_auto_scaling_groups(groups: list[dict[str, Any]]) -> AsgData:
     transformed_groups = []
     related_vpcs = []
     related_instances = []
@@ -91,7 +93,6 @@ def transform_auto_scaling_groups(groups: list[dict[str, any]]) -> AsgData:
             'AutoScalingGroupName': group.get('AutoScalingGroupName'),
             'NewInstancesProtectedFromScaleIn': group.get('NewInstancesProtectedFromScaleIn'),
             'Status': group.get('Status'),
-            'AutoScalingGroupName': group.get('AutoScalingGroupName'),
         })
 
         if group.get('VPCZoneIdentifier', None):
@@ -106,13 +107,13 @@ def transform_auto_scaling_groups(groups: list[dict[str, any]]) -> AsgData:
     return AsgData(
         group_list=transformed_groups,
         instance_list=related_instances,
-        subnet_list=related_vpcs
+        subnet_list=related_vpcs,
     )
 
 
 @timeit
 def load_launch_configurations(
-    neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str, update_tag: int
+    neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str, update_tag: int,
 ) -> None:
     load(
         neo4j_session,
@@ -120,12 +121,12 @@ def load_launch_configurations(
         data,
         Region=region,
         AWS_ID=current_aws_account_id,
-        update_tag=update_tag
+        update_tag=update_tag,
     )
 
 
 def load_groups(
-        neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str, update_tag: int
+        neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str, update_tag: int,
 ) -> None:
     load(
         neo4j_session,
@@ -133,12 +134,12 @@ def load_groups(
         data,
         Region=region,
         AWS_ID=current_aws_account_id,
-        update_tag=update_tag
+        update_tag=update_tag,
     )
 
 
 def load_vpcs(
-        neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str, update_tag: int
+        neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str, update_tag: int,
 ) -> None:
     load(
         neo4j_session,
@@ -146,12 +147,12 @@ def load_vpcs(
         data,
         Region=region,
         AWS_ID=current_aws_account_id,
-        update_tag=update_tag
+        update_tag=update_tag,
     )
 
 
 def load_instances(
-        neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str, update_tag: int
+        neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str, update_tag: int,
 ) -> None:
     load(
         neo4j_session,
@@ -159,16 +160,18 @@ def load_instances(
         data,
         Region=region,
         AWS_ID=current_aws_account_id,
-        update_tag=update_tag
+        update_tag=update_tag,
     )
+
 
 @timeit
 def load_auto_scaling_groups(
-    neo4j_session: neo4j.Session, data: AsgData, region: str, current_aws_account_id: str, update_tag: int
+    neo4j_session: neo4j.Session, data: AsgData, region: str, current_aws_account_id: str, update_tag: int,
 ) -> None:
     load_auto_scaling_groups(neo4j_session, data.group_list, region, current_aws_account_id, update_tag)
     load_instances(neo4j_session, data.instance_list, region, current_aws_account_id, update_tag)
     load_vpcs(neo4j_session, data.subnet_list, region, current_aws_account_id, update_tag)
+
 
 @timeit
 def cleanup_ec2_auto_scaling_groups(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
