@@ -31,3 +31,6 @@ RUN git config --global --add safe.directory /var/cartography && \
     git config --local user.name "cartography"
 
 USER ${uid}:${gid}
+
+# Wait for git to be ready before running anything else. Fix race condition.
+ENTRYPOINT ["/var/cartography/dev-entrypoint.sh"]
