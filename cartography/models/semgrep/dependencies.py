@@ -75,3 +75,16 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
             SemgrepDependencyToGithubRepoRel(),
         ],
     )
+
+
+@dataclass(frozen=True)
+class SemgrepNpmLibrarySchema(CartographyNodeSchema):
+    label: str = 'NpmLibrary'
+    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(['Dependency', 'SemgrepDependency'])
+    properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
+    sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentSchema = SemgrepDependencyToSemgrepDeploymentSchema()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            SemgrepDependencyToGithubRepoRel(),
+        ],
+    )

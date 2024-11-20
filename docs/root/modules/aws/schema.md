@@ -3380,3 +3380,89 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
         ```
         (EC2Instance)-[HAS_INFORMATION]->(SSMInstancePatch)
         ```
+
+### AWSIdentityCenter
+
+Representation of an AWS Identity Center.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the Identity Center instance |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| identity_store_id | The identity store ID of the Identity Center instance |
+| instance_status | The status of the Identity Center instance |
+| created_date | The date the Identity Center instance was created |
+| last_modified_date | The date the Identity Center instance was last modified |
+
+#### Relationships
+- AWSIdentityCenter is part of an AWSAccount.
+
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSIdentityCenter)
+    ```
+
+- AWSIdentityCenter has permission sets.
+
+    ```
+    (AWSIdentityCenter)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
+### AWSSSOUser
+
+Representation of an AWS SSO User.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the SSO user |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| user_name | The username of the SSO user |
+| external_id | The external ID of the SSO user |
+| identity_store_id | The identity store ID of the SSO user |
+
+#### Relationships
+- AWSSSOUser is part of an AWSAccount.
+
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSSSOUser)
+    ```
+
+- AWSSSOUser can have roles assigned.
+
+    ```
+    (AWSSSOUser)<-[ALLOWED_BY]-(AWSRole)
+    ```
+- UserAccount can be assumed by AWSSSOUser.
+
+    ```
+    (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
+    ```
+
+### AWSPermissionSet
+
+Representation of an AWS Identity Center Permission Set.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the Permission Set |
+
+| name | The name of the Permission Set |
+| arn | The Amazon Resource Name (ARN) of the Permission Set |
+| description | The description of the Permission Set |
+| session_duration | The session duration of the Permission Set |
+| instance_arn | The ARN of the Identity Center instance the Permission Set belongs to |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- AWSPermissionSet is part of an AWSIdentityCenter.
+
+    ```
+    (AWSIdentityCenter)<-[HAS_PERMISSION_SET]-(AWSPermissionSet)
+    ```
+- AWSPermissionSet can be assigned to roles.
+
+    ```
+    (AWSPermissionSet)-[ASSIGNED_TO_ROLE]->(AWSRole)
+    ```
