@@ -1,0 +1,16 @@
+{
+  "statements": [
+
+    {
+      "query": "MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSSSOUser)<-[r:CAN_ASSUME_IDENTITY]-(:OktaUser) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r) RETURN COUNT(*) as TotalDeleted",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:AWSRole)-[r:ALLOWED_BY]->(:AWSSSOUser) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r) RETURN COUNT(*) as TotalDeleted",
+      "iterative": true,
+      "iterationsize": 100
+    }
+  ],
+  "name": "cleanup AWS Identity Center Instances and Related Data"
+}

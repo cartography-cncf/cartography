@@ -8,7 +8,6 @@
 - [Amazon Web Services](#amazon-web-services)
 - [Google Cloud Platform](#google-cloud-platform)
 - [GSuite](#gsuite)
-- [CRXcavator Platform](#crxcavator-platform)
 - [Microsoft Azure](#microsoft-azure)
 - [Kubernetes](#kubernetes)
 - [More to come!](#more-to-come)
@@ -47,9 +46,6 @@
 ## GSuite
 - Click [here](gsuite.md)
 
-## CRXcavator Platform
-- Click [here](crxcavator.md)
-
 ## Microsoft Azure
 - Click [here](azure.md)
 
@@ -60,7 +56,7 @@
 - Click [here](syncmetadata.md)
 
 ## Semgrep
-- Click [here](https://lyft.github.io/cartography/modules/semgrep/schema.html)
+- Click [here](https://cartography-cncf.github.io/cartography/modules/semgrep/schema.html)
 
 ## More to come!
 👍

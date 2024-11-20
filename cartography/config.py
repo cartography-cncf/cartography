@@ -43,10 +43,6 @@ class Config:
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
-    :type crxcavator_api_base_uri: str
-    :param crxcavator_api_base_uri: URI for CRXcavator API. Optional.
-    :type crxcavator_api_key: str
-    :param crxcavator_api_key: Auth key for CRXcavator API. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -111,6 +107,8 @@ class Config:
     :param duo_api_hostname: The Duo api hostname, e.g. "api-abc123.duosecurity.com". Optional.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
+    :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
+    :type semgrep_dependency_ecosystems: str
     :type snipeit_base_uri: string
     :param snipeit_base_uri: SnipeIT data provider base URI. Optional.
     :type snipeit_token: string
@@ -137,8 +135,6 @@ class Config:
         azure_client_secret=None,
         aws_requested_syncs=None,
         analysis_job_directory=None,
-        crxcavator_api_base_uri=None,
-        crxcavator_api_key=None,
         oci_sync_all_profiles=None,
         okta_org_id=None,
         okta_api_key=None,
@@ -161,7 +157,7 @@ class Config:
         pagerduty_request_timeout=None,
         nist_cve_url=None,
         cve_enabled=False,
-        cve_api_key=None,
+        cve_api_key: str | None = None,
         crowdstrike_client_id=None,
         crowdstrike_client_secret=None,
         crowdstrike_api_url=None,
@@ -176,6 +172,7 @@ class Config:
         duo_api_secret=None,
         duo_api_hostname=None,
         semgrep_app_token=None,
+        semgrep_dependency_ecosystems=None,
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
@@ -196,8 +193,6 @@ class Config:
         self.azure_client_secret = azure_client_secret
         self.aws_requested_syncs = aws_requested_syncs
         self.analysis_job_directory = analysis_job_directory
-        self.crxcavator_api_base_uri = crxcavator_api_base_uri
-        self.crxcavator_api_key = crxcavator_api_key
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
         self.okta_api_key = okta_api_key
@@ -220,7 +215,7 @@ class Config:
         self.pagerduty_request_timeout = pagerduty_request_timeout
         self.nist_cve_url = nist_cve_url
         self.cve_enabled = cve_enabled
-        self.cve_api_key = cve_api_key
+        self.cve_api_key: str | None = cve_api_key
         self.crowdstrike_client_id = crowdstrike_client_id
         self.crowdstrike_client_secret = crowdstrike_client_secret
         self.crowdstrike_api_url = crowdstrike_api_url
@@ -235,6 +230,7 @@ class Config:
         self.duo_api_secret = duo_api_secret
         self.duo_api_hostname = duo_api_hostname
         self.semgrep_app_token = semgrep_app_token
+        self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id

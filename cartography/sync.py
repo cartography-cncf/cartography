@@ -17,7 +17,6 @@ import cartography.intel.azure
 import cartography.intel.bigfix
 import cartography.intel.create_indexes
 import cartography.intel.crowdstrike
-import cartography.intel.crxcavator.crxcavator
 import cartography.intel.cve
 import cartography.intel.digitalocean
 import cartography.intel.duo
@@ -46,7 +45,6 @@ TOP_LEVEL_MODULES = OrderedDict({  # preserve order so that the default sync alw
     'crowdstrike': cartography.intel.crowdstrike.start_crowdstrike_ingestion,
     'gcp': cartography.intel.gcp.start_gcp_ingestion,
     'gsuite': cartography.intel.gsuite.start_gsuite_ingestion,
-    'crxcavator': cartography.intel.crxcavator.start_extension_ingestion,
     'cve': cartography.intel.cve.start_cve_ingestion,
     'oci': cartography.intel.oci.start_oci_ingestion,
     'okta': cartography.intel.okta.start_okta_ingestion,

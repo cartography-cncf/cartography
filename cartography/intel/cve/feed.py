@@ -68,7 +68,7 @@ def _map_cve_dict(cve_dict: Dict[Any, Any], data: Dict[Any, Any]) -> None:
     cve_dict["startIndex"] = data["startIndex"]
 
 
-def _call_cves_api(url: str, api_key: str, params: Dict[str, Any]) -> Dict[Any, Any]:
+def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dict[Any, Any]:
     totalResults = 0
     sleep_time = DEFAULT_SLEEP_TIME
     retries = 0
@@ -114,7 +114,7 @@ def get_cves_in_batches(
     start_date: datetime,
     end_date: datetime,
     date_param_names: Dict[str, str],
-    api_key: str,
+    api_key: str | None,
 ) -> Dict[Any, Any]:
     cves: Dict[Any, Any] = dict()
     current_start_date: datetime = start_date
@@ -153,7 +153,7 @@ def get_cves_in_batches(
 
 
 def get_modified_cves(
-    nist_cve_url: str, last_modified_date: str, api_key: str,
+    nist_cve_url: str, last_modified_date: str, api_key: str | None,
 ) -> Dict[Any, Any]:
     cves = dict()
     end_date = datetime.now(tz=timezone.utc)
@@ -171,7 +171,7 @@ def get_modified_cves(
 
 
 def get_published_cves_per_year(
-    nist_cve_url: str, year: str, api_key: str,
+    nist_cve_url: str, year: str, api_key: str | None,
 ) -> Dict[Any, Any]:
     cves = {}
     start_of_year = datetime.strptime(f"{year}-01-01", "%Y-%m-%d")

@@ -65,8 +65,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:AccountAccessKey) ON (n.accesskeyid);
 CREATE INDEX IF NOT EXISTS FOR (n:AccountAccessKey) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:AutoScalingGroup) ON (n.arn);
 CREATE INDEX IF NOT EXISTS FOR (n:AutoScalingGroup) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:ChromeExtension) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:ChromeExtension) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:CrowdstrikeHost) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:CrowdstrikeHost) ON (n.instance_id);
 CREATE INDEX IF NOT EXISTS FOR (n:CrowdstrikeHost) ON (n.lastupdated);
@@ -307,8 +305,7 @@ CREATE INDEX IF NOT EXISTS FOR (n:SpotlightVulnerability) ON (n.host_info_local_
 CREATE INDEX IF NOT EXISTS FOR (n:SpotlightVulnerability) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:SQSQueue) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:SQSQueue) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:User) ON (n.arn);
-CREATE INDEX IF NOT EXISTS FOR (n:User) ON (n.lastupdated);
+CREATE INDEX IF NOT EXISTS FOR (n:UserAccount) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AzureTenant) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AzureTenant) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:AzurePrincipal) ON (n.email);

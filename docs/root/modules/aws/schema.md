@@ -1274,6 +1274,89 @@ Representation of an AWS Elastic Container Registry [Repository](https://docs.aw
     ```
 
 
+### EC2NetworkAcl
+
+ Representation of an AWS [EC2 Network ACL](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAcl.html)
+
+ | Field          | Description                                                    |
+ |----------------|----------------------------------------------------------------|
+ | **id**         | The arn of the network ACL                                     |
+ | **arn**        | Amazon Resource Name                                           |
+ | network_acl_id | The ID of the network ACL                                      |
+ | is_default     | Indicates whether this is the default network ACL for the VPC. |
+ | vpc_id         | The ID of the VPC this ACL is associated with                  |
+ | region         | The region                                                     |
+
+
+#### Relationships
+
+-  EC2 Network ACLs have ingress and egress rules
+
+      ```
+      (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionInbound)
+      ```
+
+      ```
+      (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionEgress)
+      ```
+
+- EC2 Network ACLs define egress and ingress rules on subnets
+
+         ```
+         (:EC2NetworkAcl)-[:PART_OF_SUBNET]->(:EC2Subnet)
+         ```
+
+- EC2 Network ACLs are attached to VPCs.
+
+         ```
+         (:EC2NetworkAcl)-[:MEMBER_OF_AWS_VPC]->(:AWSVpc)
+         ```
+
+ -  EC2 Network ACLs belong to AWS Accounts
+
+         ```
+         (:AWSAccount)-[:RESOURCE]->(:EC2NetworkAcl)
+         ```
+
+
+### EC2NetworkAclRule :: IpPermissionInbound / IpPermissionEgress
+
+Representation of an AWS [EC2 Network ACL Rule Entry](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAclEntry.html)
+For additional explanation see https://docs.aws.amazon.com/vpc/latest/userguide/nacl-rules.html.
+
+| Field          | Description                                                                                 |
+|----------------|---------------------------------------------------------------------------------------------|
+| **id**         | The ID of this rule: `{network_acl_id}/{egress or inbound}/{rule_number}`                   |
+| network_acl_id | The ID of the network ACL that this belongs to                                              |
+| protocol       | Indicates whether this is the default network ACL for the VPC.                              |
+| fromport       | First port in the range that this rule applies to                                           |
+| toport         | Last port in the range that this rule applies to                                            |
+| cidrblock      | The IPv4 network range to allow or deny, in CIDR notation.                                  |
+| egress         | Indicates whether the rule is an egress rule (applied to traffic leaving the subnet).       |
+| rulenumber     | The rule number for the entry. ACL entries are processed in ascending order by rule number. |
+| ruleaction     | Indicates whether to `allow` or `den` the traffic that matches the rule.                    |
+| region         | The region                                                                                  |
+
+
+#### Relationships
+
+-  EC2 Network ACLs have ingress and egress rules
+
+      ```
+      (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionInbound)
+      ```
+
+      ```
+      (:EC2NetworkAcl)-[:MEMBER_OF_NACL]->(:EC2NetworkAclRule:IpPermissionEgress)
+      ```
+
+ -  EC2 Network ACL Ruless belong to AWS Accounts
+
+         ```
+         (:AWSAccount)-[:RESOURCE]->(:EC2NetworkAclRule)
+         ```
+
+
 ### ECRRepositoryImage
 
 An ECR image may be referenced and tagged by more than one ECR Repository. To best represent this, we've created an
@@ -3297,3 +3380,89 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
         ```
         (EC2Instance)-[HAS_INFORMATION]->(SSMInstancePatch)
         ```
+
+### AWSIdentityCenter
+
+Representation of an AWS Identity Center.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the Identity Center instance |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| identity_store_id | The identity store ID of the Identity Center instance |
+| instance_status | The status of the Identity Center instance |
+| created_date | The date the Identity Center instance was created |
+| last_modified_date | The date the Identity Center instance was last modified |
+
+#### Relationships
+- AWSIdentityCenter is part of an AWSAccount.
+
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSIdentityCenter)
+    ```
+
+- AWSIdentityCenter has permission sets.
+
+    ```
+    (AWSIdentityCenter)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
+### AWSSSOUser
+
+Representation of an AWS SSO User.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the SSO user |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| user_name | The username of the SSO user |
+| external_id | The external ID of the SSO user |
+| identity_store_id | The identity store ID of the SSO user |
+
+#### Relationships
+- AWSSSOUser is part of an AWSAccount.
+
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSSSOUser)
+    ```
+
+- AWSSSOUser can have roles assigned.
+
+    ```
+    (AWSSSOUser)<-[ALLOWED_BY]-(AWSRole)
+    ```
+- UserAccount can be assumed by AWSSSOUser.
+
+    ```
+    (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
+    ```
+
+### AWSPermissionSet
+
+Representation of an AWS Identity Center Permission Set.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the Permission Set |
+
+| name | The name of the Permission Set |
+| arn | The Amazon Resource Name (ARN) of the Permission Set |
+| description | The description of the Permission Set |
+| session_duration | The session duration of the Permission Set |
+| instance_arn | The ARN of the Identity Center instance the Permission Set belongs to |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- AWSPermissionSet is part of an AWSIdentityCenter.
+
+    ```
+    (AWSIdentityCenter)<-[HAS_PERMISSION_SET]-(AWSPermissionSet)
+    ```
+- AWSPermissionSet can be assigned to roles.
+
+    ```
+    (AWSPermissionSet)-[ASSIGNED_TO_ROLE]->(AWSRole)
+    ```

@@ -122,7 +122,7 @@ def read_list_of_tuples_tx(tx: neo4j.Transaction, query: str, **kwargs) -> List[
     return [tuple(val) for val in values]
 
 
-def read_single_dict_tx(tx: neo4j.Transaction, query: str, **kwargs) -> Dict[str, Any]:
+def read_single_dict_tx(tx: neo4j.Transaction, query: str, **kwargs) -> Any:
     """
     Runs the given Neo4j query in the given transaction object and returns the single dict result. This is intended to
     be run only with queries that return a single dict.
