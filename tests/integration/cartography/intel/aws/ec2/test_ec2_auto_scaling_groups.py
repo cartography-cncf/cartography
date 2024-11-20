@@ -37,19 +37,22 @@ def test_sync_ec2_auto_scaling_groups(mock_get_launch_configs, mock_get_asgs, ne
 
     # Assert
     assert check_nodes(neo4j_session, 'AutoScalingGroup', ['arn', 'name']) == {
-        (GET_AUTO_SCALING_GROUPS[0]['arn'], GET_AUTO_SCALING_GROUPS[0]['name']),
-        (GET_AUTO_SCALING_GROUPS[1]['arn'], GET_AUTO_SCALING_GROUPS[1]['name']),
+        (GET_AUTO_SCALING_GROUPS[0]['AutoScalingGroupARN'], GET_AUTO_SCALING_GROUPS[0]['AutoScalingGroupName']),
+        (GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'], GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupName']),
     }
-    assert check_nodes(neo4j_session, 'LaunchConfiguration', ['arn', 'name']) == {
+    assert check_nodes(neo4j_session, 'LaunchConfiguration', ['id', 'arn', 'name']) == {
         (
+            GET_LAUNCH_CONFIGURATIONS[0]['LaunchConfigurationARN'],
             GET_LAUNCH_CONFIGURATIONS[0]['LaunchConfigurationARN'],
             GET_LAUNCH_CONFIGURATIONS[0]['LaunchConfigurationName'],
         ),
         (
             GET_LAUNCH_CONFIGURATIONS[1]['LaunchConfigurationARN'],
+            GET_LAUNCH_CONFIGURATIONS[1]['LaunchConfigurationARN'],
             GET_LAUNCH_CONFIGURATIONS[1]['LaunchConfigurationName'],
         ),
         (
+            GET_LAUNCH_CONFIGURATIONS[2]['LaunchConfigurationARN'],
             GET_LAUNCH_CONFIGURATIONS[2]['LaunchConfigurationARN'],
             GET_LAUNCH_CONFIGURATIONS[2]['LaunchConfigurationName'],
         ),

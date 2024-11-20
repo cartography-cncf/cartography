@@ -12,8 +12,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class LaunchConfigurationNodeProperties(CartographyNodeProperties):
-    id = PropertyRef('LaunchConfigurationARN')
-    arn = PropertyRef('LaunchConfigurationARN', extra_index=True)
+    id: PropertyRef = PropertyRef('LaunchConfigurationARN')
+    arn: PropertyRef = PropertyRef('LaunchConfigurationARN')
     created_time = PropertyRef('CreatedTime')
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
     image_id: PropertyRef = PropertyRef('ImageId')

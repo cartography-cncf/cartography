@@ -7,12 +7,12 @@ import neo4j
 
 from .util import get_botocore_config
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.models.aws.ec2.auto_scaling_groups import AutoScalingGroupSchema
 from cartography.models.aws.ec2.auto_scaling_groups import EC2InstanceAutoScalingGroupSchema
 from cartography.models.aws.ec2.auto_scaling_groups import EC2SubnetAutoScalingGroupSchema
 from cartography.models.aws.ec2.launch_configurations import LaunchConfigurationSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -169,27 +169,16 @@ def load_instances(
 def load_auto_scaling_groups(
     neo4j_session: neo4j.Session, data: AsgData, region: str, current_aws_account_id: str, update_tag: int,
 ) -> None:
-    load_auto_scaling_groups(neo4j_session, data.group_list, region, current_aws_account_id, update_tag)
+    load_groups(neo4j_session, data.group_list, region, current_aws_account_id, update_tag)
     load_instances(neo4j_session, data.instance_list, region, current_aws_account_id, update_tag)
     load_vpcs(neo4j_session, data.subnet_list, region, current_aws_account_id, update_tag)
 
 
 @timeit
-def cleanup_ec2_auto_scaling_groups(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
-    run_cleanup_job(
-        'aws_ingest_ec2_auto_scaling_groups_cleanup.json',
-        neo4j_session,
-        common_job_parameters,
-    )
-
-
-@timeit
-def cleanup_ec2_launch_configurations(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
-    run_cleanup_job(
-        'aws_import_ec2_launch_configurations_cleanup.json',
-        neo4j_session,
-        common_job_parameters,
-    )
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+    logger.debug("Running EC2 instance cleanup")
+    GraphJob.from_node_schema(AutoScalingGroupSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(LaunchConfigurationSchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit
@@ -205,5 +194,4 @@ def sync_ec2_auto_scaling_groups(
         asg_transformed = transform_auto_scaling_groups(asg_data)
         load_launch_configurations(neo4j_session, lc_transformed, region, current_aws_account_id, update_tag)
         load_auto_scaling_groups(neo4j_session, asg_transformed, region, current_aws_account_id, update_tag)
-    cleanup_ec2_auto_scaling_groups(neo4j_session, common_job_parameters)
-    cleanup_ec2_launch_configurations(neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters)
