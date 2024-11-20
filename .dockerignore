@@ -1,6 +1,12 @@
 build/
 *.egg-info/
 venv/
+.github/
+.venv/
+dist/
+docs/
+tests/
+.coverage
 .compose
 .cache
 .local

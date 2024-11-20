@@ -1,0 +1,46 @@
+# Start with a full size image that contains most tool
+FROM python:3.10 as builder
+
+# Necessary updates
+RUN python -m ensurepip --default-pip --upgrade
+
+# Copy source code including .git which is required for automatic
+# version detection.
+# Note: Do NOT copy to root, the build will get stuck.
+# Ref: https://github.com/pypa/pip/issues/12426#issuecomment-1843762931
+COPY . /var/cartography
+WORKDIR /var/cartography
+
+# Install required build tools
+RUN python -m pip install --upgrade build twine && \
+    # Perform python package build
+    python -m build && \
+    # Verify built package
+    python -m twine check dist/*
+
+# New stage with minimal image
+FROM python:3.10-slim as runner
+
+# Necessary updates
+RUN python -m ensurepip --default-pip --upgrade && \
+    pip install --upgrade setuptools wheel
+
+# Copy the Cartopgraphy package built in previous stage
+# RUN mkdir -p /var/cartography/dist
+COPY --from=builder /var/cartography/dist /var/cartography/dist
+
+# Install the Cartograhy package from local directory
+RUN pip install /var/cartography/dist/*.whl && \
+    # verify that the binary at least runs
+    cartography -h
+
+# Configure runtime environment
+# the UID and GID to run cartography as
+# (https://github.com/hexops/dockerfile#do-not-use-a-uid-below-10000).
+ARG uid=10001
+ARG gid=10001
+
+USER ${uid}:${gid}
+
+ENTRYPOINT ["cartography"]
+CMD ["-h"]
