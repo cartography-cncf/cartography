@@ -43,7 +43,7 @@ def get_rest_api_details(
     for api in rest_apis:
         stages = get_rest_api_stages(api, client)
         # clientcertificate id is given by the api stage
-        certificate = get_rest_api_client_certificate(stages, client)  # type: ignore
+        certificate = get_rest_api_client_certificate(stages, client)
         resources = get_rest_api_resources(api, client)
         policy = get_rest_api_policy(api, client)
         apis.append((api['id'], stages, certificate, resources, policy))
@@ -51,7 +51,7 @@ def get_rest_api_details(
 
 
 @timeit
-def get_rest_api_stages(api: Dict, client: botocore.client.BaseClient) -> List[Any]:
+def get_rest_api_stages(api: Dict, client: botocore.client.BaseClient) -> Any:
     """
     Gets the REST API Stage Resources.
     """
@@ -99,7 +99,7 @@ def get_rest_api_resources(api: Dict, client: botocore.client.BaseClient) -> Lis
 
 
 @timeit
-def get_rest_api_policy(api: Dict, client: botocore.client.BaseClient) -> List[Any]:
+def get_rest_api_policy(api: Dict, client: botocore.client.BaseClient) -> Any:
     """
     Gets the REST API policy. Returns policy string or None if no policy is present.
     """
