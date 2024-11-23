@@ -25,7 +25,7 @@ def start_cve_ingestion(
     """
     if not config.cve_enabled:
         return
-    cve_api_key = config.cve_api_key if config.cve_api_key else None
+    cve_api_key: str | None = config.cve_api_key if config.cve_api_key else None
 
     # sync CVE year archives, if not yet synced
     existing_years = feed.get_cve_sync_metadata(neo4j_session)
