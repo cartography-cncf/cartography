@@ -539,11 +539,12 @@ def _transform_policy_statements(statements: Any, policy_id: str) -> List[Dict]:
     if not isinstance(statements, list):
         statements = [statements]
     for stmt in statements:
-        if "Sid" not in stmt:
+        if "Sid" in stmt and stmt["Sid"]:
+            statement_id = stmt["Sid"]
+        else:
             statement_id = count
             count += 1
-        else:
-            statement_id = stmt["Sid"]
+
         stmt["id"] = f"{policy_id}/statement/{statement_id}"
         if "Resource" in stmt:
             stmt["Resource"] = ensure_list(stmt["Resource"])
