@@ -39,11 +39,18 @@ Representation of a single GitHubRepository (repo) [repository object](https://d
     (GitHubOrganization)-[OWNER]->(GitHubRepository)
     ```
 
-- GitHubRepositories in an organization can have outside collaborators with different permissions, including ADMIN,
+- GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
 WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
 
     ```
     (GitHubUser)-[:OUTSIDE_COLLAB_{ACTION}]->(GitHubRepository)
+    ```
+
+- GitHubRepositories in an organization also mark all [direct collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation), folks who are not necessarily 'outside' but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
+
+    ```
+    (GitHubUser)-[:DIRECT_COLLAB_{ACTION}]->(GitHubRepository)
     ```
 
 - GitHubRepositories use ProgrammingLanguages
@@ -151,11 +158,18 @@ Representation of a single GitHubUser [user object](https://developer.github.com
     (GitHubUser)-[OWNER]->(GitHubRepository)
     ```
 
-- GitHubRepositories in an organization can have outside collaborators with different permissions, including ADMIN,
+- GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
 WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
 
     ```
     (GitHubUser)-[:OUTSIDE_COLLAB_{ACTION}]->(GitHubRepository)
+    ```
+
+- GitHubRepositories in an organization also mark all [direct collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation), folks who are not necessarily 'outside' but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
+
+    ```
+    (GitHubUser)-[:DIRECT_COLLAB_{ACTION}]->(GitHubRepository)
     ```
 
 - GitHubUsers are members of an organization.  In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
