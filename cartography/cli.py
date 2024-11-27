@@ -577,7 +577,7 @@ class CLI:
         """
         # TODO support parameter lookup in environment variables if not present on command line
         config: argparse.Namespace = self.parser.parse_args(argv)
-        # Logging config
+        # Logging config: https://docs.python.org/3/library/logging.config.html#logging-config-fileformat
         if config.logging_config:
             logging.config.fileConfig(config.logging_config)
             logger.info("Using logging config from %s", config.logging_config)
