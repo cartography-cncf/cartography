@@ -157,7 +157,7 @@ def test_call_cves_api_with_error(mock_get: Mock):
         _call_cves_api(NIST_CVE_URL, API_KEY, params)
     except requests.exceptions.HTTPError as err:
         assert err.response == mock_response
-    assert mock_get.call_count == 3
+    assert mock_get.call_count == 30
 
 
 @patch("cartography.intel.cve.feed._call_cves_api")
