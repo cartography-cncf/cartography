@@ -22,9 +22,9 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 3
-# Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
-CONNECT_AND_READ_TIMEOUT = (60, 60)
+MAX_RETRIES = 30
+# Connect and read timeouts of 120 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+CONNECT_AND_READ_TIMEOUT = (120, 120)
 CVE_FEED_ID = "NIST_NVD"
 BATCH_SIZE_DAYS = 120
 RESULTS_PER_PAGE = 2000
@@ -98,6 +98,7 @@ def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dic
             retries += 1
             if retries >= MAX_RETRIES:
                 raise
+            time.sleep(sleep_time)
             continue
         data = res.json()
         _map_cve_dict(results, data)
