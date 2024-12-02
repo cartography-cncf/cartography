@@ -69,7 +69,8 @@ def transform_network_acl_data(
                 direction = 'egress' if rule['Egress'] else 'inbound'
                 transformed_rule = {
                     'Id': f"{network_acl['NetworkAclId']}/{direction}/{rule['RuleNumber']}",
-                    'CidrBlock': rule['CidrBlock'],
+                    'CidrBlock': rule.get('CidrBlock'),
+                    'Ipv6CidrBlock': rule.get('Ipv6CidrBlock'),
                     'Egress': rule['Egress'],
                     'Protocol': rule['Protocol'],
                     'RuleAction': rule['RuleAction'],

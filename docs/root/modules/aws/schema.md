@@ -1324,18 +1324,19 @@ Representation of an AWS Elastic Container Registry [Repository](https://docs.aw
 Representation of an AWS [EC2 Network ACL Rule Entry](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_NetworkAclEntry.html)
 For additional explanation see https://docs.aws.amazon.com/vpc/latest/userguide/nacl-rules.html.
 
-| Field          | Description                                                                                 |
-|----------------|---------------------------------------------------------------------------------------------|
-| **id**         | The ID of this rule: `{network_acl_id}/{egress or inbound}/{rule_number}`                   |
-| network_acl_id | The ID of the network ACL that this belongs to                                              |
-| protocol       | Indicates whether this is the default network ACL for the VPC.                              |
-| fromport       | First port in the range that this rule applies to                                           |
-| toport         | Last port in the range that this rule applies to                                            |
-| cidrblock      | The IPv4 network range to allow or deny, in CIDR notation.                                  |
-| egress         | Indicates whether the rule is an egress rule (applied to traffic leaving the subnet).       |
-| rulenumber     | The rule number for the entry. ACL entries are processed in ascending order by rule number. |
-| ruleaction     | Indicates whether to `allow` or `den` the traffic that matches the rule.                    |
-| region         | The region                                                                                  |
+| Field          | Description                                                                                                                  |
+|----------------|------------------------------------------------------------------------------------------------------------------------------|
+| **id**         | The ID of this rule: `{network_acl_id}/{egress or inbound}/{rule_number}`                                                    |
+| network_acl_id | The ID of the network ACL that this belongs to                                                                               |
+| protocol       | Indicates whether this is the default network ACL for the VPC.                                                               |
+| fromport       | First port in the range that this rule applies to                                                                            |
+| toport         | Last port in the range that this rule applies to                                                                             |
+| cidrblock      | The IPv4 network range to allow or deny, in CIDR notation.                                                                   |
+| Ipv6CidrBlock  | The IPv6 network range to allow or deny, in CIDR notation. You must specify an IPv4 CIDR block or an IPv6 CIDR block.        |
+| egress         | Indicates whether the rule is an egress rule (applied to traffic leaving the subnet).                                        |
+| rulenumber     | The rule number for the entry. ACL entries are processed in ascending order by rule number.                                  |
+| ruleaction     | Indicates whether to `allow` or `den` the traffic that matches the rule.                                                     |
+| region         | The region                                                                                                                   |
 
 
 #### Relationships
