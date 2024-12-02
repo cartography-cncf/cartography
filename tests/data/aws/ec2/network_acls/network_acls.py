@@ -46,6 +46,13 @@ DESCRIBE_NETWORK_ACLS = [
                 "RuleAction": "deny",
                 "RuleNumber": 32767,
             },
+            {
+                "Ipv6CidrBlock": "2001:db8:1234:1a00::/64",
+                "Egress": True,
+                "Protocol": "-1",
+                "RuleAction": "allow",
+                "RuleNumber": 100,
+            },
         ],
         "IsDefault": True,
         "NetworkAclId": "acl-077e",
