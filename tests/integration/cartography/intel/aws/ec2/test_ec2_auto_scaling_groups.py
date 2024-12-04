@@ -90,20 +90,8 @@ def test_sync_ec2_auto_scaling_groups(mock_get_instances, mock_get_launch_config
         rel_label='MEMBER_AUTO_SCALE_GROUP',
         rel_direction_right=False,
     ) == {
-        (
-            GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'],
-            DESCRIBE_INSTANCES['Reservations'][0]['Instances'][0]['InstanceId'],
-        ),
-        (
-            GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'],
-            DESCRIBE_INSTANCES['Reservations'][1]['Instances'][0]['InstanceId'],
-        ),
-        (
-            GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'],
-            DESCRIBE_INSTANCES['Reservations'][2]['Instances'][0]['InstanceId'],
-        ),
-        (
-            GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'],
-            DESCRIBE_INSTANCES['Reservations'][2]['Instances'][1]['InstanceId'],
-        ),
+        (GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'], "i-01"),
+        (GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'], "i-02"),
+        (GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'], "i-03"),
+        (GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'], "i-04"),
     }

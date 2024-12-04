@@ -99,8 +99,13 @@ def transform_auto_scaling_groups(groups: list[dict[str, Any]]) -> AsgData:
         if group.get('VPCZoneIdentifier', None):
             vpclist = group['VPCZoneIdentifier']
             subnet_ids = vpclist.split(',') if ',' in vpclist else [vpclist]
-            data = [{'VPCZoneIdentifier': subnet_id} for subnet_id in subnet_ids]
-            related_vpcs.extend(data)
+            subnets = []
+            for subnet_id in subnet_ids:
+                subnets.append({
+                    'VPCZoneIdentifier': subnet_id,
+                    'AutoScalingGroupARN': group['AutoScalingGroupARN'],
+                })
+            related_vpcs.extend(subnets)
 
         for instance_data in group.get('Instances', []):
             related_instances.append({
