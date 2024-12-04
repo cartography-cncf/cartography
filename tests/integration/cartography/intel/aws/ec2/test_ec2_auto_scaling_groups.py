@@ -2,9 +2,11 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.intel.aws.ec2 import auto_scaling_groups
+from cartography.intel.aws.ec2 import instances
 from cartography.intel.aws.ec2.auto_scaling_groups import sync_ec2_auto_scaling_groups
 from tests.data.aws.ec2.auto_scaling_groups import GET_AUTO_SCALING_GROUPS
 from tests.data.aws.ec2.auto_scaling_groups import GET_LAUNCH_CONFIGURATIONS
+from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -17,13 +19,23 @@ TEST_UPDATE_TAG = 123456789
 
 @patch.object(auto_scaling_groups, 'get_ec2_auto_scaling_groups', return_value=GET_AUTO_SCALING_GROUPS)
 @patch.object(auto_scaling_groups, 'get_launch_configurations', return_value=GET_LAUNCH_CONFIGURATIONS)
-def test_sync_ec2_auto_scaling_groups(mock_get_launch_configs, mock_get_asgs, neo4j_session):
+@patch.object(instances, 'get_ec2_instances', return_value=DESCRIBE_INSTANCES['Reservations'])
+def test_sync_ec2_auto_scaling_groups(mock_get_instances, mock_get_launch_configs, mock_get_asgs, neo4j_session):
     """
     Ensure that auto scaling groups actually get loaded and have their key fields
     """
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    # Ensure there are instances in the graph
+    instances.sync_ec2_instances(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+    )
 
     # Act
     sync_ec2_auto_scaling_groups(
@@ -67,4 +79,31 @@ def test_sync_ec2_auto_scaling_groups(mock_get_launch_configs, mock_get_asgs, ne
         rel_direction_right=True,
     ) == {
         (GET_AUTO_SCALING_GROUPS[0]['AutoScalingGroupARN'], GET_LAUNCH_CONFIGURATIONS[0]['LaunchConfigurationName']),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        node_1_label='AutoScalingGroup',
+        node_1_attr='id',
+        node_2_label='EC2Instance',
+        node_2_attr='id',
+        rel_label='MEMBER_AUTO_SCALE_GROUP',
+        rel_direction_right=False,
+    ) == {
+        (
+            GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'],
+            DESCRIBE_INSTANCES['Reservations'][0]['Instances'][0]['InstanceId'],
+        ),
+        (
+            GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'],
+            DESCRIBE_INSTANCES['Reservations'][1]['Instances'][0]['InstanceId'],
+        ),
+        (
+            GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'],
+            DESCRIBE_INSTANCES['Reservations'][2]['Instances'][0]['InstanceId'],
+        ),
+        (
+            GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'],
+            DESCRIBE_INSTANCES['Reservations'][2]['Instances'][1]['InstanceId'],
+        ),
     }

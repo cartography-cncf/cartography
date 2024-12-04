@@ -138,7 +138,21 @@ GET_AUTO_SCALING_GROUPS = [
         'TargetGroupARNs': [],
         'HealthCheckType': 'EC2',
         'HealthCheckGracePeriod': 300,
-        'Instances': [],
+        # Should match instance IDs from cartography.tests.data.aws.ec2.instances.py
+        'Instances': [
+            {
+                "InstanceId": "i-01",
+            },
+            {
+                "InstanceId": "i-02",
+            },
+            {
+                "InstanceId": "i-03",
+            },
+            {
+                "InstanceId": "i-04",
+            },
+        ],
         'CreatedTime': datetime.datetime(2021, 9, 21, 10, 55, 34, 222000, tzinfo=tz.utc),
         'SuspendedProcesses': [],
         'VPCZoneIdentifier': 'subnet-00000000000000000,subnet-11111111111111111',

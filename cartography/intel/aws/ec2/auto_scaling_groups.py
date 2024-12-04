@@ -77,7 +77,7 @@ def transform_auto_scaling_groups(groups: list[dict[str, Any]]) -> AsgData:
     related_instances = []
     for group in groups:
         transformed_groups.append({
-            'AutoScalingGroupARN': group.get('AutoScalingGroupARN'),
+            'AutoScalingGroupARN': group['AutoScalingGroupARN'],
             'CapacityRebalance': group.get('CapacityRebalance'),
             'CreatedTime': str(group.get('CreatedTime')),
             'DefaultCooldown': group.get('DefaultCooldown'),
@@ -103,7 +103,10 @@ def transform_auto_scaling_groups(groups: list[dict[str, Any]]) -> AsgData:
             related_vpcs.extend(data)
 
         for instance_data in group.get('Instances', []):
-            related_instances.append({'InstanceId': instance_data['InstanceId']})
+            related_instances.append({
+                'InstanceId': instance_data['InstanceId'],
+                'AutoScalingGroupARN': group['AutoScalingGroupARN'],
+            })
 
     return AsgData(
         group_list=transformed_groups,
