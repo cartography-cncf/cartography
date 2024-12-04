@@ -22,7 +22,7 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 6
+MAX_RETRIES = 8
 # Connect and read timeouts of 120 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 CONNECT_AND_READ_TIMEOUT = (30, 120)
 CVE_FEED_ID = "NIST_NVD"
