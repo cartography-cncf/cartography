@@ -33,7 +33,7 @@ class LaunchConfigurationNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LaunchConfiguratiionToAwsAccountRelProperties(CartographyRelProperties):
+class LaunchConfigurationToAwsAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
 
@@ -45,7 +45,7 @@ class LaunchConfigurationToAwsAccount(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: LaunchConfiguratiionToAwsAccountRelProperties = LaunchConfiguratiionToAwsAccountRelProperties()
+    properties: LaunchConfigurationToAwsAccountRelProperties = LaunchConfigurationToAwsAccountRelProperties()
 
 
 @dataclass(frozen=True)
