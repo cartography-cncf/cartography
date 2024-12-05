@@ -9,6 +9,7 @@ GH_TEAM_DATA = (
                 'description': None,
                 'repositories': {'totalCount': 0},
                 'members': {'totalCount': 0},
+                'childTeams': {'totalCount': 0},
             },
             {
                 'slug': 'team-b',
@@ -16,6 +17,7 @@ GH_TEAM_DATA = (
                 'description': None,
                 'repositories': {'totalCount': 3},
                 'members': {'totalCount': 0},
+                'childTeams': {'totalCount': 0},
             },
             {
                 'slug': 'team-c',
@@ -23,6 +25,7 @@ GH_TEAM_DATA = (
                 'description': None,
                 'repositories': {'totalCount': 0},
                 'members': {'totalCount': 3},
+                'childTeams': {'totalCount': 0},
             },
             {
                 'slug': 'team-d',
@@ -30,6 +33,7 @@ GH_TEAM_DATA = (
                 'description': 'Team D',
                 'repositories': {'totalCount': 0},
                 'members': {'totalCount': 0},
+                'childTeams': {'totalCount': 2},
             },
             {
                 'slug': 'team-e',
@@ -37,6 +41,7 @@ GH_TEAM_DATA = (
                 'description': 'some description here',
                 'repositories': {'totalCount': 0},
                 'members': {'totalCount': 0},
+                'childTeams': {'totalCount': 0},
             },
         ],
         edges=[],
@@ -70,4 +75,12 @@ GH_TEAM_USERS = PaginatedGraphqlData(
         {'role': 'MAINTAINER'},
         {'role': 'MAINTAINER'},
     ],
+)
+
+GH_TEAM_CHILD_TEAM = PaginatedGraphqlData(
+    nodes=[
+        {'url': 'https://github.com/orgs/example_org/teams/team-a'},
+        {'url': 'https://github.com/orgs/example_org/teams/team-b'},
+    ],
+    edges=[],
 )

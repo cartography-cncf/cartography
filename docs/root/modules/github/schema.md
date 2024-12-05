@@ -129,11 +129,18 @@ A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
     ```
 
+- GitHubTeams may be children of other teams:
+
+    ```
+    (GitHubTeam)-[CHILD_TEAM]->(GitHubTeam)
+    ```
+
 - GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
 
     ```
     (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
     ```
+
 
 ### GitHubUser
 
@@ -182,6 +189,12 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 
     ```
     (GitHubUser)-[MEMBER_OF|UNAFFILIATED]->(GitHubOrganization)
+    ```
+
+- GitHubTeams may be children of other teams:
+
+    ```
+    (GitHubTeam)-[CHILD_TEAM]->(GitHubTeam)
     ```
 
 - GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
