@@ -147,7 +147,7 @@ def load_groups(
     )
 
 
-def load_asg_vpcs(
+def load_asg_subnets(
         neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str, update_tag: int,
 ) -> None:
     load(
@@ -179,7 +179,7 @@ def load_auto_scaling_groups(
 ) -> None:
     load_groups(neo4j_session, data.group_list, region, current_aws_account_id, update_tag)
     load_asg_instances(neo4j_session, data.instance_list, region, current_aws_account_id, update_tag)
-    load_asg_vpcs(neo4j_session, data.subnet_list, region, current_aws_account_id, update_tag)
+    load_asg_subnets(neo4j_session, data.subnet_list, region, current_aws_account_id, update_tag)
 
 
 @timeit
