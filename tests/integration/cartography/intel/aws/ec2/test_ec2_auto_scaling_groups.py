@@ -52,6 +52,7 @@ def test_sync_ec2_auto_scaling_groups(mock_get_instances, mock_get_launch_config
         (GET_AUTO_SCALING_GROUPS[0]['AutoScalingGroupARN'], GET_AUTO_SCALING_GROUPS[0]['AutoScalingGroupName']),
         (GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'], GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupName']),
     }
+
     assert check_nodes(neo4j_session, 'LaunchConfiguration', ['id', 'arn', 'name']) == {
         (
             GET_LAUNCH_CONFIGURATIONS[0]['LaunchConfigurationARN'],
@@ -69,6 +70,20 @@ def test_sync_ec2_auto_scaling_groups(mock_get_instances, mock_get_launch_config
             GET_LAUNCH_CONFIGURATIONS[2]['LaunchConfigurationName'],
         ),
     }
+
+    assert check_rels(
+        neo4j_session,
+        node_1_label='AutoScalingGroup',
+        node_1_attr='id',
+        node_2_label='AWSAccount',
+        node_2_attr='id',
+        rel_label='RESOURCE',
+        rel_direction_right=False,
+    ) == {
+        (GET_AUTO_SCALING_GROUPS[0]['AutoScalingGroupARN'], TEST_ACCOUNT_ID),
+        (GET_AUTO_SCALING_GROUPS[1]['AutoScalingGroupARN'], TEST_ACCOUNT_ID),
+    }
+
     assert check_rels(
         neo4j_session,
         node_1_label='AutoScalingGroup',
