@@ -135,7 +135,7 @@ def test_call_cves_api(mock_get: Mock):
     result = _call_cves_api(NIST_CVE_URL, API_KEY, params)
 
     # Assert
-    assert mock_get.call_count == 8
+    assert mock_get.call_count == 3
     assert result == expected_result
 
 
