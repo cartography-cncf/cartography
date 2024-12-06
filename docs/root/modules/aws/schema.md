@@ -1332,7 +1332,7 @@ For additional explanation see https://docs.aws.amazon.com/vpc/latest/userguide/
 | fromport       | First port in the range that this rule applies to                                                                            |
 | toport         | Last port in the range that this rule applies to                                                                             |
 | cidrblock      | The IPv4 network range to allow or deny, in CIDR notation.                                                                   |
-| Ipv6CidrBlock  | The IPv6 network range to allow or deny, in CIDR notation. You must specify an IPv4 CIDR block or an IPv6 CIDR block.        |
+| ipv6cidrblock  | The IPv6 network range to allow or deny, in CIDR notation. You must specify an IPv4 CIDR block or an IPv6 CIDR block.        |
 | egress         | Indicates whether the rule is an egress rule (applied to traffic leaving the subnet).                                        |
 | rulenumber     | The rule number for the entry. ACL entries are processed in ascending order by rule number.                                  |
 | ruleaction     | Indicates whether to `allow` or `den` the traffic that matches the rule.                                                     |

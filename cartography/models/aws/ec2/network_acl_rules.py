@@ -21,7 +21,7 @@ class EC2NetworkAclRuleNodeProperties(CartographyNodeProperties):
     fromport: PropertyRef = PropertyRef('FromPort')
     toport: PropertyRef = PropertyRef('ToPort')
     cidrblock: PropertyRef = PropertyRef('CidrBlock')
-    Ipv6CidrBlock: PropertyRef = PropertyRef('Ipv6CidrBlock')
+    ipv6cidrblock: PropertyRef = PropertyRef('Ipv6CidrBlock')
     egress: PropertyRef = PropertyRef('Egress')
     rulenumber: PropertyRef = PropertyRef('RuleNumber')
     ruleaction: PropertyRef = PropertyRef('RuleAction')
