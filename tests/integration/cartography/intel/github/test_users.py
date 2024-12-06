@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import cartography.intel.github.users
+from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.github.users import GITHUB_ENTERPRISE_OWNER_DATA
 from tests.data.github.users import GITHUB_ORG_DATA
 from tests.data.github.users import GITHUB_USER_DATA
@@ -10,6 +11,24 @@ TEST_JOB_PARAMS = {'UPDATE_TAG': TEST_UPDATE_TAG}
 TEST_GITHUB_URL = GITHUB_ORG_DATA['url']
 TEST_GITHUB_ORG = GITHUB_ORG_DATA['login']
 FAKE_API_KEY = 'asdf'
+
+
+def _ensure_local_neo4j_has_test_data(neo4j_session):
+    """
+    Not needed for this test file, but used to set up users for other tests that need them
+    """
+    processed_affiliated_user_data, _ = (
+        cartography.intel.github.users.transform_users(
+            GITHUB_USER_DATA[0], GITHUB_ENTERPRISE_OWNER_DATA[0], GITHUB_ORG_DATA,
+        )
+    )
+    cartography.intel.github.users.load_users(
+        neo4j_session,
+        GitHubOrganizationUserSchema(),
+        processed_affiliated_user_data,
+        GITHUB_ORG_DATA,
+        TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(cartography.intel.github.users, 'get_users', return_value=GITHUB_USER_DATA)
