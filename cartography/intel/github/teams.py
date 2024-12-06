@@ -17,7 +17,10 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# A team's permission on a repo: https://docs.github.com/en/graphql/reference/enums#repositorypermission
 RepoPermission = namedtuple('RepoPermission', ['repo_url', 'permission'])
+# A team member's role: https://docs.github.com/en/graphql/reference/enums#teammemberrole
+UserRole = namedtuple('UserRole', ['user_url', 'role'])
 
 
 @timeit
@@ -33,6 +36,9 @@ def get_teams(org: str, api_url: str, token: str) -> Tuple[PaginatedGraphqlData,
                         url
                         description
                         repositories(first: 100) {
+                            totalCount
+                        }
+                        members(first: 100, membership: IMMEDIATE) {
                             totalCount
                         }
                     }
@@ -142,10 +148,106 @@ def _get_team_repos(org: str, api_url: str, token: str, team: str) -> PaginatedG
     return team_repos
 
 
+def _get_team_users_for_multiple_teams(
+        team_raw_data: list[dict[str, Any]],
+        org: str,
+        api_url: str,
+        token: str,
+) -> dict[str, list[UserRole]]:
+    result: dict[str, list[UserRole]] = {}
+    for team in team_raw_data:
+        team_name = team['slug']
+        user_count = team['members']['totalCount']
+
+        if user_count == 0:
+            # This team has no users so let's move on
+            result[team_name] = []
+            continue
+
+        user_urls = []
+        user_roles = []
+
+        max_tries = 5
+
+        for current_try in range(1, max_tries + 1):
+            team_users = _get_team_users(org, api_url, token, team_name)
+
+            try:
+                # The `or []` is because `.nodes` can be None. See:
+                # https://docs.github.com/en/graphql/reference/objects#teammemberconnection
+                for user in team_users.nodes or []:
+                    user_urls.append(user['url'])
+
+                # The `or []` is because `.edges` can be None.
+                for edge in team_users.edges or []:
+                    user_roles.append(edge['role'])
+                # We're done! Break out of the retry loop.
+                break
+
+            except TypeError:
+                # Handles issue #1334
+                logger.warning(
+                    f"GitHub returned None when trying to find user or role data for team {team_name}.",
+                    exc_info=True,
+                )
+                if current_try == max_tries:
+                    raise RuntimeError(f"GitHub returned a None member url for team {team_name}, retries exhausted.")
+                sleep(current_try ** 2)
+
+        # Shape = [(user_url, 'MAINTAINER'), ...]]
+        result[team_name] = [UserRole(url, role) for url, role in zip(user_urls, user_roles)]
+    return result
+
+
+@timeit
+def _get_team_users(org: str, api_url: str, token: str, team: str) -> PaginatedGraphqlData:
+    team_users_gql = """
+    query($login: String!, $team: String!, $cursor: String) {
+        organization(login: $login) {
+            url
+            login
+            team(slug: $team) {
+                slug
+                members(first: 100, after: $cursor, membership: IMMEDIATE) {
+                    totalCount
+                    nodes {
+                        url
+                    }
+                    edges {
+                        role
+                    }
+                    pageInfo {
+                        endCursor
+                        hasNextPage
+                    }
+                }
+            }
+        }
+        rateLimit {
+            limit
+            cost
+            remaining
+            resetAt
+        }
+    }
+    """
+    team_users, _ = fetch_all(
+        token,
+        api_url,
+        org,
+        team_users_gql,
+        'team',
+        resource_inner_type='members',
+        team=team,
+    )
+    return team_users
+
+
 def transform_teams(
         team_paginated_data: PaginatedGraphqlData,
         org_data: Dict[str, Any],
         team_repo_data: dict[str, list[RepoPermission]],
+        team_user_data: dict[str, list[UserRole]],
 ) -> list[dict[str, Any]]:
     result = []
     for team in team_paginated_data.nodes:
@@ -155,19 +257,29 @@ def transform_teams(
             'url': team['url'],
             'description': team['description'],
             'repo_count': team['repositories']['totalCount'],
+            'member_count': team['members']['totalCount'],
             'org_url': org_data['url'],
             'org_login': org_data['login'],
         }
         repo_permissions = team_repo_data[team_name]
-        if not repo_permissions:
+        user_roles = team_user_data[team_name]
+
+        if not repo_permissions and not user_roles:
             result.append(repo_info)
             continue
 
-        # `permission` can be one of ADMIN, READ, WRITE, TRIAGE, or MAINTAIN
-        for repo_url, permission in repo_permissions:
-            repo_info_copy = repo_info.copy()
-            repo_info_copy[permission] = repo_url
-            result.append(repo_info_copy)
+        if repo_permissions:
+            # `permission` can be one of ADMIN, READ, WRITE, TRIAGE, or MAINTAIN
+            for repo_url, permission in repo_permissions:
+                repo_info_copy = repo_info.copy()
+                repo_info_copy[permission] = repo_url
+                result.append(repo_info_copy)
+        if user_roles:
+            # `role` can be one of MAINTAINER, MEMBER
+            for user_url, role in user_roles:
+                repo_info_copy = repo_info.copy()
+                repo_info_copy[role] = user_url
+                result.append(repo_info_copy)
     return result
 
 
@@ -203,7 +315,8 @@ def sync_github_teams(
 ) -> None:
     teams_paginated, org_data = get_teams(organization, github_url, github_api_key)
     team_repos = _get_team_repos_for_multiple_teams(teams_paginated.nodes, organization, github_url, github_api_key)
-    processed_data = transform_teams(teams_paginated, org_data, team_repos)
+    team_users = _get_team_users_for_multiple_teams(teams_paginated.nodes, organization, github_url, github_api_key)
+    processed_data = transform_teams(teams_paginated, org_data, team_repos, team_users)
     load_team_repos(neo4j_session, processed_data, common_job_parameters['UPDATE_TAG'], org_data['url'])
     common_job_parameters['org_url'] = org_data['url']
     cleanup(neo4j_session, common_job_parameters)

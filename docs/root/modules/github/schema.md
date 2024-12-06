@@ -129,6 +129,12 @@ A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
     ```
 
+- GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
+
+    ```
+    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    ```
+
 ### GitHubUser
 
 Representation of a single GitHubUser [user object](https://developer.github.com/v4/object/user/). This node contains minimal data for the GitHub User.
@@ -177,6 +183,13 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
     ```
     (GitHubUser)-[MEMBER_OF|UNAFFILIATED]->(GitHubOrganization)
     ```
+
+- GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
+
+    ```
+    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    ```
+
 
 ### GitHubBranch
 
