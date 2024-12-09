@@ -1,7 +1,7 @@
 """
 This schema does not handle the org's relationships.  Those are handled by other schemas, for example:
 * GitHubTeamSchema defines (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
-* GitHubUserSchema defines (GitHubUser)-[MEMBER_OF|UNAFFILIATED]->(GitHubOrganization)
+* GitHubUserSchema defines (GitHubUser)-[MEMBER_OF|ADMIN_OF|UNAFFILIATED]->(GitHubOrganization)
 (There may be others, these are just two examples.)
 """
 from dataclasses import dataclass
