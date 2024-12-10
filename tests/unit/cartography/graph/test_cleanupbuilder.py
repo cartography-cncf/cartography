@@ -11,6 +11,7 @@ from tests.data.graph.querybuilder.sample_models.asset_with_non_kwargs_tgm impor
 from tests.data.graph.querybuilder.sample_models.interesting_asset import InterestingAssetSchema
 from tests.data.graph.querybuilder.sample_models.interesting_asset import InterestingAssetToHelloAssetRel
 from tests.data.graph.querybuilder.sample_models.interesting_asset import InterestingAssetToSubResourceRel
+from tests.data.graph.querybuilder.sample_models.node_without_sub_resource import NodeA
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
 from tests.unit.cartography.graph.helpers import clean_query_list
 
@@ -120,14 +121,26 @@ def test_get_params_from_queries():
     assert set(get_parameters(queries)) == {'UPDATE_TAG', 'sub_resource_id', 'LIMIT_SIZE'}
 
 
-def test_build_cleanup_queries_selected_rels_no_sub_res_raises_exc():
-    """
-    Test that not specifying the sub resource rel as a selected_relationship in build_cleanup_queries raises exception
-    """
-    with pytest.raises(ValueError, match='node_schema without a sub resource relationship is not supported'):
-        build_cleanup_queries(SimpleNodeSchema())
-
-
 def test_build_cleanup_node_and_rel_queries_sub_res_tgm_not_validated_raises_exc():
     with pytest.raises(ValueError, match='must have set_in_kwargs=True'):
         _build_cleanup_node_and_rel_queries(FakeEC2InstanceSchema(), FakeEC2InstanceToAWSAccount())
+
+
+def test_build_cleanup_queries_no_sub_resource():
+    actual_queries: list[str] = build_cleanup_queries(NodeA())
+    expected_queries = [
+        """
+        MATCH (n:NodeA)
+        MATCH (n)<-[r:POINTS_TO]-(:NodeB)
+        WHERE r.lastupdated <> $UPDATE_TAG
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """
+    ]
+    assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
+
+
+def test_build_cleanup_queries_no_rels():
+    actual_queries: list[str] = build_cleanup_queries(SimpleNodeSchema())
+    expected_queries = []
+    assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
