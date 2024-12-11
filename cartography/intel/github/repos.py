@@ -228,7 +228,7 @@ def get(token: str, api_url: str, organization: str) -> List[Dict]:
 
 def transform(
     repos_json: List[Dict], direct_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
-    outside_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
+    outside_collaborators: dict[str, List[UserAffiliationAndRepoPermission]] | None = None,
 ) -> Dict:
     """
     Parses the JSON returned from GitHub API to create data for graph ingestion
