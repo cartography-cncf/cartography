@@ -14,6 +14,8 @@ from packaging.utils import canonicalize_name
 
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import PaginatedGraphqlData
+from cartography.util import backoff_handler
+from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -162,14 +164,27 @@ def _get_repo_collaborators_for_multiple_repos(
             result[repo_url] = []
             continue
 
-        collab_users = []
-        collab_permission = []
-        collaborators = _get_repo_collaborators(token, api_url, org, repo_name, affiliation)
-        # nodes and edges are expected to always be present given that we only call for them if totalCount is > 0
-        for collab in collaborators.nodes:
-            collab_users.append(collab)
-        for perm in collaborators.edges:
-            collab_permission.append(perm['permission'])
+        collab_users: List[dict[str, Any]] = []
+        collab_permission: List[str] = []
+
+        def get_repo_collaborators_inner_func(
+            org: str, api_url: str, token: str, repo_name: str, affiliation: str,
+            collab_users: List[dict[str, Any]], collab_permission: List[str],
+        ) -> None:
+            logger.info(f"Loading {affiliation} collaborators for repo {repo_name}.")
+            collaborators = _get_repo_collaborators(token, api_url, org, repo_name, affiliation)
+            # nodes and edges are expected to always be present given that we only call for them if totalCount is > 0
+            # however sometimes GitHub returns None, as in issue 1334
+            for collab in collaborators.nodes or []:
+                collab_users.append(collab)
+            # The `or []` is because `.edges` can be None.
+            for perm in collaborators.edges:
+                collab_permission.append(perm['permission'])
+
+        retries_with_backoff(get_repo_collaborators_inner_func, TypeError, 5, backoff_handler)(
+            org=org, api_url=api_url, token=token, repo_name=repo_name, affiliation=affiliation,
+            collab_users=collab_users, collab_permission=collab_permission,
+        )
 
         result[repo_url] = [
             UserAffiliationAndRepoPermission(user, permission, affiliation)
