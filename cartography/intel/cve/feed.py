@@ -85,31 +85,34 @@ def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dic
         )
     results: Dict[Any, Any] = dict()
 
-    while params["resultsPerPage"] > 0 or params["startIndex"] < totalResults:
-        logger.info(f"Calling NIST NVD API at {url} with params {params}")
-        try:
-            with requests.get(
-                url, params=params, headers=headers, timeout=CONNECT_AND_READ_TIMEOUT,
-            ) as res:
+    with requests.Session() as session:
+        while params["resultsPerPage"] > 0 or params["startIndex"] < totalResults:
+            logger.info(f"Calling NIST NVD API at {url} with params {params}")
+            try:
+                res = session.get(
+                    url, params=params, headers=headers, timeout=CONNECT_AND_READ_TIMEOUT,
+                )
                 res.raise_for_status()
                 data = res.json()
-        except requests.exceptions.HTTPError:
-            logger.error(
-                f"Failed to get CVE data from NIST NVD API {res.status_code} : {res.text}",
-            )
-            retries += 1
-            if retries >= MAX_RETRIES:
-                raise
-            # Exponential backoff
-            sleep_time *= 2
+            except requests.exceptions.HTTPError:
+                logger.error(
+                    f"Failed to get CVE data from NIST NVD API {res.status_code} : {res.text}",
+                )
+                retries += 1
+                if retries >= MAX_RETRIES:
+                    raise
+                # Exponential backoff
+                sleep_time *= 2
+                time.sleep(sleep_time)
+                continue
+
+            _map_cve_dict(results, data)
+            totalResults = data["totalResults"]
+            params["resultsPerPage"] = data["resultsPerPage"]
+            params["startIndex"] += data["resultsPerPage"]
+            retries = 0
             time.sleep(sleep_time)
-            continue
-        _map_cve_dict(results, data)
-        totalResults = data["totalResults"]
-        params["resultsPerPage"] = data["resultsPerPage"]
-        params["startIndex"] += data["resultsPerPage"]
-        retries = 0
-        time.sleep(sleep_time)
+
     return results
 
 
