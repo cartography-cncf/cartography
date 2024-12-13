@@ -63,11 +63,11 @@ A production-ready docker image is available in [GitHub Container Registry](http
 use the tag or digest associated with your desired release version, e.g.
 
 ```bash
-docker pull ghcr.io/lyft/cartography:0.61.0
+docker pull ghcr.io/cartography-cncf/cartography:0.96.1
 ```
 
-This image can then be ran with any of your desired command line flags:
+This image can then be run with any of your desired command line flags:
 
 ```bash
-docker run --rm ghcr.io/lyft/cartography:0.61.0 --help
+docker run --rm ghcr.io/cartography-cncf/cartography:0.96.1 --help
 ```
