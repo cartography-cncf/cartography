@@ -290,8 +290,10 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
 
 
 def retries_with_backoff(
-    func: Callable,
-    exceptionType: Type[Exception], max_tries: int, on_backoff: Callable,
+        func: Callable,
+        exception_type: Type[Exception],
+        max_tries: int,
+        on_backoff: Callable,
 ) -> Callable:
     """
     Adds retry with backoff to the given function.  (Could expand the possible input parameters as needed.)
@@ -299,7 +301,7 @@ def retries_with_backoff(
     @wraps(func)
     @backoff.on_exception(
         backoff.expo,
-        exceptionType,
+        exception_type,
         max_tries=max_tries,
         on_backoff=on_backoff,
     )

@@ -6,9 +6,10 @@ import pytest
 from cartography.intel.github.repos import _get_repo_collaborators_for_multiple_repos
 
 
+@patch('time.sleep', return_value=None)
 @patch('cartography.intel.github.repos._get_repo_collaborators')
 @patch('cartography.intel.github.repos.backoff_handler', spec=True)
-def test_get_team_users_github_returns_none(mock_backoff_handler, mock_get_team_collaborators):
+def test_get_team_users_github_returns_none(mock_backoff_handler, mock_get_team_collaborators, mock_sleep):
     """
     This test happens to use 'OUTSIDE' affiliation, but it's irrelevant for the test, it just needs either valid value.
     """
@@ -31,5 +32,6 @@ def test_get_team_users_github_returns_none(mock_backoff_handler, mock_get_team_
         )
 
     # Assert that we retry and give up
+    assert mock_sleep.call_count == 4
     assert mock_get_team_collaborators.call_count == 5
     assert mock_backoff_handler.call_count == 4
