@@ -7,7 +7,6 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-import backoff
 import neo4j
 from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
@@ -198,7 +197,7 @@ def _get_repo_collaborators_for_multiple_repos(
     collab_users: List[dict[str, Any]] = []
     collab_permission: List[str] = []
 
-    result = retries_with_backoff(
+    result: dict[str, list[UserAffiliationAndRepoPermission]] = retries_with_backoff(
         _get_repo_collaborators_inner_func,
         TypeError,
         5,
@@ -759,7 +758,7 @@ def sync(
         outside_collabs = _get_repo_collaborators_for_multiple_repos(
             repos_json, "OUTSIDE", organization, github_url, github_api_key,
         )
-    except TypeError as e:
+    except TypeError:
         # due to permission errors or transient network error or some other nonsense
         logger.warning('Unable to list repo collaborators due to permission errors; continuing on.', exc_info=True)
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
