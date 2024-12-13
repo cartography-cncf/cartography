@@ -65,6 +65,26 @@ def get_teams(org: str, api_url: str, token: str) -> Tuple[PaginatedGraphqlData,
     return fetch_all(token, api_url, org, org_teams_gql, 'teams')
 
 
+def _get_teams_repos_inner_func(
+        org: str,
+        api_url: str,
+        token: str,
+        team_name: str,
+        repo_urls: list[str],
+        repo_permissions: list[str],
+) -> None:
+    logger.info(f"Loading team repos for {team_name}.")
+    team_repos = _get_team_repos(org, api_url, token, team_name)
+
+    # The `or []` is because `.nodes` can be None. See:
+    # https://docs.github.com/en/graphql/reference/objects#teamrepositoryconnection
+    for repo in team_repos.nodes or []:
+        repo_urls.append(repo['url'])
+    # The `or []` is because `.edges` can be None.
+    for edge in team_repos.edges or []:
+        repo_permissions.append(edge['permission'])
+
+
 @timeit
 def _get_team_repos_for_multiple_teams(
         team_raw_data: list[dict[str, Any]],
@@ -85,23 +105,18 @@ def _get_team_repos_for_multiple_teams(
         repo_urls: List[str] = []
         repo_permissions: List[str] = []
 
-        def get_teams_repos_inner_func(
-            org: str, api_url: str, token: str, team_name: str,
-            repo_urls: List[str], repo_permissions: List[str],
-        ) -> None:
-            logger.info(f"Loading team repos for {team_name}.")
-            team_repos = _get_team_repos(org, api_url, token, team_name)
-            # The `or []` is because `.nodes` can be None. See:
-            # https://docs.github.com/en/graphql/reference/objects#teamrepositoryconnection
-            for repo in team_repos.nodes or []:
-                repo_urls.append(repo['url'])
-            # The `or []` is because `.edges` can be None.
-            for edge in team_repos.edges or []:
-                repo_permissions.append(edge['permission'])
-
-        retries_with_backoff(get_teams_repos_inner_func, TypeError, 5, backoff_handler)(
-            org=org, api_url=api_url, token=token, team_name=team_name,
-            repo_urls=repo_urls, repo_permissions=repo_permissions,
+        retries_with_backoff(
+            _get_teams_repos_inner_func,
+            TypeError,
+            5,
+            backoff_handler,
+        )(
+            org=org,
+            api_url=api_url,
+            token=token,
+            team_name=team_name,
+            repo_urls=repo_urls,
+            repo_permissions=repo_permissions,
         )
         # Shape = [(repo_url, 'WRITE'), ...]]
         result[team_name] = [RepoPermission(url, perm) for url, perm in zip(repo_urls, repo_permissions)]
