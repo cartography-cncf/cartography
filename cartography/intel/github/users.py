@@ -90,6 +90,7 @@ def get_users(token: str, api_url: str, organization: str) -> Tuple[List[Dict], 
         2. data on the owning GitHub organization
         see tests.data.github.users.GITHUB_USER_DATA for shape of both
     """
+    logger.info(f"Retrieving users from GitHub organization {organization}")
     users, org = fetch_all(
         token,
         api_url,
@@ -112,6 +113,7 @@ def get_enterprise_owners(token: str, api_url: str, organization: str) -> Tuple[
         3. data on the owning GitHub organization
         see tests.data.github.users.GITHUB_ENTERPRISE_OWNER_DATA for shape
     """
+    logger.info(f"Retrieving enterprise owners from GitHub organization {organization}")
     owners, org = fetch_all(
         token,
         api_url,
