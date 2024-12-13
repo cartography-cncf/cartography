@@ -86,11 +86,13 @@ def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dic
     results: Dict[Any, Any] = dict()
 
     while params["resultsPerPage"] > 0 or params["startIndex"] < totalResults:
+        logger.info(f"Calling NIST NVD API at {url} with params {params}")
         try:
-            res = requests.get(
+            with requests.get(
                 url, params=params, headers=headers, timeout=CONNECT_AND_READ_TIMEOUT,
-            )
-            res.raise_for_status()
+            ) as res:
+                res.raise_for_status()
+                data = res.json()
         except requests.exceptions.HTTPError:
             logger.error(
                 f"Failed to get CVE data from NIST NVD API {res.status_code} : {res.text}",
@@ -102,7 +104,6 @@ def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dic
             sleep_time *= 2
             time.sleep(sleep_time)
             continue
-        data = res.json()
         _map_cve_dict(results, data)
         totalResults = data["totalResults"]
         params["resultsPerPage"] = data["resultsPerPage"]
