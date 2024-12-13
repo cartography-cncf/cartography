@@ -105,14 +105,12 @@ def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dic
                 sleep_time *= 2
                 time.sleep(sleep_time)
                 continue
-
             _map_cve_dict(results, data)
             totalResults = data["totalResults"]
             params["resultsPerPage"] = data["resultsPerPage"]
             params["startIndex"] += data["resultsPerPage"]
             retries = 0
             time.sleep(sleep_time)
-
     return results
 
 
