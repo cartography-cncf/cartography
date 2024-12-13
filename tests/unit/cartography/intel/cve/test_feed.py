@@ -4,6 +4,7 @@ from datetime import timezone
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pytest
 import requests
 
 from cartography.intel.cve.feed import _call_cves_api
@@ -18,9 +19,14 @@ NIST_CVE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0/"
 API_KEY = "nvd_api_key"
 
 
-@patch("cartography.intel.cve.feed.DEFAULT_SLEEP_TIME", 0)
-@patch("cartography.intel.cve.feed.requests.get")
-def test_call_cves_api(mock_get: Mock):
+@pytest.fixture
+def mock_get():
+    with patch("cartography.intel.cve.feed.requests.Session") as mock_session:
+        session_mock = mock_session.return_value.__enter__.return_value
+        yield session_mock.get
+
+
+def test_call_cves_api(mock_get):
     # Arrange
     mock_response_1 = Mock()
     mock_response_1.status_code = 200
@@ -140,7 +146,6 @@ def test_call_cves_api(mock_get: Mock):
 
 
 @patch("cartography.intel.cve.feed.DEFAULT_SLEEP_TIME", 0)
-@patch("cartography.intel.cve.feed.requests.get")
 def test_call_cves_api_with_error(mock_get: Mock):
     # Arrange
     mock_response = Mock()
