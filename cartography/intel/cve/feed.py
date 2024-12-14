@@ -12,6 +12,9 @@ from typing import Optional
 
 import neo4j
 import requests
+from requests import Session
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
@@ -22,7 +25,6 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 8
 # Connect and read timeouts of 120 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 CONNECT_AND_READ_TIMEOUT = (30, 120)
 CVE_FEED_ID = "NIST_NVD"
@@ -68,49 +70,46 @@ def _map_cve_dict(cve_dict: Dict[Any, Any], data: Dict[Any, Any]) -> None:
     cve_dict["startIndex"] = data["startIndex"]
 
 
+def _configure_session(session: Session) -> None:
+    retry_policy = Retry(
+        total=8,
+        connect=1,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+    logger.info(f"Configured session with retry policy: {retry_policy}")
+
+
 def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dict[Any, Any]:
     totalResults = 0
-    sleep_time = DEFAULT_SLEEP_TIME
-    retries = 0
     params["startIndex"] = 0
     params["resultsPerPage"] = RESULTS_PER_PAGE
     headers = {}
     headers["Content-Type"] = "application/json"
     if api_key:
+        sleep_between_requests = DEFAULT_SLEEP_TIME
         headers["apiKey"] = api_key
     else:
-        sleep_time = DELAYED_SLEEP_TIME  # Sleep for 6 seconds between each request to avoid rate limiting
+        sleep_between_requests = DELAYED_SLEEP_TIME
         logger.warning(
-            f"No NIST NVD API key provided. Increasing sleep time to {sleep_time}.",
+            f"No NIST NVD API key provided. Increasing sleep time to {sleep_between_requests}.",
         )
     results: Dict[Any, Any] = dict()
 
     with requests.Session() as session:
+        _configure_session(session)
         while params["resultsPerPage"] > 0 or params["startIndex"] < totalResults:
-            logger.info(f"Calling NIST NVD API at {url} with params {params}")
-            try:
-                res = session.get(
-                    url, params=params, headers=headers, timeout=CONNECT_AND_READ_TIMEOUT,
-                )
-                res.raise_for_status()
-                data = res.json()
-            except requests.exceptions.HTTPError:
-                logger.error(
-                    f"Failed to get CVE data from NIST NVD API {res.status_code} : {res.text}",
-                )
-                retries += 1
-                if retries >= MAX_RETRIES:
-                    raise
-                # Exponential backoff
-                sleep_time *= 2
-                time.sleep(sleep_time)
-                continue
+            logger.error(f"Calling NIST NVD API at {url} with params {params}")
+            res = session.get(url, params=params, headers=headers, timeout=CONNECT_AND_READ_TIMEOUT)
+            res.raise_for_status()
+            data = res.json()
             _map_cve_dict(results, data)
             totalResults = data["totalResults"]
             params["resultsPerPage"] = data["resultsPerPage"]
             params["startIndex"] += data["resultsPerPage"]
-            retries = 0
-            time.sleep(sleep_time)
+            time.sleep(sleep_between_requests)
     return results
 
 

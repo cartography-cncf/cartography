@@ -5,7 +5,6 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
-import requests
 
 from cartography.intel.cve.feed import _call_cves_api
 from cartography.intel.cve.feed import _map_cve_dict
@@ -19,15 +18,18 @@ NIST_CVE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0/"
 API_KEY = "nvd_api_key"
 
 
-@pytest.fixture
-def mock_get():
-    with patch("cartography.intel.cve.feed.requests.Session") as mock_session:
-        session_mock = mock_session.return_value.__enter__.return_value
-        yield session_mock.get
+@pytest.fixture()
+def mock_get(mocker):
+    session_mock = mocker.patch("cartography.intel.cve.feed.requests.Session")
+    yield session_mock.return_value.__enter__.return_value.get
 
 
-def test_call_cves_api(mock_get):
-    # Arrange
+@pytest.fixture(autouse=True)
+def mock_time_sleep(mocker):
+    return mocker.patch("time.sleep")
+
+
+def _mock_good_responses() -> list[Mock]:
     mock_response_1 = Mock()
     mock_response_1.status_code = 200
     mock_response_1.json.return_value = {
@@ -93,8 +95,12 @@ def test_call_cves_api(mock_get):
         "timestamp": "2024-01-10T19:30:07.520",
         "vulnerabilities": [],
     }
+    return [mock_response_1, mock_response_2, mock_response_3]
 
-    mock_get.side_effect = [mock_response_1, mock_response_2, mock_response_3]
+
+def test_call_cves_api(mock_get):
+    # Arrange
+    mock_get.side_effect = _mock_good_responses()
     params = {"start": "2024-01-10T00:00:00Z", "end": "2024-01-10T23:59:59Z"}
     expected_result = {
         "resultsPerPage": 0,
@@ -143,26 +149,6 @@ def test_call_cves_api(mock_get):
     # Assert
     assert mock_get.call_count == 3
     assert result == expected_result
-
-
-@patch("cartography.intel.cve.feed.DEFAULT_SLEEP_TIME", 0)
-def test_call_cves_api_with_error(mock_get: Mock):
-    # Arrange
-    mock_response = Mock()
-    mock_response.status_code = 404
-    mock_response.message = "Data error"
-    mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-        response=mock_response,
-    )
-    mock_get.return_value = mock_response
-    params = {"start": "2024-01-10T00:00:00Z", "end": "2024-01-10T23:59:59Z"}
-
-    # Act
-    try:
-        _call_cves_api(NIST_CVE_URL, API_KEY, params)
-    except requests.exceptions.HTTPError as err:
-        assert err.response == mock_response
-    assert mock_get.call_count == 8
 
 
 @patch("cartography.intel.cve.feed._call_cves_api")
