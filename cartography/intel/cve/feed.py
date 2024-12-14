@@ -101,7 +101,7 @@ def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dic
     with requests.Session() as session:
         _configure_session(session)
         while params["resultsPerPage"] > 0 or params["startIndex"] < totalResults:
-            logger.error(f"Calling NIST NVD API at {url} with params {params}")
+            logger.info(f"Calling NIST NVD API at {url} with params {params}")
             res = session.get(url, params=params, headers=headers, timeout=CONNECT_AND_READ_TIMEOUT)
             res.raise_for_status()
             data = res.json()
