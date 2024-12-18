@@ -11,10 +11,7 @@ from typing import List
 from typing import Optional
 
 import neo4j
-import requests
 from requests import Session
-from requests.adapters import HTTPAdapter
-from urllib3 import Retry
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
@@ -70,24 +67,11 @@ def _map_cve_dict(cve_dict: Dict[Any, Any], data: Dict[Any, Any]) -> None:
     cve_dict["startIndex"] = data["startIndex"]
 
 
-def _configure_session(session: Session) -> None:
-    retry_policy = Retry(
-        total=8,
-        connect=1,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-    )
-    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    logger.info(f"Configured session with retry policy: {retry_policy}")
-
-
-def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dict[Any, Any]:
-    totalResults = 0
+def _call_cves_api(http_session: Session, url: str, api_key: str | None, params: Dict[str, Any]) -> Dict[Any, Any]:
+    total_results = 0
     params["startIndex"] = 0
     params["resultsPerPage"] = RESULTS_PER_PAGE
-    headers = {}
-    headers["Content-Type"] = "application/json"
+    headers = {"Content-Type": "application/json"}
     if api_key:
         sleep_between_requests = DEFAULT_SLEEP_TIME
         headers["apiKey"] = api_key
@@ -98,22 +82,21 @@ def _call_cves_api(url: str, api_key: str | None, params: Dict[str, Any]) -> Dic
         )
     results: Dict[Any, Any] = dict()
 
-    with requests.Session() as session:
-        _configure_session(session)
-        while params["resultsPerPage"] > 0 or params["startIndex"] < totalResults:
-            logger.info(f"Calling NIST NVD API at {url} with params {params}")
-            res = session.get(url, params=params, headers=headers, timeout=CONNECT_AND_READ_TIMEOUT)
-            res.raise_for_status()
-            data = res.json()
-            _map_cve_dict(results, data)
-            totalResults = data["totalResults"]
-            params["resultsPerPage"] = data["resultsPerPage"]
-            params["startIndex"] += data["resultsPerPage"]
-            time.sleep(sleep_between_requests)
+    while params["resultsPerPage"] > 0 or params["startIndex"] < total_results:
+        logger.info(f"Calling NIST NVD API at {url} with params {params}")
+        res = http_session.get(url, params=params, headers=headers, timeout=CONNECT_AND_READ_TIMEOUT)
+        res.raise_for_status()
+        data = res.json()
+        _map_cve_dict(results, data)
+        total_results = data["totalResults"]
+        params["resultsPerPage"] = data["resultsPerPage"]
+        params["startIndex"] += data["resultsPerPage"]
+        time.sleep(sleep_between_requests)
     return results
 
 
 def get_cves_in_batches(
+    http_session: Session,
     nist_cve_url: str,
     start_date: datetime,
     end_date: datetime,
@@ -146,7 +129,7 @@ def get_cves_in_batches(
         logger.info(
             f"Querying CVE data between {current_start_date} and {current_end_date}",
         )
-        batch_cves = _call_cves_api(nist_cve_url, api_key, params)
+        batch_cves = _call_cves_api(http_session, nist_cve_url, api_key, params)
         _map_cve_dict(cves, batch_cves)
         current_start_date = current_end_date
         new_end_date = current_start_date + batch_size
@@ -157,9 +140,8 @@ def get_cves_in_batches(
 
 
 def get_modified_cves(
-    nist_cve_url: str, last_modified_date: str, api_key: str | None,
+    http_session: Session, nist_cve_url: str, last_modified_date: str, api_key: str | None,
 ) -> Dict[Any, Any]:
-    cves = dict()
     end_date = datetime.now(tz=timezone.utc)
     start_date = datetime.strptime(last_modified_date, "%Y-%m-%dT%H:%M:%S").replace(
         tzinfo=timezone.utc,
@@ -169,15 +151,14 @@ def get_modified_cves(
         "end": "lastModEndDate",
     }
     cves = get_cves_in_batches(
-        nist_cve_url, start_date, end_date, date_param_names, api_key,
+        http_session, nist_cve_url, start_date, end_date, date_param_names, api_key,
     )
     return cves
 
 
 def get_published_cves_per_year(
-    nist_cve_url: str, year: str, api_key: str | None,
+    http_session: Session, nist_cve_url: str, year: str, api_key: str | None,
 ) -> Dict[Any, Any]:
-    cves = {}
     start_of_year = datetime.strptime(f"{year}-01-01", "%Y-%m-%d")
     next_year = int(year) + 1
     end_of_next_year = datetime.strptime(f"{next_year}-01-01", "%Y-%m-%d")
@@ -186,7 +167,7 @@ def get_published_cves_per_year(
         "end": "pubEndDate",
     }
     cves = get_cves_in_batches(
-        nist_cve_url, start_of_year, end_of_next_year, date_param_names, api_key,
+        http_session, nist_cve_url, start_of_year, end_of_next_year, date_param_names, api_key,
     )
     return cves
 
