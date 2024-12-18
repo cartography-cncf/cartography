@@ -94,10 +94,21 @@ Representation of a single GitHubOrganization [organization object](https://deve
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
     ```
 
-- GitHubUsers are members of an organization.  In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
+- GitHubUsers relate to GitHubOrganizations in a few ways:
+  - Most typically, they are members of an organization.
+  - They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both `MEMBER_OF` and `ADMIN_OF`.
+  - In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
 
     ```
-    (GitHubUser)-[MEMBER_OF|UNAFFILIATED]->(GitHubOrganization)
+    # a typical member
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+
+    # an admin member has two relationships to the org
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+    (GitHubUser)-[ADMIN_OF]->(GitHubOrganization)
+
+    # an unaffiliated user (e.g. an enterprise owner)
+    (GitHubUser)-[UNAFFILIATED]->(GitHubOrganization)
     ```
 
 
@@ -148,7 +159,6 @@ Representation of a single GitHubUser [user object](https://developer.github.com
 | username | Name of the user |
 | fullname | The full name |
 | has_2fa_enabled | Whether the user has 2-factor authentication enabled |
-| role | Either 'ADMIN' (denoting that the user is an owner of a Github organization) or 'MEMBER' |
 | is_site_admin | Whether the user is a site admin |
 | is_enterprise_owner | Whether the user is an [enterprise owner](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) |
 | permission | Only present if the user is an [outside collaborator](https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection) of this repo.  `permission` is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE ([ref](https://docs.github.com/en/graphql/reference/enums#repositorypermission)). |
@@ -178,10 +188,21 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
     (GitHubUser)-[:DIRECT_COLLAB_{ACTION}]->(GitHubRepository)
     ```
 
-- GitHubUsers are members of an organization.  In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
+- GitHubUsers relate to GitHubOrganizations in a few ways:
+  - Most typically, they are members of an organization.
+  - They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both `MEMBER_OF` and `ADMIN_OF`.
+  - In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
 
     ```
-    (GitHubUser)-[MEMBER_OF|UNAFFILIATED]->(GitHubOrganization)
+    # a typical member
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+
+    # an admin member has two relationships to the org
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+    (GitHubUser)-[ADMIN_OF]->(GitHubOrganization)
+
+    # an unaffiliated user (e.g. an enterprise owner)
+    (GitHubUser)-[UNAFFILIATED]->(GitHubOrganization)
     ```
 
 - GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.

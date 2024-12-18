@@ -48,22 +48,21 @@ def test_sync(mock_owners, mock_users, neo4j_session):
 
     # Assert
 
-    # Ensure users got loaded
+    # Ensure the expected users are there
     nodes = neo4j_session.run(
         """
-        MATCH (g:GitHubUser) RETURN g.id, g.role;
+        MATCH (g:GitHubUser) RETURN g.id;
         """,
     )
     expected_nodes = {
-        ("https://example.com/hjsimpson", 'MEMBER'),
-        ("https://example.com/lmsimpson", 'MEMBER'),
-        ("https://example.com/mbsimpson", 'ADMIN'),
-        ("https://example.com/kbroflovski", None),
+        ("https://example.com/hjsimpson",),
+        ("https://example.com/lmsimpson",),
+        ("https://example.com/mbsimpson",),
+        ("https://example.com/kbroflovski",),
     }
     actual_nodes = {
         (
             n['g.id'],
-            n['g.role'],
         ) for n in nodes
     }
     assert actual_nodes == expected_nodes
@@ -94,6 +93,10 @@ def test_sync(mock_owners, mock_users, neo4j_session):
         ), (
             'https://example.com/mbsimpson',
             'MEMBER_OF',
+            'https://example.com/my_org',
+        ), (
+            'https://example.com/mbsimpson',
+            'ADMIN_OF',
             'https://example.com/my_org',
         ), (
             'https://example.com/kbroflovski',

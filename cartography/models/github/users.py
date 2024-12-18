@@ -20,13 +20,12 @@ To allow for this in the schema, this relationship is treated as any other node-
 RE: GitHubOrganizationUserSchema vs GitHubUnaffiliatedUserSchema
 
 As noted above, there are implicitly two types of users, those that are part of, or affiliated, to a target
-GitHubOrganization, and those thare are not part, or unaffiliated.   Both are represented as GitHubUser nodes,
-but there are two schemas below to allow for some differences between them, e.g., unaffiliated lack these properties:
-  * the 'role' property, because unaffiliated have no 'role' in the target org
+GitHubOrganization, and those that are not part, or unaffiliated.   Both are represented as GitHubUser nodes,
+but there are two schemas below to allow for a difference between them: unaffiliated nodes lack this property:
   * the 'has_2fa_enabled' property, because the GitHub api does not return it, for these users
 The main importance of having two schemas is to allow the two sets of users to be loaded separately.  If we are loading
 an unaffiliated user, but the user already exists in the graph (perhaps they are members of another GitHub orgs for
-example), then loading the unaffiliated user will not blank out the 'role' and 'has_2fa_enabled' properties.
+example), then loading the unaffiliated user will not blank out the 'has_2fa_enabled' property.
 """
 from dataclasses import dataclass
 
@@ -58,8 +57,6 @@ class BaseGitHubUserNodeProperties(CartographyNodeProperties):
 class GitHubOrganizationUserNodeProperties(BaseGitHubUserNodeProperties):
     # specified for affiliated users only. The GitHub api does not return this property for unaffiliated users.
     has_2fa_enabled: PropertyRef = PropertyRef('hasTwoFactorEnabled')
-    # specified for affiliated uers only.  Unaffiliated users do not have a 'role' in the target organization.
-    role: PropertyRef = PropertyRef('role')
 
 
 @dataclass(frozen=True)
@@ -85,6 +82,17 @@ class GitHubUserMemberOfOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitHubUserAdminOfOrganizationRel(CartographyRelSchema):
+    target_node_label: str = 'GitHubOrganization'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('ADMIN_OF')},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ADMIN_OF"
+    properties: GitHubUserToOrganizationRelProperties = GitHubUserToOrganizationRelProperties()
+
+
+@dataclass(frozen=True)
 class GitHubUserUnaffiliatedOrganizationRel(CartographyRelSchema):
     target_node_label: str = 'GitHubOrganization'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -102,6 +110,7 @@ class GitHubOrganizationUserSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubUserMemberOfOrganizationRel(),
+            GitHubUserAdminOfOrganizationRel(),
         ],
     )
     sub_resource_relationship = None
