@@ -39,7 +39,7 @@ def _sync_year_archives(
     existing_years = feed.get_cve_sync_metadata(neo4j_session)
     current_year = datetime.now().year
     logger.info(f"Syncing CVE data for year archives. Existing years: {existing_years}. Current year: {current_year}")
-    for year in range(2002, current_year + 1):
+    for year in range(1999, current_year + 1):
         if year in existing_years:
             continue
         logger.info(f"Syncing CVE data for year {year}")
