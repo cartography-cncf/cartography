@@ -1,0 +1,30 @@
+{
+  "statements": [
+    {
+      "query": "MATCH (n:OpalResource) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE n",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (n:OktaGroup)-[r:CAN_AUTO_APPROVE_ACCESS]->(m:OpalResource) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (n:OktaGroup)-[r:CAN_MANUALLY_APPROVE_ACCESS]->(m:OpalResource) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (n:OpalResource)-[r:PROVIDES_ACCESS_TO]->(m:AWSRole) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "iterative": true,
+      "iterationsize": 100
+    },
+    {
+      "query": "MATCH (n:OpalResource)-[r:PROVIDES_ACCESS_TO]->(m:OktaGroup) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "iterative": true,
+      "iterationsize": 100
+    }
+  ],
+  "name": "Opal AWS cleanup"
+}

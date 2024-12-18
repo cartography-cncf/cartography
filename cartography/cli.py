@@ -557,7 +557,24 @@ class CLI:
             default=None,
             help='An ID for the SnipeIT tenant.',
         )
-
+        parser.add_argument(
+            '--opal-host',
+            type=str,
+            default=None,
+            help=(
+                'The Opal host URI, e.g. https://opal.mycompany.io.'
+                'Required if you are using the Opal intel module. Ignored otherwise.'
+            ),
+        )
+        parser.add_argument(
+            '--opal-access-token-env-var',
+            type=str,
+            default=None,
+            help=(
+                'The name of an environment variable containing the Opal access token.'
+                'Required if you are using the Opal intel module. Ignored otherwise.'
+            ),
+        )
         return parser
 
     def main(self, argv: str) -> int:
@@ -776,7 +793,14 @@ class CLI:
         else:
             logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
-
+        # Opal config
+        if config.opal_host and config.opal_access_token_env_var:
+            logger.debug(
+                f"Reading Opal access token from environment variable {config.opal_access_token_env_var}",
+            )
+            config.opal_access_token = os.environ.get(config.opal_access_token_env_var)
+        else:
+            config.opal_access_token = None
         # Run cartography
         try:
             return cartography.sync.run_with_config(self.sync, config)
