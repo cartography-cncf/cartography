@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 RepoPermission = namedtuple('RepoPermission', ['repo_url', 'permission'])
 # A team member's role: https://docs.github.com/en/graphql/reference/enums#teammemberrole
 UserRole = namedtuple('UserRole', ['user_url', 'role'])
+# Unlike the other tuples here, there is no qualification (like 'role' or 'permission') to the relationship.
+# A child team is just a child team: https://docs.github.com/en/graphql/reference/objects#teamconnection
+ChildTeam = namedtuple('ChildTeam', ['team_url'])
 
 
 def backoff_handler(details: Dict) -> None:
@@ -51,6 +54,9 @@ def get_teams(org: str, api_url: str, token: str) -> Tuple[PaginatedGraphqlData,
                             totalCount
                         }
                         members(membership: IMMEDIATE) {
+                            totalCount
+                        }
+                        childTeams {
                             totalCount
                         }
                     }
@@ -166,6 +172,21 @@ def _get_team_repos(org: str, api_url: str, token: str, team: str) -> PaginatedG
     return team_repos
 
 
+def _get_teams_users_inner_func(
+        org: str, api_url: str, token: str, team_name: str,
+        user_urls: List[str], user_roles: List[str],
+) -> None:
+    logger.info(f"Loading team users for {team_name}.")
+    team_users = _get_team_users(org, api_url, token, team_name)
+    # The `or []` is because `.nodes` can be None. See:
+    # https://docs.github.com/en/graphql/reference/objects#teammemberconnection
+    for user in team_users.nodes or []:
+        user_urls.append(user['url'])
+    # The `or []` is because `.edges` can be None.
+    for edge in team_users.edges or []:
+        user_roles.append(edge['role'])
+
+
 def _get_team_users_for_multiple_teams(
         team_raw_data: list[dict[str, Any]],
         org: str,
@@ -185,21 +206,7 @@ def _get_team_users_for_multiple_teams(
         user_urls: List[str] = []
         user_roles: List[str] = []
 
-        def get_teams_users_inner_func(
-            org: str, api_url: str, token: str, team_name: str,
-            user_urls: List[str], user_roles: List[str],
-        ) -> None:
-            logger.info(f"Loading team users for {team_name}.")
-            team_users = _get_team_users(org, api_url, token, team_name)
-            # The `or []` is because `.nodes` can be None. See:
-            # https://docs.github.com/en/graphql/reference/objects#teammemberconnection
-            for user in team_users.nodes or []:
-                user_urls.append(user['url'])
-            # The `or []` is because `.edges` can be None.
-            for edge in team_users.edges or []:
-                user_roles.append(edge['role'])
-
-        retries_with_backoff(get_teams_users_inner_func, TypeError, 5, backoff_handler)(
+        retries_with_backoff(_get_teams_users_inner_func, TypeError, 5, backoff_handler)(
             org=org, api_url=api_url, token=token, team_name=team_name, user_urls=user_urls, user_roles=user_roles,
         )
 
@@ -252,11 +259,90 @@ def _get_team_users(org: str, api_url: str, token: str, team: str) -> PaginatedG
     return team_users
 
 
+def _get_child_teams_inner_func(
+        org: str, api_url: str, token: str, team_name: str, team_urls: List[str],
+) -> None:
+    logger.info(f"Loading child teams for {team_name}.")
+    child_teams = _get_child_teams(org, api_url, token, team_name)
+    # The `or []` is because `.nodes` can be None. See:
+    # https://docs.github.com/en/graphql/reference/objects#teammemberconnection
+    for cteam in child_teams.nodes or []:
+        team_urls.append(cteam['url'])
+    # No edges to process here, the GitHub response for child teams has no relevant info in edges.
+
+
+def _get_child_teams_for_multiple_teams(
+        team_raw_data: list[dict[str, Any]],
+        org: str,
+        api_url: str,
+        token: str,
+) -> dict[str, list[ChildTeam]]:
+    result: dict[str, list[ChildTeam]] = {}
+    for team in team_raw_data:
+        team_name = team['slug']
+        team_count = team['childTeams']['totalCount']
+
+        if team_count == 0:
+            # This team has no child teams so let's move on
+            result[team_name] = []
+            continue
+
+        team_urls: List[str] = []
+
+        retries_with_backoff(_get_child_teams_inner_func, TypeError, 5, backoff_handler)(
+            org=org, api_url=api_url, token=token, team_name=team_name, team_urls=team_urls,
+        )
+
+        result[team_name] = [ChildTeam(url) for url in team_urls]
+    return result
+
+
+def _get_child_teams(org: str, api_url: str, token: str, team: str) -> PaginatedGraphqlData:
+    team_users_gql = """
+    query($login: String!, $team: String!, $cursor: String) {
+        organization(login: $login) {
+            url
+            login
+            team(slug: $team) {
+                slug
+                childTeams(first: 100, after: $cursor) {
+                    totalCount
+                    nodes {
+                        url
+                    }
+                    pageInfo {
+                        endCursor
+                        hasNextPage
+                    }
+                }
+            }
+        }
+        rateLimit {
+            limit
+            cost
+            remaining
+            resetAt
+        }
+    }
+    """
+    team_users, _ = fetch_all(
+        token,
+        api_url,
+        org,
+        team_users_gql,
+        'team',
+        resource_inner_type='childTeams',
+        team=team,
+    )
+    return team_users
+
+
 def transform_teams(
         team_paginated_data: PaginatedGraphqlData,
         org_data: Dict[str, Any],
         team_repo_data: dict[str, list[RepoPermission]],
         team_user_data: dict[str, list[UserRole]],
+        team_child_team_data: dict[str, list[ChildTeam]],
 ) -> list[dict[str, Any]]:
     result = []
     for team in team_paginated_data.nodes:
@@ -267,13 +353,15 @@ def transform_teams(
             'description': team['description'],
             'repo_count': team['repositories']['totalCount'],
             'member_count': team['members']['totalCount'],
+            'child_team_count': team['childTeams']['totalCount'],
             'org_url': org_data['url'],
             'org_login': org_data['login'],
         }
         repo_permissions = team_repo_data[team_name]
         user_roles = team_user_data[team_name]
+        child_teams = team_child_team_data[team_name]
 
-        if not repo_permissions and not user_roles:
+        if not repo_permissions and not user_roles and not child_teams:
             result.append(repo_info)
             continue
 
@@ -288,6 +376,15 @@ def transform_teams(
             for user_url, role in user_roles:
                 repo_info_copy = repo_info.copy()
                 repo_info_copy[role] = user_url
+                result.append(repo_info_copy)
+        if child_teams:
+            for (team_url,) in child_teams:
+                repo_info_copy = repo_info.copy()
+                # GitHub does not itself seem to have a label to the team-childTeam relationship.  But elsewhere, it
+                # does distinguish between team members who are in a team directly or via a child team:
+                # https://docs.github.com/en/graphql/reference/enums#teammembershiptype
+                # We borrow the 'CHILD_TEAM' label from there, as it seems to be the most appropriate to use here.
+                repo_info_copy['CHILD_TEAM'] = team_url
                 result.append(repo_info_copy)
     return result
 
@@ -325,7 +422,8 @@ def sync_github_teams(
     teams_paginated, org_data = get_teams(organization, github_url, github_api_key)
     team_repos = _get_team_repos_for_multiple_teams(teams_paginated.nodes, organization, github_url, github_api_key)
     team_users = _get_team_users_for_multiple_teams(teams_paginated.nodes, organization, github_url, github_api_key)
-    processed_data = transform_teams(teams_paginated, org_data, team_repos, team_users)
+    team_children = _get_child_teams_for_multiple_teams(teams_paginated.nodes, organization, github_url, github_api_key)
+    processed_data = transform_teams(teams_paginated, org_data, team_repos, team_users, team_children)
     load_team_repos(neo4j_session, processed_data, common_job_parameters['UPDATE_TAG'], org_data['url'])
     common_job_parameters['org_url'] = org_data['url']
     cleanup(neo4j_session, common_job_parameters)
