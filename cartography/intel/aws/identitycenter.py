@@ -56,6 +56,7 @@ def load_identity_center_instances(
 
 
 @timeit
+@aws_handle_regions
 def get_permission_sets(boto3_session: boto3.session.Session, instance_arn: str, region: str) -> List[Dict]:
     """
     Get all permission sets for a given Identity Center instance
