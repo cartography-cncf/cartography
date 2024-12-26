@@ -81,6 +81,33 @@ class GitHubTeamWriteRepoRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitHubTeamToUserRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubTeamMaintainerUserRel(CartographyRelSchema):
+    target_node_label: str = 'GitHubUser'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('MAINTAINER')},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAINTAINER"
+    properties: GitHubTeamToUserRelProperties = GitHubTeamToUserRelProperties()
+
+
+@dataclass(frozen=True)
+class GitHubTeamMemberUserRel(CartographyRelSchema):
+    target_node_label: str = 'GitHubUser'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('MEMBER')},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER"
+    properties: GitHubTeamToUserRelProperties = GitHubTeamToUserRelProperties()
+
+
+@dataclass(frozen=True)
 class GitHubTeamToOrganizationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
@@ -97,6 +124,22 @@ class GitHubTeamToOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitHubTeamToChildTeamRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubTeamChildTeamRel(CartographyRelSchema):
+    target_node_label: str = 'GitHubTeam'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('MEMBER_OF_TEAM')},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF_TEAM"
+    properties: GitHubTeamToChildTeamRelProperties = GitHubTeamToChildTeamRelProperties()
+
+
+@dataclass(frozen=True)
 class GitHubTeamSchema(CartographyNodeSchema):
     label: str = 'GitHubTeam'
     properties: GitHubTeamNodeProperties = GitHubTeamNodeProperties()
@@ -107,6 +150,9 @@ class GitHubTeamSchema(CartographyNodeSchema):
             GitHubTeamReadRepoRel(),
             GitHubTeamTriageRepoRel(),
             GitHubTeamWriteRepoRel(),
+            GitHubTeamMaintainerUserRel(),
+            GitHubTeamMemberUserRel(),
+            GitHubTeamChildTeamRel(),
         ],
     )
     sub_resource_relationship: GitHubTeamToOrganizationRel = GitHubTeamToOrganizationRel()

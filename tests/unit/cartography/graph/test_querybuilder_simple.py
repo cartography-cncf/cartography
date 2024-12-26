@@ -1,5 +1,6 @@
 from cartography.graph.querybuilder import build_ingestion_query
 from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers import FakeEmpSchema
+from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers_fuzzy import FakeEmp2Schema
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeWithSubResourceSchema
 from tests.unit.cartography.graph.helpers import remove_leading_whitespace_and_empty_lines
@@ -84,6 +85,38 @@ def test_build_ingestion_query_case_insensitive_match():
                 SET
                     r0.lastupdated = $lastupdated
             }
+    """
+
+    # Assert: compare query outputs while ignoring leading whitespace.
+    actual_query = remove_leading_whitespace_and_empty_lines(query)
+    expected_query = remove_leading_whitespace_and_empty_lines(expected)
+    assert actual_query == expected_query
+
+
+def test_build_ingestion_query_fuzzy_case_insensitive():
+    query = build_ingestion_query(FakeEmp2Schema())
+
+    expected = """
+        UNWIND $DictList AS item
+            MERGE (i:FakeEmployee2{id: item.id})
+            ON CREATE SET i.firstseen = timestamp()
+            SET
+                i.lastupdated = $lastupdated,
+                i.email = item.email,
+                i.github_username = item.github_username
+
+        WITH i, item
+        CALL {
+            WITH i, item
+            OPTIONAL MATCH (n0:GitHubUser)
+            WHERE
+                toLower(n0.username) CONTAINS toLower(item.github_username)
+            WITH i, item, n0 WHERE n0 IS NOT NULL
+            MERGE (i)-[r0:IDENTITY_GITHUB]->(n0)
+            ON CREATE SET r0.firstseen = timestamp()
+            SET
+                r0.lastupdated = $lastupdated
+        }
     """
 
     # Assert: compare query outputs while ignoring leading whitespace.

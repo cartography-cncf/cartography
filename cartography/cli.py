@@ -9,6 +9,7 @@ import cartography.config
 import cartography.sync
 import cartography.util
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
+from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
 
 
 logger = logging.getLogger(__name__)
@@ -525,6 +526,17 @@ class CLI:
             ),
         )
         parser.add_argument(
+            '--semgrep-dependency-ecosystems',
+            type=str,
+            default=None,
+            help=(
+                'Comma-separated list of language ecosystems for which dependencies will be retrieved from Semgrep. '
+                'For example, a value of "gomod,npm" will retrieve Go and NPM dependencies. '
+                'See the full list of supported ecosystems in source code at cartography.intel.semgrep.dependencies. '
+                'Required if you are using the Semgrep dependencies intel module. Ignored otherwise.'
+            ),
+        )
+        parser.add_argument(
             '--snipeit-base-uri',
             type=str,
             default=None,
@@ -734,6 +746,9 @@ class CLI:
             config.semgrep_app_token = os.environ.get(config.semgrep_app_token_env_var)
         else:
             config.semgrep_app_token = None
+        if config.semgrep_dependency_ecosystems:
+            # No need to store the returned value; we're using this for input validation.
+            parse_and_validate_semgrep_ecosystems(config.semgrep_dependency_ecosystems)
 
         # CVE feed config
         if config.cve_api_key_env_var:

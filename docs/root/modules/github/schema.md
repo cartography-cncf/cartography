@@ -39,11 +39,18 @@ Representation of a single GitHubRepository (repo) [repository object](https://d
     (GitHubOrganization)-[OWNER]->(GitHubRepository)
     ```
 
-- GitHubRepositories in an organization can have outside collaborators with different permissions, including ADMIN,
+- GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
 WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
 
     ```
     (GitHubUser)-[:OUTSIDE_COLLAB_{ACTION}]->(GitHubRepository)
+    ```
+
+- GitHubRepositories in an organization also mark all [direct collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation), folks who are not necessarily 'outside' but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
+
+    ```
+    (GitHubUser)-[:DIRECT_COLLAB_{ACTION}]->(GitHubRepository)
     ```
 
 - GitHubRepositories use ProgrammingLanguages
@@ -87,6 +94,23 @@ Representation of a single GitHubOrganization [organization object](https://deve
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
     ```
 
+- GitHubUsers relate to GitHubOrganizations in a few ways:
+  - Most typically, they are members of an organization.
+  - They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both `MEMBER_OF` and `ADMIN_OF`.
+  - In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
+
+    ```
+    # a typical member
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+
+    # an admin member has two relationships to the org
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+    (GitHubUser)-[ADMIN_OF]->(GitHubOrganization)
+
+    # an unaffiliated user (e.g. an enterprise owner)
+    (GitHubUser)-[UNAFFILIATED]->(GitHubOrganization)
+    ```
+
 
 ### GitHubTeam
 
@@ -116,6 +140,19 @@ A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
     ```
 
+- GitHubTeams may be children of other teams:
+
+    ```
+    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    ```
+
+- GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
+
+    ```
+    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    ```
+
+
 ### GitHubUser
 
 Representation of a single GitHubUser [user object](https://developer.github.com/v4/object/user/). This node contains minimal data for the GitHub User.
@@ -129,12 +166,11 @@ Representation of a single GitHubUser [user object](https://developer.github.com
 | username | Name of the user |
 | fullname | The full name |
 | has_2fa_enabled | Whether the user has 2-factor authentication enabled |
-| role | Either 'ADMIN' (denoting that the user is an owner of a Github organization) or 'MEMBER' |
 | is_site_admin | Whether the user is a site admin |
-| permission | Only present if the user is an [outside collaborator](https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection) of this repo.
-`permission` is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE ([ref](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
-| email | The user's publicly visible profile email.
-| company | The user's public profile company.
+| is_enterprise_owner | Whether the user is an [enterprise owner](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) |
+| permission | Only present if the user is an [outside collaborator](https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection) of this repo.  `permission` is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE ([ref](https://docs.github.com/en/graphql/reference/enums#repositorypermission)). |
+| email | The user's publicly visible profile email. |
+| company | The user's public profile company. |
 
 
 #### Relationships
@@ -145,12 +181,49 @@ Representation of a single GitHubUser [user object](https://developer.github.com
     (GitHubUser)-[OWNER]->(GitHubRepository)
     ```
 
-- GitHubRepositories in an organization can have outside collaborators with different permissions, including ADMIN,
+- GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
 WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
 
     ```
     (GitHubUser)-[:OUTSIDE_COLLAB_{ACTION}]->(GitHubRepository)
     ```
+
+- GitHubRepositories in an organization also mark all [direct collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation), folks who are not necessarily 'outside' but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
+
+    ```
+    (GitHubUser)-[:DIRECT_COLLAB_{ACTION}]->(GitHubRepository)
+    ```
+
+- GitHubUsers relate to GitHubOrganizations in a few ways:
+  - Most typically, they are members of an organization.
+  - They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both `MEMBER_OF` and `ADMIN_OF`.
+  - In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
+
+    ```
+    # a typical member
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+
+    # an admin member has two relationships to the org
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+    (GitHubUser)-[ADMIN_OF]->(GitHubOrganization)
+
+    # an unaffiliated user (e.g. an enterprise owner)
+    (GitHubUser)-[UNAFFILIATED]->(GitHubOrganization)
+    ```
+
+- GitHubTeams may be children of other teams:
+
+    ```
+    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    ```
+
+- GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
+
+    ```
+    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    ```
+
 
 ### GitHubBranch
 

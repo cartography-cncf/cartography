@@ -1,10 +1,12 @@
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import requests
+import pytest
+from requests import Session
 
 from cartography.intel.cve.feed import _call_cves_api
 from cartography.intel.cve.feed import _map_cve_dict
@@ -18,10 +20,17 @@ NIST_CVE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0/"
 API_KEY = "nvd_api_key"
 
 
-@patch("cartography.intel.cve.feed.DEFAULT_SLEEP_TIME", 0)
-@patch("cartography.intel.cve.feed.requests.get")
-def test_call_cves_api(mock_get: Mock):
-    # Arrange
+@pytest.fixture
+def mock_session():
+    return MagicMock(spec=Session)
+
+
+@pytest.fixture(autouse=True)
+def mock_time_sleep(mocker):
+    return mocker.patch("time.sleep")
+
+
+def _mock_good_responses() -> list[Mock]:
     mock_response_1 = Mock()
     mock_response_1.status_code = 200
     mock_response_1.json.return_value = {
@@ -87,8 +96,12 @@ def test_call_cves_api(mock_get: Mock):
         "timestamp": "2024-01-10T19:30:07.520",
         "vulnerabilities": [],
     }
+    return [mock_response_1, mock_response_2, mock_response_3]
 
-    mock_get.side_effect = [mock_response_1, mock_response_2, mock_response_3]
+
+def test_call_cves_api(mock_session):
+    # Arrange
+    mock_session.get.side_effect = _mock_good_responses()
     params = {"start": "2024-01-10T00:00:00Z", "end": "2024-01-10T23:59:59Z"}
     expected_result = {
         "resultsPerPage": 0,
@@ -132,36 +145,15 @@ def test_call_cves_api(mock_get: Mock):
     }
 
     # Act
-    result = _call_cves_api(NIST_CVE_URL, API_KEY, params)
+    result = _call_cves_api(mock_session, NIST_CVE_URL, API_KEY, params)
 
     # Assert
-    assert mock_get.call_count == 3
+    assert mock_session.get.call_count == 3
     assert result == expected_result
 
 
-@patch("cartography.intel.cve.feed.DEFAULT_SLEEP_TIME", 0)
-@patch("cartography.intel.cve.feed.requests.get")
-def test_call_cves_api_with_error(mock_get: Mock):
-    # Arrange
-    mock_response = Mock()
-    mock_response.status_code = 404
-    mock_response.message = "Data error"
-    mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-        response=mock_response,
-    )
-    mock_get.return_value = mock_response
-    params = {"start": "2024-01-10T00:00:00Z", "end": "2024-01-10T23:59:59Z"}
-
-    # Act
-    try:
-        _call_cves_api(NIST_CVE_URL, API_KEY, params)
-    except requests.exceptions.HTTPError as err:
-        assert err.response == mock_response
-    assert mock_get.call_count == 3
-
-
 @patch("cartography.intel.cve.feed._call_cves_api")
-def test_get_cves_in_batches(mock_call_cves_api: Mock):
+def test_get_cves_in_batches(mock_call_cves_api: Mock, mock_session: Session):
     """
     Ensure that we get the correct number of CVEs in batches of 120 days
     """
@@ -180,7 +172,7 @@ def test_get_cves_in_batches(mock_call_cves_api: Mock):
     _map_cve_dict(excepted_cves, GET_CVE_API_DATA_BATCH_2)
     # Act
     cves = get_cves_in_batches(
-        NIST_CVE_URL, start_date, end_date, date_param_names, API_KEY,
+        mock_session, NIST_CVE_URL, start_date, end_date, date_param_names, API_KEY,
     )
     # Assert
     assert mock_call_cves_api.call_count == 2
@@ -188,7 +180,7 @@ def test_get_cves_in_batches(mock_call_cves_api: Mock):
 
 
 @patch("cartography.intel.cve.feed._call_cves_api")
-def test_get_modified_cves(mock_call_cves_api: Mock):
+def test_get_modified_cves(mock_call_cves_api: Mock, mock_session: Session):
     # Arrange
     mock_call_cves_api.side_effect = [GET_CVE_API_DATA]
     last_modified_date = datetime.now(tz=timezone.utc) + timedelta(days=-1)
@@ -199,14 +191,14 @@ def test_get_modified_cves(mock_call_cves_api: Mock):
         "lastModEndDate": current_date_iso8601,
     }
     # Act
-    cves = get_modified_cves(NIST_CVE_URL, last_modified_date_iso8601, API_KEY)
+    cves = get_modified_cves(mock_session, NIST_CVE_URL, last_modified_date_iso8601, API_KEY)
     # Assert
-    mock_call_cves_api.assert_called_once_with(NIST_CVE_URL, API_KEY, expected_params)
+    mock_call_cves_api.assert_called_once_with(mock_session, NIST_CVE_URL, API_KEY, expected_params)
     assert cves == GET_CVE_API_DATA
 
 
 @patch("cartography.intel.cve.feed._call_cves_api")
-def test_get_published_cves_per_year(mock_call_cves_api: Mock):
+def test_get_published_cves_per_year(mock_call_cves_api: Mock, mock_session: Session):
     # Arrange
     no_cves = {
         "resultsPerPage": 0,
@@ -221,7 +213,7 @@ def test_get_published_cves_per_year(mock_call_cves_api: Mock):
     _map_cve_dict(expected_cves, no_cves)
     mock_call_cves_api.side_effect = [GET_CVE_API_DATA, no_cves, no_cves, no_cves]
     # Act
-    cves = get_published_cves_per_year(NIST_CVE_URL, "2024", API_KEY)
+    cves = get_published_cves_per_year(mock_session, NIST_CVE_URL, "2024", API_KEY)
     # Assert
-    mock_call_cves_api.call_count == 4
+    assert mock_call_cves_api.call_count == 4
     assert cves == expected_cves

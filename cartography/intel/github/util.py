@@ -163,7 +163,8 @@ def fetch_all(
 
         if retry >= retries:
             logger.error(
-                f"GitHub: Could not retrieve page of resource `{resource_type}` due to HTTP error.",
+                f"GitHub: Could not retrieve page of resource `{resource_type}` due to HTTP error "
+                f"after {retry} retries. Raising exception.",
                 exc_info=True,
             )
             raise exc

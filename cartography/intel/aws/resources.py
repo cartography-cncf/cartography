@@ -10,6 +10,7 @@ from . import elasticache
 from . import elasticsearch
 from . import emr
 from . import iam
+from . import identitycenter
 from . import inspector
 from . import kms
 from . import lambda_function
@@ -32,6 +33,7 @@ from .ec2.key_pairs import sync_ec2_key_pairs
 from .ec2.launch_templates import sync_ec2_launch_templates
 from .ec2.load_balancer_v2s import sync_load_balancer_v2s
 from .ec2.load_balancers import sync_load_balancers
+from .ec2.network_acls import sync_network_acls
 from .ec2.network_interfaces import sync_network_interfaces
 from .ec2.reserved_instances import sync_ec2_reserved_instances
 from .ec2.security_groups import sync_ec2_security_groupinfo
@@ -55,6 +57,7 @@ RESOURCE_FUNCTIONS: Dict = {
     'ec2:keypair': sync_ec2_key_pairs,
     'ec2:load_balancer': sync_load_balancers,
     'ec2:load_balancer_v2': sync_load_balancer_v2s,
+    'ec2:network_acls': sync_network_acls,
     'ec2:network_interface': sync_network_interfaces,
     'ec2:security_group': sync_ec2_security_groupinfo,
     'ec2:subnet': sync_subnets,
@@ -86,4 +89,5 @@ RESOURCE_FUNCTIONS: Dict = {
     'ssm': ssm.sync,
     'inspector': inspector.sync,
     'config': config.sync,
+    'identitycenter': identitycenter.sync_identity_center_instances,
 }

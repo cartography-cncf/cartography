@@ -15,6 +15,7 @@ from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Set
+from typing import Type
 from typing import TypeVar
 from typing import Union
 
@@ -286,6 +287,27 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             else:
                 raise
     return cast(AWSGetFunc, inner_function)
+
+
+def retries_with_backoff(
+        func: Callable,
+        exception_type: Type[Exception],
+        max_tries: int,
+        on_backoff: Callable,
+) -> Callable:
+    """
+    Adds retry with backoff to the given function.  (Could expand the possible input parameters as needed.)
+    """
+    @wraps(func)
+    @backoff.on_exception(
+        backoff.expo,
+        exception_type,
+        max_tries=max_tries,
+        on_backoff=on_backoff,
+    )
+    def inner_function(*args, **kwargs):  # type: ignore
+        return func(*args, **kwargs)
+    return cast(Callable, inner_function)
 
 
 def dict_value_to_str(obj: Dict, key: str) -> Optional[str]:

@@ -131,6 +131,12 @@ Represents a Go library dependency as listed in a go.mod file.
 All GoLibrary nodes are also SemgrepDependency nodes.
 See [SemgrepDependency](#semgrepdependency) for details.
 
+### NpmLibrary
+
+Represents a NPM library dependency as listed in a package-lock.json file.
+All NpmLibrary nodes are also SemgrepDependency nodes.
+See [SemgrepDependency](#semgrepdependency) for details.
+
 
 #### Relationships
 

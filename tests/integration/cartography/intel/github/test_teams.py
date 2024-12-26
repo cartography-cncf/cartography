@@ -2,9 +2,12 @@ from unittest.mock import patch
 
 import cartography.intel.github.teams
 from cartography.intel.github.teams import sync_github_teams
+from tests.data.github.teams import GH_TEAM_CHILD_TEAM
 from tests.data.github.teams import GH_TEAM_DATA
 from tests.data.github.teams import GH_TEAM_REPOS
-from tests.integration.cartography.intel.github.test_repos import _ensure_local_neo4j_has_test_data
+from tests.data.github.teams import GH_TEAM_USERS
+from tests.integration.cartography.intel.github import test_repos
+from tests.integration.cartography.intel.github import test_users
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -14,11 +17,14 @@ TEST_GITHUB_URL = "https://fake.github.net/graphql/"
 FAKE_API_KEY = 'asdf'
 
 
+@patch.object(cartography.intel.github.teams, '_get_child_teams', return_value=GH_TEAM_CHILD_TEAM)
+@patch.object(cartography.intel.github.teams, '_get_team_users', return_value=GH_TEAM_USERS)
 @patch.object(cartography.intel.github.teams, '_get_team_repos', return_value=GH_TEAM_REPOS)
 @patch.object(cartography.intel.github.teams, 'get_teams', return_value=GH_TEAM_DATA)
-def test_sync_github_teams(mock_teams, mock_team_repos, neo4j_session):
+def test_sync_github_teams(mock_teams, mock_team_repos, mock_team_users, mock_child_teams, neo4j_session):
     # Arrange
-    _ensure_local_neo4j_has_test_data(neo4j_session)
+    test_repos._ensure_local_neo4j_has_test_data(neo4j_session)
+    test_users._ensure_local_neo4j_has_test_data(neo4j_session)
     # Arrange: Add another org to make sure we don't attach a node to the wrong org
     neo4j_session.run('''
         MERGE (g:GitHubOrganization{id: "this should have no attachments"})
@@ -115,4 +121,33 @@ def test_sync_github_teams(mock_teams, mock_team_repos, neo4j_session):
         rel_direction_right=True,
     ) == {
         ('https://github.com/orgs/example_org/teams/team-b', 'https://github.com/lyft/cartography'),
+    }
+    assert check_rels(
+        neo4j_session,
+        'GitHubTeam', 'id',
+        'GitHubUser', 'id',
+        'MEMBER',
+        rel_direction_right=False,
+    ) == {
+        ('https://github.com/orgs/example_org/teams/team-c', 'https://example.com/hjsimpson'),
+    }
+    assert check_rels(
+        neo4j_session,
+        'GitHubTeam', 'id',
+        'GitHubUser', 'id',
+        'MAINTAINER',
+        rel_direction_right=False,
+    ) == {
+        ('https://github.com/orgs/example_org/teams/team-c', 'https://example.com/lmsimpson'),
+        ('https://github.com/orgs/example_org/teams/team-c', 'https://example.com/mbsimpson'),
+    }
+    assert check_rels(
+        neo4j_session,
+        'GitHubTeam', 'id',
+        'GitHubTeam', 'id',
+        'MEMBER_OF_TEAM',
+        rel_direction_right=False,
+    ) == {
+        ('https://github.com/orgs/example_org/teams/team-d', 'https://github.com/orgs/example_org/teams/team-a'),
+        ('https://github.com/orgs/example_org/teams/team-d', 'https://github.com/orgs/example_org/teams/team-b'),
     }

@@ -1,5 +1,7 @@
 import cartography.intel.github
-import tests.data.github.repos
+from tests.data.github.repos import DIRECT_COLLABORATORS
+from tests.data.github.repos import GET_REPOS
+from tests.data.github.repos import OUTSIDE_COLLABORATORS
 
 
 TEST_UPDATE_TAG = 123456789
@@ -8,7 +10,7 @@ TEST_GITHUB_URL = "https://fake.github.net/graphql/"
 
 
 def _ensure_local_neo4j_has_test_data(neo4j_session):
-    repo_data = cartography.intel.github.repos.transform(tests.data.github.repos.GET_REPOS)
+    repo_data = cartography.intel.github.repos.transform(GET_REPOS, DIRECT_COLLABORATORS, OUTSIDE_COLLABORATORS)
     cartography.intel.github.repos.load(
         neo4j_session,
         TEST_JOB_PARAMS,
@@ -20,8 +22,7 @@ def test_transform_and_load_repositories(neo4j_session):
     """
     Test that we can correctly transform and load GitHubRepository nodes to Neo4j.
     """
-    repositories_res = tests.data.github.repos.GET_REPOS
-    repos_data = cartography.intel.github.repos.transform(repositories_res)
+    repos_data = cartography.intel.github.repos.transform(GET_REPOS, DIRECT_COLLABORATORS, OUTSIDE_COLLABORATORS)
     cartography.intel.github.repos.load_github_repos(
         neo4j_session,
         TEST_UPDATE_TAG,
@@ -43,8 +44,7 @@ def test_transform_and_load_repository_owners(neo4j_session):
     """
     Ensure we can transform and load GitHub repository owner nodes.
     """
-    repositories_res = tests.data.github.repos.GET_REPOS
-    repos_data = cartography.intel.github.repos.transform(repositories_res)
+    repos_data = cartography.intel.github.repos.transform(GET_REPOS, DIRECT_COLLABORATORS, OUTSIDE_COLLABORATORS)
     cartography.intel.github.repos.load_github_owners(
         neo4j_session,
         TEST_UPDATE_TAG,
@@ -64,8 +64,7 @@ def test_transform_and_load_repository_languages(neo4j_session):
     """
     Ensure we can transform and load GitHub repository languages nodes.
     """
-    repositories_res = tests.data.github.repos.GET_REPOS
-    repos_data = cartography.intel.github.repos.transform(repositories_res)
+    repos_data = cartography.intel.github.repos.transform(GET_REPOS, DIRECT_COLLABORATORS, OUTSIDE_COLLABORATORS)
     cartography.intel.github.repos.load_github_languages(
         neo4j_session,
         TEST_UPDATE_TAG,
@@ -179,12 +178,111 @@ def test_repository_to_languages(neo4j_session):
 
 def test_repository_to_collaborators(neo4j_session):
     _ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # Ensure outside collaborators are connected to the expected repos
     nodes = neo4j_session.run("""
-    MATCH (repo:GitHubRepository{name:"cartography"})<-[:OUTSIDE_COLLAB_WRITE]-(user:GitHubUser)
-    RETURN count(user.username) as collab_count
+    MATCH (repo:GitHubRepository)<-[rel]-(user:GitHubUser)
+    WHERE type(rel) STARTS WITH 'OUTSIDE_COLLAB_'
+    RETURN repo.name, type(rel), user.username
     """)
-    actual_nodes = {n['collab_count'] for n in nodes}
-    expected_nodes = {5}
+    actual_nodes = {
+        (
+            n['repo.name'],
+            n['type(rel)'],
+            n['user.username'],
+        ) for n in nodes
+    }
+    expected_nodes = {
+        (
+            'cartography',
+            'OUTSIDE_COLLAB_WRITE',
+            'marco-lancini',
+        ),
+        (
+            'cartography',
+            'OUTSIDE_COLLAB_READ',
+            'sachafaust',
+        ),
+        (
+            'cartography',
+            'OUTSIDE_COLLAB_ADMIN',
+            'SecPrez',
+        ),
+        (
+            'cartography',
+            'OUTSIDE_COLLAB_TRIAGE',
+            'ramonpetgrave64',
+        ),
+        (
+            'cartography',
+            'OUTSIDE_COLLAB_MAINTAIN',
+            'roshinis78',
+        ),
+    }
+    assert actual_nodes == expected_nodes
+
+    # Ensure direct collaborators are connected to the expected repos
+    # Note how all the folks in the outside collaborators list are also in the direct collaborators list.  They
+    # have both types of relationship.
+    nodes = neo4j_session.run("""
+        MATCH (repo:GitHubRepository)<-[rel]-(user:GitHubUser)
+        WHERE type(rel) STARTS WITH 'DIRECT_COLLAB_'
+        RETURN repo.name, type(rel), user.username
+        """)
+    actual_nodes = {
+        (
+            n['repo.name'],
+            n['type(rel)'],
+            n['user.username'],
+        ) for n in nodes
+    }
+    expected_nodes = {
+        (
+            'SampleRepo2',
+            'DIRECT_COLLAB_ADMIN',
+            'direct_foo',
+        ),
+        (
+            'cartography',
+            'DIRECT_COLLAB_WRITE',
+            'marco-lancini',
+        ),
+        (
+            'cartography',
+            'DIRECT_COLLAB_READ',
+            'sachafaust',
+        ),
+        (
+            'cartography',
+            'DIRECT_COLLAB_ADMIN',
+            'SecPrez',
+        ),
+        (
+            'cartography',
+            'DIRECT_COLLAB_TRIAGE',
+            'ramonpetgrave64',
+        ),
+        (
+            'cartography',
+            'DIRECT_COLLAB_MAINTAIN',
+            'roshinis78',
+        ),
+        (
+            'cartography',
+            'DIRECT_COLLAB_WRITE',
+            'direct_bar',
+        ),
+        (
+            'cartography',
+            'DIRECT_COLLAB_READ',
+            'direct_baz',
+        ),
+        (
+            'cartography',
+            'DIRECT_COLLAB_MAINTAIN',
+            'direct_bat',
+        ),
+    }
     assert actual_nodes == expected_nodes
 
 
