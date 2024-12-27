@@ -3,6 +3,7 @@ from typing import List
 import pytest
 
 from cartography.graph.cleanupbuilder import _build_cleanup_node_and_rel_queries
+from cartography.graph.cleanupbuilder import _build_cleanup_rel_query_no_sub_resource
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.job import get_parameters
 from cartography.models.aws.emr import EMRClusterToAWSAccount
@@ -154,3 +155,16 @@ def test_build_cleanup_queries_no_rels():
     actual_queries: list[str] = build_cleanup_queries(SimpleNodeSchema())
     expected_queries = []
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
+
+
+def test_build_cleanup_rel_query_no_sub_resource_raises_on_sub_resource():
+    """
+    Test that _build_cleanup_rel_query_no_sub_resource raises ValueError when given a node schema
+    that has a sub_resource_relationship defined.
+    """
+    # InterestingAssetSchema has a sub_resource_relationship defined
+    node_schema = InterestingAssetSchema()
+    rel_schema = InterestingAssetToHelloAssetRel()
+
+    with pytest.raises(ValueError, match="Expected InterestingAsset to not exist"):
+        _build_cleanup_rel_query_no_sub_resource(node_schema, rel_schema)
