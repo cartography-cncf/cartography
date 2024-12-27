@@ -5,6 +5,8 @@ from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.github.users import GITHUB_ENTERPRISE_OWNER_DATA
 from tests.data.github.users import GITHUB_ORG_DATA
 from tests.data.github.users import GITHUB_USER_DATA
+from tests.data.github.users import GITHUB_USER_DATA_AT_TIMESTAMP_2
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {'UPDATE_TAG': TEST_UPDATE_TAG}
@@ -145,3 +147,38 @@ def test_sync(mock_owners, mock_users, neo4j_session):
         ) for n in nodes
     }
     assert actual_nodes == expected_nodes
+
+
+@patch.object(
+    cartography.intel.github.users,
+    'get_users',
+    side_effect=[GITHUB_USER_DATA, GITHUB_USER_DATA_AT_TIMESTAMP_2],
+)
+@patch.object(cartography.intel.github.users, 'get_enterprise_owners', return_value=GITHUB_ENTERPRISE_OWNER_DATA)
+def test_sync_with_cleanups(mock_owners, mock_users, neo4j_session):
+    # Act
+    # Sync once
+    cartography.intel.github.users.sync(
+        neo4j_session,
+        {'UPDATE_TAG': 100},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+    # Assert that the only admin is marge
+    assert check_rels(neo4j_session, 'GitHubUser', 'id', 'GitHubOrganization', 'id', 'ADMIN_OF') == {
+        ('https://example.com/mbsimpson', 'https://example.com/my_org'),
+    }
+
+    # Act: Sync a second time
+    cartography.intel.github.users.sync(
+        neo4j_session,
+        {'UPDATE_TAG': 200},
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+    # Assert that Marge is no longer an ADMIN of the GitHub org and the admin is now Homer
+    assert check_rels(neo4j_session, 'GitHubUser', 'id', 'GitHubOrganization', 'id', 'ADMIN_OF') == {
+        ('https://example.com/hjsimpson', 'https://example.com/my_org'),
+    }
