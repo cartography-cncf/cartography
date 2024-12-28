@@ -83,26 +83,6 @@ def get_permission_sets(boto3_session: boto3.session.Session, instance_arn: str,
 
 
 @timeit
-def get_permission_set_roles(
-    boto3_session: boto3.session.Session,
-    instance_arn: str,
-    permission_set_arn: str,
-    region: str,
-) -> List[Dict]:
-    """
-    Get all accounts associated with a given permission set
-    """
-    client = boto3_session.client('sso-admin', region_name=region)
-    accounts = []
-
-    paginator = client.get_paginator('list_accounts_for_provisioned_permission_set')
-    for page in paginator.paginate(InstanceArn=instance_arn, PermissionSetArn=permission_set_arn):
-        accounts.extend(page.get('AccountIds', []))
-
-    return accounts
-
-
-@timeit
 def load_permission_sets(
     neo4j_session: neo4j.Session,
     permission_sets: List[Dict],
@@ -128,6 +108,7 @@ def load_permission_sets(
 
 
 @timeit
+@aws_handle_regions
 def get_sso_users(
     boto3_session: boto3.session.Session,
     identity_store_id: str,
@@ -176,6 +157,7 @@ def load_sso_users(
 
 
 @timeit
+@aws_handle_regions
 def get_role_assignments(
     boto3_session: boto3.session.Session,
     users: List[Dict],
@@ -231,6 +213,7 @@ def load_role_assignments(
         )
 
 
+@timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     GraphJob.from_node_schema(AWSIdentityCenterInstanceSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(AWSPermissionSetSchema(), common_job_parameters).run(neo4j_session)
