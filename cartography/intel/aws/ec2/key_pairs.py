@@ -5,9 +5,9 @@ from typing import Dict
 import boto3
 import neo4j
 
-from .util import get_botocore_config
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.ec2.keypair import EC2KeyPairSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -74,5 +74,6 @@ def sync_ec2_key_pairs(
     for region in regions:
         logger.info("Syncing EC2 key pairs for region '%s' in account '%s'.", region, current_aws_account_id)
         data = get_ec2_key_pairs(boto3_session, region)
-        load_ec2_key_pairs(neo4j_session, data, region, current_aws_account_id, update_tag)
+        transformed_data = transform_ec2_key_pairs(data, region, current_aws_account_id)
+        load_ec2_key_pairs(neo4j_session, transformed_data, region, current_aws_account_id, update_tag)
     cleanup_ec2_key_pairs(neo4j_session, common_job_parameters)

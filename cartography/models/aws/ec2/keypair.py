@@ -19,7 +19,7 @@ class EC2KeyPairNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef('KeyPairArn')
     arn: PropertyRef = PropertyRef('KeyPairArn', extra_index=True)
     keyname: PropertyRef = PropertyRef('KeyName')
-    key_fingerprint: PropertyRef = PropertyRef('KeyFingerprint')
+    keyfingerprint: PropertyRef = PropertyRef('KeyFingerprint')
     region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
