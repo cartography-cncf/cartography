@@ -7,7 +7,7 @@ import neo4j
 
 from .util import get_botocore_config
 from cartography.graph.job import GraphJob
-from cartography.models.aws.ec2.keypairs import EC2KeyPairSchema
+from cartography.models.aws.ec2.keypairs import EC2KeypairInstanceSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -29,7 +29,10 @@ def load_ec2_key_pairs(
     ingest_key_pair = """
     MERGE (keypair:KeyPair:EC2KeyPair{arn: $ARN, id: $ARN})
     ON CREATE SET keypair.firstseen = timestamp()
-    SET keypair.keyname = $KeyName, keypair.keyfingerprint = $KeyFingerprint, keypair.region = $Region,
+    SET
+        keypair.keyname = $KeyName,
+        keypair.keyfingerprint = $KeyFingerprint,
+        keypair.region = $Region,
     keypair.lastupdated = $update_tag
     WITH keypair
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
@@ -56,7 +59,7 @@ def load_ec2_key_pairs(
 
 @timeit
 def cleanup_ec2_key_pairs(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    GraphJob.from_node_schema(EC2KeyPairSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(EC2KeypairInstanceSchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit

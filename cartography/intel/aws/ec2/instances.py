@@ -13,7 +13,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.ec2.auto_scaling_groups import EC2InstanceAutoScalingGroupSchema
 from cartography.models.aws.ec2.instances import EC2InstanceSchema
-from cartography.models.aws.ec2.keypairs import EC2KeyPairSchema
+from cartography.models.aws.ec2.keypairs import EC2KeypairInstanceSchema
 from cartography.models.aws.ec2.networkinterface_instance import EC2NetworkInterfaceInstanceSchema
 from cartography.models.aws.ec2.reservations import EC2ReservationSchema
 from cartography.models.aws.ec2.securitygroup_instance import EC2SecurityGroupInstanceSchema
@@ -202,7 +202,7 @@ def load_ec2_key_pairs(
 ) -> None:
     load(
         neo4j_session,
-        EC2KeyPairSchema(),
+        EC2KeypairInstanceSchema(),
         key_pair_list,
         Region=region,
         AWS_ID=current_aws_account_id,

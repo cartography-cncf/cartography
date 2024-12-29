@@ -12,7 +12,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class EC2KeyPairNodeProperties(CartographyNodeProperties):
+class EC2KeypairInstanceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef('KeyPairArn')
     arn: PropertyRef = PropertyRef('KeyPairArn', extra_index=True)
     keyname: PropertyRef = PropertyRef('KeyName')
@@ -21,44 +21,44 @@ class EC2KeyPairNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2KeyPairToAwsAccountRelProperties(CartographyRelProperties):
+class EC2KeypairInstanceToAwsAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2KeyPairToAWSAccount(CartographyRelSchema):
+class EC2KeypairInstanceToAWSAccount(CartographyRelSchema):
     target_node_label: str = 'AWSAccount'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {'id': PropertyRef('AWS_ID', set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2KeyPairToAwsAccountRelProperties = EC2KeyPairToAwsAccountRelProperties()
+    properties: EC2KeypairInstanceToAwsAccountRelProperties = EC2KeypairInstanceToAwsAccountRelProperties()
 
 
 @dataclass(frozen=True)
-class EC2KeyPairToEC2InstanceRelProperties(CartographyRelProperties):
+class EC2KeypairInstanceToEC2InstanceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2KeyPairToEC2Instance(CartographyRelSchema):
+class EC2KeypairInstanceToEC2Instance(CartographyRelSchema):
     target_node_label: str = 'EC2Instance'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {'id': PropertyRef('InstanceId')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SSH_LOGIN_TO"
-    properties: EC2KeyPairToEC2InstanceRelProperties = EC2KeyPairToEC2InstanceRelProperties()
+    properties: EC2KeypairInstanceToEC2InstanceRelProperties = EC2KeypairInstanceToEC2InstanceRelProperties()
 
 
 @dataclass(frozen=True)
-class EC2KeyPairSchema(CartographyNodeSchema):
+class EC2KeypairInstanceSchema(CartographyNodeSchema):
     label: str = 'EC2KeyPair'
-    properties: EC2KeyPairNodeProperties = EC2KeyPairNodeProperties()
-    sub_resource_relationship: EC2KeyPairToAWSAccount = EC2KeyPairToAWSAccount()
+    properties: EC2KeypairInstanceNodeProperties = EC2KeypairInstanceNodeProperties()
+    sub_resource_relationship: EC2KeypairInstanceToAWSAccount = EC2KeypairInstanceToAWSAccount()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2KeyPairToEC2Instance(),
+            EC2KeypairInstanceToEC2Instance(),
         ],
     )
