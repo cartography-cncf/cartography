@@ -54,6 +54,9 @@ class EC2KeypairInstanceToEC2Instance(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2KeypairInstanceSchema(CartographyNodeSchema):
+    """
+    EC2 keypairs as known by describe-instances.
+    """
     label: str = 'EC2KeyPair'
     properties: EC2KeypairInstanceNodeProperties = EC2KeypairInstanceNodeProperties()
     sub_resource_relationship: EC2KeypairInstanceToAWSAccount = EC2KeypairInstanceToAWSAccount()
