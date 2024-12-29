@@ -1,7 +1,22 @@
 {
   "statements": [
   {
-    "query": "MATCH (n) where n.exposed_internet IS NOT NULL AND labels(n) IN ['AutoScalingGroup', 'EC2Instance', 'LoadBalancer', 'LoadBalancerV2'] WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type return COUNT(*) as TotalCompleted",
+    "query": "MATCH (n:AutoScalingGroup) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
+    "iterative": true,
+    "iterationsize": 1000
+  },
+  {
+    "query": "MATCH (n:EC2Instance) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
+    "iterative": true,
+    "iterationsize": 1000
+  },
+  {
+    "query": "MATCH (n:LoadBalancer) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
+    "iterative": true,
+    "iterationsize": 1000
+  },
+  {
+    "query": "MATCH (n:LoadBalancerV2) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
     "iterative": true,
     "iterationsize": 1000
   },
