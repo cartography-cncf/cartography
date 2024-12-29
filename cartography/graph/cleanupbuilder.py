@@ -16,7 +16,17 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
     """
     Generates queries to clean up stale nodes and relationships from the given CartographyNodeSchema.
     Note that auto-cleanups for a node with no relationships is not currently supported.
+
     Algorithm:
+    1. If node_schema has no relationships at all, return empty.
+
+    Otherwise,
+
+    1. If node_schema doesn't have a sub_resource relationship, generate queries only to clean up its other
+    relationships. No nodes will be cleaned up.
+
+    Otherwise,
+
     1. First delete all stale nodes attached to the node_schema's sub resource
     2. Delete all stale node to sub resource relationships
         - We don't expect this to be very common (never for AWS resources, at least), but in case it is possible for an
@@ -25,11 +35,16 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
     :param node_schema: The given CartographyNodeSchema
     :return: A list of Neo4j queries to clean up nodes and relationships.
     """
+    if not node_schema.sub_resource_relationship and not node_schema.other_relationships:
+        return []
+
     if not node_schema.sub_resource_relationship:
-        raise ValueError(
-            "Auto-creating a cleanup job for a node_schema without a sub resource relationship is not supported. "
-            f'Please check the class definition of "{node_schema.__class__.__name__}".',
-        )
+        queries = []
+        other_rels = node_schema.other_relationships.rels if node_schema.other_relationships else []
+        for rel in other_rels:
+            query = _build_cleanup_rel_query_no_sub_resource(node_schema, rel)
+            queries.append(query)
+        return queries
 
     result = _build_cleanup_node_and_rel_queries(node_schema, node_schema.sub_resource_relationship)
     if node_schema.other_relationships:
@@ -39,6 +54,34 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
             result.append(rel_query)
 
     return result
+
+
+def _build_cleanup_rel_query_no_sub_resource(
+        node_schema: CartographyNodeSchema,
+        selected_relationship: CartographyRelSchema,
+) -> str:
+    """
+    Helper function to delete stale relationships for node_schemas that have no sub resource relationship defined.
+    """
+    if node_schema.sub_resource_relationship:
+        raise ValueError(
+            f'Expected {node_schema.label} to not exist. '
+            'This function is intended for node_schemas without sub_resource_relationships.',
+        )
+    # Ensure the node is attached to the sub resource and delete the node
+    query_template = Template(
+        """
+        MATCH (n:$node_label)
+        $selected_rel_clause
+        WHERE r.lastupdated <> $UPDATE_TAG
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
+    )
+    return query_template.safe_substitute(
+        node_label=node_schema.label,
+        selected_rel_clause=_build_selected_rel_clause(selected_relationship),
+    )
 
 
 def _build_cleanup_node_and_rel_queries(

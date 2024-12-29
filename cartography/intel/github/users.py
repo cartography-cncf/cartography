@@ -8,13 +8,13 @@ from typing import Tuple
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
 from cartography.models.github.orgs import GitHubOrganizationSchema
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from cartography.models.github.users import GitHubUnaffiliatedUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -211,6 +211,13 @@ def load_organization(
 
 
 @timeit
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+    logger.info("Cleaning up GitHub users")
+    GraphJob.from_node_schema(GitHubOrganizationUserSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(GitHubUnaffiliatedUserSchema(), common_job_parameters).run(neo4j_session)
+
+
+@timeit
 def sync(
         neo4j_session: neo4j.Session,
         common_job_parameters: Dict,
@@ -236,8 +243,8 @@ def sync(
         neo4j_session, GitHubUnaffiliatedUserSchema(), processed_unaffiliated_user_data, org_data,
         common_job_parameters['UPDATE_TAG'],
     )
-    # no automated cleanup job for users because user node has no sub_resource_relationship
-    run_cleanup_job('github_org_and_users_cleanup.json', neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters)
+
     merge_module_sync_metadata(
         neo4j_session,
         group_type='GitHubOrganization',
