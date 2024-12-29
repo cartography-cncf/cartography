@@ -21,7 +21,7 @@
     "iterationsize": 1000
   },
   {
-    "query": "MATCH (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)\nWITH instance\nWHERE (instance.publicipaddress IS NOT NULL) AND (instance.exposed_internet_type IS NULL) OR (NOT 'direct' IN instance.exposed_internet_type)\nSET instance.exposed_internet = true, instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';",
+    "query": "MATCH (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance) WITH instance WHERE (instance.publicipaddress IS NOT NULL) AND (instance.exposed_internet_type IS NULL OR NOT 'direct' IN instance.exposed_internet_type) SET instance.exposed_internet = true, instance.exposed_internet_type = CASE WHEN instance.exposed_internet_type IS NULL THEN ['direct'] WHEN NOT 'direct' IN instance.exposed_internet_type THEN instance.exposed_internet_type + ['direct'] ELSE instance.exposed_internet_type END;",
     "iterative": false
   },
   {
