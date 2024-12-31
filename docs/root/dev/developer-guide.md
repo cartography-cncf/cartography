@@ -112,24 +112,24 @@ With that, there are some interesting things you can do with it.
 #### Run the full test suite
 
 ```bash
-docker-compose run cartography-dev make test_lint
-docker-compose run cartography-dev make test_unit
-docker-compose run cartography-dev make test_integration
+docker-compose run --rm cartography-dev make test_lint
+docker-compose run --rm  cartography-dev make test_unit
+docker-compose run --rm  cartography-dev make test_integration
 
 # for all the above
-docker-compose run cartography-dev make test
+docker-compose run --rm  cartography-dev make test
 ```
 
 #### Run a [custom sync script](#implementing-custom-sync-commands)
 
 ```bash
-docker-compose run cartography-dev python custom_script.py
+docker-compose run --rm  cartography-dev python custom_script.py
 ```
 
 #### Run the cartography CLI
 
 ```bash
-docker-compose run cartography-dev cartography --help
+docker-compose run --rm  cartography-dev cartography --help
 ```
 
 ### Equivalent manual docker commands
