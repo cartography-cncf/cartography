@@ -28,6 +28,7 @@ import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
+import cartography.intel.opal
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 from cartography.config import Config
@@ -57,6 +58,7 @@ TOP_LEVEL_MODULES = OrderedDict({  # preserve order so that the default sync alw
     'duo': cartography.intel.duo.start_duo_ingestion,
     'semgrep': cartography.intel.semgrep.start_semgrep_ingestion,
     'snipeit': cartography.intel.snipeit.start_snipeit_ingestion,
+    'opal': cartography.intel.opal.start_opal_ingestion,
     'analysis': cartography.intel.analysis.run,
 })
 

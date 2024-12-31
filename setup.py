@@ -63,6 +63,7 @@ setup(
         "python-dateutil",
         "xmltodict",
         "duo-client",
+        "opal-security @ git+https://github.com/opalsecurity/opal-python.git",
     ],
     extras_require={
         ':python_version<"3.7"': [
