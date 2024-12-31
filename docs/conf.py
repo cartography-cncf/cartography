@@ -61,7 +61,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "cartography"
-copyright = f"2021-{datetime.now().year}, Lyft"
+copyright = f"2021-{datetime.now().year}, The Linux Foundation"
 author = "cartography Project Authors"
 
 # The version info for the project you're documenting, acts as replacement for

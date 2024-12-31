@@ -1,12 +1,7 @@
-Lastpass
+BigFix
 ########
 
-The BigFix module has the following coverage:
-
-* Computers
-
 .. toctree::
-   :hidden:
-   :glob:
 
-   *
+    config
+    schema
