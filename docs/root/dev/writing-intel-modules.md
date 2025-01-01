@@ -113,7 +113,7 @@ class EMRClusterNodeProperties(CartographyNodeProperties):
     security_configuration: PropertyRef = PropertyRef('SecurityConfiguration')
 ```
 
-A `CartographyNodeProperties` object consists of [`PropertyRef`](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L37) objects. `PropertyRefs` tell `querybuilder.build_ingestion_query()` where to find appropriate values for each field from the list of dicts.
+A `CartographyNodeProperties` object consists of [PropertyRef](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L37) objects. `PropertyRefs` tell `querybuilder.build_ingestion_query()` where to find appropriate values for each field from the list of dicts.
 
 For example, `id: PropertyRef = PropertyRef('Id')` above tells the querybuilder to set a field called `id` on the `EMRCluster` node using the value located at key `'id'` on each dict in the list.
 
@@ -140,9 +140,9 @@ See [below](#indexescypher) for more information on indexes.
 
 #### Defining relationships
 
-Relationships can be defined on `CartographyNodeSchema` on either their [`sub_resource_relationship`](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228) field or their [`other_relationships`](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237) field (you can find an example of `other_relationships` [here in our test data](https://github.com/lyft/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94)).
+Relationships can be defined on `CartographyNodeSchema` on either their [sub_resource_relationship](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228) field or their [other_relationships](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237) field (you can find an example of `other_relationships` [here in our test data](https://github.com/lyft/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94)).
 
-As seen above, an `EMRClusterSchema` only has a single relationship defined: an [`EMRClusterToAWSAccount`](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L94-L103):
+As seen above, an `EMRClusterSchema` only has a single relationship defined: an [EMRClusterToAWSAccount](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L94-L103):
 
 ```python
 @dataclass(frozen=True)
@@ -203,7 +203,7 @@ This section explains cartography general patterns, conventions, and design deci
 
 #### cartography's `update_tag`:
 
-`cartography`'s global [config object carries around an `update_tag` property](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/cli.py#L91-L98)
+`cartography`'s global [config object carries around an update_tag property](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/cli.py#L91-L98)
 which is a tag/label associated with the current sync.
 Cartography's CLI code [sets this to a Unix timestamp of when the CLI was run](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134).
 
@@ -212,7 +212,7 @@ All `cartography` intel modules set the `lastupdated` property on all nodes and 
 
 #### All nodes need these fields
 
-- <a name="id">`id`</a> - an ID should be a string that uniquely identifies the node. In AWS, this is usually an
+- <a name="id">id</a> - an ID should be a string that uniquely identifies the node. In AWS, this is usually an
     ARN. In GCP, this is usually a partial URI.
 
     If possible, we should use API-provided fields for IDs and not create our own.
@@ -236,7 +236,7 @@ Cartography currently does not create indexes on relationships, so in most cases
 #### Run queries only on indexed fields for best performance
 
 In this older example of ingesting GCP VPCs, we connect VPCs with GCPProjects
-[based on GCPProject `id`s and GCPVpc `id`s](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L451).
+[based on their id fields](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L451).
 `id`s are indexed, as seen [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L45)
 and [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L42).
 All of these queries use indexes for faster lookup.
@@ -273,16 +273,16 @@ Older intel modules still do this process with hand-written cleanup jobs that wo
     You can see this in our [GCP VPCs example](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L4).
     We run `DETACH DELETE` to delete an old node and disconnect it from all other nodes.
 
- - Delete all old relationships
+- Delete all old relationships
 
-    You can see this in the GCP VPC example [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L10)
-    and [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L16).
+   You can see this in the GCP VPC example [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L10)
+   and [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L16).
 
-    - Q: We just `DETACH DELETE`'d the node. Why do we need to delete the relationships too?
+   - Q: We just `DETACH DELETE`'d the node. Why do we need to delete the relationships too?
 
-    - A: There are cases where the node may continue to exist but the relationships between it and other nodes have changed.
-        Explicitly deleting stale relationships accounts for this case.
-        See this [short discussion](https://github.com/lyft/cartography/pull/124/files#r312277725).
+   - A: There are cases where the node may continue to exist but the relationships between it and other nodes have changed.
+       Explicitly deleting stale relationships accounts for this case.
+       See this [short discussion](https://github.com/lyft/cartography/pull/124/files#r312277725).
 
 ## Error handling principles
 
@@ -302,7 +302,7 @@ with every change!
 - Before making tests, read through and follow the setup steps in [the Cartography developer guide](developer-guide.html).
 
 - Add fake data for testing at `tests/data`. We can see
-the GCP VPC example here: https://github.com/lyft/cartography/blob/0652c2b6dede589e805156925353bffc72da6c2b/tests/data/gcp/compute.py#L2.
+the GCP VPC example [here](https://github.com/lyft/cartography/blob/0652c2b6dede589e805156925353bffc72da6c2b/tests/data/gcp/compute.py#L2).
 
 - Add unit tests to `tests/unit/cartography/intel`. See this [example](https://github.com/lyft/cartography/blob/828ed600f2b14adae9d0b78ef82de0acaf24b86a/tests/unit/cartography/intel/gcp/test_compute.py).
   These tests ensure that `transform*` manipulates the data in expected ways.
@@ -319,24 +319,22 @@ resources that exist in the graph don't change across syncs.
 
 - Each intel module offers its own view of the graph
 
-    ℹ️ This best practice is a little more less precise, so if you've gotten to this point and you need clarification, just
+    ℹ️ This best practice is a little less precise, so if you've gotten to this point and you need clarification, just
     submit your PR and ask us.
 
     As much as possible, each intel module should ingest data without assuming that a different module will ingest the
     same data. Explained another way, each module should "offer its own perspective" on the data. We believe doing this
     gives us a more complete graph. Below are some key guidelines clarifying and justifying this design choice.
 
-    - Use `MERGE` when connecting one node type to another node type.
+- It is possible (and encouraged) for more than one intel module to modify the same node type.
 
-    - It is possible (and encouraged) for more than one intel module to modify the same node type.
+    For example, when we [connect RDS instances to their associated EC2 security
+    groups](https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L188)
+    there are actually two different intel modules that retrieve EC2 security group data: the [RDS module](https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L13)
+    returns [partial group data](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSecurityGroupMembership.html),
+    and the EC2 module returns more complete data as it calls APIs specific for [retrieving and loading security groups](https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/ec2.py#L166).
+    Because both the RDS and EC2 modules `MERGE` on a unique ID, we don't need to worry about
+    creating duplicate nodes in the graph.
 
-        For example, when we [connect RDS instances to their associated EC2 security
-        groups](https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L188)
-        there are actually two different intel modules that retrieve EC2 security group data: the [RDS module](https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L13)
-        returns [partial group data](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSecurityGroupMembership.html),
-        and the EC2 module returns more complete data as it calls APIs specific for [retrieving and loading security groups](https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/ec2.py#L166).
-        Because both the RDS and EC2 modules `MERGE` on a unique ID, we don't need to worry about
-        creating duplicate nodes in the graph.
-
-        Another less obvious benefit of using `MERGE` across more than one intel module to connect nodes in this way is that
-        in many cases, we've seen an intel module discover nodes that another module was not aware of!
+    Another less obvious benefit of using `MERGE` across more than one intel module to connect nodes in this way is that
+    in many cases, we've seen an intel module discover nodes that another module was not aware of!

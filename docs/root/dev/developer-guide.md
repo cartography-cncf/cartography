@@ -1,8 +1,11 @@
 # Cartography Developer Guide
 
-## Running the source code
+## Develepment using a Python venv
+
+### Running the source code
 
 This document assumes familiarity with Python dev practices such as using [virtualenvs](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/).
+If you prefer docker instead, skip this and scroll down to [these instructions](#devdockerfile).
 
 1. **Run Neo4j**
 
@@ -22,7 +25,7 @@ This document assumes familiarity with Python dev practices such as using [virtu
 
     After this finishes you should be able to run Cartography from source with `cartography --neo4j-uri bolt://localhost:7687`. Any changes to the source code in `{path-where-you-want-your-source-code}/cartography` are now locally testable by running `cartography` from the command line.
 
-## Automated testing
+### Automated testing
 
 1. **Install test requirements**
 
@@ -49,7 +52,7 @@ This document assumes familiarity with Python dev practices such as using [virtu
       - `pytest -k test_load_groups`
     - `make test` can be used to run all of the above.
 
-## Implementing custom sync commands
+### Implementing custom sync commands
 
 By default, cartography will try to sync every intel module included as part of the default sync. If you're not using certain intel modules, you can create a custom sync script and invoke it using the cartography CLI. For example, if you're only interested in the AWS intel module you can create a sync script, `custom_sync.py`, that looks like this:
 
@@ -109,24 +112,24 @@ With that, there are some interesting things you can do with it.
 #### Run the full test suite
 
 ```bash
-docker-compose run cartography-dev make test_lint
-docker-compose run cartography-dev make test_unit
-docker-compose run cartography-dev make test_integration
+docker-compose run --rm cartography-dev make test_lint
+docker-compose run --rm  cartography-dev make test_unit
+docker-compose run --rm  cartography-dev make test_integration
 
 # for all the above
-docker-compose run cartography-dev make test
+docker-compose run --rm  cartography-dev make test
 ```
 
 #### Run a [custom sync script](#implementing-custom-sync-commands)
 
 ```bash
-docker-compose run cartography-dev python custom_script.py
+docker-compose run --rm  cartography-dev python custom_script.py
 ```
 
 #### Run the cartography CLI
 
 ```bash
-docker-compose run cartography-dev cartography --help
+docker-compose run --rm  cartography-dev cartography --help
 ```
 
 ### Equivalent manual docker commands

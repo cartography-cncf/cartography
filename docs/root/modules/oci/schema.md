@@ -1,22 +1,8 @@
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+## OCI Schema
 
-- [OCITenancy](#ocitenancy)
-  - [Relationships](#relationships)
-- [OCIUser](#ociuser)
-  - [Relationships\](#relationships%5C)
-- [OCIGroup](#ocigroup)
-  - [Relationships](#relationships-1)
-- [OCIPolicy](#ocipolicy)
-  - [Relationships](#relationships-2)
-- [OCIRegion](#ociregion)
+.. _oci_schema:
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
-#Copyright (c) 2020, Oracle and/or its affiliates.
-
-## OCITenancy
+### OCITenancy
 
 Representation of an OCI Tenancy.
 
@@ -27,7 +13,7 @@ Representation of an OCI Tenancy.
 |lastupdated| Timestamp of the last time the node was updated|
 |**ocid**| The OCI Tenancy ID number|
 
-### Relationships
+#### Relationships
 - Many node types belong to an `OCI Tenancy`.
 
 	```
@@ -41,7 +27,7 @@ Representation of an OCI Tenancy.
 	(OCITenancy)-[OCI_POLICY]->(OCIPolicy)
 	```
 
- ## OCICompartment
+ ### OCICompartment
 Representation of an [OCICompartment](https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/Compartment)
 / Field / Description /
 /-------/-------------/
@@ -71,7 +57,7 @@ Representation of an [OCICompartment](https://docs.cloud.oracle.com/iaas/api/#/e
 	```
 
 
-## OCIUser
+### OCIUser
 Representation of an [OCIUser](https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/User).
 
 | Field | Description |
@@ -92,7 +78,7 @@ Representation of an [OCIUser](https://docs.cloud.oracle.com/iaas/api/#/en/ident
 | createdate | ISO 8601 date-time when the user was created |
 | **ocid** | OCI-unique identifier for this object
 
-### Relationships\
+#### Relationships\
 - OCI Users can be members of OCI Groups.
 
 	```
@@ -105,7 +91,7 @@ Representation of an [OCIUser](https://docs.cloud.oracle.com/iaas/api/#/en/ident
 	(OCITenancy)-[OCI_POLICY]->(OCIUser)
 	```
 
-## OCIGroup
+### OCIGroup
 
 Representation of OCI [IAM Groups](https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/Group).
 
@@ -119,7 +105,7 @@ Representation of OCI [IAM Groups](https://docs.cloud.oracle.com/iaas/api/#/en/i
 | createdate| ISO 8601 date-time string when the group was created |
 |**ocid** | The OCI-global identifier for this group |
 
-### Relationships
+#### Relationships
 - OCIUsers can be members of OCIGroups.
 
 	```
@@ -132,7 +118,7 @@ Representation of OCI [IAM Groups](https://docs.cloud.oracle.com/iaas/api/#/en/i
 	(OCITenancy)-[RESOURCE]->(OCIGroup)
 	```
 
-## OCIPolicy
+### OCIPolicy
 
 Representation of an [OCI Policy](https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/Policy).
 
@@ -148,7 +134,7 @@ Representation of an [OCI Policy](https://docs.cloud.oracle.com/iaas/api/#/en/id
 | createdate | ISO 8601 date-time when the policy was created|
 | **ocid** | The OCI-unique identifier for this object |
 
-### Relationships
+#### Relationships
 
 - An `OCIPolicy` node is defined in an `OCITenancy`.
 
@@ -181,7 +167,7 @@ Representation of an [OCI Policy](https://docs.cloud.oracle.com/iaas/api/#/en/id
 	(OCIPolicy)-[OCI_POLICY_REFERENCE]->(OCIGroup)
 	```
 
-## OCIRegion
+### OCIRegion
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |

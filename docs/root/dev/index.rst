@@ -1,3 +1,6 @@
+Developer docs
+=====
+
 .. toctree::
 
     developer-guide

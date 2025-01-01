@@ -41,7 +41,7 @@ def transform_groups(response_objects: List[Dict]) -> List[Dict]:
     """  Strips list of API response objects to return list of group objects only
 
     :param response_objects:
-    :return: list of dictionary objects as defined in /docs/schema/gsuite.md
+    :return: list of dictionary objects as defined in /docs/root/modules/gsuite/schema.md
     """
     groups: List[Dict] = []
     for response_object in response_objects:
@@ -54,7 +54,7 @@ def transform_groups(response_objects: List[Dict]) -> List[Dict]:
 def transform_users(response_objects: List[Dict]) -> List[Dict]:
     """  Strips list of API response objects to return list of group objects only
     :param response_objects:
-    :return: list of dictionary objects as defined in /docs/schema/gsuite.md
+    :return: list of dictionary objects as defined in /docs/root/modules/gsuite/schema.md
     """
     users: List[Dict] = []
     for response_object in response_objects:
