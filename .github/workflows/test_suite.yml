@@ -90,7 +90,7 @@ jobs:
       - name: make test_integration
         run: make test_integration
 
-  # Ensure that the docker image builds on each commit
+  # Test that the docker image builds successfully on each commit
   build-docker-image:
     runs-on: ubuntu-latest
     steps:
@@ -103,10 +103,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Extract version
-        id: version
-        run: echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
 
       - name: Build
         uses: docker/build-push-action@v3
