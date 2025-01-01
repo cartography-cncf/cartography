@@ -2,8 +2,8 @@
 # It is published at ghcr.io.
 FROM python:3.10-slim
 
-# Build argument from GitHub actions
-ARG VERSION
+# Default to 'latest'. Can be overridden with specific version by build args or from GitHub actions.
+ARG VERSION=latest
 
 # the UID and GID to run cartography as
 # (https://github.com/hexops/dockerfile#do-not-use-a-uid-below-10000).
