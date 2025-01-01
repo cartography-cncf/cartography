@@ -7,7 +7,7 @@ on:
 
 jobs:
 
-  build-and-publish-to-ghcr:
+  build-and-publish-to-pypi-and-ghcr:
     # Explicitly grant the `secrets.GITHUB_TOKEN` permissions.
     permissions:
       # Grant the ability to write to GitHub Packages (push Docker images to
@@ -16,6 +16,37 @@ jobs:
     name: Build and publish Docker 🐳 images 📦 to GitHub Container Registry
     runs-on: ubuntu-latest
     steps:
+      # 1. Publish to GHCR
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v1
+        with:
+          python-version: "3.10"
+
+      - name: Install pypa/build
+        run: >-
+          python -m
+          pip install
+          build
+          --user
+
+      - name: Build a binary wheel and a source tarball
+        run: >-
+          python -m
+          build
+          --sdist
+          --wheel
+          --outdir dist/
+          .
+
+      - name: Publish distribution 📦 to PyPI
+        if: startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      # 2. Publish to GHCR
       - uses: actions/checkout@v2
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -41,6 +72,10 @@ jobs:
           # for more detailed information.
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
@@ -49,3 +84,4 @@ jobs:
           push: true # push the image to ghcr
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ env.VERSION }}
