@@ -13,8 +13,9 @@ ARG gid=10001
 WORKDIR /var/cartography
 ENV HOME=/var/cartography
 
-# Install cartography at the version specified from GitHub actions
-RUN pip install cartography==$VERSION
+# Install cartography at the version specified from GitHub actions,
+# defaulting to 'latest' if undefined.
+RUN pip install cartography==${VERSION:-latest}
 
 USER ${uid}:${gid}
 
