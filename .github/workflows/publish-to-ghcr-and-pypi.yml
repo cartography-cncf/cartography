@@ -74,7 +74,7 @@ jobs:
 
       - name: Extract version
         id: version
-        run: echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+        run: echo "VERSION_SPECIFIER=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
 
       - name: Build and push
         uses: docker/build-push-action@v3
@@ -84,4 +84,5 @@ jobs:
           push: true # push the image to ghcr
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: VERSION=${{ env.VERSION }}
+          # e.g. '==0.98.0'
+          build-args: VERSION_SPECIFIER='=='${{ env.VERSION }}

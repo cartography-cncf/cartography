@@ -2,8 +2,8 @@
 # It is published at ghcr.io.
 FROM python:3.10-slim
 
-# Default to 'latest'. Can be overridden with specific version by build args or from GitHub actions.
-ARG VERSION=latest
+# Default to ''. Overridden with a specific version specifier e.g. '==0.98.0' by build args or from GitHub actions.
+ARG VERSION_SPECIFIER
 
 # the UID and GID to run cartography as
 # (https://github.com/hexops/dockerfile#do-not-use-a-uid-below-10000).
@@ -13,9 +13,8 @@ ARG gid=10001
 WORKDIR /var/cartography
 ENV HOME=/var/cartography
 
-# Install cartography at the version specified from GitHub actions,
-# defaulting to 'latest' if undefined.
-RUN pip install cartography==${VERSION:-latest}
+# Install cartography at the given version specifier. Can be ''.
+RUN pip install cartography${VERSION_SPECIFIER}
 
 USER ${uid}:${gid}
 

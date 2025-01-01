@@ -90,6 +90,7 @@ jobs:
       - name: make test_integration
         run: make test_integration
 
+  # Ensure that the docker image builds on each commit
   build-docker-image:
     runs-on: ubuntu-latest
     steps:
