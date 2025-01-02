@@ -296,8 +296,7 @@ def get_gcp_credentials() -> GoogleCredentials:
     """
     try:
         # Explicitly use Application Default Credentials.
-        # See https://oauth2client.readthedocs.io/en/latest/source/
-        #             oauth2client.client.html#oauth2client.client.OAuth2Credentials
+        # See https://google-auth.readthedocs.io/en/master/user-guide.html#application-default-credentials
         credentials, project_id = default()
     except DefaultCredentialsError as e:
         logger.debug("Error occurred calling GoogleCredentials.get_application_default().", exc_info=True)
