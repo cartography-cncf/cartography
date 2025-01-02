@@ -14,10 +14,9 @@ write_to = "cartography/_version.py"
 name = "cartography"
 description = "Explore assets and their relationships across your technical infrastructure."
 readme = "README.md"
-keywords = ["cartoprgaphy", "graph", "security"]
 license = {text = "apache2"}
 maintainers = [
-  {name = "Lyft", email = "security@lyft.com"}
+    { name = "Cartography Contributors" }
 ]
 classifiers = [
   'Development Status :: 4 - Beta',
@@ -64,21 +63,43 @@ dependencies = [
     "python-dateutil",
     "xmltodict",
     "duo-client",
-    "importlib-resources; python_version < '3.7'"
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
+
+# TODO when moving to uv or something other than pip, move this to [dependency-groups].dev.
+[project.optional-dependencies]
+dev = [
+    "backoff>=2.1.2",
+    "moto",
+    "pre-commit",
+    "pytest>=6.2.4",
+    "pytest-mock",
+    "pytest-cov==2.10.0",
+    "pytest-rerunfailures",
+    "types-PyYAML",
+    "types-requests<2.31.0.7",
+]
+
+# Makes sure to look inside cartography/cartography/ for cli command
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cartography*"]
 
 [project.scripts]
 cartography = "cartography.cli:main"
 cartography-detectdrift = "cartography.driftdetect.cli:main"
 
+[tool.setuptools.package-data]
+"cartography" = ["py.typed"]
+"cartography.data" = ["*.cypher", "*.yaml"]
+"cartography.data.jobs.analysis" = ["*.json"]
+"cartography.data.jobs.scoped_analysis" = ["*.json"]
+"cartography.data.jobs.cleanup" = ["*.json"]
+
 [project.urls]
-Homepage = "https://lyft.github.io/cartography/"
-Documentation = "https://lyft.github.io/cartography/"
-Repository = "https://github.com/lyft/cartography.git"
-Issues = "https://github.com/lyft/cartography/issues"
-Changelog = "https://github.com/lyft/cartography/blob/master/CHANGELOG.md"
-
-
-[project.optional-dependencies]
+Homepage = "https://cartography-cncf.github.io/cartography"
+Documentation = "https://cartography-cncf.github.io/cartography"
+Repository = "https://github.com/cartography-cncf/cartography"
+Issues = "https://github.com/cartography-cncf/cartography/issues"
+Changelog = "https://github.com/cartography-cncf/cartography/releases"

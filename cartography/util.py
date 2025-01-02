@@ -1,9 +1,10 @@
 import asyncio
 import logging
 import re
-import sys
 from functools import partial
 from functools import wraps
+from importlib.resources import open_binary
+from importlib.resources import read_text
 from string import Template
 from typing import Any
 from typing import Awaitable
@@ -29,11 +30,6 @@ from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
 from cartography.stats import ScopedStatsClient
 
-
-if sys.version_info >= (3, 7):
-    from importlib.resources import open_binary, read_text
-else:
-    from importlib_resources import open_binary, read_text
 
 logger = logging.getLogger(__name__)
 

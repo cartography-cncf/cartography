@@ -20,7 +20,7 @@ RUN apt-get update && \
 # Install dependencies.
 WORKDIR /var/cartography
 COPY . /var/cartography
-RUN pip install -r test-requirements.txt && \
+RUN pip install .[dev] && \
     pip install -U -e . && \
     chmod -R a+w /var/cartography
 

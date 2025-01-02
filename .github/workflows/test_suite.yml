@@ -43,11 +43,11 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ hashFiles('setup.py') }}-${{ hashFiles('test-requirements.txt') }}
+          key: ${{ hashFiles('setup.py') }}-${{ hashFiles('pyproject.toml') }}
       - name: Install cartography
         run: |
           pip install -e .
-          pip install -r test-requirements.txt
+          pip install .[dev]
       - name: Wait for neo4j 4 to be ready
         timeout-minutes: 1
         run: (docker logs -f neo4j-4 & ) | grep -q Started
@@ -77,11 +77,11 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ hashFiles('setup.py') }}-${{ hashFiles('test-requirements.txt') }}
+          key: ${{ hashFiles('setup.py') }}-${{ hashFiles('pyproject.toml') }}
       - name: Install cartography
         run: |
           pip install -e .
-          pip install -r test-requirements.txt
+          pip install .[dev]
       - name: Wait for neo4j 5 to be ready
         timeout-minutes: 1
         run: (docker logs -f neo4j-5 & ) | grep -q Started
