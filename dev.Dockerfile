@@ -17,14 +17,15 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:0.5.13 /uv /uvx /bin/
+
 # Install dependencies.
 WORKDIR /var/cartography
 COPY . /var/cartography
-RUN pip install -r test-requirements.txt && \
-    pip install -U -e . && \
+RUN uv sync && \
     chmod -R a+w /var/cartography
 
-# Now copy the entire source tree.
 ENV HOME=/var/cartography
 # Necessary for pre-commit.
 RUN git config --global --add safe.directory /var/cartography && \
@@ -32,5 +33,5 @@ RUN git config --global --add safe.directory /var/cartography && \
 
 USER ${uid}:${gid}
 
-# Wait for git to be ready before running anything else. Fix race condition.
+# Wait for git to be ready before running anything else. Avoid race condition.
 ENTRYPOINT ["/var/cartography/dev-entrypoint.sh"]

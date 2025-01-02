@@ -13,8 +13,11 @@ ARG gid=10001
 WORKDIR /var/cartography
 ENV HOME=/var/cartography
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:0.5.13 /uv /uvx /bin/
+
 # Install cartography at the given version specifier. Can be ''.
-RUN pip install cartography${VERSION_SPECIFIER}
+RUN uv pip install cartography${VERSION_SPECIFIER} --system
 
 USER ${uid}:${gid}
 

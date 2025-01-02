@@ -25,7 +25,7 @@ This is the quickest way to get started (assuming docker does what it's supposed
     In this example we will run Cartography on [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".
 
     ```bash
-    docker-compose run \
+    docker-compose run --rm \
         -e AWS_PROFILE=1234_testprofile \
         -e AWS_DEFAULT_REGION=us-east-1 \
         cartography --neo4j-uri bolt://cartography-neo4j-1:7687

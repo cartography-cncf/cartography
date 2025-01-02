@@ -1,6 +1,6 @@
 # Cartography Developer Guide
 
-## Develepment using a Python venv
+## Development using a Python venv
 
 ### Running the source code
 
