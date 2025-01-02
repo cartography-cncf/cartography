@@ -8,7 +8,14 @@ class PropertyRef:
     (PropertyRef.set_in_kwargs=True).
     """
 
-    def __init__(self, name: str, set_in_kwargs=False, extra_index=False, ignore_case=False):
+    def __init__(
+        self,
+        name: str,
+        set_in_kwargs=False,
+        extra_index=False,
+        ignore_case=False,
+        fuzzy_and_ignore_case=False,
+    ):
         """
         :param name: The name of the property
         :param set_in_kwargs: Optional. If True, the property is not defined on the data dict, and we expect to find the
@@ -33,11 +40,21 @@ class PropertyRef:
             cartography catalog of GitHubUser nodes. Therefore, you would need `ignore_case=True` in the PropertyRef
             that points to the GitHubUser node's name field, otherwise if one of your employees' GitHub usernames
             contains capital letters, you would not be able to map them properly to a GitHubUser node in your graph.
+        :param fuzzy_and_ignore_case: If True, performs a fuzzy + case-insensitive match when comparing the value of
+        this property using the `CONTAINS` operator.
+        query. Defaults to False. This only has effect as part of a TargetNodeMatcher and is not supported for the
+        sub resource relationship.
         """
         self.name = name
         self.set_in_kwargs = set_in_kwargs
         self.extra_index = extra_index
         self.ignore_case = ignore_case
+        self.fuzzy_and_ignore_case = fuzzy_and_ignore_case
+        if self.fuzzy_and_ignore_case and self.ignore_case:
+            raise ValueError(
+                f'Error setting PropertyRef "{self.name}": ignore_case cannot be used together with'
+                'fuzzy_and_ignore_case. Pick one or the other.',
+            )
 
     def _parameterize_name(self) -> str:
         return f"${self.name}"

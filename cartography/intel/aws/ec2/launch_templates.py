@@ -1,13 +1,16 @@
 import logging
-from typing import Dict
-from typing import List
+from typing import Any
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from .util import get_botocore_config
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.aws.ec2.launch_template_versions import LaunchTemplateVersionSchema
+from cartography.models.aws.ec2.launch_templates import LaunchTemplateSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -15,101 +18,145 @@ logger = logging.getLogger(__name__)
 
 @timeit
 @aws_handle_regions
-def get_launch_templates(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
+def get_launch_templates(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('describe_launch_templates')
-    templates: List[Dict] = []
+    templates: list[dict[str, Any]] = []
+    template_versions: list[dict[str, Any]] = []
     for page in paginator.paginate():
-        templates.extend(page['LaunchTemplates'])
+        paginated_templates = page['LaunchTemplates']
+        for template in paginated_templates:
+            template_id = template['LaunchTemplateId']
+            try:
+                versions = get_launch_template_versions_by_template(boto3_session, template_id, region)
+            except ClientError as e:
+                logger.warning(
+                    f"Failed to get launch template versions for {template_id}: {e}",
+                    exc_info=True,
+                )
+                versions = []
+            # Using a key not defined in latest boto3 documentation
+            template_versions.extend(versions)
+        templates.extend(paginated_templates)
+    return templates, template_versions
+
+
+def transform_launch_templates(templates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
     for template in templates:
-        template_versions: List[Dict] = []
-        v_paginator = client.get_paginator('describe_launch_template_versions')
-        for versions in v_paginator.paginate(LaunchTemplateId=template['LaunchTemplateId']):
-            template_versions.extend(versions["LaunchTemplateVersions"])
-        template["_template_versions"] = template_versions
-    return templates
+        current = template.copy()
+        current['CreateTime'] = str(int(current['CreateTime'].timestamp()))
+        result.append(current)
+    return result
 
 
 @timeit
 def load_launch_templates(
-        neo4j_session: neo4j.Session, data: List[Dict], region: str, current_aws_account_id: str, update_tag: int,
+        neo4j_session: neo4j.Session,
+        data: list[dict[str, Any]],
+        region: str,
+        current_aws_account_id: str,
+        update_tag: int,
 ) -> None:
-    ingest_lt = """
-    UNWIND $launch_templates as lt
-        MERGE (template:LaunchTemplate{id: lt.LaunchTemplateId})
-        ON CREATE SET template.firstseen = timestamp(),
-        template.name = lt.LaunchTemplateName,
-        template.create_time = lt.CreateTime,
-        template.created_by = lt.CreatedBy
-        SET template.default_version_number = lt.DefaultVersionNumber,
-        template.latest_version_number = lt.LatestVersionNumber,
-        template.lastupdated = $update_tag,
-        template.region=$Region
-        WITH template, lt._template_versions as versions
-        MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-        MERGE (aa)-[r:RESOURCE]->(template)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $update_tag
-        WITH template, versions
-        UNWIND versions as tv
-            MERGE (version:LaunchTemplateVersion{id: tv.LaunchTemplateId + '-' + tv.VersionNumber})
-            ON CREATE SET version.firstseen = timestamp(),
-            version.name = tv.LaunchTemplateName,
-            version.create_time = tv.CreateTime,
-            version.created_by = tv.CreatedBy,
-            version.default_version = tv.DefaultVersion,
-            version.version_number = tv.VersionNumber,
-            version.version_description = tv.VersionDescription,
-            version.kernel_id = tv.LaunchTemplateData.KernelId,
-            version.ebs_optimized = tv.LaunchTemplateData.EbsOptimized,
-            version.iam_instance_profile_arn = tv.LaunchTemplateData.IamInstanceProfile.Arn,
-            version.iam_instance_profile_name = tv.LaunchTemplateData.IamInstanceProfile.Name,
-            version.image_id = tv.LaunchTemplateData.ImageId,
-            version.instance_type = tv.LaunchTemplateData.InstanceType,
-            version.key_name = tv.LaunchTemplateData.KeyName,
-            version.monitoring_enabled = tv.LaunchTemplateData.Monitoring.Enabled,
-            version.ramdisk_id = tv.LaunchTemplateData.RamdiskId,
-            version.disable_api_termination = tv.LaunchTemplateData.DisableApiTermination,
-            version.instance_initiated_shutdown_behavior = tv.LaunchTemplateData.InstanceInitiatedShutdownBehavior,
-            version.security_group_ids = tv.LaunchTemplateData.SecurityGroupIds,
-            version.security_groups = tv.LaunchTemplateData.SecurityGroups
-            SET version.lastupdated = $update_tag,
-            version.region=$Region
-            WITH template, version
-            MERGE (template)-[r:VERSION]->(version)
-            ON CREATE SET r.firstseen = timestamp()
-            SET r.lastupdated = $update_tag
-    """
-    for lt in data:
-        lt['CreateTime'] = str(int(lt['CreateTime'].timestamp()))
-        for tv in lt["_template_versions"]:
-            tv['CreateTime'] = str(int(tv['CreateTime'].timestamp()))
-
-    neo4j_session.run(
-        ingest_lt,
-        launch_templates=data,
-        AWS_ACCOUNT_ID=current_aws_account_id,
+    load(
+        neo4j_session,
+        LaunchTemplateSchema(),
+        data,
         Region=region,
-        update_tag=update_tag,
+        AWS_ID=current_aws_account_id,
+        lastupdated=update_tag,
     )
 
 
 @timeit
-def cleanup_ec2_launch_templates(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job(
-        'aws_import_ec2_launch_templates_cleanup.json',
+@aws_handle_regions
+def get_launch_template_versions_by_template(
+        boto3_session: boto3.session.Session,
+        template: str,
+        region: str,
+) -> list[dict[str, Any]]:
+    client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
+    v_paginator = client.get_paginator('describe_launch_template_versions')
+    template_versions = []
+    for versions in v_paginator.paginate(LaunchTemplateId=template):
+        template_versions.extend(versions['LaunchTemplateVersions'])
+    return template_versions
+
+
+def transform_launch_template_versions(versions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for version in versions:
+        current = version.copy()
+
+        # Reformat some fields
+        current['Id'] = f"{version['LaunchTemplateId']}-{version['VersionNumber']}"
+        current['CreateTime'] = str(int(version['CreateTime'].timestamp()))
+
+        # Handle the nested object returned from boto
+        ltd = version['LaunchTemplateData']
+        current['KernelId'] = ltd.get('KernelId')
+        current['EbsOptimized'] = ltd.get('EbsOptimized')
+        current['IamInstanceProfileArn'] = ltd.get('IamInstanceProfileArn')
+        current['IamInstanceProfileName'] = ltd.get('IamInstanceProfileName')
+        current['ImageId'] = ltd.get('ImageId')
+        current['InstanceType'] = ltd.get('InstanceType')
+        current['KeyName'] = ltd.get('KeyName')
+        current['MonitoringEnabled'] = ltd.get('MonitoringEnabled')
+        current['RamdiskId'] = ltd.get('RamdiskId')
+        current['DisableApiTermination'] = ltd.get('DisableApiTermination')
+        current['InstanceInitiatedShutDownBehavior'] = ltd.get('InstanceInitiatedShutDownBehavior')
+        current['SecurityGroupIds'] = ltd.get('SecurityGroupIds')
+        current['SecurityGroups'] = ltd.get('SecurityGroups')
+        result.append(current)
+    return result
+
+
+@timeit
+def load_launch_template_versions(
+        neo4j_session: neo4j.Session,
+        data: list[dict[str, Any]],
+        region: str,
+        current_aws_account_id: str,
+        update_tag: int,
+) -> None:
+    load(
         neo4j_session,
-        common_job_parameters,
+        LaunchTemplateVersionSchema(),
+        data,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=update_tag,
     )
+
+
+@timeit
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+    logger.info("Running launch template cleanup job.")
+    cleanup_job = GraphJob.from_node_schema(LaunchTemplateSchema(), common_job_parameters)
+    cleanup_job.run(neo4j_session)
+
+    cleanup_job = GraphJob.from_node_schema(LaunchTemplateVersionSchema(), common_job_parameters)
+    cleanup_job.run(neo4j_session)
 
 
 @timeit
 def sync_ec2_launch_templates(
-        neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str],
-        current_aws_account_id: str, update_tag: int, common_job_parameters: Dict,
+        neo4j_session: neo4j.Session,
+        boto3_session: boto3.session.Session,
+        regions: list[str],
+        current_aws_account_id: str,
+        update_tag: int,
+        common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
-        logger.debug("Syncing launch templates for region '%s' in account '%s'.", region, current_aws_account_id)
-        data = get_launch_templates(boto3_session, region)
-        load_launch_templates(neo4j_session, data, region, current_aws_account_id, update_tag)
-    cleanup_ec2_launch_templates(neo4j_session, common_job_parameters)
+        logger.info(f"Syncing launch templates for region '{region}' in account '{current_aws_account_id}'.")
+        templates, versions = get_launch_templates(boto3_session, region)
+        templates = transform_launch_templates(templates)
+        load_launch_templates(neo4j_session, templates, region, current_aws_account_id, update_tag)
+        versions = transform_launch_template_versions(versions)
+        load_launch_template_versions(neo4j_session, versions, region, current_aws_account_id, update_tag)
+
+    cleanup(neo4j_session, common_job_parameters)

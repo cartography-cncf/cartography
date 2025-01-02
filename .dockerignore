@@ -1,4 +1,6 @@
 build/
 *.egg-info/
 venv/
-.git/
+.compose
+.cache
+.local

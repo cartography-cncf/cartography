@@ -150,7 +150,14 @@ class GraphJob:
             )
 
         statements: List[GraphStatement] = [
-            GraphStatement(query, parameters=parameters, iterative=True, iterationsize=100) for query in queries
+            GraphStatement(
+                query,
+                parameters=parameters,
+                iterative=True,
+                iterationsize=100,
+                parent_job_name=node_schema.label,
+                parent_job_sequence_num=idx,
+            ) for idx, query in enumerate(queries, start=1)
         ]
 
         return cls(

@@ -1,33 +1,25 @@
-FROM ubuntu:focal
+# This is a thin distribution of the cartography software.
+# It is published at ghcr.io.
+FROM python:3.10-slim
 
-WORKDIR /srv/cartography
+# Default to ''. Overridden with a specific version specifier e.g. '==0.98.0' by build args or from GitHub actions.
+ARG VERSION_SPECIFIER
 
-ENV PATH=/venv/bin:$PATH
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3.10-dev python3-pip python3-setuptools openssl libssl-dev gcc pkg-config libffi-dev libxml2-dev libxmlsec1-dev curl make git && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# the UID and GID to run cartography as
+# (https://github.com/hexops/dockerfile#do-not-use-a-uid-below-10000).
+ARG uid=10001
+ARG gid=10001
 
-# Installs pip supported by python3.10
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python3.10 get-pip.py
+WORKDIR /var/cartography
+ENV HOME=/var/cartography
 
-# Create cartography user so that we can give it ownership of the directory later for unit&integ tests
-RUN groupadd cartography && \
-    useradd -s /bin/bash -d /home/cartography -m -g cartography cartography
+# Install cartography at the given version specifier. Can be ''.
+RUN pip install cartography${VERSION_SPECIFIER}
 
-# Installs python dependencies
-COPY setup.py test-requirements.txt ./
-RUN pip install -e . && \
-    pip install -r test-requirements.txt && \
-    # Grant write access to the directory for unit and integration test coverage files
-    chmod -R a+w /srv/cartography
+USER ${uid}:${gid}
 
-# Install cartography, setting the owner so that tests work
-COPY --chown=cartography:cartography . /srv/cartography
+# verify that the binary at least runs
+RUN cartography -h
 
-USER cartography
-
-# Sets the directory as safe due to a mismatch in the user that cloned the repo
-# and the user that is going to run the unit&integ tests.
-RUN git config --global --add safe.directory /srv/cartography
-RUN /usr/bin/git config --local user.name "cartography"
+ENTRYPOINT ["cartography"]
+CMD ["-h"]

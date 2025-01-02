@@ -11,8 +11,9 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.models.aws.ec2.auto_scaling_groups import EC2InstanceAutoScalingGroupSchema
 from cartography.models.aws.ec2.instances import EC2InstanceSchema
-from cartography.models.aws.ec2.keypairs import EC2KeyPairSchema
+from cartography.models.aws.ec2.keypair_instance import EC2KeyPairInstanceSchema
 from cartography.models.aws.ec2.networkinterface_instance import EC2NetworkInterfaceInstanceSchema
 from cartography.models.aws.ec2.reservations import EC2ReservationSchema
 from cartography.models.aws.ec2.securitygroup_instance import EC2SecurityGroupInstanceSchema
@@ -192,16 +193,17 @@ def load_ec2_subnets(
 
 
 @timeit
-def load_ec2_key_pairs(
+def load_ec2_keypair_instances(
         neo4j_session: neo4j.Session,
         key_pair_list: List[Dict[str, Any]],
         region: str,
         current_aws_account_id: str,
         update_tag: int,
 ) -> None:
+    # Load EC2 keypairs as known by describe-instances.
     load(
         neo4j_session,
-        EC2KeyPairSchema(),
+        EC2KeyPairInstanceSchema(),
         key_pair_list,
         Region=region,
         AWS_ID=current_aws_account_id,
@@ -298,7 +300,7 @@ def load_ec2_instance_data(
     load_ec2_instance_nodes(neo4j_session, instance_list, region, current_aws_account_id, update_tag)
     load_ec2_subnets(neo4j_session, subnet_list, region, current_aws_account_id, update_tag)
     load_ec2_security_groups(neo4j_session, sg_list, region, current_aws_account_id, update_tag)
-    load_ec2_key_pairs(neo4j_session, key_pair_list, region, current_aws_account_id, update_tag)
+    load_ec2_keypair_instances(neo4j_session, key_pair_list, region, current_aws_account_id, update_tag)
     load_ec2_network_interfaces(neo4j_session, nic_list, region, current_aws_account_id, update_tag)
     load_ec2_instance_ebs_volumes(neo4j_session, ebs_volumes_list, region, current_aws_account_id, update_tag)
 
@@ -308,6 +310,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any])
     logger.debug("Running EC2 instance cleanup")
     GraphJob.from_node_schema(EC2ReservationSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(EC2InstanceSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(EC2InstanceAutoScalingGroupSchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit

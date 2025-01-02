@@ -1,7 +1,11 @@
-version: "3.7"
+# This docker-compose is intended to help you quick-start or develop cartography.
+# It is also a good starting point for your own customizations.
+# If you want to modify this and contribute your change upstream, please file a GitHub issue first. It's hard to make
+# this so that it will support as many users as possible, so we've tried to make this with a minimum set of
+# functionality that you can extend on your own.
 services:
   neo4j:
-    image: neo4j:4.4.5-community
+    image: neo4j:4.4-community
     restart: unless-stopped
     ports:
       - 7474:7474
@@ -29,23 +33,48 @@ services:
       # Networking:
       - dbms.connector.bolt.listen_address=0.0.0.0:7687
     healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:7474"]
+        test: ["CMD", "wget", "--no-verbose", "http://localhost:7474"]
         interval: 10s
         timeout: 10s
         retries: 10
+
+# Runs the standard cartography image available at ghcr.io.
   cartography:
-    # As seen in docs, we build with `cd /path/to/cartography && docker build -t lyft/cartography .`
-    # and then run with `docker-compose up -d`.
-    image: lyft/cartography
+    image: ghcr.io/cartography-cncf/cartography:latest
+    platform: linux/x86_64
     # EXAMPLE: Our ENTRYPOINT is cartography, running specific command to sync AWS
     # command: ["-v", "--neo4j-uri=bolt://neo4j:7687", "--aws-sync-all-profiles"]
-    user: cartography
     init: true
     restart: on-failure
     depends_on:
       - neo4j
     volumes:
-      - ~/.aws:/cartography/.aws/
+    # Provide AWS creds to the container
+    # Add other volumes here to support other data providers.
+      - ~/.aws:/var/cartography/.aws/
     environment:
       # Point to the neo4j service defined in this docker-compose file.
       - NEO4J_URL=bolt://cartography-neo4j-1:7687
+
+# Intended to run local automated tests, custom sync scripts, and local changes.
+  cartography-dev:
+    # See dev instructions: we assume that you have built this with
+    # `docker build -t cartography-cncf/cartography-dev -f dev.Dockerfile ./`
+    image: cartography-cncf/cartography-dev
+    init: true
+    restart: on-failure
+    depends_on:
+      - neo4j
+    volumes:
+      # Provide AWS creds to the container
+      - ~/.aws:/var/cartography/.aws/
+      # For pre-commit to work
+      - .:/var/cartography
+      - ./.cache/pre-commit:/var/cartography/.cache/pre-commit
+      # for git, for precommit
+      - ./.git:/var/cartography/.git
+    environment:
+      # Point to the neo4j service defined in this docker-compose file.
+      - NEO4J_URL=bolt://cartography-neo4j-1:7687
+      # this is actually needed
+      - PRE_COMMIT_HOME=/var/cartography/.cache

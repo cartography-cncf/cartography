@@ -1,13 +1,14 @@
 import logging
+from typing import Any
 from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
 
-from .util import get_botocore_config
+from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.aws.ec2.keypairs import EC2KeyPairSchema
+from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.models.aws.ec2.keypair import EC2KeyPairSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -16,42 +17,45 @@ logger = logging.getLogger(__name__)
 
 @timeit
 @aws_handle_regions
-def get_ec2_key_pairs(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
+def get_ec2_key_pairs(boto3_session: boto3.session.Session, region: str) -> list[dict[str, Any]]:
     client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
     return client.describe_key_pairs()['KeyPairs']
 
 
+def transform_ec2_key_pairs(
+        key_pairs: list[dict[str, Any]],
+        region: str,
+        current_aws_account_id: str,
+) -> list[dict[str, Any]]:
+    transformed_key_pairs = []
+    for key_pair in key_pairs:
+        key_name = key_pair["KeyName"]
+        transformed_key_pairs.append({
+            'KeyPairArn': f'arn:aws:ec2:{region}:{current_aws_account_id}:key-pair/{key_name}',
+            'KeyName': key_name,
+            'KeyFingerprint': key_pair.get("KeyFingerprint"),
+        })
+    return transformed_key_pairs
+
+
 @timeit
 def load_ec2_key_pairs(
-    neo4j_session: neo4j.Session, data: List[Dict], region: str, current_aws_account_id: str,
-    update_tag: int,
+        neo4j_session: neo4j.Session,
+        data: list[dict[str, Any]],
+        region: str,
+        current_aws_account_id: str,
+        update_tag: int,
 ) -> None:
-    ingest_key_pair = """
-    MERGE (keypair:KeyPair:EC2KeyPair{arn: $ARN, id: $ARN})
-    ON CREATE SET keypair.firstseen = timestamp()
-    SET keypair.keyname = $KeyName, keypair.keyfingerprint = $KeyFingerprint, keypair.region = $Region,
-    keypair.lastupdated = $update_tag
-    WITH keypair
-    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (aa)-[r:RESOURCE]->(keypair)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-    """
-
-    for key_pair in data:
-        key_name = key_pair["KeyName"]
-        key_fingerprint = key_pair.get("KeyFingerprint")
-        key_pair_arn = f'arn:aws:ec2:{region}:{current_aws_account_id}:key-pair/{key_name}'
-
-        neo4j_session.run(
-            ingest_key_pair,
-            ARN=key_pair_arn,
-            KeyName=key_name,
-            KeyFingerprint=key_fingerprint,
-            AWS_ACCOUNT_ID=current_aws_account_id,
-            Region=region,
-            update_tag=update_tag,
-        )
+    # Load EC2 keypairs as known by describe-key-pairs
+    logger.info(f"Loading {len(data)} EC2 keypairs for region '{region}' into graph.")
+    load(
+        neo4j_session,
+        EC2KeyPairSchema(),
+        data,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=update_tag,
+    )
 
 
 @timeit
@@ -61,11 +65,16 @@ def cleanup_ec2_key_pairs(neo4j_session: neo4j.Session, common_job_parameters: D
 
 @timeit
 def sync_ec2_key_pairs(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: list[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
         logger.info("Syncing EC2 key pairs for region '%s' in account '%s'.", region, current_aws_account_id)
         data = get_ec2_key_pairs(boto3_session, region)
-        load_ec2_key_pairs(neo4j_session, data, region, current_aws_account_id, update_tag)
+        transformed_data = transform_ec2_key_pairs(data, region, current_aws_account_id)
+        load_ec2_key_pairs(neo4j_session, transformed_data, region, current_aws_account_id, update_tag)
     cleanup_ec2_key_pairs(neo4j_session, common_job_parameters)

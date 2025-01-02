@@ -18,6 +18,15 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# As of 7/22/24, Inspector is only available in the below regions. We will need to update this hardcoded list here over
+# time. :\ https://docs.aws.amazon.com/general/latest/gr/inspector2.html
+AWS_INSPECTOR_REGIONS = {
+    "us-east-2", "us-east-1", "us-west-1", "us-west-2", "af-south-1", "ap-east-1", "ap-southeast-3", "ap-south-1",
+    "ap-northeast-3", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ca-central-1",
+    "eu-central-1", "eu-west-1", "eu-west-2", "eu-south-1", "eu-west-3", "eu-north-1", "eu-central-2", "me-south-1",
+    "sa-east-1",
+}
+
 
 @timeit
 @aws_handle_regions
@@ -206,7 +215,9 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    for region in regions:
+    inspector_regions = [region for region in regions if region in AWS_INSPECTOR_REGIONS]
+
+    for region in inspector_regions:
         logger.info(f"Syncing AWS Inspector findings for account {current_aws_account_id} and region {region}")
         findings = get_inspector_findings(boto3_session, region, current_aws_account_id)
         finding_data, package_data = transform_inspector_findings(findings)

@@ -1,120 +1,59 @@
-from string import Template
-from typing import List
 from unittest.mock import patch
 
-import neo4j
-
+import cartography.intel.semgrep.deployment
 import cartography.intel.semgrep.findings
+import tests.data.semgrep.deployment
 import tests.data.semgrep.sca
-from cartography.intel.semgrep.findings import sync
+from cartography.intel.semgrep.deployment import sync_deployment
+from cartography.intel.semgrep.findings import sync_findings
+from tests.integration.cartography.intel.semgrep.common import check_nodes_as_list
+from tests.integration.cartography.intel.semgrep.common import create_cve_nodes
+from tests.integration.cartography.intel.semgrep.common import create_dependency_nodes
+from tests.integration.cartography.intel.semgrep.common import create_github_repos
+from tests.integration.cartography.intel.semgrep.common import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_REPO_ID = "https://github.com/yourorg/yourrepo"
-TEST_REPO_FULL_NAME = "yourorg/yourrepo"
-TEST_REPO_NAME = "yourrepo"
-TEST_UPDATE_TAG = 123456789
-
-
-def _check_nodes_as_list(
-    neo4j_session: neo4j.Session, node_label: str, attrs: List[str],
-):
-    """
-    Like tests.integration.util.check_nodes()` but returns a list instead of a set.
-    """
-    if not attrs:
-        raise ValueError(
-            "`attrs` passed to check_nodes() must have at least one element.",
-        )
-
-    attrs = ", ".join(f"n.{attr}" for attr in attrs)
-    query_template = Template("MATCH (n:$NodeLabel) RETURN $Attrs")
-    result = neo4j_session.run(
-        query_template.safe_substitute(NodeLabel=node_label, Attrs=attrs),
-    )
-    return sum([row.values() for row in result], [])
-
-
-def _create_github_repos(neo4j_session):
-    # Creates a set of GitHub repositories in the graph
-    neo4j_session.run(
-        """
-        MERGE (repo:GitHubRepository{id: $repo_id, fullname: $repo_fullname, name: $repo_name})
-        ON CREATE SET repo.firstseen = timestamp()
-        SET repo.lastupdated = $update_tag
-        SET repo.archived = false
-        """,
-        repo_id=TEST_REPO_ID,
-        repo_fullname=TEST_REPO_FULL_NAME,
-        update_tag=TEST_UPDATE_TAG,
-        repo_name=TEST_REPO_NAME,
-    )
-
-
-def _create_dependency_nodes(neo4j_session):
-    # Creates a set of dependency nodes in the graph
-    neo4j_session.run(
-        """
-        MERGE (dep:Dependency{id: $dep_id})
-        ON CREATE SET dep.firstseen = timestamp()
-        SET dep.lastupdated = $update_tag
-        """,
-        dep_id="grav|1.7.42.0",
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-
-def _create_cve_nodes(neo4j_session):
-    # Creates a set of CVE nodes in the graph
-    neo4j_session.run(
-        """
-        MERGE (cve:CVE{id: $cve_id})
-        ON CREATE SET cve.firstseen = timestamp()
-        SET cve.lastupdated = $update_tag
-        """,
-        cve_id="CVE-2023-37897",
-        update_tag=TEST_UPDATE_TAG,
-    )
-
 
 @patch.object(
-    cartography.intel.semgrep.findings,
+    cartography.intel.semgrep.deployment,
     "get_deployment",
-    return_value=tests.data.semgrep.sca.DEPLOYMENTS,
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
 )
 @patch.object(
     cartography.intel.semgrep.findings,
     "get_sca_vulns",
     return_value=tests.data.semgrep.sca.RAW_VULNS,
 )
-def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
+def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     # Arrange
-    _create_github_repos(neo4j_session)
-    _create_dependency_nodes(neo4j_session)
-    _create_cve_nodes(neo4j_session)
+    create_github_repos(neo4j_session)
+    create_dependency_nodes(neo4j_session)
+    create_cve_nodes(neo4j_session)
     semgrep_app_token = "your_semgrep_app_token"
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
     }
 
     # Act
-    sync(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
+    sync_deployment(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
+    sync_findings(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
 
     # Assert
-
     assert check_nodes(
         neo4j_session,
         "SemgrepDeployment",
         ["id", "name", "slug"],
-    ) == {("123456", "YourOrg", "yourorg")}
+    ) == {("123456", "Org", "org")}
 
-    assert _check_nodes_as_list(
+    assert check_nodes_as_list(
         neo4j_session,
         "SemgrepSCAFinding",
         [
             "id",
             "lastupdated",
             "repository",
+            "branch",
             "rule_id",
             "summary",
             "description",
@@ -132,27 +71,27 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "scan_time",
         ],
     ) == [
-        "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+        tests.data.semgrep.sca.VULN_ID,
         TEST_UPDATE_TAG,
-        "yourorg/yourrepo",
-        "ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590",
-        "Reachable vuln",
+        "org/repository",
+        "main",
+        "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
+        "moment:Denial-of-Service (DoS)",
         "description",
-        "go",
+        "npm",
         "HIGH",
-        "CVE-2023-37897",
-        "MANUAL_REVIEW_REACHABLE",
+        "CVE-2022-31129",
+        "REACHABLE",
         "REACHABLE",
         "DIRECT",
-        "grav|1.7.42.0",
-        "grav|1.7.42.2",
-        "go.mod",
-        "https://github.com/yourorg/yourrepo/blame/71bbed12f950de8335006d7f91112263d8504f1b/go.mod#L111",
+        "moment|2.29.2",
+        "moment|2.29.4",
+        "package-lock.json",
+        "https: //github.com/org/repository/blob/commit_id/package-lock.json#L14373",
         [
-            "https://github.com/advisories//GHSA-9436-3gmp-4f53",
-            "https://nvd.nist.gov/vuln/detail/CVE-2023-37897",
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-31129",
         ],
-        "2023-07-19T12:51:53Z",
+        "2024-07-11T20:46:25.269650Z",
     ]
 
     assert check_nodes(
@@ -169,22 +108,13 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         ],
     ) == {
         (
-            "20128504",
-            "src/packages/directory/file1.go",
-            "24",
-            "57",
-            "24",
-            "78",
-            "https://github.com/yourorg/yourrepo/blame/6fdee8f2727f4506cfbbe553e23b895e27956588/src/packages/directory/file1.go.ts#L24",  # noqa E501
-        ),
-        (
-            "20128505",
-            "src/packages/directory/file2.go",
-            "24",
-            "37",
-            "24",
-            "54",
-            "https://github.com/yourorg/yourrepo/blame/6fdee8f2727f4506cfbbe553e23b895e27956588/src/packages/directory/file2.go.ts#L24",  # noqa E501
+            tests.data.semgrep.sca.USAGE_ID,
+            "src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx",
+            274,
+            37,
+            274,
+            62,
+            "https: //github.com/org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
         ),
     }
 
@@ -198,7 +128,7 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     ) == {
         (
             "123456",
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+            tests.data.semgrep.sca.VULN_ID,
         ),
     }
 
@@ -212,11 +142,7 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     ) == {
         (
             "123456",
-            "20128504",
-        ),
-        (
-            "123456",
-            "20128505",
+            tests.data.semgrep.sca.USAGE_ID,
         ),
     }
 
@@ -230,8 +156,8 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         rel_direction_right=False,
     ) == {
         (
-            "yourorg/yourrepo",
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+            "org/repository",
+            tests.data.semgrep.sca.VULN_ID,
         ),
     }
 
@@ -244,12 +170,8 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         "USAGE_AT",
     ) == {
         (
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
-            "20128504",
-        ),
-        (
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
-            "20128505",
+            tests.data.semgrep.sca.VULN_ID,
+            tests.data.semgrep.sca.USAGE_ID,
         ),
     }
 
@@ -262,8 +184,8 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         "AFFECTS",
     ) == {
         (
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
-            "grav|1.7.42.0",
+            tests.data.semgrep.sca.VULN_ID,
+            "moment|2.29.2",
         ),
     }
 
@@ -276,8 +198,8 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         "LINKED_TO",
     ) == {
         (
-            "CVE-2023-37897",
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+            "CVE-2022-31129",
+            tests.data.semgrep.sca.VULN_ID,
         ),
     }
 
@@ -293,10 +215,10 @@ def test_sync(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         ],
     ) == {
         (
-            "132465::::ssc-92af1d99-4fb3-4d4e-a9f4-d57572cd6590::reachable",
+            tests.data.semgrep.sca.VULN_ID,
             "REACHABLE",
-            "MANUAL_REVIEW_REACHABLE",
+            "REACHABLE",
             "HIGH",
-            "MEDIUM",
+            "HIGH",
         ),
     }

@@ -1,5 +1,35 @@
 ## Sample queries
 
+Note: you might want to add `LIMIT 30` at the end of these queries to make sure they return
+quickly in case you have a large graph.
+
+### Which AWS IAM roles have admin permissions in my accounts?
+```
+MATCH (stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow"
+AND any(x IN stmt.action WHERE x = '*')
+RETURN *
+```
+
+### Which AWS IAM roles in my environment have the ability to delete policies?
+```
+MATCH (stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(acc:AWSAccount)
+WHERE stmt.effect = "Allow"
+AND any(x IN stmt.action WHERE x="iam:DeletePolicy" )
+RETURN *
+```
+
+Note: can replace "`iam:DeletePolicy`" to search for other IAM actions.
+
+
+### Which AWS IAM roles in my environment have an action that contains the word "create"?
+```
+MATCH (stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(acc:AWSAccount)
+WHERE stmt.effect = "Allow"
+AND any(x IN stmt.action WHERE toLower(x) contains "create")
+RETURN *
+```
+
 ### What [RDS](https://aws.amazon.com/rds/) instances are installed in my [AWS](https://aws.amazon.com/) accounts?
 ```
 MATCH (aws:AWSAccount)-[r:RESOURCE]->(rds:RDSInstance)
@@ -45,21 +75,6 @@ RETURN s
 MATCH (a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance)
 WHERE rds.storage_encrypted = false
 return a.name as AWSAccount, count(rds) as UnencryptedInstances
-```
-
-### What users have the TotallyFake Chrome extension installed?
-```
-MATCH (u:GSuiteUser)-[r:INSTALLS]->(ext:ChromeExtension)
-WHERE ext.name CONTAINS 'TotallyFake'
-return ext.name, ext.version, u.email
-```
-
-### What users have installed extensions that are risky based on [CRXcavator scoring](https://crxcavator.io/docs#/risk_breakdown)?
-Risk > 200 is evidence of 3 or more critical risks or many high risks in the extension.
-```
-MATCH (u:GSuiteUser)-[r:INSTALLS]->(ext:ChromeExtension)
-WHERE ext.risk_total > 200
-return ext.name, ext.version, u.email
 ```
 
 ### What languages are used in a given GitHub repository?

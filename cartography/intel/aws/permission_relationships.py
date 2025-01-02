@@ -322,8 +322,12 @@ def cleanup_rpr(
     )
 
     statement = GraphStatement(
-        cleanup_rpr_query_template, {'UPDATE_TAG': update_tag, 'AWS_ID': current_aws_id},
-        True, 1000,
+        cleanup_rpr_query_template,
+        {'UPDATE_TAG': update_tag, 'AWS_ID': current_aws_id},
+        True,
+        1000,
+        parent_job_name=f"{relationship_name}:{node_label}",
+        parent_job_sequence_num=1,
     )
     statement.run(neo4j_session)
 

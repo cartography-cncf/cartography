@@ -4,6 +4,7 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 
+@pytest.mark.flaky(reruns=5)
 def test_check_rels(neo4j_session):
     # Arrange
     neo4j_session.run(

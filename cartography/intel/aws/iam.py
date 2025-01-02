@@ -227,6 +227,7 @@ def get_account_access_key_data(boto3_session: boto3.session.Session, username: 
         logger.warning(
             f"Could not get access key for user {username} due to NoSuchEntityException; skipping.",
         )
+        return access_keys
     for access_key in access_keys['AccessKeyMetadata']:
         access_key_id = access_key['AccessKeyId']
         last_used_info = client.get_access_key_last_used(
@@ -538,11 +539,12 @@ def _transform_policy_statements(statements: Any, policy_id: str) -> List[Dict]:
     if not isinstance(statements, list):
         statements = [statements]
     for stmt in statements:
-        if "Sid" not in stmt:
+        if "Sid" in stmt and stmt["Sid"]:
+            statement_id = stmt["Sid"]
+        else:
             statement_id = count
             count += 1
-        else:
-            statement_id = stmt["Sid"]
+
         stmt["id"] = f"{policy_id}/statement/{statement_id}"
         if "Resource" in stmt:
             stmt["Resource"] = ensure_list(stmt["Resource"])
