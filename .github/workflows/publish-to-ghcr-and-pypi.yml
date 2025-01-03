@@ -45,6 +45,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
 
       # 2. Publish to GHCR
       - uses: actions/checkout@v2
@@ -86,4 +87,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # e.g. '==0.98.0'
-          build-args: VERSION_SPECIFIER='==${{ env.VERSION }}'
+          build-args: VERSION_SPECIFIER===${{ env.VERSION }}

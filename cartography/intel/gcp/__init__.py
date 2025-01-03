@@ -7,9 +7,10 @@ from typing import Set
 
 import googleapiclient.discovery
 import neo4j
+from google.auth import default
+from google.auth.credentials import Credentials as GoogleCredentials
+from google.auth.exceptions import DefaultCredentialsError
 from googleapiclient.discovery import Resource
-from oauth2client.client import ApplicationDefaultCredentialsError
-from oauth2client.client import GoogleCredentials
 
 from cartography.config import Config
 from cartography.intel.gcp import compute
@@ -295,10 +296,9 @@ def get_gcp_credentials() -> GoogleCredentials:
     """
     try:
         # Explicitly use Application Default Credentials.
-        # See https://oauth2client.readthedocs.io/en/latest/source/
-        #             oauth2client.client.html#oauth2client.client.OAuth2Credentials
-        credentials = GoogleCredentials.get_application_default()
-    except ApplicationDefaultCredentialsError as e:
+        # See https://google-auth.readthedocs.io/en/master/user-guide.html#application-default-credentials
+        credentials, project_id = default()
+    except DefaultCredentialsError as e:
         logger.debug("Error occurred calling GoogleCredentials.get_application_default().", exc_info=True)
         logger.error(
             (

@@ -18,3 +18,4 @@ build/
 generated
 dist/
 .local
+cartography/_version.py
