@@ -1,0 +1,7 @@
+Github
+######
+
+.. toctree::
+
+    config
+    schema
