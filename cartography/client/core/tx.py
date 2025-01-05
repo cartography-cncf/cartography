@@ -249,6 +249,9 @@ def load(
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
+    if len(dict_list) == 0:
+        # If there is no data to load, save some time.
+        return
     ensure_indexes(neo4j_session, node_schema)
     ingestion_query = build_ingestion_query(node_schema)
     load_graph_data(neo4j_session, ingestion_query, dict_list, **kwargs)
