@@ -73,10 +73,12 @@ jobs:
           # for more detailed information.
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Get the cartography version from the GitHub release event metadata
-      - name: Extract version
+      # Get the cartography version from the GitHub release event metadata and sleep to wait for PyPI to finish publishing
+      - name: Extract version and sleep
         id: version
-        run: echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+        run: |
+          echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+          sleep 10
 
       - name: Build and push
         uses: docker/build-push-action@v3
