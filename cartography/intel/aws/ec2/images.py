@@ -9,6 +9,7 @@ from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.ec2 import get_ec2_regions
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.ec2.images import EC2ImageSchema
 from cartography.util import aws_handle_regions
@@ -48,7 +49,7 @@ def get_images(boto3_session: boto3.session.Session, region: str, image_ids: Lis
         self_images = client.describe_images(Owners=['self'])['Images']
         images.extend(self_images)
     except ClientError as e:
-        logger.warning(f"Failed retrieve images for region - {region}. Error - {e}")
+        logger.warning(f"Failed to retrieve private images for region - {region}. Error - {e}")
     try:
         if image_ids:
             image_ids = [image_id for image_id in image_ids if image_id is not None]
@@ -58,8 +59,25 @@ def get_images(boto3_session: boto3.session.Session, region: str, image_ids: Lis
             for image in images_in_use:
                 if image["ImageId"] not in _ids:
                     images.append(image)
+                    _ids.append(image["ImageId"])
+            # Handle cross region image ids
+            if len(_ids) != len(image_ids):
+                logger.info("Attempting to retrieve images from other regions")
+                pending_ids = [image_id for image_id in image_ids if image_id not in _ids]
+                all_regions = get_ec2_regions(boto3_session)
+                clients = {
+                    other_region: boto3_session.client('ec2', region_name=other_region, config=get_botocore_config())
+                    for other_region in all_regions if other_region != region
+                }
+                for other_region, client in clients.items():
+                    for _id in pending_ids:
+                        try:
+                            pending_image = client.describe_images(ImageIds=[_id])['Images']
+                            images.extend(pending_image)
+                        except ClientError as e:
+                            logger.warning(f"Image {id} could not be found at region - {other_region}. Error - {e}")
     except ClientError as e:
-        logger.warning(f"Failed retrieve images for region - {region}. Error - {e}")
+        logger.warning(f"Failed to retrieve public images for region - {region}. Error - {e}")
     return images
 
 
