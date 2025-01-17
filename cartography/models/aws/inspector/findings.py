@@ -73,7 +73,7 @@ class InspectorFindingToAWSAccountDelegate(CartographyRelSchema):
         {'id': PropertyRef('awsaccount')},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "DELEGATE"
+    rel_label: str = "MEMBER"
     properties: InspectorFindingToAwsAccountDelegateRelProperties = InspectorFindingToAwsAccountDelegateRelProperties()
 
 

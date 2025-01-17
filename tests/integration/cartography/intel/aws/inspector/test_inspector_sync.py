@@ -145,14 +145,14 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         ('123456789012', 'arn:aws:test789'),
     }
 
-    # Assert AWSAccount DELEGATE to Finding exists
+    # Assert AWSAccount MEMBER to Finding exists
     assert check_rels(
         neo4j_session,
         'AWSAccount',
         'id',
         'AWSInspectorFinding',
         'id',
-        'DELEGATE',
+        'MEMBER',
         rel_direction_right=True,
     ) == {
         ('123456789011', 'arn:aws:test789'),
