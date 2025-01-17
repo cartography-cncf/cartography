@@ -65,6 +65,7 @@ class InspectorFindingToAWSAccount(CartographyRelSchema):
 class InspectorFindingToAwsAccountDelegateRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
+
 @dataclass(frozen=True)
 class InspectorFindingToAWSAccountDelegate(CartographyRelSchema):
     target_node_label: str = 'AWSAccount'
@@ -74,6 +75,7 @@ class InspectorFindingToAWSAccountDelegate(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "DELEGATE"
     properties: InspectorFindingToAwsAccountDelegateRelProperties = InspectorFindingToAwsAccountDelegateRelProperties()
+
 
 @dataclass(frozen=True)
 class InspectorFindingToEC2InstanceRelProperties(CartographyRelProperties):

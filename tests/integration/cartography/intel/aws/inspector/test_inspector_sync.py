@@ -114,7 +114,7 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         rel_direction_right=True,
     ) == {
         ('arn:aws:test456', 'i-88503981029833100'),
-        ('arn:aws:test789', 'i-88503981029833101')
+        ('arn:aws:test789', 'i-88503981029833101'),
     }
 
     assert check_rels(
@@ -128,7 +128,7 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
     ) == {
         ('arn:aws:test456', 'kernel-tools|X86_64|4.9.17|6.29.amzn1|0'),
         ('arn:aws:test456', 'kernel|X86_64|4.9.17|6.29.amzn1|0'),
-        ('arn:aws:test789', 'openssl|X86_64|1.0.2k|1.amzn2|0')
+        ('arn:aws:test789', 'openssl|X86_64|1.0.2k|1.amzn2|0'),
     }
 
     # Assert AWSAccount RESOURCE to Finding exists
