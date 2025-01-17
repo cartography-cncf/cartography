@@ -67,6 +67,34 @@ def test_transform_inspector_findings_package():
                 'kernel|X86_64|4.9.17|6.29.amzn1|0',
             ],
         },
+        {
+            'id': 'arn:aws:test789',
+            'arn': 'arn:aws:test789',
+            'vulnerabilityid': 'CVE-2023-1234',
+            'instanceid': 'i-88503981029833101',
+            'severity': 'HIGH',
+            'name': 'CVE-2023-1234 - openssl',
+            'firstobservedat': datetime(2022, 5, 4, 16, 23, 3, 692000),
+            'updatedat': datetime(2022, 5, 4, 16, 23, 3, 692000),
+            'awsaccount': '123456789011',
+            'description': 'A buffer overflow vulnerability in OpenSSL allows remote attackers '
+            'to execute arbitrary code or cause a denial of service via crafted '
+            'SSL/TLS handshake messages.',
+            'cvssscore': 7.5,
+            'type': 'PACKAGE_VULNERABILITY',
+            'referenceurls': ['https://nvd.nist.gov/vuln/detail/CVE-2023-1234'],
+            'relatedvulnerabilities': [],
+            'source': 'NVD',
+            'vendorcreatedat': datetime(2023, 1, 15, 10, 0),
+            'vendorupdatedat': None,
+            'vendorseverity': 'High',
+            'sourceurl': 'https://nvd.nist.gov/vuln/detail/CVE-2023-1234',
+            'status': 'ACTIVE',
+
+            'vulnerablepackageids': [
+                'openssl|X86_64|1.0.2k|1.amzn2|0',
+            ],
+        },
     ]
     assert packages == [
         {
@@ -96,5 +124,19 @@ def test_transform_inspector_findings_package():
             'release': '6.29.amzn1',
             'sourcelayerhash': None,
             'version': '4.9.17',
+        },
+        {
+            'arch': 'X86_64',
+            'awsaccount': '123456789011',
+            'epoch': 0,
+            'filepath': None,
+            'findingarn': 'arn:aws:test789',
+            'fixedinversion': None,
+            'id': 'openssl|X86_64|1.0.2k|1.amzn2|0',
+            'manager': 'OS',
+            'name': 'openssl',
+            'release': '1.amzn2',
+            'sourcelayerhash': None,
+            'version': '1.0.2k',
         },
     ]
