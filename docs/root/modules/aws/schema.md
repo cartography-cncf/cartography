@@ -192,7 +192,11 @@ Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspect
     ```
     (AWSInspectorFinding)-[:AFFECTS]->(ECRImage)
     ```
+- AWSInspectorFinding may be delegated from AWSAccounts.
 
+        ```
+        (AWSAccount)-[DELEGATE]->(AWSInspectorFinding)
+        ```
 - AWSInspectorFindings belong to AWSAccounts.
 
         ```
