@@ -62,6 +62,22 @@ class InspectorFindingToAWSAccount(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class InspectorFindingToAwsAccountDelegateRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class InspectorFindingToAWSAccountDelegate(CartographyRelSchema):
+    target_node_label: str = 'AWSAccount'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('awsaccount')},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER"
+    properties: InspectorFindingToAwsAccountDelegateRelProperties = InspectorFindingToAwsAccountDelegateRelProperties()
+
+
+@dataclass(frozen=True)
 class InspectorFindingToEC2InstanceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
@@ -120,5 +136,6 @@ class AWSInspectorFindingSchema(CartographyNodeSchema):
             InspectorFindingToEC2Instance(),
             InspectorFindingToECRRepository(),
             InspectorFindingToECRImage(),
+            InspectorFindingToAWSAccountDelegate(),
         ],
     )

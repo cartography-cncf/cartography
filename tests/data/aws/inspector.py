@@ -191,4 +191,78 @@ LIST_FINDINGS_EC2_PACKAGE = [
         'type': 'PACKAGE_VULNERABILITY',
         'updatedAt': datetime(2022, 5, 4, 16, 23, 3, 692000),
     },
+    {
+        'awsAccountId': '123456789011',
+        'description': 'A buffer overflow vulnerability in OpenSSL allows remote attackers '
+        'to execute arbitrary code or cause a denial of service via crafted '
+        'SSL/TLS handshake messages.',
+        'findingArn': 'arn:aws:test789',
+        'firstObservedAt': datetime(2022, 5, 4, 16, 23, 3, 692000),
+        'inspectorScore': 7.5,
+        'inspectorScoreDetails': {
+            'adjustedCvss': {
+                'adjustments': [],
+                'cvssSource': 'NVD',
+                'score': 7.5,
+                'scoreSource': 'NVD',
+                'scoringVector': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N',
+                'version': '3.1',
+            },
+        },
+        'lastObservedAt': datetime(2022, 5, 4, 16, 23, 3, 692000),
+        'packageVulnerabilityDetails': {
+            'cvss': [
+                {
+                    'baseScore': 7.5,
+                    'scoringVector': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N',
+                    'source': 'NVD',
+                    'version': '3.1',
+                },
+            ],
+            'referenceUrls': ['https://nvd.nist.gov/vuln/detail/CVE-2023-1234'],
+            'relatedVulnerabilities': [],
+            'source': 'NVD',
+            'sourceUrl': 'https://nvd.nist.gov/vuln/detail/CVE-2023-1234',
+            'vendorCreatedAt': datetime(2023, 1, 15, 10, 0),
+            'vendorSeverity': 'High',
+            'vulnerabilityId': 'CVE-2023-1234',
+            'vulnerablePackages': [
+                {
+                    'arch': 'X86_64',
+                    'epoch': 0,
+                    'name': 'openssl',
+                    'packageManager': 'OS',
+                    'release': '1.amzn2',
+                    'version': '1.0.2k',
+                },
+            ],
+        },
+        'remediation': {'recommendation': {'text': 'Update to the latest version of OpenSSL'}},
+        'resources': [{
+            'details': {
+                'awsEc2Instance': {
+                    'iamInstanceProfileArn': 'arn:aws:iam::123456789011:instance-profile/InspectorTestingRole',
+                    'imageId': 'ami-00800800',
+                    'ipV4Addresses': ['10.0.1.4'],
+                    'ipV6Addresses': [],
+                    'keyName': 'InspectorTest',
+                    'launchedAt': datetime(2022, 5, 4, 16, 15, 41),
+                    'platform': 'AMAZON_LINUX_2',
+                    'subnetId': 'subnet-11203981029833100',
+                    'type': 't2.micro',
+                    'vpcId': 'vpc-11203981029822100',
+                },
+            },
+            'id': 'i-88503981029833101',
+            'partition': 'aws',
+            'region': 'us-west-2',
+            'tags': {},
+            'type': 'AWS_EC2_INSTANCE',
+        }],
+        'severity': 'HIGH',
+        'status': 'ACTIVE',
+        'title': 'CVE-2023-1234 - openssl',
+        'type': 'PACKAGE_VULNERABILITY',
+        'updatedAt': datetime(2022, 5, 4, 16, 23, 3, 692000),
+    },
 ]

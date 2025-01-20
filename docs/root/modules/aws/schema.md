@@ -192,12 +192,17 @@ Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspect
     ```
     (AWSInspectorFinding)-[:AFFECTS]->(ECRImage)
     ```
-
-- AWSInspectorFindings belong to AWSAccounts.
+- AWSInspectorFindings managed by AWSAccount.
 
         ```
         (AWSAccount)-[RESOURCE]->(AWSInspectorFinding)
         ```
+- AWSInspectorFinding was found at an AWSAccounts. `MEMBER` accounts are where the finding is attached to, while `RESOURCE` accounts can be a delegated administrator. [Understanding the delegated administrator account and member account in Amazon Inspector](https://docs.aws.amazon.com/inspector/latest/user/admin-member-relationship.html) .
+
+        ```
+        (AWSAccount)-[MEMBER]->(AWSInspectorFinding)
+        ```
+
 
 ### AWSInspectorPackage
 
