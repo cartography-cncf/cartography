@@ -14,6 +14,7 @@ from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.models.aws.apigateway import APIGatewayRestAPISchema
+from cartography.models.aws.apigatewaystage import APIGatewayStageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -185,42 +186,32 @@ def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> No
     )
 
 
-@timeit
-def _load_apigateway_stages(
-        neo4j_session: neo4j.Session, stages: List, update_tag: int,
-) -> None:
+def transform_apigateway_stages(stages: List[Dict], update_tag: int) -> List[Dict]:
     """
-    Ingest the Stage resource details into neo4j.
+    Transform API Gateway Stage data for ingestion
     """
-    ingest_stages = """
-    UNWIND $stages_list AS stage
-    MERGE (s:APIGatewayStage{id: stage.arn})
-    ON CREATE SET s.firstseen = timestamp(), s.stagename = stage.stageName,
-    s.createddate = stage.createdDate
-    SET s.deploymentid = stage.deploymentId,
-    s.clientcertificateid = stage.clientCertificateId,
-    s.cacheclusterenabled = stage.cacheClusterEnabled,
-    s.cacheclusterstatus = stage.cacheClusterStatus,
-    s.tracingenabled = stage.tracingEnabled,
-    s.webaclarn = stage.webAclArn,
-    s.lastupdated = $UpdateTag
-    WITH s, stage
-    MATCH (rest_api:APIGatewayRestAPI{id: stage.apiId})
-    MERGE (rest_api)-[r:ASSOCIATED_WITH]->(s)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-
-    # neo4j does not accept datetime objects and values. This loop is used to convert
-    # these values to string.
+    stage_data = []
     for stage in stages:
         stage['createdDate'] = str(stage['createdDate'])
-        stage['arn'] = "arn:aws:apigateway:::" + stage['apiId'] + "/" + stage['stageName']
+        stage['arn'] = f"arn:aws:apigateway:::{stage['apiId']}/{stage['stageName']}"
+        stage_data.append(stage)
+    return stage_data
 
-    neo4j_session.run(
-        ingest_stages,
-        stages_list=stages,
-        UpdateTag=update_tag,
+
+@timeit
+def _load_apigateway_stages(
+    neo4j_session: neo4j.Session, stages: List[Dict], update_tag: int,
+) -> None:
+    """
+    Ingest API Gateway Stage data into neo4j.
+    """
+    data = transform_apigateway_stages(stages, update_tag)
+
+    load(
+        neo4j_session,
+        APIGatewayStageSchema(),
+        data,
+        lastupdated=update_tag,
     )
 
 
