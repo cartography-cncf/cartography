@@ -12,6 +12,8 @@ import neo4j
 from botocore.exceptions import ClientError
 from policyuniverse.policy import Policy
 
+from cartography.client.core.tx import load
+from cartography.models.aws.apigateway import APIGatewayRestAPISchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -107,41 +109,43 @@ def get_rest_api_policy(api: Dict, client: botocore.client.BaseClient) -> Any:
     return policy
 
 
+def transform_apigateway_rest_apis(
+    rest_apis: List[Dict], region: str, current_aws_account_id: str, aws_update_tag: int,
+) -> List[Dict]:
+    """
+    Transform API Gateway REST API data for ingestion
+    """
+    # Convert datetime objects to strings
+    for api in rest_apis:
+        api['createdDate'] = str(api['createdDate']) if 'createdDate' in api else None
+
+    return [
+        {
+            'id': api['id'],
+            'createdDate': api['createdDate'],
+            'version': api.get('version'),
+            'minimumCompressionSize': api.get('minimumCompressionSize'),
+            'disableExecuteApiEndpoint': api.get('disableExecuteApiEndpoint'),
+        } for api in rest_apis
+    ]
+
+
 @timeit
 def load_apigateway_rest_apis(
     neo4j_session: neo4j.Session, rest_apis: List[Dict], region: str, current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     """
-    Ingest the details of API Gateway REST APIs into neo4j.
+    Ingest API Gateway REST API data into neo4j.
     """
-    ingest_rest_apis = """
-    UNWIND $rest_apis_list AS r
-    MERGE (rest_api:APIGatewayRestAPI{id:r.id})
-    ON CREATE SET rest_api.firstseen = timestamp(),
-    rest_api.createddate = r.createdDate
-    SET rest_api.version = r.version,
-    rest_api.minimumcompressionsize = r.minimumCompressionSize,
-    rest_api.disableexecuteapiendpoint = r.disableExecuteApiEndpoint,
-    rest_api.lastupdated = $aws_update_tag,
-    rest_api.region = $Region
-    WITH rest_api
-    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (aa)-[r:RESOURCE]->(rest_api)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
+    data = transform_apigateway_rest_apis(rest_apis, region, current_aws_account_id, aws_update_tag)
 
-    # neo4j does not accept datetime objects and values. This loop is used to convert
-    # these values to string.
-    for api in rest_apis:
-        api['createdDate'] = str(api['createdDate']) if 'createdDate' in api else None
-
-    neo4j_session.run(
-        ingest_rest_apis,
-        rest_apis_list=rest_apis,
-        aws_update_tag=aws_update_tag,
-        Region=region,
+    load(
+        neo4j_session,
+        APIGatewayRestAPISchema(),
+        data,
+        region=region,
+        lastupdated=aws_update_tag,
         AWS_ACCOUNT_ID=current_aws_account_id,
     )
 
