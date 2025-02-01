@@ -14,6 +14,7 @@ from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.models.aws.apigateway import APIGatewayRestAPISchema
+from cartography.models.aws.apigatewaycertificate import APIGatewayClientCertificateSchema
 from cartography.models.aws.apigatewaystage import APIGatewayStageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
@@ -215,36 +216,33 @@ def _load_apigateway_stages(
     )
 
 
-@timeit
-def _load_apigateway_certificates(
-        neo4j_session: neo4j.Session, certificates: List, update_tag: int,
-) -> None:
+def transform_apigateway_certificates(certificates: List[Dict], update_tag: int) -> List[Dict]:
     """
-    Ingest the API Gateway Client Certificate details into neo4j.
+    Transform API Gateway Client Certificate data for ingestion
     """
-    ingest_certificates = """
-    UNWIND $certificates_list as certificate
-    MERGE (c:APIGatewayClientCertificate{id: certificate.clientCertificateId})
-    ON CREATE SET c.firstseen = timestamp(), c.createddate = certificate.createdDate
-    SET c.lastupdated = $UpdateTag, c.expirationdate = certificate.expirationDate
-    WITH c, certificate
-    MATCH (stage:APIGatewayStage{id: certificate.stageArn})
-    MERGE (stage)-[r:HAS_CERTIFICATE]->(c)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-
-    # neo4j does not accept datetime objects and values. This loop is used to convert
-    # these values to string.
+    cert_data = []
     for certificate in certificates:
         certificate['createdDate'] = str(certificate['createdDate'])
         certificate['expirationDate'] = str(certificate.get('expirationDate'))
-        certificate['stageArn'] = "arn:aws:apigateway:::" + certificate['apiId'] + "/" + certificate['stageName']
+        certificate['stageArn'] = f"arn:aws:apigateway:::{certificate['apiId']}/{certificate['stageName']}"
+        cert_data.append(certificate)
+    return cert_data
 
-    neo4j_session.run(
-        ingest_certificates,
-        certificates_list=certificates,
-        UpdateTag=update_tag,
+
+@timeit
+def _load_apigateway_certificates(
+    neo4j_session: neo4j.Session, certificates: List[Dict], update_tag: int,
+) -> None:
+    """
+    Ingest API Gateway Client Certificate data into neo4j.
+    """
+    data = transform_apigateway_certificates(certificates, update_tag)
+
+    load(
+        neo4j_session,
+        APIGatewayClientCertificateSchema(),
+        data,
+        lastupdated=update_tag,
     )
 
 

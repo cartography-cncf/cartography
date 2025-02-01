@@ -19,3 +19,4 @@ generated
 dist/
 .local
 cartography/_version.py
+uv.lock
