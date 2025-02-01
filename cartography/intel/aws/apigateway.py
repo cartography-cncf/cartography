@@ -265,12 +265,10 @@ def _load_apigateway_resources(
     """
     Ingest API Gateway Resource data into neo4j.
     """
-    data = transform_apigateway_resources(resources, update_tag)
-
     load(
         neo4j_session,
         APIGatewayResourceSchema(),
-        data,
+        resources,
         lastupdated=update_tag,
     )
 
