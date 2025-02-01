@@ -15,6 +15,7 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.models.aws.apigateway import APIGatewayRestAPISchema
 from cartography.models.aws.apigatewaycertificate import APIGatewayClientCertificateSchema
+from cartography.models.aws.apigatewayresource import APIGatewayResourceSchema
 from cartography.models.aws.apigatewaystage import APIGatewayStageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
@@ -246,32 +247,31 @@ def _load_apigateway_certificates(
     )
 
 
+def transform_apigateway_resources(resources: List[Dict], update_tag: int) -> List[Dict]:
+    """
+    Transform API Gateway Resource data for ingestion
+    """
+    resource_data = []
+    for resource in resources:
+        resource['lastupdated'] = update_tag
+        resource_data.append(resource)
+    return resource_data
+
+
 @timeit
 def _load_apigateway_resources(
-        neo4j_session: neo4j.Session, resources: List, update_tag: int,
+    neo4j_session: neo4j.Session, resources: List[Dict], update_tag: int,
 ) -> None:
     """
-    Ingest the API Gateway Resource details into neo4j.
+    Ingest API Gateway Resource data into neo4j.
     """
-    ingest_resources = """
-    UNWIND $resources_list AS res
-    MERGE (s:APIGatewayResource{id: res.id})
-    ON CREATE SET s.firstseen = timestamp()
-    SET s.path = res.path,
-    s.pathpart = res.pathPart,
-    s.parentid = res.parentId,
-    s.lastupdated =$UpdateTag
-    WITH s, res
-    MATCH (rest_api:APIGatewayRestAPI{id: res.apiId})
-    MERGE (rest_api)-[r:RESOURCE]->(s)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
+    data = transform_apigateway_resources(resources, update_tag)
 
-    neo4j_session.run(
-        ingest_resources,
-        resources_list=resources,
-        UpdateTag=update_tag,
+    load(
+        neo4j_session,
+        APIGatewayResourceSchema(),
+        data,
+        lastupdated=update_tag,
     )
 
 
