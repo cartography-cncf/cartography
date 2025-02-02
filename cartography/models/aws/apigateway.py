@@ -19,6 +19,8 @@ class APIGatewayRestAPINodeProperties(CartographyNodeProperties):
     disableexecuteapiendpoint: PropertyRef = PropertyRef('disableExecuteApiEndpoint')
     region: PropertyRef = PropertyRef('region', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    anonymous_access: PropertyRef = PropertyRef('anonymous_access')
+    anonymous_actions: PropertyRef = PropertyRef('anonymous_actions')
 
 
 @dataclass(frozen=True)

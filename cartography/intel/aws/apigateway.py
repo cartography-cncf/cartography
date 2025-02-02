@@ -113,36 +113,43 @@ def get_rest_api_policy(api: Dict, client: botocore.client.BaseClient) -> Any:
 
 
 def transform_apigateway_rest_apis(
-    rest_apis: List[Dict], region: str, current_aws_account_id: str, aws_update_tag: int,
+    rest_apis: List[Dict], policies: List[Dict], region: str, current_aws_account_id: str, aws_update_tag: int,
 ) -> List[Dict]:
     """
-    Transform API Gateway REST API data for ingestion
+    Transform API Gateway REST API data for ingestion, including policy analysis
     """
-    # Convert datetime objects to strings
-    for api in rest_apis:
-        api['createdDate'] = str(api['createdDate']) if 'createdDate' in api else None
+    # Create a mapping of api_id to policy data for easier lookup
+    policy_map = {
+        policy['api_id']: policy
+        for policy in policies
+    }
 
-    return [
-        {
+    transformed_apis = []
+    for api in rest_apis:
+        policy_data = policy_map.get(api['id'], {})
+        transformed_api = {
             'id': api['id'],
-            'createdDate': api['createdDate'],
+            'createdDate': str(api['createdDate']) if 'createdDate' in api else None,
             'version': api.get('version'),
             'minimumCompressionSize': api.get('minimumCompressionSize'),
             'disableExecuteApiEndpoint': api.get('disableExecuteApiEndpoint'),
-        } for api in rest_apis
-    ]
+            # Set defaults in the transform function
+            'anonymous_access': policy_data.get('internet_accessible', False),
+            'anonymous_actions': policy_data.get('accessible_actions', []),
+        }
+        transformed_apis.append(transformed_api)
+
+    return transformed_apis
 
 
 @timeit
 def load_apigateway_rest_apis(
-    neo4j_session: neo4j.Session, rest_apis: List[Dict], region: str, current_aws_account_id: str,
+    neo4j_session: neo4j.Session, data: List[Dict], region: str, current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     """
     Ingest API Gateway REST API data into neo4j.
     """
-    data = transform_apigateway_rest_apis(rest_apis, region, current_aws_account_id, aws_update_tag)
-
     load(
         neo4j_session,
         APIGatewayRestAPISchema(),
@@ -353,9 +360,23 @@ def sync_apigateway_rest_apis(
     aws_update_tag: int,
 ) -> None:
     rest_apis = get_apigateway_rest_apis(boto3_session, region)
-    load_apigateway_rest_apis(neo4j_session, rest_apis, region, current_aws_account_id, aws_update_tag)
-
     stages_certificate_resources = get_rest_api_details(boto3_session, rest_apis, region)
+
+    # Extract policies and transform the data
+    policies = []
+    for api_id, _, _, _, policy in stages_certificate_resources:
+        parsed_policy = parse_policy(api_id, policy)
+        if parsed_policy is not None:
+            policies.append(parsed_policy)
+
+    transformed_apis = transform_apigateway_rest_apis(
+        rest_apis,
+        policies,
+        region,
+        current_aws_account_id,
+        aws_update_tag,
+    )
+    load_apigateway_rest_apis(neo4j_session, transformed_apis, region, current_aws_account_id, aws_update_tag)
     load_rest_api_details(neo4j_session, stages_certificate_resources, current_aws_account_id, aws_update_tag)
 
 
