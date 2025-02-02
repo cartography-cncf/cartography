@@ -25,6 +25,11 @@ class APIGatewayClientCertificateToStageRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+class CertToStageRelProps(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 # (:APIGatewayStage)-[:HAS_CERTIFICATE]->(:APIGatewayClientCertificate)
 class APIGatewayClientCertificateToStage(CartographyRelSchema):
     target_node_label: str = 'APIGatewayStage'
@@ -33,11 +38,29 @@ class APIGatewayClientCertificateToStage(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_CERTIFICATE"
-    properties: APIGatewayClientCertificateToStageRelProperties = APIGatewayClientCertificateToStageRelProperties()
+    properties: CertToStageRelProps = CertToStageRelProps()
+
+
+@dataclass(frozen=True)
+class CertToAccountRelProps(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:APIGatewayClientCertificate)<-[:RESOURCE]-(:AWSAccount)
+class APIGatewayClientCertificateToAWSAccount(CartographyRelSchema):
+    target_node_label: str = 'AWSAccount'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('AWS_ID', set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: CertToAccountRelProps = CertToAccountRelProps()
 
 
 @dataclass(frozen=True)
 class APIGatewayClientCertificateSchema(CartographyNodeSchema):
     label: str = 'APIGatewayClientCertificate'
     properties: APIGatewayClientCertificateNodeProperties = APIGatewayClientCertificateNodeProperties()
+    sub_resource_relationship: APIGatewayClientCertificateToAWSAccount = APIGatewayClientCertificateToAWSAccount()
     other_relationships: OtherRelationships = OtherRelationships([APIGatewayClientCertificateToStage()])
