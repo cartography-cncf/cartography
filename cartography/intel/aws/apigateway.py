@@ -160,41 +160,6 @@ def load_apigateway_rest_apis(
     )
 
 
-@timeit
-def _load_apigateway_policies(
-        neo4j_session: neo4j.Session, policies: List, update_tag: int,
-) -> None:
-    """
-    Ingest API Gateway REST API policy results into neo4j.
-    """
-    ingest_policies = """
-    UNWIND $policies as policy
-    MATCH (r:APIGatewayRestAPI) where r.name = policy.api_id
-    SET r.anonymous_access = (coalesce(r.anonymous_access, false) OR policy.internet_accessible),
-    r.anonymous_actions = coalesce(r.anonymous_actions, []) + policy.accessible_actions,
-    r.lastupdated = $UpdateTag
-    """
-
-    neo4j_session.run(
-        ingest_policies,
-        policies=policies,
-        UpdateTag=update_tag,
-    )
-
-
-def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> None:
-    set_defaults = """
-    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(restApi:APIGatewayRestAPI)
-    where restApi.anonymous_actions IS NULL
-    SET restApi.anonymous_access = false, restApi.anonymous_actions = []
-    """
-
-    neo4j_session.run(
-        set_defaults,
-        AWS_ID=aws_account_id,
-    )
-
-
 def transform_apigateway_stages(stages: List[Dict], update_tag: int) -> List[Dict]:
     """
     Transform API Gateway Stage data for ingestion
@@ -316,11 +281,9 @@ def load_rest_api_details(
         {'UPDATE_TAG': update_tag, 'AWS_ID': aws_account_id},
     )
 
-    _load_apigateway_policies(neo4j_session, policies, update_tag)
     _load_apigateway_stages(neo4j_session, stages, update_tag)
     _load_apigateway_certificates(neo4j_session, certificates, update_tag)
     _load_apigateway_resources(neo4j_session, resources, update_tag)
-    _set_default_values(neo4j_session, aws_account_id)
 
 
 @timeit
