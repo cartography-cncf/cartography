@@ -20,3 +20,5 @@ dist/
 .local
 cartography/_version.py
 uv.lock
+.cursor-server
+.gitconfig
