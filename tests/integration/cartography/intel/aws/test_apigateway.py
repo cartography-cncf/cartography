@@ -1,5 +1,9 @@
 import cartography.intel.aws.apigateway
 import tests.data.aws.apigateway
+from cartography.client.core.tx import load
+from cartography.models.aws.apigatewaycertificate import APIGatewayClientCertificateSchema
+from cartography.models.aws.apigatewayresource import APIGatewayResourceSchema
+from cartography.models.aws.apigatewaystage import APIGatewayStageSchema
 
 TEST_ACCOUNT_ID = '000000000000'
 TEST_REGION = 'eu-west-1'
@@ -72,10 +76,12 @@ def test_load_apigateway_rest_apis_relationships(neo4j_session):
 
 def test_load_apigateway_stages(neo4j_session):
     data = tests.data.aws.apigateway.GET_STAGES
-    cartography.intel.aws.apigateway._load_apigateway_stages(
+    load(
         neo4j_session,
+        APIGatewayStageSchema(),
         data,
-        TEST_UPDATE_TAG,
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
     expected_nodes = {
@@ -106,10 +112,12 @@ def test_load_apigateway_stages_relationships(neo4j_session):
 
     # Load test API Gateway Stages
     data_stages = tests.data.aws.apigateway.GET_STAGES
-    cartography.intel.aws.apigateway._load_apigateway_stages(
+    load(
         neo4j_session,
+        APIGatewayStageSchema(),
         data_stages,
-        TEST_UPDATE_TAG,
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
     expected = {
@@ -138,10 +146,12 @@ def test_load_apigateway_stages_relationships(neo4j_session):
 
 def test_load_apigateway_certificates(neo4j_session):
     data = tests.data.aws.apigateway.GET_CERTIFICATES
-    cartography.intel.aws.apigateway._load_apigateway_certificates(
+    load(
         neo4j_session,
+        APIGatewayClientCertificateSchema(),
         data,
-        TEST_UPDATE_TAG,
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
     expected_nodes = {
@@ -162,18 +172,22 @@ def test_load_apigateway_certificates(neo4j_session):
 def test_load_apigateway_certificates_relationships(neo4j_session):
     # Load test API Gateway Stages
     data_stages = tests.data.aws.apigateway.GET_STAGES
-    cartography.intel.aws.apigateway._load_apigateway_stages(
+    load(
         neo4j_session,
+        APIGatewayStageSchema(),
         data_stages,
-        TEST_UPDATE_TAG,
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
     # Load test Client Certificates
     data_certificates = tests.data.aws.apigateway.GET_CERTIFICATES
-    cartography.intel.aws.apigateway._load_apigateway_certificates(
+    load(
         neo4j_session,
+        APIGatewayClientCertificateSchema(),
         data_certificates,
-        TEST_UPDATE_TAG,
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
     expected = {
@@ -202,10 +216,12 @@ def test_load_apigateway_certificates_relationships(neo4j_session):
 
 def test_load_apigateway_resources(neo4j_session):
     data = tests.data.aws.apigateway.GET_RESOURCES
-    cartography.intel.aws.apigateway._load_apigateway_resources(
+    load(
         neo4j_session,
+        APIGatewayResourceSchema(),
         data,
-        TEST_UPDATE_TAG,
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
     expected_nodes = {
@@ -235,10 +251,12 @@ def test_load_apigateway_resources_relationships(neo4j_session):
 
     # Load test API Gateway Resource resources
     data_resources = tests.data.aws.apigateway.GET_RESOURCES
-    cartography.intel.aws.apigateway._load_apigateway_resources(
+    load(
         neo4j_session,
+        APIGatewayResourceSchema(),
         data_resources,
-        TEST_UPDATE_TAG,
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
     expected = {

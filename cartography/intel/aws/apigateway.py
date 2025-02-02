@@ -156,7 +156,7 @@ def load_apigateway_rest_apis(
         data,
         region=region,
         lastupdated=aws_update_tag,
-        AWS_ACCOUNT_ID=current_aws_account_id,
+        AWS_ID=current_aws_account_id,
     )
 
 
@@ -172,21 +172,6 @@ def transform_apigateway_stages(stages: List[Dict], update_tag: int) -> List[Dic
     return stage_data
 
 
-@timeit
-def _load_apigateway_stages(
-    neo4j_session: neo4j.Session, stages: List[Dict], update_tag: int,
-) -> None:
-    """
-    Ingest API Gateway Stage data into neo4j.
-    """
-    load(
-        neo4j_session,
-        APIGatewayStageSchema(),
-        stages,
-        lastupdated=update_tag,
-    )
-
-
 def transform_apigateway_certificates(certificates: List[Dict], update_tag: int) -> List[Dict]:
     """
     Transform API Gateway Client Certificate data for ingestion
@@ -198,36 +183,6 @@ def transform_apigateway_certificates(certificates: List[Dict], update_tag: int)
         certificate['stageArn'] = f"arn:aws:apigateway:::{certificate['apiId']}/{certificate['stageName']}"
         cert_data.append(certificate)
     return cert_data
-
-
-@timeit
-def _load_apigateway_certificates(
-    neo4j_session: neo4j.Session, certificates: List[Dict], update_tag: int,
-) -> None:
-    """
-    Ingest API Gateway Client Certificate data into neo4j.
-    """
-    load(
-        neo4j_session,
-        APIGatewayClientCertificateSchema(),
-        certificates,
-        lastupdated=update_tag,
-    )
-
-
-@timeit
-def _load_apigateway_resources(
-    neo4j_session: neo4j.Session, resources: List[Dict], update_tag: int,
-) -> None:
-    """
-    Ingest API Gateway Resource data into neo4j.
-    """
-    load(
-        neo4j_session,
-        APIGatewayResourceSchema(),
-        resources,
-        lastupdated=update_tag,
-    )
 
 
 def transform_rest_api_details(
@@ -273,9 +228,29 @@ def load_rest_api_details(
     """
     stages, certificates, resources = transform_rest_api_details(stages_certificate_resources)
 
-    _load_apigateway_stages(neo4j_session, stages, update_tag)
-    _load_apigateway_certificates(neo4j_session, certificates, update_tag)
-    _load_apigateway_resources(neo4j_session, resources, update_tag)
+    load(
+        neo4j_session,
+        APIGatewayStageSchema(),
+        stages,
+        lastupdated=update_tag,
+        AWS_ID=aws_account_id,
+    )
+
+    load(
+        neo4j_session,
+        APIGatewayClientCertificateSchema(),
+        certificates,
+        lastupdated=update_tag,
+        AWS_ID=aws_account_id,
+    )
+
+    load(
+        neo4j_session,
+        APIGatewayResourceSchema(),
+        resources,
+        lastupdated=update_tag,
+        AWS_ID=aws_account_id,
+    )
 
 
 @timeit
@@ -307,9 +282,24 @@ def parse_policy(api_id: str, policy: Policy) -> Optional[Dict[Any, Any]]:
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     """
-    Delete out-of-date API Gateway resources and relationships
+    Delete out-of-date API Gateway resources and relationships.
+    Order matters - clean up certificates, stages, and resources before cleaning up the REST APIs they connect to.
     """
     logger.info("Running API Gateway cleanup job.")
+
+    # Clean up certificates first
+    cleanup_job = GraphJob.from_node_schema(APIGatewayClientCertificateSchema(), common_job_parameters)
+    cleanup_job.run(neo4j_session)
+
+    # Then stages
+    cleanup_job = GraphJob.from_node_schema(APIGatewayStageSchema(), common_job_parameters)
+    cleanup_job.run(neo4j_session)
+
+    # Then resources
+    cleanup_job = GraphJob.from_node_schema(APIGatewayResourceSchema(), common_job_parameters)
+    cleanup_job.run(neo4j_session)
+
+    # Finally REST APIs
     cleanup_job = GraphJob.from_node_schema(APIGatewayRestAPISchema(), common_job_parameters)
     cleanup_job.run(neo4j_session)
 

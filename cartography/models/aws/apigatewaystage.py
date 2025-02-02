@@ -43,7 +43,25 @@ class APIGatewayStageToRestAPI(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class APIGatewayStageToAwsAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:APIGatewayStage)<-[:RESOURCE]-(:AWSAccount)
+class APIGatewayStageToAWSAccount(CartographyRelSchema):
+    target_node_label: str = 'AWSAccount'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('AWS_ID', set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: APIGatewayStageToAwsAccountRelProperties = APIGatewayStageToAwsAccountRelProperties()
+
+
+@dataclass(frozen=True)
 class APIGatewayStageSchema(CartographyNodeSchema):
     label: str = 'APIGatewayStage'
     properties: APIGatewayStageNodeProperties = APIGatewayStageNodeProperties()
+    sub_resource_relationship: APIGatewayStageToAWSAccount = APIGatewayStageToAWSAccount()
     other_relationships: OtherRelationships = OtherRelationships([APIGatewayStageToRestAPI()])

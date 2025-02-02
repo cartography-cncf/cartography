@@ -33,7 +33,7 @@ class APIGatewayRestAPIToAwsAccountRelProperties(CartographyRelProperties):
 class APIGatewayRestAPIToAWSAccount(CartographyRelSchema):
     target_node_label: str = 'AWSAccount'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('AWS_ACCOUNT_ID', set_in_kwargs=True)},
+        {'id': PropertyRef('AWS_ID', set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
