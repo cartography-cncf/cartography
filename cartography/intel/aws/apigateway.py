@@ -13,12 +13,12 @@ from botocore.exceptions import ClientError
 from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.models.aws.apigateway import APIGatewayRestAPISchema
 from cartography.models.aws.apigatewaycertificate import APIGatewayClientCertificateSchema
 from cartography.models.aws.apigatewayresource import APIGatewayResourceSchema
 from cartography.models.aws.apigatewaystage import APIGatewayStageSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -179,12 +179,10 @@ def _load_apigateway_stages(
     """
     Ingest API Gateway Stage data into neo4j.
     """
-    data = transform_apigateway_stages(stages, update_tag)
-
     load(
         neo4j_session,
         APIGatewayStageSchema(),
-        data,
+        stages,
         lastupdated=update_tag,
     )
 
@@ -209,25 +207,12 @@ def _load_apigateway_certificates(
     """
     Ingest API Gateway Client Certificate data into neo4j.
     """
-    data = transform_apigateway_certificates(certificates, update_tag)
-
     load(
         neo4j_session,
         APIGatewayClientCertificateSchema(),
-        data,
+        certificates,
         lastupdated=update_tag,
     )
-
-
-def transform_apigateway_resources(resources: List[Dict], update_tag: int) -> List[Dict]:
-    """
-    Transform API Gateway Resource data for ingestion
-    """
-    resource_data = []
-    for resource in resources:
-        resource['lastupdated'] = update_tag
-        resource_data.append(resource)
-    return resource_data
 
 
 @timeit
@@ -245,41 +230,48 @@ def _load_apigateway_resources(
     )
 
 
-@timeit
-def load_rest_api_details(
-        neo4j_session: neo4j.Session, stages_certificate_resources: List[Tuple[Any, Any, Any, Any, Any]],
-        aws_account_id: str, update_tag: int,
-) -> None:
+def transform_rest_api_details(
+    stages_certificate_resources: List[Tuple[Any, Any, Any, Any, Any]],
+) -> Tuple[List[Dict], List[Dict], List[Dict]]:
     """
-    Create dictionaries for Stages, Client certificates, policies and Resource resources
-    so we can import them in a single query
+    Transform Stage, Client Certificate, and Resource data for ingestion
     """
     stages: List[Dict] = []
     certificates: List[Dict] = []
     resources: List[Dict] = []
-    policies: List = []
+
     for api_id, stage, certificate, resource, policy in stages_certificate_resources:
-        parsed_policy = parse_policy(api_id, policy)
-        if parsed_policy is not None:
-            policies.append(parsed_policy)
         if len(stage) > 0:
             for s in stage:
                 s['apiId'] = api_id
+                s['createdDate'] = str(s['createdDate'])
+                s['arn'] = f"arn:aws:apigateway:::{api_id}/{s['stageName']}"
             stages.extend(stage)
+
+        if certificate:
+            certificate['apiId'] = api_id
+            certificate['createdDate'] = str(certificate['createdDate'])
+            certificate['expirationDate'] = str(certificate.get('expirationDate'))
+            certificate['stageArn'] = f"arn:aws:apigateway:::{api_id}/{certificate['stageName']}"
+            certificates.append(certificate)
+
         if len(resource) > 0:
             for r in resource:
                 r['apiId'] = api_id
             resources.extend(resource)
-        if certificate:
-            certificate['apiId'] = api_id
-            certificates.append(certificate)
 
-    # cleanup existing properties
-    run_cleanup_job(
-        'aws_apigateway_details.json',
-        neo4j_session,
-        {'UPDATE_TAG': update_tag, 'AWS_ID': aws_account_id},
-    )
+    return stages, certificates, resources
+
+
+@timeit
+def load_rest_api_details(
+    neo4j_session: neo4j.Session, stages_certificate_resources: List[Tuple[Any, Any, Any, Any, Any]],
+    aws_account_id: str, update_tag: int,
+) -> None:
+    """
+    Transform and load Stage, Client Certificate, and Resource data
+    """
+    stages, certificates, resources = transform_rest_api_details(stages_certificate_resources)
 
     _load_apigateway_stages(neo4j_session, stages, update_tag)
     _load_apigateway_certificates(neo4j_session, certificates, update_tag)
@@ -314,7 +306,12 @@ def parse_policy(api_id: str, policy: Policy) -> Optional[Dict[Any, Any]]:
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_apigateway_cleanup.json', neo4j_session, common_job_parameters)
+    """
+    Delete out-of-date API Gateway resources and relationships
+    """
+    logger.info("Running API Gateway cleanup job.")
+    cleanup_job = GraphJob.from_node_schema(APIGatewayRestAPISchema(), common_job_parameters)
+    cleanup_job.run(neo4j_session)
 
 
 @timeit
