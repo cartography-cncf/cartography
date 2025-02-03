@@ -49,6 +49,6 @@ updates:
     # TODO: Remove when ready to upgrade to python:3.11
     ignore:
       - dependency-name: "*"
-      - update-types:
+        update-types:
         - version-update:semver-major
         - version-update:semver-minor
