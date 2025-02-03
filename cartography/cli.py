@@ -10,6 +10,8 @@ import cartography.sync
 import cartography.util
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
+from cartography.settings import decrecated_config
+from cartography.settings import settings
 
 
 logger = logging.getLogger(__name__)
@@ -66,6 +68,7 @@ class CLI:
             type=str,
             default='bolt://localhost:7687',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__URI instead.'
                 'A valid Neo4j URI to sync against. See '
                 'https://neo4j.com/docs/api/python-driver/current/driver.html#uri for complete documentation on the '
                 'structure of a Neo4j URI.'
@@ -75,18 +78,25 @@ class CLI:
             '--neo4j-user',
             type=str,
             default=None,
-            help='A username with which to authenticate to Neo4j.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__USER instead.'
+                'A username with which to authenticate to Neo4j.'
+            ),
         )
         parser.add_argument(
             '--neo4j-password-env-var',
             type=str,
             default=None,
-            help='The name of an environment variable containing a password with which to authenticate to Neo4j.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__PASSWORD instead.'
+                'The name of an environment variable containing a password with which to authenticate to Neo4j.'
+            ),
         )
         parser.add_argument(
             '--neo4j-password-prompt',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__PASSWORD_PROMPT instead.'
                 'Present an interactive prompt for a password with which to authenticate to Neo4j. This parameter '
                 'supersedes other methods of supplying a Neo4j password.'
             ),
@@ -96,6 +106,7 @@ class CLI:
             type=int,
             default=3600,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__MAX_CONNECTION_LIFETIME instead.'
                 'Time in seconds for the Neo4j driver to consider a TCP connection alive. cartography default = 3600, '
                 'which is the same as the Neo4j driver default. See '
                 'https://neo4j.com/docs/driver-manual/1.7/client-applications/#driver-config-connection-pool-management'
@@ -107,6 +118,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__DATABASE instead.'
                 'The name of the database in Neo4j to connect to. If not specified, uses the config settings of your '
                 'Neo4j database itself to infer which database is set to default. '
                 'See https://neo4j.com/docs/api/python-driver/4.4/api.html#database.'
@@ -133,6 +145,7 @@ class CLI:
             type=int,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__UPDATE_TAG instead.'
                 'A unique tag to apply to all Neo4j nodes and relationships created or updated during the sync run. '
                 'This tag is used by cleanup jobs to identify nodes and relationships that are stale and need to be '
                 'removed from the graph. By default, cartography will use a UNIX timestamp as the update tag.'
@@ -457,6 +470,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_LASTPASS__CID instead.'
                 'The name of environment variable containing the Lastpass CID for authentication.'
             ),
         )
@@ -465,6 +479,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_LASTPASS__PROVHASH instead.'
                 'The name of environment variable containing the Lastpass provhash for authentication.'
             ),
         )
@@ -569,6 +584,11 @@ class CLI:
         """
         # TODO support parameter lookup in environment variables if not present on command line
         config: argparse.Namespace = self.parser.parse_args(argv)
+        # DEPRECATED: please use cartography.settings instead
+        if config.update_tag:
+            decrecated_config('update_tag', 'CARTOGRAPHY_COMMON__UPDATE_TAG')
+            settings.update({'common': {'update_tag': config.update_tag}})
+
         # Logging config
         if config.verbose:
             logging.getLogger('cartography').setLevel(logging.DEBUG)
@@ -577,12 +597,18 @@ class CLI:
         else:
             logging.getLogger('cartography').setLevel(logging.INFO)
         logger.debug("Launching cartography with CLI configuration: %r", vars(config))
+
         # Neo4j config
         if config.neo4j_user:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('neo4j_user', 'CARTOGRAPHY_NEO4J__USER')
+
+            settings.update({'neo4j': {'user': config.neo4j_user}})
             config.neo4j_password = None
             if config.neo4j_password_prompt:
                 logger.info("Reading password for Neo4j user '%s' interactively.", config.neo4j_user)
                 config.neo4j_password = getpass.getpass()
+                settings.update({'neo4j': {'password': config.neo4j_password}})
             elif config.neo4j_password_env_var:
                 logger.debug(
                     "Reading password for Neo4j user '%s' from environment variable '%s'.",
@@ -590,8 +616,15 @@ class CLI:
                     config.neo4j_password_env_var,
                 )
                 config.neo4j_password = os.environ.get(config.neo4j_password_env_var)
+                settings.update({'neo4j': {'password': config.neo4j_password}})
             if not config.neo4j_password:
                 logger.warning("Neo4j username was provided but a password could not be found.")
+        elif settings.neo4j.get('user', None):
+            config.neo4j_uri = settings.neo4j.uri
+            config.neo4j_max_connection_lifetime = settings.max_connection_lifetime
+            config.neo4j_database = settings.neo4j.database
+            config.neo4j_user = settings.neo4j.user
+            config.neo4j_password = settings.neo4j.password
         else:
             config.neo4j_password = None
 
@@ -713,13 +746,23 @@ class CLI:
 
         # Lastpass config
         if config.lastpass_cid_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('lastpass_cid_env_var', 'CARTOGRAPHY_LASTPASS__CID')
             logger.debug(f"Reading CID for Lastpass from environment variable {config.lastpass_cid_env_var}")
             config.lastpass_cid = os.environ.get(config.lastpass_cid_env_var)
+            settings.update({'lastpass': {'cid': config.lastpass_cid}})
+        elif settings.lastpass.get('cid', None):
+            config.lastpass_cid = settings.lastpass.cid
         else:
             config.lastpass_cid = None
         if config.lastpass_provhash_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('lastpass_provhash_env_var', 'CARTOGRAPHY_LASTPASS__PROVHASH')
             logger.debug(f"Reading provhash for Lastpass from environment variable {config.lastpass_provhash_env_var}")
             config.lastpass_provhash = os.environ.get(config.lastpass_provhash_env_var)
+            settings.update({'lastpass': {'provhash': config.lastpass_provhash}})
+        elif settings.lastpass.get('provhash', None):
+            config.lastpass_provhash = settings.lastpass.provhash
         else:
             config.lastpass_provhash = None
 
