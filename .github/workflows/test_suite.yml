@@ -14,18 +14,18 @@ jobs:
   linter:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-      - uses: pre-commit/action@v3.0.0
+      - uses: pre-commit/action@v3.0.1
         with:
           extra_args: --all-files --show-diff-on-failure
 
   unit-and-integration-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       # https://stackoverflow.com/a/64592785
       - name: neo4j 4 instance setup
         run: |
@@ -36,11 +36,11 @@ jobs:
             --publish 7473:7473 \
             --publish 7687:7687 \
             neo4j:4.4-community
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
       # Cache our pip dir for efficiency; see https://medium.com/ai2-blog/python-caching-in-github-actions-e9452698e98d.
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ hashFiles('setup.py') }}-${{ hashFiles('pyproject.toml') }}
@@ -59,7 +59,7 @@ jobs:
   unit-and-integration-tests-neo4j5:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       # https://stackoverflow.com/a/64592785
       - name: neo4j 5 setup
         run: |
@@ -70,11 +70,11 @@ jobs:
             --publish 7473:7473 \
             --publish 7687:7687 \
             neo4j:5
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
       # Cache our pip dir for efficiency; see https://medium.com/ai2-blog/python-caching-in-github-actions-e9452698e98d.
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ hashFiles('setup.py') }}-${{ hashFiles('pyproject.toml') }}
@@ -94,18 +94,18 @@ jobs:
   build-docker-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           file: Dockerfile
           push: false # only build the image, don't push it anywhere

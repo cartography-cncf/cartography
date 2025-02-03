@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # 1. Publish to PyPI
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Set up Python 3.10
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
@@ -48,18 +48,18 @@ jobs:
           skip_existing: true
 
       # 2. Publish to GHCR
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           # This is the user that triggered the Workflow. In this case, it will
@@ -81,7 +81,7 @@ jobs:
           sleep 10
 
       - name: Build and push
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           file: Dockerfile
           context: .
