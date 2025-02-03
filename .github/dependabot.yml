@@ -46,7 +46,9 @@ updates:
       # Prefix all commit messages with "chore: "
       prefix: "chore"
     # Ignore major & minor updates to stay on python:3.10
+    # TODO: Remove when ready to upgrade to python:3.11
     ignore:
+      - dependency-name: "*"
       - update-types:
         - version-update:semver-major
         - version-update:semver-minor
