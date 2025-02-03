@@ -47,6 +47,6 @@ updates:
       prefix: "chore"
     # Ignore major & minor updates to stay on python:3.10
     ignore:
-      - update-types: 
+      - update-types:
         - version-update:semver-major
         - version-update:semver-minor
