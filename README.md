@@ -1,5 +1,10 @@
 ![Cartography](docs/root/images/logo-horizontal.png)
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cartography-cncf/cartography/badge)](https://scorecard.dev/viewer/?uri=github.com/cartography-cncf/cartography)
+![build](https://github.com/cartography-cncf/cartography/actions/workflows/publish-to-ghcr-and-pypi.yml/badge.svg)
+
+
+
 Cartography is a Python tool that consolidates infrastructure assets and the relationships between them in an intuitive graph view powered by a [Neo4j](https://www.neo4j.com) database.
 
 ![Visualization of RDS nodes and AWS nodes](docs/root/images/accountsandrds.png)
