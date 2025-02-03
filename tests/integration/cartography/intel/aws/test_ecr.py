@@ -130,6 +130,7 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
         ('000000000000.dkr.ecr.us-east-1/sample-repository', '000000000000.dkr.ecr.us-east-1/sample-repository:2'),
         ('000000000000.dkr.ecr.us-east-1/test-repository', '000000000000.dkr.ecr.us-east-1/test-repository:1234567890'),
         ('000000000000.dkr.ecr.us-east-1/test-repository', '000000000000.dkr.ecr.us-east-1/test-repository:1'),
+        ('000000000000.dkr.ecr.us-east-1/test-repository', '000000000000.dkr.ecr.us-east-1/test-repository'),
     }
 
     # Assert repository image to image relationship
@@ -165,6 +166,10 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
         (
             '000000000000.dkr.ecr.us-east-1/test-repository:1',
             'sha256:0000000000000000000000000000000000000000000000000000000000000021',
+        ),
+        (
+            '000000000000.dkr.ecr.us-east-1/test-repository',
+            'sha256:0000000000000000000000000000000000000000000000000000000000000031',
         ),
     }
 
