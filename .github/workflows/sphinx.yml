@@ -6,6 +6,9 @@ on:
     branches:
       - 'master'
 
+# Declare default permissions as read only.
+permissions: read-all
+
 env:
   DEFAULT_BRANCH: "master"
 
@@ -13,6 +16,8 @@ jobs:
   build-and-deploy:
     name: Build and gh-pages
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       # https://github.com/marketplace/actions/checkout
       - uses: actions/checkout@v4

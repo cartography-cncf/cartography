@@ -5,8 +5,10 @@ on:
     types: [created]
   workflow_dispatch: {}
 
-jobs:
+# Explicitly grant the `secrets.GITHUB_TOKEN` no permissions.
+permissions: {}
 
+jobs:
   build-and-publish-to-pypi-and-ghcr:
     # Explicitly grant the `secrets.GITHUB_TOKEN` permissions.
     permissions:
