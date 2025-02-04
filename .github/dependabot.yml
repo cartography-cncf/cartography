@@ -36,6 +36,9 @@ updates:
     # This should be removed if we stick to a pinned version strategy
     # Ref: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/controlling-dependencies-updated#defining-a-versioning-strategy
     versioning-strategy: increase-if-necessary
+    # TODO: Remove when #857 is fixed
+    ignore:
+      - dependency-name: "okta"
   # Maintain dependencies for Docker
   - package-ecosystem: "docker"
     directory: "/"
