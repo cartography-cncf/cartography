@@ -8,7 +8,7 @@ updates:
     target-branch: "master"
     commit-message:
       # Prefix all commit messages with "chore: "
-      prefix: "chore"
+      prefix: "chore: "
     groups:
       # Group all minor and patch updates for GitHub Actions
       # Keep individual updates for major updates
