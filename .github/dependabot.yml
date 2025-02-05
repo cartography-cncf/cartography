@@ -47,7 +47,7 @@ updates:
     target-branch: "master"
     commit-message:
       # Prefix all commit messages with "chore: "
-      prefix: "chore"
+      prefix: "chore: "
     # Ignore major & minor updates to stay on python:3.10
     # TODO: Remove when ready to upgrade to python:3.11
     ignore:
