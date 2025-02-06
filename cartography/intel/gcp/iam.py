@@ -60,7 +60,9 @@ def get_gcp_service_accounts(iam_client: Resource, project_id: str) -> List[Dict
     """
     service_accounts: List[Dict[str, Any]] = []
     try:
-        request = iam_client.projects().serviceAccounts().list(name=f'projects/{project_id}')
+        request = iam_client.projects().serviceAccounts().list(
+            name=f'projects/{project_id}'
+        )
         while request is not None:
             response = request.execute()
             if 'accounts' in response:
@@ -90,12 +92,17 @@ def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict[str, Any]]
     """
     roles: List[Dict[str, Any]] = []
     try:
-        request = iam_client.roles().list(parent=f'projects/{project_id}')
+        request = iam_client.roles().list(
+            parent=f'projects/{project_id}'
+        )
         while request is not None:
             response = request.execute()
             if 'roles' in response:
                 roles.extend(response['roles'])
-            request = iam_client.roles().list_next(previous_request=request, previous_response=response)
+            request = iam_client.roles().list_next(
+                previous_request=request,
+                previous_response=response,
+            )
     except Exception as e:
         logger.warning(f"Error retrieving IAM roles for project {project_id}: {e}")
     return roles
@@ -139,33 +146,31 @@ def load_gcp_users(
 @timeit
 def load_gcp_service_accounts(
     neo4j_session: neo4j.Session,
-    service_account_data: List[Dict[str, Any]],
+    service_accounts: List[Dict[str, Any]],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
     """
-    Ingest GCP service accounts into Neo4j.
-
-    :type neo4j_session: Neo4j session object
-    :param neo4j_session: The Neo4j session
-
-    :type service_account_data: List[Dict]
-    :param service_account_data: A list of GCP service accounts
-
-    :type project_id: str
-    :param project_id: The project ID that the service accounts belong to
-
-    :type gcp_update_tag: int
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-
-    :rtype: None
-    :return: Nothing
+    Load GCP service account information into Neo4j.
     """
-    logger.info(f"Loading {len(service_account_data)} GCP service accounts for project {project_id}")
+    logger.debug(f"Loading {len(service_accounts)} service accounts for project {project_id}")
+    transformed_service_accounts = []
+    for sa in service_accounts:
+        transformed_sa = {
+            'id': sa['uniqueId'],  # Use uniqueId as the id field
+            'email': sa.get('email'),
+            'displayName': sa.get('displayName'),
+            'oauth2ClientId': sa.get('oauth2ClientId'),
+            'uniqueId': sa.get('uniqueId'),
+            'disabled': sa.get('disabled', False),
+            'projectId': project_id,
+        }
+        transformed_service_accounts.append(transformed_sa)
+    
     load(
         neo4j_session,
         GCPServiceAccountSchema(),
-        service_account_data,
+        transformed_service_accounts,
         lastupdated=gcp_update_tag,
         projectId=project_id,
     )
@@ -208,12 +213,22 @@ def load_gcp_roles(
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+    """
+    Delete nodes that are no longer present in GCP
+    """
     logger.debug("Running GCP IAM cleanup job")
+    # Add projectId to the job parameters
+    job_params = {
+        **common_job_parameters,
+        'projectId': common_job_parameters.get('PROJECT_ID'),
+    }
+    
     cleanup_jobs = [
-        GraphJob.from_node_schema(GCPUserSchema(), common_job_parameters),
-        GraphJob.from_node_schema(GCPServiceAccountSchema(), common_job_parameters),
-        GraphJob.from_node_schema(GCPRoleSchema(), common_job_parameters),
+        GraphJob.from_node_schema(GCPUserSchema(), job_params),
+        GraphJob.from_node_schema(GCPServiceAccountSchema(), job_params),
+        GraphJob.from_node_schema(GCPRoleSchema(), job_params),
     ]
+    
     for cleanup_job in cleanup_jobs:
         cleanup_job.run(neo4j_session)
 
@@ -227,38 +242,18 @@ def sync(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
-    Sync GCP IAM resources (users, service accounts, and roles) for a given project.
-
-    :type neo4j_session: Neo4j session object
-    :param neo4j_session: The Neo4j session
-
-    :type iam_client: The GCP IAM resource object
-    :param iam_client: The IAM resource object created by googleapiclient.discovery.build()
-
-    :type project_id: str
-    :param project_id: The project ID to sync
-
-    :type gcp_update_tag: int
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-
-    :type common_job_parameters: Dict
-    :param common_job_parameters: Dictionary of common parameters used for Neo4j jobs
-
-    :rtype: None
-    :return: Nothing
+    Sync GCP IAM resources (service accounts and roles) for a given project.
     """
     logger.info(f"Syncing GCP IAM for project {project_id}")
     
-    # Get and load users
-    users = get_gcp_users(iam_client, project_id)
-    load_gcp_users(neo4j_session, users, project_id, gcp_update_tag)
-    
     # Get and load service accounts
     service_accounts = get_gcp_service_accounts(iam_client, project_id)
+    logger.info(f"Found {len(service_accounts)} service accounts in project {project_id}")
     load_gcp_service_accounts(neo4j_session, service_accounts, project_id, gcp_update_tag)
     
     # Get and load roles
     roles = get_gcp_roles(iam_client, project_id)
+    logger.info(f"Found {len(roles)} roles in project {project_id}")
     load_gcp_roles(neo4j_session, roles, project_id, gcp_update_tag)
     
     # Run cleanup

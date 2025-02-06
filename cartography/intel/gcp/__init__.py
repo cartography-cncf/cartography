@@ -114,6 +114,13 @@ def _get_serviceusage_resource(credentials: GoogleCredentials) -> Resource:
     return googleapiclient.discovery.build('serviceusage', 'v1', credentials=credentials, cache_discovery=False)
 
 
+def _get_iam_resource(credentials: GoogleCredentials) -> Resource:
+    """
+    Instantiates a Google IAM resource object to call the IAM API.
+    """
+    return googleapiclient.discovery.build('iam', 'v1', credentials=credentials, cache_discovery=False)
+
+
 def _initialize_resources(credentials: GoogleCredentials) -> Resource:
     """
     Create namedtuple of all resource objects necessary for GCP data gathering.
@@ -128,7 +135,7 @@ def _initialize_resources(credentials: GoogleCredentials) -> Resource:
         container=None,
         dns=None,
         storage=None,
-        iam=None,
+        iam=_get_iam_resource(credentials),
     )
 
 
