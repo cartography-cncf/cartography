@@ -187,6 +187,8 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
     We recommend creating a separate venv for just Cartography and its dependencies. You can read about venvs [here](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments), and searching on how to use tools like pyenv and pyenv-virtualenv.
 
+    You can also use Poetry by running `poetry install` (or `poetry install --all-extras` if you want tests dependencies). You will then need to prefix your commands with `poetry run python3` (e.g., `poetry run python3 cartography -h`).
+
 1. **Configure your data sources.**
 
     See the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) for more details. In this example we will use [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html).

@@ -21,7 +21,7 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
     Run `cd cartography` and then `pip install -e .` (yes, actually type the period into the command line) to install Cartography from source to the current venv.
 
-    You can also use Poetry by running `poetry install`. You will then need to prefix your commands with `poetry run python3` (e.g., `poetry run python3 cartography -h`).
+    You can also use Poetry by running `poetry install` (or `poetry install --all-extras` if you want tests dependencies). You will then need to prefix your commands with `poetry run python3` (e.g., `poetry run python3 cartography -h`).
 
 4. **Run from source**
 
@@ -31,7 +31,7 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
 1. **Install test requirements**
 
-    `pip install -r test-requirements.txt`
+    `pip install .[dev]`
 
 1. **(OPTIONAL) Setup environment variables for integration tests**
 
