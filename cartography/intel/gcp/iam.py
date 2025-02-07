@@ -83,41 +83,6 @@ def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict[str, Any]]
 
 
 @timeit
-def load_gcp_users(
-    neo4j_session: neo4j.Session,
-    user_data: List[Dict[str, Any]],
-    project_id: str,
-    gcp_update_tag: int,
-) -> None:
-    """
-    Ingest GCP IAM users into Neo4j.
-
-    :type neo4j_session: Neo4j session object
-    :param neo4j_session: The Neo4j session
-
-    :type user_data: List[Dict]
-    :param user_data: A list of GCP IAM users
-
-    :type project_id: str
-    :param project_id: The project ID that the users belong to
-
-    :type gcp_update_tag: int
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-
-    :rtype: None
-    :return: Nothing
-    """
-    logger.info(f"Loading {len(user_data)} GCP users for project {project_id}")
-    load(
-        neo4j_session,
-        GCPUserSchema(),
-        user_data,
-        lastupdated=gcp_update_tag,
-        projectId=project_id,
-    )
-
-
-@timeit
 def load_gcp_service_accounts(
     neo4j_session: neo4j.Session,
     service_accounts: List[Dict[str, Any]],
