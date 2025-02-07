@@ -7,7 +7,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.gcp.iam import GCPUserSchema, GCPServiceAccountSchema, GCPRoleSchema
+from cartography.models.gcp.iam import GCPServiceAccountSchema, GCPRoleSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -66,12 +66,13 @@ def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict[str, Any]]
     roles: List[Dict[str, Any]] = []
     try:
         request = iam_client.roles().list(
-            parent=f'projects/{project_id}'
+            parent=f'projects/{project_id}',
+            view='FULL'  # Add this to get full role details including permissions
         )
         while request is not None:
             response = request.execute()
             if 'roles' in response:
-                roles.extend(response['roles'])
+                roles.extend(response['roles'])  # The list() API already includes permissions
             request = iam_client.roles().list_next(
                 previous_request=request,
                 previous_response=response,
@@ -152,33 +153,43 @@ def load_gcp_service_accounts(
 @timeit
 def load_gcp_roles(
     neo4j_session: neo4j.Session,
-    role_data: List[Dict[str, Any]],
+    roles: List[Dict[str, Any]],
     project_id: str,
     gcp_update_tag: int,
 ) -> None:
     """
-    Ingest GCP IAM roles into Neo4j.
-
-    :type neo4j_session: Neo4j session object
-    :param neo4j_session: The Neo4j session
-
-    :type role_data: List[Dict]
-    :param role_data: A list of GCP IAM roles
-
-    :type project_id: str
-    :param project_id: The project ID that the roles belong to
-
-    :type gcp_update_tag: int
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-
-    :rtype: None
-    :return: Nothing
+    Load GCP role information into Neo4j.
     """
-    logger.info(f"Loading {len(role_data)} GCP roles for project {project_id}")
+    logger.debug(f"Loading {len(roles)} roles for project {project_id}")
+    transformed_roles = []
+    for role in roles:
+        role_name = role['name']
+        # Determine role type
+        if role_name.startswith('roles/'):
+            if role_name in ['roles/owner', 'roles/editor', 'roles/viewer']:
+                role_type = 'BASIC'
+            else:
+                role_type = 'PREDEFINED'
+        else:
+            role_type = 'CUSTOM'
+            
+        transformed_role = {
+            'id': role_name,
+            'name': role_name,
+            'title': role.get('title'),
+            'description': role.get('description'),
+            'deleted': role.get('deleted', False),
+            'etag': role.get('etag'),
+            'includedPermissions': role.get('includedPermissions', []),
+            'roleType': role_type,
+            'projectId': project_id,
+        }
+        transformed_roles.append(transformed_role)
+    
     load(
         neo4j_session,
         GCPRoleSchema(),
-        role_data,
+        transformed_roles,
         lastupdated=gcp_update_tag,
         projectId=project_id,
     )
@@ -194,7 +205,6 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any])
     }
     
     cleanup_jobs = [
-        GraphJob.from_node_schema(GCPUserSchema(), job_params),
         GraphJob.from_node_schema(GCPServiceAccountSchema(), job_params),
         GraphJob.from_node_schema(GCPRoleSchema(), job_params),
     ]
@@ -213,6 +223,7 @@ def sync(
 ) -> None:
     """
     Sync GCP IAM resources (service accounts and roles) for a given project.
+    Note that "users" in GCP come from the GSuite module. 
     """
     logger.info(f"Syncing GCP IAM for project {project_id}")
     

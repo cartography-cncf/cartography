@@ -36,6 +36,7 @@ class GCPRoleNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef('description')
     deleted: PropertyRef = PropertyRef('deleted')
     etag: PropertyRef = PropertyRef('etag')
+    permissions: PropertyRef = PropertyRef('includedPermissions')
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
     project_id: PropertyRef = PropertyRef('projectId', set_in_kwargs=True)
 
