@@ -17,15 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GCPUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('id', extra_index=True)
-    email: PropertyRef = PropertyRef('email', extra_index=True)
-    display_name: PropertyRef = PropertyRef('displayName')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
-    project_id: PropertyRef = PropertyRef('projectId', set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
 class GCPServiceAccountNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef('id', extra_index=True)
     email: PropertyRef = PropertyRef('email', extra_index=True)
@@ -64,13 +55,6 @@ class GCPIAMToProject(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: GCPIAMToProjectRelProperties = GCPIAMToProjectRelProperties()
-
-
-@dataclass(frozen=True)
-class GCPUserSchema(CartographyNodeSchema):
-    label: str = 'GCPUser'
-    properties: GCPUserNodeProperties = GCPUserNodeProperties()
-    sub_resource_relationship: GCPIAMToProject = GCPIAMToProject()
 
 
 @dataclass(frozen=True)

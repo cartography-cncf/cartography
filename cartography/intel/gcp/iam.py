@@ -18,33 +18,6 @@ DESCRIBE_SLEEP = 1
 
 
 @timeit
-def get_gcp_users(iam_client: Resource, project_id: str) -> List[Dict[str, Any]]:
-    """
-    Returns a list of GCP IAM users within the given project.
-
-    :type iam_client: The GCP IAM resource object
-    :param iam_client: The IAM resource object created by googleapiclient.discovery.build()
-
-    :type project_id: str
-    :param project_id: The GCP Project ID that you are retrieving users from
-
-    :rtype: List[Dict]
-    :return: List of GCP IAM users
-    """
-    users: List[Dict[str, Any]] = []
-    try:
-        request = iam_client.users().list(parent=f'projects/{project_id}')
-        while request is not None:
-            response = request.execute()
-            if 'users' in response:
-                users.extend(response['users'])
-            request = iam_client.users().list_next(previous_request=request, previous_response=response)
-    except Exception as e:
-        logger.warning(f"Error retrieving IAM users for project {project_id}: {e}")
-    return users
-
-
-@timeit
 def get_gcp_service_accounts(iam_client: Resource, project_id: str) -> List[Dict[str, Any]]:
     """
     Returns a list of GCP service accounts within the given project.
@@ -213,9 +186,6 @@ def load_gcp_roles(
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    """
-    Delete nodes that are no longer present in GCP
-    """
     logger.debug("Running GCP IAM cleanup job")
     # Add projectId to the job parameters
     job_params = {
