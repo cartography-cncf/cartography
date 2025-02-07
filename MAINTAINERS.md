@@ -6,7 +6,7 @@ List of community members who have shown they are committed to Cartography's con
 
 - Alex Chantavy (https://github.com/achantavy): General catch-all
 - Ramon Petgrave (https://github.com/ramonpetgrave64): General catch-all
-- Jérémy Chapeau (https://github.com/resilience-jychp): Plugin development
+- Jérémy Chapeau (https://github.com/jychp): Plugin development
 - Ryan Lane (https://github.com/ryan-lane): Plugin development, general engineering best practices
 - Marco Lancini (https://github.com/marco-lancini): Deployment and use-cases
 - Kedar Ghule (https://github.com/kedarghule): Plugin development
