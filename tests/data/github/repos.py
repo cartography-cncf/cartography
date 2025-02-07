@@ -87,7 +87,7 @@ GET_REPOS: List[dict[str, Any]] = [
         'name': 'cartography',
         'nameWithOwner': 'lyft/cartography',
         'primaryLanguage': {'name': 'Python'},
-        'url': 'https://github.com/lyft/cartography',
+        'url': 'https://github.com/cartography-cncf/cartography',
         'sshUrl': 'git@github.com:lyft/cartography.git',
         'createdAt': '2019-02-27T00:16:29Z',
         'description': 'One graph to rule them all',

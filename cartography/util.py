@@ -225,10 +225,10 @@ If not, then the AWS datatype somehow does not have this key.''',
 AWSGetFunc = TypeVar('AWSGetFunc', bound=Callable[..., Iterable])
 
 # fix for AWS TooManyRequestsException
-# https://github.com/lyft/cartography/issues/297
-# https://github.com/lyft/cartography/issues/243
-# https://github.com/lyft/cartography/issues/65
-# https://github.com/lyft/cartography/issues/25
+# https://github.com/cartography-cncf/cartography/issues/297
+# https://github.com/cartography-cncf/cartography/issues/243
+# https://github.com/cartography-cncf/cartography/issues/65
+# https://github.com/cartography-cncf/cartography/issues/25
 
 
 def backoff_handler(details: Dict) -> None:
@@ -261,10 +261,10 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
 
     @wraps(func)
     # fix for AWS TooManyRequestsException
-    # https://github.com/lyft/cartography/issues/297
-    # https://github.com/lyft/cartography/issues/243
-    # https://github.com/lyft/cartography/issues/65
-    # https://github.com/lyft/cartography/issues/25
+    # https://github.com/cartography-cncf/cartography/issues/297
+    # https://github.com/cartography-cncf/cartography/issues/243
+    # https://github.com/cartography-cncf/cartography/issues/65
+    # https://github.com/cartography-cncf/cartography/issues/25
     @backoff.on_exception(
         backoff.expo,
         botocore.exceptions.ClientError,

@@ -188,7 +188,7 @@ def _attach_gcp_project_parent(neo4j_session: neo4j.Session, project: Dict, gcp_
     else:
         raise NotImplementedError(
             "Ingestion of GCP {}s as parent nodes is currently not supported. "
-            "Please file an issue at https://github.com/lyft/cartography/issues.".format(
+            "Please file an issue at https://github.com/cartography-cncf/cartography/issues.".format(
                 project['parent']['type'],
             ),
         )

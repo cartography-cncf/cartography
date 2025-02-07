@@ -132,7 +132,7 @@ html_context = sphinx_material.get_html_context()
 html_theme_options = {
     'globaltoc_depth': 2,
     'globaltoc_collapse': True,
-    'repo_url': 'https://github.com/lyft/cartography',
+    'repo_url': 'https://github.com/cartography-cncf/cartography',
     'repo_name': 'cartography',
     'repo_type': 'github',
 }

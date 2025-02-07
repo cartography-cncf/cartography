@@ -100,7 +100,7 @@ def test__get_role_tags_no_tags(mocker):
 
 def test_transform_policy_data_correctly_creates_lists_of_statements():
     # "pol-name" is a policy containing a single statement
-    # See https://github.com/lyft/cartography/issues/1102
+    # See https://github.com/cartography-cncf/cartography/issues/1102
     pol_statement_map = {
         'some-arn': {
             'pol-name': {

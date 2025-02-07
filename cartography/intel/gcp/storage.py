@@ -247,5 +247,5 @@ def sync_gcp_buckets(
     storage_res = get_gcp_buckets(storage, project_id)
     bucket_list = transform_gcp_buckets(storage_res)
     load_gcp_buckets(neo4j_session, bucket_list, gcp_update_tag)
-    # TODO scope the cleanup to the current project - https://github.com/lyft/cartography/issues/381
+    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
     cleanup_gcp_buckets(neo4j_session, common_job_parameters)

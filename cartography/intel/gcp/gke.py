@@ -191,5 +191,5 @@ def sync_gke_clusters(
     logger.info("Syncing Compute objects for project %s.", project_id)
     gke_res = get_gke_clusters(container, project_id)
     load_gke_clusters(neo4j_session, gke_res, project_id, gcp_update_tag)
-    # TODO scope the cleanup to the current project - https://github.com/lyft/cartography/issues/381
+    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
     cleanup_gke_clusters(neo4j_session, common_job_parameters)

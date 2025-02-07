@@ -120,7 +120,7 @@ def test_sync_github_teams(mock_teams, mock_team_repos, mock_team_users, mock_ch
         'READ',
         rel_direction_right=True,
     ) == {
-        ('https://github.com/orgs/example_org/teams/team-b', 'https://github.com/lyft/cartography'),
+        ('https://github.com/orgs/example_org/teams/team-b', 'https://github.com/cartography-cncf/cartography'),
     }
     assert check_rels(
         neo4j_session,

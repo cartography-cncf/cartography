@@ -55,7 +55,7 @@ GH_TEAM_REPOS = PaginatedGraphqlData(
     nodes=[
         {'url': 'https://github.com/example_org/sample_repo'},
         {'url': 'https://github.com/example_org/SampleRepo2'},
-        {'url': 'https://github.com/lyft/cartography'},
+        {'url': 'https://github.com/cartography-cncf/cartography'},
     ],
     edges=[
         {'permission': 'ADMIN'},

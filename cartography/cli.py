@@ -47,7 +47,7 @@ class CLI:
                 "instances, use auth when communicating with Neo4j, sync data from multiple AWS accounts, and execute "
                 "arbitrary analysis jobs after the conclusion of the sync."
             ),
-            epilog='For more documentation please visit: https://github.com/lyft/cartography',
+            epilog='For more documentation please visit: https://github.com/cartography-cncf/cartography',
         )
         parser.add_argument(
             '-v',

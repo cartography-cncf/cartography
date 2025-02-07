@@ -35,7 +35,7 @@ def test_transform_and_load_repositories(neo4j_session):
     expected_nodes = {
         "https://github.com/example_org/sample_repo",
         "https://github.com/example_org/SampleRepo2",
-        "https://github.com/lyft/cartography",
+        "https://github.com/cartography-cncf/cartography",
     }
     assert actual_nodes == expected_nodes
 

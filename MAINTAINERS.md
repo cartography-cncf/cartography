@@ -1,4 +1,4 @@
-See https://github.com/lyft/cartography/#contributing for general contribution guidelines.
+See https://github.com/cartography-cncf/cartography/#contributing for general contribution guidelines.
 
 ## Maintainers
 

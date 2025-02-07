@@ -49,7 +49,7 @@ class CartographyRelProperties(abc.ABC):
         Data validation.
         1. Prevents direct instantiation. This workaround is needed since this is a dataclass and an abstract
         class without an abstract method defined. See https://stackoverflow.com/q/60590442.
-        2. Stops reserved words from being used as attribute names. See https://github.com/lyft/cartography/issues/1064.
+        2. Stops reserved words from being used as attribute names. See https://github.com/cartography-cncf/cartography/issues/1064.
         """
         if self.__class__ == CartographyRelProperties:
             raise TypeError("Cannot instantiate abstract class.")

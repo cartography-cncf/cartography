@@ -237,5 +237,5 @@ def sync(
     # RECORD SETS
     dns_rrs = get_dns_rrs(dns, dns_zones, project_id)
     load_rrs(neo4j_session, dns_rrs, project_id, gcp_update_tag)
-    # TODO scope the cleanup to the current project - https://github.com/lyft/cartography/issues/381
+    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
     cleanup_dns_records(neo4j_session, common_job_parameters)
