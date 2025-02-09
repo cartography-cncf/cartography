@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "master"
+    commit-message:
+      # Prefix all commit messages with "chore: "
+      prefix: "chore: "
+    groups:
+      # Group all minor and patch updates for GitHub Actions
+      # Keep individual updates for major updates
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+  # Maintain dependencies for Python
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "master"
+    commit-message:
+      # Prefix all commit messages with "chore: "
+      prefix: "chore: "
+    groups:
+      # Group all minor and patch updates for Python
+      # Keep individual updates for major updates
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    # Loose versioning strategy, increase the version only if necessary
+    # This should be removed if we stick to a pinned version strategy
+    # Ref: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/controlling-dependencies-updated#defining-a-versioning-strategy
+    versioning-strategy: increase-if-necessary
+    # TODO: Remove when #857 is fixed
+    ignore:
+      - dependency-name: "okta"
+  # Maintain dependencies for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "master"
+    commit-message:
+      # Prefix all commit messages with "chore: "
+      prefix: "chore: "
+    # Ignore major & minor updates to stay on python:3.10
+    # TODO: Remove when ready to upgrade to python:3.11
+    ignore:
+      - dependency-name: "*"
+        update-types:
+        - version-update:semver-major
+        - version-update:semver-minor

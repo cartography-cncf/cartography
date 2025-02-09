@@ -78,7 +78,7 @@ dev = [
     "pytest-cov==2.10.0",
     "pytest-rerunfailures",
     "types-PyYAML",
-    "types-requests<2.31.0.7",
+    "types-requests<2.32.0.20241017",
 ]
 
 # Makes sure to look inside cartography/cartography/ for cli command
