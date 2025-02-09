@@ -6,6 +6,9 @@ on:
     branches:
       - 'master'
 
+# Declare default permissions as read only.
+permissions: read-all
+
 env:
   DEFAULT_BRANCH: "master"
 
@@ -13,22 +16,24 @@ jobs:
   build-and-deploy:
     name: Build and gh-pages
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       # https://github.com/marketplace/actions/checkout
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           lfs: true
       # https://github.com/marketplace/actions/setup-python
       # ^-- This gives info on matrix testing.
       - name: Install Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: "3.10"
       # https://docs.github.com/en/actions/guides/building-and-testing-python#caching-dependencies
       # ^-- How to set up caching for pip on Ubuntu
       - name: Cache pip
-        uses: actions/cache@v2
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
@@ -100,7 +105,7 @@ jobs:
       # Deploy
       # https://github.com/peaceiris/actions-gh-pages
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3.8.0
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         if: ${{ github.event_name == 'push' }}
         with:
           publish_branch: gh-pages
