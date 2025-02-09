@@ -113,7 +113,7 @@ def get_rest_api_policy(api: Dict, client: botocore.client.BaseClient) -> Any:
 
 
 def transform_apigateway_rest_apis(
-    rest_apis: List[Dict], policies: List[Dict], region: str, current_aws_account_id: str, aws_update_tag: int,
+    rest_apis: List[Dict], resource_policies: List[Dict], region: str, current_aws_account_id: str, aws_update_tag: int,
 ) -> List[Dict]:
     """
     Transform API Gateway REST API data for ingestion, including policy analysis
@@ -121,7 +121,7 @@ def transform_apigateway_rest_apis(
     # Create a mapping of api_id to policy data for easier lookup
     policy_map = {
         policy['api_id']: policy
-        for policy in policies
+        for policy in resource_policies
     }
 
     transformed_apis = []
@@ -136,6 +136,7 @@ def transform_apigateway_rest_apis(
             # Set defaults in the transform function
             'anonymous_access': policy_data.get('internet_accessible', False),
             'anonymous_actions': policy_data.get('accessible_actions', []),
+            # TODO Issue #1452: clarify internet exposure vs anonymous access
         }
         transformed_apis.append(transformed_api)
 
@@ -195,7 +196,7 @@ def transform_rest_api_details(
     certificates: List[Dict] = []
     resources: List[Dict] = []
 
-    for api_id, stage, certificate, resource, policy in stages_certificate_resources:
+    for api_id, stage, certificate, resource, _ in stages_certificate_resources:
         if len(stage) > 0:
             for s in stage:
                 s['apiId'] = api_id
