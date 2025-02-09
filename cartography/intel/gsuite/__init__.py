@@ -13,6 +13,7 @@ from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials as OAuth2Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from googleapiclient.discovery import Resource
+from google.auth import default
 
 from cartography.config import Config
 from cartography.intel.gsuite import api
@@ -22,6 +23,7 @@ OAUTH_SCOPE = [
     'https://www.googleapis.com/auth/admin.directory.user.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.member',
+    'https://www.googleapis.com/auth/cloud-platform',
 ]
 
 logger = logging.getLogger(__name__)
@@ -107,6 +109,21 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                     'Gsuite data then you can ignore this message. Otherwise, the error code is: %s '
                     'Make sure your GSuite credentials are configured correctly, your credentials are valid. '
                     'For more details see README'
+                ),
+                e,
+            )
+            return
+    elif config.gsuite_auth_method == 'default':
+        logger.info('Attempting to authenticate to GSuite using default credentials')
+        try:
+            creds, _ = default(scopes=OAUTH_SCOPE)
+        except DefaultCredentialsError as e:
+            logger.error(
+                (
+                    "Unable to initialize GSuite creds using default credentials. If you don't have GSuite data or "
+                    "don't want to load GSuite data then you can ignore this message. Otherwise, the error code is: %s "
+                    "Make sure you have valid application default credentials configured. "
+                    "For more details see README"
                 ),
                 e,
             )
