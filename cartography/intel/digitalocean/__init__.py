@@ -23,7 +23,9 @@ def start_digitalocean_ingestion(neo4j_session: neo4j.Session, config: Config) -
     """
 
     if not config.digitalocean_token:
-        logger.info('DigitalOcean import is not configured - skipping this module. See docs to configure.')
+        logger.info(
+            "DigitalOcean import is not configured - skipping this module. See docs to configure.",
+        )
         return
 
     common_job_parameters = {
@@ -39,6 +41,17 @@ def start_digitalocean_ingestion(neo4j_session: neo4j.Session, config: Config) -
     common_job_parameters["DO_ACCOUNT_ID"] = account.uuid
 
     platform.sync(neo4j_session, account, config.update_tag, common_job_parameters)
-    project_resources = management.sync(neo4j_session, manager, config.update_tag, common_job_parameters)
-    compute.sync(neo4j_session, manager, project_resources, config.update_tag, common_job_parameters)
+    project_resources = management.sync(
+        neo4j_session,
+        manager,
+        config.update_tag,
+        common_job_parameters,
+    )
+    compute.sync(
+        neo4j_session,
+        manager,
+        project_resources,
+        config.update_tag,
+        common_job_parameters,
+    )
     return

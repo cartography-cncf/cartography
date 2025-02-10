@@ -17,7 +17,8 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 def start_crowdstrike_ingestion(
-    neo4j_session: neo4j.Session, config: Config,
+    neo4j_session: neo4j.Session,
+    config: Config,
 ) -> None:
     """
     Perform ingestion of crowdstrike data.
@@ -28,10 +29,7 @@ def start_crowdstrike_ingestion(
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
-    if (
-        not config.crowdstrike_client_id or
-        not config.crowdstrike_client_secret
-    ):
+    if not config.crowdstrike_client_id or not config.crowdstrike_client_secret:
         logger.error("crowdstrike config not found")
         return
 
@@ -61,9 +59,9 @@ def start_crowdstrike_ingestion(
         group_id = config.crowdstrike_api_url
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='crowdstrike',
+        group_type="crowdstrike",
         group_id=group_id,
-        synced_type='crowdstrike',
+        synced_type="crowdstrike",
         update_tag=config.update_tag,
         stat_handler=stat_handler,
     )

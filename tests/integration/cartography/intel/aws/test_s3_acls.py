@@ -6,8 +6,8 @@ from tests.data.aws.s3 import OPEN_BUCKET_ACLS
 from tests.integration.cartography.intel.aws.iam.test_iam import _create_base_account
 from tests.integration.util import check_nodes
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -28,10 +28,10 @@ def test_load_s3_acls(neo4j_session):
     _load_s3_acls(neo4j_session, parsed_acls, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
     # Assert that the anonymous_access field is set as expected
-    assert check_nodes(neo4j_session, 'S3Bucket', ['name', 'anonymous_access']) == {
-        ('bucket-1', None),
-        ('bucket-3', True),
-        ('bucket-2', True),
+    assert check_nodes(neo4j_session, "S3Bucket", ["name", "anonymous_access"]) == {
+        ("bucket-1", None),
+        ("bucket-3", True),
+        ("bucket-2", True),
     }
 
     # Assert that we properly set anonymous_actions on the S3Bucket based on the attached S3Acls
@@ -42,10 +42,22 @@ def test_load_s3_acls(neo4j_session):
         """,
     )
     actual_nodes = [
-        (n['r.name'], sorted(n['r.anonymous_actions']) if n['r.anonymous_actions'] else []) for n in actual
+        (
+            n["r.name"],
+            sorted(n["r.anonymous_actions"]) if n["r.anonymous_actions"] else [],
+        )
+        for n in actual
     ]
     assert sorted(actual_nodes) == [
-        ('bucket-1', []),
-        ('bucket-2', ['s3:GetBucketAcl', 's3:ListBucket', 's3:ListBucketMultipartUploads', 's3:ListBucketVersions']),
-        ('bucket-3', ['s3:PutBucketAcl', 's3:PutObject']),
+        ("bucket-1", []),
+        (
+            "bucket-2",
+            [
+                "s3:GetBucketAcl",
+                "s3:ListBucket",
+                "s3:ListBucketMultipartUploads",
+                "s3:ListBucketVersions",
+            ],
+        ),
+        ("bucket-3", ["s3:PutBucketAcl", "s3:PutObject"]),
     ]

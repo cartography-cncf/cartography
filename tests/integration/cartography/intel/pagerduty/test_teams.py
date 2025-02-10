@@ -20,5 +20,5 @@ def test_load_team_data(neo4j_session):
         MATCH (n:PagerDutyTeam) RETURN n.id;
         """,
     )
-    actual_nodes = {n['n.id'] for n in nodes}
+    actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == expected_nodes

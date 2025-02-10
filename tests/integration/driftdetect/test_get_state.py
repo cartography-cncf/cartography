@@ -62,7 +62,7 @@ def test_get_state_detectors(neo4j_session):
 
     shortcut_data = FileSystem.load(os.path.join(query_directory, "shortcut.json"))
     shortcut = shortcut_serializer.load(shortcut_data)
-    assert shortcut.shortcuts['most-recent'] == file_1
+    assert shortcut.shortcuts["most-recent"] == file_1
     shortcut_data = shortcut_serializer.dump(shortcut)
     FileSystem.write(shortcut_data, os.path.join(query_directory, "shortcut.json"))
 
@@ -100,9 +100,21 @@ def test_faulty_queries(neo4j_session):
 
     file_1 = "2019 - 01 - 01_00_00_02.json"
     with pytest.raises(neo4j.exceptions.CypherSyntaxError):
-        get_query_state(neo4j_session, query_directory, state_serializer, storage, file_1)
+        get_query_state(
+            neo4j_session,
+            query_directory,
+            state_serializer,
+            storage,
+            file_1,
+        )
 
     query_directory = "tests/data/test_update_detectors/invalid_template"
 
     with pytest.raises(ValidationError):
-        get_query_state(neo4j_session, query_directory, state_serializer, storage, file_1)
+        get_query_state(
+            neo4j_session,
+            query_directory,
+            state_serializer,
+            storage,
+            file_1,
+        )

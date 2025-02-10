@@ -1,6 +1,10 @@
 from cartography.graph.querybuilder import build_ingestion_query
-from tests.data.graph.querybuilder.sample_models.interesting_asset import InterestingAssetSchema
-from tests.unit.cartography.graph.helpers import remove_leading_whitespace_and_empty_lines
+from tests.data.graph.querybuilder.sample_models.interesting_asset import (
+    InterestingAssetSchema,
+)
+from tests.unit.cartography.graph.helpers import (
+    remove_leading_whitespace_and_empty_lines,
+)
 
 
 def test_build_ingestion_query_complex():

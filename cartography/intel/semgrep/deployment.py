@@ -40,7 +40,9 @@ def get_deployment(semgrep_app_token: str) -> Dict[str, Any]:
 
 @timeit
 def load_semgrep_deployment(
-    neo4j_session: neo4j.Session, deployment: Dict[str, Any], update_tag: int,
+    neo4j_session: neo4j.Session,
+    deployment: Dict[str, Any],
+    update_tag: int,
 ) -> None:
     logger.info(f"Loading SemgrepDeployment {deployment} into the graph.")
     load(

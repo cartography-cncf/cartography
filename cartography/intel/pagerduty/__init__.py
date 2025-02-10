@@ -23,7 +23,8 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 def start_pagerduty_ingestion(
-    neo4j_session: neo4j.Session, config: Config,
+    neo4j_session: neo4j.Session,
+    config: Config,
 ) -> None:
     """
     Perform ingestion of pagerduty data.
@@ -35,7 +36,9 @@ def start_pagerduty_ingestion(
         "UPDATE_TAG": config.update_tag,
     }
     if not config.pagerduty_api_key:
-        logger.info('PagerDuty import is not configured - skipping this module. See docs to configure.')
+        logger.info(
+            "PagerDuty import is not configured - skipping this module. See docs to configure.",
+        )
         return
     session = APISession(config.pagerduty_api_key)
     if config.pagerduty_request_timeout is not None:
@@ -54,8 +57,8 @@ def start_pagerduty_ingestion(
 
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='pagerduty',
-        group_id='module',
+        group_type="pagerduty",
+        group_id="module",
         synced_type="pagerduty",
         update_tag=config.update_tag,
         stat_handler=stat_handler,

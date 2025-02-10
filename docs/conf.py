@@ -130,11 +130,11 @@ html_context = sphinx_material.get_html_context()
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'globaltoc_depth': 2,
-    'globaltoc_collapse': True,
-    'repo_url': 'https://github.com/cartography-cncf/cartography',
-    'repo_name': 'cartography',
-    'repo_type': 'github',
+    "globaltoc_depth": 2,
+    "globaltoc_collapse": True,
+    "repo_url": "https://github.com/cartography-cncf/cartography",
+    "repo_name": "cartography",
+    "repo_type": "github",
 }
 html_sidebars = {
     "**": ["globaltoc.html", "localtoc.html", "searchbox.html"],
@@ -154,7 +154,7 @@ html_logo = "images/logo-vertical.svg"
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-html_favicon = 'images/logo-vertical.svg'
+html_favicon = "images/logo-vertical.svg"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -229,5 +229,5 @@ html_search_language = "en"
 # htmlhelp_basename = 'cartography-doc'
 
 # i18n
-locale_dirs = ['locale/']
+locale_dirs = ["locale/"]
 gettext_compact = False

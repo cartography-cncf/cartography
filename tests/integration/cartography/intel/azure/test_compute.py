@@ -4,8 +4,8 @@ from tests.data.azure.compute import DESCRIBE_SNAPSHOTS
 from tests.data.azure.compute import DESCRIBE_VM_DATA_DISKS
 from tests.data.azure.compute import DESCRIBE_VMS
 
-TEST_SUBSCRIPTION_ID = '00-00-00-00'
-TEST_RESOURCE_GROUP = 'TestRG'
+TEST_SUBSCRIPTION_ID = "00-00-00-00"
+TEST_RESOURCE_GROUP = "TestRG"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -27,7 +27,7 @@ def test_load_vms(neo4j_session):
         MATCH (r:AzureVirtualMachine) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -69,9 +69,7 @@ def test_load_vms_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -95,7 +93,7 @@ def test_load_vm_data_disks(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -134,9 +132,7 @@ def test_load_vm_data_disk_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -160,7 +156,7 @@ def test_load_disks(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -202,9 +198,7 @@ def test_load_disk_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -228,7 +222,7 @@ def test_load_snapshots(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -270,8 +264,6 @@ def test_load_snapshot_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected

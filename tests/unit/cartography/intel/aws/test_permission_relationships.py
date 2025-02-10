@@ -6,7 +6,6 @@ GET_OBJECT_LOWERCASE_RESOURCE_WILDCARD = [
         "action": [
             "s3:Get*",
         ],
-
         "resource": [
             "arn:aws:s3:::test*",
         ],
@@ -16,36 +15,43 @@ GET_OBJECT_LOWERCASE_RESOURCE_WILDCARD = [
 
 
 def test_admin_statements():
-    statement = [{
-        "action": [
-            "*",
-        ],
-
-        "resource": [
-            "*",
-        ],
-        "effect": "Allow",
-    }]
+    statement = [
+        {
+            "action": [
+                "*",
+            ],
+            "resource": [
+                "*",
+            ],
+            "effect": "Allow",
+        },
+    ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
 def test_not_action_statement():
-    statement = [{
-        "action": [
-            "*",
-        ],
-        "notaction": [
-            "S3:GetObject",
-        ],
-        "resource": [
-            "*",
-        ],
-        "effect": "Allow",
-    }]
+    statement = [
+        {
+            "action": [
+                "*",
+            ],
+            "notaction": [
+                "S3:GetObject",
+            ],
+            "resource": [
+                "*",
+            ],
+            "effect": "Allow",
+        },
+    ]
     assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -55,7 +61,6 @@ def test_deny_statement():
             "action": [
                 "*",
             ],
-
             "resource": [
                 "*",
             ],
@@ -65,7 +70,6 @@ def test_deny_statement():
             "action": [
                 "S3:GetObject",
             ],
-
             "resource": [
                 "*",
             ],
@@ -73,7 +77,9 @@ def test_deny_statement():
         },
     ]
     assert (False, True) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -83,7 +89,6 @@ def test_single_permission():
             "action": [
                 "S3:GetObject",
             ],
-
             "resource": [
                 "*",
             ],
@@ -91,7 +96,9 @@ def test_single_permission():
         },
     ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -101,7 +108,6 @@ def test_single_non_matching_permission():
             "action": [
                 "S3:GetObject",
             ],
-
             "resource": [
                 "*",
             ],
@@ -109,7 +115,9 @@ def test_single_non_matching_permission():
         },
     ]
     assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:PutObject"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:PutObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -119,7 +127,6 @@ def test_multiple_permission():
             "action": [
                 "S3:GetObject",
             ],
-
             "resource": [
                 "*",
             ],
@@ -127,7 +134,9 @@ def test_multiple_permission():
         },
     ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:GetObject", "S3:PutObject", "S3:ListBuckets"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:GetObject", "S3:PutObject", "S3:ListBuckets"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -137,7 +146,6 @@ def test_multiple_non_matching_permission():
             "action": [
                 "S3:GetObject",
             ],
-
             "resource": [
                 "*",
             ],
@@ -145,7 +153,9 @@ def test_multiple_non_matching_permission():
         },
     ]
     assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:PutObject", "S3:ListBuckets"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:PutObject", "S3:ListBuckets"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -155,7 +165,6 @@ def test_single_permission_lower_case():
             "action": [
                 "s3:Get*",
             ],
-
             "resource": [
                 "*",
             ],
@@ -163,7 +172,9 @@ def test_single_permission_lower_case():
         },
     ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -173,7 +184,6 @@ def test_single_permission_resource_allow():
             "action": [
                 "s3:Get*",
             ],
-
             "resource": [
                 "arn:aws:s3:::test*",
             ],
@@ -181,7 +191,9 @@ def test_single_permission_resource_allow():
         },
     ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -191,7 +203,6 @@ def test_single_permission_resource_non_match():
             "action": [
                 "s3:Get*",
             ],
-
             "resource": [
                 "arn:aws:s3:::nottest",
             ],
@@ -199,7 +210,9 @@ def test_single_permission_resource_non_match():
         },
     ]
     assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statement, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statement,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -217,174 +230,124 @@ def test_non_matching_notresource():
         },
     ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statements,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
 def test_no_action_statement():
-    statements = [{
-        "notaction": [
-            "dynamodb:Query",
-        ],
-        "resource": [
-            "*",
-        ],
-        "effect": "Allow",
-    }]
+    statements = [
+        {
+            "notaction": [
+                "dynamodb:Query",
+            ],
+            "resource": [
+                "*",
+            ],
+            "effect": "Allow",
+        },
+    ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statements,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
 def test_notaction_deny_without_allow():
-    statements = [{
-        "notaction": [
-            "s3:*",
-        ],
-        "resource": [
-            "*",
-        ],
-        "effect": "Allow",
-    }]
+    statements = [
+        {
+            "notaction": [
+                "s3:*",
+            ],
+            "resource": [
+                "*",
+            ],
+            "effect": "Allow",
+        },
+    ]
     assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statements,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
 def test_notaction_malformed():
-    statements = [{
-        "notaction": [
-            "s3.*",
-        ],
-        "resource": [
-            "*",
-        ],
-        "effect": "Allow",
-    }]
+    statements = [
+        {
+            "notaction": [
+                "s3.*",
+            ],
+            "resource": [
+                "*",
+            ],
+            "effect": "Allow",
+        },
+    ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statements,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
 def test_resource_substring():
-    statements = [{
-        "action": [
-            "s3.*",
-        ],
-        "resource": [
-            "arn:aws:s3:::test",
-        ],
-        "effect": "Allow",
-    }]
+    statements = [
+        {
+            "action": [
+                "s3.*",
+            ],
+            "resource": [
+                "arn:aws:s3:::test",
+            ],
+            "effect": "Allow",
+        },
+    ]
     assert (False, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statements,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
 def test_full_policy_explicit_deny():
     policies = {
-        "fakeallow": [{
-            "action": [
-                "s3:*",
-            ],
-            "resource": [
-                "*",
-            ],
-            "effect": "Allow",
-        }],
-        "fakedeny": [{
-            "action": [
-                "s3:*",
-            ],
-            "resource": [
-                "arn:aws:s3:::testbucket",
-            ],
-            "effect": "Deny",
-        }],
-    }
-    assert not permission_relationships.principal_allowed_on_resource(
-        policies, "arn:aws:s3:::testbucket", ["S3:GetObject"],
-    )
-
-
-def test_full_policy_no_explicit_allow():
-    policies = {
-        "ListAllow": [{
-            "action": [
-                "s3:List*",
-            ],
-            "resource": [
-                "*",
-            ],
-            "effect": "Allow",
-        }],
-        "PutAllow": [{
-            "action": [
-                "s3:Put*",
-            ],
-            "resource": [
-                "arn:aws:s3:::testbucket",
-            ],
-            "effect": "Allow",
-        }],
-    }
-    assert not permission_relationships.principal_allowed_on_resource(
-        policies, "arn:aws:s3:::testbucket", ["S3:GetObject"],
-    )
-
-
-def test_full_policy_explicit_allow():
-    policies = {
-        "ListAllow": [{
-            "action": [
-                "s3:listobject"
-                "dynamodb:query",
-            ],
-            "resource": [
-                "*",
-            ],
-            "effect": "Allow",
-        }],
-        "explicitallow": [{
-            "action": [
-                "s3:getobject",
-            ],
-            "resource": [
-                "arn:aws:s3:::testbucket",
-            ],
-            "effect": "Allow",
-        }],
-    }
-    assert permission_relationships.principal_allowed_on_resource(
-        policies, "arn:aws:s3:::testbucket", ["S3:GetObject"],
-    )
-
-
-def test_full_multiple_principal():
-    principals = {
-        "test_principals1": {
-            "ListAllow": [{
+        "fakeallow": [
+            {
                 "action": [
-                    "s3:listobject"
-                    "dynamodb:query",
+                    "s3:*",
                 ],
                 "resource": [
                     "*",
                 ],
                 "effect": "Allow",
-            }],
-            "explicitallow": [{
+            },
+        ],
+        "fakedeny": [
+            {
                 "action": [
-                    "s3:getobject",
+                    "s3:*",
                 ],
                 "resource": [
                     "arn:aws:s3:::testbucket",
                 ],
-                "effect": "Allow",
-            }],
-        },
-        "test_principal2": {
-            "ListAllow": [{
+                "effect": "Deny",
+            },
+        ],
+    }
+    assert not permission_relationships.principal_allowed_on_resource(
+        policies,
+        "arn:aws:s3:::testbucket",
+        ["S3:GetObject"],
+    )
+
+
+def test_full_policy_no_explicit_allow():
+    policies = {
+        "ListAllow": [
+            {
                 "action": [
                     "s3:List*",
                 ],
@@ -392,8 +355,10 @@ def test_full_multiple_principal():
                     "*",
                 ],
                 "effect": "Allow",
-            }],
-            "PutAllow": [{
+            },
+        ],
+        "PutAllow": [
+            {
                 "action": [
                     "s3:Put*",
                 ],
@@ -401,12 +366,104 @@ def test_full_multiple_principal():
                     "arn:aws:s3:::testbucket",
                 ],
                 "effect": "Allow",
-            }],
+            },
+        ],
+    }
+    assert not permission_relationships.principal_allowed_on_resource(
+        policies,
+        "arn:aws:s3:::testbucket",
+        ["S3:GetObject"],
+    )
+
+
+def test_full_policy_explicit_allow():
+    policies = {
+        "ListAllow": [
+            {
+                "action": [
+                    "s3:listobject" "dynamodb:query",
+                ],
+                "resource": [
+                    "*",
+                ],
+                "effect": "Allow",
+            },
+        ],
+        "explicitallow": [
+            {
+                "action": [
+                    "s3:getobject",
+                ],
+                "resource": [
+                    "arn:aws:s3:::testbucket",
+                ],
+                "effect": "Allow",
+            },
+        ],
+    }
+    assert permission_relationships.principal_allowed_on_resource(
+        policies,
+        "arn:aws:s3:::testbucket",
+        ["S3:GetObject"],
+    )
+
+
+def test_full_multiple_principal():
+    principals = {
+        "test_principals1": {
+            "ListAllow": [
+                {
+                    "action": [
+                        "s3:listobject" "dynamodb:query",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
+            ],
+            "explicitallow": [
+                {
+                    "action": [
+                        "s3:getobject",
+                    ],
+                    "resource": [
+                        "arn:aws:s3:::testbucket",
+                    ],
+                    "effect": "Allow",
+                },
+            ],
+        },
+        "test_principal2": {
+            "ListAllow": [
+                {
+                    "action": [
+                        "s3:List*",
+                    ],
+                    "resource": [
+                        "*",
+                    ],
+                    "effect": "Allow",
+                },
+            ],
+            "PutAllow": [
+                {
+                    "action": [
+                        "s3:Put*",
+                    ],
+                    "resource": [
+                        "arn:aws:s3:::testbucket",
+                    ],
+                    "effect": "Allow",
+                },
+            ],
         },
     }
     assert 1 == len(
         permission_relationships.calculate_permission_relationships(
-            principals, ["arn:aws:s3:::testbucket"], ["S3:GetObject"],
+            principals,
+            ["arn:aws:s3:::testbucket"],
+            ["S3:GetObject"],
         ),
     )
 
@@ -422,7 +479,9 @@ def test_single_comma():
         },
     ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statements,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -437,7 +496,9 @@ def test_multiple_comma():
         },
     ]
     assert (True, False) == permission_relationships.evaluate_policy_for_permissions(
-        statements, ["S3:GetObject"], "arn:aws:s3:::testbucket",
+        statements,
+        ["S3:GetObject"],
+        "arn:aws:s3:::testbucket",
     )
 
 
@@ -449,7 +510,9 @@ def test_permission_file_load():
 
 
 def test_permission_file_load_exception():
-    mapping = permission_relationships.parse_permission_relationships_file("notarealfile")
+    mapping = permission_relationships.parse_permission_relationships_file(
+        "notarealfile",
+    )
     assert not mapping
 
 
@@ -459,7 +522,9 @@ def test_permissions_list():
     ###
     try:
         assert not permission_relationships.principal_allowed_on_resource(
-            GET_OBJECT_LOWERCASE_RESOURCE_WILDCARD, "arn:aws:s3:::testbucket", "S3:GetObject",
+            GET_OBJECT_LOWERCASE_RESOURCE_WILDCARD,
+            "arn:aws:s3:::testbucket",
+            "S3:GetObject",
         )
         assert False
     except ValueError:

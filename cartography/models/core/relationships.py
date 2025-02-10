@@ -31,6 +31,7 @@ class LinkDirection(Enum):
     If `EMRClusterToAWSAccount.direction` was LinkDirection.OUTWARD, then the directionality of the relationship would
     be `(:EMRCluster)-[:RESOURCE]->(:AWSAccount)` instead.
     """
+
     INWARD = auto()
     OUTWARD = auto()
 
@@ -42,6 +43,7 @@ class CartographyRelProperties(abc.ABC):
     subclasses will have a lastupdated field defined on their resulting relationships. These fields are assigned to the
     relationship in the `SET` clause.
     """
+
     lastupdated: PropertyRef = field(init=False)
 
     def __post_init__(self):
@@ -54,7 +56,7 @@ class CartographyRelProperties(abc.ABC):
         if self.__class__ == CartographyRelProperties:
             raise TypeError("Cannot instantiate abstract class.")
 
-        if hasattr(self, 'firstseen'):
+        if hasattr(self, "firstseen"):
             raise TypeError(
                 "`firstseen` is a reserved word and is automatically set by the querybuilder on cartography rels, so "
                 f'it cannot be used on class "{type(self).__name__}(CartographyRelProperties)". Please either choose '
@@ -72,6 +74,7 @@ class TargetNodeMatcher:
     This is used to ensure dataclass immutability when composed as part of a CartographyNodeSchema object.
     See `make_target_node_matcher()`.
     """
+
     pass
 
 
@@ -80,7 +83,10 @@ def make_target_node_matcher(key_ref_dict: Dict[str, PropertyRef]) -> TargetNode
     :param key_ref_dict: A Dict mapping keys present on the node to PropertyRef objects.
     :return: A TargetNodeMatcher used for CartographyRelSchema to match with other nodes.
     """
-    fields = [(key, PropertyRef, field(default=prop_ref)) for key, prop_ref in key_ref_dict.items()]
+    fields = [
+        (key, PropertyRef, field(default=prop_ref))
+        for key, prop_ref in key_ref_dict.items()
+    ]
     return make_dataclass(TargetNodeMatcher.__name__, fields, frozen=True)()
 
 
@@ -92,6 +98,7 @@ class CartographyRelSchema(abc.ABC):
     The CartographyRelSchema contains properties that make it possible to connect the CartographyNodeSchema to other
     existing nodes in the graph.
     """
+
     @property
     @abc.abstractmethod
     def properties(self) -> CartographyRelProperties:
@@ -139,4 +146,5 @@ class OtherRelationships:
     Encapsulates a list of CartographyRelSchema. This is used to ensure dataclass immutability when composed as part of
     a CartographyNodeSchema object.
     """
+
     rels: List[CartographyRelSchema]

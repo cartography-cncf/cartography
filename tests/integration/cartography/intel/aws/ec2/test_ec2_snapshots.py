@@ -3,15 +3,19 @@ import cartography.intel.aws.ec2.volumes
 import tests.data.aws.ec2.snapshots
 import tests.data.aws.ec2.volumes
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'eu-west-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
 
 
 def test_get_snapshots_in_use(neo4j_session):
     # Arrange
     data = tests.data.aws.ec2.volumes.DESCRIBE_VOLUMES
-    transformed_data = cartography.intel.aws.ec2.volumes.transform_volumes(data, TEST_REGION, TEST_ACCOUNT_ID)
+    transformed_data = cartography.intel.aws.ec2.volumes.transform_volumes(
+        data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+    )
 
     # Act
     neo4j_session.run(
@@ -33,12 +37,14 @@ def test_get_snapshots_in_use(neo4j_session):
 
     # Assert
     expected_snapshots = {
-        "sn-01", "sn-02",
+        "sn-01",
+        "sn-02",
     }
 
     actual_snapshots = cartography.intel.aws.ec2.snapshots.get_snapshots_in_use(
         neo4j_session,
-        TEST_REGION, TEST_ACCOUNT_ID,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
     )
 
     assert expected_snapshots == set(actual_snapshots)
@@ -55,7 +61,8 @@ def test_load_volumes(neo4j_session):
     )
 
     expected_nodes = {
-        "sn-01", "sn-02",
+        "sn-01",
+        "sn-02",
     }
 
     nodes = neo4j_session.run(
@@ -63,7 +70,7 @@ def test_load_volumes(neo4j_session):
         MATCH (r:EBSSnapshot) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -91,8 +98,8 @@ def test_load_volumes_relationships(neo4j_session):
     )
 
     expected = {
-        (TEST_ACCOUNT_ID, 'sn-01'),
-        (TEST_ACCOUNT_ID, 'sn-02'),
+        (TEST_ACCOUNT_ID, "sn-01"),
+        (TEST_ACCOUNT_ID, "sn-02"),
     }
 
     # Fetch relationships
@@ -101,8 +108,6 @@ def test_load_volumes_relationships(neo4j_session):
         MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:EBSSnapshot) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
