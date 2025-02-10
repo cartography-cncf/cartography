@@ -19,7 +19,7 @@ from cartography.config import Config
 from cartography.intel.gsuite import api
 from cartography.util import timeit
 
-OAUTH_SCOPE = [
+OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/admin.directory.user.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.member',
@@ -72,7 +72,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         try:
             creds = service_account.Credentials.from_service_account_file(
                 config.gsuite_config,
-                scopes=OAUTH_SCOPE,
+                scopes=OAUTH_SCOPES,
             )
             creds = creds.with_subject(os.environ.get('GSUITE_DELEGATED_ADMIN'))
 
@@ -98,10 +98,10 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 refresh_token=auth_tokens['refresh_token'],
                 expiry=None,
                 token_uri=auth_tokens['token_uri'],
-                scopes=OAUTH_SCOPE,
+                scopes=OAUTH_SCOPES,
             )
             creds.refresh(Request())
-            creds = creds.create_scoped(OAUTH_SCOPE)
+            creds = creds.create_scoped(OAUTH_SCOPES)
         except DefaultCredentialsError as e:
             logger.error(
                 (
@@ -116,7 +116,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     elif config.gsuite_auth_method == 'default':
         logger.info('Attempting to authenticate to GSuite using default credentials')
         try:
-            creds, _ = default(scopes=OAUTH_SCOPE)
+            creds, _ = default(scopes=OAUTH_SCOPES)
         except DefaultCredentialsError as e:
             logger.error(
                 (
