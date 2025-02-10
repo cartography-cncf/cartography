@@ -387,7 +387,8 @@ def build_ingestion_query(
         if property_ref is None:
             raise ValueError(
                 f"build_ingestion_query() failed: The CartographyNodeSchema {node_schema.__class__.__name__} does not "
-                "have a 'lastupdated' property. Please ensure that the 'lastupdated' property is defined on the node.")
+                "have a 'lastupdated' property. Please ensure that the 'lastupdated' property is defined on the node.",
+            )
         query_template = Template(
             """
             UNWIND $DictList AS item
