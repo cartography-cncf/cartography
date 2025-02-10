@@ -21,27 +21,15 @@ repos:
     rev: 7.1.1
     hooks:
     -   id: flake8
--   repo: https://github.com/hhatto/autopep8
-    rev: v2.3.2
-    hooks:
-    -   id: autopep8
-        # disable a few rewrites which will cause autopep8 to reflow
-        args: [--in-place, '--ignore=E265,E501,W504']
+        # E203: whitespace before ':' (black-compatible)
+        # E501: line too long (black-compatible)
+        # W503: line break before binary operator (black-compatible)
+        args: ["--max-line-length=88", "--ignore=E203,E501,W503"]
 -   repo: https://github.com/asottile/pyupgrade
     rev: v3.19.1
     hooks:
     -   id: pyupgrade
         args: [--py36-plus]
--   repo: https://github.com/asottile/add-trailing-comma
-    rev: v3.1.0
-    hooks:
-    -   id: add-trailing-comma
-        args: [--py36-plus]
--   repo: https://github.com/asottile/reorder_python_imports
-    rev: v3.14.0
-    hooks:
-    -   id: reorder-python-imports
-        args: [--py3-plus]
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.14.1
     hooks:
