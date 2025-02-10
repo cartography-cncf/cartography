@@ -353,6 +353,7 @@ def filter_selected_relationships(
 def build_ingestion_query(
         node_schema: CartographyNodeSchema,
         selected_relationships: Optional[Set[CartographyRelSchema]] = None,
+        only_relationships: bool = False,
 ) -> str:
     """
     Generates a Neo4j query from the given CartographyNodeSchema to ingest the specified nodes and relationships so that
@@ -364,6 +365,8 @@ def build_ingestion_query(
     If selected_relationships is None (default), then we create a query using all RelSchema specified in
     node_schema.sub_resource_relationship + node_schema.other_relationships.
     If selected_relationships is the empty set, we create a query with no relationship attachments at all.
+    :param only_relationships: If True, the query will only attach relationships and will not update node properties.
+    This is usefull when you only have partial node data and you want to attach relationships to existing nodes.
     :return: An optimized Neo4j query that can be used to ingest nodes and relationships.
     Important notes:
     - The resulting query uses the UNWIND + MERGE pattern (see
@@ -373,19 +376,39 @@ def build_ingestion_query(
     - The query sets `firstseen` attributes on all the nodes and relationships that it creates.
     - The query is intended to be supplied as input to cartography.core.client.tx.load_graph_data().
     """
-    query_template = Template(
-        """
-        UNWIND $DictList AS item
-            MERGE (i:$node_label{id: $dict_id_field})
-            ON CREATE SET i.firstseen = timestamp()
-            SET
-                $set_node_properties_statement
-            $attach_relationships_statement
-        """,
-    )
-
     node_props: CartographyNodeProperties = node_schema.properties
     node_props_as_dict: Dict[str, PropertyRef] = asdict(node_props)
+
+    if only_relationships:
+        # If we're only attaching relationships, we don't need to set any node properties.
+        # But we still need to set the firstseen attribute on the node in case it's being created.
+        # And we need to set the lastupdated attribute on the node if it's present (to avoid cleanup)
+        property_ref = node_props_as_dict.get('lastupdated')
+        if property_ref is None:
+            raise ValueError(
+                f"build_ingestion_query() failed: The CartographyNodeSchema {node_schema.__class__.__name__} does not "
+                "have a 'lastupdated' property. Please ensure that the 'lastupdated' property is defined on the node.")
+        query_template = Template(
+            """
+            UNWIND $DictList AS item
+                MERGE (i:$node_label{id: $dict_id_field})
+                ON CREATE SET i.firstseen = timestamp()
+                SET
+                    i.lastupdated = $lastupdated
+                $attach_relationships_statement
+            """,
+        )
+    else:
+        query_template = Template(
+            """
+            UNWIND $DictList AS item
+                MERGE (i:$node_label{id: $dict_id_field})
+                ON CREATE SET i.firstseen = timestamp()
+                SET
+                    $set_node_properties_statement
+                $attach_relationships_statement
+            """,
+        )
 
     # Handle selected relationships
     sub_resource_rel: Optional[CartographyRelSchema] = node_schema.sub_resource_relationship
