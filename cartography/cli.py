@@ -438,8 +438,12 @@ class CLI:
         parser.add_argument(
             '--gsuite-auth-method',
             type=str,
+            default='delegated',
             choices=['delegated', 'oauth', 'default'],
-            help='GSuite authentication method. Can be "delegated" for service account or "oauth" for OAuth. Default best for CLI.',
+            help=(
+                'GSuite authentication method. Can be "delegated" for service account or "oauth" for OAuth. '
+                '"Default" best if using gcloud CLI.'
+            ),
         )
         parser.add_argument(
             '--gsuite-tokens-env-var',

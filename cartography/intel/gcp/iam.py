@@ -22,13 +22,9 @@ def get_gcp_service_accounts(iam_client: Resource, project_id: str) -> List[Dict
     """
     Returns a list of GCP service accounts within the given project.
 
-    :type iam_client: The GCP IAM resource object
     :param iam_client: The IAM resource object created by googleapiclient.discovery.build()
-
-    :type project_id: str
     :param project_id: The GCP Project ID that you are retrieving service accounts from
 
-    :rtype: List[Dict]
     :return: List of GCP service accounts
     """
     service_accounts: List[Dict[str, Any]] = []
@@ -50,36 +46,37 @@ def get_gcp_service_accounts(iam_client: Resource, project_id: str) -> List[Dict
 
 
 @timeit
-def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict[str, Any]]:
+def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict]:
     """
-    Returns a list of GCP IAM roles within the given project.
+    Get both custom and predefined roles from GCP.
 
-    :type iam_client: The GCP IAM resource object
     :param iam_client: The IAM resource object created by googleapiclient.discovery.build()
-
-    :type project_id: str
-    :param project_id: The GCP Project ID that you are retrieving roles from
-
-    :rtype: List[Dict]
-    :return: List of GCP IAM roles
+    :param project_id: The project ID number to sync.
+    See https://googleapis.github.io/google-api-python-client/docs/epy/googleapiclient.discovery-module.html#build.
+    
+    :return: List of custom and predefined roles.
     """
-    roles: List[Dict[str, Any]] = []
     try:
-        request = iam_client.roles().list(
-            parent=f'projects/{project_id}',
-            view='FULL'  # Add this to get full role details including permissions
-        )
-        while request is not None:
-            response = request.execute()
-            if 'roles' in response:
-                roles.extend(response['roles'])  # The list() API already includes permissions
-            request = iam_client.roles().list_next(
-                previous_request=request,
-                previous_response=response,
-            )
+        roles = []
+        
+        # Get custom roles
+        custom_req = iam_client.projects().roles().list(parent=f'projects/{project_id}')
+        while custom_req is not None:
+            resp = custom_req.execute()
+            roles.extend(resp.get('roles', []))
+            custom_req = iam_client.projects().roles().list_next(custom_req, resp)
+            
+        # Get predefined roles
+        predefined_req = iam_client.roles().list(view='FULL')
+        while predefined_req is not None:
+            resp = predefined_req.execute()
+            roles.extend(resp.get('roles', []))
+            predefined_req = iam_client.roles().list_next(predefined_req, resp)
+            
+        return roles
     except Exception as e:
-        logger.warning(f"Error retrieving IAM roles for project {project_id}: {e}")
-    return roles
+        logger.warning("Error getting GCP roles - {}".format(e))
+        return []
 
 
 @timeit
