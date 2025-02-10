@@ -14,8 +14,8 @@ from tests.data.aws.ec2.network_acls.vpcs import DESCRIBE_VPCS_FOR_ACL_TEST
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_rels
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 common_job_parameters: dict[str, Any] = {
     "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -23,16 +23,32 @@ common_job_parameters: dict[str, Any] = {
 }
 
 
-@patch.object(cartography.intel.aws.ec2.network_acls, 'get_network_acl_data', return_value=DESCRIBE_NETWORK_ACLS)
-@patch.object(cartography.intel.aws.ec2.subnets, 'get_subnet_data', return_value=DESCRIBE_SUBNETS_FOR_ACL_TEST)
-@patch.object(cartography.intel.aws.ec2.vpc, 'get_ec2_vpcs', return_value=DESCRIBE_VPCS_FOR_ACL_TEST)
-@patch.object(cartography.intel.aws.ec2.instances, 'get_ec2_instances', return_value=INSTANCES_FOR_ACL_TEST)
+@patch.object(
+    cartography.intel.aws.ec2.network_acls,
+    "get_network_acl_data",
+    return_value=DESCRIBE_NETWORK_ACLS,
+)
+@patch.object(
+    cartography.intel.aws.ec2.subnets,
+    "get_subnet_data",
+    return_value=DESCRIBE_SUBNETS_FOR_ACL_TEST,
+)
+@patch.object(
+    cartography.intel.aws.ec2.vpc,
+    "get_ec2_vpcs",
+    return_value=DESCRIBE_VPCS_FOR_ACL_TEST,
+)
+@patch.object(
+    cartography.intel.aws.ec2.instances,
+    "get_ec2_instances",
+    return_value=INSTANCES_FOR_ACL_TEST,
+)
 def test_sync_ec2_network_acls(
-        mock_instances: MagicMock,
-        mock_vpcs: MagicMock,
-        mock_subnets: MagicMock,
-        mock_acls: MagicMock,
-        neo4j_session,
+    mock_instances: MagicMock,
+    mock_vpcs: MagicMock,
+    mock_subnets: MagicMock,
+    mock_acls: MagicMock,
+    neo4j_session,
 ):
     regions = [TEST_REGION]
     boto3_session = MagicMock()
@@ -44,7 +60,7 @@ def test_sync_ec2_network_acls(
         boto3_session,
         regions,
         TEST_ACCOUNT_ID,
-        common_job_parameters['UPDATE_TAG'],
+        common_job_parameters["UPDATE_TAG"],
         common_job_parameters,
     )
     sync_vpc(
@@ -52,7 +68,7 @@ def test_sync_ec2_network_acls(
         boto3_session,
         regions,
         TEST_ACCOUNT_ID,
-        common_job_parameters['UPDATE_TAG'],
+        common_job_parameters["UPDATE_TAG"],
         common_job_parameters,
     )
     sync_subnets(
@@ -60,7 +76,7 @@ def test_sync_ec2_network_acls(
         boto3_session,
         regions,
         TEST_ACCOUNT_ID,
-        common_job_parameters['UPDATE_TAG'],
+        common_job_parameters["UPDATE_TAG"],
         common_job_parameters,
     )
 
@@ -70,64 +86,64 @@ def test_sync_ec2_network_acls(
         boto3_session,
         regions,
         TEST_ACCOUNT_ID,
-        common_job_parameters['UPDATE_TAG'],
+        common_job_parameters["UPDATE_TAG"],
         common_job_parameters,
     )
 
     # Assert that ACLs are connected to their expected rules
     assert check_rels(
         neo4j_session,
-        'EC2NetworkAcl',
-        'network_acl_id',
-        'EC2NetworkAclRule',
-        'id',
-        'MEMBER_OF_NACL',
+        "EC2NetworkAcl",
+        "network_acl_id",
+        "EC2NetworkAclRule",
+        "id",
+        "MEMBER_OF_NACL",
         rel_direction_right=False,
     ) == {
-        ('acl-077e', 'acl-077e/egress/100'),
-        ('acl-077e', 'acl-077e/egress/32767'),
-        ('acl-077e', 'acl-077e/inbound/100'),
-        ('acl-077e', 'acl-077e/inbound/32767'),
+        ("acl-077e", "acl-077e/egress/100"),
+        ("acl-077e", "acl-077e/egress/32767"),
+        ("acl-077e", "acl-077e/inbound/100"),
+        ("acl-077e", "acl-077e/inbound/32767"),
     }
 
     # Assert that ACL is attached to expected subnet
     assert check_rels(
         neo4j_session,
-        'EC2NetworkAcl',
-        'network_acl_id',
-        'EC2Subnet',
-        'subnetid',
-        'PART_OF_SUBNET',
+        "EC2NetworkAcl",
+        "network_acl_id",
+        "EC2Subnet",
+        "subnetid",
+        "PART_OF_SUBNET",
         rel_direction_right=True,
     ) == {
-        ('acl-077e', 'subnet-06ba'),
+        ("acl-077e", "subnet-06ba"),
     }
 
     # Assert that ACL is attached to account
     assert check_rels(
         neo4j_session,
-        'EC2NetworkAcl',
-        'network_acl_id',
-        'AWSAccount',
-        'id',
-        'RESOURCE',
+        "EC2NetworkAcl",
+        "network_acl_id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ('acl-077e', '000000000000'),
+        ("acl-077e", "000000000000"),
     }
 
-# Assert that ACL rule is attached to account
+    # Assert that ACL rule is attached to account
     assert check_rels(
         neo4j_session,
-        'EC2NetworkAclRule',
-        'id',
-        'AWSAccount',
-        'id',
-        'RESOURCE',
+        "EC2NetworkAclRule",
+        "id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ('acl-077e/egress/100', '000000000000'),
-        ('acl-077e/egress/32767', '000000000000'),
-        ('acl-077e/inbound/100', '000000000000'),
-        ('acl-077e/inbound/32767', '000000000000'),
+        ("acl-077e/egress/100", "000000000000"),
+        ("acl-077e/egress/32767", "000000000000"),
+        ("acl-077e/inbound/100", "000000000000"),
+        ("acl-077e/inbound/32767", "000000000000"),
     }

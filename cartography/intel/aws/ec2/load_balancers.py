@@ -15,18 +15,27 @@ logger = logging.getLogger(__name__)
 
 @timeit
 @aws_handle_regions
-def get_loadbalancer_data(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client('elb', region_name=region, config=get_botocore_config())
-    paginator = client.get_paginator('describe_load_balancers')
+def get_loadbalancer_data(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict]:
+    client = boto3_session.client(
+        "elb",
+        region_name=region,
+        config=get_botocore_config(),
+    )
+    paginator = client.get_paginator("describe_load_balancers")
     elbs: List[Dict] = []
     for page in paginator.paginate():
-        elbs.extend(page['LoadBalancerDescriptions'])
+        elbs.extend(page["LoadBalancerDescriptions"])
     return elbs
 
 
 @timeit
 def load_load_balancer_listeners(
-    neo4j_session: neo4j.Session, load_balancer_id: str, listener_data: List[Dict],
+    neo4j_session: neo4j.Session,
+    load_balancer_id: str,
+    listener_data: List[Dict],
     update_tag: int,
 ) -> None:
     ingest_listener = """
@@ -56,7 +65,9 @@ def load_load_balancer_listeners(
 
 @timeit
 def load_load_balancer_subnets(
-    neo4j_session: neo4j.Session, load_balancer_id: str, subnets_data: List[Dict],
+    neo4j_session: neo4j.Session,
+    load_balancer_id: str,
+    subnets_data: List[Dict],
     update_tag: int,
 ) -> None:
     ingest_load_balancer_subnet = """
@@ -77,7 +88,10 @@ def load_load_balancer_subnets(
 
 @timeit
 def load_load_balancers(
-    neo4j_session: neo4j.Session, data: List[Dict], region: str, current_aws_account_id: str,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    current_aws_account_id: str,
     update_tag: int,
 ) -> None:
     ingest_load_balancer = """
@@ -139,7 +153,12 @@ def load_load_balancers(
         )
 
         if lb["Subnets"]:
-            load_load_balancer_subnets(neo4j_session, load_balancer_id, lb["Subnets"], update_tag)
+            load_load_balancer_subnets(
+                neo4j_session,
+                load_balancer_id,
+                lb["Subnets"],
+                update_tag,
+            )
 
         if lb["SecurityGroups"]:
             for group in lb["SecurityGroups"]:
@@ -170,21 +189,47 @@ def load_load_balancers(
                 )
 
         if lb["ListenerDescriptions"]:
-            load_load_balancer_listeners(neo4j_session, load_balancer_id, lb["ListenerDescriptions"], update_tag)
+            load_load_balancer_listeners(
+                neo4j_session,
+                load_balancer_id,
+                lb["ListenerDescriptions"],
+                update_tag,
+            )
 
 
 @timeit
-def cleanup_load_balancers(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_ingest_load_balancers_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_load_balancers(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "aws_ingest_load_balancers_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync_load_balancers(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     for region in regions:
-        logger.info("Syncing EC2 load balancers for region '%s' in account '%s'.", region, current_aws_account_id)
+        logger.info(
+            "Syncing EC2 load balancers for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
+        )
         data = get_loadbalancer_data(boto3_session, region)
-        load_load_balancers(neo4j_session, data, region, current_aws_account_id, update_tag)
+        load_load_balancers(
+            neo4j_session,
+            data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
     cleanup_load_balancers(neo4j_session, common_job_parameters)

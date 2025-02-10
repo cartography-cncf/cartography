@@ -1,16 +1,16 @@
 import cartography.intel.aws.ec2
 import tests.data.aws.ec2.load_balancers
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
 def test_load_load_balancer_v2s(neo4j_session, *args):
     load_balancer_data = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA
-    ec2_instance_id = 'i-0f76fade'
-    sg_group_id = 'sg-123456'
-    sg_group_id_2 = 'sg-234567'
+    ec2_instance_id = "i-0f76fade"
+    sg_group_id = "sg-123456"
+    sg_group_id_2 = "sg-234567"
     load_balancer_id = "myawesomeloadbalancer.amazonaws.com"
 
     # an ec2instance and AWSAccount must exist
@@ -74,9 +74,9 @@ def test_load_load_balancer_v2s(neo4j_session, *args):
     }
     actual_nodes = {
         (
-            n['aa.id'],
-            n['elbv2.id'],
-            n['l.id'],
+            n["aa.id"],
+            n["elbv2.id"],
+            n["l.id"],
         )
         for n in nodes
     }
@@ -87,7 +87,7 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
     # elbv2 must exist
     # creates ELBV2Listener
     # creates (elbv2)-[r:ELBV2_LISTENER]->(l)
-    load_balancer_id = 'asadfmyloadbalancerid'
+    load_balancer_id = "asadfmyloadbalancerid"
     neo4j_session.run(
         """
         MERGE (elbv2:LoadBalancerV2{id: $ID})
@@ -124,8 +124,8 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
     }
     actual_nodes = {
         (
-            n['elbv2.id'],
-            n['l.id'],
+            n["elbv2.id"],
+            n["l.id"],
         )
         for n in nodes
     }
@@ -133,8 +133,8 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
 
 
 def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
-    load_balancer_id = 'asadfmyloadbalancerid'
-    ec2_instance_id = 'i-0f76fade'
+    load_balancer_id = "asadfmyloadbalancerid"
+    ec2_instance_id = "i-0f76fade"
 
     target_groups = tests.data.aws.ec2.load_balancers.TARGET_GROUPS
 
@@ -185,8 +185,8 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
     }
     actual_nodes = {
         (
-            n['elbv2.id'],
-            n['instance.instanceid'],
+            n["elbv2.id"],
+            n["instance.instanceid"],
         )
         for n in nodes
     }
@@ -195,7 +195,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
 def test_load_load_balancer_v2_subnets(neo4j_session, *args):
     # an elbv2 must exist or nothing will match.
-    load_balancer_id = 'asadfmyloadbalancerid'
+    load_balancer_id = "asadfmyloadbalancerid"
     neo4j_session.run(
         """
         MERGE (elbv2:LoadBalancerV2{id: $ID})
@@ -207,8 +207,8 @@ def test_load_load_balancer_v2_subnets(neo4j_session, *args):
     )
 
     az_data = [
-        {'SubnetId': 'mysubnetIdA'},
-        {'SubnetId': 'mysubnetIdB'},
+        {"SubnetId": "mysubnetIdA"},
+        {"SubnetId": "mysubnetIdB"},
     ]
     cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2_subnets(
         neo4j_session,
@@ -238,9 +238,9 @@ def test_load_load_balancer_v2_subnets(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['subnet.subnetid'],
-            n['subnet.region'],
-            n['subnet.lastupdated'],
+            n["subnet.subnetid"],
+            n["subnet.region"],
+            n["subnet.lastupdated"],
         )
         for n in nodes
     }

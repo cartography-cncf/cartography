@@ -21,8 +21,8 @@ _TIMEOUT = (60, 60)
 def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
     api_endpoint = f"{kandji_base_uri}/api/v1/devices"
     headers = {
-        'Accept': 'application/json',
-        'Authorization': f'Bearer {kandji_token}',
+        "Accept": "application/json",
+        "Authorization": f"Bearer {kandji_token}",
     }
 
     session = Session()
@@ -36,7 +36,7 @@ def transform(api_result: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     for device in api_result:
         n_device = device
-        n_device['id'] = device['device_id']
+        n_device["id"] = device["device_id"]
         result.append(n_device)
     return result
 
@@ -54,7 +54,7 @@ def load_devices(
     load(
         neo4j_session,
         KandjiTenantSchema(),
-        [{'id': tenant_id}],
+        [{"id": tenant_id}],
         lastupdated=update_tag,
     )
 
@@ -67,8 +67,13 @@ def load_devices(
     )
 
 
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    GraphJob.from_node_schema(KandjiDeviceSchema(), common_job_parameters).run(neo4j_session)
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(KandjiDeviceSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
 
 
 @timeit

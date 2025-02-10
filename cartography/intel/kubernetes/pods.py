@@ -13,7 +13,10 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def sync_pods(
-    session: Session, client: K8sClient, update_tag: int, cluster: Dict,
+    session: Session,
+    client: K8sClient,
+    update_tag: int,
+    cluster: Dict,
 ) -> List[Dict]:
     pods = get_pods(client, cluster)
     load_pods(session, pods, update_tag)
@@ -34,11 +37,11 @@ def get_pods(client: K8sClient, cluster: Dict) -> List[Dict]:
         if pod.status and pod.status.container_statuses:
             for status in pod.status.container_statuses:
                 if status.name in containers:
-                    _state = 'waiting'
+                    _state = "waiting"
                     if status.state.running:
-                        _state = 'running'
+                        _state = "running"
                     elif status.state.terminated:
-                        _state = 'terminated'
+                        _state = "terminated"
                     try:
                         image_sha = status.image_id.split("@")[1]
                     except IndexError:

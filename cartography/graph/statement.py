@@ -41,13 +41,13 @@ class GraphStatement:
     """
 
     def __init__(
-            self,
-            query: str,
-            parameters: Optional[Dict[Any, Any]] = None,
-            iterative: bool = False,
-            iterationsize: int = 0,
-            parent_job_name: Optional[str] = None,
-            parent_job_sequence_num: Optional[int] = None,
+        self,
+        query: str,
+        parameters: Optional[Dict[Any, Any]] = None,
+        iterative: bool = False,
+        iterationsize: int = 0,
+        parent_job_name: Optional[str] = None,
+        parent_job_sequence_num: Optional[int] = None,
     ):
         self.query = query
         self.parameters = parameters or {}
@@ -56,7 +56,9 @@ class GraphStatement:
         self.parameters["LIMIT_SIZE"] = self.iterationsize
 
         self.parent_job_name = parent_job_name if parent_job_name else None
-        self.parent_job_sequence_num = parent_job_sequence_num if parent_job_sequence_num else None
+        self.parent_job_sequence_num = (
+            parent_job_sequence_num if parent_job_sequence_num else None
+        )
 
     def merge_parameters(self, parameters: Dict) -> None:
         """
@@ -74,7 +76,9 @@ class GraphStatement:
             self._run_iterative(session)
         else:
             session.write_transaction(self._run_noniterative).consume()
-        logger.info(f"Completed {self.parent_job_name} statement #{self.parent_job_sequence_num}")
+        logger.info(
+            f"Completed {self.parent_job_name} statement #{self.parent_job_sequence_num}",
+        )
 
     def as_dict(self) -> Dict[str, Any]:
         """
@@ -95,17 +99,23 @@ class GraphStatement:
 
         # Handle stats
         summary: neo4j.ResultSummary = result.consume()
-        stat_handler.incr('constraints_added', summary.counters.constraints_added)
-        stat_handler.incr('constraints_removed', summary.counters.constraints_removed)
-        stat_handler.incr('indexes_added', summary.counters.indexes_added)
-        stat_handler.incr('indexes_removed', summary.counters.indexes_removed)
-        stat_handler.incr('labels_added', summary.counters.labels_added)
-        stat_handler.incr('labels_removed', summary.counters.labels_removed)
-        stat_handler.incr('nodes_created', summary.counters.nodes_created)
-        stat_handler.incr('nodes_deleted', summary.counters.nodes_deleted)
-        stat_handler.incr('properties_set', summary.counters.properties_set)
-        stat_handler.incr('relationships_created', summary.counters.relationships_created)
-        stat_handler.incr('relationships_deleted', summary.counters.relationships_deleted)
+        stat_handler.incr("constraints_added", summary.counters.constraints_added)
+        stat_handler.incr("constraints_removed", summary.counters.constraints_removed)
+        stat_handler.incr("indexes_added", summary.counters.indexes_added)
+        stat_handler.incr("indexes_removed", summary.counters.indexes_removed)
+        stat_handler.incr("labels_added", summary.counters.labels_added)
+        stat_handler.incr("labels_removed", summary.counters.labels_removed)
+        stat_handler.incr("nodes_created", summary.counters.nodes_created)
+        stat_handler.incr("nodes_deleted", summary.counters.nodes_deleted)
+        stat_handler.incr("properties_set", summary.counters.properties_set)
+        stat_handler.incr(
+            "relationships_created",
+            summary.counters.relationships_created,
+        )
+        stat_handler.incr(
+            "relationships_deleted",
+            summary.counters.relationships_deleted,
+        )
 
         return result
 
@@ -129,10 +139,10 @@ class GraphStatement:
 
     @classmethod
     def create_from_json(
-            cls,
-            json_obj: Dict[str, Any],
-            short_job_name: Optional[str] = None,
-            job_sequence_num: Optional[int] = None,
+        cls,
+        json_obj: Dict[str, Any],
+        short_job_name: Optional[str] = None,
+        job_sequence_num: Optional[int] = None,
     ):
         """
         Create a statement from a JSON blob.

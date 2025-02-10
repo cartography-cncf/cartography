@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 @timeit
 @aws_handle_regions
 def get_secret_list(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client('secretsmanager', region_name=region)
-    paginator = client.get_paginator('list_secrets')
+    client = boto3_session.client("secretsmanager", region_name=region)
+    paginator = client.get_paginator("list_secrets")
     secrets: List[Dict] = []
     for page in paginator.paginate():
-        secrets.extend(page['SecretList'])
+        secrets.extend(page["SecretList"])
     return secrets
 
 
@@ -52,11 +52,11 @@ def load_secrets(
         SET r.lastupdated = $aws_update_tag
     """
     for secret in data:
-        secret['LastRotatedDate'] = dict_date_to_epoch(secret, 'LastRotatedDate')
-        secret['LastChangedDate'] = dict_date_to_epoch(secret, 'LastChangedDate')
-        secret['LastAccessedDate'] = dict_date_to_epoch(secret, 'LastAccessedDate')
-        secret['DeletedDate'] = dict_date_to_epoch(secret, 'DeletedDate')
-        secret['CreatedDate'] = dict_date_to_epoch(secret, 'CreatedDate')
+        secret["LastRotatedDate"] = dict_date_to_epoch(secret, "LastRotatedDate")
+        secret["LastChangedDate"] = dict_date_to_epoch(secret, "LastChangedDate")
+        secret["LastAccessedDate"] = dict_date_to_epoch(secret, "LastAccessedDate")
+        secret["DeletedDate"] = dict_date_to_epoch(secret, "DeletedDate")
+        secret["CreatedDate"] = dict_date_to_epoch(secret, "CreatedDate")
 
     neo4j_session.run(
         ingest_secrets,
@@ -69,16 +69,28 @@ def load_secrets(
 
 @timeit
 def cleanup_secrets(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_secrets_cleanup.json', neo4j_session, common_job_parameters)
+    run_cleanup_job(
+        "aws_import_secrets_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     for region in regions:
-        logger.info("Syncing Secrets Manager for region '%s' in account '%s'.", region, current_aws_account_id)
+        logger.info(
+            "Syncing Secrets Manager for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
+        )
         secrets = get_secret_list(boto3_session, region)
         load_secrets(neo4j_session, secrets, region, current_aws_account_id, update_tag)
     cleanup_secrets(neo4j_session, common_job_parameters)

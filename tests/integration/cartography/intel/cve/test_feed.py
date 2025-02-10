@@ -77,17 +77,21 @@ def test_sync(neo4j_session):
     # Arrange
     _create_spotlight_nodes(neo4j_session)
     _create_cve_nodes(neo4j_session)
-    expected_feed = {(
-        feed.CVE_FEED_ID,
-        "NVD_CVE",
-        "2.0",
-        GET_CVE_API_DATA["timestamp"],
-    )}
+    expected_feed = {
+        (
+            feed.CVE_FEED_ID,
+            "NVD_CVE",
+            "2.0",
+            GET_CVE_API_DATA["timestamp"],
+        ),
+    }
     expected_cves = {
         (cve["cve"]["id"], cve["cve"]["published"], cve["cve"]["lastModified"])
         for cve in GET_CVE_API_DATA.get("vulnerabilities")
     }
-    expected_cves.add(("CVE-2023-9999", "2023-01-10T19:30:07.000", "2023-01-10T19:30:07.000"))
+    expected_cves.add(
+        ("CVE-2023-9999", "2023-01-10T19:30:07.000", "2023-01-10T19:30:07.000"),
+    )
     expected_feed_cve_rels = {(feed.CVE_FEED_ID, cve_id[0]) for cve_id in expected_cves}
     # Act
     cves = GET_CVE_API_DATA
@@ -95,28 +99,43 @@ def test_sync(neo4j_session):
     feed.load_cve_feed(neo4j_session, [feed_metadata], TEST_UPDATE_TAG)
     published_cves = feed.transform_cves(cves)
     feed.load_cves(
-        neo4j_session, published_cves, feed_metadata["FEED_ID"], TEST_UPDATE_TAG,
+        neo4j_session,
+        published_cves,
+        feed_metadata["FEED_ID"],
+        TEST_UPDATE_TAG,
     )
 
     # Assert
-    assert check_nodes(
-        neo4j_session, "CVEFeed", ["id", "format", "version", "timestamp"],
-    ) == expected_feed
+    assert (
+        check_nodes(
+            neo4j_session,
+            "CVEFeed",
+            ["id", "format", "version", "timestamp"],
+        )
+        == expected_feed
+    )
 
     assert (
         check_nodes(
-            neo4j_session, "CVE", ["id", "published_date", "last_modified_date"],
-        ) ==
-        expected_cves
+            neo4j_session,
+            "CVE",
+            ["id", "published_date", "last_modified_date"],
+        )
+        == expected_cves
     )
 
     assert (
-        check_rels(neo4j_session, "CVEFeed", "id", "CVE", "id", "RESOURCE") ==
-        expected_feed_cve_rels
+        check_rels(neo4j_session, "CVEFeed", "id", "CVE", "id", "RESOURCE")
+        == expected_feed_cve_rels
     )
 
     assert check_rels(
-        neo4j_session, "SpotlightVulnerability", "id", "CVE", "id", "HAS_CVE",
+        neo4j_session,
+        "SpotlightVulnerability",
+        "id",
+        "CVE",
+        "id",
+        "HAS_CVE",
     ) == {
         ("CVE-2023-41782", "CVE-2023-41782"),
     }

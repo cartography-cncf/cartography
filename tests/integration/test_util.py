@@ -21,10 +21,13 @@ def test_check_rels(neo4j_session):
 
     # Act and assert
     expected = {
-        ('Homer', 'Lisa'),
-        ('Homer', 'Bart'),
+        ("Homer", "Lisa"),
+        ("Homer", "Bart"),
     }
-    assert check_rels(neo4j_session, 'Human', 'id', 'Human', 'id', 'PARENT', False) == expected
+    assert (
+        check_rels(neo4j_session, "Human", "id", "Human", "id", "PARENT", False)
+        == expected
+    )
 
 
 def test_check_nodes(neo4j_session):
@@ -40,16 +43,19 @@ def test_check_nodes(neo4j_session):
 
     # Act and assert
     expected = {
-        ('the-worldasset-id-1', 1),
-        ('the-worldasset-id-2', 1),
+        ("the-worldasset-id-1", 1),
+        ("the-worldasset-id-2", 1),
     }
-    assert check_nodes(
-        neo4j_session,
-        'WorldAsset',
-        ['id', 'lastupdated'],
-    ) == expected
+    assert (
+        check_nodes(
+            neo4j_session,
+            "WorldAsset",
+            ["id", "lastupdated"],
+        )
+        == expected
+    )
 
 
 def test_check_nodes_empty_list_raises_exc(neo4j_session):
     with pytest.raises(ValueError):
-        check_nodes(neo4j_session, 'WorldAsset', [])
+        check_nodes(neo4j_session, "WorldAsset", [])

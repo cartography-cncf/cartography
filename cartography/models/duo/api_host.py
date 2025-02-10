@@ -7,11 +7,11 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 @dataclass(frozen=True)
 class DuoApiHostNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class DuoApiHostSchema(CartographyNodeSchema):
-    label: str = 'DuoApiHost'
+    label: str = "DuoApiHost"
     properties: DuoApiHostNodeProperties = DuoApiHostNodeProperties()

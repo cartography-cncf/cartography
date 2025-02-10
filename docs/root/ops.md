@@ -34,7 +34,7 @@ how that process works.
 ### Update tags
 
 Each sync run has an `update_tag` associated with it,
-which is the [Unix timestamp of when the sync started](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134).
+which is the [Unix timestamp of when the sync started](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134).
 See our [docs for more details](https://cartography-cncf.github.io/cartography/dev/writing-intel-modules.html#handling-cartographys-update_tag).
 
 ### Cleanup jobs
@@ -59,7 +59,7 @@ You can also provide your own `--statsd-prefix` to make these metrics easier to 
 
 ## Docker image
 
-A production-ready docker image is available in [GitHub Container Registry](https://github.com/lyft/cartography/pkgs/container/cartography). We recommend that you avoid using the `:latest` tag and instead
+A production-ready docker image is available in [GitHub Container Registry](https://github.com/cartography-cncf/cartography/pkgs/container/cartography). We recommend that you avoid using the `:latest` tag and instead
 use the tag or digest associated with your desired release version, e.g.
 
 ```bash

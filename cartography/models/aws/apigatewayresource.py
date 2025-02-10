@@ -13,50 +13,58 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class APIGatewayResourceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('id')
-    path: PropertyRef = PropertyRef('path')
-    pathpart: PropertyRef = PropertyRef('pathPart')
-    parentid: PropertyRef = PropertyRef('parentId')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id")
+    path: PropertyRef = PropertyRef("path")
+    pathpart: PropertyRef = PropertyRef("pathPart")
+    parentid: PropertyRef = PropertyRef("parentId")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class APIGatewayResourceToRestAPIRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:APIGatewayResource)<-[:RESOURCE]-(:APIGatewayRestAPI)
 class APIGatewayResourceToRestAPI(CartographyRelSchema):
-    target_node_label: str = 'APIGatewayRestAPI'
+    target_node_label: str = "APIGatewayRestAPI"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('apiId')},
+        {"id": PropertyRef("apiId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: APIGatewayResourceToRestAPIRelProperties = APIGatewayResourceToRestAPIRelProperties()
+    properties: APIGatewayResourceToRestAPIRelProperties = (
+        APIGatewayResourceToRestAPIRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class APIGatewayResourceToAwsAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:APIGatewayResource)<-[:RESOURCE]-(:AWSAccount)
 class APIGatewayResourceToAWSAccount(CartographyRelSchema):
-    target_node_label: str = 'AWSAccount'
+    target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('AWS_ID', set_in_kwargs=True)},
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: APIGatewayResourceToAwsAccountRelProperties = APIGatewayResourceToAwsAccountRelProperties()
+    properties: APIGatewayResourceToAwsAccountRelProperties = (
+        APIGatewayResourceToAwsAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class APIGatewayResourceSchema(CartographyNodeSchema):
-    label: str = 'APIGatewayResource'
+    label: str = "APIGatewayResource"
     properties: APIGatewayResourceNodeProperties = APIGatewayResourceNodeProperties()
-    sub_resource_relationship: APIGatewayResourceToAWSAccount = APIGatewayResourceToAWSAccount()
-    other_relationships: OtherRelationships = OtherRelationships([APIGatewayResourceToRestAPI()])
+    sub_resource_relationship: APIGatewayResourceToAWSAccount = (
+        APIGatewayResourceToAWSAccount()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [APIGatewayResourceToRestAPI()],
+    )

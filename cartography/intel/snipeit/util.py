@@ -12,17 +12,22 @@ _TIMEOUT = (60, 60)
 
 
 @timeit
-def call_snipeit_api(api_and_parameters: str, base_uri: str, token: str) -> Dict[str, Any]:
+def call_snipeit_api(
+    api_and_parameters: str,
+    base_uri: str,
+    token: str,
+) -> Dict[str, Any]:
     uri = base_uri + api_and_parameters
     try:
         logger.debug(
-            "SnipeIT: Get %s", uri,
+            "SnipeIT: Get %s",
+            uri,
         )
         response = requests.get(
             uri,
             headers={
-                'Accept': 'application/json',
-                'Authorization': f'Bearer {token}',
+                "Accept": "application/json",
+                "Authorization": f"Bearer {token}",
             },
             timeout=_TIMEOUT,
         )

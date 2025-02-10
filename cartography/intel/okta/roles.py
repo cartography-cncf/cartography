@@ -26,7 +26,7 @@ def _get_user_roles(api_client: ApiClient, user_id: str, okta_org_id: str) -> st
     """
 
     # https://developer.okta.com/docs/reference/api/roles/#list-roles
-    response = api_client.get_path(f'/{user_id}/roles')
+    response = api_client.get_path(f"/{user_id}/roles")
     check_rate_limit(response)
     return response.text
 
@@ -42,7 +42,7 @@ def _get_group_roles(api_client: ApiClient, group_id: str, okta_org_id: str) -> 
     """
 
     # https://developer.okta.com/docs/reference/api/roles/#list-roles-assigned-to-group
-    response = api_client.get_path(f'/{group_id}/roles')
+    response = api_client.get_path(f"/{group_id}/roles")
     check_rate_limit(response)
     return response.text
 
@@ -94,7 +94,12 @@ def transform_group_roles_data(data: str, okta_org_id: str) -> List[Dict]:
 
 
 @timeit
-def _load_user_role(neo4j_session: neo4j.Session, user_id: str, roles_data: List[Dict], okta_update_tag: int) -> None:
+def _load_user_role(
+    neo4j_session: neo4j.Session,
+    user_id: str,
+    roles_data: List[Dict],
+    okta_update_tag: int,
+) -> None:
     ingest = """
     MATCH (user:OktaUser{id: $USER_ID})<-[:RESOURCE]-(org:OktaOrganization)
     WITH user,org
@@ -122,7 +127,9 @@ def _load_user_role(neo4j_session: neo4j.Session, user_id: str, roles_data: List
 
 @timeit
 def _load_group_role(
-    neo4j_session: neo4j.Session, group_id: str, roles_data: List[Dict],
+    neo4j_session: neo4j.Session,
+    group_id: str,
+    roles_data: List[Dict],
     okta_update_tag: int,
 ) -> None:
     ingest = """
@@ -152,7 +159,10 @@ def _load_group_role(
 
 @timeit
 def sync_roles(
-    neo4j_session: str, okta_org_id: str, okta_update_tag: int, okta_api_key: str,
+    neo4j_session: str,
+    okta_org_id: str,
+    okta_update_tag: int,
+    okta_api_key: str,
     sync_state: OktaSyncState,
 ) -> None:
     """

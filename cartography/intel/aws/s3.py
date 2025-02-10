@@ -30,16 +30,20 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
-    client = boto3_session.client('s3')
+    client = boto3_session.client("s3")
     # NOTE no paginator available for this operation
     buckets = client.list_buckets()
-    for bucket in buckets['Buckets']:
+    for bucket in buckets["Buckets"]:
         try:
-            bucket['Region'] = client.get_bucket_location(Bucket=bucket['Name'])['LocationConstraint']
+            bucket["Region"] = client.get_bucket_location(Bucket=bucket["Name"])[
+                "LocationConstraint"
+            ]
         except ClientError as e:
             if _is_common_exception(e, bucket):
-                bucket['Region'] = None
-                logger.warning("skipping bucket='{}' due to exception.".format(bucket['Name']))
+                bucket["Region"] = None
+                logger.warning(
+                    "skipping bucket='{}' due to exception.".format(bucket["Name"]),
+                )
                 continue
             else:
                 raise
@@ -48,8 +52,8 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
 
 @timeit
 def get_s3_bucket_details(
-        boto3_session: boto3.session.Session,
-        bucket_data: Dict,
+    boto3_session: boto3.session.Session,
+    bucket_data: Dict,
 ) -> Generator[Tuple[str, Dict, Dict, Dict, Dict, Dict], None, None]:
     """
     Iterates over all S3 buckets. Yields bucket name (string), S3 bucket policies (JSON), ACLs (JSON),
@@ -58,16 +62,23 @@ def get_s3_bucket_details(
     # a local store for s3 clients so that we may re-use clients for an AWS region
     s3_regional_clients: Dict[Any, Any] = {}
 
-    BucketDetail = Tuple[str, Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Any]]
+    BucketDetail = Tuple[
+        str,
+        Dict[str, Any],
+        Dict[str, Any],
+        Dict[str, Any],
+        Dict[str, Any],
+        Dict[str, Any],
+    ]
 
     async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetail:
         # Note: bucket['Region'] is sometimes None because
         # client.get_bucket_location() does not return a location constraint for buckets
         # in us-east-1 region
-        client = s3_regional_clients.get(bucket['Region'])
+        client = s3_regional_clients.get(bucket["Region"])
         if not client:
-            client = boto3_session.client('s3', bucket['Region'])
-            s3_regional_clients[bucket['Region']] = client
+            client = boto3_session.client("s3", bucket["Region"])
+            s3_regional_clients[bucket["Region"]] = client
         (
             acl,
             policy,
@@ -81,9 +92,11 @@ def get_s3_bucket_details(
             to_asynchronous(get_versioning, bucket, client),
             to_asynchronous(get_public_access_block, bucket, client),
         )
-        return bucket['Name'], acl, policy, encryption, versioning, public_access_block
+        return bucket["Name"], acl, policy, encryption, versioning, public_access_block
 
-    bucket_details = to_synchronous(*[_get_bucket_detail(bucket) for bucket in bucket_data['Buckets']])
+    bucket_details = to_synchronous(
+        *[_get_bucket_detail(bucket) for bucket in bucket_data["Buckets"]],
+    )
     yield from bucket_details
 
 
@@ -94,7 +107,7 @@ def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> Optional[Dic
     """
     policy = None
     try:
-        policy = client.get_bucket_policy(Bucket=bucket['Name'])
+        policy = client.get_bucket_policy(Bucket=bucket["Name"])
     except ClientError as e:
         if _is_common_exception(e, bucket):
             pass
@@ -114,7 +127,7 @@ def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> Optional[Dict]:
     """
     acl = None
     try:
-        acl = client.get_bucket_acl(Bucket=bucket['Name'])
+        acl = client.get_bucket_acl(Bucket=bucket["Name"])
     except ClientError as e:
         if _is_common_exception(e, bucket):
             pass
@@ -134,7 +147,7 @@ def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> Optional
     """
     encryption = None
     try:
-        encryption = client.get_bucket_encryption(Bucket=bucket['Name'])
+        encryption = client.get_bucket_encryption(Bucket=bucket["Name"])
     except ClientError as e:
         if _is_common_exception(e, bucket):
             pass
@@ -154,7 +167,7 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> Optional
     """
     versioning = None
     try:
-        versioning = client.get_bucket_versioning(Bucket=bucket['Name'])
+        versioning = client.get_bucket_versioning(Bucket=bucket["Name"])
     except ClientError as e:
         if _is_common_exception(e, bucket):
             pass
@@ -168,13 +181,16 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> Optional
 
 
 @timeit
-def get_public_access_block(bucket: Dict, client: botocore.client.BaseClient) -> Optional[Dict]:
+def get_public_access_block(
+    bucket: Dict,
+    client: botocore.client.BaseClient,
+) -> Optional[Dict]:
     """
     Gets the S3 bucket public access block configuration.
     """
     public_access_block = None
     try:
-        public_access_block = client.get_public_access_block(Bucket=bucket['Name'])
+        public_access_block = client.get_public_access_block(Bucket=bucket["Name"])
     except ClientError as e:
         if _is_common_exception(e, bucket):
             pass
@@ -207,26 +223,32 @@ def _is_common_exception(e: Exception, bucket: Dict) -> bool:
         logger.warning(f"{error_msg} for {bucket['Name']} - EndpointConnectionError")
         return True
     elif "ServerSideEncryptionConfigurationNotFoundError" in e.args[0]:
-        logger.warning(f"{error_msg} for {bucket['Name']} - ServerSideEncryptionConfigurationNotFoundError")
+        logger.warning(
+            f"{error_msg} for {bucket['Name']} - ServerSideEncryptionConfigurationNotFoundError",
+        )
         return True
     elif "InvalidToken" in e.args[0]:
         logger.warning(f"{error_msg} for {bucket['Name']} - InvalidToken")
         return True
     elif "NoSuchPublicAccessBlockConfiguration" in e.args[0]:
-        logger.warning(f"{error_msg} for {bucket['Name']} - NoSuchPublicAccessBlockConfiguration")
+        logger.warning(
+            f"{error_msg} for {bucket['Name']} - NoSuchPublicAccessBlockConfiguration",
+        )
         return True
     elif "IllegalLocationConstraintException" in e.args[0]:
-        logger.warning(f"{error_msg} for {bucket['Name']} - IllegalLocationConstraintException")
+        logger.warning(
+            f"{error_msg} for {bucket['Name']} - IllegalLocationConstraintException",
+        )
         return True
     return False
 
 
 @timeit
 def _load_s3_acls(
-        neo4j_session: neo4j.Session,
-        acls: List[Dict[str, Any]],
-        aws_account_id: str,
-        update_tag: int,
+    neo4j_session: neo4j.Session,
+    acls: List[Dict[str, Any]],
+    aws_account_id: str,
+    update_tag: int,
 ) -> None:
     """
     Ingest S3 ACL into neo4j.
@@ -252,14 +274,18 @@ def _load_s3_acls(
     # implement the acl permission
     # https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#permissions
     run_analysis_job(
-        'aws_s3acl_analysis.json',
+        "aws_s3acl_analysis.json",
         neo4j_session,
-        {'AWS_ID': aws_account_id},
+        {"AWS_ID": aws_account_id},
     )
 
 
 @timeit
-def _load_s3_policies(neo4j_session: neo4j.Session, policies: List[Dict], update_tag: int) -> None:
+def _load_s3_policies(
+    neo4j_session: neo4j.Session,
+    policies: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest S3 policy results into neo4j.
     """
@@ -281,7 +307,9 @@ def _load_s3_policies(neo4j_session: neo4j.Session, policies: List[Dict], update
 
 @timeit
 def _load_s3_policy_statements(
-    neo4j_session: neo4j.Session, statements: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    statements: List[Dict],
+    update_tag: int,
 ) -> None:
     ingest_policy_statement = """
         UNWIND $Statements as statement_data
@@ -311,7 +339,11 @@ def _load_s3_policy_statements(
 
 
 @timeit
-def _load_s3_encryption(neo4j_session: neo4j.Session, encryption_configs: List[Dict], update_tag: int) -> None:
+def _load_s3_encryption(
+    neo4j_session: neo4j.Session,
+    encryption_configs: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest S3 default encryption results into neo4j.
     """
@@ -333,7 +365,11 @@ def _load_s3_encryption(neo4j_session: neo4j.Session, encryption_configs: List[D
 
 
 @timeit
-def _load_s3_versioning(neo4j_session: neo4j.Session, versioning_configs: List[Dict], update_tag: int) -> None:
+def _load_s3_versioning(
+    neo4j_session: neo4j.Session,
+    versioning_configs: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest S3 versioning results into neo4j.
     """
@@ -400,7 +436,9 @@ def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> No
 
 @timeit
 def load_s3_details(
-    neo4j_session: neo4j.Session, s3_details_iter: Generator[Any, Any, Any], aws_account_id: str,
+    neo4j_session: neo4j.Session,
+    s3_details_iter: Generator[Any, Any, Any],
+    aws_account_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -412,7 +450,14 @@ def load_s3_details(
     encryption_configs: List[Dict] = []
     versioning_configs: List[Dict] = []
     public_access_block_configs: List[Dict] = []
-    for bucket, acl, policy, encryption, versioning, public_access_block in s3_details_iter:
+    for (
+        bucket,
+        acl,
+        policy,
+        encryption,
+        versioning,
+        public_access_block,
+    ) in s3_details_iter:
         parsed_acls = parse_acl(acl, bucket, aws_account_id)
         if parsed_acls is not None:
             acls.extend(parsed_acls)
@@ -428,15 +473,18 @@ def load_s3_details(
         parsed_versioning = parse_versioning(bucket, versioning)
         if parsed_versioning is not None:
             versioning_configs.append(parsed_versioning)
-        parsed_public_access_block = parse_public_access_block(bucket, public_access_block)
+        parsed_public_access_block = parse_public_access_block(
+            bucket,
+            public_access_block,
+        )
         if parsed_public_access_block is not None:
             public_access_block_configs.append(parsed_public_access_block)
 
     # cleanup existing policy properties set on S3 Buckets
     run_cleanup_job(
-        'aws_s3_details.json',
+        "aws_s3_details.json",
         neo4j_session,
-        {'UPDATE_TAG': update_tag, 'AWS_ID': aws_account_id},
+        {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id},
     )
 
     _load_s3_acls(neo4j_session, acls, aws_account_id, update_tag)
@@ -492,7 +540,7 @@ def parse_policy(bucket: str, policyDict: Optional[Dict]) -> Optional[Dict]:
     if policyDict is None:
         return None
     # get just the policy element and convert to JSON because boto3 returns this as string
-    policy = Policy(json.loads(policyDict['Policy']))
+    policy = Policy(json.loads(policyDict["Policy"]))
     if policy.is_internet_accessible():
         return {
             "bucket": bucket,
@@ -512,7 +560,7 @@ def parse_policy_statements(bucket: str, policyDict: Policy) -> List[Dict]:
     if policyDict is None:
         return None
 
-    policy = json.loads(policyDict['Policy'])
+    policy = json.loads(policyDict["Policy"])
     statements = []
     stmt_index = 1
     for s in policy["Statement"]:
@@ -544,8 +592,12 @@ def parse_policy_statements(bucket: str, policyDict: Policy) -> List[Dict]:
 
 
 @timeit
-def parse_acl(acl: Optional[Dict], bucket: str, aws_account_id: str) -> Optional[List[Dict]]:
-    """ Parses the AWS ACL object and returns a dict of the relevant data """
+def parse_acl(
+    acl: Optional[Dict],
+    bucket: str,
+    aws_account_id: str,
+) -> Optional[List[Dict]]:
+    """Parses the AWS ACL object and returns a dict of the relevant data"""
     # ACL JSON looks like
     # ...metadata...
     # {
@@ -570,47 +622,47 @@ def parse_acl(acl: Optional[Dict], bucket: str, aws_account_id: str) -> Optional
     if acl is None:
         return None
     acl_list: List[Dict] = []
-    for grant in acl['Grants']:
+    for grant in acl["Grants"]:
         parsed_acl = None
-        if grant['Grantee']['Type'] == 'CanonicalUser':
+        if grant["Grantee"]["Type"] == "CanonicalUser":
             parsed_acl = {
                 "bucket": bucket,
-                "owner": acl['Owner'].get('DisplayName'),
-                "ownerid": acl['Owner'].get('ID'),
-                "type": grant['Grantee']['Type'],
-                "displayname": grant['Grantee'].get('DisplayName'),
-                "granteeid": grant['Grantee'].get('ID'),
+                "owner": acl["Owner"].get("DisplayName"),
+                "ownerid": acl["Owner"].get("ID"),
+                "type": grant["Grantee"]["Type"],
+                "displayname": grant["Grantee"].get("DisplayName"),
+                "granteeid": grant["Grantee"].get("ID"),
                 "uri": None,
-                "permission": grant.get('Permission'),
+                "permission": grant.get("Permission"),
             }
-        elif grant['Grantee']['Type'] == 'Group':
+        elif grant["Grantee"]["Type"] == "Group":
             parsed_acl = {
                 "bucket": bucket,
-                "owner": acl['Owner'].get('DisplayName'),
-                "ownerid": acl['Owner'].get('ID'),
-                "type": grant['Grantee']['Type'],
+                "owner": acl["Owner"].get("DisplayName"),
+                "ownerid": acl["Owner"].get("ID"),
+                "type": grant["Grantee"]["Type"],
                 "displayname": None,
                 "granteeid": None,
-                "uri": grant['Grantee'].get('URI'),
-                "permission": grant.get('Permission'),
+                "uri": grant["Grantee"].get("URI"),
+                "permission": grant.get("Permission"),
             }
         else:
-            logger.warning("Unexpected grant type: %s", grant['Grantee']['Type'])
+            logger.warning("Unexpected grant type: %s", grant["Grantee"]["Type"])
             continue
 
         # TODO this can be replaced with a string join
         id_data = "{}:{}:{}:{}:{}:{}:{}:{}".format(
             aws_account_id,
-            parsed_acl['owner'],
-            parsed_acl['ownerid'],
-            parsed_acl['type'],
-            parsed_acl['displayname'],
-            parsed_acl['granteeid'],
-            parsed_acl['uri'],
-            parsed_acl['permission'],
+            parsed_acl["owner"],
+            parsed_acl["ownerid"],
+            parsed_acl["type"],
+            parsed_acl["displayname"],
+            parsed_acl["granteeid"],
+            parsed_acl["uri"],
+            parsed_acl["permission"],
         )
 
-        parsed_acl['id'] = hashlib.sha256(id_data.encode("utf8")).hexdigest()
+        parsed_acl["id"] = hashlib.sha256(id_data.encode("utf8")).hexdigest()
         acl_list.append(parsed_acl)
 
     return acl_list
@@ -618,7 +670,7 @@ def parse_acl(acl: Optional[Dict], bucket: str, aws_account_id: str) -> Optional
 
 @timeit
 def parse_encryption(bucket: str, encryption: Optional[Dict]) -> Optional[Dict]:
-    """ Parses the S3 default encryption object and returns a dict of the relevant data """
+    """Parses the S3 default encryption object and returns a dict of the relevant data"""
     # Encryption object JSON looks like:
     # {
     #     'ServerSideEncryptionConfiguration': {
@@ -635,27 +687,29 @@ def parse_encryption(bucket: str, encryption: Optional[Dict]) -> Optional[Dict]:
     # }
     if encryption is None:
         return None
-    _ssec = encryption.get('ServerSideEncryptionConfiguration', {})
+    _ssec = encryption.get("ServerSideEncryptionConfiguration", {})
     # Rules is a list, but only one rule ever exists
     try:
-        rule = _ssec.get('Rules', []).pop()
+        rule = _ssec.get("Rules", []).pop()
     except IndexError:
         return None
-    algorithm = rule.get('ApplyServerSideEncryptionByDefault', {}).get('SSEAlgorithm')
+    algorithm = rule.get("ApplyServerSideEncryptionByDefault", {}).get("SSEAlgorithm")
     if not algorithm:
         return None
     return {
         "bucket": bucket,
         "default_encryption": True,
         "encryption_algorithm": algorithm,
-        "encryption_key_id": rule.get("ApplyServerSideEncryptionByDefault", {}).get('KMSMasterKeyID'),
-        "bucket_key_enabled": rule.get('BucketKeyEnabled'),
+        "encryption_key_id": rule.get("ApplyServerSideEncryptionByDefault", {}).get(
+            "KMSMasterKeyID",
+        ),
+        "bucket_key_enabled": rule.get("BucketKeyEnabled"),
     }
 
 
 @timeit
 def parse_versioning(bucket: str, versioning: Optional[Dict]) -> Optional[Dict]:
-    """ Parses the S3 versioning object and returns a dict of the relevant data """
+    """Parses the S3 versioning object and returns a dict of the relevant data"""
     # Versioning object JSON looks like:
     # {
     #     'Status': 'Enabled'|'Suspended',
@@ -671,8 +725,11 @@ def parse_versioning(bucket: str, versioning: Optional[Dict]) -> Optional[Dict]:
 
 
 @timeit
-def parse_public_access_block(bucket: str, public_access_block: Optional[Dict]) -> Optional[Dict]:
-    """ Parses the S3 public access block object and returns a dict of the relevant data """
+def parse_public_access_block(
+    bucket: str,
+    public_access_block: Optional[Dict],
+) -> Optional[Dict]:
+    """Parses the S3 public access block object and returns a dict of the relevant data"""
     # Versioning object JSON looks like:
     # {
     #     'PublicAccessBlockConfiguration': {
@@ -695,7 +752,12 @@ def parse_public_access_block(bucket: str, public_access_block: Optional[Dict]) 
 
 
 @timeit
-def load_s3_buckets(neo4j_session: neo4j.Session, data: Dict, current_aws_account_id: str, aws_update_tag: int) -> None:
+def load_s3_buckets(
+    neo4j_session: neo4j.Session,
+    data: Dict,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
     ingest_bucket = """
     MERGE (bucket:S3Bucket{id:$BucketName})
     ON CREATE SET bucket.firstseen = timestamp(), bucket.creationdate = $CreationDate
@@ -726,19 +788,37 @@ def load_s3_buckets(neo4j_session: neo4j.Session, data: Dict, current_aws_accoun
 
 
 @timeit
-def cleanup_s3_buckets(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_s3_buckets_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_s3_buckets(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "aws_import_s3_buckets_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
-def cleanup_s3_bucket_acl_and_policy(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_s3_acl_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_s3_bucket_acl_and_policy(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "aws_import_s3_acl_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing S3 for account '%s'.", current_aws_account_id)
     bucket_data = get_s3_bucket_list(boto3_session)
@@ -747,14 +827,19 @@ def sync(
     cleanup_s3_buckets(neo4j_session, common_job_parameters)
 
     acl_and_policy_data_iter = get_s3_bucket_details(boto3_session, bucket_data)
-    load_s3_details(neo4j_session, acl_and_policy_data_iter, current_aws_account_id, update_tag)
+    load_s3_details(
+        neo4j_session,
+        acl_and_policy_data_iter,
+        current_aws_account_id,
+        update_tag,
+    )
     cleanup_s3_bucket_acl_and_policy(neo4j_session, common_job_parameters)
 
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='AWSAccount',
+        group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type='S3Bucket',
+        synced_type="S3Bucket",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

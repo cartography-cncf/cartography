@@ -96,12 +96,16 @@ def get_users(token: str, api_url: str, organization: str) -> Tuple[List[Dict], 
         api_url,
         organization,
         GITHUB_ORG_USERS_PAGINATED_GRAPHQL,
-        'membersWithRole',
+        "membersWithRole",
     )
     return users.edges, org
 
 
-def get_enterprise_owners(token: str, api_url: str, organization: str) -> Tuple[List[Dict], Dict]:
+def get_enterprise_owners(
+    token: str,
+    api_url: str,
+    organization: str,
+) -> Tuple[List[Dict], Dict]:
     """
     Retrieve a list of enterprise owners from the given GitHub organization as described in
     https://docs.github.com/en/graphql/reference/objects#organizationenterpriseowneredge.
@@ -119,13 +123,17 @@ def get_enterprise_owners(token: str, api_url: str, organization: str) -> Tuple[
         api_url,
         organization,
         GITHUB_ENTERPRISE_OWNER_USERS_PAGINATED_GRAPHQL,
-        'enterpriseOwners',
+        "enterpriseOwners",
     )
     return owners.edges, org
 
 
 @timeit
-def transform_users(user_data: List[Dict], owners_data: List[Dict], org_data: Dict) -> Tuple[List[Dict], List[Dict]]:
+def transform_users(
+    user_data: List[Dict],
+    owners_data: List[Dict],
+    org_data: Dict,
+) -> Tuple[List[Dict], List[Dict]]:
     """
     Taking raw user and owner data, return two lists of processed user data:
     * organization users aka affiliated users (users directly affiliated with an organization)
@@ -145,27 +153,27 @@ def transform_users(user_data: List[Dict], owners_data: List[Dict], org_data: Di
     users_dict = {}
     for user in user_data:
         # all members get the 'MEMBER_OF' relationship
-        processed_user = deepcopy(user['node'])
-        processed_user['hasTwoFactorEnabled'] = user['hasTwoFactorEnabled']
-        processed_user['MEMBER_OF'] = org_data['url']
+        processed_user = deepcopy(user["node"])
+        processed_user["hasTwoFactorEnabled"] = user["hasTwoFactorEnabled"]
+        processed_user["MEMBER_OF"] = org_data["url"]
         # admins get a second relationship expressing them as such
-        if user['role'] == 'ADMIN':
-            processed_user['ADMIN_OF'] = org_data['url']
-        users_dict[processed_user['url']] = processed_user
+        if user["role"] == "ADMIN":
+            processed_user["ADMIN_OF"] = org_data["url"]
+        users_dict[processed_user["url"]] = processed_user
 
     owners_dict = {}
     for owner in owners_data:
-        processed_owner = deepcopy(owner['node'])
-        processed_owner['isEnterpriseOwner'] = True
-        if owner['organizationRole'] == 'UNAFFILIATED':
-            processed_owner['UNAFFILIATED'] = org_data['url']
+        processed_owner = deepcopy(owner["node"])
+        processed_owner["isEnterpriseOwner"] = True
+        if owner["organizationRole"] == "UNAFFILIATED":
+            processed_owner["UNAFFILIATED"] = org_data["url"]
         else:
-            processed_owner['MEMBER_OF'] = org_data['url']
-        owners_dict[processed_owner['url']] = processed_owner
+            processed_owner["MEMBER_OF"] = org_data["url"]
+        owners_dict[processed_owner["url"]] = processed_owner
 
     affiliated_users = []  # users affiliated with the target org
     for url, user in users_dict.items():
-        user['isEnterpriseOwner'] = url in owners_dict
+        user["isEnterpriseOwner"] = url in owners_dict
         affiliated_users.append(user)
 
     unaffiliated_users = []  # users not affiliated with the target org
@@ -190,7 +198,7 @@ def load_users(
         node_schema,
         user_data,
         lastupdated=update_tag,
-        org_url=org_data['url'],
+        org_url=org_data["url"],
     )
 
 
@@ -211,45 +219,68 @@ def load_organization(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
     logger.info("Cleaning up GitHub users")
-    GraphJob.from_node_schema(GitHubOrganizationUserSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(GitHubUnaffiliatedUserSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(
+        GitHubOrganizationUserSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        GitHubUnaffiliatedUserSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
 
 
 @timeit
 def sync(
-        neo4j_session: neo4j.Session,
-        common_job_parameters: Dict,
-        github_api_key: str,
-        github_url: str,
-        organization: str,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+    github_api_key: str,
+    github_url: str,
+    organization: str,
 ) -> None:
     logger.info("Syncing GitHub users")
     user_data, org_data = get_users(github_api_key, github_url, organization)
-    owners_data, org_data = get_enterprise_owners(github_api_key, github_url, organization)
-    processed_affiliated_user_data, processed_unaffiliated_user_data = (
-        transform_users(user_data, owners_data, org_data)
+    owners_data, org_data = get_enterprise_owners(
+        github_api_key,
+        github_url,
+        organization,
+    )
+    processed_affiliated_user_data, processed_unaffiliated_user_data = transform_users(
+        user_data,
+        owners_data,
+        org_data,
     )
     load_organization(
-        neo4j_session, GitHubOrganizationSchema(), [org_data],
-        common_job_parameters['UPDATE_TAG'],
+        neo4j_session,
+        GitHubOrganizationSchema(),
+        [org_data],
+        common_job_parameters["UPDATE_TAG"],
     )
     load_users(
-        neo4j_session, GitHubOrganizationUserSchema(), processed_affiliated_user_data, org_data,
-        common_job_parameters['UPDATE_TAG'],
+        neo4j_session,
+        GitHubOrganizationUserSchema(),
+        processed_affiliated_user_data,
+        org_data,
+        common_job_parameters["UPDATE_TAG"],
     )
     load_users(
-        neo4j_session, GitHubUnaffiliatedUserSchema(), processed_unaffiliated_user_data, org_data,
-        common_job_parameters['UPDATE_TAG'],
+        neo4j_session,
+        GitHubUnaffiliatedUserSchema(),
+        processed_unaffiliated_user_data,
+        org_data,
+        common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
 
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='GitHubOrganization',
-        group_id=org_data['url'],
-        synced_type='GitHubOrganization',
-        update_tag=common_job_parameters['UPDATE_TAG'],
+        group_type="GitHubOrganization",
+        group_id=org_data["url"],
+        synced_type="GitHubOrganization",
+        update_tag=common_job_parameters["UPDATE_TAG"],
         stat_handler=stat_handler,
     )

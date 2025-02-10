@@ -1,8 +1,8 @@
 import cartography.intel.aws.lambda_function
 import tests.data.aws.lambda_function
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-west-2'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-west-2"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -36,7 +36,7 @@ def test_load_lambda_functions(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -65,16 +65,46 @@ def test_load_lambda_relationships(neo4j_session):
     )
 
     expected_nodes = {
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-5"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-6"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-8"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10"),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-5",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-6",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-8",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10",
+        ),
     }
 
     # Fetch relationships
@@ -83,9 +113,7 @@ def test_load_lambda_relationships(neo4j_session):
         MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:AWSLambda) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected_nodes
 
@@ -111,7 +139,7 @@ def test_load_lambda_function_aliases(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -157,9 +185,7 @@ def test_load_lambda_function_aliases_relationships(neo4j_session):
         MATCH (n1:AWSLambda)-[:KNOWN_AS]->(n2:AWSLambdaFunctionAlias) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected_nodes
 
@@ -184,7 +210,7 @@ def test_load_lambda_event_source_mappings(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -211,10 +237,12 @@ def test_load_lambda_event_source_mappings_relationships(neo4j_session):
 
     expected_nodes = {
         (
-            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7", "i01",
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",
+            "i01",
         ),
         (
-            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-8", "i02",
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-8",
+            "i02",
         ),
     }
 
@@ -224,9 +252,7 @@ def test_load_lambda_event_source_mappings_relationships(neo4j_session):
         MATCH (n1:AWSLambda)-[:RESOURCE]->(n2:AWSLambdaEventSourceMapping) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected_nodes
 
@@ -252,7 +278,7 @@ def test_load_lambda_layers(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -298,8 +324,6 @@ def test_load_lambda_layers_relationships(neo4j_session):
         MATCH (n1:AWSLambda)-[:HAS]->(n2:AWSLambdaLayer) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected_nodes

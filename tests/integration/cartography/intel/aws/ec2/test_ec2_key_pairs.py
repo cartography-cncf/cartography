@@ -7,15 +7,15 @@ from cartography.intel.aws.ec2.key_pairs import sync_ec2_key_pairs
 from cartography.util import run_analysis_job
 
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
 @patch.object(
     cartography.intel.aws.ec2.key_pairs,
-    'get_ec2_key_pairs',
-    return_value=tests.data.aws.ec2.key_pairs.DESCRIBE_KEY_PAIRS['KeyPairs'],
+    "get_ec2_key_pairs",
+    return_value=tests.data.aws.ec2.key_pairs.DESCRIBE_KEY_PAIRS["KeyPairs"],
 )
 def test_sync_ec2_key_pairs(mock_key_pairs, neo4j_session):
     # Arrange
@@ -28,7 +28,7 @@ def test_sync_ec2_key_pairs(mock_key_pairs, neo4j_session):
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     # Assert
@@ -58,8 +58,8 @@ def test_sync_ec2_key_pairs(mock_key_pairs, neo4j_session):
     )
     actual_nodes = {
         (
-            n['k.arn'],
-            n['k.keyfingerprint'],
+            n["k.arn"],
+            n["k.keyfingerprint"],
         )
         for n in nodes
     }
@@ -68,8 +68,8 @@ def test_sync_ec2_key_pairs(mock_key_pairs, neo4j_session):
 
 @patch.object(
     cartography.intel.aws.ec2.key_pairs,
-    'get_ec2_key_pairs',
-    return_value=tests.data.aws.ec2.key_pairs.DESCRIBE_KEY_PAIRS['KeyPairs'],
+    "get_ec2_key_pairs",
+    return_value=tests.data.aws.ec2.key_pairs.DESCRIBE_KEY_PAIRS["KeyPairs"],
 )
 def test_ec2_key_pairs_analysis_job(mock_key_pairs, neo4j_session):
     # Arrange
@@ -80,14 +80,14 @@ def test_ec2_key_pairs_analysis_job(mock_key_pairs, neo4j_session):
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     # Act
     run_analysis_job(
-        'aws_ec2_keypair_analysis.json',
+        "aws_ec2_keypair_analysis.json",
         neo4j_session,
-        {'UPDATE_TAG': TEST_UPDATE_TAG},
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
     # Assert
@@ -105,9 +105,9 @@ def test_ec2_key_pairs_analysis_job(mock_key_pairs, neo4j_session):
     )
     actual_nodes = {
         (
-            n['k.arn'],
-            n['k.keyfingerprint'],
-            n['k.user_uploaded'],
+            n["k.arn"],
+            n["k.keyfingerprint"],
+            n["k.user_uploaded"],
         )
         for n in nodes
     }

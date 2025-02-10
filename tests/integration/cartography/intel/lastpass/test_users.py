@@ -9,7 +9,11 @@ TEST_UPDATE_TAG = 123456789
 TEST_TENANT_ID = 11223344
 
 
-@patch.object(cartography.intel.lastpass.users, 'get', return_value=tests.data.lastpass.users.LASTPASS_USERS)
+@patch.object(
+    cartography.intel.lastpass.users,
+    "get",
+    return_value=tests.data.lastpass.users.LASTPASS_USERS,
+)
 def test_load_lastpass_users(mock_api, neo4j_session):
     """
     Ensure that users actually get loaded
@@ -28,8 +32,8 @@ def test_load_lastpass_users(mock_api, neo4j_session):
     h.lastupdated = $UpdateTag
     """
     data = []
-    for v in tests.data.lastpass.users.LASTPASS_USERS['Users'].values():
-        data.append(v['username'])
+    for v in tests.data.lastpass.users.LASTPASS_USERS["Users"].values():
+        data.append(v["username"])
     neo4j_session.run(
         query,
         UserData=data,
@@ -39,7 +43,7 @@ def test_load_lastpass_users(mock_api, neo4j_session):
     # Act
     cartography.intel.lastpass.users.sync(
         neo4j_session,
-        'fakeProvHash',
+        "fakeProvHash",
         TEST_TENANT_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
@@ -47,46 +51,56 @@ def test_load_lastpass_users(mock_api, neo4j_session):
 
     # Assert Human exists
     expected_nodes = {
-        ('john.doe@domain.tld', 'john.doe@domain.tld'),
-        ('jane.smith@domain.tld', 'jane.smith@domain.tld'),
+        ("john.doe@domain.tld", "john.doe@domain.tld"),
+        ("jane.smith@domain.tld", "jane.smith@domain.tld"),
     }
-    assert check_nodes(neo4j_session, 'Human', ['id', 'email']) == expected_nodes
+    assert check_nodes(neo4j_session, "Human", ["id", "email"]) == expected_nodes
 
     # Assert Tenant exists
     expected_nodes = {
         (TEST_TENANT_ID,),
     }
-    assert check_nodes(neo4j_session, 'LastpassTenant', ['id']) == expected_nodes
+    assert check_nodes(neo4j_session, "LastpassTenant", ["id"]) == expected_nodes
 
     # Assert Users exists
     expected_nodes = {
-        (123456, 'john.doe@domain.tld'),
-        (234567, 'jane.smith@domain.tld'),
+        (123456, "john.doe@domain.tld"),
+        (234567, "jane.smith@domain.tld"),
     }
-    assert check_nodes(neo4j_session, 'LastpassUser', ['id', 'email']) == expected_nodes
+    assert check_nodes(neo4j_session, "LastpassUser", ["id", "email"]) == expected_nodes
 
     # Assert Users are connected with Tenant
     expected_rels = {
         (123456, TEST_TENANT_ID),
         (234567, TEST_TENANT_ID),
     }
-    assert check_rels(
-        neo4j_session,
-        'LastpassUser', 'id',
-        'LastpassTenant', 'id',
-        'RESOURCE',
-        rel_direction_right=True,
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "LastpassUser",
+            "id",
+            "LastpassTenant",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )
 
     # Assert Users are connected with Humans
     expected_rels = {
-        (123456, 'john.doe@domain.tld'),
-        (234567, 'jane.smith@domain.tld'),
+        (123456, "john.doe@domain.tld"),
+        (234567, "jane.smith@domain.tld"),
     }
-    assert check_rels(
-        neo4j_session,
-        'LastpassUser', 'id',
-        'Human', 'email',
-        'IDENTITY_LASTPASS',
-        rel_direction_right=False,
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "LastpassUser",
+            "id",
+            "Human",
+            "email",
+            "IDENTITY_LASTPASS",
+            rel_direction_right=False,
+        )
+        == expected_rels
+    )

@@ -16,18 +16,19 @@ class SnipeitAssetNodeProperties(CartographyNodeProperties):
     """
     https://snipe-it.readme.io/reference/hardware-list
     """
+
     # Common properties
-    id: PropertyRef = PropertyRef('id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # SnipeIT specific properties
-    asset_tag: PropertyRef = PropertyRef('asset_tag')
-    assigned_to: PropertyRef = PropertyRef('assigned_to.email')
-    category: PropertyRef = PropertyRef('category.name')
-    company: PropertyRef = PropertyRef('company.name')
-    manufacturer: PropertyRef = PropertyRef('manufacturer.name')
-    model: PropertyRef = PropertyRef('model.name')
-    serial: PropertyRef = PropertyRef('serial', extra_index=True)
+    asset_tag: PropertyRef = PropertyRef("asset_tag")
+    assigned_to: PropertyRef = PropertyRef("assigned_to.email")
+    category: PropertyRef = PropertyRef("category.name")
+    company: PropertyRef = PropertyRef("company.name")
+    manufacturer: PropertyRef = PropertyRef("manufacturer.name")
+    model: PropertyRef = PropertyRef("model.name")
+    serial: PropertyRef = PropertyRef("serial", extra_index=True)
 
 
 ###
@@ -35,18 +36,20 @@ class SnipeitAssetNodeProperties(CartographyNodeProperties):
 ###
 @dataclass(frozen=True)
 class SnipeitTenantToSnipeitAssetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SnipeitTenantToSnipeitAssetRel(CartographyRelSchema):
-    target_node_label: str = 'SnipeitTenant'
+    target_node_label: str = "SnipeitTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('TENANT_ID', set_in_kwargs=True)},
+        {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_ASSET"
-    properties: SnipeitTenantToSnipeitAssetRelProperties = SnipeitTenantToSnipeitAssetRelProperties()
+    properties: SnipeitTenantToSnipeitAssetRelProperties = (
+        SnipeitTenantToSnipeitAssetRelProperties()
+    )
 
 
 ###
@@ -54,26 +57,32 @@ class SnipeitTenantToSnipeitAssetRel(CartographyRelSchema):
 ###
 @dataclass(frozen=True)
 class SnipeitUserToSnipeitAssetProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SnipeitUserToSnipeitAssetRel(CartographyRelSchema):
-    target_node_label: str = 'SnipeitUser'
+    target_node_label: str = "SnipeitUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'email': PropertyRef('assigned_to.email')},
+        {"email": PropertyRef("assigned_to.email")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_CHECKED_OUT"
-    properties: SnipeitUserToSnipeitAssetProperties = SnipeitUserToSnipeitAssetProperties()
+    properties: SnipeitUserToSnipeitAssetProperties = (
+        SnipeitUserToSnipeitAssetProperties()
+    )
 
 
 ###
 @dataclass(frozen=True)
 class SnipeitAssetSchema(CartographyNodeSchema):
-    label: str = 'SnipeitAsset'  # The label of the node
-    properties: SnipeitAssetNodeProperties = SnipeitAssetNodeProperties()  # An object representing all properties
-    sub_resource_relationship: SnipeitTenantToSnipeitAssetRel = SnipeitTenantToSnipeitAssetRel()
+    label: str = "SnipeitAsset"  # The label of the node
+    properties: SnipeitAssetNodeProperties = (
+        SnipeitAssetNodeProperties()
+    )  # An object representing all properties
+    sub_resource_relationship: SnipeitTenantToSnipeitAssetRel = (
+        SnipeitTenantToSnipeitAssetRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SnipeitUserToSnipeitAssetRel(),

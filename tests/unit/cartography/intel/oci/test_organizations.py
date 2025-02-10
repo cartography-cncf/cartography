@@ -16,12 +16,12 @@ key_file=/path/to/file.pem
 def test_get_oci_profile_names_from_config(mock_file):
     profiles = organizations.get_oci_profile_names_from_config()
     assert isinstance(profiles, list)
-    assert profiles[0] == 'DEFAULT'
+    assert profiles[0] == "DEFAULT"
 
 
 def test_get_oci_accounts_from_config():
-    patch_func = 'cartography.intel.oci.organizations.get_oci_profile_names_from_config'
-    with patch(patch_func, return_value=['DEFAULT']) as profile_names:
+    patch_func = "cartography.intel.oci.organizations.get_oci_profile_names_from_config"
+    with patch(patch_func, return_value=["DEFAULT"]) as profile_names:
         oci_results = organizations.get_oci_accounts_from_config()
         profile_names.assert_called_once()
         assert oci_results == {}

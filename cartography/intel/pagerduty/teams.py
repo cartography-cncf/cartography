@@ -33,7 +33,8 @@ def get_teams(pd_session: APISession) -> List[Dict[str, Any]]:
 
 @timeit
 def get_team_members(
-    pd_session: APISession, teams: List[Dict[str, Any]],
+    pd_session: APISession,
+    teams: List[Dict[str, Any]],
 ) -> List[Dict[str, str]]:
     relations: List[Dict[str, str]] = []
     for team in teams:
@@ -46,7 +47,9 @@ def get_team_members(
 
 
 def load_team_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load teamuser information
@@ -73,7 +76,9 @@ def load_team_data(
 
 
 def load_team_relations(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Attach users to their teams

@@ -1,7 +1,7 @@
 TARGET_GROUPS = [
     {
-        'TargetType': 'instance',
-        'Targets': ["i-0f76fade"],
+        "TargetType": "instance",
+        "Targets": ["i-0f76fade"],
     },
 ]
 
@@ -14,10 +14,10 @@ TARGET_GROUPS = [
 
 LOAD_BALANCER_LISTENERS = [
     {
-        'ListenerArn': "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/myawesomeloadb/LBId/ListId",
-        'Port': 443,
-        'Protocol': 'HTTPS',
-        'TargetGroupArn': 'arn:aws:ec2:us-east-1:012345678912:targetgroup',
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/myawesomeloadb/LBId/ListId",
+        "Port": 443,
+        "Protocol": "HTTPS",
+        "TargetGroupArn": "arn:aws:ec2:us-east-1:012345678912:targetgroup",
     },
 ]
 
@@ -88,26 +88,26 @@ LOAD_BALANCER_LISTENERS = [
 
 LOAD_BALANCER_DATA = [
     {
-        'DNSName': 'myawesomeloadbalancer.amazonaws.com',
-        'CreatedTime': '10-27-2019 12:35AM',
-        'LoadBalancerName': 'myawesomeloadbalancer',
-        'Type': 'application',
-        'Scheme': 'internet-facing',
-        'AvailabilityZones': [
+        "DNSName": "myawesomeloadbalancer.amazonaws.com",
+        "CreatedTime": "10-27-2019 12:35AM",
+        "LoadBalancerName": "myawesomeloadbalancer",
+        "Type": "application",
+        "Scheme": "internet-facing",
+        "AvailabilityZones": [
             {
-                'ZoneName': 'myAZ',
-                'SubnetId': 'mysubnetIdA',
-                'LoadBalancerAddresses': [
+                "ZoneName": "myAZ",
+                "SubnetId": "mysubnetIdA",
+                "LoadBalancerAddresses": [
                     {
-                        'IpAddress': '50.0.1.0',
-                        'AllocationId': 'someId',
+                        "IpAddress": "50.0.1.0",
+                        "AllocationId": "someId",
                     },
                 ],
             },
         ],
-        'SecurityGroups': ['sg-123456', 'sg-234567'],
-        'Listeners': LOAD_BALANCER_LISTENERS,
-        'TargetGroups': TARGET_GROUPS,
+        "SecurityGroups": ["sg-123456", "sg-234567"],
+        "Listeners": LOAD_BALANCER_LISTENERS,
+        "TargetGroups": TARGET_GROUPS,
     },
 ]
 

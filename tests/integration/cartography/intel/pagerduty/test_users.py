@@ -21,5 +21,5 @@ def test_load_user_data(neo4j_session):
         MATCH (n:PagerDutyUser) RETURN n.id;
         """,
     )
-    actual_nodes = {n['n.id'] for n in nodes}
+    actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == expected_nodes

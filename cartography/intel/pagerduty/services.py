@@ -34,7 +34,8 @@ def get_services(pd_session: APISession) -> List[Dict[str, Any]]:
 
 @timeit
 def get_integrations(
-    pd_session: APISession, services: List[Dict[str, Any]],
+    pd_session: APISession,
+    services: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     """
     Get integrations from services.
@@ -51,7 +52,9 @@ def get_integrations(
 
 
 def load_service_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load service information
@@ -104,7 +107,9 @@ def load_service_data(
 
 
 def _attach_teams(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between teams and services.
@@ -123,7 +128,9 @@ def _attach_teams(
 
 
 def load_integration_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load integration information

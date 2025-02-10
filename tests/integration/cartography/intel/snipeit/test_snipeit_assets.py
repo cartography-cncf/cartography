@@ -20,14 +20,14 @@ def test_load_snipeit_assets_relationship(neo4j_session):
     }
 
     # Load test users for the relationship
-    data = tests.data.snipeit.users.USERS['company_a']
+    data = tests.data.snipeit.users.USERS["company_a"]
     cartography.intel.snipeit.user.load_users(
         neo4j_session,
         common_job_parameters,
         data,
     )
 
-    data = tests.data.snipeit.assets.ASSETS['company_a']
+    data = tests.data.snipeit.assets.ASSETS["company_a"]
 
     # Act
     cartography.intel.snipeit.asset.load_assets(
@@ -40,12 +40,12 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
     # Make sure the expected Tenant is created
     expected_nodes = {
-        ('Company A',),
+        ("Company A",),
     }
     check_nodes(
         neo4j_session,
-        'snipeitTenant',
-        ['id'],
+        "snipeitTenant",
+        ["id"],
     )
 
     # Make sure the expected assets are created
@@ -53,39 +53,48 @@ def test_load_snipeit_assets_relationship(neo4j_session):
         (1373, "C02ZJ48XXXXX"),
         (1372, "72ec94a8-b6dc-37f1-b2a9-0907806e8db7"),
     }
-    assert check_nodes(
-        neo4j_session,
-        "SnipeitAsset",
-        ["id", "serial"],
-    ) == expected_nodes
+    assert (
+        check_nodes(
+            neo4j_session,
+            "SnipeitAsset",
+            ["id", "serial"],
+        )
+        == expected_nodes
+    )
 
     # Make sure the expected relationships are created
     expected_nodes_relationships = {
-        ('Company A', "C02ZJ48XXXXX"),
-        ('Company A', "72ec94a8-b6dc-37f1-b2a9-0907806e8db7"),
+        ("Company A", "C02ZJ48XXXXX"),
+        ("Company A", "72ec94a8-b6dc-37f1-b2a9-0907806e8db7"),
     }
-    assert check_rels(
-        neo4j_session,
-        'SnipeitTenant',
-        'id',
-        'SnipeitAsset',
-        'serial',
-        'HAS_ASSET',
-        rel_direction_right=True,
-    ) == expected_nodes_relationships
+    assert (
+        check_rels(
+            neo4j_session,
+            "SnipeitTenant",
+            "id",
+            "SnipeitAsset",
+            "serial",
+            "HAS_ASSET",
+            rel_direction_right=True,
+        )
+        == expected_nodes_relationships
+    )
 
     expected_nodes_relationships = {
         ("mcarter@example.net", "C02ZJ48XXXXX"),
     }
-    assert check_rels(
-        neo4j_session,
-        'SnipeitUser',
-        'email',
-        'SnipeitAsset',
-        'serial',
-        'HAS_CHECKED_OUT',
-        rel_direction_right=True,
-    ) == expected_nodes_relationships
+    assert (
+        check_rels(
+            neo4j_session,
+            "SnipeitUser",
+            "email",
+            "SnipeitAsset",
+            "serial",
+            "HAS_CHECKED_OUT",
+            rel_direction_right=True,
+        )
+        == expected_nodes_relationships
+    )
 
     # Cleanup test data
     common_job_parameters = {
@@ -106,7 +115,7 @@ def test_cleanup_snipeit_assets(neo4j_session):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_snipeit_TENANT_ID,
     }
-    data = tests.data.snipeit.assets.ASSETS['company_a']
+    data = tests.data.snipeit.assets.ASSETS["company_a"]
 
     # Act
     cartography.intel.snipeit.asset.load_assets(
@@ -135,20 +144,22 @@ def test_cleanup_snipeit_assets(neo4j_session):
     # [Pre-test] Assert that the unrelated data exists
     expected_nodes_relationships = {
         ("Company A", 1373),
-        ('Company A', 1372),
-        ('Company B', 2598),
-        ('Company B', 2597),
-
+        ("Company A", 1372),
+        ("Company B", 2598),
+        ("Company B", 2597),
     }
-    assert check_rels(
-        neo4j_session,
-        'SnipeitTenant',
-        'id',
-        'SnipeitAsset',
-        'id',
-        'HAS_ASSET',
-        rel_direction_right=True,
-    ) == expected_nodes_relationships
+    assert (
+        check_rels(
+            neo4j_session,
+            "SnipeitTenant",
+            "id",
+            "SnipeitAsset",
+            "id",
+            "HAS_ASSET",
+            rel_direction_right=True,
+        )
+        == expected_nodes_relationships
+    )
 
     # Act: run the cleanup job to remove all nodes except the unrelated data
     common_job_parameters = {
@@ -166,11 +177,14 @@ def test_cleanup_snipeit_assets(neo4j_session):
         (2598,),
     }
 
-    assert check_nodes(
-        neo4j_session,
-        "SnipeitAsset",
-        ["id"],
-    ) == expected_nodes_unrelated
+    assert (
+        check_nodes(
+            neo4j_session,
+            "SnipeitAsset",
+            ["id"],
+        )
+        == expected_nodes_unrelated
+    )
 
     # Cleanup all test data
     common_job_parameters = {

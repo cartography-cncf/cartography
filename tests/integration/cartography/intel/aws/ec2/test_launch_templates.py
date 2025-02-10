@@ -8,21 +8,23 @@ import cartography.intel.aws.ec2.launch_templates
 from cartography.intel.aws.ec2.launch_templates import get_launch_templates
 from cartography.intel.aws.ec2.launch_templates import load_launch_template_versions
 from cartography.intel.aws.ec2.launch_templates import load_launch_templates
-from cartography.intel.aws.ec2.launch_templates import transform_launch_template_versions
+from cartography.intel.aws.ec2.launch_templates import (
+    transform_launch_template_versions,
+)
 from cartography.intel.aws.ec2.launch_templates import transform_launch_templates
 from tests.data.aws.ec2.launch_templates import GET_LAUNCH_TEMPLATE_VERSIONS
 from tests.data.aws.ec2.launch_templates import GET_LAUNCH_TEMPLATES
 from tests.integration.util import check_rels
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-@mock_aws(config={'core': {'reset_boto3_session': True, 'mock_credentials': True}})
+@mock_aws(config={"core": {"reset_boto3_session": True, "mock_credentials": True}})
 @patch.object(
     cartography.intel.aws.ec2.launch_templates,
-    'get_launch_template_versions_by_template',
+    "get_launch_template_versions_by_template",
 )
 def test_get_launch_template_throws_exception(mock_get_template_versions, *args):
     # Arrange
@@ -30,27 +32,34 @@ def test_get_launch_template_throws_exception(mock_get_template_versions, *args)
         "ImageId": "ami-abc123",
         "TagSpecifications": [
             {
-                "ResourceType": "instance", "Tags": [
+                "ResourceType": "instance",
+                "Tags": [
                     {"Key": "eks:cluster-name", "Value": "eks-cluster-example"},
-                    {"Key": "eks:nodegroup-name", "Value": "private-node-group-example"},
+                    {
+                        "Key": "eks:nodegroup-name",
+                        "Value": "private-node-group-example",
+                    },
                 ],
             },
         ],
         "SecurityGroupIds": ["sg-1234"],
     }
-    client = boto3.client('ec2', region_name=TEST_REGION)
+    client = boto3.client("ec2", region_name=TEST_REGION)
     mock_template = client.create_launch_template(
-        LaunchTemplateName='eks-00000000-0000-0000-0000-000000000000',
+        LaunchTemplateName="eks-00000000-0000-0000-0000-000000000000",
         LaunchTemplateData=template_data,
     )
-    template_id = mock_template['LaunchTemplate']['LaunchTemplateId']
+    template_id = mock_template["LaunchTemplate"]["LaunchTemplateId"]
     error_response = {
         "Error": {
             "Code": "InvalidLaunchTemplateId.NotFound",
             "Message": f"The specified launch template, with template ID {template_id}, does not exist.",
         },
     }
-    mock_get_template_versions.side_effect = ClientError(error_response, "DescribeLaunchTemplateVersions")
+    mock_get_template_versions.side_effect = ClientError(
+        error_response,
+        "DescribeLaunchTemplateVersions",
+    )
     session = boto3.Session(region_name=TEST_REGION)
     # Act: get the launch template versions
 
@@ -98,10 +107,10 @@ def test_load_launch_templates(neo4j_session, *args):
     )
     actual_templates = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.create_time'],
-            n['n.latest_version_number'],
+            n["n.id"],
+            n["n.name"],
+            n["n.create_time"],
+            n["n.latest_version_number"],
         )
         for n in templates
     }
@@ -134,11 +143,11 @@ def test_load_launch_templates(neo4j_session, *args):
     )
     actual_versions = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.version_number'],
-            n['n.create_time'],
-            n['n.image_id'],
+            n["n.id"],
+            n["n.name"],
+            n["n.version_number"],
+            n["n.create_time"],
+            n["n.image_id"],
         )
         for n in versions
     }
@@ -147,12 +156,12 @@ def test_load_launch_templates(neo4j_session, *args):
     # Assert that the Launch Template version is attached to the AWS account
     assert check_rels(
         neo4j_session,
-        'LaunchTemplateVersion',
-        'id',
-        'AWSAccount',
-        'id',
-        'RESOURCE',
+        "LaunchTemplateVersion",
+        "id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ('lt-00000000000000000-1', TEST_ACCOUNT_ID),
+        ("lt-00000000000000000-1", TEST_ACCOUNT_ID),
     }

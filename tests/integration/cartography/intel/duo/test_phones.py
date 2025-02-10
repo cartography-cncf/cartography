@@ -9,10 +9,10 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-TEST_API_HOSTNAME = 'https://api-1234.duo.com'
+TEST_API_HOSTNAME = "https://api-1234.duo.com"
 COMMON_JOB_PARAMETERS = {
-    'DUO_API_HOSTNAME': TEST_API_HOSTNAME,
-    'UPDATE_TAG': TEST_UPDATE_TAG,
+    "DUO_API_HOSTNAME": TEST_API_HOSTNAME,
+    "UPDATE_TAG": TEST_UPDATE_TAG,
 }
 
 
@@ -31,37 +31,41 @@ def test_sync_duo_phones(neo4j_session):
     # Assert
     assert check_nodes(
         neo4j_session,
-        'DuoPhone',
-        ['id', 'phone_id', 'platform'],
+        "DuoPhone",
+        ["id", "phone_id", "platform"],
     ) == {
-        ('phoneid1', 'phoneid1', 'Apple iOS'),
-        ('phoneid2', 'phoneid2', 'Apple iOS'),
-        ('phoneid3', 'phoneid3', 'Apple iOS'),
-        ('phoneid4', 'phoneid4', 'Apple iOS'),
+        ("phoneid1", "phoneid1", "Apple iOS"),
+        ("phoneid2", "phoneid2", "Apple iOS"),
+        ("phoneid3", "phoneid3", "Apple iOS"),
+        ("phoneid4", "phoneid4", "Apple iOS"),
     }
 
     assert check_rels(
         neo4j_session,
-        'DuoApiHost', 'id',
-        'DuoPhone', 'id',
-        'RESOURCE',
+        "DuoApiHost",
+        "id",
+        "DuoPhone",
+        "id",
+        "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_API_HOSTNAME, 'phoneid1'),
-        (TEST_API_HOSTNAME, 'phoneid2'),
-        (TEST_API_HOSTNAME, 'phoneid3'),
-        (TEST_API_HOSTNAME, 'phoneid4'),
+        (TEST_API_HOSTNAME, "phoneid1"),
+        (TEST_API_HOSTNAME, "phoneid2"),
+        (TEST_API_HOSTNAME, "phoneid3"),
+        (TEST_API_HOSTNAME, "phoneid4"),
     }
 
     assert check_rels(
         neo4j_session,
-        'DuoUser', 'id',
-        'DuoPhone', 'id',
-        'HAS_DUO_PHONE',
+        "DuoUser",
+        "id",
+        "DuoPhone",
+        "id",
+        "HAS_DUO_PHONE",
         rel_direction_right=True,
     ) == {
-        ('userid1', 'phoneid1'),
-        ('userid2', 'phoneid2'),
-        ('userid3', 'phoneid3'),
-        ('userid4', 'phoneid4'),
+        ("userid1", "phoneid1"),
+        ("userid2", "phoneid2"),
+        ("userid3", "phoneid3"),
+        ("userid4", "phoneid4"),
     }

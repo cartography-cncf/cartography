@@ -1,5 +1,5 @@
 DEVICES = {
-    'company_a_devices': [
+    "company_a_devices": [
         {
             "id": "fc60decb-30cb-4db1-b3ec-2fa8ea1b83ed",
             "device_id": "fc60decb-30cb-4db1-b3ec-2fa8ea1b83ed",
@@ -21,7 +21,7 @@ DEVICES = {
             "serial_number": "BBBBBBBB",
         },
     ],
-    'company_b_devices': [
+    "company_b_devices": [
         {
             "id": "748C5E49-134E-486C-A609-88A66A1BE4A1",
             "device_id": "748C5E49-134E-486C-A609-88A66A1BE4A1",

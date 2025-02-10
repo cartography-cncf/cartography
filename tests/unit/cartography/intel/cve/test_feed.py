@@ -172,7 +172,12 @@ def test_get_cves_in_batches(mock_call_cves_api: Mock, mock_session: Session):
     _map_cve_dict(excepted_cves, GET_CVE_API_DATA_BATCH_2)
     # Act
     cves = get_cves_in_batches(
-        mock_session, NIST_CVE_URL, start_date, end_date, date_param_names, API_KEY,
+        mock_session,
+        NIST_CVE_URL,
+        start_date,
+        end_date,
+        date_param_names,
+        API_KEY,
     )
     # Assert
     assert mock_call_cves_api.call_count == 2
@@ -191,9 +196,19 @@ def test_get_modified_cves(mock_call_cves_api: Mock, mock_session: Session):
         "lastModEndDate": current_date_iso8601,
     }
     # Act
-    cves = get_modified_cves(mock_session, NIST_CVE_URL, last_modified_date_iso8601, API_KEY)
+    cves = get_modified_cves(
+        mock_session,
+        NIST_CVE_URL,
+        last_modified_date_iso8601,
+        API_KEY,
+    )
     # Assert
-    mock_call_cves_api.assert_called_once_with(mock_session, NIST_CVE_URL, API_KEY, expected_params)
+    mock_call_cves_api.assert_called_once_with(
+        mock_session,
+        NIST_CVE_URL,
+        API_KEY,
+        expected_params,
+    )
     assert cves == GET_CVE_API_DATA
 
 

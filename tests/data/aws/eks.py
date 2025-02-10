@@ -24,10 +24,12 @@ DESCRIBE_CLUSTERS = [
             "publicAccessCidrs": [],
         },
         "logging": {
-            "clusterLogging": [{
-                "types": ["api", "audit"],
-                "enabled": True,
-            }],
+            "clusterLogging": [
+                {
+                    "types": ["api", "audit"],
+                    "enabled": True,
+                },
+            ],
         },
         "status": "ACTIVE",
         "certificateAuthority": {
@@ -53,10 +55,12 @@ DESCRIBE_CLUSTERS = [
             "publicAccessCidrs": [],
         },
         "logging": {
-            "clusterLogging": [{
-                "types": ["api", "audit"],
-                "enabled": True,
-            }],
+            "clusterLogging": [
+                {
+                    "types": ["api", "audit"],
+                    "enabled": True,
+                },
+            ],
         },
         "status": "ACTIVE",
         "certificateAuthority": {

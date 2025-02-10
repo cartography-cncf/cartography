@@ -12,8 +12,15 @@ def test_transform_and_load_projects(neo4j_session):
     """
     Test that we can correctly transform and load DOProject nodes to Neo4j.
     """
-    projects_list = cartography.intel.digitalocean.management.transform_projects(projects_res, account_id)
-    cartography.intel.digitalocean.management.load_projects(neo4j_session, projects_list, TEST_UPDATE_TAG)
+    projects_list = cartography.intel.digitalocean.management.transform_projects(
+        projects_res,
+        account_id,
+    )
+    cartography.intel.digitalocean.management.load_projects(
+        neo4j_session,
+        projects_list,
+        TEST_UPDATE_TAG,
+    )
 
     query = """
         MATCH(p:DOProject{id:$ProjectId})
@@ -26,16 +33,17 @@ def test_transform_and_load_projects(neo4j_session):
     )
     actual_nodes = {
         (
-            n['p.id'],
-            n['p.name'],
-            n['p.owner_uuid'],
-            n['p.description'],
-            n['p.is_default'],
-            n['p.created_at'],
-            n['p.updated_at'],
-            n['p.account_id'],
-            n['p.lastupdated'],
-        ) for n in nodes
+            n["p.id"],
+            n["p.name"],
+            n["p.owner_uuid"],
+            n["p.description"],
+            n["p.is_default"],
+            n["p.created_at"],
+            n["p.updated_at"],
+            n["p.account_id"],
+            n["p.lastupdated"],
+        )
+        for n in nodes
     }
     expected_nodes = {
         (

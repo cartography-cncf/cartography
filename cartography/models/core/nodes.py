@@ -16,6 +16,7 @@ class CartographyNodeProperties(abc.ABC):
     can enforce that all subclasses have an id and a lastupdated field. These fields are assigned to the node in the
     `SET` clause.
     """
+
     id: PropertyRef = field(init=False)
     lastupdated: PropertyRef = field(init=False)
 
@@ -24,12 +25,12 @@ class CartographyNodeProperties(abc.ABC):
         Data validation.
         1. Prevents direct instantiation. This workaround is needed since this is a dataclass and an abstract
         class without an abstract method defined. See https://stackoverflow.com/q/60590442.
-        2. Stops reserved words from being used as attribute names. See https://github.com/lyft/cartography/issues/1064.
+        2. Stops reserved words from being used as attribute names. See https://github.com/cartography-cncf/cartography/issues/1064.
         """
         if self.__class__ == CartographyNodeProperties:
             raise TypeError("Cannot instantiate abstract class.")
 
-        if hasattr(self, 'firstseen'):
+        if hasattr(self, "firstseen"):
             raise TypeError(
                 "`firstseen` is a reserved word and is automatically set by the querybuilder on cartography nodes, so "
                 f'it cannot be used on class "{type(self).__name__}(CartographyNodeProperties)". Please either choose '
@@ -43,6 +44,7 @@ class ExtraNodeLabels:
     Encapsulates a list of str representing additional labels for the CartographyNodeSchema that this is composed on.
     This wrapping is used to ensure dataclass immutability for the CartographyNodeSchema.
     """
+
     labels: List[str]
 
 
@@ -52,6 +54,7 @@ class CartographyNodeSchema(abc.ABC):
     Abstract base dataclass that represents a graph node in cartography. This is used to dynamically generate graph
     ingestion queries.
     """
+
     @property
     @abc.abstractmethod
     def label(self) -> str:

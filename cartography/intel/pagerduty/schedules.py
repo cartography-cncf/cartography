@@ -32,7 +32,9 @@ def get_schedules(pd_session: APISession) -> List[Dict[str, Any]]:
 
 
 def load_schedule_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load schedule information
@@ -72,7 +74,9 @@ def load_schedule_data(
 
 
 def _attach_users(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between schedule and users.
@@ -91,7 +95,9 @@ def _attach_users(
 
 
 def _attach_layers(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Create layers for a schedule and attach them together
@@ -133,7 +139,9 @@ def _attach_layers(
 
 
 def _attach_layer_users(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between schedule layers and users.

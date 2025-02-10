@@ -54,11 +54,18 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
     while has_more:
 
         try:
-            response = requests.get(sca_url, params=request_data, headers=headers, timeout=_TIMEOUT)
+            response = requests.get(
+                sca_url,
+                params=request_data,
+                headers=headers,
+                timeout=_TIMEOUT,
+            )
             response.raise_for_status()
             data = response.json()
         except (ReadTimeout, HTTPError):
-            logger.warning(f"Failed to retrieve Semgrep SCA vulns for page {page}. Retrying...")
+            logger.warning(
+                f"Failed to retrieve Semgrep SCA vulns for page {page}. Retrying...",
+            )
             retries += 1
             if retries >= _MAX_RETRIES:
                 raise
@@ -104,14 +111,16 @@ def _determine_exposure(vuln: Dict[str, Any]) -> str | None:
 
 
 def _build_vuln_url(vuln: str) -> str | None:
-    if 'CVE' in vuln:
+    if "CVE" in vuln:
         return f"https://nvd.nist.gov/vuln/detail/{vuln}"
-    if 'GHSA' in vuln:
+    if "GHSA" in vuln:
         return f"https://github.com/advisories/{vuln}"
     return None
 
 
-def transform_sca_vulns(raw_vulns: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, str]]]:
+def transform_sca_vulns(
+    raw_vulns: List[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, str]]]:
     """
     Transforms the raw SCA vulns response from Semgrep API into a list of dicts
     that can be used to create the SemgrepSCAFinding nodes.
@@ -124,7 +133,7 @@ def transform_sca_vulns(raw_vulns: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
         repository_name = vuln["repository"]["name"]
         rule_id = vuln["rule"]["name"]
         vulnerability_class = _get_vuln_class(vuln)
-        package = vuln['found_dependency']['package']
+        package = vuln["found_dependency"]["package"]
         sca_vuln["id"] = vuln["id"]
         sca_vuln["repositoryName"] = repository_name
         sca_vuln["branch"] = vuln["ref"]
@@ -133,9 +142,15 @@ def transform_sca_vulns(raw_vulns: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
         sca_vuln["description"] = vuln["rule"]["message"]
         sca_vuln["ecosystem"] = vuln["found_dependency"]["ecosystem"]
         sca_vuln["severity"] = vuln["severity"].upper()
-        sca_vuln["reachability"] = vuln["reachability"].upper()  # Check done to determine rechabilitity
-        sca_vuln["reachableIf"] = vuln["reachable_condition"].upper() if vuln["reachable_condition"] else None
-        sca_vuln["exposureType"] = _determine_exposure(vuln)  # Determintes if reachable or unreachable
+        sca_vuln["reachability"] = vuln[
+            "reachability"
+        ].upper()  # Check done to determine rechabilitity
+        sca_vuln["reachableIf"] = (
+            vuln["reachable_condition"].upper() if vuln["reachable_condition"] else None
+        )
+        sca_vuln["exposureType"] = _determine_exposure(
+            vuln,
+        )  # Determintes if reachable or unreachable
         dependency = f"{package}|{vuln['found_dependency']['version']}"
         sca_vuln["matchedDependency"] = dependency
         dep_url = vuln["found_dependency"]["lockfile_line_url"]
@@ -145,14 +160,16 @@ def transform_sca_vulns(raw_vulns: List[Dict[str, Any]]) -> Tuple[List[Dict[str,
             sca_vuln["dependencyFileLocation_url"] = dep_url
         else:
             if sca_vuln.get("location"):
-                sca_vuln["dependencyFileLocation_path"] = sca_vuln["location"]["file_path"]
+                sca_vuln["dependencyFileLocation_path"] = sca_vuln["location"][
+                    "file_path"
+                ]
         sca_vuln["transitivity"] = vuln["found_dependency"]["transitivity"].upper()
         if vuln.get("vulnerability_identifier"):
             vuln_id = vuln["vulnerability_identifier"].upper()
             sca_vuln["cveId"] = vuln_id
             sca_vuln["ref_urls"] = [_build_vuln_url(vuln_id)]
-        if vuln.get('fix_recommendations') and len(vuln['fix_recommendations']) > 0:
-            fix = vuln['fix_recommendations'][0]
+        if vuln.get("fix_recommendations") and len(vuln["fix_recommendations"]) > 0:
+            fix = vuln["fix_recommendations"][0]
             dep_fix = f"{fix['package']}|{fix['version']}"
             sca_vuln["closestSafeDependency"] = dep_fix
         sca_vuln["openedAt"] = vuln["created_at"]
@@ -213,16 +230,19 @@ def load_semgrep_sca_usages(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any],
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     logger.info("Running Semgrep SCA findings cleanup job.")
     findings_cleanup_job = GraphJob.from_node_schema(
-        SemgrepSCAFindingSchema(), common_job_parameters,
+        SemgrepSCAFindingSchema(),
+        common_job_parameters,
     )
     findings_cleanup_job.run(neo4j_session)
     logger.info("Running Semgrep SCA Locations cleanup job.")
     locations_cleanup_job = GraphJob.from_node_schema(
-        SemgrepSCALocationSchema(), common_job_parameters,
+        SemgrepSCALocationSchema(),
+        common_job_parameters,
     )
     locations_cleanup_job.run(neo4j_session)
 
@@ -249,14 +269,18 @@ def sync_findings(
     vulns, usages = transform_sca_vulns(raw_vulns)
     load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
     load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
-    run_scoped_analysis_job('semgrep_sca_risk_analysis.json', neo4j_session, common_job_parameters)
+    run_scoped_analysis_job(
+        "semgrep_sca_risk_analysis.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
     cleanup(neo4j_session, common_job_parameters)
     merge_module_sync_metadata(
         neo4j_session=neo4j_session,
-        group_type='Semgrep',
+        group_type="Semgrep",
         group_id=deployment_id,
-        synced_type='SCA',
+        synced_type="SCA",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

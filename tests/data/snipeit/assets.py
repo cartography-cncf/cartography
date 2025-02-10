@@ -14,11 +14,11 @@ ASSETS = {
                 "date": "2023-09-16",
                 "formatted": "Sat Sep 16, 2023",
             },
-            'status_label': {
-                'id': 2,
-                'name': 'Ready to Deploy',
-                'status_type': 'deployable',
-                'status_meta': 'deployed',
+            "status_label": {
+                "id": 2,
+                "name": "Ready to Deploy",
+                "status_type": "deployable",
+                "status_meta": "deployed",
             },
             "category": {
                 "id": 2,
@@ -54,7 +54,7 @@ ASSETS = {
                 "username": "admin",
                 "employee_num": "12832",
                 "email": "mcarter@example.net",
-                'type': 'user',
+                "type": "user",
             },
             "warranty_months": None,
             "warranty_expires": None,

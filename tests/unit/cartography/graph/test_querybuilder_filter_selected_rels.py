@@ -1,7 +1,9 @@
 from pytest import raises
 
 from cartography.graph.querybuilder import filter_selected_relationships
-from tests.data.graph.querybuilder.sample_models.interesting_asset import InterestingAssetToSubResourceRel
+from tests.data.graph.querybuilder.sample_models.interesting_asset import (
+    InterestingAssetToSubResourceRel,
+)
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
 
 

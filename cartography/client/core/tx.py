@@ -13,7 +13,11 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.util import batch
 
 
-def read_list_of_values_tx(tx: neo4j.Transaction, query: str, **kwargs) -> List[Union[str, int]]:
+def read_list_of_values_tx(
+    tx: neo4j.Transaction,
+    query: str,
+    **kwargs,
+) -> List[Union[str, int]]:
     """
     Runs the given Neo4j query in the given transaction object and returns a list of either str or int. This is intended
     to be run only with queries that return a list of a single field.
@@ -39,7 +43,11 @@ def read_list_of_values_tx(tx: neo4j.Transaction, query: str, **kwargs) -> List[
     return values
 
 
-def read_single_value_tx(tx: neo4j.Transaction, query: str, **kwargs) -> Optional[Union[str, int]]:
+def read_single_value_tx(
+    tx: neo4j.Transaction,
+    query: str,
+    **kwargs,
+) -> Optional[Union[str, int]]:
     """
     Runs the given Neo4j query in the given transaction object and returns a str, int, or None. This is intended to be
     run only with queries that return a single str, int, or None value.
@@ -70,7 +78,11 @@ def read_single_value_tx(tx: neo4j.Transaction, query: str, **kwargs) -> Optiona
     return value
 
 
-def read_list_of_dicts_tx(tx: neo4j.Transaction, query: str, **kwargs) -> List[Dict[str, Any]]:
+def read_list_of_dicts_tx(
+    tx: neo4j.Transaction,
+    query: str,
+    **kwargs,
+) -> List[Dict[str, Any]]:
     """
     Runs the given Neo4j query in the given transaction object and returns the results as a list of dicts.
 
@@ -92,7 +104,11 @@ def read_list_of_dicts_tx(tx: neo4j.Transaction, query: str, **kwargs) -> List[D
     return values
 
 
-def read_list_of_tuples_tx(tx: neo4j.Transaction, query: str, **kwargs) -> List[Tuple[Any, ...]]:
+def read_list_of_tuples_tx(
+    tx: neo4j.Transaction,
+    query: str,
+    **kwargs,
+) -> List[Tuple[Any, ...]]:
     """
     Runs the given Neo4j query in the given transaction object and returns the results as a list of tuples.
 
@@ -154,9 +170,9 @@ def read_single_dict_tx(tx: neo4j.Transaction, query: str, **kwargs) -> Any:
 
 
 def write_list_of_dicts_tx(
-        tx: neo4j.Transaction,
-        query: str,
-        **kwargs,
+    tx: neo4j.Transaction,
+    query: str,
+    **kwargs,
 ) -> None:
     """
     Writes a list of dicts to Neo4j.
@@ -192,10 +208,10 @@ def write_list_of_dicts_tx(
 
 
 def load_graph_data(
-        neo4j_session: neo4j.Session,
-        query: str,
-        dict_list: List[Dict[str, Any]],
-        **kwargs,
+    neo4j_session: neo4j.Session,
+    query: str,
+    dict_list: List[Dict[str, Any]],
+    **kwargs,
 ) -> None:
     """
     Writes data to the graph.
@@ -215,7 +231,10 @@ def load_graph_data(
         )
 
 
-def ensure_indexes(neo4j_session: neo4j.Session, node_schema: CartographyNodeSchema) -> None:
+def ensure_indexes(
+    neo4j_session: neo4j.Session,
+    node_schema: CartographyNodeSchema,
+) -> None:
     """
     Creates indexes if they don't exist for the given CartographyNodeSchema object, as well as for all of the
     relationships defined on its `other_relationships` and `sub_resource_relationship` fields. This operation is
@@ -229,16 +248,18 @@ def ensure_indexes(neo4j_session: neo4j.Session, node_schema: CartographyNodeSch
     queries = build_create_index_queries(node_schema)
 
     for query in queries:
-        if not query.startswith('CREATE INDEX IF NOT EXISTS'):
-            raise ValueError('Query provided to `ensure_indexes()` does not start with "CREATE INDEX IF NOT EXISTS".')
+        if not query.startswith("CREATE INDEX IF NOT EXISTS"):
+            raise ValueError(
+                'Query provided to `ensure_indexes()` does not start with "CREATE INDEX IF NOT EXISTS".',
+            )
         neo4j_session.run(query)
 
 
 def load(
-        neo4j_session: neo4j.Session,
-        node_schema: CartographyNodeSchema,
-        dict_list: List[Dict[str, Any]],
-        **kwargs,
+    neo4j_session: neo4j.Session,
+    node_schema: CartographyNodeSchema,
+    dict_list: List[Dict[str, Any]],
+    **kwargs,
 ) -> None:
     """
     Main entrypoint for intel modules to write data to the graph. Ensures that indexes exist for the datatypes loaded

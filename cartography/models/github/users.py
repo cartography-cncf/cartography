@@ -27,6 +27,7 @@ The main importance of having two schemas is to allow the two sets of users to b
 an unaffiliated user, but the user already exists in the graph (perhaps they are members of another GitHub orgs for
 example), then loading the unaffiliated user will not blank out the 'has_2fa_enabled' property.
 """
+
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
@@ -43,20 +44,20 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class BaseGitHubUserNodeProperties(CartographyNodeProperties):
     # core properties in all GitHubUser nodes
-    id: PropertyRef = PropertyRef('url')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
-    fullname: PropertyRef = PropertyRef('name')
-    username: PropertyRef = PropertyRef('login', extra_index=True)
-    is_site_admin: PropertyRef = PropertyRef('isSiteAdmin')
-    is_enterprise_owner: PropertyRef = PropertyRef('isEnterpriseOwner')
-    email: PropertyRef = PropertyRef('email')
-    company: PropertyRef = PropertyRef('company')
+    id: PropertyRef = PropertyRef("url")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    fullname: PropertyRef = PropertyRef("name")
+    username: PropertyRef = PropertyRef("login", extra_index=True)
+    is_site_admin: PropertyRef = PropertyRef("isSiteAdmin")
+    is_enterprise_owner: PropertyRef = PropertyRef("isEnterpriseOwner")
+    email: PropertyRef = PropertyRef("email")
+    company: PropertyRef = PropertyRef("company")
 
 
 @dataclass(frozen=True)
 class GitHubOrganizationUserNodeProperties(BaseGitHubUserNodeProperties):
     # specified for affiliated users only. The GitHub api does not return this property for unaffiliated users.
-    has_2fa_enabled: PropertyRef = PropertyRef('hasTwoFactorEnabled')
+    has_2fa_enabled: PropertyRef = PropertyRef("hasTwoFactorEnabled")
 
 
 @dataclass(frozen=True)
@@ -67,46 +68,54 @@ class GitHubUnaffiliatedUserNodeProperties(BaseGitHubUserNodeProperties):
 
 @dataclass(frozen=True)
 class GitHubUserToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class GitHubUserMemberOfOrganizationRel(CartographyRelSchema):
-    target_node_label: str = 'GitHubOrganization'
+    target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('MEMBER_OF')},
+        {"id": PropertyRef("MEMBER_OF")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"
-    properties: GitHubUserToOrganizationRelProperties = GitHubUserToOrganizationRelProperties()
+    properties: GitHubUserToOrganizationRelProperties = (
+        GitHubUserToOrganizationRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class GitHubUserAdminOfOrganizationRel(CartographyRelSchema):
-    target_node_label: str = 'GitHubOrganization'
+    target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('ADMIN_OF')},
+        {"id": PropertyRef("ADMIN_OF")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ADMIN_OF"
-    properties: GitHubUserToOrganizationRelProperties = GitHubUserToOrganizationRelProperties()
+    properties: GitHubUserToOrganizationRelProperties = (
+        GitHubUserToOrganizationRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class GitHubUserUnaffiliatedOrganizationRel(CartographyRelSchema):
-    target_node_label: str = 'GitHubOrganization'
+    target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('UNAFFILIATED')},
+        {"id": PropertyRef("UNAFFILIATED")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "UNAFFILIATED"
-    properties: GitHubUserToOrganizationRelProperties = GitHubUserToOrganizationRelProperties()
+    properties: GitHubUserToOrganizationRelProperties = (
+        GitHubUserToOrganizationRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class GitHubOrganizationUserSchema(CartographyNodeSchema):
-    label: str = 'GitHubUser'
-    properties: GitHubOrganizationUserNodeProperties = GitHubOrganizationUserNodeProperties()
+    label: str = "GitHubUser"
+    properties: GitHubOrganizationUserNodeProperties = (
+        GitHubOrganizationUserNodeProperties()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubUserMemberOfOrganizationRel(),
@@ -118,8 +127,10 @@ class GitHubOrganizationUserSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class GitHubUnaffiliatedUserSchema(CartographyNodeSchema):
-    label: str = 'GitHubUser'
-    properties: GitHubUnaffiliatedUserNodeProperties = GitHubUnaffiliatedUserNodeProperties()
+    label: str = "GitHubUser"
+    properties: GitHubUnaffiliatedUserNodeProperties = (
+        GitHubUnaffiliatedUserNodeProperties()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubUserUnaffiliatedOrganizationRel(),

@@ -1,8 +1,8 @@
 import cartography.intel.aws.ec2.reserved_instances
 import tests.data.aws.ec2.reserved_instances
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'eu-west-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -17,7 +17,8 @@ def test_load_reserved_instances(neo4j_session):
     )
 
     expected_nodes = {
-        "res-01", "res-02",
+        "res-01",
+        "res-02",
     }
 
     nodes = neo4j_session.run(
@@ -25,7 +26,7 @@ def test_load_reserved_instances(neo4j_session):
         MATCH (r:EC2ReservedInstance) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -53,8 +54,8 @@ def test_load_reserved_instances_relationships(neo4j_session):
     )
 
     expected = {
-        (TEST_ACCOUNT_ID, 'res-01'),
-        (TEST_ACCOUNT_ID, 'res-02'),
+        (TEST_ACCOUNT_ID, "res-01"),
+        (TEST_ACCOUNT_ID, "res-02"),
     }
 
     # Fetch relationships
@@ -63,8 +64,6 @@ def test_load_reserved_instances_relationships(neo4j_session):
         MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:EC2ReservedInstance) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected

@@ -1,7 +1,7 @@
 import cartography.intel.gcp.gke
 import tests.data.gcp.gke
 
-TEST_PROJECT_NUMBER = '000000000000'
+TEST_PROJECT_NUMBER = "000000000000"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -25,7 +25,7 @@ def test_load_gke_clusters(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -52,7 +52,10 @@ def test_load_eks_clusters_relationships(neo4j_session):
     )
 
     expected = {
-        (TEST_PROJECT_NUMBER, 'https://container.googleapis.com/v1/projects/test-cluster/locations/europe-west2/clusters/test-cluster'),
+        (
+            TEST_PROJECT_NUMBER,
+            "https://container.googleapis.com/v1/projects/test-cluster/locations/europe-west2/clusters/test-cluster",
+        ),
     }
 
     # Fetch relationships
@@ -62,8 +65,6 @@ def test_load_eks_clusters_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected

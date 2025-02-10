@@ -8,27 +8,35 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.aws.identitycenter.awsidentitycenter import AWSIdentityCenterInstanceSchema
-from cartography.models.aws.identitycenter.awspermissionset import AWSPermissionSetSchema
+from cartography.models.aws.identitycenter.awsidentitycenter import (
+    AWSIdentityCenterInstanceSchema,
+)
+from cartography.models.aws.identitycenter.awspermissionset import (
+    AWSPermissionSetSchema,
+)
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
 logger = logging.getLogger(__name__)
 
 
 @timeit
 @aws_handle_regions
-def get_identity_center_instances(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
+def get_identity_center_instances(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict]:
     """
     Get all AWS IAM Identity Center instances in the current region
     """
-    client = boto3_session.client('sso-admin', region_name=region)
+    client = boto3_session.client("sso-admin", region_name=region)
     instances = []
 
-    paginator = client.get_paginator('list_instances')
+    paginator = client.get_paginator("list_instances")
     for page in paginator.paginate():
-        instances.extend(page.get('Instances', []))
+        instances.extend(page.get("Instances", []))
 
     return instances
 
@@ -44,7 +52,9 @@ def load_identity_center_instances(
     """
     Load Identity Center instances into the graph
     """
-    logger.info(f"Loading {len(instance_data)} Identity Center instances for region {region}")
+    logger.info(
+        f"Loading {len(instance_data)} Identity Center instances for region {region}",
+    )
     load(
         neo4j_session,
         AWSIdentityCenterInstanceSchema(),
@@ -57,24 +67,28 @@ def load_identity_center_instances(
 
 @timeit
 @aws_handle_regions
-def get_permission_sets(boto3_session: boto3.session.Session, instance_arn: str, region: str) -> List[Dict]:
+def get_permission_sets(
+    boto3_session: boto3.session.Session,
+    instance_arn: str,
+    region: str,
+) -> List[Dict]:
     """
     Get all permission sets for a given Identity Center instance
     """
-    client = boto3_session.client('sso-admin', region_name=region)
+    client = boto3_session.client("sso-admin", region_name=region)
     permission_sets = []
 
-    paginator = client.get_paginator('list_permission_sets')
+    paginator = client.get_paginator("list_permission_sets")
     for page in paginator.paginate(InstanceArn=instance_arn):
         # Get detailed info for each permission set
-        for arn in page.get('PermissionSets', []):
+        for arn in page.get("PermissionSets", []):
             details = client.describe_permission_set(
                 InstanceArn=instance_arn,
                 PermissionSetArn=arn,
             )
-            permission_set = details.get('PermissionSet', {})
+            permission_set = details.get("PermissionSet", {})
             if permission_set:
-                permission_set['RoleHint'] = (
+                permission_set["RoleHint"] = (
                     f":role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_{permission_set.get('Name')}"
                 )
                 permission_sets.append(permission_set)
@@ -94,7 +108,9 @@ def load_permission_sets(
     """
     Load Identity Center permission sets into the graph
     """
-    logger.info(f"Loading {len(permission_sets)} permission sets for instance {instance_arn} in region {region}")
+    logger.info(
+        f"Loading {len(permission_sets)} permission sets for instance {instance_arn} in region {region}",
+    )
 
     load(
         neo4j_session,
@@ -117,15 +133,15 @@ def get_sso_users(
     """
     Get all SSO users for a given Identity Store
     """
-    client = boto3_session.client('identitystore', region_name=region)
+    client = boto3_session.client("identitystore", region_name=region)
     users = []
 
-    paginator = client.get_paginator('list_users')
+    paginator = client.get_paginator("list_users")
     for page in paginator.paginate(IdentityStoreId=identity_store_id):
-        user_page = page.get('Users', [])
+        user_page = page.get("Users", [])
         for user in user_page:
-            if user.get('ExternalIds', None):
-                user['ExternalId'] = user.get('ExternalIds')[0].get('Id')
+            if user.get("ExternalIds", None):
+                user["ExternalId"] = user.get("ExternalIds")[0].get("Id")
             users.append(user)
 
     return users
@@ -143,7 +159,9 @@ def load_sso_users(
     """
     Load SSO users into the graph
     """
-    logger.info(f"Loading {len(users)} SSO users for identity store {identity_store_id} in region {region}")
+    logger.info(
+        f"Loading {len(users)} SSO users for identity store {identity_store_id} in region {region}",
+    )
 
     load(
         neo4j_session,
@@ -169,19 +187,25 @@ def get_role_assignments(
     """
 
     logger.info(f"Getting role assignments for {len(users)} users")
-    client = boto3_session.client('sso-admin', region_name=region)
+    client = boto3_session.client("sso-admin", region_name=region)
     role_assignments = []
 
     for user in users:
-        user_id = user['UserId']
-        paginator = client.get_paginator('list_account_assignments_for_principal')
-        for page in paginator.paginate(InstanceArn=instance_arn, PrincipalId=user_id, PrincipalType='USER'):
-            for assignment in page.get('AccountAssignments', []):
-                role_assignments.append({
-                    'UserId': user_id,
-                    'PermissionSetArn': assignment.get('PermissionSetArn'),
-                    'AccountId': assignment.get('AccountId'),
-                })
+        user_id = user["UserId"]
+        paginator = client.get_paginator("list_account_assignments_for_principal")
+        for page in paginator.paginate(
+            InstanceArn=instance_arn,
+            PrincipalId=user_id,
+            PrincipalType="USER",
+        ):
+            for assignment in page.get("AccountAssignments", []):
+                role_assignments.append(
+                    {
+                        "UserId": user_id,
+                        "PermissionSetArn": assignment.get("PermissionSetArn"),
+                        "AccountId": assignment.get("AccountId"),
+                    },
+                )
 
     return role_assignments
 
@@ -214,12 +238,22 @@ def load_role_assignments(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    GraphJob.from_node_schema(AWSIdentityCenterInstanceSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(AWSPermissionSetSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(AWSSSOUserSchema(), common_job_parameters).run(neo4j_session)
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(
+        AWSIdentityCenterInstanceSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(AWSPermissionSetSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(AWSSSOUserSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
     run_cleanup_job(
-        'aws_import_identity_center_cleanup.json',
+        "aws_import_identity_center_cleanup.json",
         neo4j_session,
         common_job_parameters,
     )
@@ -251,8 +285,8 @@ def sync_identity_center_instances(
 
         # For each instance, get and load its permission sets and SSO users
         for instance in instances:
-            instance_arn = instance['InstanceArn']
-            identity_store_id = instance['IdentityStoreId']
+            instance_arn = instance["InstanceArn"]
+            identity_store_id = instance["IdentityStoreId"]
 
             permission_sets = get_permission_sets(boto3_session, instance_arn, region)
 

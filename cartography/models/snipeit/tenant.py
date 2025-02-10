@@ -7,11 +7,13 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 @dataclass(frozen=True)
 class SnipeitTenantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class SnipeitTenantSchema(CartographyNodeSchema):
-    label: str = 'SnipeitTenant'  # The label of the node
-    properties: SnipeitTenantNodeProperties = SnipeitTenantNodeProperties()  # An object representing all properties
+    label: str = "SnipeitTenant"  # The label of the node
+    properties: SnipeitTenantNodeProperties = (
+        SnipeitTenantNodeProperties()
+    )  # An object representing all properties

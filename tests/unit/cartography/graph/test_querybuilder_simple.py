@@ -1,9 +1,17 @@
 from cartography.graph.querybuilder import build_ingestion_query
-from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers import FakeEmpSchema
-from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers_fuzzy import FakeEmp2Schema
+from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers import (
+    FakeEmpSchema,
+)
+from tests.data.graph.querybuilder.sample_models.fake_emps_githubusers_fuzzy import (
+    FakeEmp2Schema,
+)
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
-from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeWithSubResourceSchema
-from tests.unit.cartography.graph.helpers import remove_leading_whitespace_and_empty_lines
+from tests.data.graph.querybuilder.sample_models.simple_node import (
+    SimpleNodeWithSubResourceSchema,
+)
+from tests.unit.cartography.graph.helpers import (
+    remove_leading_whitespace_and_empty_lines,
+)
 
 
 def test_simplenode_sanity_checks():

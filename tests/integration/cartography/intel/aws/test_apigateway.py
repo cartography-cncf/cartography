@@ -4,15 +4,17 @@ from unittest.mock import patch
 import cartography.intel.aws.apigateway
 import tests.data.aws.apigateway
 from cartography.client.core.tx import load
-from cartography.models.aws.apigatewaycertificate import APIGatewayClientCertificateSchema
+from cartography.models.aws.apigatewaycertificate import (
+    APIGatewayClientCertificateSchema,
+)
 from cartography.models.aws.apigatewayresource import APIGatewayResourceSchema
 from cartography.models.aws.apigatewaystage import APIGatewayStageSchema
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'eu-west-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -36,7 +38,7 @@ def test_load_apigateway_rest_apis(neo4j_session):
         MATCH (r:APIGatewayRestAPI) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -63,8 +65,8 @@ def test_load_apigateway_rest_apis_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
     expected = {
-        (TEST_ACCOUNT_ID, 'test-001'),
-        (TEST_ACCOUNT_ID, 'test-002'),
+        (TEST_ACCOUNT_ID, "test-001"),
+        (TEST_ACCOUNT_ID, "test-002"),
     }
 
     # Fetch relationships
@@ -73,9 +75,7 @@ def test_load_apigateway_rest_apis_relationships(neo4j_session):
         MATCH (n1:AWSAccount)-[:RESOURCE]->(n2:APIGatewayRestAPI) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -100,7 +100,7 @@ def test_load_apigateway_stages(neo4j_session):
         MATCH (r:APIGatewayStage) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -128,12 +128,12 @@ def test_load_apigateway_stages_relationships(neo4j_session):
 
     expected = {
         (
-            'test-001',
-            'arn:aws:apigateway:::test-001/Cartography-testing-infra',
+            "test-001",
+            "arn:aws:apigateway:::test-001/Cartography-testing-infra",
         ),
         (
-            'test-002',
-            'arn:aws:apigateway:::test-002/Cartography-testing-unit',
+            "test-002",
+            "arn:aws:apigateway:::test-002/Cartography-testing-unit",
         ),
     }
 
@@ -143,9 +143,7 @@ def test_load_apigateway_stages_relationships(neo4j_session):
         MATCH (n1:APIGatewayRestAPI)-[:ASSOCIATED_WITH]->(n2:APIGatewayStage) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -170,7 +168,7 @@ def test_load_apigateway_certificates(neo4j_session):
         MATCH (r:APIGatewayClientCertificate) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -198,12 +196,12 @@ def test_load_apigateway_certificates_relationships(neo4j_session):
 
     expected = {
         (
-            'arn:aws:apigateway:::test-001/Cartography-testing-infra',
-            'cert-001',
+            "arn:aws:apigateway:::test-001/Cartography-testing-infra",
+            "cert-001",
         ),
         (
-            'arn:aws:apigateway:::test-002/Cartography-testing-unit',
-            'cert-002',
+            "arn:aws:apigateway:::test-002/Cartography-testing-unit",
+            "cert-002",
         ),
     }
 
@@ -213,9 +211,7 @@ def test_load_apigateway_certificates_relationships(neo4j_session):
         MATCH (n1:APIGatewayStage)-[:HAS_CERTIFICATE]->(n2:APIGatewayClientCertificate) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -239,7 +235,7 @@ def test_load_apigateway_resources(neo4j_session):
         MATCH (r:APIGatewayResource) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -267,7 +263,8 @@ def test_load_apigateway_resources_relationships(neo4j_session):
 
     expected = {
         (
-            'test-001', '3kzxbg5sa2',
+            "test-001",
+            "3kzxbg5sa2",
         ),
     }
 
@@ -277,21 +274,19 @@ def test_load_apigateway_resources_relationships(neo4j_session):
         MATCH (n1:APIGatewayRestAPI)-[:RESOURCE]->(n2:APIGatewayResource) RETURN n1.id, n2.id;
         """,
     )
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
 
 @patch.object(
     cartography.intel.aws.apigateway,
-    'get_apigateway_rest_apis',
+    "get_apigateway_rest_apis",
     return_value=tests.data.aws.apigateway.GET_REST_APIS,
 )
 @patch.object(
     cartography.intel.aws.apigateway,
-    'get_rest_api_details',
+    "get_rest_api_details",
     return_value=tests.data.aws.apigateway.GET_REST_API_DETAILS,
 )
 def test_sync_apigateway(mock_get_details, mock_get_apis, neo4j_session):
@@ -309,82 +304,86 @@ def test_sync_apigateway(mock_get_details, mock_get_apis, neo4j_session):
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     # Assert REST APIs exist and anonymous access is set correctly
-    assert check_nodes(neo4j_session, 'APIGatewayRestAPI', ['id', 'anonymous_access']) == {
+    assert check_nodes(
+        neo4j_session,
+        "APIGatewayRestAPI",
+        ["id", "anonymous_access"],
+    ) == {
         ("test-001", True),
         ("test-002", False),
     }
 
     # Assert Stages exist
-    assert check_nodes(neo4j_session, 'APIGatewayStage', ['id']) == {
+    assert check_nodes(neo4j_session, "APIGatewayStage", ["id"]) == {
         ("arn:aws:apigateway:::test-001/Cartography-testing-infra",),
         ("arn:aws:apigateway:::test-002/Cartography-testing-unit",),
     }
 
     # Assert Certificates exist
-    assert check_nodes(neo4j_session, 'APIGatewayClientCertificate', ['id']) == {
+    assert check_nodes(neo4j_session, "APIGatewayClientCertificate", ["id"]) == {
         ("cert-001",),
         ("cert-002",),
     }
 
     # Assert Resources exist
-    assert check_nodes(neo4j_session, 'APIGatewayResource', ['id']) == {
+    assert check_nodes(neo4j_session, "APIGatewayResource", ["id"]) == {
         ("3kzxbg5sa2",),
     }
 
     # Assert AWS Account to REST API relationships
     assert check_rels(
         neo4j_session,
-        'AWSAccount',
-        'id',
-        'APIGatewayRestAPI',
-        'id',
-        'RESOURCE',
+        "AWSAccount",
+        "id",
+        "APIGatewayRestAPI",
+        "id",
+        "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, 'test-001'),
-        (TEST_ACCOUNT_ID, 'test-002'),
+        (TEST_ACCOUNT_ID, "test-001"),
+        (TEST_ACCOUNT_ID, "test-002"),
     }
 
     # Assert AWS Account to Stage relationships
     assert check_rels(
         neo4j_session,
-        'AWSAccount',
-        'id',
-        'APIGatewayStage',
-        'id',
-        'RESOURCE',
+        "AWSAccount",
+        "id",
+        "APIGatewayStage",
+        "id",
+        "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, 'arn:aws:apigateway:::test-001/Cartography-testing-infra'),
-        (TEST_ACCOUNT_ID, 'arn:aws:apigateway:::test-002/Cartography-testing-unit'),
+        (TEST_ACCOUNT_ID, "arn:aws:apigateway:::test-001/Cartography-testing-infra"),
+        (TEST_ACCOUNT_ID, "arn:aws:apigateway:::test-002/Cartography-testing-unit"),
     }
 
     # Assert AWS Account to Certificate relationships
     assert check_rels(
         neo4j_session,
-        'AWSAccount',
-        'id',
-        'APIGatewayClientCertificate',
-        'id',
-        'RESOURCE',
+        "AWSAccount",
+        "id",
+        "APIGatewayClientCertificate",
+        "id",
+        "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, 'cert-001'),
-        (TEST_ACCOUNT_ID, 'cert-002'),
+        (TEST_ACCOUNT_ID, "cert-001"),
+        (TEST_ACCOUNT_ID, "cert-002"),
     }
     # Assert AWS Account to Resource relationships
     assert check_rels(
         neo4j_session,
-        'AWSAccount',
-        'id',
-        'APIGatewayResource',
-        'id',
-        'RESOURCE',
+        "AWSAccount",
+        "id",
+        "APIGatewayResource",
+        "id",
+        "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, '3kzxbg5sa2'),
+        (TEST_ACCOUNT_ID, "3kzxbg5sa2"),
     }

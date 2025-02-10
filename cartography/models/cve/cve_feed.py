@@ -7,14 +7,14 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 @dataclass(frozen=True)
 class CVEFeedNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('FEED_ID')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
-    format: PropertyRef = PropertyRef('format')
-    version: PropertyRef = PropertyRef('version')
-    timestamp: PropertyRef = PropertyRef('timestamp')
+    id: PropertyRef = PropertyRef("FEED_ID")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    format: PropertyRef = PropertyRef("format")
+    version: PropertyRef = PropertyRef("version")
+    timestamp: PropertyRef = PropertyRef("timestamp")
 
 
 @dataclass(frozen=True)
 class CVEFeedSchema(CartographyNodeSchema):
-    label: str = 'CVEFeed'
+    label: str = "CVEFeed"
     properties: CVEFeedNodeProperties = CVEFeedNodeProperties()

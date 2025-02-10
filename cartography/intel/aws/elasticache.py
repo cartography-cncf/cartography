@@ -17,7 +17,7 @@ stat_handler = get_stats_client(__name__)
 
 
 def _get_topic(cluster: Dict) -> Dict:
-    return cluster['NotificationConfiguration']
+    return cluster["NotificationConfiguration"]
 
 
 def transform_elasticache_topics(cluster_data: List[Dict]) -> List[Dict]:
@@ -28,7 +28,7 @@ def transform_elasticache_topics(cluster_data: List[Dict]) -> List[Dict]:
     topics: List[Dict] = []
     for cluster in cluster_data:
         topic = _get_topic(cluster)
-        topic_arn = topic['TopicArn']
+        topic_arn = topic["TopicArn"]
         if topic_arn not in seen:
             seen.add(topic_arn)
             topics.append(topic)
@@ -37,20 +37,26 @@ def transform_elasticache_topics(cluster_data: List[Dict]) -> List[Dict]:
 
 @timeit
 @aws_handle_regions
-def get_elasticache_clusters(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
+def get_elasticache_clusters(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict]:
     logger.debug(f"Getting ElastiCache Clusters in region '{region}'.")
-    client = boto3_session.client('elasticache', region_name=region)
-    paginator = client.get_paginator('describe_cache_clusters')
+    client = boto3_session.client("elasticache", region_name=region)
+    paginator = client.get_paginator("describe_cache_clusters")
     clusters: List[Dict] = []
     for page in paginator.paginate():
-        clusters.extend(page['CacheClusters'])
+        clusters.extend(page["CacheClusters"])
     return clusters
 
 
 @timeit
 def load_elasticache_clusters(
-    neo4j_session: neo4j.Session, clusters: List[Dict], region: str,
-    aws_account_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    clusters: List[Dict],
+    region: str,
+    aws_account_id: str,
+    update_tag: int,
 ) -> None:
     query = """
     UNWIND $clusters as elasticache_cluster
@@ -85,7 +91,9 @@ def load_elasticache_clusters(
         ON CREATE SET r2.firstseen = timestamp()
         SET r2.lastupdated = $aws_update_tag
     """
-    logger.info(f"Loading f{len(clusters)} ElastiCache clusters for region '{region}' into graph.")
+    logger.info(
+        f"Loading f{len(clusters)} ElastiCache clusters for region '{region}' into graph.",
+    )
     neo4j_session.run(
         query,
         clusters=clusters,
@@ -96,29 +104,45 @@ def load_elasticache_clusters(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, current_aws_account_id: str, update_tag: int) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
     run_cleanup_job(
-        'aws_import_elasticache_cleanup.json',
+        "aws_import_elasticache_cleanup.json",
         neo4j_session,
-        {'UPDATE_TAG': update_tag, 'AWS_ID': current_aws_account_id},
+        {"UPDATE_TAG": update_tag, "AWS_ID": current_aws_account_id},
     )
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     for region in regions:
-        logger.info(f"Syncing ElastiCache clusters for region '{region}' in account {current_aws_account_id}")
+        logger.info(
+            f"Syncing ElastiCache clusters for region '{region}' in account {current_aws_account_id}",
+        )
         clusters = get_elasticache_clusters(boto3_session, region)
-        load_elasticache_clusters(neo4j_session, clusters, region, current_aws_account_id, update_tag)
+        load_elasticache_clusters(
+            neo4j_session,
+            clusters,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
     cleanup(neo4j_session, current_aws_account_id, update_tag)
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='AWSAccount',
+        group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type='ElasticacheCluster',
+        synced_type="ElasticacheCluster",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )

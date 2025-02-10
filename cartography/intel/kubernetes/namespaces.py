@@ -21,9 +21,9 @@ def sync_namespaces(session: Session, client: K8sClient, update_tag: int) -> Dic
     load_namespaces(session, cluster, namespaces, update_tag)
     merge_module_sync_metadata(
         session,
-        group_type='KubernetesCluster',
-        group_id=cluster['uid'],
-        synced_type='KubernetesCluster',
+        group_type="KubernetesCluster",
+        group_id=cluster["uid"],
+        synced_type="KubernetesCluster",
         update_tag=update_tag,
         stat_handler=stat_handler,
     )
@@ -49,7 +49,10 @@ def get_namespaces(client: K8sClient) -> Tuple[Dict, List[Dict]]:
 
 
 def load_namespaces(
-    session: Session, cluster: Dict, data: List[Dict], update_tag: int,
+    session: Session,
+    cluster: Dict,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     ingestion_cypher_query = """
     MERGE (cluster:KubernetesCluster {id: $cluster_id})

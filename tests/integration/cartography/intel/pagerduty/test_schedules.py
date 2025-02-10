@@ -20,7 +20,7 @@ def test_load_schedule_data(neo4j_session):
         MATCH (n:PagerDutySchedule) RETURN n.id;
         """,
     )
-    actual_nodes = {n['n.id'] for n in nodes}
+    actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == expected_nodes
 
     expected_layers = {
@@ -32,5 +32,5 @@ def test_load_schedule_data(neo4j_session):
         RETURN n.id;
         """,
     )
-    actual_layers = {n['n.id'] for n in layers}
+    actual_layers = {n["n.id"] for n in layers}
     assert actual_layers == expected_layers

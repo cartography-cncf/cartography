@@ -19,10 +19,13 @@ def start_kandji_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     :return: None
     """
-    if config.kandji_base_uri is None or config.kandji_token is None or config.kandji_tenant_id is None:
+    if (
+        config.kandji_base_uri is None
+        or config.kandji_token is None
+        or config.kandji_tenant_id is None
+    ):
         logger.warning(
-            'Required parameter missing. Skipping sync. '
-            'See docs to configure.',
+            "Required parameter missing. Skipping sync. " "See docs to configure.",
         )
         return
 

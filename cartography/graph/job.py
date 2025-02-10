@@ -32,7 +32,7 @@ def _get_identifiers(template: string.Template) -> List[str]:
             filter(
                 lambda v: v is not None,
                 (
-                    mo.group('named') or mo.group('braced')
+                    mo.group("named") or mo.group("braced")
                     for mo in template.pattern.finditer(template.template)
                 ),
             ),
@@ -71,7 +71,12 @@ class GraphJob:
     A job that will run against the cartography graph. A job is a sequence of statements which execute sequentially.
     """
 
-    def __init__(self, name: str, statements: List[GraphStatement], short_name: Optional[str] = None):
+    def __init__(
+        self,
+        name: str,
+        statements: List[GraphStatement],
+        short_name: Optional[str] = None,
+    ):
         # E.g. "Okta intel module cleanup"
         self.name = name
         self.statements: List[GraphStatement] = statements
@@ -100,7 +105,11 @@ class GraphJob:
                     e,
                 )
                 raise
-        log_msg = f"Finished job {self.short_name}" if self.short_name else f"Finished job {self.name}"
+        log_msg = (
+            f"Finished job {self.short_name}"
+            if self.short_name
+            else f"Finished job {self.name}"
+        )
         logger.info(log_msg)
 
     def as_dict(self) -> Dict:
@@ -114,7 +123,7 @@ class GraphJob:
         }
 
     @classmethod
-    def from_json(cls, blob: str, short_name: Optional[str] = None) -> 'GraphJob':
+    def from_json(cls, blob: str, short_name: Optional[str] = None) -> "GraphJob":
         """
         Create a job from a JSON blob.
         """
@@ -125,10 +134,10 @@ class GraphJob:
 
     @classmethod
     def from_node_schema(
-            cls,
-            node_schema: CartographyNodeSchema,
-            parameters: Dict[str, Any],
-    ) -> 'GraphJob':
+        cls,
+        node_schema: CartographyNodeSchema,
+        parameters: Dict[str, Any],
+    ) -> "GraphJob":
         """
         Create a cleanup job from a CartographyNodeSchema object.
         For a given node, the fields used in the node_schema.sub_resource_relationship.target_node_node_matcher.keys()
@@ -139,14 +148,14 @@ class GraphJob:
         expected_param_keys: Set[str] = get_parameters(queries)
         actual_param_keys: Set[str] = set(parameters.keys())
         # Hacky, but LIMIT_SIZE is specified by default in cartography.graph.statement, so we exclude it from validation
-        actual_param_keys.add('LIMIT_SIZE')
+        actual_param_keys.add("LIMIT_SIZE")
 
         missing_params: Set[str] = expected_param_keys - actual_param_keys
 
         if missing_params:
             raise ValueError(
                 f'GraphJob is missing the following expected query parameters: "{missing_params}". Please check the '
-                f'value passed to `parameters`.',
+                f"value passed to `parameters`.",
             )
 
         statements: List[GraphStatement] = [
@@ -157,7 +166,8 @@ class GraphJob:
                 iterationsize=100,
                 parent_job_name=node_schema.label,
                 parent_job_sequence_num=idx,
-            ) for idx, query in enumerate(queries, start=1)
+            )
+            for idx, query in enumerate(queries, start=1)
         ]
 
         return cls(
@@ -167,7 +177,7 @@ class GraphJob:
         )
 
     @classmethod
-    def from_json_file(cls, file_path: Union[str, Path]) -> 'GraphJob':
+    def from_json_file(cls, file_path: Union[str, Path]) -> "GraphJob":
         """
         Create a job from a JSON file.
         """
@@ -175,13 +185,20 @@ class GraphJob:
             data: Dict = json.load(j_file)
 
         job_shortname: str = get_job_shortname(file_path)
-        statements: List[GraphStatement] = _get_statements_from_json(data, job_shortname)
+        statements: List[GraphStatement] = _get_statements_from_json(
+            data,
+            job_shortname,
+        )
         name: str = data["name"]
         return cls(name, statements, job_shortname)
 
     @classmethod
     def run_from_json(
-        cls, neo4j_session: neo4j.Session, blob: str, parameters: Dict, short_name: Optional[str] = None,
+        cls,
+        neo4j_session: neo4j.Session,
+        blob: str,
+        parameters: Dict,
+        short_name: Optional[str] = None,
     ) -> None:
         """
         Run a job from a JSON blob. This will deserialize the job and execute all statements sequentially.
@@ -194,7 +211,12 @@ class GraphJob:
         job.run(neo4j_session)
 
     @classmethod
-    def run_from_json_file(cls, file_path: Union[str, Path], neo4j_session: neo4j.Session, parameters: Dict) -> None:
+    def run_from_json_file(
+        cls,
+        file_path: Union[str, Path],
+        neo4j_session: neo4j.Session,
+        parameters: Dict,
+    ) -> None:
         """
         Run a job from a JSON file. This will deserialize the job and execute all statements sequentially.
         """
@@ -207,14 +229,21 @@ class GraphJob:
         job.run(neo4j_session)
 
 
-def _get_statements_from_json(blob: Dict, short_job_name: Optional[str] = None) -> List[GraphStatement]:
+def _get_statements_from_json(
+    blob: Dict,
+    short_job_name: Optional[str] = None,
+) -> List[GraphStatement]:
     """
     Deserialize all statements from the JSON blob.
     """
     statements: List[GraphStatement] = []
     for i, statement_data in enumerate(blob["statements"]):
         # i+1 to make it 1-based and not 0-based to help with log readability
-        statement: GraphStatement = GraphStatement.create_from_json(statement_data, short_job_name, i + 1)
+        statement: GraphStatement = GraphStatement.create_from_json(
+            statement_data,
+            short_job_name,
+            i + 1,
+        )
         statements.append(statement)
 
     return statements

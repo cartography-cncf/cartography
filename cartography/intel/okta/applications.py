@@ -36,9 +36,9 @@ def _get_okta_applications(api_client: ApiClient) -> List[Dict]:
                 paged_response = api_client.get(next_url)
             else:
                 params = {
-                    'limit': 500,
+                    "limit": 500,
                 }
-                paged_response = api_client.get_path('/', params)
+                paged_response = api_client.get_path("/", params)
         except OktaError as okta_error:
             logger.debug(f"Got error while listing applications {okta_error}")
             break
@@ -73,11 +73,13 @@ def _get_application_assigned_users(api_client: ApiClient, app_id: str) -> List[
                 paged_response = api_client.get(next_url)
             else:
                 params = {
-                    'limit': 500,
+                    "limit": 500,
                 }
-                paged_response = api_client.get_path(f'/{app_id}/users', params)
+                paged_response = api_client.get_path(f"/{app_id}/users", params)
         except OktaError as okta_error:
-            logger.debug(f"Got error while going through list application assigned users {okta_error}")
+            logger.debug(
+                f"Got error while going through list application assigned users {okta_error}",
+            )
             break
 
         app_users.append(paged_response.text)
@@ -110,11 +112,13 @@ def _get_application_assigned_groups(api_client: ApiClient, app_id: str) -> List
                 paged_response = api_client.get(next_url)
             else:
                 params = {
-                    'limit': 500,
+                    "limit": 500,
                 }
-                paged_response = api_client.get_path(f'/{app_id}/groups', params)
+                paged_response = api_client.get_path(f"/{app_id}/groups", params)
         except OktaError as okta_error:
-            logger.debug(f"Got error while going through list application assigned groups {okta_error}")
+            logger.debug(
+                f"Got error while going through list application assigned groups {okta_error}",
+            )
             break
 
         app_groups.append(paged_response.text)
@@ -130,7 +134,9 @@ def _get_application_assigned_groups(api_client: ApiClient, app_id: str) -> List
 
 
 @timeit
-def transform_application_assigned_users_list(assigned_user_list: List[str]) -> List[str]:
+def transform_application_assigned_users_list(
+    assigned_user_list: List[str],
+) -> List[str]:
     """
     Transform application users Okta data
     :param assigned_user_list: Okta data on assigned users
@@ -161,7 +167,9 @@ def transform_application_assigned_users(json_app_data: str) -> List[str]:
 
 
 @timeit
-def transform_application_assigned_groups_list(assigned_group_list: List[str]) -> List[Dict]:
+def transform_application_assigned_groups_list(
+    assigned_group_list: List[str],
+) -> List[Dict]:
     group_list: List[Dict] = []
 
     for current in assigned_group_list:
@@ -206,14 +214,16 @@ def transform_okta_application(okta_application: Dict) -> Dict:
     app_props["label"] = okta_application["label"]
     if "created" in okta_application and okta_application["created"]:
         app_props["created"] = datetime.strptime(
-            okta_application["created"], "%Y-%m-%dT%H:%M:%S.%fZ",
+            okta_application["created"],
+            "%Y-%m-%dT%H:%M:%S.%fZ",
         ).strftime("%m/%d/%Y, %H:%M:%S")
     else:
         app_props["created"] = None
 
     if "lastUpdated" in okta_application and okta_application["lastUpdated"]:
         app_props["okta_last_updated"] = datetime.strptime(
-            okta_application["lastUpdated"], "%Y-%m-%dT%H:%M:%S.%fZ",
+            okta_application["lastUpdated"],
+            "%Y-%m-%dT%H:%M:%S.%fZ",
         ).strftime("%m/%d/%Y, %H:%M:%S")
     else:
         app_props["okta_last_updated"] = None
@@ -222,7 +232,8 @@ def transform_okta_application(okta_application: Dict) -> Dict:
 
     if "activated" in okta_application and okta_application["activated"]:
         app_props["activated"] = datetime.strptime(
-            okta_application["activated"], "%Y-%m-%dT%H:%M:%S.%fZ",
+            okta_application["activated"],
+            "%Y-%m-%dT%H:%M:%S.%fZ",
         ).strftime("%m/%d/%Y, %H:%M:%S")
     else:
         app_props["activated"] = None
@@ -234,7 +245,9 @@ def transform_okta_application(okta_application: Dict) -> Dict:
 
 
 @timeit
-def transform_okta_application_extract_replyurls(okta_application: Dict) -> Optional[str]:
+def transform_okta_application_extract_replyurls(
+    okta_application: Dict,
+) -> Optional[str]:
     """
     Extracts the reply uri information from an okta app
     """
@@ -247,7 +260,9 @@ def transform_okta_application_extract_replyurls(okta_application: Dict) -> Opti
 
 @timeit
 def _load_okta_applications(
-    neo4j_session: neo4j.Session, okta_org_id: str, app_list: List[Dict],
+    neo4j_session: neo4j.Session,
+    okta_org_id: str,
+    app_list: List[Dict],
     okta_update_tag: int,
 ) -> None:
     """
@@ -289,7 +304,9 @@ def _load_okta_applications(
 
 @timeit
 def _load_application_user(
-    neo4j_session: neo4j.Session, app_id: str, user_list: List[str],
+    neo4j_session: neo4j.Session,
+    app_id: str,
+    user_list: List[str],
     okta_update_tag: int,
 ) -> None:
     """
@@ -321,7 +338,9 @@ def _load_application_user(
 
 @timeit
 def _load_application_group(
-    neo4j_session: neo4j.Session, app_id: str, group_list: List[str],
+    neo4j_session: neo4j.Session,
+    app_id: str,
+    group_list: List[str],
     okta_update_tag: int,
 ) -> None:
     """
@@ -353,7 +372,9 @@ def _load_application_group(
 
 @timeit
 def _load_application_reply_urls(
-    neo4j_session: neo4j.Session, app_id: str, reply_urls: List[str],
+    neo4j_session: neo4j.Session,
+    app_id: str,
+    reply_urls: List[str],
     okta_update_tag: int,
 ) -> None:
     """
@@ -390,7 +411,9 @@ def _load_application_reply_urls(
 
 @timeit
 def sync_okta_applications(
-    neo4j_session: neo4j.Session, okta_org_id: str, okta_update_tag: int,
+    neo4j_session: neo4j.Session,
+    okta_org_id: str,
+    okta_update_tag: int,
     okta_api_key: str,
 ) -> None:
     """

@@ -17,7 +17,7 @@ def test_load_snipeit_user_relationship(neo4j_session):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_snipeit_TENANT_ID,
     }
-    data = tests.data.snipeit.users.USERS['company_a']
+    data = tests.data.snipeit.users.USERS["company_a"]
 
     # Act
     cartography.intel.snipeit.user.load_users(
@@ -30,39 +30,45 @@ def test_load_snipeit_user_relationship(neo4j_session):
 
     # Make sure the expected Tenant is created
     expected_nodes = {
-        ('Company A',),
+        ("Company A",),
     }
     check_nodes(
         neo4j_session,
-        'SnipeitTenant',
-        ['id'],
+        "SnipeitTenant",
+        ["id"],
     )
 
     # Make sure the expected Devices are created
     expected_nodes = {
-        (1, 'mcarter@example.net'),
-        (2, 'snipe@snipe.net'),
+        (1, "mcarter@example.net"),
+        (2, "snipe@snipe.net"),
     }
-    assert check_nodes(
-        neo4j_session,
-        "SnipeitUser",
-        ["id", "email"],
-    ) == expected_nodes
+    assert (
+        check_nodes(
+            neo4j_session,
+            "SnipeitUser",
+            ["id", "email"],
+        )
+        == expected_nodes
+    )
 
     # Make sure the expected relationships are created
     expected_nodes_relationships = {
-        ('Company A', 1),
-        ('Company A', 2),
+        ("Company A", 1),
+        ("Company A", 2),
     }
-    assert check_rels(
-        neo4j_session,
-        'SnipeitTenant',
-        'id',
-        'SnipeitUser',
-        'id',
-        'HAS_USER',
-        rel_direction_right=True,
-    ) == expected_nodes_relationships
+    assert (
+        check_rels(
+            neo4j_session,
+            "SnipeitTenant",
+            "id",
+            "SnipeitUser",
+            "id",
+            "HAS_USER",
+            rel_direction_right=True,
+        )
+        == expected_nodes_relationships
+    )
 
     # Cleanup test data
     common_job_parameters = {
@@ -83,7 +89,7 @@ def test_cleanup_snipeit_users(neo4j_session):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_snipeit_TENANT_ID,
     }
-    data = tests.data.snipeit.users.USERS['company_a']
+    data = tests.data.snipeit.users.USERS["company_a"]
 
     # Act
     cartography.intel.snipeit.user.load_users(
@@ -99,7 +105,7 @@ def test_cleanup_snipeit_users(neo4j_session):
         "UPDATE_TAG": UNRELATED_UPDATE_TAG,
         "TENANT_ID": TENANT_ID,
     }
-    data = tests.data.snipeit.users.USERS['company_b']
+    data = tests.data.snipeit.users.USERS["company_b"]
 
     cartography.intel.snipeit.user.load_users(
         neo4j_session,
@@ -111,20 +117,23 @@ def test_cleanup_snipeit_users(neo4j_session):
 
     # [Pre-test] Assert that the related and unrelated data exists
     expected_nodes_relationships = {
-        ('Company A', 1),
-        ('Company A', 2),
-        ('Company B', 3),
-        ('Company B', 4),
+        ("Company A", 1),
+        ("Company A", 2),
+        ("Company B", 3),
+        ("Company B", 4),
     }
-    assert check_rels(
-        neo4j_session,
-        'SnipeitTenant',
-        'id',
-        'SnipeitUser',
-        'id',
-        'HAS_USER',
-        rel_direction_right=True,
-    ) == expected_nodes_relationships
+    assert (
+        check_rels(
+            neo4j_session,
+            "SnipeitTenant",
+            "id",
+            "SnipeitUser",
+            "id",
+            "HAS_USER",
+            rel_direction_right=True,
+        )
+        == expected_nodes_relationships
+    )
 
     # Act: run the cleanup job to remove all nodes except the unrelated data
     common_job_parameters = {
@@ -142,11 +151,14 @@ def test_cleanup_snipeit_users(neo4j_session):
         (4, "sparisian@example.net"),
     }
 
-    assert check_nodes(
-        neo4j_session,
-        "SnipeitUser",
-        ["id", "email"],
-    ) == expected_nodes_unrelated
+    assert (
+        check_nodes(
+            neo4j_session,
+            "SnipeitUser",
+            ["id", "email"],
+        )
+        == expected_nodes_unrelated
+    )
 
     # Cleanup test data
     common_job_parameters = {
