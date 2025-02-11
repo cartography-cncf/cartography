@@ -3,7 +3,6 @@ from typing import Any
 from typing import Dict
 from typing import List
 
-import googleapiclient.discovery
 import neo4j
 from googleapiclient.discovery import Resource
 

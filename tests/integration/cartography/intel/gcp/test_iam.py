@@ -1,9 +1,10 @@
 import cartography.intel.gcp.iam
 import tests.data.gcp.iam
-from tests.integration.util import check_nodes, check_rels
+from tests.integration.util import check_nodes
 
 TEST_PROJECT_ID = 'project-123'
 TEST_UPDATE_TAG = 123456789
+
 
 def _create_test_project(neo4j_session):
     # Create Test GCP Project
@@ -16,6 +17,7 @@ def _create_test_project(neo4j_session):
         project_id=TEST_PROJECT_ID,
         update_tag=TEST_UPDATE_TAG,
     )
+
 
 def test_load_gcp_roles(neo4j_session):
     # Arrange
@@ -37,6 +39,7 @@ def test_load_gcp_roles(neo4j_session):
         ("projects/project-123/roles/customRole2",),
     }
     assert check_nodes(neo4j_session, 'GCPRole', ['id']) == expected_nodes
+
 
 def test_load_gcp_service_accounts(neo4j_session):
     # Arrange
