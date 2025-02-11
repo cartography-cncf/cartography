@@ -36,6 +36,11 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
 | lastupdated | Timestamp of when a sync job last updated this node
 | firstseen | Timestamp of when a sync job first discovered this node
 
+#### Node Labels
+
+- `GSuiteUser`
+- `GCPPrincipal`
+
 #### Relationships
 - GSuiteUser is an identity for a Human
     ```
@@ -60,3 +65,16 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
 | name | The group's display name.
 | lastupdated | Timestamp of when a sync job last updated this node
 | firstseen | Timestamp of when a sync job first discovered this node
+
+#### Node Labels
+
+- `GSuiteGroup`
+- `GCPPrincipal`
+
+#### Relationships
+
+- GSuiteGroup can have members that are GSuiteUsers.
+
+    ```
+    (GSuiteUser)-[MEMBER_OF]->(GSuiteGroup)
+    ```

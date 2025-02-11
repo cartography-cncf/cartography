@@ -6,6 +6,7 @@ from collections import namedtuple
 
 import googleapiclient.discovery
 import neo4j
+from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.transport.requests import Request
 from google.oauth2 import credentials
@@ -18,10 +19,11 @@ from cartography.config import Config
 from cartography.intel.gsuite import api
 from cartography.util import timeit
 
-OAUTH_SCOPE = [
+OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/admin.directory.user.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.member',
+    'https://www.googleapis.com/auth/cloud-platform',
 ]
 
 logger = logging.getLogger(__name__)
@@ -70,7 +72,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         try:
             creds = service_account.Credentials.from_service_account_file(
                 config.gsuite_config,
-                scopes=OAUTH_SCOPE,
+                scopes=OAUTH_SCOPES,
             )
             creds = creds.with_subject(os.environ.get('GSUITE_DELEGATED_ADMIN'))
 
@@ -96,10 +98,10 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 refresh_token=auth_tokens['refresh_token'],
                 expiry=None,
                 token_uri=auth_tokens['token_uri'],
-                scopes=OAUTH_SCOPE,
+                scopes=OAUTH_SCOPES,
             )
             creds.refresh(Request())
-            creds = creds.create_scoped(OAUTH_SCOPE)
+            creds = creds.create_scoped(OAUTH_SCOPES)
         except DefaultCredentialsError as e:
             logger.error(
                 (
@@ -107,6 +109,21 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                     'Gsuite data then you can ignore this message. Otherwise, the error code is: %s '
                     'Make sure your GSuite credentials are configured correctly, your credentials are valid. '
                     'For more details see README'
+                ),
+                e,
+            )
+            return
+    elif config.gsuite_auth_method == 'default':
+        logger.info('Attempting to authenticate to GSuite using default credentials')
+        try:
+            creds, _ = default(scopes=OAUTH_SCOPES)
+        except DefaultCredentialsError as e:
+            logger.error(
+                (
+                    "Unable to initialize GSuite creds using default credentials. If you don't have GSuite data or "
+                    "don't want to load GSuite data then you can ignore this message. Otherwise, the error code is: %s "
+                    "Make sure you have valid application default credentials configured. "
+                    "For more details see README"
                 ),
                 e,
             )
