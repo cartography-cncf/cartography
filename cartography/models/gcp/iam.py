@@ -1,6 +1,10 @@
-from dataclasses import dataclass
-from typing import List, Dict, Any
 import logging
+from dataclasses import dataclass
+from typing import Any
+from typing import Dict
+from typing import List
+
+from googleapiclient.discovery import Resource
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
@@ -11,7 +15,6 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.util import timeit
-from googleapiclient.discovery import Resource
 
 logger = logging.getLogger(__name__)
 

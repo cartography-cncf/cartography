@@ -42,7 +42,7 @@ def get_all_groups(admin: Resource) -> List[Dict]:
                     '"https://www.googleapis.com/auth/admin.directory.user.readonly,'
                     'https://www.googleapis.com/auth/admin.directory.group.readonly,'
                     'https://www.googleapis.com/auth/admin.directory.group.member.readonly,'
-                    'https://www.googleapis.com/auth/cloud-platform"'
+                    'https://www.googleapis.com/auth/cloud-platform"',
                 )
             raise
     return response_objects

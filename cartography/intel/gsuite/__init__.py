@@ -6,6 +6,7 @@ from collections import namedtuple
 
 import googleapiclient.discovery
 import neo4j
+from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.transport.requests import Request
 from google.oauth2 import credentials
@@ -13,7 +14,6 @@ from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials as OAuth2Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from googleapiclient.discovery import Resource
-from google.auth import default
 
 from cartography.config import Config
 from cartography.intel.gsuite import api
