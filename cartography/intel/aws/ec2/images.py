@@ -33,10 +33,8 @@ def get_images_in_use(neo4j_session: neo4j.Session, region: str, current_aws_acc
     RETURN DISTINCT(ltv.image_id) as image
     """
     results = neo4j_session.run(get_images_query, AWS_ACCOUNT_ID=current_aws_account_id, Region=region)
-    images = []
-    for r in results:
-        images.append(r['image'])
-    return images
+    images = {r['image'] for r in results if r['image']}
+    return list(images)
 
 
 @timeit
@@ -44,22 +42,22 @@ def get_images_in_use(neo4j_session: neo4j.Session, region: str, current_aws_acc
 def get_images(boto3_session: boto3.session.Session, region: str, image_ids: List[str]) -> List[Dict]:
     client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
     images = []
+    self_images = []
     try:
         self_images = client.describe_images(Owners=['self'])['Images']
-        images.extend(self_images)
     except ClientError as e:
-        logger.warning(f"Failed retrieve images for region - {region}. Error - {e}")
-    try:
-        if image_ids:
-            image_ids = [image_id for image_id in image_ids if image_id is not None]
-            images_in_use = client.describe_images(ImageIds=image_ids)['Images']
-            # Ensure we're not adding duplicates
-            _ids = [image["ImageId"] for image in images]
-            for image in images_in_use:
-                if image["ImageId"] not in _ids:
-                    images.append(image)
-    except ClientError as e:
-        logger.warning(f"Failed retrieve images for region - {region}. Error - {e}")
+        logger.warning(f"Failed retrieve self owned images for region - {region}. Error - {e}")
+    images.extend(self_images)
+    if image_ids:
+        ids_retrieved = {image['ImageId'] for image in images}
+        ids_pending = [id for id in image_ids if id not in ids_retrieved]
+        # Go one by one to avoid losing all images if one fails
+        for image in ids_pending:
+            try:
+                public_images = client.describe_images(ImageIds=[image])['Images']
+                images.extend(public_images)
+            except ClientError as e:
+                logger.warning(f"Failed retrieve non-self image for region - {region}. Error - {e}")
     return images
 
 
