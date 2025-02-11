@@ -21,10 +21,6 @@ repos:
     rev: 7.1.1
     hooks:
     -   id: flake8
-        # E203: whitespace before ':' (black-compatible)
-        # E501: line too long (black-compatible)
-        # W503: line break before binary operator (black-compatible)
-        args: ["--max-line-length=88", "--ignore=E203,E501,W503"]
 -   repo: https://github.com/asottile/pyupgrade
     rev: v3.19.1
     hooks:
