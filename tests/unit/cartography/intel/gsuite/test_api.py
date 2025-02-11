@@ -105,7 +105,7 @@ def test_sync_gsuite_groups(all_groups, load_gsuite_groups, cleanup_gsuite_group
 def test_load_gsuite_groups():
     ingestion_qry = """
         UNWIND $GroupData as group
-        MERGE (g:GSuiteGroup{id: group.id})
+        MERGE (g:GSuiteGroup:GCPPrincipal{id: group.id})
         ON CREATE SET
         g.firstseen = $UpdateTag,
         g.group_id = group.id
@@ -133,7 +133,7 @@ def test_load_gsuite_groups():
 def test_load_gsuite_users():
     ingestion_qry = """
         UNWIND $UserData as user
-        MERGE (u:GSuiteUser{id: user.id})
+        MERGE (u:GSuiteUser:GCPPrincipal{id: user.id})
         ON CREATE SET
         u.user_id = user.id,
         u.firstseen = $UpdateTag
