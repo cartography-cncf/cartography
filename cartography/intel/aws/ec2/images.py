@@ -8,6 +8,7 @@ import neo4j
 from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.ec2.images import EC2ImageSchema
@@ -20,21 +21,27 @@ logger = logging.getLogger(__name__)
 @timeit
 def get_images_in_use(neo4j_session: neo4j.Session, region: str, current_aws_account_id: str) -> List[str]:
     get_images_query = """
+    CALL {
     MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(i:EC2Instance)
-    WHERE i.region = $Region
-    RETURN DISTINCT(i.imageid) as image
-    UNION
+    WHERE i.region = $Region AND i.imageid IS NOT NULL
+    RETURN i.imageid AS image
+    UNION ALL
     MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(lc:LaunchConfiguration)
-    WHERE lc.region = $Region
-    RETURN DISTINCT(lc.image_id) as image
-    UNION
+    WHERE lc.region = $Region AND lc.image_id IS NOT NULL
+    RETURN lc.image_id AS image
+    UNION ALL
     MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(ltv:LaunchTemplateVersion)
-    WHERE ltv.region = $Region
-    RETURN DISTINCT(ltv.image_id) as image
+    WHERE ltv.region = $Region AND ltv.image_id IS NOT NULL
+    RETURN ltv.image_id AS image
+    }
+    RETURN DISTINCT image;
     """
-    results = neo4j_session.run(get_images_query, AWS_ACCOUNT_ID=current_aws_account_id, Region=region)
-    images = {r['image'] for r in results if r['image']}
-    return list(images)
+    result = read_list_of_values_tx(
+        neo4j_session, get_images_query,
+        AWS_ACCOUNT_ID=current_aws_account_id, Region=region,
+    )
+    images = [str(image) for image in result]
+    return images
 
 
 @timeit
