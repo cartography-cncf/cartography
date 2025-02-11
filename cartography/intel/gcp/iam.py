@@ -22,12 +22,11 @@ DESCRIBE_SLEEP = 1
 @timeit
 def get_gcp_service_accounts(iam_client: Resource, project_id: str) -> List[Dict[str, Any]]:
     """
-    Returns a list of GCP service accounts within the given project.
+    Retrieve a list of GCP service accounts for a given project.
 
-    :param iam_client: The IAM resource object created by googleapiclient.discovery.build()
-    :param project_id: The GCP Project ID that you are retrieving service accounts from
-
-    :return: List of GCP service accounts
+    :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
+    :param project_id: The GCP Project ID to retrieve service accounts from.
+    :return: A list of dictionaries representing GCP service accounts.
     """
     service_accounts: List[Dict[str, Any]] = []
     try:
@@ -50,13 +49,11 @@ def get_gcp_service_accounts(iam_client: Resource, project_id: str) -> List[Dict
 @timeit
 def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict]:
     """
-    Get both custom and predefined roles from GCP.
+    Retrieve custom and predefined roles from GCP for a given project.
 
-    :param iam_client: The IAM resource object created by googleapiclient.discovery.build()
-    :param project_id: The project ID number to sync.
-    See https://googleapis.github.io/google-api-python-client/docs/epy/googleapiclient.discovery-module.html#build.
-
-    :return: List of custom and predefined roles.
+    :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
+    :param project_id: The GCP Project ID to retrieve roles from.
+    :return: A list of dictionaries representing GCP roles.
     """
     try:
         roles = []
@@ -89,13 +86,18 @@ def load_gcp_service_accounts(
     gcp_update_tag: int,
 ) -> None:
     """
-    Load GCP service account information into Neo4j.
+    Load GCP service account data into Neo4j.
+
+    :param neo4j_session: The Neo4j session.
+    :param service_accounts: A list of service account data to load.
+    :param project_id: The GCP Project ID associated with the service accounts.
+    :param gcp_update_tag: The timestamp of the current sync run.
     """
     logger.debug(f"Loading {len(service_accounts)} service accounts for project {project_id}")
     transformed_service_accounts = []
     for sa in service_accounts:
         transformed_sa = {
-            'id': sa['uniqueId'],  # Use uniqueId as the id field
+            'id': sa['uniqueId'],
             'email': sa.get('email'),
             'displayName': sa.get('displayName'),
             'oauth2ClientId': sa.get('oauth2ClientId'),
@@ -123,13 +125,17 @@ def load_gcp_roles(
     gcp_update_tag: int,
 ) -> None:
     """
-    Load GCP role information into Neo4j.
+    Load GCP role data into Neo4j.
+
+    :param neo4j_session: The Neo4j session.
+    :param roles: A list of role data to load.
+    :param project_id: The GCP Project ID associated with the roles.
+    :param gcp_update_tag: The timestamp of the current sync run.
     """
     logger.debug(f"Loading {len(roles)} roles for project {project_id}")
     transformed_roles = []
     for role in roles:
         role_name = role['name']
-        # Determine role type
         if role_name.startswith('roles/'):
             if role_name in ['roles/owner', 'roles/editor', 'roles/viewer']:
                 role_type = 'BASIC'
@@ -162,8 +168,13 @@ def load_gcp_roles(
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+    """
+    Run cleanup jobs for GCP IAM data in Neo4j.
+
+    :param neo4j_session: The Neo4j session.
+    :param common_job_parameters: Common job parameters for cleanup.
+    """
     logger.debug("Running GCP IAM cleanup job")
-    # Add projectId to the job parameters
     job_params = {
         **common_job_parameters,
         'projectId': common_job_parameters.get('PROJECT_ID'),
@@ -187,8 +198,13 @@ def sync(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
-    Sync GCP IAM resources (service accounts and roles) for a given project.
-    Note that "users" in GCP come from the GSuite module.
+    Sync GCP IAM resources for a given project.
+
+    :param neo4j_session: The Neo4j session.
+    :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
+    :param project_id: The GCP Project ID to sync.
+    :param gcp_update_tag: The timestamp of the current sync run.
+    :param common_job_parameters: Common job parameters for the sync.
     """
     logger.info(f"Syncing GCP IAM for project {project_id}")
 
