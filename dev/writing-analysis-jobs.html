@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="lang:clipboard.copy" content="Copy to clipboard">
+  <meta name="lang:clipboard.copied" content="Copied to clipboard">
+  <meta name="lang:search.language" content="en">
+  <meta name="lang:search.pipeline.stopwords" content="True">
+  <meta name="lang:search.pipeline.trimmer" content="True">
+  <meta name="lang:search.result.none" content="No matching documents">
+  <meta name="lang:search.result.one" content="1 matching document">
+  <meta name="lang:search.result.other" content="# matching documents">
+  <meta name="lang:search.tokenizer" content="[\s\-]+">
+
+  
+    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
+
+    <style>
+      body,
+      input {
+        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
+      }
+
+      code,
+      kbd,
+      pre {
+        font-family: "Roboto Mono", "Courier New", Courier, monospace
+      }
+    </style>
+  
+
+  <link rel="stylesheet" href="../_static/stylesheets/application.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-palette.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-fixes.css"/>
+  
+  <link rel="stylesheet" href="../_static/fonts/material-icons.css"/>
+  
+  <meta name="theme-color" content="#3f51b5">
+  <script src="../_static/javascripts/modernizr.js"></script>
+  
+  
+  
+    <title>How to extend Cartography with Analysis Jobs &#8212; cartography  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=75810a84" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css?v=79c92029" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="icon" href="../_static/logo-vertical.svg"/>
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="How to write a new intel module" href="writing-intel-modules.html" />
+    <link rel="prev" title="Cartography Developer Guide" href="developer-guide.html" />
+  
+   
+
+  </head>
+  <body dir=ltr
+        data-md-color-primary=blue-grey data-md-color-accent=blue>
+  
+  <svg class="md-svg">
+    <defs data-children-count="0">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
+      
+    </defs>
+  </svg>
+  
+  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
+  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
+  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+  <a href="#dev/writing-analysis-jobs" tabindex="1" class="md-skip"> Skip to content </a>
+  <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex navheader">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../index.html" title="cartography  documentation"
+           class="md-header-nav__button md-logo">
+          
+            &nbsp;
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          <span class="md-header-nav__topic">cartography  documentation</span>
+          <span class="md-header-nav__topic"> How to extend Cartography with Analysis Jobs </span>
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+        
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" action="../search.html" method="get" name="search">
+      <input type="text" class="md-search__input" name="q" placeholder=""Search""
+             autocapitalize="off" autocomplete="off" spellcheck="false"
+             data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+          </div>
+        </div>
+      
+      
+  
+  <script src="../_static/javascripts/version_dropdown.js"></script>
+  <script>
+    var json_loc = "../"versions.json"",
+        target_loc = "../../",
+        text = "Versions";
+    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
+  </script>
+  
+
+    </div>
+  </nav>
+</header>
+
+  
+  <div class="md-container">
+    
+    
+    
+  <nav class="md-tabs" data-md-component="tabs">
+    <div class="md-tabs__inner md-grid">
+      <ul class="md-tabs__list">
+          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">cartography  documentation</a></li>
+          <li class="md-tabs__item"><a href="index.html" class="md-tabs__link">Developer docs</a></li>
+      </ul>
+    </div>
+  </nav>
+    <main class="md-main">
+      <div class="md-main__inner md-grid" data-md-component="container">
+        
+          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="../index.html" title="cartography documentation" class="md-nav__button md-logo">
+      
+        <img src="../_static/" alt=" logo" width="48" height="48">
+      
+    </a>
+    <a href="../index.html"
+       title="cartography documentation">cartography  documentation</a>
+  </label>
+    <div class="md-nav__source">
+      <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+    </div>
+  
+  
+
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+    
+      <a href="../info.html" class="md-nav__link">What is Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../info.html#why-cartography" class="md-nav__link">Why Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Basic Use</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../install.html" class="md-nav__link">Install and Run Cartography On Test Machine</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../usage/index.html" class="md-nav__link">Usage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../ops.html" class="md-nav__link">Cartography Production Operations</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Intel Modules</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/aws/index.html" class="md-nav__link">Amazon Web Services (AWS)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/azure/index.html" class="md-nav__link">Microsoft Azure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/bigfix/index.html" class="md-nav__link">BigFix</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/crowdstrike/index.html" class="md-nav__link">Crowdstrike</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/cve/index.html" class="md-nav__link">CVE</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/digitalocean/index.html" class="md-nav__link">DigitalOcean</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/duo/index.html" class="md-nav__link">Duo</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/gcp/index.html" class="md-nav__link">Google Cloud Compute (GCP)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/github/index.html" class="md-nav__link">Github</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/gsuite/index.html" class="md-nav__link">Google GSuite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/jamf/index.html" class="md-nav__link">Jamf</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/kandji/index.html" class="md-nav__link">Kandji</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/kubernetes/index.html" class="md-nav__link">Kubernetes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/lastpass/index.html" class="md-nav__link">Lastpass</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/oci/index.html" class="md-nav__link">Oracle Cloud Infrastructure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/okta/index.html" class="md-nav__link">Okta</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/pagerduty/index.html" class="md-nav__link">PagerDuty</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/semgrep/index.html" class="md-nav__link">Semgrep</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/snipeit/index.html" class="md-nav__link">SnipeIT</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Development Docs</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="index.html" class="md-nav__link">Developer docs</a>
+      <ul class="md-nav__list"> 
+    <li class="md-nav__item">
+    
+    
+      <a href="developer-guide.html" class="md-nav__link">Cartography Developer Guide</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> How to extend Cartography with Analysis Jobs </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">How to extend Cartography with Analysis Jobs</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#dev-writing-analysis-jobs--page-root" class="md-nav__link">How to extend Cartography with Analysis Jobs</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#overview" class="md-nav__link">Overview</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#the-stages" class="md-nav__link">The stages</a>
+        </li>
+        <li class="md-nav__item"><a href="#how-to-run" class="md-nav__link">How to run</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet" class="md-nav__link">Example job: which of my EC2 instances is accessible to any host on the internet?</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#our-goal" class="md-nav__link">Our goal</a>
+        </li>
+        <li class="md-nav__item"><a href="#the-logic-in-plain-english" class="md-nav__link">The logic in plain English</a>
+        </li>
+        <li class="md-nav__item"><a href="#translating-the-plain-english-logic-into-neo4j-s-cypher-syntax" class="md-nav__link">Translating the plain-English logic into Neo4j’s Cypher syntax</a>
+        </li>
+        <li class="md-nav__item"><a href="#the-skeleton-of-an-analysis-job" class="md-nav__link">The skeleton of an Analysis Job</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#clean-up-first-then-update" class="md-nav__link">Clean up first, then update</a>
+        </li></ul>
+            </nav>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#recap" class="md-nav__link">Recap</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/dev/writing-analysis-jobs.md.txt">Show Source</a> </li>
+
+  </ul>
+</nav>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="writing-intel-modules.html" class="md-nav__link">How to write a new intel module</a>
+      
+    
+    </li></ul>
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Get In Touch</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../contact.html" class="md-nav__link">Contact</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../contact.html#community-meeting" class="md-nav__link">Community Meeting</a>
+      
+    
+    </li>
+  </ul>
+  
+
+</nav>
+              </div>
+            </div>
+          </div>
+          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#dev-writing-analysis-jobs--page-root" class="md-nav__link">How to extend Cartography with Analysis Jobs</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#overview" class="md-nav__link">Overview</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#the-stages" class="md-nav__link">The stages</a>
+        </li>
+        <li class="md-nav__item"><a href="#how-to-run" class="md-nav__link">How to run</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet" class="md-nav__link">Example job: which of my EC2 instances is accessible to any host on the internet?</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#our-goal" class="md-nav__link">Our goal</a>
+        </li>
+        <li class="md-nav__item"><a href="#the-logic-in-plain-english" class="md-nav__link">The logic in plain English</a>
+        </li>
+        <li class="md-nav__item"><a href="#translating-the-plain-english-logic-into-neo4j-s-cypher-syntax" class="md-nav__link">Translating the plain-English logic into Neo4j’s Cypher syntax</a>
+        </li>
+        <li class="md-nav__item"><a href="#the-skeleton-of-an-analysis-job" class="md-nav__link">The skeleton of an Analysis Job</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#clean-up-first-then-update" class="md-nav__link">Clean up first, then update</a>
+        </li></ul>
+            </nav>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#recap" class="md-nav__link">Recap</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/dev/writing-analysis-jobs.md.txt">Show Source</a> </li>
+
+<li id="searchbox" class="md-nav__item"></li>
+
+  </ul>
+</nav>
+              </div>
+            </div>
+          </div>
+        
+        <div class="md-content">
+          <article class="md-content__inner md-typeset" role="main">
+            
+  <section id="how-to-extend-cartography-with-analysis-jobs">
+<h1 id="dev-writing-analysis-jobs--page-root">How to extend Cartography with Analysis Jobs<a class="headerlink" href="#dev-writing-analysis-jobs--page-root" title="Link to this heading">¶</a></h1>
+<section id="overview">
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>In a nutshell, Analysis Jobs let you add your own customizations to Cartography by writing Neo4j queries. This helps you add powerful enhancements to your data without the need to write Python code.</p>
+<section id="the-stages">
+<h3 id="the-stages">The stages<a class="headerlink" href="#the-stages" title="Link to this heading">¶</a></h3>
+<p>There are 3 stages to a cartography sync. First we create database indexes, next we ingest assets via intel modules, and finally we can run Analysis Jobs on the database (see <a class="reference external" href="https://github.com/lyft/cartography/blob/master/cartography/sync.py">cartography.sync.build_default_sync()</a>). This tutorial focuses on Analysis Jobs.</p>
+</section>
+<section id="how-to-run">
+<h3 id="how-to-run">How to run<a class="headerlink" href="#how-to-run" title="Link to this heading">¶</a></h3>
+<p>Each Analysis Job is a JSON file with a list of Neo4j statements which get run in order. To run Analysis Jobs, in your call to <code class="docutils literal notranslate"><span class="pre">cartography</span></code>, set the <code class="docutils literal notranslate"><span class="pre">--analysis-job-directory</span></code> parameter to the folder path of your jobs. Although the order of statements within a single job is preserved, we don’t guarantee the order in which jobs are executed.</p>
+</section>
+</section>
+<section id="example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet">
+<h2 id="example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet">Example job: which of my EC2 instances is accessible to any host on the internet?<a class="headerlink" href="#example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet" title="Link to this heading">¶</a></h2>
+<p>The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs that we’ve included by default in Cartography’s source tree is <a class="reference external" href="https://github.com/lyft/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json">cartography/data/jobs/analysis/aws_ec2_asset_exposure.json</a>. This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.</p>
+<section id="our-goal">
+<h3 id="our-goal">Our goal<a class="headerlink" href="#our-goal" title="Link to this heading">¶</a></h3>
+<p>After ingesting all our AWS data, we want to explicitly mark EC2 instances that are accessible to the public internet - a useful thing to know for anyone running an internet service. If any internet-open nodes are found, the job will add an attribute <code class="docutils literal notranslate"><span class="pre">exposed_internet</span> <span class="pre">=</span> <span class="pre">True</span></code> to the node. This way we can easily query to find the assets later on and take remediation action if needed.</p>
+<p>But how do we make this determination, and how should we structure the job?</p>
+</section>
+<section id="the-logic-in-plain-english">
+<h3 id="the-logic-in-plain-english">The logic in plain English<a class="headerlink" href="#the-logic-in-plain-english" title="Link to this heading">¶</a></h3>
+<p>We can use the following facts to tell if an EC2 instance is open to the internet:</p>
+<ol class="arabic simple">
+<li><p>The EC2 instance is a member of a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.</p></li>
+<li><p>The EC2 instance has a network interface that is connected to a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.</p></li>
+</ol>
+<p>The graph created by Cartography’s sync process already has this information for us; we just need to run a few queries to properly to mark it with <code class="docutils literal notranslate"><span class="pre">exposed_internet</span> <span class="pre">=</span> <span class="pre">True</span></code>. This example is complex but we hope that this exposes enough Neo4j concepts to help you write your own queries.</p>
+</section>
+<section id="translating-the-plain-english-logic-into-neo4j-s-cypher-syntax">
+<h3 id="translating-the-plain-english-logic-into-neo4j-s-cypher-syntax">Translating the plain-English logic into Neo4j’s Cypher syntax<a class="headerlink" href="#translating-the-plain-english-logic-into-neo4j-s-cypher-syntax" title="Link to this heading">¶</a></h3>
+<p>We can take the ideas above and use Cypher’s declarative syntax to “sketch” out this graph path.</p>
+<ol class="arabic">
+<li><p><em>The EC2 instance is a member of a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.</em></p>
+<p>In Cypher, this is</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">MATCH</span>
+<span class="p">(:</span><span class="n">IpRange</span><span class="p">{</span><span class="nb">id</span><span class="p">:</span> <span class="s1">'0.0.0.0/0'</span><span class="p">})</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_IP_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">IpPermissionInbound</span><span class="p">)</span>
+<span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">group</span><span class="p">:</span><span class="n">EC2SecurityGroup</span><span class="p">)</span>
+<span class="o">&lt;-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">instance</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">)</span>
+
+<span class="n">SET</span> <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet</span> <span class="o">=</span> <span class="n">true</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="o">=</span> <span class="n">coalesce</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="p">,</span> <span class="p">[])</span> <span class="o">+</span> <span class="s1">'direct'</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>In the <code class="docutils literal notranslate"><span class="pre">SET</span></code> clause we add <code class="docutils literal notranslate"><span class="pre">exposed_internet</span> <span class="pre">=</span> <span class="pre">True</span></code> to the instance. We also add a field for <code class="docutils literal notranslate"><span class="pre">exposed_internet_type</span></code> to denote what type of internet exposure has occurred here. You can read the <cite>documentation for ``coalesce`</cite> &lt;<a class="reference external" href="https://neo4j.com/docs/cypher-manual/current/functions/scalar/#functions-coalesce">https://neo4j.com/docs/cypher-manual/current/functions/scalar/#functions-coalesce</a>&gt;`_, but in English this last part says “add <code class="docutils literal notranslate"><span class="pre">direct</span></code> to the list of ways this instance is exposed to the internet”.</p>
+</li>
+<li><p><em>The EC2 instance has a network interface that is connected to a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.</em></p>
+<p>This is the same as the previous query except for the final line:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">MATCH</span>
+<span class="p">(:</span><span class="n">IpRange</span><span class="p">{</span><span class="nb">id</span><span class="p">:</span> <span class="s1">'0.0.0.0/0'</span><span class="p">})</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_IP_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">IpPermissionInbound</span><span class="p">)</span>
+<span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">group</span><span class="p">:</span><span class="n">EC2SecurityGroup</span><span class="p">)</span>
+<span class="o">&lt;-</span><span class="p">[:</span><span class="n">NETWORK_INTERFACE</span><span class="o">*.</span><span class="mf">.2</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">instance</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">)</span>
+
+<span class="n">SET</span> <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet</span> <span class="o">=</span> <span class="n">true</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="o">=</span> <span class="n">coalesce</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="p">,</span> <span class="p">[])</span> <span class="o">+</span> <span class="s1">'direct'</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">*..2</span></code> operator means “within 2 hops”. We use this here as a shortcut because there are a few more relationships between NetworkInterfaces and EC2SecurityGroups that we can skip over.</p>
+</li>
+</ol>
+<p>Finally, notice that (1) and (2) are similar enough that we can actually merge them like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">MATCH</span>
+<span class="p">(:</span><span class="n">IpRange</span><span class="p">{</span><span class="nb">id</span><span class="p">:</span> <span class="s1">'0.0.0.0/0'</span><span class="p">})</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_IP_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">IpPermissionInbound</span><span class="p">)</span>
+<span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">group</span><span class="p">:</span><span class="n">EC2SecurityGroup</span><span class="p">)</span>
+<span class="o">&lt;-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="o">|</span><span class="n">NETWORK_INTERFACE</span><span class="o">*.</span><span class="mf">.2</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">instance</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">)</span>
+
+<span class="n">SET</span> <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet</span> <span class="o">=</span> <span class="n">true</span><span class="p">,</span>
+    <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="o">=</span> <span class="n">coalesce</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="p">,</span> <span class="p">[])</span> <span class="o">+</span> <span class="s1">'direct'</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Kinda neat, right?</p>
+</section>
+<section id="the-skeleton-of-an-analysis-job">
+<h3 id="the-skeleton-of-an-analysis-job">The skeleton of an Analysis Job<a class="headerlink" href="#the-skeleton-of-an-analysis-job" title="Link to this heading">¶</a></h3>
+<p>Now that we know what we want to do on a sync, how should we structure the Analysis Job?  Here is the basic skeleton that we recommend.</p>
+<section id="clean-up-first-then-update">
+<h4 id="clean-up-first-then-update">Clean up first, then update<a class="headerlink" href="#clean-up-first-then-update" title="Link to this heading">¶</a></h4>
+<p>In general, the first statement(s) should be a “clean-up phase” that removes custom attributes or relationships that you may have added in a previous run. This ensures that whatever labels you add on this current run will be up to date and not stale. Next, the statements after the clean-up phase will perform the matching and attribute updates as described in the previous section.</p>
+<p><strong>Here’s our final result:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>{
+  "name": "AWS asset internet exposure",
+  "statements": [
+      {
+        "__comment": "This is a clean-up statement to remove custom attributes",
+        "query": "MATCH (n)
+                  WHERE n.exposed_internet IS NOT NULL
+                        AND labels(n) IN ['AutoScalingGroup', 'EC2Instance', 'LoadBalancer']
+                  WITH n LIMIT $LIMIT_SIZE
+                  REMOVE n.exposed_internet, n.exposed_internet_type
+                  RETURN COUNT(*) as TotalCompleted",
+        "iterative": true,
+        "iterationsize": 1000
+      },
+      {
+        "__comment__": "This is our analysis logic as described in the section above",
+        "query": MATCH (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]-&gt;(:IpPermissionInbound)
+                 -[:MEMBER_OF_EC2_SECURITY_GROUP]-&gt;(group:EC2SecurityGroup)
+                 &lt;-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)
+
+                 SET instance.exposed_internet = true,
+                     instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';,
+        "iterative": true,
+        "iterationsize": 100
+      }
+  ]
+}
+</pre></div>
+</div>
+<p>Setting a statement as <code class="docutils literal notranslate"><span class="pre">iterative:</span> <span class="pre">true</span></code> means that we will run this query on <code class="docutils literal notranslate"><span class="pre">#{iterationsize}</span></code> entries at a time. This can be helpful for queries that return large numbers of records so that Neo4j doesn’t get too angry.</p>
+<p>Now we can enjoy the fruits of our labor and query for internet exposure:</p>
+<a class="reference external image-reference" href="../images/exposed-internet.png"><img alt="internet-exposure-query" src="../_images/exposed-internet.png"/>
+</a>
+</section>
+</section>
+</section>
+<section id="recap">
+<h2 id="recap">Recap<a class="headerlink" href="#recap" title="Link to this heading">¶</a></h2>
+<p>As shown, you create an Analysis Job by putting together a bunch of <code class="docutils literal notranslate"><span class="pre">statements</span></code> together (which are essentially Neo4j queries). In general, each job should first clean up the custom attributes added by a previous run, and then it can perform the match and update steps to add the custom attributes back again. This ensures that your data is up to date.</p>
+</section>
+</section>
+
+
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="md-footer">
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+          
+            <a href="developer-guide.html" title="Cartography Developer Guide"
+               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+               rel="prev">
+              <div class="md-flex__cell md-flex__cell--shrink">
+                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+              </div>
+              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+                <span class="md-flex__ellipsis">
+                  <span
+                      class="md-footer-nav__direction"> "Previous" </span> Cartography Developer Guide </span>
+              </div>
+            </a>
+          
+          
+            <a href="writing-intel-modules.html" title="How to write a new intel module"
+               class="md-flex md-footer-nav__link md-footer-nav__link--next"
+               rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
+                class="md-flex__ellipsis"> <span
+                class="md-footer-nav__direction"> "Next" </span> How to write a new intel module </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink"><i
+                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          
+        </a>
+        
+      </nav>
+    </div>
+    <div class="md-footer-meta md-typeset">
+      <div class="md-footer-meta__inner md-grid">
+        <div class="md-footer-copyright">
+          <div class="md-footer-copyright__highlight">
+              &#169; Copyright 2021-2025, The Linux Foundation.
+              
+          </div>
+            Created using
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+             and
+            <a href="https://github.com/bashtage/sphinx-material/">Material for
+              Sphinx</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="../_static/javascripts/application.js"></script>
+  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+  </body>
+</html>

@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="lang:clipboard.copy" content="Copy to clipboard">
+  <meta name="lang:clipboard.copied" content="Copied to clipboard">
+  <meta name="lang:search.language" content="en">
+  <meta name="lang:search.pipeline.stopwords" content="True">
+  <meta name="lang:search.pipeline.trimmer" content="True">
+  <meta name="lang:search.result.none" content="No matching documents">
+  <meta name="lang:search.result.one" content="1 matching document">
+  <meta name="lang:search.result.other" content="# matching documents">
+  <meta name="lang:search.tokenizer" content="[\s\-]+">
+
+  
+    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
+
+    <style>
+      body,
+      input {
+        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
+      }
+
+      code,
+      kbd,
+      pre {
+        font-family: "Roboto Mono", "Courier New", Courier, monospace
+      }
+    </style>
+  
+
+  <link rel="stylesheet" href="_static/stylesheets/application.css"/>
+  <link rel="stylesheet" href="_static/stylesheets/application-palette.css"/>
+  <link rel="stylesheet" href="_static/stylesheets/application-fixes.css"/>
+  
+  <link rel="stylesheet" href="_static/fonts/material-icons.css"/>
+  
+  <meta name="theme-color" content="#3f51b5">
+  <script src="_static/javascripts/modernizr.js"></script>
+  
+  
+  
+    <title>Install and Run Cartography On Test Machine &#8212; cartography  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=75810a84" />
+    <link rel="stylesheet" type="text/css" href="_static/material.css?v=79c92029" />
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="icon" href="_static/logo-vertical.svg"/>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Usage" href="usage/index.html" />
+    <link rel="prev" title="What is Cartography?" href="info.html" />
+  
+   
+
+  </head>
+  <body dir=ltr
+        data-md-color-primary=blue-grey data-md-color-accent=blue>
+  
+  <svg class="md-svg">
+    <defs data-children-count="0">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
+      
+    </defs>
+  </svg>
+  
+  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
+  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
+  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+  <a href="#install" tabindex="1" class="md-skip"> Skip to content </a>
+  <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex navheader">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="index.html" title="cartography  documentation"
+           class="md-header-nav__button md-logo">
+          
+            &nbsp;
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          <span class="md-header-nav__topic">cartography  documentation</span>
+          <span class="md-header-nav__topic"> Install and Run Cartography On Test Machine </span>
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+        
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" action="search.html" method="get" name="search">
+      <input type="text" class="md-search__input" name="q" placeholder=""Search""
+             autocapitalize="off" autocomplete="off" spellcheck="false"
+             data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+          </div>
+        </div>
+      
+      
+  
+  <script src="_static/javascripts/version_dropdown.js"></script>
+  <script>
+    var json_loc = ""versions.json"",
+        target_loc = "../",
+        text = "Versions";
+    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
+  </script>
+  
+
+    </div>
+  </nav>
+</header>
+
+  
+  <div class="md-container">
+    
+    
+    
+  <nav class="md-tabs" data-md-component="tabs">
+    <div class="md-tabs__inner md-grid">
+      <ul class="md-tabs__list">
+          <li class="md-tabs__item"><a href="index.html" class="md-tabs__link">cartography  documentation</a></li>
+      </ul>
+    </div>
+  </nav>
+    <main class="md-main">
+      <div class="md-main__inner md-grid" data-md-component="container">
+        
+          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="index.html" title="cartography documentation" class="md-nav__button md-logo">
+      
+        <img src="_static/" alt=" logo" width="48" height="48">
+      
+    </a>
+    <a href="index.html"
+       title="cartography documentation">cartography  documentation</a>
+  </label>
+    <div class="md-nav__source">
+      <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+    </div>
+  
+  
+
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+    
+      <a href="info.html" class="md-nav__link">What is Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="info.html#why-cartography" class="md-nav__link">Why Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Basic Use</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Install and Run Cartography On Test Machine </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">Install and Run Cartography On Test Machine</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#install--page-root" class="md-nav__link">Install and Run Cartography On Test Machine</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#option-1-run-docker-compose-preferred" class="md-nav__link">Option 1: Run docker-compose (preferred)</a>
+        </li>
+        <li class="md-nav__item"><a href="#option-2-manually-run-2-containers" class="md-nav__link">Option 2: manually run 2 containers</a>
+        </li>
+        <li class="md-nav__item"><a href="#option-3-native-install" class="md-nav__link">Option 3: Native install</a>
+        </li>
+        <li class="md-nav__item"><a href="#things-to-do-next" class="md-nav__link">Things to do next</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="_sources/install.md.txt">Show Source</a> </li>
+
+  </ul>
+</nav>
+      <ul class="md-nav__list"> 
+    <li class="md-nav__item">
+    
+    
+      <a href="#option-1-run-docker-compose-preferred" class="md-nav__link">Option 1: Run docker-compose (preferred)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#option-2-manually-run-2-containers" class="md-nav__link">Option 2: manually run 2 containers</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#option-3-native-install" class="md-nav__link">Option 3: Native install</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="#things-to-do-next" class="md-nav__link">Things to do next</a>
+      
+    
+    </li></ul>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="usage/index.html" class="md-nav__link">Usage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="ops.html" class="md-nav__link">Cartography Production Operations</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Intel Modules</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/aws/index.html" class="md-nav__link">Amazon Web Services (AWS)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/azure/index.html" class="md-nav__link">Microsoft Azure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/bigfix/index.html" class="md-nav__link">BigFix</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/crowdstrike/index.html" class="md-nav__link">Crowdstrike</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/cve/index.html" class="md-nav__link">CVE</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/digitalocean/index.html" class="md-nav__link">DigitalOcean</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/duo/index.html" class="md-nav__link">Duo</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/gcp/index.html" class="md-nav__link">Google Cloud Compute (GCP)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/github/index.html" class="md-nav__link">Github</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/gsuite/index.html" class="md-nav__link">Google GSuite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/jamf/index.html" class="md-nav__link">Jamf</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/kandji/index.html" class="md-nav__link">Kandji</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/kubernetes/index.html" class="md-nav__link">Kubernetes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/lastpass/index.html" class="md-nav__link">Lastpass</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/oci/index.html" class="md-nav__link">Oracle Cloud Infrastructure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/okta/index.html" class="md-nav__link">Okta</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/pagerduty/index.html" class="md-nav__link">PagerDuty</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/semgrep/index.html" class="md-nav__link">Semgrep</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="modules/snipeit/index.html" class="md-nav__link">SnipeIT</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Development Docs</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="dev/index.html" class="md-nav__link">Developer docs</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Get In Touch</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="contact.html" class="md-nav__link">Contact</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="contact.html#community-meeting" class="md-nav__link">Community Meeting</a>
+      
+    
+    </li>
+  </ul>
+  
+
+</nav>
+              </div>
+            </div>
+          </div>
+          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#install--page-root" class="md-nav__link">Install and Run Cartography On Test Machine</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#option-1-run-docker-compose-preferred" class="md-nav__link">Option 1: Run docker-compose (preferred)</a>
+        </li>
+        <li class="md-nav__item"><a href="#option-2-manually-run-2-containers" class="md-nav__link">Option 2: manually run 2 containers</a>
+        </li>
+        <li class="md-nav__item"><a href="#option-3-native-install" class="md-nav__link">Option 3: Native install</a>
+        </li>
+        <li class="md-nav__item"><a href="#things-to-do-next" class="md-nav__link">Things to do next</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="_sources/install.md.txt">Show Source</a> </li>
+
+<li id="searchbox" class="md-nav__item"></li>
+
+  </ul>
+</nav>
+              </div>
+            </div>
+          </div>
+        
+        <div class="md-content">
+          <article class="md-content__inner md-typeset" role="main">
+            
+  <section id="install-and-run-cartography-on-test-machine">
+<h1 id="install--page-root">Install and Run Cartography On Test Machine<a class="headerlink" href="#install--page-root" title="Link to this heading">¶</a></h1>
+<p id="cartography-installation">Time to set up a test machine to run Cartography.</p>
+<section id="option-1-run-docker-compose-preferred">
+<h2 id="option-1-run-docker-compose-preferred">Option 1: Run docker-compose (preferred)<a class="headerlink" href="#option-1-run-docker-compose-preferred" title="Link to this heading">¶</a></h2>
+<p>This is the quickest way to get started (assuming docker does what it’s supposed to do).</p>
+<a class="reference external image-reference" href="images/dockercompose-flow.png"><img alt="dockercompose-flow.png" src="_images/dockercompose-flow.png"/>
+</a>
+<ol class="arabic">
+<li><p><strong>Start up the Neo4j graph database.</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose<span class="w"> </span>up<span class="w"> </span>-d
+</pre></div>
+</div>
+<p>If this command errors out with permission problems, you may need to configure your Docker Desktop/Rancher Desktop/etc to use a different virtual machine volume setting: try virtiofs on Mac.</p>
+<p>It may take a minute for the Neo4j container to spin up.</p>
+</li>
+<li><p><strong>Configure and run Cartography.</strong></p>
+<p>In this example we will run Cartography on <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules/aws/config.html">AWS</a> with a profile called “1234_testprofile” and default region set to “us-east-1”.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-e<span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>1234_testprofile<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-e<span class="w"> </span><span class="nv">AWS_DEFAULT_REGION</span><span class="o">=</span>us-east-1<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://cartography-neo4j-1:7687
+</pre></div>
+</div>
+<p>If you get a connection error like <code class="docutils literal notranslate"><span class="pre">ValueError:</span> <span class="pre">Cannot</span> <span class="pre">resolve</span> <span class="pre">address</span> <span class="pre">cartography-neo4j-1:7687</span></code>, you may need to wait a bit for the Neo4j container to be ready. Run <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">ps</span></code> periodically to check on it and then retry the <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">run</span> <span class="pre">..</span></code> command.</p>
+<p>You will know it works when your terminal shows log messages displaying how many assets are being loaded to the graph:</p>
+<a class="reference external image-reference" href="images/docker-compose-run.png"><img alt="docker-compose-run.png" src="_images/docker-compose-run.png"/>
+</a>
+<p><strong>Notes:</strong></p>
+<ul class="simple">
+<li><p>You can view a full list of Cartography’s CLI arguments by running <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">run</span> <span class="pre">cartography</span> <span class="pre">--help</span></code>.</p></li>
+<li><p>Also see the configuration section of <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules">each relevant intel module</a> to set up each data source. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.</p>
+<ul>
+<li><p>You can pass in environment variables to the cartography container using the docker-compose format like this: <code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">VARIABLE1</span> <span class="pre">-e</span> <span class="pre">VARIABLE2=value2</span></code>.</p></li>
+<li><p>You can make files available to the cartography container by editing the volumes in the docker-compose.yml file. See docker-compose documentation on how to do that.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cartography-neo4j-1</span></code> is how the Cartography docker container knows how to reach the Neo4j container in docker-compose.</p></li>
+<li><p>AWS things</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">AWS_DEFAULT_REGION</span></code> must be specified.</p></li>
+<li><p>The docker-compose.yml maps in <code class="docutils literal notranslate"><span class="pre">~/.aws/</span></code> on your host machine to <code class="docutils literal notranslate"><span class="pre">/var/cartography/.aws</span></code> in the cartography container so that the container has access to AWS profile and credential files.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>View the graph.</strong></p>
+<p>You can view the graph while it is still syncing by visiting <a class="reference external" href="http://localhost:7474">http://localhost:7474</a>. Try a query like</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">match</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSRole</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">c</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">*</span>
+</pre></div>
+</div>
+<p>It should look like this:</p>
+<a class="reference external image-reference" href="images/dockercompose-result.png"><img alt="dockercompose-result.png" src="_images/dockercompose-result.png"/>
+</a>
+</li>
+<li><p><strong>Optional</strong>: If you want to configure the Neo4j container itself, you can do this via the <code class="docutils literal notranslate"><span class="pre">.compose</span></code> directory, which is
+git ignored. neo4j config, logs, etc are all located at <code class="docutils literal notranslate"><span class="pre">.compose/neo4j/...</span></code></p></li>
+<li><p><strong>Optional</strong>: You can supply additional environment variables via <code class="docutils literal notranslate"><span class="pre">docker-compose</span></code> like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Temporarily disable bash command history</span>
+<span class="nb">set</span><span class="w"> </span>+o<span class="w"> </span><span class="nb">history</span>
+<span class="c1"># See the cartography github configuration intel module docs</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">GITHUB_KEY</span><span class="o">=</span>BASE64ENCODEDKEY
+<span class="c1"># You need to set this after starting neo4j once, and resetting</span>
+<span class="c1"># the default neo4j password, which is neo4j</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">NEO4j_PASSWORD</span><span class="o">=</span>...
+<span class="c1"># Reenable bash command history</span>
+<span class="nb">set</span><span class="w"> </span>-o<span class="w"> </span><span class="nb">history</span>
+<span class="c1"># Start cartography dependencies</span>
+docker-compose<span class="w"> </span>up<span class="w"> </span>-d
+<span class="c1"># Run cartography</span>
+docker-compose<span class="w"> </span>run<span class="w"> </span>-e<span class="w"> </span>GITHUB_KEY<span class="w"> </span>-e<span class="w"> </span>NEO4j_PASSWORD<span class="w"> </span>cartography<span class="w"> </span>cartography<span class="w"> </span>--github-config-env-var<span class="w"> </span>GITHUB_KEY<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://neo4j:7687<span class="w"> </span>--neo4j-password-env-var<span class="w"> </span>NEO4j_PASSWORD<span class="w"> </span>--neo4j-user<span class="w"> </span>neo4j
+</pre></div>
+</div>
+</li>
+</ol>
+<p>Read on to see <span class="xref std std-ref">other things you can do with Cartography</span>.</p>
+</section>
+<section id="option-2-manually-run-2-containers">
+<h2 id="option-2-manually-run-2-containers">Option 2: manually run 2 containers<a class="headerlink" href="#option-2-manually-run-2-containers" title="Link to this heading">¶</a></h2>
+<ol class="arabic">
+<li><p><strong>Run the Neo4j graph database container.</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a docker network so that cartography can talk to neo4j</span>
+docker<span class="w"> </span>network<span class="w"> </span>create<span class="w"> </span>cartography-network
+
+<span class="c1"># run the Neo4j graph database</span>
+docker<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--publish<span class="o">=</span><span class="m">7474</span>:7474<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--publish<span class="o">=</span><span class="m">7687</span>:7687<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span>data:/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--name<span class="w"> </span>cartography-neo4j<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--env<span class="o">=</span><span class="nv">NEO4J_AUTH</span><span class="o">=</span>none<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>neo4j:4.4-community
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Refer to the Neo4j Docker <a class="reference external" href="https://github.com/neo4j/docker-neo4j">official docs</a> for more information.</p></li>
+<li><p>Note that we are just playing around here on a test instance and have specified <code class="docutils literal notranslate"><span class="pre">--env=NEO4J_AUTH=none</span></code> to turn off authentication.</p></li>
+<li><p>If you experience very slow write performance using an ARM-based machine like an M1 Mac, see if using an ARM image helps. Neo4j keeps ARM builds <a class="reference external" href="https://hub.docker.com/r/arm64v8/neo4j/">here</a>.</p></li>
+</ul>
+</li>
+<li><p><strong>Configure and run Cartography.</strong></p>
+<p>See the configuration section of <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules">each relevant intel module</a> to set up each data source. In this example we will use <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules/aws/config.html">AWS</a>.</p>
+<p>This command runs cartography on an AWS profile called “1234_testprofile” on region us-east-1. We also expose the host machine’s ~/.aws directory to ~/var/cartography/.aws in the container so that AWS configs work.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>-v<span class="w"> </span>~/.aws:/var/cartography/.aws/<span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>-e<span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>1234_testprofile<span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>-e<span class="w"> </span><span class="nv">AWS_DEFAULT_REGION</span><span class="o">=</span>us-east-1<span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>cartography-cncf/cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://cartography-neo4j:7687
+</pre></div>
+</div>
+<p>If things work, your terminal will look like this where you see log messages displaying how many assets are being loaded to the graph:</p>
+<a class="reference external image-reference" href="images/docker-compose-run.png"><img alt="docker-compose-run.png" src="_images/docker-compose-run.png"/>
+</a>
+<ul class="simple">
+<li><p>You pass in environment variables to the cartography container using the docker format like this: <code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">VARIABLE1</span> <span class="pre">-e</span> <span class="pre">VARIABLE2=value2</span></code>.</p></li>
+<li><p>AWS things</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">AWS_DEFAULT_REGION</span></code> must be specified.</p></li>
+<li><p>Our docker-compose.yml maps in <code class="docutils literal notranslate"><span class="pre">~/.aws/</span></code> on your host machine to <code class="docutils literal notranslate"><span class="pre">/var/cartography/.aws</span></code> in the cartography container, so the container has access to AWS profile and credential files.</p></li>
+</ul>
+</li>
+<li><p>You can view a full list of Cartography’s CLI arguments by running <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">cartography-cncf/cartography</span> <span class="pre">--help</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>View the graph.</strong></p>
+<p>You can view the graph while it is still syncing by visiting <a class="reference external" href="http://localhost:7474">http://localhost:7474</a>. Try a query like</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">match</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSRole</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">c</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">*</span>
+</pre></div>
+</div>
+<p>It should look like this:</p>
+<a class="reference external image-reference" href="images/dockercompose-result.png"><img alt="dockercompose-result.png" src="_images/dockercompose-result.png"/>
+</a>
+</li>
+</ol>
+<p>Read on to see <span class="xref std std-ref">other things you can do with Cartography</span>.</p>
+</section>
+<section id="option-3-native-install">
+<h2 id="option-3-native-install">Option 3: Native install<a class="headerlink" href="#option-3-native-install" title="Link to this heading">¶</a></h2>
+<p>Do this if you prefer to install and manage all the dependencies yourself. Cartography <em>should</em> work on Linux, Mac, and Windows, but bear in mind we haven’t tested much on Windows so far.</p>
+<a class="reference external image-reference" href="images/yourowntestmachine.png"><img alt="yourowntestmachine.png" src="_images/yourowntestmachine.png"/>
+</a>
+<ol class="arabic">
+<li><p><strong>Ensure that you have Python 3.10 set up on your machine.</strong></p>
+<p>Older or newer versions of Python may work but are not explicitly supported. You will probably have more luck with newer versions.</p>
+</li>
+<li><p><strong>Run Neo4j graph database version 4.4 or higher. 4.3 and lower will *not* work.</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>⚠️ Neo4j 5.x will probably work since it's included in our test suite, but we do not explicitly support it yet.
+</pre></div>
+</div>
+<ol class="arabic">
+<li><p>We recommend running Neo4j as a Docker container so that you save time and don’t need to install Java. Run <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--publish=7474:7474</span> <span class="pre">--publish=7687:7687</span> <span class="pre">-v</span> <span class="pre">data:/data</span> <span class="pre">--env=NEO4J_AUTH=none</span> <span class="pre">neo4j:4.4-community</span></code>.</p></li>
+<li><p>Otherwise, if you prefer to <strong>install Neo4j from scratch</strong>,</p>
+<ol class="arabic">
+<li><p>Neo4j requires a JVM (JDK/JRE 11 or higher). One option is <a class="reference external" href="https://docs.aws.amazon.com/corretto/latest/corretto-11-ug/what-is-corretto-11.html">Amazon Coretto 11</a>.</p>
+<p>⚠️ Make sure you have the <code class="docutils literal notranslate"><span class="pre">JAVA_HOME</span></code> environment variable set. The following works for Mac OS: <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">JAVA_HOME=$(/usr/libexec/java_home)</span></code></p>
+</li>
+<li><p>Go to the <a class="reference external" href="https://neo4j.com/download-center/#community">Neo4j download page</a>, and download Neo4j Community Edition 4.4.*.</p></li>
+<li><p><a class="reference external" href="https://neo4j.com/docs/operations-manual/current/installation/">Install</a> Neo4j.</p>
+<p>⚠️ For local testing, you might want to turn off authentication via property <code class="docutils literal notranslate"><span class="pre">dbms.security.auth_enabled</span></code> in file NEO4J_PATH/conf/neo4j.conf</p>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>Install cartography to the current Python virtual environment with ``pip install cartography``.</strong></p>
+<p>We recommend creating a separate venv for just Cartography and its dependencies. You can read about venvs <a class="reference external" href="https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments">here</a>, and searching on how to use tools like pyenv and pyenv-virtualenv.</p>
+</li>
+<li><p><strong>Configure your data sources.</strong></p>
+<p>See the configuration section of <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules">each relevant intel module</a> for more details. In this example we will use <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules/aws/config.html">AWS</a>.</p>
+</li>
+<li><p><strong>Run cartography.</strong></p>
+<ul>
+<li><p>For a specific AWS account defined as a separate profile in your AWS config file, set the <code class="docutils literal notranslate"><span class="pre">AWS_PROFILE</span></code> environment variable, for example this command runs cartography on an AWS profile called “1234_testprofile” on region us-east-1.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">AWS_PROFILE</span><span class="o">=</span>1234_testprofile<span class="w"> </span><span class="nv">AWS_DEFAULT_REGION</span><span class="o">=</span>us-east-1<span class="w"> </span>cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://localhost:7687
+</pre></div>
+</div>
+</li>
+<li><p>For one account using the <code class="docutils literal notranslate"><span class="pre">default</span></code> profile defined in your AWS config file, run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://localhost:7687
+</pre></div>
+</div>
+</li>
+<li><p>For more than one AWS account, run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">AWS_CONFIG_FILE</span><span class="o">=</span>/path/to/your/aws/config<span class="w"> </span>cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://localhost:7687<span class="w"> </span>--aws-sync-all-profiles
+</pre></div>
+</div>
+</li>
+</ul>
+<p>You can view a full list of Cartography’s CLI arguments by running <code class="docutils literal notranslate"><span class="pre">cartography</span> <span class="pre">--help</span></code>.</p>
+<p>If everything worked, the sync will pull data from your configured accounts and ingest data to Neo4j! This process might take a long time if your account has a lot of assets.</p>
+<a class="reference external image-reference" href="images/nativeinstall-run.png"><img alt="nativeinstall-run.png" src="_images/nativeinstall-run.png"/>
+</a>
+</li>
+<li><p><strong>View the graph.</strong>
+You can view the graph while it is still syncing by visiting <a class="reference external" href="http://localhost:7474">http://localhost:7474</a>. Try a query like</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">match</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSRole</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">c</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">*</span>
+</pre></div>
+</div>
+<p>It should look like this:</p>
+<a class="reference external image-reference" href="images/dockercompose-result.png"><img alt="dockercompose-result.png" src="_images/dockercompose-result.png"/>
+</a>
+</li>
+</ol>
+</section>
+<section id="things-to-do-next">
+<h2 id="things-to-do-next">Things to do next<a class="headerlink" href="#things-to-do-next" title="Link to this heading">¶</a></h2>
+<p>Here’s some ideas to get the most out of Cartography:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://cartography-cncf.github.io/cartography/modules">Set up other data providers</a></p></li>
+<li><p>View our <a class="reference external" href="ops.html">Operations Guide</a> for tips on running Cartography in production</p></li>
+<li><p>Read our <a class="reference external" href="https://cartography-cncf.github.io/cartography/usage/tutorial.html">usage instructions</a> and <a class="reference external" href="https://cartography-cncf.github.io/cartography/usage/schema.html">schema</a> to learn how to query the graph</p></li>
+<li><p>Think of <a class="reference external" href="https://cartography-cncf.github.io/cartography/usage/applications.html">applications</a> to build around it</p></li>
+<li><p>Consider <a class="reference external" href="dev/writing-intel-modules.md">writing your own Cartography custom modules</a></p></li>
+</ul>
+</section>
+</section>
+
+
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="md-footer">
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+          
+            <a href="info.html" title="What is Cartography?"
+               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+               rel="prev">
+              <div class="md-flex__cell md-flex__cell--shrink">
+                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+              </div>
+              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+                <span class="md-flex__ellipsis">
+                  <span
+                      class="md-footer-nav__direction"> "Previous" </span> What is Cartography? </span>
+              </div>
+            </a>
+          
+          
+            <a href="usage/index.html" title="Usage"
+               class="md-flex md-footer-nav__link md-footer-nav__link--next"
+               rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
+                class="md-flex__ellipsis"> <span
+                class="md-footer-nav__direction"> "Next" </span> Usage </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink"><i
+                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          
+        </a>
+        
+      </nav>
+    </div>
+    <div class="md-footer-meta md-typeset">
+      <div class="md-footer-meta__inner md-grid">
+        <div class="md-footer-copyright">
+          <div class="md-footer-copyright__highlight">
+              &#169; Copyright 2021-2025, The Linux Foundation.
+              
+          </div>
+            Created using
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+             and
+            <a href="https://github.com/bashtage/sphinx-material/">Material for
+              Sphinx</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="_static/javascripts/application.js"></script>
+  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+  </body>
+</html>
