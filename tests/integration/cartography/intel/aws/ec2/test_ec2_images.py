@@ -1,8 +1,8 @@
 import boto3.session
+from moto import mock_aws
+
 import cartography.intel.aws.ec2.images
 import tests.data.aws.ec2.images
-import boto3
-from moto import mock_aws
 
 TEST_ACCOUNT_ID = '000000000000'
 TEST_REGION = 'us-west-1'
