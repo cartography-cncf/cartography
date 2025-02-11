@@ -109,6 +109,7 @@ def load_gcp_service_accounts(
         transformed_service_accounts,
         lastupdated=gcp_update_tag,
         projectId=project_id,
+        additional_labels=['GCPPrincipal'],
     )
 
 
