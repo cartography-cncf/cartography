@@ -50,14 +50,15 @@ def get_images(boto3_session: boto3.session.Session, region: str, image_ids: Lis
     images.extend(self_images)
     if image_ids:
         self_image_ids = {image['ImageId'] for image in images}
-        ids_pending = [id for id in image_ids if id not in ids_retrieved]
         # Go one by one to avoid losing all images if one fails
-        for image in ids_pending:
+        for image in image_ids:
+            if image in self_image_ids:
+                continue
             try:
                 public_images = client.describe_images(ImageIds=[image])['Images']
                 images.extend(public_images)
             except ClientError as e:
-                logger.warning(f"Failed retrieve non-self image for region - {region}. Error - {e}")
+                logger.warning(f"Failed retrieve image id {image} for region - {region}. Error - {e}")
     return images
 
 

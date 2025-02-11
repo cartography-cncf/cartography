@@ -1,5 +1,8 @@
+import boto3.session
 import cartography.intel.aws.ec2.images
 import tests.data.aws.ec2.images
+import boto3
+from moto import mock_aws
 
 TEST_ACCOUNT_ID = '000000000000'
 TEST_REGION = 'us-west-1'
@@ -67,3 +70,15 @@ def test_load_images_relationships(neo4j_session):
     }
 
     assert actual == expected
+
+
+@mock_aws
+def test_get_images():
+    boto3_session = boto3.session.Session()
+    ec2 = boto3_session.client('ec2', region_name=TEST_REGION)
+    image_id = ec2.register_image(Name='test-image')['ImageId']
+    image_ids = [image_id, "ami-invalid"]
+    images = cartography.intel.aws.ec2.images.get_images(boto3_session, TEST_REGION, image_ids)
+    assert isinstance(images, list)
+    assert len(images) == 1
+    assert images[0]['ImageId'] == image_id
