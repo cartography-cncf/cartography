@@ -140,7 +140,7 @@ def get_all_users(admin: Resource) -> List[Dict]:
 def load_gsuite_groups(neo4j_session: neo4j.Session, groups: List[Dict], gsuite_update_tag: int) -> None:
     ingestion_qry = """
         UNWIND $GroupData as group
-        MERGE (g:GSuiteGroup{id: group.id})
+        MERGE (g:GSuiteGroup:GCPPrincipal{id: group.id})
         ON CREATE SET
         g.firstseen = $UpdateTag,
         g.group_id = group.id
@@ -162,7 +162,7 @@ def load_gsuite_groups(neo4j_session: neo4j.Session, groups: List[Dict], gsuite_
 def load_gsuite_users(neo4j_session: neo4j.Session, users: List[Dict], gsuite_update_tag: int) -> None:
     ingestion_qry = """
         UNWIND $UserData as user
-        MERGE (u:GSuiteUser{id: user.id})
+        MERGE (u:GSuiteUser:GCPPrincipal{id: user.id})
         ON CREATE SET
         u.user_id = user.id,
         u.firstseen = $UpdateTag
