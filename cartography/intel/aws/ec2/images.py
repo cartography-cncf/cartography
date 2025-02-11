@@ -49,7 +49,7 @@ def get_images(boto3_session: boto3.session.Session, region: str, image_ids: Lis
         logger.warning(f"Failed retrieve self owned images for region - {region}. Error - {e}")
     images.extend(self_images)
     if image_ids:
-        ids_retrieved = {image['ImageId'] for image in images}
+        self_image_ids = {image['ImageId'] for image in images}
         ids_pending = [id for id in image_ids if id not in ids_retrieved]
         # Go one by one to avoid losing all images if one fails
         for image in ids_pending:
