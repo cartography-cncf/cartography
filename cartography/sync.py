@@ -31,6 +31,7 @@ import cartography.intel.okta
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 from cartography.config import Config
+from cartography.neo4j_session_factory import neo4j_session_factory
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
 from cartography.util import STATUS_SUCCESS
@@ -106,6 +107,9 @@ class Sync:
         :param config: Configuration for the sync run.
         """
         logger.info("Starting sync with update tag '%d'", config.update_tag)
+
+        neo4j_session_factory.initialize(neo4j_driver=neo4j_driver, neo4j_database=config.neo4j_database)
+
         with neo4j_driver.session(database=config.neo4j_database) as neo4j_session:
             for stage_name, stage_func in self._stages.items():
                 logger.info("Starting sync stage '%s'", stage_name)
