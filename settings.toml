@@ -1,0 +1,13 @@
+# Common settings
+[common]
+http_timeout=60
+#update_tag="<CHANGEME>"
+[neo4j]
+uri="bolt://localhost:7687"
+#user="neo4j"
+#password="neo4j"
+password_prompt=false
+max_connection_lifetime=3600
+[lastpass]
+#cid=""
+#provhash=""

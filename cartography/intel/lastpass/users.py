@@ -11,11 +11,12 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.lastpass.tenant import LastpassTenantSchema
 from cartography.models.lastpass.user import LastpassUserSchema
+from cartography.settings import settings
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
-_TIMEOUT = (60, 60)
+_TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 
 
 @timeit

@@ -1,3 +1,5 @@
+# DEPRECATED: This module is deprecated and will be removed in a future release.
+# Please use cartography.settings instead.
 class Config:
     """
     A common interface for cartography configuration.
