@@ -14,7 +14,7 @@ WORKDIR /var/cartography
 ENV HOME=/var/cartography
 
 # Install cartography at the given version specifier. Can be ''.
-RUN pip install cartography${VERSION_SPECIFIER}
+RUN pip install --no-cache-dir cartography${VERSION_SPECIFIER}
 
 USER ${uid}:${gid}
 
