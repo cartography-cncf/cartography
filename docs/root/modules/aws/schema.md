@@ -1379,6 +1379,7 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
 | tag | The tag applied to the repository image, e.g. "latest" |
 | uri | The URI where the repository image is stored |
 | **id** | same as uri |
+| image_size | The size of the image in bytes |
 
 #### Relationships
 
