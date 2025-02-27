@@ -106,7 +106,7 @@ def _load_ecr_repo_img_tx(
         SET ri.lastupdated = $aws_update_tag,
             ri.tag = repo_img.imageTag,
             ri.uri = repo_img.repo_uri + COALESCE(":" + repo_img.imageTag, ''),
-            ri.image_size = repo_img.imageSizeInBytes,
+            ri.image_size_bytes = repo_img.imageSizeInBytes,
             ri.image_pushed_at = repo_img.imagePushedAt,
             ri.image_manifest_media_type = repo_img.imageManifestMediaType,
             ri.artifact_media_type = repo_img.artifactMediaType,
