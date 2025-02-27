@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="lang:clipboard.copy" content="Copy to clipboard">
+  <meta name="lang:clipboard.copied" content="Copied to clipboard">
+  <meta name="lang:search.language" content="en">
+  <meta name="lang:search.pipeline.stopwords" content="True">
+  <meta name="lang:search.pipeline.trimmer" content="True">
+  <meta name="lang:search.result.none" content="No matching documents">
+  <meta name="lang:search.result.one" content="1 matching document">
+  <meta name="lang:search.result.other" content="# matching documents">
+  <meta name="lang:search.tokenizer" content="[\s\-]+">
+
+  
+    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
+
+    <style>
+      body,
+      input {
+        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
+      }
+
+      code,
+      kbd,
+      pre {
+        font-family: "Roboto Mono", "Courier New", Courier, monospace
+      }
+    </style>
+  
+
+  <link rel="stylesheet" href="../../_static/stylesheets/application.css"/>
+  <link rel="stylesheet" href="../../_static/stylesheets/application-palette.css"/>
+  <link rel="stylesheet" href="../../_static/stylesheets/application-fixes.css"/>
+  
+  <link rel="stylesheet" href="../../_static/fonts/material-icons.css"/>
+  
+  <meta name="theme-color" content="#3f51b5">
+  <script src="../../_static/javascripts/modernizr.js"></script>
+  
+  
+  
+    <title>OCI Schema &#8212; cartography  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=75810a84" />
+    <link rel="stylesheet" type="text/css" href="../../_static/material.css?v=79c92029" />
+    <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="icon" href="../../_static/logo-vertical.svg"/>
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Okta" href="../okta/index.html" />
+    <link rel="prev" title="&lt;no title&gt;" href="config.html" />
+  
+   
+
+  </head>
+  <body dir=ltr
+        data-md-color-primary=blue-grey data-md-color-accent=blue>
+  
+  <svg class="md-svg">
+    <defs data-children-count="0">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
+      
+    </defs>
+  </svg>
+  
+  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
+  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
+  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+  <a href="#modules/oci/schema" tabindex="1" class="md-skip"> Skip to content </a>
+  <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex navheader">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../../index.html" title="cartography  documentation"
+           class="md-header-nav__button md-logo">
+          
+            &nbsp;
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          <span class="md-header-nav__topic">cartography  documentation</span>
+          <span class="md-header-nav__topic"> OCI Schema </span>
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+        
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" action="../../search.html" method="get" name="search">
+      <input type="text" class="md-search__input" name="q" placeholder=""Search""
+             autocapitalize="off" autocomplete="off" spellcheck="false"
+             data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+          </div>
+        </div>
+      
+      
+  
+  <script src="../../_static/javascripts/version_dropdown.js"></script>
+  <script>
+    var json_loc = "../../"versions.json"",
+        target_loc = "../../../",
+        text = "Versions";
+    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
+  </script>
+  
+
+    </div>
+  </nav>
+</header>
+
+  
+  <div class="md-container">
+    
+    
+    
+  <nav class="md-tabs" data-md-component="tabs">
+    <div class="md-tabs__inner md-grid">
+      <ul class="md-tabs__list">
+          <li class="md-tabs__item"><a href="../../index.html" class="md-tabs__link">cartography  documentation</a></li>
+          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">&lt;no title&gt;</a></li>
+          <li class="md-tabs__item"><a href="index.html" class="md-tabs__link">Oracle Cloud Infrastructure</a></li>
+      </ul>
+    </div>
+  </nav>
+    <main class="md-main">
+      <div class="md-main__inner md-grid" data-md-component="container">
+        
+          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="../../index.html" title="cartography documentation" class="md-nav__button md-logo">
+      
+        <img src="../../_static/" alt=" logo" width="48" height="48">
+      
+    </a>
+    <a href="../../index.html"
+       title="cartography documentation">cartography  documentation</a>
+  </label>
+    <div class="md-nav__source">
+      <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+    </div>
+  
+  
+
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+    
+      <a href="../../info.html" class="md-nav__link">What is Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../info.html#why-cartography" class="md-nav__link">Why Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Basic Use</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../install.html" class="md-nav__link">Install and Run Cartography On Test Machine</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../usage/index.html" class="md-nav__link">Usage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../ops.html" class="md-nav__link">Cartography Production Operations</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Intel Modules</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../aws/index.html" class="md-nav__link">Amazon Web Services (AWS)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../azure/index.html" class="md-nav__link">Microsoft Azure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../bigfix/index.html" class="md-nav__link">BigFix</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../crowdstrike/index.html" class="md-nav__link">Crowdstrike</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../cve/index.html" class="md-nav__link">CVE</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../digitalocean/index.html" class="md-nav__link">DigitalOcean</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../duo/index.html" class="md-nav__link">Duo</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../gcp/index.html" class="md-nav__link">Google Cloud Compute (GCP)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../github/index.html" class="md-nav__link">Github</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../gsuite/index.html" class="md-nav__link">Google GSuite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../jamf/index.html" class="md-nav__link">Jamf</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../kandji/index.html" class="md-nav__link">Kandji</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../kubernetes/index.html" class="md-nav__link">Kubernetes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../lastpass/index.html" class="md-nav__link">Lastpass</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="index.html" class="md-nav__link">Oracle Cloud Infrastructure</a>
+      <ul class="md-nav__list"> 
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> OCI Schema </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">OCI Schema</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#modules-oci-schema--page-root" class="md-nav__link">OCI Schema</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#ocitenancy" class="md-nav__link">OCITenancy</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#relationships" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#ocicompartment" class="md-nav__link">OCICompartment</a>
+        </li>
+        <li class="md-nav__item"><a href="#ociuser" class="md-nav__link">OCIUser</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id4" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#ocigroup" class="md-nav__link">OCIGroup</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id5" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#ocipolicy" class="md-nav__link">OCIPolicy</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id6" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#ociregion" class="md-nav__link">OCIRegion</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../../_sources/modules/oci/schema.md.txt">Show Source</a> </li>
+
+  </ul>
+</nav>
+      
+    
+    </li></ul>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../okta/index.html" class="md-nav__link">Okta</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../pagerduty/index.html" class="md-nav__link">PagerDuty</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../semgrep/index.html" class="md-nav__link">Semgrep</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../snipeit/index.html" class="md-nav__link">SnipeIT</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Development Docs</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../dev/index.html" class="md-nav__link">Developer docs</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Get In Touch</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../contact.html" class="md-nav__link">Contact</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../contact.html#community-meeting" class="md-nav__link">Community Meeting</a>
+      
+    
+    </li>
+  </ul>
+  
+
+</nav>
+              </div>
+            </div>
+          </div>
+          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#modules-oci-schema--page-root" class="md-nav__link">OCI Schema</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#ocitenancy" class="md-nav__link">OCITenancy</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#relationships" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#ocicompartment" class="md-nav__link">OCICompartment</a>
+        </li>
+        <li class="md-nav__item"><a href="#ociuser" class="md-nav__link">OCIUser</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id4" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#ocigroup" class="md-nav__link">OCIGroup</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id5" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#ocipolicy" class="md-nav__link">OCIPolicy</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id6" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#ociregion" class="md-nav__link">OCIRegion</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../../_sources/modules/oci/schema.md.txt">Show Source</a> </li>
+
+<li id="searchbox" class="md-nav__item"></li>
+
+  </ul>
+</nav>
+              </div>
+            </div>
+          </div>
+        
+        <div class="md-content">
+          <article class="md-content__inner md-typeset" role="main">
+            
+  <section id="oci-schema">
+<h1 id="modules-oci-schema--page-root">OCI Schema<a class="headerlink" href="#modules-oci-schema--page-root" title="Link to this heading">¶</a></h1>
+<section id="ocitenancy">
+<span id="id1"></span><h2 id="ocitenancy">OCITenancy<a class="headerlink" href="#ocitenancy" title="Link to this heading">¶</a></h2>
+<p>Representation of an OCI Tenancy.</p>
+<table>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the account</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>ocid</strong></p></td>
+<td><p>The OCI Tenancy ID number</p></td>
+</tr>
+</tbody>
+</table>
+<section id="relationships">
+<h3 id="relationships">Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Many node types belong to an <code class="docutils literal notranslate"><span class="pre">OCI</span> <span class="pre">Tenancy</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCITenancy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIUser</span><span class="p">,</span>
+                          <span class="n">OCIGroup</span><span class="p">,</span>
+                          <span class="n">OCICompartment</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>An <code class="docutils literal notranslate"><span class="pre">OCIPolicy</span></code> node is defined for an <code class="docutils literal notranslate"><span class="pre">OCITenancy</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCITenancy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_POLICY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIPolicy</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="ocicompartment">
+<h2 id="ocicompartment">OCICompartment<a class="headerlink" href="#ocicompartment" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/Compartment">OCICompartment</a>
+/ Field / Description /
+/——-/————-/
+/ firstseen / Timestamp of when a sync job first discovered this node  /
+/ lastupdated /  Timestamp of the last time the node was updated /
+/ compartmentid / The compartment id of the compartment /
+/ name / The friendly name of the compartment  /
+/ description / The description the compartment /
+/ createdate / ISO 8601 date-time when the compartment was created /
+/ <strong>ocid</strong> / OCI-unique identifier for this object /</p>
+<ul>
+<li><p>OCI Compartments can be members of OCI Compartments (up to 6 levels deep).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCICompartment</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_SUB_COMPARTMENT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCICompartment</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>OCI Tenancy’s contain OCI Compartments.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCITenancy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCICompartment</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>OCI Compartments can contain OCI Policies.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCICompartment</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_POLICY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIPolicy</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="ociuser">
+<h2 id="ociuser">OCIUser<a class="headerlink" href="#ociuser" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/User">OCIUser</a>.</p>
+<table>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>compartmentid</p></td>
+<td><p>The compartment id of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The friendly name of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The description of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>The description of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>lifecycle_state</p></td>
+<td><p>The user’s current state. After creating a user, make sure its lifecycleState changes from CREATING to ACTIVE before using it.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_mfa_activated</p></td>
+<td><p>Flag indicates if MFA has been activated for the user.</p></td>
+</tr>
+<tr class="row-even"><td><p>can_use_api_keys</p></td>
+<td><p>Indicates if the user can use API keys.</p></td>
+</tr>
+<tr class="row-odd"><td><p>can_use_auth_tokens</p></td>
+<td><p>Indicates if the user can use SWIFT passwords / auth tokens.</p></td>
+</tr>
+<tr class="row-even"><td><p>can_use_console_password</p></td>
+<td><p>Indicates if the user can log in to the console.</p></td>
+</tr>
+<tr class="row-odd"><td><p>can_use_customer_secret_keys</p></td>
+<td><p>Indicates if the user can use SigV4 symmetric keys.Indicates if the user can use SigV4 symmetric keys.Indicates if the user can use SigV4 symmetric keys.</p></td>
+</tr>
+<tr class="row-even"><td><p>can_use_smtp_credentials</p></td>
+<td><p>Indicates if the user can use SMTP passwords.</p></td>
+</tr>
+<tr class="row-odd"><td><p>createdate</p></td>
+<td><p>ISO 8601 date-time when the user was created</p></td>
+</tr>
+</tbody>
+</table>
+<div class="line-block">
+<div class="line"><strong>ocid</strong> | OCI-unique identifier for this object</div>
+</div>
+<section id="id4">
+<h3 id="id4">Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>OCI Users can be members of OCI Groups.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCIUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OCI_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIGroup</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>OCI Tenancy’s contain OCI Users.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCITenancy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_POLICY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIUser</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="ocigroup">
+<h2 id="ocigroup">OCIGroup<a class="headerlink" href="#ocigroup" title="Link to this heading">¶</a></h2>
+<p>Representation of OCI <a class="reference external" href="https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/Group">IAM Groups</a>.</p>
+<table>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>compartmentid</p></td>
+<td><p>The OCID of the tenancy containing the group</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The friendly name that identifies the group</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The description the group</p></td>
+</tr>
+<tr class="row-odd"><td><p>createdate</p></td>
+<td><p>ISO 8601 date-time string when the group was created</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>ocid</strong></p></td>
+<td><p>The OCI-global identifier for this group</p></td>
+</tr>
+</tbody>
+</table>
+<section id="id5">
+<h3 id="id5">Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>OCIUsers can be members of OCIGroups.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCIUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OCI_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIGroup</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>OCIGroups belong to OCITenancy’s.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCITenancy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIGroup</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="ocipolicy">
+<h2 id="ocipolicy">OCIPolicy<a class="headerlink" href="#ocipolicy" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/Policy">OCI Policy</a>.</p>
+<table>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>compartmentid</p></td>
+<td><p>The OCID of the compartment containing the policy</p></td>
+</tr>
+<tr class="row-odd"><td><p>statements</p></td>
+<td><p>An array of one or more policy statements written in the policy language.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The description the policy</p></td>
+</tr>
+<tr class="row-odd"><td><p>updatedate</p></td>
+<td><p>ISO 8601 date-time when the policy was last updated</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The friendly name (not ocid) identifying the policy</p></td>
+</tr>
+<tr class="row-odd"><td><p>createdate</p></td>
+<td><p>ISO 8601 date-time when the policy was created</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>ocid</strong></p></td>
+<td><p>The OCI-unique identifier for this object</p></td>
+</tr>
+</tbody>
+</table>
+<section id="id6">
+<h3 id="id6">Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>An <code class="docutils literal notranslate"><span class="pre">OCIPolicy</span></code> node is defined in an <code class="docutils literal notranslate"><span class="pre">OCITenancy</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCITenancy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_POLICY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIPolicy</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>An <code class="docutils literal notranslate"><span class="pre">OCIPolicy</span></code> node is defined in an <code class="docutils literal notranslate"><span class="pre">OCICompartment</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCICompartment</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_POLICY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIPolicy</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>An <code class="docutils literal notranslate"><span class="pre">OCIPolicy</span></code> node is defined in an <code class="docutils literal notranslate"><span class="pre">OCITenancy</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCITenancy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_POLICY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIPolicy</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>An <code class="docutils literal notranslate"><span class="pre">OCIPolicy</span></code> node can reference an <code class="docutils literal notranslate"><span class="pre">OCICompartment</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCIPolicy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_POLICY_REFERENCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCICompartment</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>An <code class="docutils literal notranslate"><span class="pre">OCIPolicy</span></code> node can reference an <code class="docutils literal notranslate"><span class="pre">OCIGroup</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCIPolicy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_POLICY_REFERENCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIGroup</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="ociregion">
+<h2 id="ociregion">OCIRegion<a class="headerlink" href="#ociregion" title="Link to this heading">¶</a></h2>
+<table>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The key (not ocid) identifying the region</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The friendly name (not ocid) identifying the region</p></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><p>An <code class="docutils literal notranslate"><span class="pre">OCITenancy</span></code> node can reference an <code class="docutils literal notranslate"><span class="pre">OCIRegion</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCIPolicy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OCI_POLICY_REFERENCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">OCIGroup</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Many node types belong to an <code class="docutils literal notranslate"><span class="pre">OCIRegion</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">OCITenancy</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">OCI_REGION</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">OCIUser</span><span class="p">,</span>
+                          <span class="n">OCIGroup</span><span class="p">,</span>
+                          <span class="n">OCICompartment</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+
+
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="md-footer">
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+          
+            <a href="config.html" title="&lt;no title&gt;"
+               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+               rel="prev">
+              <div class="md-flex__cell md-flex__cell--shrink">
+                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+              </div>
+              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+                <span class="md-flex__ellipsis">
+                  <span
+                      class="md-footer-nav__direction"> "Previous" </span> &lt;no title&gt; </span>
+              </div>
+            </a>
+          
+          
+            <a href="../okta/index.html" title="Okta"
+               class="md-flex md-footer-nav__link md-footer-nav__link--next"
+               rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
+                class="md-flex__ellipsis"> <span
+                class="md-footer-nav__direction"> "Next" </span> Okta </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink"><i
+                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          
+        </a>
+        
+      </nav>
+    </div>
+    <div class="md-footer-meta md-typeset">
+      <div class="md-footer-meta__inner md-grid">
+        <div class="md-footer-copyright">
+          <div class="md-footer-copyright__highlight">
+              &#169; Copyright 2021-2025, The Linux Foundation.
+              
+          </div>
+            Created using
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+             and
+            <a href="https://github.com/bashtage/sphinx-material/">Material for
+              Sphinx</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="../../_static/javascripts/application.js"></script>
+  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+  </body>
+</html>

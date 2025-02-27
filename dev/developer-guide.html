@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="lang:clipboard.copy" content="Copy to clipboard">
+  <meta name="lang:clipboard.copied" content="Copied to clipboard">
+  <meta name="lang:search.language" content="en">
+  <meta name="lang:search.pipeline.stopwords" content="True">
+  <meta name="lang:search.pipeline.trimmer" content="True">
+  <meta name="lang:search.result.none" content="No matching documents">
+  <meta name="lang:search.result.one" content="1 matching document">
+  <meta name="lang:search.result.other" content="# matching documents">
+  <meta name="lang:search.tokenizer" content="[\s\-]+">
+
+  
+    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
+
+    <style>
+      body,
+      input {
+        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
+      }
+
+      code,
+      kbd,
+      pre {
+        font-family: "Roboto Mono", "Courier New", Courier, monospace
+      }
+    </style>
+  
+
+  <link rel="stylesheet" href="../_static/stylesheets/application.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-palette.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-fixes.css"/>
+  
+  <link rel="stylesheet" href="../_static/fonts/material-icons.css"/>
+  
+  <meta name="theme-color" content="#3f51b5">
+  <script src="../_static/javascripts/modernizr.js"></script>
+  
+  
+  
+    <title>Cartography Developer Guide &#8212; cartography  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=75810a84" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css?v=79c92029" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="icon" href="../_static/logo-vertical.svg"/>
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="How to extend Cartography with Analysis Jobs" href="writing-analysis-jobs.html" />
+    <link rel="prev" title="Developer docs" href="index.html" />
+  
+   
+
+  </head>
+  <body dir=ltr
+        data-md-color-primary=blue-grey data-md-color-accent=blue>
+  
+  <svg class="md-svg">
+    <defs data-children-count="0">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
+      
+    </defs>
+  </svg>
+  
+  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
+  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
+  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+  <a href="#dev/developer-guide" tabindex="1" class="md-skip"> Skip to content </a>
+  <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex navheader">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../index.html" title="cartography  documentation"
+           class="md-header-nav__button md-logo">
+          
+            &nbsp;
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          <span class="md-header-nav__topic">cartography  documentation</span>
+          <span class="md-header-nav__topic"> Cartography Developer Guide </span>
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+        
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" action="../search.html" method="get" name="search">
+      <input type="text" class="md-search__input" name="q" placeholder=""Search""
+             autocapitalize="off" autocomplete="off" spellcheck="false"
+             data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+          </div>
+        </div>
+      
+      
+  
+  <script src="../_static/javascripts/version_dropdown.js"></script>
+  <script>
+    var json_loc = "../"versions.json"",
+        target_loc = "../../",
+        text = "Versions";
+    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
+  </script>
+  
+
+    </div>
+  </nav>
+</header>
+
+  
+  <div class="md-container">
+    
+    
+    
+  <nav class="md-tabs" data-md-component="tabs">
+    <div class="md-tabs__inner md-grid">
+      <ul class="md-tabs__list">
+          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">cartography  documentation</a></li>
+          <li class="md-tabs__item"><a href="index.html" class="md-tabs__link">Developer docs</a></li>
+      </ul>
+    </div>
+  </nav>
+    <main class="md-main">
+      <div class="md-main__inner md-grid" data-md-component="container">
+        
+          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="../index.html" title="cartography documentation" class="md-nav__button md-logo">
+      
+        <img src="../_static/" alt=" logo" width="48" height="48">
+      
+    </a>
+    <a href="../index.html"
+       title="cartography documentation">cartography  documentation</a>
+  </label>
+    <div class="md-nav__source">
+      <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+    </div>
+  
+  
+
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+    
+      <a href="../info.html" class="md-nav__link">What is Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../info.html#why-cartography" class="md-nav__link">Why Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Basic Use</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../install.html" class="md-nav__link">Install and Run Cartography On Test Machine</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../usage/index.html" class="md-nav__link">Usage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../ops.html" class="md-nav__link">Cartography Production Operations</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Intel Modules</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/aws/index.html" class="md-nav__link">Amazon Web Services (AWS)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/azure/index.html" class="md-nav__link">Microsoft Azure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/bigfix/index.html" class="md-nav__link">BigFix</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/crowdstrike/index.html" class="md-nav__link">Crowdstrike</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/cve/index.html" class="md-nav__link">CVE</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/digitalocean/index.html" class="md-nav__link">DigitalOcean</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/duo/index.html" class="md-nav__link">Duo</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/gcp/index.html" class="md-nav__link">Google Cloud Compute (GCP)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/github/index.html" class="md-nav__link">Github</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/gsuite/index.html" class="md-nav__link">Google GSuite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/jamf/index.html" class="md-nav__link">Jamf</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/kandji/index.html" class="md-nav__link">Kandji</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/kubernetes/index.html" class="md-nav__link">Kubernetes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/lastpass/index.html" class="md-nav__link">Lastpass</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/oci/index.html" class="md-nav__link">Oracle Cloud Infrastructure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/okta/index.html" class="md-nav__link">Okta</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/pagerduty/index.html" class="md-nav__link">PagerDuty</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/semgrep/index.html" class="md-nav__link">Semgrep</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/snipeit/index.html" class="md-nav__link">SnipeIT</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Development Docs</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="index.html" class="md-nav__link">Developer docs</a>
+      <ul class="md-nav__list"> 
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Cartography Developer Guide </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">Cartography Developer Guide</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#dev-developer-guide--page-root" class="md-nav__link">Cartography Developer Guide</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#develepment-using-a-python-venv" class="md-nav__link">Develepment using a Python venv</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#running-the-source-code" class="md-nav__link">Running the source code</a>
+        </li>
+        <li class="md-nav__item"><a href="#automated-testing" class="md-nav__link">Automated testing</a>
+        </li>
+        <li class="md-nav__item"><a href="#implementing-custom-sync-commands" class="md-nav__link">Implementing custom sync commands</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#dev-dockerfile" class="md-nav__link">dev.Dockerfile</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#dev-with-docker-compose" class="md-nav__link">Dev with docker-compose</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#run-the-full-test-suite" class="md-nav__link">Run the full test suite</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-a-custom-sync-script" class="md-nav__link">Run a <span class="xref std std-ref">custom sync script</span></a>
+        </li>
+        <li class="md-nav__item"><a href="#run-the-cartography-cli" class="md-nav__link">Run the cartography CLI</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#equivalent-manual-docker-commands" class="md-nav__link">Equivalent manual docker commands</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#run-unit-tests-with-dev-dockerfile" class="md-nav__link">Run unit tests with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-the-linter-with-dev-dockerfile" class="md-nav__link">Run the linter with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-integration-tests-with-dev-dockerfile" class="md-nav__link">Run integration tests with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-the-full-test-suite-with-dev-dockerfile" class="md-nav__link">Run the full test suite with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-a-custom-sync-script-with-dev-dockerfile" class="md-nav__link">Run a <span class="xref std std-ref">custom sync script</span> with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-cartography-cli-with-dev-dockerfile" class="md-nav__link">Run cartography CLI with dev.Dockerfile</a>
+        </li></ul>
+            </nav>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#how-to-write-a-new-intel-module" class="md-nav__link">How to write a new intel module</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/dev/developer-guide.md.txt">Show Source</a> </li>
+
+  </ul>
+</nav>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="writing-analysis-jobs.html" class="md-nav__link">How to extend Cartography with Analysis Jobs</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="writing-intel-modules.html" class="md-nav__link">How to write a new intel module</a>
+      
+    
+    </li></ul>
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Get In Touch</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../contact.html" class="md-nav__link">Contact</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../contact.html#community-meeting" class="md-nav__link">Community Meeting</a>
+      
+    
+    </li>
+  </ul>
+  
+
+</nav>
+              </div>
+            </div>
+          </div>
+          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#dev-developer-guide--page-root" class="md-nav__link">Cartography Developer Guide</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#develepment-using-a-python-venv" class="md-nav__link">Develepment using a Python venv</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#running-the-source-code" class="md-nav__link">Running the source code</a>
+        </li>
+        <li class="md-nav__item"><a href="#automated-testing" class="md-nav__link">Automated testing</a>
+        </li>
+        <li class="md-nav__item"><a href="#implementing-custom-sync-commands" class="md-nav__link">Implementing custom sync commands</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#dev-dockerfile" class="md-nav__link">dev.Dockerfile</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#dev-with-docker-compose" class="md-nav__link">Dev with docker-compose</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#run-the-full-test-suite" class="md-nav__link">Run the full test suite</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-a-custom-sync-script" class="md-nav__link">Run a <span class="xref std std-ref">custom sync script</span></a>
+        </li>
+        <li class="md-nav__item"><a href="#run-the-cartography-cli" class="md-nav__link">Run the cartography CLI</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#equivalent-manual-docker-commands" class="md-nav__link">Equivalent manual docker commands</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#run-unit-tests-with-dev-dockerfile" class="md-nav__link">Run unit tests with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-the-linter-with-dev-dockerfile" class="md-nav__link">Run the linter with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-integration-tests-with-dev-dockerfile" class="md-nav__link">Run integration tests with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-the-full-test-suite-with-dev-dockerfile" class="md-nav__link">Run the full test suite with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-a-custom-sync-script-with-dev-dockerfile" class="md-nav__link">Run a <span class="xref std std-ref">custom sync script</span> with dev.Dockerfile</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-cartography-cli-with-dev-dockerfile" class="md-nav__link">Run cartography CLI with dev.Dockerfile</a>
+        </li></ul>
+            </nav>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#how-to-write-a-new-intel-module" class="md-nav__link">How to write a new intel module</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/dev/developer-guide.md.txt">Show Source</a> </li>
+
+<li id="searchbox" class="md-nav__item"></li>
+
+  </ul>
+</nav>
+              </div>
+            </div>
+          </div>
+        
+        <div class="md-content">
+          <article class="md-content__inner md-typeset" role="main">
+            
+  <section id="cartography-developer-guide">
+<h1 id="dev-developer-guide--page-root">Cartography Developer Guide<a class="headerlink" href="#dev-developer-guide--page-root" title="Link to this heading">¶</a></h1>
+<section id="develepment-using-a-python-venv">
+<h2 id="develepment-using-a-python-venv">Develepment using a Python venv<a class="headerlink" href="#develepment-using-a-python-venv" title="Link to this heading">¶</a></h2>
+<section id="running-the-source-code">
+<h3 id="running-the-source-code">Running the source code<a class="headerlink" href="#running-the-source-code" title="Link to this heading">¶</a></h3>
+<p>This document assumes familiarity with Python dev practices such as using <a class="reference external" href="https://packaging.python.org/guides/installing-using-pip-and-virtualenv/">virtualenvs</a>.
+If you prefer docker instead, skip this and scroll down to <span class="xref std std-ref">these instructions</span>.</p>
+<ol class="arabic">
+<li><p><strong>Run Neo4j</strong></p>
+<p>Follow the <a class="reference external" href="../install.html">Install Steps</a> so that you get Neo4j running locally. It’s up to you if you want to use Docker or a native install.</p>
+</li>
+<li><p><strong>Install Python 3.10</strong></p></li>
+<li><p><strong>Clone the source code</strong></p>
+<p>Run <code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">{path-where-you-want-your-source-code}</span></code>. Get the source code with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">git://github.com/lyft/cartography.git</span></code></p>
+</li>
+<li><p><strong>Perform an editable install of the cartography source code</strong></p>
+<p>Run <code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">cartography</span></code> and then <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.</span></code> (yes, actually type the period into the command line) to install Cartography from source to the current venv.</p>
+</li>
+<li><p><strong>Run from source</strong></p>
+<p>After this finishes you should be able to run Cartography from source with <code class="docutils literal notranslate"><span class="pre">cartography</span> <span class="pre">--neo4j-uri</span> <span class="pre">bolt://localhost:7687</span></code>. Any changes to the source code in <code class="docutils literal notranslate"><span class="pre">{path-where-you-want-your-source-code}/cartography</span></code> are now locally testable by running <code class="docutils literal notranslate"><span class="pre">cartography</span></code> from the command line.</p>
+</li>
+</ol>
+</section>
+<section id="automated-testing">
+<h3 id="automated-testing">Automated testing<a class="headerlink" href="#automated-testing" title="Link to this heading">¶</a></h3>
+<ol class="arabic">
+<li><p><strong>Install test requirements</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-r</span> <span class="pre">test-requirements.txt</span></code></p>
+</li>
+<li><p><strong>(OPTIONAL) Setup environment variables for integration tests</strong></p>
+<p>The integration tests expect Neo4j to be running locally, listening on default ports, and with auth disabled.</p>
+<p>To run the integration tests on a specific Neo4j instance, add the following environment variable:</p>
+<p><code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">"NEO4J_URL=&lt;your_neo4j_instance_bolt_url:your_neo4j_instance_port&gt;"</span></code></p>
+</li>
+<li><p><strong>Run tests using ``make``</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test_lint</span></code> runs <a class="reference external" href="https://pre-commit.com">pre-commit</a> linting against the codebase.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test_unit</span></code> runs the unit test suite.</p></li>
+</ul>
+<p>⚠️ Important!  The below commands will <strong>DELETE ALL NODES</strong> on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this. ⚠️</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test_integration</span></code> runs the integration test suite.
+For more granular testing, you can invoke <code class="docutils literal notranslate"><span class="pre">pytest</span></code> directly:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">./tests/integration/cartography/intel/aws/test_iam.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">./tests/integration/cartography/intel/aws/test_iam.py::test_load_groups</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">-k</span> <span class="pre">test_load_groups</span></code></p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test</span></code> can be used to run all of the above.</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="implementing-custom-sync-commands">
+<h3 id="implementing-custom-sync-commands">Implementing custom sync commands<a class="headerlink" href="#implementing-custom-sync-commands" title="Link to this heading">¶</a></h3>
+<p>By default, cartography will try to sync every intel module included as part of the default sync. If you’re not using certain intel modules, you can create a custom sync script and invoke it using the cartography CLI. For example, if you’re only interested in the AWS intel module you can create a sync script, <code class="docutils literal notranslate"><span class="pre">custom_sync.py</span></code>, that looks like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">cartography</span><span class="w"> </span><span class="kn">import</span> <span class="n">cli</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cartography</span><span class="w"> </span><span class="kn">import</span> <span class="n">sync</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cartography.intel</span><span class="w"> </span><span class="kn">import</span> <span class="n">aws</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cartography.intel</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_indexes</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_custom_sync</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">sync</span><span class="o">.</span><span class="n">Sync</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">add_stages</span><span class="p">([</span>
+        <span class="p">(</span><span class="s1">'create-indexes'</span><span class="p">,</span> <span class="n">create_indexes</span><span class="o">.</span><span class="n">run</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">'aws'</span><span class="p">,</span> <span class="n">aws</span><span class="o">.</span><span class="n">start_aws_ingestion</span><span class="p">),</span>
+    <span class="p">])</span>
+    <span class="k">return</span> <span class="n">s</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">cli</span><span class="o">.</span><span class="n">CLI</span><span class="p">(</span><span class="n">build_custom_sync</span><span class="p">(),</span> <span class="n">prog</span><span class="o">=</span><span class="s1">'cartography'</span><span class="p">)</span><span class="o">.</span><span class="n">main</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'__main__'</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+</pre></div>
+</div>
+<p>Which can then be invoked using <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">custom_sync.py</span></code> and will have all the features of the cartography CLI while only including the intel modules you are specifically interested in using. For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>cartography$ python custom_sync.py
+INFO:cartography.sync:Starting sync with update tag '1569022981'
+INFO:cartography.sync:Starting sync stage 'create-indexes'
+INFO:cartography.intel.create_indexes:Creating indexes for cartography node types.
+INFO:cartography.sync:Finishing sync stage 'create-indexes'
+INFO:cartography.sync:Starting sync stage 'aws'
+INFO:botocore.credentials:Found credentials in shared credentials file: ~/.aws/credentials
+...
+</pre></div>
+</div>
+</section>
+</section>
+<section id="dev-dockerfile">
+<h2 id="dev-dockerfile">dev.Dockerfile<a class="headerlink" href="#dev-dockerfile" title="Link to this heading">¶</a></h2>
+<p>We include a dev.Dockerfile that can help streamline common dev tasks. It is different from the main Dockerfile in that</p>
+<ol class="arabic simple">
+<li><p>It is strictly intended for dev purposes.</p></li>
+<li><p>It performs an editable install of the cartography source code and test requirements.</p></li>
+<li><p>It does not define a docker entrypoint. This is to allow you to run a custom sync script instead of just the main <code class="docutils literal notranslate"><span class="pre">cartography</span></code> command.</p></li>
+</ol>
+<p>To use it, build dev.Dockerfile with</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/path/to/cartography/repo
+docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>cartography-cncf/cartography-dev<span class="w"> </span>-f<span class="w"> </span>dev.Dockerfile<span class="w"> </span>./
+</pre></div>
+</div>
+<p>With that, there are some interesting things you can do with it.</p>
+<section id="dev-with-docker-compose">
+<h3 id="dev-with-docker-compose">Dev with docker-compose<a class="headerlink" href="#dev-with-docker-compose" title="Link to this heading">¶</a></h3>
+<section id="run-the-full-test-suite">
+<h4 id="run-the-full-test-suite">Run the full test suite<a class="headerlink" href="#run-the-full-test-suite" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cartography-dev<span class="w"> </span>make<span class="w"> </span>test_lint
+docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>make<span class="w"> </span>test_unit
+docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>make<span class="w"> </span>test_integration
+
+<span class="c1"># for all the above</span>
+docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>make<span class="w"> </span><span class="nb">test</span>
+</pre></div>
+</div>
+</section>
+<section id="run-a-custom-sync-script">
+<h4 id="run-a-custom-sync-script">Run a <span class="xref std std-ref">custom sync script</span><a class="headerlink" href="#run-a-custom-sync-script" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>python<span class="w"> </span>custom_script.py
+</pre></div>
+</div>
+</section>
+<section id="run-the-cartography-cli">
+<h4 id="run-the-cartography-cli">Run the cartography CLI<a class="headerlink" href="#run-the-cartography-cli" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>cartography<span class="w"> </span>--help
+</pre></div>
+</div>
+</section>
+</section>
+<section id="equivalent-manual-docker-commands">
+<h3 id="equivalent-manual-docker-commands">Equivalent manual docker commands<a class="headerlink" href="#equivalent-manual-docker-commands" title="Link to this heading">¶</a></h3>
+<p>If you don’t like docker-compose or if it doesn’t work for you for any reason, here are the equivalent manual docker commands for the previous scenarios:</p>
+<section id="run-unit-tests-with-dev-dockerfile">
+<h4 id="run-unit-tests-with-dev-dockerfile">Run unit tests with dev.Dockerfile<a class="headerlink" href="#run-unit-tests-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cartography-cncf/cartography-dev<span class="w"> </span>make<span class="w"> </span>test_unit
+</pre></div>
+</div>
+<p>This is a simple command because it doesn’t require any volume mounts or docker networking.</p>
+</section>
+<section id="run-the-linter-with-dev-dockerfile">
+<h4 id="run-the-linter-with-dev-dockerfile">Run the linter with dev.Dockerfile<a class="headerlink" href="#run-the-linter-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/var/cartography<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/.cache/pre-commit:/var/cartography/.cache/pre-commit<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>cartography-cncf/cartography-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>make<span class="w"> </span>test_lint
+</pre></div>
+</div>
+<p>The volume mounts are necessary to let pre-commit from within the container edit source files on the host machine, and for pre-commit’s cached state to save on your host machine without needing to update itself every time you run it.</p>
+</section>
+<section id="run-integration-tests-with-dev-dockerfile">
+<h4 id="run-integration-tests-with-dev-dockerfile">Run integration tests with dev.Dockerfile<a class="headerlink" href="#run-integration-tests-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<p>First run a Neo4j container:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--publish<span class="o">=</span><span class="m">7474</span>:7474<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--publish<span class="o">=</span><span class="m">7687</span>:7687<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span>data:/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--name<span class="w"> </span>cartography-neo4j<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--env<span class="o">=</span><span class="nv">NEO4J_AUTH</span><span class="o">=</span>none<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>neo4j:4.4-community
+</pre></div>
+</div>
+<p>and then call the integration test suite like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-e<span class="w"> </span><span class="nv">NEO4J_URL</span><span class="o">=</span>bolt://cartography-neo4j:7687<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>cartography-cncf/cartography-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>make<span class="w"> </span>test_integration
+</pre></div>
+</div>
+<p>Note that we needed to specify the <code class="docutils literal notranslate"><span class="pre">NEO4J_URL</span></code> env var so that the integration test would be able to reach the Neo4j container.</p>
+</section>
+<section id="run-the-full-test-suite-with-dev-dockerfile">
+<h4 id="run-the-full-test-suite-with-dev-dockerfile">Run the full test suite with dev.Dockerfile<a class="headerlink" href="#run-the-full-test-suite-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<p>Bring up a neo4j container</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--publish<span class="o">=</span><span class="m">7474</span>:7474<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--publish<span class="o">=</span><span class="m">7687</span>:7687<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span>data:/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--name<span class="w"> </span>cartography-neo4j<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--env<span class="o">=</span><span class="nv">NEO4J_AUTH</span><span class="o">=</span>none<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>neo4j:4.4-community
+</pre></div>
+</div>
+<p>and then run the full test suite by specifying all the necessary volumes, network, and env vars.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/var/cartography<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/.cache/pre-commit:/var/cartography/.cache/pre-commit<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-e<span class="w"> </span><span class="nv">NEO4J_URL</span><span class="o">=</span>bolt://cartography-neo4j:7687<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>cartography-cncf/cartography-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>make<span class="w"> </span><span class="nb">test</span>
+</pre></div>
+</div>
+</section>
+<section id="run-a-custom-sync-script-with-dev-dockerfile">
+<h4 id="run-a-custom-sync-script-with-dev-dockerfile">Run a <span class="xref std std-ref">custom sync script</span> with dev.Dockerfile<a class="headerlink" href="#run-a-custom-sync-script-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cartography-cncf/cartography-dev<span class="w"> </span>python<span class="w"> </span>custom_sync.py
+</pre></div>
+</div>
+</section>
+<section id="run-cartography-cli-with-dev-dockerfile">
+<h4 id="run-cartography-cli-with-dev-dockerfile">Run cartography CLI with dev.Dockerfile<a class="headerlink" href="#run-cartography-cli-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cartography-cncf/cartography-dev<span class="w"> </span>cartography<span class="w"> </span>--help
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="how-to-write-a-new-intel-module">
+<h2 id="how-to-write-a-new-intel-module">How to write a new intel module<a class="headerlink" href="#how-to-write-a-new-intel-module" title="Link to this heading">¶</a></h2>
+<p>See <a class="reference external" href="writing-intel-modules.html">here</a>.</p>
+</section>
+</section>
+
+
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="md-footer">
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+          
+            <a href="index.html" title="Developer docs"
+               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+               rel="prev">
+              <div class="md-flex__cell md-flex__cell--shrink">
+                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+              </div>
+              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+                <span class="md-flex__ellipsis">
+                  <span
+                      class="md-footer-nav__direction"> "Previous" </span> Developer docs </span>
+              </div>
+            </a>
+          
+          
+            <a href="writing-analysis-jobs.html" title="How to extend Cartography with Analysis Jobs"
+               class="md-flex md-footer-nav__link md-footer-nav__link--next"
+               rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
+                class="md-flex__ellipsis"> <span
+                class="md-footer-nav__direction"> "Next" </span> How to extend Cartography with Analysis Jobs </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink"><i
+                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          
+        </a>
+        
+      </nav>
+    </div>
+    <div class="md-footer-meta md-typeset">
+      <div class="md-footer-meta__inner md-grid">
+        <div class="md-footer-copyright">
+          <div class="md-footer-copyright__highlight">
+              &#169; Copyright 2021-2025, The Linux Foundation.
+              
+          </div>
+            Created using
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+             and
+            <a href="https://github.com/bashtage/sphinx-material/">Material for
+              Sphinx</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="../_static/javascripts/application.js"></script>
+  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+  </body>
+</html>
