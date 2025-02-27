@@ -1380,6 +1380,10 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
 | uri | The URI where the repository image is stored |
 | **id** | same as uri |
 | image_size | The size of the image in bytes |
+| image_pushed_at | The date and time the image was pushed to the repository |
+| image_manifest_media_type | The media type of the image manifest, see [opencontainers image spec](https://github.com/opencontainers/image-spec/blob/main/media-types.md) |
+| artifact_media_type | The media type of the image artifact |
+| last_recorded_pull_time | The date and time the image was last pulled |
 
 #### Relationships
 

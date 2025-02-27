@@ -27,7 +27,8 @@ def get_ecr_repositories(boto3_session: boto3.session.Session, region: str) -> L
         ecr_repositories.extend(page['repositories'])
     return ecr_repositories
 
-
+@timeit
+@aws_handle_regions
 def get_ecr_repository_images(boto3_session: boto3.session.Session, region: str, repository_name: str) -> List[Dict]:
     logger.debug("Getting ECR images in repository '%s' for region '%s'.", repository_name, region)
     client = boto3_session.client('ecr', region_name=region)
@@ -105,7 +106,11 @@ def _load_ecr_repo_img_tx(
         SET ri.lastupdated = $aws_update_tag,
             ri.tag = repo_img.imageTag,
             ri.uri = repo_img.repo_uri + COALESCE(":" + repo_img.imageTag, ''),
-            ri.image_size = repo_img.imageSizeInBytes
+            ri.image_size = repo_img.imageSizeInBytes,
+            ri.image_pushed_at = repo_img.imagePushedAt,
+            ri.image_manifest_media_type = repo_img.imageManifestMediaType,
+            ri.artifact_media_type = repo_img.artifactMediaType,
+            ri.last_recorded_pull_time = repo_img.lastRecordedPullTime
         WITH ri, repo_img
 
         MERGE (img:ECRImage{id: repo_img.imageDigest})
