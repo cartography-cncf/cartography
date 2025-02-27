@@ -27,6 +27,7 @@ def get_ecr_repositories(boto3_session: boto3.session.Session, region: str) -> L
         ecr_repositories.extend(page['repositories'])
     return ecr_repositories
 
+
 @timeit
 @aws_handle_regions
 def get_ecr_repository_images(boto3_session: boto3.session.Session, region: str, repository_name: str) -> List[Dict]:
