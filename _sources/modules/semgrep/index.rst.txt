@@ -1,0 +1,7 @@
+Semgrep
+####
+
+.. toctree::
+
+    config
+    schema

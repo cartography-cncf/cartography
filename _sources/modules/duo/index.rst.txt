@@ -1,0 +1,7 @@
+Duo
+####
+
+.. toctree::
+
+    config
+    schema
