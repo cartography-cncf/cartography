@@ -51,7 +51,7 @@ DESCRIBE_IMAGES = {
         "artifactMediaType": "application/vnd.docker.container.image.v1+json",
         "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00",
     },
- }
+}
 
 LIST_REPOSITORY_IMAGES = {
     '000000000000.dkr.ecr.us-east-1/example-repository': [
