@@ -59,12 +59,14 @@ LIST_REPOSITORY_IMAGES = {
             'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
             'imageTags': '1',
             'repositoryName': 'example-repository',
-        }.update(DESCRIBE_IMAGES['imageDetails']),
+            **DESCRIBE_IMAGES['imageDetails'],
+        },
         {
             'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000001',
             'imageTag': '2',
             'repositoryName': 'example-repository',
-        }.update(DESCRIBE_IMAGES['imageDetails']),
+            **DESCRIBE_IMAGES['imageDetails'],
+        },
     ],
     '000000000000.dkr.ecr.us-east-1/sample-repository': [
         {
@@ -72,12 +74,14 @@ LIST_REPOSITORY_IMAGES = {
             'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
             'imageTag': '1',
             'repositoryName': 'sample-repository',
-        }.update(DESCRIBE_IMAGES['imageDetails']),
+            **DESCRIBE_IMAGES['imageDetails'],
+        },
         {
             'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000011',
             'imageTag': '2',
             'repositoryName': 'sample-repository',
-        }.update(DESCRIBE_IMAGES['imageDetails']),
+            **DESCRIBE_IMAGES['imageDetails'],
+        },
     ],
     '000000000000.dkr.ecr.us-east-1/test-repository': [
         {
@@ -85,21 +89,25 @@ LIST_REPOSITORY_IMAGES = {
             'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
             'imageTag': '1234567890',
             'repositoryName': 'test-repository',
-        }.update(DESCRIBE_IMAGES['imageDetails']),
+            **DESCRIBE_IMAGES['imageDetails'],
+        },
         {
             'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000021',
             'imageTag': '1',
             'repositoryName': 'test-repository',
-        }.update(DESCRIBE_IMAGES['imageDetails']),
+            **DESCRIBE_IMAGES['imageDetails'],
+        },
         # Item without an imageDigest: will get filtered out and not ingested.
         {
             'imageTag': '1',
             'repositoryName': 'test-repository',
-        }.update(DESCRIBE_IMAGES['imageDetails']),
+            **DESCRIBE_IMAGES['imageDetails'],
+        },
         # Item without an imageTag
         {
             'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000031',
             'repositoryName': 'test-repository',
-        }.update(DESCRIBE_IMAGES['imageDetails']),
+            **DESCRIBE_IMAGES['imageDetails'],
+        },
     ],
 }
