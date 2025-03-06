@@ -94,8 +94,10 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
         ('000000000000.dkr.ecr.us-east-1/example-repository:2', '2', 1024, '2025-01-01T00:00:00.000000-00:00'),
         ('000000000000.dkr.ecr.us-east-1/sample-repository:1', '1', 1024, '2025-01-01T00:00:00.000000-00:00'),
         ('000000000000.dkr.ecr.us-east-1/sample-repository:2', '2', 1024, '2025-01-01T00:00:00.000000-00:00'),
-        ('000000000000.dkr.ecr.us-east-1/test-repository:1234567890', '1234567890', 1024,
-         '2025-01-01T00:00:00.000000-00:00'),
+        (
+            '000000000000.dkr.ecr.us-east-1/test-repository:1234567890', '1234567890', 1024,
+            '2025-01-01T00:00:00.000000-00:00',
+        ),
         ('000000000000.dkr.ecr.us-east-1/test-repository:1', '1', 1024, '2025-01-01T00:00:00.000000-00:00'),
         ('000000000000.dkr.ecr.us-east-1/test-repository', None, 1024, '2025-01-01T00:00:00.000000-00:00'),
     }

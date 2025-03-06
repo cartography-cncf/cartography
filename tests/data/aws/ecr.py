@@ -28,29 +28,29 @@ DESCRIBE_REPOSITORIES = {
 }
 DESCRIBE_IMAGES = {
     'imageDetails':
-         {
-             "registryId": "000000000000",
-             "imageSizeInBytes": 1024,
-             "imagePushedAt": "2025-01-01T00:00:00.000000-00:00",
-             "imageScanStatus": {
-                 "status": "COMPLETE",
-                 "description": "The scan was completed successfully."
-             },
-             "imageScanFindingsSummary": {
-                 "imageScanCompletedAt": "2025-01-01T00:00:00-00:00",
-                 "vulnerabilitySourceUpdatedAt": "2025-01-01T00:00:00-00:00",
-                 "findingSeverityCounts": {
-                     "CRITICAL": 1,
-                     "HIGH": 1,
-                     "MEDIUM": 1,
-                     "INFORMATIONAL": 1,
-                     "LOW": 1
-                 }
-             },
-             "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
-             "artifactMediaType": "application/vnd.docker.container.image.v1+json",
-             "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00"
-         }
+    {
+        "registryId": "000000000000",
+        "imageSizeInBytes": 1024,
+        "imagePushedAt": "2025-01-01T00:00:00.000000-00:00",
+        "imageScanStatus": {
+            "status": "COMPLETE",
+            "description": "The scan was completed successfully."
+        },
+        "imageScanFindingsSummary": {
+            "imageScanCompletedAt": "2025-01-01T00:00:00-00:00",
+            "vulnerabilitySourceUpdatedAt": "2025-01-01T00:00:00-00:00",
+            "findingSeverityCounts": {
+                "CRITICAL": 1,
+                "HIGH": 1,
+                "MEDIUM": 1,
+                "INFORMATIONAL": 1,
+                "LOW": 1
+            }
+        },
+        "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "artifactMediaType": "application/vnd.docker.container.image.v1+json",
+        "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00"
+    }
  }
 
 LIST_REPOSITORY_IMAGES = {
