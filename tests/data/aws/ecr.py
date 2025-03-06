@@ -45,12 +45,12 @@ DESCRIBE_IMAGES = {
                 "MEDIUM": 1,
                 "INFORMATIONAL": 1,
                 "LOW": 1,
-            }
+            },
         },
         "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
         "artifactMediaType": "application/vnd.docker.container.image.v1+json",
         "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00",
-    }
+    },
  }
 
 LIST_REPOSITORY_IMAGES = {
