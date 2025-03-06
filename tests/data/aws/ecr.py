@@ -57,7 +57,7 @@ LIST_REPOSITORY_IMAGES = {
     '000000000000.dkr.ecr.us-east-1/example-repository': [
         {
             'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
-            'imageTags': '1',
+            'imageTag': '1',
             'repositoryName': 'example-repository',
             **DESCRIBE_IMAGES['imageDetails'],
         },
