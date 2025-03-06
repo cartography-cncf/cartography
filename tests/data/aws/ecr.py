@@ -34,7 +34,7 @@ DESCRIBE_IMAGES = {
         "imagePushedAt": "2025-01-01T00:00:00.000000-00:00",
         "imageScanStatus": {
             "status": "COMPLETE",
-            "description": "The scan was completed successfully."
+            "description": "The scan was completed successfully.",
         },
         "imageScanFindingsSummary": {
             "imageScanCompletedAt": "2025-01-01T00:00:00-00:00",
@@ -44,12 +44,12 @@ DESCRIBE_IMAGES = {
                 "HIGH": 1,
                 "MEDIUM": 1,
                 "INFORMATIONAL": 1,
-                "LOW": 1
+                "LOW": 1,
             }
         },
         "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
         "artifactMediaType": "application/vnd.docker.container.image.v1+json",
-        "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00"
+        "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00",
     }
  }
 
