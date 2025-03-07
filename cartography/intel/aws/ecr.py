@@ -37,6 +37,8 @@ def get_ecr_repository_images(boto3_session: boto3.session.Session, region: str,
     ecr_repository_images: List[Dict] = []
     for page in list_paginator.paginate(repositoryName=repository_name):
         image_ids = page['imageIds']
+        if not image_ids:
+            continue
         describe_paginator = client.get_paginator('describe_images')
         describe_response = describe_paginator.paginate(repositoryName=repository_name, imageIds=image_ids)
         for response in describe_response:
