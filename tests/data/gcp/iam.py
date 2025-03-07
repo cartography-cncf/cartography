@@ -1,78 +1,63 @@
 # flake8: noqa
 # Source: https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles#Role
-LIST_ROLES_RESPONSE = {
-    "roles": [
+LIST_ORG_ROLES_RESPONSE = {
+    'roles': [
         {
-            "name": "projects/project-123/roles/customRole1",
-            "title": "Custom Role 1",
-            "description": "This is a custom project role",
-            "includedPermissions": [
-                "iam.roles.get",
-                "iam.roles.list",
-                "storage.buckets.get",
-                "storage.buckets.list",
-            ],
-            "stage": "GA",
-            "etag": "etag_123",
-            "deleted": False,
-            "version": 1,
+            'name': 'roles/viewer',
+            'title': 'Viewer',
+            'description': 'Read-only access.',
+            'includedPermissions': ['storage.buckets.get', 'storage.buckets.list'],
+            'etag': 'abc123',
         },
         {
-            "name": "roles/editor",
-            "title": "Editor",
-            "description": "Edit access to all resources.",
-            "includedPermissions": [
-                "storage.buckets.get",
-                "storage.buckets.list",
-                "storage.buckets.update",
-                "storage.objects.create",
-                "storage.objects.delete",
-            ],
-            "stage": "GA",
-            "etag": "etag_456",
-            "deleted": False,
-            "version": 1,
+            'name': 'organizations/123456789/roles/customOrgRole',
+            'title': 'Custom Org Role',
+            'description': 'A custom organization-level role',
+            'includedPermissions': ['storage.buckets.get'],
+            'etag': 'def456',
+        },
+    ],
+}
+
+LIST_PROJECT_ROLES_RESPONSE = {
+    'roles': [
+        {
+            'name': 'projects/project-123/roles/customRole1',
+            'title': 'Custom Project Role 1',
+            'description': 'A custom project-level role',
+            'includedPermissions': ['storage.buckets.get'],
+            'etag': 'ghi789',
         },
         {
-            "name": "projects/project-123/roles/customRole2",
-            "title": "Custom Role 2",
-            "description": "This is a deleted custom role",
-            "includedPermissions": [
-                "iam.serviceAccounts.get",
-                "iam.serviceAccounts.list",
-            ],
-            "stage": "DISABLED",
-            "etag": "etag_789",
-            "deleted": True,
-            "version": 2,
+            'name': 'projects/project-123/roles/customRole2',
+            'title': 'Custom Project Role 2',
+            'description': 'Another custom project-level role',
+            'includedPermissions': ['storage.buckets.list'],
+            'etag': 'jkl012',
         },
     ],
 }
 
 # Source: https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts#resource:-serviceaccount
 LIST_SERVICE_ACCOUNTS_RESPONSE = {
-    "accounts": [
+    'accounts': [
         {
-            "name": "projects/project-123/serviceAccounts/service-account-1@project-123.iam.gserviceaccount.com",
-            "projectId": "project-123",
-            "uniqueId": "112233445566778899",
-            "email": "service-account-1@project-123.iam.gserviceaccount.com",
-            "displayName": "Service Account 1",
-            "etag": "etag_123",
-            "description": "Test service account 1",
-            "oauth2ClientId": "112233445566778899",
-            "disabled": False,
+            'name': 'projects/project-123/serviceAccounts/112233445566778899',
+            'projectId': 'project-123',
+            'uniqueId': '112233445566778899',
+            'email': 'service-1@project-123.iam.gserviceaccount.com',
+            'displayName': 'Service Account 1',
+            'etag': 'mno345',
+            'oauth2ClientId': '112233445566778899',
         },
         {
-            "name": "projects/project-123/serviceAccounts/service-account-2@project-123.iam.gserviceaccount.com",
-            "projectId": "project-123",
-            "uniqueId": "998877665544332211",
-            "email": "service-account-2@project-123.iam.gserviceaccount.com",
-            "displayName": "Service Account 2",
-            "etag": "etag_456",
-            "description": "Test service account 2",
-            "oauth2ClientId": "998877665544332211",
-            "disabled": True,
+            'name': 'projects/project-123/serviceAccounts/998877665544332211',
+            'projectId': 'project-123',
+            'uniqueId': '998877665544332211',
+            'email': 'service-2@project-123.iam.gserviceaccount.com',
+            'displayName': 'Service Account 2',
+            'etag': 'pqr678',
+            'oauth2ClientId': '998877665544332211',
         },
     ],
 }
