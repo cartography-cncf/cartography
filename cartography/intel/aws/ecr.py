@@ -36,7 +36,10 @@ def get_ecr_repository_images(boto3_session: boto3.session.Session, region: str,
     paginator = client.get_paginator('list_images')
     ecr_repository_images: List[Dict] = []
     for page in paginator.paginate(repositoryName=repository_name):
-        ecr_repository_images.extend(page['imageIds'])
+        image_ids = page['imageIds']
+        if image_ids:
+            response = client.describe_images(repositoryName=repository_name, imageIds=image_ids)
+            ecr_repository_images.extend(response['imageDetails'])
     return ecr_repository_images
 
 
@@ -103,7 +106,12 @@ def _load_ecr_repo_img_tx(
         ON CREATE SET ri.firstseen = timestamp()
         SET ri.lastupdated = $aws_update_tag,
             ri.tag = repo_img.imageTag,
-            ri.uri = repo_img.repo_uri + COALESCE(":" + repo_img.imageTag, '')
+            ri.uri = repo_img.repo_uri + COALESCE(":" + repo_img.imageTag, ''),
+            ri.image_size_bytes = repo_img.imageSizeInBytes,
+            ri.image_pushed_at = repo_img.imagePushedAt,
+            ri.image_manifest_media_type = repo_img.imageManifestMediaType,
+            ri.artifact_media_type = repo_img.artifactMediaType,
+            ri.last_recorded_pull_time = repo_img.lastRecordedPullTime
         WITH ri, repo_img
 
         MERGE (img:ECRImage{id: repo_img.imageDigest})

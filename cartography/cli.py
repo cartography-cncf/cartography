@@ -439,9 +439,10 @@ class CLI:
             '--gsuite-auth-method',
             type=str,
             default='delegated',
-            choices=['delegated', 'oauth'],
+            choices=['delegated', 'oauth', 'default'],
             help=(
-                'The method used by GSuite to authenticate. delegated is the legacy one.'
+                'GSuite authentication method. Can be "delegated" for service account or "oauth" for OAuth. '
+                '"Default" best if using gcloud CLI.'
             ),
         )
         parser.add_argument(

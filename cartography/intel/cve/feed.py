@@ -212,19 +212,19 @@ def transform_cves(cve_json: Dict[Any, Any]) -> List[Dict[Any, Any]]:
             if cvss31:
                 cvss31.update(cvss31["cvssData"])
                 cvss31.pop("cvssData")
-                cve["vectorString"] = cvss31["vectorString"]
-                cve["attackVector"] = cvss31["attackVector"]
-                cve["attackComplexity"] = cvss31["attackComplexity"]
-                cve["privilegesRequired"] = cvss31["privilegesRequired"]
-                cve["userInteraction"] = cvss31["userInteraction"]
-                cve["scope"] = cvss31["scope"]
-                cve["confidentialityImpact"] = cvss31["confidentialityImpact"]
-                cve["integrityImpact"] = cvss31["integrityImpact"]
-                cve["availabilityImpact"] = cvss31["availabilityImpact"]
-                cve["baseScore"] = cvss31["baseScore"]
-                cve["baseSeverity"] = cvss31["baseSeverity"]
-                cve["exploitabilityScore"] = cvss31["exploitabilityScore"]
-                cve["impactScore"] = cvss31["impactScore"]
+                cve["vectorString"] = cvss31.get("vectorString")
+                cve["attackVector"] = cvss31.get("attackVector")
+                cve["attackComplexity"] = cvss31.get("attackComplexity")
+                cve["privilegesRequired"] = cvss31.get("privilegesRequired")
+                cve["userInteraction"] = cvss31.get("userInteraction")
+                cve["scope"] = cvss31.get("scope")
+                cve["confidentialityImpact"] = cvss31.get("confidentialityImpact")
+                cve["integrityImpact"] = cvss31.get("integrityImpact")
+                cve["availabilityImpact"] = cvss31.get("availabilityImpact")
+                cve["baseScore"] = cvss31.get("baseScore")
+                cve["baseSeverity"] = cvss31.get("baseSeverity")
+                cve["exploitabilityScore"] = cvss31.get("exploitabilityScore")
+                cve["impactScore"] = cvss31.get("impactScore")
         except Exception:
             logger.error("Failed to transform CVE data {data}")
             raise
