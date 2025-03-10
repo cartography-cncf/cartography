@@ -640,48 +640,67 @@ Representation of an IP range or subnet.
 
 ### GCPServiceAccount
 
-Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts).
+Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts). Service accounts are special accounts that represent non-human users, typically used for automated services and applications.
 
-| Field          | Description                                                                                     |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| id             | The unique identifier for the service account.                                                  |
-| email          | The email address associated with the service account.                                          |
-| displayName    | The display name of the service account.                                                        |
-| oauth2ClientId | The OAuth2 client ID associated with the service account.                                       |
-| uniqueId       | The unique ID of the service account.                                                           |
-| disabled       | A boolean indicating if the service account is disabled.                                        |
-| lastupdated    | The timestamp of the last update.                                                               |
-| projectId      | The ID of the GCP project to which the service account belongs.                                 |
+| Field | Description |
+|-------|-------------|
+| id | The unique identifier for the service account |
+| email | The email address associated with the service account (unique within GCP) |
+| display_name | A human-readable display name for the service account |
+| oauth2_client_id | The OAuth2 client ID associated with the service account |
+| unique_id | Another unique identifier for the service account |
+| disabled | Boolean indicating if the service account is disabled |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of when the node was last updated |
+| project_id | The ID of the GCP project that owns this service account |
+
+#### Node Labels
+- `GCPServiceAccount`
 
 #### Relationships
-
-- GCPServiceAccounts are resources of GCPProjects.
-
+- GCPServiceAccounts belong to GCPProjects:
     ```
-    (GCPServiceAccount)-[RESOURCE]->(GCPProject)
+    (GCPServiceAccount)<-[RESOURCE]-(GCPProject)
     ```
 
 ### GCPRole
 
-Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).
+Representation of a GCP [IAM Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles). Roles can exist at both the organization and project level, and can be of different types.
 
-| Field               | Description                                                                 |
-| ------------------- | --------------------------------------------------------------------------- |
-| id                  | The unique identifier for the role.                                         |
-| name                | The name of the role.                                                       |
-| title               | The title of the role.                                                      |
-| description         | A description of the role.                                                  |
-| deleted             | A boolean indicating if the role is deleted.                                |
-| etag                | The ETag of the role.                                                       |
-| includedPermissions | A list of permissions included in the role.                                 |
-| roleType            | The type of the role (e.g., BASIC, PREDEFINED, CUSTOM).                     |
-| lastupdated         | The timestamp of the last update.                                           |
-| projectId           | The ID of the GCP project to which the role belongs.                        |
+| Field | Description |
+|-------|-------------|
+| id | The unique identifier for the role |
+| name | The resource name of the role in the format: `projects/*/roles/*` for project-level or `organizations/*/roles/*` for org-level |
+| title | Human-readable title of the role |
+| description | Optional description of the role's purpose |
+| deleted | Boolean indicating if the role has been deleted |
+| etag | Used for optimistic concurrency control |
+| permissions | List of permissions granted by this role |
+| role_type | One of: `BASIC` (owner/editor/viewer), `PREDEFINED` (built-in GCP roles), or `CUSTOM` (user-defined) |
+| scope | One of: `PROJECT`, `ORGANIZATION`, or `GLOBAL` |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of when the node was last updated |
+| organization_id | The ID of the GCP organization this role belongs to (if org-scoped) |
+
+#### Role Types
+- **BASIC**: The fundamental roles (owner, editor, viewer)
+- **PREDEFINED**: Google-managed roles like `roles/compute.admin`
+- **CUSTOM**: User-created roles specific to an organization or project
+
+#### Scope Types
+- **GLOBAL**: Available across all projects and organizations
+- **ORGANIZATION**: Custom roles available only within a specific organization
+- **PROJECT**: Custom roles available only within a specific project
 
 #### Relationships
-
-- GCPRoles are resources of GCPProjects.
-
+- GCPRoles can belong to GCPOrganizations:
     ```
-    (GCPRole)-[RESOURCE]->(GCPProject)
+    (GCPRole)<-[RESOURCE]-(GCPOrganization)
     ```
+
+- GCPRoles can belong to GCPProjects:
+    ```
+    (GCPRole)<-[RESOURCE]-(GCPProject)
+    ```
+
+Note: A role's scope and relationships help determine its visibility and applicability within the GCP resource hierarchy. Organization-level roles are accessible to all projects within that organization, while project-level roles are confined to their specific project.
