@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="lang:clipboard.copy" content="Copy to clipboard">
+  <meta name="lang:clipboard.copied" content="Copied to clipboard">
+  <meta name="lang:search.language" content="en">
+  <meta name="lang:search.pipeline.stopwords" content="True">
+  <meta name="lang:search.pipeline.trimmer" content="True">
+  <meta name="lang:search.result.none" content="No matching documents">
+  <meta name="lang:search.result.one" content="1 matching document">
+  <meta name="lang:search.result.other" content="# matching documents">
+  <meta name="lang:search.tokenizer" content="[\s\-]+">
+
+  
+    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
+
+    <style>
+      body,
+      input {
+        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
+      }
+
+      code,
+      kbd,
+      pre {
+        font-family: "Roboto Mono", "Courier New", Courier, monospace
+      }
+    </style>
+  
+
+  <link rel="stylesheet" href="../_static/stylesheets/application.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-palette.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-fixes.css"/>
+  
+  <link rel="stylesheet" href="../_static/fonts/material-icons.css"/>
+  
+  <meta name="theme-color" content="#3f51b5">
+  <script src="../_static/javascripts/modernizr.js"></script>
+  
+  
+  
+    <title>Usage Tutorial &#8212; cartography  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=75810a84" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css?v=79c92029" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="icon" href="../_static/logo-vertical.svg"/>
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="How to use Drift-Detection" href="drift-detect.html" />
+    <link rel="prev" title="Usage" href="index.html" />
+  
+   
+
+  </head>
+  <body dir=ltr
+        data-md-color-primary=blue-grey data-md-color-accent=blue>
+  
+  <svg class="md-svg">
+    <defs data-children-count="0">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
+      
+    </defs>
+  </svg>
+  
+  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
+  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
+  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+  <a href="#usage/tutorial" tabindex="1" class="md-skip"> Skip to content </a>
+  <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex navheader">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../index.html" title="cartography  documentation"
+           class="md-header-nav__button md-logo">
+          
+            &nbsp;
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          <span class="md-header-nav__topic">cartography  documentation</span>
+          <span class="md-header-nav__topic"> Usage Tutorial </span>
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+        
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" action="../search.html" method="get" name="search">
+      <input type="text" class="md-search__input" name="q" placeholder=""Search""
+             autocapitalize="off" autocomplete="off" spellcheck="false"
+             data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+          </div>
+        </div>
+      
+      
+  
+  <script src="../_static/javascripts/version_dropdown.js"></script>
+  <script>
+    var json_loc = "../"versions.json"",
+        target_loc = "../../",
+        text = "Versions";
+    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
+  </script>
+  
+
+    </div>
+  </nav>
+</header>
+
+  
+  <div class="md-container">
+    
+    
+    
+  <nav class="md-tabs" data-md-component="tabs">
+    <div class="md-tabs__inner md-grid">
+      <ul class="md-tabs__list">
+          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">cartography  documentation</a></li>
+          <li class="md-tabs__item"><a href="index.html" class="md-tabs__link">Usage</a></li>
+      </ul>
+    </div>
+  </nav>
+    <main class="md-main">
+      <div class="md-main__inner md-grid" data-md-component="container">
+        
+          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="../index.html" title="cartography documentation" class="md-nav__button md-logo">
+      
+        <img src="../_static/" alt=" logo" width="48" height="48">
+      
+    </a>
+    <a href="../index.html"
+       title="cartography documentation">cartography  documentation</a>
+  </label>
+    <div class="md-nav__source">
+      <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+    </div>
+  
+  
+
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+    
+      <a href="../info.html" class="md-nav__link">What is Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../info.html#why-cartography" class="md-nav__link">Why Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Basic Use</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../install.html" class="md-nav__link">Install and Run Cartography On Test Machine</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="index.html" class="md-nav__link">Usage</a>
+      <ul class="md-nav__list"> 
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Usage Tutorial </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">Usage Tutorial</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#usage-tutorial--page-root" class="md-nav__link">Usage Tutorial</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#what-rds-instances-are-installed-in-my-aws-accounts" class="md-nav__link">What RDS instances are installed in my AWS accounts?</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#i-protip-customizing-your-view" class="md-nav__link">ℹ️ Protip - customizing your view</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#which-rds-instances-have-encryption-turned-off" class="md-nav__link">Which RDS instances have encryption turned off?</a>
+        </li>
+        <li class="md-nav__item"><a href="#which-ec2-instances-are-directly-exposed-to-the-internet" class="md-nav__link">Which EC2 instances are directly exposed to the internet?</a>
+        </li>
+        <li class="md-nav__item"><a href="#which-s3-buckets-have-a-policy-granting-any-level-of-anonymous-access-to-the-bucket" class="md-nav__link">Which S3 buckets have a policy granting any level of anonymous access to the bucket?</a>
+        </li>
+        <li class="md-nav__item"><a href="#how-many-unencrypted-rds-instances-do-i-have-in-all-my-aws-accounts" class="md-nav__link">How many unencrypted RDS instances do I have in all my AWS accounts?</a>
+        </li>
+        <li class="md-nav__item"><a href="#given-a-node-label-what-other-node-labels-can-be-connected-to-it" class="md-nav__link">Given a node label, what other node labels can be connected to it?</a>
+        </li>
+        <li class="md-nav__item"><a href="#given-a-node-label-what-are-the-possible-property-names-defined-on-it" class="md-nav__link">Given a node label, what are the possible property names defined on it?</a>
+        </li>
+        <li class="md-nav__item"><a href="#learning-more" class="md-nav__link">Learning more</a>
+        </li>
+        <li class="md-nav__item"><a href="#data-enrichment" class="md-nav__link">Data Enrichment</a>
+        </li>
+        <li class="md-nav__item"><a href="#extending-cartography-with-analysis-jobs" class="md-nav__link">Extending Cartography with Analysis Jobs</a>
+        </li>
+        <li class="md-nav__item"><a href="#mapping-aws-access-permissions" class="md-nav__link">Mapping AWS Access Permissions</a>
+        </li>
+        <li class="md-nav__item"><a href="#permalinking-bookmarklet" class="md-nav__link">Permalinking Bookmarklet</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/usage/tutorial.md.txt">Show Source</a> </li>
+
+  </ul>
+</nav>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="drift-detect.html" class="md-nav__link">How to use Drift-Detection</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="samplequeries.html" class="md-nav__link">Sample queries</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="schema.html" class="md-nav__link">Cartography Schema</a>
+      
+    
+    </li></ul>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../ops.html" class="md-nav__link">Cartography Production Operations</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Intel Modules</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/aws/index.html" class="md-nav__link">Amazon Web Services (AWS)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/azure/index.html" class="md-nav__link">Microsoft Azure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/bigfix/index.html" class="md-nav__link">BigFix</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/crowdstrike/index.html" class="md-nav__link">Crowdstrike</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/cve/index.html" class="md-nav__link">CVE</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/digitalocean/index.html" class="md-nav__link">DigitalOcean</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/duo/index.html" class="md-nav__link">Duo</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/gcp/index.html" class="md-nav__link">Google Cloud Compute (GCP)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/github/index.html" class="md-nav__link">Github</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/gsuite/index.html" class="md-nav__link">Google GSuite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/jamf/index.html" class="md-nav__link">Jamf</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/kandji/index.html" class="md-nav__link">Kandji</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/kubernetes/index.html" class="md-nav__link">Kubernetes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/lastpass/index.html" class="md-nav__link">Lastpass</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/oci/index.html" class="md-nav__link">Oracle Cloud Infrastructure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/okta/index.html" class="md-nav__link">Okta</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/pagerduty/index.html" class="md-nav__link">PagerDuty</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/semgrep/index.html" class="md-nav__link">Semgrep</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/snipeit/index.html" class="md-nav__link">SnipeIT</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Development Docs</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../dev/index.html" class="md-nav__link">Developer docs</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Get In Touch</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../contact.html" class="md-nav__link">Contact</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../contact.html#community-meeting" class="md-nav__link">Community Meeting</a>
+      
+    
+    </li>
+  </ul>
+  
+
+</nav>
+              </div>
+            </div>
+          </div>
+          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#usage-tutorial--page-root" class="md-nav__link">Usage Tutorial</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#what-rds-instances-are-installed-in-my-aws-accounts" class="md-nav__link">What RDS instances are installed in my AWS accounts?</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#i-protip-customizing-your-view" class="md-nav__link">ℹ️ Protip - customizing your view</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#which-rds-instances-have-encryption-turned-off" class="md-nav__link">Which RDS instances have encryption turned off?</a>
+        </li>
+        <li class="md-nav__item"><a href="#which-ec2-instances-are-directly-exposed-to-the-internet" class="md-nav__link">Which EC2 instances are directly exposed to the internet?</a>
+        </li>
+        <li class="md-nav__item"><a href="#which-s3-buckets-have-a-policy-granting-any-level-of-anonymous-access-to-the-bucket" class="md-nav__link">Which S3 buckets have a policy granting any level of anonymous access to the bucket?</a>
+        </li>
+        <li class="md-nav__item"><a href="#how-many-unencrypted-rds-instances-do-i-have-in-all-my-aws-accounts" class="md-nav__link">How many unencrypted RDS instances do I have in all my AWS accounts?</a>
+        </li>
+        <li class="md-nav__item"><a href="#given-a-node-label-what-other-node-labels-can-be-connected-to-it" class="md-nav__link">Given a node label, what other node labels can be connected to it?</a>
+        </li>
+        <li class="md-nav__item"><a href="#given-a-node-label-what-are-the-possible-property-names-defined-on-it" class="md-nav__link">Given a node label, what are the possible property names defined on it?</a>
+        </li>
+        <li class="md-nav__item"><a href="#learning-more" class="md-nav__link">Learning more</a>
+        </li>
+        <li class="md-nav__item"><a href="#data-enrichment" class="md-nav__link">Data Enrichment</a>
+        </li>
+        <li class="md-nav__item"><a href="#extending-cartography-with-analysis-jobs" class="md-nav__link">Extending Cartography with Analysis Jobs</a>
+        </li>
+        <li class="md-nav__item"><a href="#mapping-aws-access-permissions" class="md-nav__link">Mapping AWS Access Permissions</a>
+        </li>
+        <li class="md-nav__item"><a href="#permalinking-bookmarklet" class="md-nav__link">Permalinking Bookmarklet</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/usage/tutorial.md.txt">Show Source</a> </li>
+
+<li id="searchbox" class="md-nav__item"></li>
+
+  </ul>
+</nav>
+              </div>
+            </div>
+          </div>
+        
+        <div class="md-content">
+          <article class="md-content__inner md-typeset" role="main">
+            
+  <section id="usage-tutorial">
+<h1 id="usage-tutorial--page-root">Usage Tutorial<a class="headerlink" href="#usage-tutorial--page-root" title="Link to this heading">¶</a></h1>
+<p>Once everything has been installed and synced, you can view the Neo4j web interface at <a class="reference external" href="http://localhost:7474">http://localhost:7474</a>. You can view the reference on this <a class="reference external" href="https://neo4j.com/developer/guide-neo4j-browser/#_installing_and_starting_neo4j_browser">here</a>.</p>
+<p>If you already know Neo4j and just need to know what are the nodes, attributes, and graph relationships for our representation of infrastructure assets, you can view our <a class="reference external" href="samplequeries.html">sample queries</a>. More sample queries are available at <a class="reference external" href="https://github.com/marco-lancini/cartography-queries">https://github.com/marco-lancini/cartography-queries</a>.</p>
+<p>Otherwise, read on for this handhold-y tutorial filled with examples. Suppose we wanted to find out:</p>
+<section id="what-rds-instances-are-installed-in-my-aws-accounts">
+<h2 id="what-rds-instances-are-installed-in-my-aws-accounts">What <a class="reference external" href="https://aws.amazon.com/rds/">RDS</a> instances are installed in my AWS accounts?<a class="headerlink" href="#what-rds-instances-are-installed-in-my-aws-accounts" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">aws</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="o">-[</span><span class="n">r</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">rds</span><span class="p">:</span><span class="n">RDSInstance</span><span class="p">)</span>
+<span class="k">return</span><span class="w"> </span><span class="p">*</span>
+</pre></div>
+</div>
+<a class="reference external image-reference" href="../images/accountsandrds.png"><img alt="Visualization of RDS nodes and AWS nodes" src="../_images/accountsandrds.png"/>
+</a>
+<p>In this query we asked Neo4j to find all <code class="docutils literal notranslate"><span class="pre">[:RESOURCE]</span></code> relationships from AWSAccounts to RDSInstances, and return the nodes and the <code class="docutils literal notranslate"><span class="pre">:RESOURCE</span></code> relationships.</p>
+<p>We will do more interesting things with this result next.</p>
+<section id="i-protip-customizing-your-view">
+<h3 id="i-protip-customizing-your-view">ℹ️ Protip - customizing your view<a class="headerlink" href="#i-protip-customizing-your-view" title="Link to this heading">¶</a></h3>
+<p>You can adjust the node colors, sizes, and captions by clicking on the node type at the top of the query. For example, to change the color of an AWSAccount node, first click the “AWSAccount” icon at the top of the view to select the node type</p>
+<a class="reference external image-reference" href="../images/selectnode.png"><img alt="selecting an AWSAccount node" src="../_images/selectnode.png"/>
+</a>
+<p>and then pick options on the menu that shows up at the bottom of the view like this:</p>
+<a class="reference external image-reference" href="../images/customizeview.png"><img alt="customizations" src="../_images/customizeview.png"/>
+</a>
+</section>
+</section>
+<section id="which-rds-instances-have-encryption-turned-off">
+<h2 id="which-rds-instances-have-encryption-turned-off">Which RDS instances have <a class="reference external" href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html">encryption</a> turned off?<a class="headerlink" href="#which-rds-instances-have-encryption-turned-off" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">rds</span><span class="p">:</span><span class="n">RDSInstance</span><span class="p">{</span><span class="n">storage_encrypted</span><span class="p">:</span><span class="k">false</span><span class="p">})</span>
+<span class="k">RETURN</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">rds</span><span class="p">.</span><span class="n">id</span>
+</pre></div>
+</div>
+<a class="reference external image-reference" href="../images/unencryptedinstances.png"><img alt="Unencrypted RDS instances" src="../_images/unencryptedinstances.png"/>
+</a>
+<p>The results show up in a table because we specified attributes like <code class="docutils literal notranslate"><span class="pre">a.name</span></code> and <code class="docutils literal notranslate"><span class="pre">rds.id</span></code> in our return statement (as opposed to having it <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">*</span></code>). We used the “{}” notation to have the query only return RDSInstances where <code class="docutils literal notranslate"><span class="pre">storage_encrypted</span></code> is set to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+<p>If you want to go back to viewing the graph and not a table, simply make sure you don’t have any attributes in your return statement – use <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">*</span></code> to return all nodes decorated with a variable label in your <code class="docutils literal notranslate"><span class="pre">MATCH</span></code> statement, or just return the specific nodes and relationships that you want.</p>
+<p>Let’s look at some other AWS assets now.</p>
+</section>
+<section id="which-ec2-instances-are-directly-exposed-to-the-internet">
+<h2 id="which-ec2-instances-are-directly-exposed-to-the-internet">Which <a class="reference external" href="https://aws.amazon.com/ec2/">EC2</a> instances are directly exposed to the internet?<a class="headerlink" href="#which-ec2-instances-are-directly-exposed-to-the-internet" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">instance</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">{</span><span class="n">exposed_internet</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">})</span>
+<span class="k">RETURN</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">instanceid</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">publicdnsname</span>
+</pre></div>
+</div>
+<a class="reference external image-reference" href="../images/ec2-inet-open.png"><img alt="EC2 instances open to the internet" src="../_images/ec2-inet-open.png"/>
+</a>
+<p>These instances are open to the internet either through permissive inbound IP permissions defined on their EC2SecurityGroups or their NetworkInterfaces.</p>
+<p>If you know a lot about AWS, you may have noticed that EC2 instances <a class="reference external" href="https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html">don’t actually have an exposed_internet field</a>. We’re able to query for this because Cartography performs some <span class="xref std std-ref">data enrichment</span> to add this field to EC2Instance nodes.</p>
+</section>
+<section id="which-s3-buckets-have-a-policy-granting-any-level-of-anonymous-access-to-the-bucket">
+<h2 id="which-s3-buckets-have-a-policy-granting-any-level-of-anonymous-access-to-the-bucket">Which <a class="reference external" href="https://aws.amazon.com/s3/">S3</a> buckets have a policy granting any level of anonymous access to the bucket?<a class="headerlink" href="#which-s3-buckets-have-a-policy-granting-any-level-of-anonymous-access-to-the-bucket" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="n">S3Bucket</span><span class="p">)</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">anonymous_access</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">true</span>
+<span class="k">RETURN</span><span class="w"> </span><span class="n">s</span>
+</pre></div>
+</div>
+<a class="reference external image-reference" href="../images/anonbuckets.png"><img alt="S3 buckets that allow anon access" src="../_images/anonbuckets.png"/>
+</a>
+<p>These S3 buckets allow for any user to read data from them anonymously. Similar to the EC2 instance example above, S3 buckets returned by the S3 API <a class="reference external" href="https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html">don’t actually have an anonymous_access field</a> and this field is added by one of Cartography’s <a class="reference internal" href="#data-augmentation"><span class="std std-ref">data augmentation steps</span></a>.</p>
+<p>A couple of other things to notice: instead of using the “{}” notation to filter for anonymous buckets, we can use SQL-style <code class="docutils literal notranslate"><span class="pre">WHERE</span></code> clauses. Also, we used the SQL-style <code class="docutils literal notranslate"><span class="pre">AS</span></code> operator to relabel our output header rows.</p>
+</section>
+<section id="how-many-unencrypted-rds-instances-do-i-have-in-all-my-aws-accounts">
+<h2 id="how-many-unencrypted-rds-instances-do-i-have-in-all-my-aws-accounts">How many unencrypted RDS instances do I have in all my AWS accounts?<a class="headerlink" href="#how-many-unencrypted-rds-instances-do-i-have-in-all-my-aws-accounts" title="Link to this heading">¶</a></h2>
+<p>Let’s go back to analyzing RDS instances. In an earlier example we queried for RDS instances that have encryption turned off. We can aggregate this data by AWSAccount with a small change:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">rds</span><span class="p">:</span><span class="n">RDSInstance</span><span class="p">)</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">rds</span><span class="p">.</span><span class="n">storage_encrypted</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">false</span>
+<span class="k">RETURN</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">AWSAccount</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">(</span><span class="n">rds</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">UnencryptedInstances</span>
+</pre></div>
+</div>
+<a class="reference external image-reference" href="../images/unencryptedcounts.png"><img alt="Table of unencrypted RDS instances by AWS account" src="../_images/unencryptedcounts.png"/>
+</a>
+</section>
+<section id="given-a-node-label-what-other-node-labels-can-be-connected-to-it">
+<h2 id="given-a-node-label-what-other-node-labels-can-be-connected-to-it">Given a node label, what other node labels can be connected to it?<a class="headerlink" href="#given-a-node-label-what-other-node-labels-can-be-connected-to-it" title="Link to this heading">¶</a></h2>
+<p>Suppose we wanted to know what other assets can be connected to a DNSRecord. We would ask the graph like this:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">match</span><span class="w"> </span><span class="p">(</span><span class="n">d</span><span class="p">:</span><span class="n">DNSRecord</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+<span class="k">return</span><span class="w"> </span><span class="k">distinct</span><span class="w"> </span><span class="n">labels</span><span class="p">(</span><span class="n">n</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This says “what are the possible labels for all nodes connected to all DNSRecord nodes <code class="docutils literal notranslate"><span class="pre">d</span></code> in my graph?” Your answer might look like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="s2">"AWSDNSRecord"</span><span class="p">,</span> <span class="s2">"DNSRecord"</span><span class="p">]</span>
+<span class="p">[</span><span class="s2">"AWSDNSZone"</span><span class="p">,</span> <span class="s2">"DNSZone"</span><span class="p">]</span>
+<span class="p">[</span><span class="s2">"LoadBalancerV2"</span><span class="p">]</span>
+<span class="p">[</span><span class="s2">"NameServer"</span><span class="p">]</span>
+<span class="p">[</span><span class="s2">"ESDomain"</span><span class="p">]</span>
+<span class="p">[</span><span class="s2">"LoadBalancer"</span><span class="p">]</span>
+<span class="p">[</span><span class="s2">"EC2Instance"</span><span class="p">,</span> <span class="s2">"Instance"</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>You can then make the path more specific like this:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">match</span><span class="w"> </span><span class="p">(</span><span class="n">d</span><span class="p">:</span><span class="n">DNSRecord</span><span class="p">)</span><span class="err">--</span><span class="p">(:</span><span class="n">EC2Instance</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+<span class="k">return</span><span class="w"> </span><span class="k">distinct</span><span class="w"> </span><span class="n">labels</span><span class="p">(</span><span class="n">n</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>And then you can continue building your query.</p>
+<p>We also include <a class="reference external" href="schema.html">full schema docs</a>, but this way of building a query can be faster and more interactive.</p>
+</section>
+<section id="given-a-node-label-what-are-the-possible-property-names-defined-on-it">
+<h2 id="given-a-node-label-what-are-the-possible-property-names-defined-on-it">Given a node label, what are the possible property names defined on it?<a class="headerlink" href="#given-a-node-label-what-are-the-possible-property-names-defined-on-it" title="Link to this heading">¶</a></h2>
+<p>We can find what properties are available on an S3Bucket like this:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">match</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="p">:</span><span class="n">S3Bucket</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">properties</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="k">limit</span><span class="w"> </span><span class="m">1</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The result will look like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">"bucket_key_enabled"</span><span class="p">:</span> <span class="n">false</span><span class="p">,</span>
+  <span class="s2">"creationdate"</span><span class="p">:</span> <span class="s2">"2022-05-10 00:22:52+00:00"</span><span class="p">,</span>
+  <span class="s2">"ignore_public_acls"</span><span class="p">:</span> <span class="n">true</span><span class="p">,</span>
+  <span class="s2">"anonymous_access"</span><span class="p">:</span> <span class="n">false</span><span class="p">,</span>
+  <span class="s2">"firstseen"</span><span class="p">:</span> <span class="mi">1652400141863</span><span class="p">,</span>
+  <span class="s2">"block_public_policy"</span><span class="p">:</span> <span class="n">true</span><span class="p">,</span>
+  <span class="s2">"versioning_status"</span><span class="p">:</span> <span class="s2">"Enabled"</span><span class="p">,</span>
+  <span class="s2">"block_public_acls"</span><span class="p">:</span> <span class="n">true</span><span class="p">,</span>
+  <span class="s2">"anonymous_actions"</span><span class="p">:</span> <span class="p">[],</span>
+  <span class="s2">"name"</span><span class="p">:</span> <span class="s2">"my-fake-bucket-123"</span><span class="p">,</span>
+  <span class="s2">"lastupdated"</span><span class="p">:</span> <span class="mi">1688605272</span><span class="p">,</span>
+  <span class="s2">"encryption_algorithm"</span><span class="p">:</span> <span class="s2">"AES256"</span><span class="p">,</span>
+  <span class="s2">"default_encryption"</span><span class="p">:</span> <span class="n">true</span><span class="p">,</span>
+  <span class="s2">"id"</span><span class="p">:</span> <span class="s2">"my-fake-bucket-123"</span><span class="p">,</span>
+  <span class="s2">"arn"</span><span class="p">:</span> <span class="s2">"arn:aws:s3:::my-fake-bucket-123"</span><span class="p">,</span>
+  <span class="s2">"restrict_public_buckets"</span><span class="p">:</span> <span class="n">false</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Our <a class="reference external" href="schema.html">full schema docs</a> describe all possible fields, but listing out properties this way lets you avoid switching between browser tabs.</p>
+</section>
+<section id="learning-more">
+<h2 id="learning-more">Learning more<a class="headerlink" href="#learning-more" title="Link to this heading">¶</a></h2>
+<p>If you want to learn more in depth about Neo4j and Cypher queries you can look at <a class="reference external" href="https://neo4j.com/developer/cypher-query-language/">this tutorial</a> and see this <a class="reference external" href="https://neo4j.com/docs/cypher-refcard/current/">reference card</a>.</p>
+</section>
+<section id="data-enrichment">
+<h2 id="data-enrichment">Data Enrichment<a class="headerlink" href="#data-enrichment" title="Link to this heading">¶</a></h2>
+<p id="data-augmentation">Cartography adds custom attributes to nodes and relationships to point out security-related items of interest. Data augmentation jobs meant to apply to the whole graph and run at the end of a sync are stored in <code class="docutils literal notranslate"><span class="pre">cartography/data/jobs/analysis</span></code>. Here is a summary of all of Cartography’s custom attributes.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">exposed_internet</span></code> indicates whether the asset is accessible to the public internet.</p>
+<ul>
+<li><p><strong>Elastic Load Balancers</strong>: The <code class="docutils literal notranslate"><span class="pre">exposed_internet</span></code> flag is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> when the load balancer’s <code class="docutils literal notranslate"><span class="pre">scheme</span></code> field is set to <code class="docutils literal notranslate"><span class="pre">internet-facing</span></code>, and the load balancer has an attached source security group with rules allowing <code class="docutils literal notranslate"><span class="pre">0.0.0.0/0</span></code> ingress on ports or port ranges matching listeners on the load balancer. This scheme indicates that the load balancer has a public DNS name that resolves to a public IP address.</p></li>
+<li><p><strong>Application Load Balancers</strong>: The <code class="docutils literal notranslate"><span class="pre">exposed_internet</span></code> flag is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> when the load balancer’s <code class="docutils literal notranslate"><span class="pre">scheme</span></code> field is set to <code class="docutils literal notranslate"><span class="pre">internet-facing</span></code>, and the load balancer has an attached security group with rules allowing <code class="docutils literal notranslate"><span class="pre">0.0.0.0/0</span></code> ingress on ports or port ranges matching listeners on the load balancer. This scheme indicates that the load balancer has a public DNS name that resolves to a public IP address.</p></li>
+<li><p><strong>EC2 instances</strong>: The <code class="docutils literal notranslate"><span class="pre">exposed_internet</span></code> flag on an EC2 instance is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> when any of following apply:</p>
+<ul>
+<li><p>The instance is part of an EC2 security group or is connected to a network interface connected to an EC2 security group that allows connectivity from the 0.0.0.0/0 subnet.</p></li>
+<li><p>The instance is connected to an Elastic Load Balancer that has its own <code class="docutils literal notranslate"><span class="pre">exposed_internet</span></code> flag set to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p>The instance is connected to a TargetGroup which is attached to a Listener on an Application Load Balancer (elbv2) that has its own <code class="docutils literal notranslate"><span class="pre">exposed_internet</span></code> flag set to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>ElasticSearch domain</strong>: <code class="docutils literal notranslate"><span class="pre">exposed_internet</span></code> is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> if the ElasticSearch domain has a policy applied to it that makes it internet-accessible. This policy determination is made by using the <a class="reference external" href="https://github.com/Netflix-Skunkworks/policyuniverse">policyuniverse</a> library. The code for this augmentation is implemented at <code class="docutils literal notranslate"><span class="pre">cartography.intel.aws.elasticsearch._process_access_policy()</span></code>.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">anonymous_access</span></code> indicates whether the asset allows access without needing to specify an identity.</p>
+<ul>
+<li><p><strong>S3 buckets</strong>: <code class="docutils literal notranslate"><span class="pre">anonymous_access</span></code> is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> on an S3 bucket if this bucket has an S3Acl with a policy applied to it that allows the <a class="reference external" href="https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#specifying-grantee-predefined-groups">predefined AWS “Authenticated Users” or “All Users” groups</a> to access it. These determinations are made by using the <a class="reference external" href="https://github.com/Netflix-Skunkworks/policyuniverse">policyuniverse</a> library.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="extending-cartography-with-analysis-jobs">
+<h2 id="extending-cartography-with-analysis-jobs">Extending Cartography with Analysis Jobs<a class="headerlink" href="#extending-cartography-with-analysis-jobs" title="Link to this heading">¶</a></h2>
+<p>You can add your own custom attributes and relationships without writing Python code!  Here’s <a class="reference external" href="../dev/writing-analysis-jobs.html">how</a>.</p>
+</section>
+<section id="mapping-aws-access-permissions">
+<h2 id="mapping-aws-access-permissions">Mapping AWS Access Permissions<a class="headerlink" href="#mapping-aws-access-permissions" title="Link to this heading">¶</a></h2>
+<p>Cartography can map permissions between IAM Principals and resources in the graph. Here’s <a class="reference external" href="../modules/aws/permissions-mapping.html">how</a>.</p>
+</section>
+<section id="permalinking-bookmarklet">
+<h2 id="permalinking-bookmarklet">Permalinking Bookmarklet<a class="headerlink" href="#permalinking-bookmarklet" title="Link to this heading">¶</a></h2>
+<p>You can set up a bookmarklet that lets you quickly get a permalink to a Cartography query. To do so, add a bookmark with the following contents as the URL - make sure to replace <code class="docutils literal notranslate"><span class="pre">neo4j.contoso.com:7474</span></code> with your instance of Neo4j:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">javascript</span><span class="o">:</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">query</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">querySelectorAll</span><span class="p">(</span><span class="s1">'article label span'</span><span class="p">)[</span><span class="mf">0</span><span class="p">].</span><span class="nx">innerText</span><span class="p">;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">query</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">':server connect'</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'no query has been run!'</span><span class="p">);</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">searchParams</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">URLSearchParams</span><span class="p">();</span><span class="w"> </span><span class="nx">searchParams</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s1">'connectURL'</span><span class="p">,</span><span class="w"> </span><span class="s1">'bolt://neo4j:neo4j@neo4j.contoso.net:7687'</span><span class="p">);</span><span class="w"> </span><span class="nx">searchParams</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s1">'cmd'</span><span class="p">,</span><span class="w"> </span><span class="s1">'edit'</span><span class="p">);</span><span class="w"> </span><span class="nx">searchParams</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s1">'arg'</span><span class="p">,</span><span class="w"> </span><span class="nx">query</span><span class="p">.</span><span class="nx">replaceAll</span><span class="p">(</span><span class="sr">/\r /g</span><span class="p">,</span><span class="w"> </span><span class="s1">'\r'</span><span class="p">));</span><span class="w"> </span><span class="nx">newURL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`http://neo4j.contoso.net:7474/browser/?</span><span class="si">${</span><span class="nx">searchParams</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span><span class="w"> </span><span class="nb">window</span><span class="p">.</span><span class="nx">open</span><span class="p">(</span><span class="nx">newURL</span><span class="p">,</span><span class="w"> </span><span class="s1">'_blank'</span><span class="p">,</span><span class="w"> </span><span class="s1">'noopener'</span><span class="p">);</span><span class="w"> </span><span class="p">})()</span>
+</pre></div>
+</div>
+<p>Then, any time you are in the web interface, you can click the bookmarklet to open a new tab with a permalink to your most recently executed query in the URL bar.</p>
+</section>
+</section>
+
+
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="md-footer">
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+          
+            <a href="index.html" title="Usage"
+               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+               rel="prev">
+              <div class="md-flex__cell md-flex__cell--shrink">
+                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+              </div>
+              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+                <span class="md-flex__ellipsis">
+                  <span
+                      class="md-footer-nav__direction"> "Previous" </span> Usage </span>
+              </div>
+            </a>
+          
+          
+            <a href="drift-detect.html" title="How to use Drift-Detection"
+               class="md-flex md-footer-nav__link md-footer-nav__link--next"
+               rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
+                class="md-flex__ellipsis"> <span
+                class="md-footer-nav__direction"> "Next" </span> How to use Drift-Detection </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink"><i
+                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          
+        </a>
+        
+      </nav>
+    </div>
+    <div class="md-footer-meta md-typeset">
+      <div class="md-footer-meta__inner md-grid">
+        <div class="md-footer-copyright">
+          <div class="md-footer-copyright__highlight">
+              &#169; Copyright 2021-2025, The Linux Foundation.
+              
+          </div>
+            Created using
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+             and
+            <a href="https://github.com/bashtage/sphinx-material/">Material for
+              Sphinx</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="../_static/javascripts/application.js"></script>
+  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+  </body>
+</html>

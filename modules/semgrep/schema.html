@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="lang:clipboard.copy" content="Copy to clipboard">
+  <meta name="lang:clipboard.copied" content="Copied to clipboard">
+  <meta name="lang:search.language" content="en">
+  <meta name="lang:search.pipeline.stopwords" content="True">
+  <meta name="lang:search.pipeline.trimmer" content="True">
+  <meta name="lang:search.result.none" content="No matching documents">
+  <meta name="lang:search.result.one" content="1 matching document">
+  <meta name="lang:search.result.other" content="# matching documents">
+  <meta name="lang:search.tokenizer" content="[\s\-]+">
+
+  
+    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
+
+    <style>
+      body,
+      input {
+        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
+      }
+
+      code,
+      kbd,
+      pre {
+        font-family: "Roboto Mono", "Courier New", Courier, monospace
+      }
+    </style>
+  
+
+  <link rel="stylesheet" href="../../_static/stylesheets/application.css"/>
+  <link rel="stylesheet" href="../../_static/stylesheets/application-palette.css"/>
+  <link rel="stylesheet" href="../../_static/stylesheets/application-fixes.css"/>
+  
+  <link rel="stylesheet" href="../../_static/fonts/material-icons.css"/>
+  
+  <meta name="theme-color" content="#3f51b5">
+  <script src="../../_static/javascripts/modernizr.js"></script>
+  
+  
+  
+    <title>Semgrep Schema &#8212; cartography  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=75810a84" />
+    <link rel="stylesheet" type="text/css" href="../../_static/material.css?v=79c92029" />
+    <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="icon" href="../../_static/logo-vertical.svg"/>
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="SnipeIT" href="../snipeit/index.html" />
+    <link rel="prev" title="Semgrep Configuration" href="config.html" />
+  
+   
+
+  </head>
+  <body dir=ltr
+        data-md-color-primary=blue-grey data-md-color-accent=blue>
+  
+  <svg class="md-svg">
+    <defs data-children-count="0">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
+      
+    </defs>
+  </svg>
+  
+  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
+  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
+  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+  <a href="#modules/semgrep/schema" tabindex="1" class="md-skip"> Skip to content </a>
+  <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex navheader">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../../index.html" title="cartography  documentation"
+           class="md-header-nav__button md-logo">
+          
+            &nbsp;
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          <span class="md-header-nav__topic">cartography  documentation</span>
+          <span class="md-header-nav__topic"> Semgrep Schema </span>
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+        
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" action="../../search.html" method="get" name="search">
+      <input type="text" class="md-search__input" name="q" placeholder=""Search""
+             autocapitalize="off" autocomplete="off" spellcheck="false"
+             data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+          </div>
+        </div>
+      
+      
+  
+  <script src="../../_static/javascripts/version_dropdown.js"></script>
+  <script>
+    var json_loc = "../../"versions.json"",
+        target_loc = "../../../",
+        text = "Versions";
+    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
+  </script>
+  
+
+    </div>
+  </nav>
+</header>
+
+  
+  <div class="md-container">
+    
+    
+    
+  <nav class="md-tabs" data-md-component="tabs">
+    <div class="md-tabs__inner md-grid">
+      <ul class="md-tabs__list">
+          <li class="md-tabs__item"><a href="../../index.html" class="md-tabs__link">cartography  documentation</a></li>
+          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">&lt;no title&gt;</a></li>
+          <li class="md-tabs__item"><a href="index.html" class="md-tabs__link">Semgrep</a></li>
+      </ul>
+    </div>
+  </nav>
+    <main class="md-main">
+      <div class="md-main__inner md-grid" data-md-component="container">
+        
+          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="../../index.html" title="cartography documentation" class="md-nav__button md-logo">
+      
+        <img src="../../_static/" alt=" logo" width="48" height="48">
+      
+    </a>
+    <a href="../../index.html"
+       title="cartography documentation">cartography  documentation</a>
+  </label>
+    <div class="md-nav__source">
+      <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+    </div>
+  
+  
+
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+    
+      <a href="../../info.html" class="md-nav__link">What is Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../info.html#why-cartography" class="md-nav__link">Why Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Basic Use</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../install.html" class="md-nav__link">Install and Run Cartography On Test Machine</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../usage/index.html" class="md-nav__link">Usage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../ops.html" class="md-nav__link">Cartography Production Operations</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Intel Modules</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../aws/index.html" class="md-nav__link">Amazon Web Services (AWS)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../azure/index.html" class="md-nav__link">Microsoft Azure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../bigfix/index.html" class="md-nav__link">BigFix</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../crowdstrike/index.html" class="md-nav__link">Crowdstrike</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../cve/index.html" class="md-nav__link">CVE</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../digitalocean/index.html" class="md-nav__link">DigitalOcean</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../duo/index.html" class="md-nav__link">Duo</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../gcp/index.html" class="md-nav__link">Google Cloud Compute (GCP)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../github/index.html" class="md-nav__link">Github</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../gsuite/index.html" class="md-nav__link">Google GSuite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../jamf/index.html" class="md-nav__link">Jamf</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../kandji/index.html" class="md-nav__link">Kandji</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../kubernetes/index.html" class="md-nav__link">Kubernetes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../lastpass/index.html" class="md-nav__link">Lastpass</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../oci/index.html" class="md-nav__link">Oracle Cloud Infrastructure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../okta/index.html" class="md-nav__link">Okta</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../pagerduty/index.html" class="md-nav__link">PagerDuty</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="index.html" class="md-nav__link">Semgrep</a>
+      <ul class="md-nav__list"> 
+    <li class="md-nav__item">
+    
+    
+      <a href="config.html" class="md-nav__link">Semgrep Configuration</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Semgrep Schema </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">Semgrep Schema</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#modules-semgrep-schema--page-root" class="md-nav__link">Semgrep Schema</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#semgrepdeployment" class="md-nav__link">SemgrepDeployment</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#relationships" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#semgrepscafinding" class="md-nav__link">SemgrepSCAFinding</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id2" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#semgrepscalocation" class="md-nav__link">SemgrepSCALocation</a>
+        </li>
+        <li class="md-nav__item"><a href="#semgrepdependency" class="md-nav__link">SemgrepDependency</a>
+        </li>
+        <li class="md-nav__item"><a href="#golibrary" class="md-nav__link">GoLibrary</a>
+        </li>
+        <li class="md-nav__item"><a href="#npmlibrary" class="md-nav__link">NpmLibrary</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id3" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../../_sources/modules/semgrep/schema.md.txt">Show Source</a> </li>
+
+  </ul>
+</nav>
+      
+    
+    </li></ul>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../snipeit/index.html" class="md-nav__link">SnipeIT</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Development Docs</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../dev/index.html" class="md-nav__link">Developer docs</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Get In Touch</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../contact.html" class="md-nav__link">Contact</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../../contact.html#community-meeting" class="md-nav__link">Community Meeting</a>
+      
+    
+    </li>
+  </ul>
+  
+
+</nav>
+              </div>
+            </div>
+          </div>
+          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#modules-semgrep-schema--page-root" class="md-nav__link">Semgrep Schema</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#semgrepdeployment" class="md-nav__link">SemgrepDeployment</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#relationships" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#semgrepscafinding" class="md-nav__link">SemgrepSCAFinding</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id2" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#semgrepscalocation" class="md-nav__link">SemgrepSCALocation</a>
+        </li>
+        <li class="md-nav__item"><a href="#semgrepdependency" class="md-nav__link">SemgrepDependency</a>
+        </li>
+        <li class="md-nav__item"><a href="#golibrary" class="md-nav__link">GoLibrary</a>
+        </li>
+        <li class="md-nav__item"><a href="#npmlibrary" class="md-nav__link">NpmLibrary</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#id3" class="md-nav__link">Relationships</a>
+        </li></ul>
+            </nav>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../../_sources/modules/semgrep/schema.md.txt">Show Source</a> </li>
+
+<li id="searchbox" class="md-nav__item"></li>
+
+  </ul>
+</nav>
+              </div>
+            </div>
+          </div>
+        
+        <div class="md-content">
+          <article class="md-content__inner md-typeset" role="main">
+            
+  <section id="semgrep-schema">
+<h1 id="modules-semgrep-schema--page-root">Semgrep Schema<a class="headerlink" href="#modules-semgrep-schema--page-root" title="Link to this heading">¶</a></h1>
+<section id="semgrepdeployment">
+<span id="id1"></span><h2 id="semgrepdeployment">SemgrepDeployment<a class="headerlink" href="#semgrepdeployment" title="Link to this heading">¶</a></h2>
+<p>Represents a Semgrep <a class="reference external" href="https://semgrep.dev/api/v1/docs/#tag/Deployment">Deployment</a>, a unit encapsulating a security organization inside Semgrep Cloud. Works as the parent of all other Semgrep resources.</p>
+<table>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Unique integer id representing the deployment</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>slug</strong></p></td>
+<td><p>Lowercase string id representing the deployment to query the API</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>name</strong></p></td>
+<td><p>Name of security organization connected to the deployment</p></td>
+</tr>
+</tbody>
+</table>
+<section id="relationships">
+<h3 id="relationships">Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>A SemgrepDeployment contains SemgrepSCAFinding’s</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">SemgrepDeployment</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">SemgrepSCAFinding</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>A SemgrepDeployment contains SemgrepSCALocation’s</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">SemgrepDeployment</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">SemgrepSCALocation</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>A SemgrepDeployment contains SemgrepDependency’s</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">SemgrepDeployment</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">SemgrepDependency</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="semgrepscafinding">
+<h2 id="semgrepscafinding">SemgrepSCAFinding<a class="headerlink" href="#semgrepscafinding" title="Link to this heading">¶</a></h2>
+<p>Represents a <a class="reference external" href="https://semgrep.dev/docs/semgrep-supply-chain/overview/">Semgrep Supply Chain</a> finding. This is, a vulnerability in a dependency of a project discovered by Semgrep performing software composition analysis (SCA) and code reachability analysis. Before ingesting this node, make sure you have run Semgrep CI and that it’s connected to Semgrep Cloud Platform <a class="reference external" href="https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/">Running Semgrep CI with Semgrep Cloud Platform</a>. The API called to retrieve this information is documented at <a class="reference external" href="https://semgrep.dev/api/v1/docs/#tag/SupplyChainService">https://semgrep.dev/api/v1/docs/#tag/SupplyChainService</a>.</p>
+<table>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Unique id of the finding taken from Semgrep API</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>rule_id</strong></p></td>
+<td><p>The rule that triggered the finding</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>repository</strong></p></td>
+<td><p>The repository path where the finding was discovered</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>branch</strong></p></td>
+<td><p>The branch where the finding was discovered</p></td>
+</tr>
+<tr class="row-even"><td><p>summary</p></td>
+<td><p>A short title summarizing of the finding</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>Description of the vulnerability.</p></td>
+</tr>
+<tr class="row-even"><td><p>package_manager</p></td>
+<td><p>The ecosystem of the dependency where the finding was discovered (e.g. pypi, npm, maven)</p></td>
+</tr>
+<tr class="row-odd"><td><p>severity</p></td>
+<td><p>Severity of the finding based on Semgrep analysis (e.g. CRITICAL, HIGH, MEDIUM, LOW)</p></td>
+</tr>
+<tr class="row-even"><td><p>cve_id</p></td>
+<td><p>CVE id of the vulnerability from NVD. Check <a class="reference external" href="../cve/schema.md">cve_schema</a></p></td>
+</tr>
+<tr class="row-odd"><td><p>reachability_check</p></td>
+<td><p>Whether the vulnerability reachability is confirmed, not confirmed or needs to be manually confirmed</p></td>
+</tr>
+<tr class="row-even"><td><p>reachability_condition</p></td>
+<td><p>Description of the reachability condition (e.g. reachable if code is used in X way)</p></td>
+</tr>
+<tr class="row-odd"><td><p>reachability</p></td>
+<td><p>Whether the vulnerability is reachable or not</p></td>
+</tr>
+<tr class="row-even"><td><p>reachability_risk</p></td>
+<td><p>Risk of the vulnerability (e.g. CRITICAL, HIGH, MEDIUM, LOW) based on severity and likelihod, the latter given by reachability status and reachability check. Risk calculation was based on <a class="reference external" href="https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-30r1.pdf">NIST 800-30r1</a> Appendix I - Riks Determination and the <a class="reference external" href="https://semgrep.dev/docs/semgrep-supply-chain/triage-and-remediation/#exposure-filters">reachability exposure</a>. See <a class="reference external" href="https://github.com/lyft/cartography/blob/master/cartography/data/jobs/scoped_analysis/semgrep_sca_risk_analysis.json">semgrep_sca_risk_analysis.json</a> for further details</p></td>
+</tr>
+<tr class="row-odd"><td><p>transitivity</p></td>
+<td><p>Whether the vulnerability is transitive or not (e.g. dependency, transitive)</p></td>
+</tr>
+<tr class="row-even"><td><p>dependency</p></td>
+<td><p>Dependency where the finding was discovered. Includes dependency name and version</p></td>
+</tr>
+<tr class="row-odd"><td><p>dependency_fix</p></td>
+<td><p>Dependency version that fixes the vulnerability</p></td>
+</tr>
+<tr class="row-even"><td><p>ref_urls</p></td>
+<td><p>List of reference urls for the finding</p></td>
+</tr>
+<tr class="row-odd"><td><p>dependency_file</p></td>
+<td><p>Path of the file where the finding was discovered (e.g. lock.json, requirements.txt)</p></td>
+</tr>
+<tr class="row-even"><td><p>dependency_file_url</p></td>
+<td><p>URL of the file where the finding was discovered</p></td>
+</tr>
+<tr class="row-odd"><td><p>scan_time</p></td>
+<td><p>Date and time when the finding was discovered in UTC</p></td>
+</tr>
+<tr class="row-even"><td><p>fix_status</p></td>
+<td><p>Whether the finding is fixed or not based on triage (e.g. open, fixed, ignored)</p></td>
+</tr>
+<tr class="row-odd"><td><p>triage_status</p></td>
+<td><p>Whether the finding is triaged or not (e.g. untriaged, ignored, reopened)</p></td>
+</tr>
+<tr class="row-even"><td><p>confidence</p></td>
+<td><p>Confidence of the finding based on Semgrep analysis (e.g. high, medium, low)</p></td>
+</tr>
+</tbody>
+</table>
+<section id="id2">
+<h3 id="id2">Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>An SemgrepSCAFinding connected to a GithubRepository (optional)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">SemgrepSCAFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">FOUND_IN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GithubRepository</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>A SemgrepSCAFinding vulnerable dependency usage at SemgrepSCALocation (optional)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">SemgrepSCAFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">USAGE_AT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">SemgrepSCALocation</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>A SemgrepSCAFinding affects a Dependency (optional)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(:</span><span class="n">SemgrepSCAFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">AFFECTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Dependency</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>A SemgrepSCAFinding linked to a CVE (optional)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(:</span><span class="n">SemgrepSCAFinding</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">LINKED_TO</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">CVE</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="semgrepscalocation">
+<h2 id="semgrepscalocation">SemgrepSCALocation<a class="headerlink" href="#semgrepscalocation" title="Link to this heading">¶</a></h2>
+<p>Represents the location in a repository where a vulnerable dependency is used in a way that can trigger the vulnerability.</p>
+<table>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Unique id identifying the location of the finding</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>Path of the file where the usage was discovered</p></td>
+</tr>
+<tr class="row-even"><td><p>start_line</p></td>
+<td><p>Line where the usage starts</p></td>
+</tr>
+<tr class="row-odd"><td><p>start_col</p></td>
+<td><p>Column where the usage starts</p></td>
+</tr>
+<tr class="row-even"><td><p>end_line</p></td>
+<td><p>Line where the usage ends</p></td>
+</tr>
+<tr class="row-odd"><td><p>end_col</p></td>
+<td><p>Column where the usage ends</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>URL of the file where the usage was discovered</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="semgrepdependency">
+<h2 id="semgrepdependency">SemgrepDependency<a class="headerlink" href="#semgrepdependency" title="Link to this heading">¶</a></h2>
+<p>Represents a dependency of a repository as returned by the Semgrep
+<a class="reference external" href="https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion">List dependencies API</a>.</p>
+<table>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Unique id formed by the name and version of the dependency</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Name of the dependency</p></td>
+</tr>
+<tr class="row-even"><td><p>version</p></td>
+<td><p>Version of the dependency</p></td>
+</tr>
+<tr class="row-odd"><td><p>ecosystem</p></td>
+<td><p>Ecosystem of the dependency, e.g. “gomod” for dependencies defined in go.mod files. (see <a class="reference external" href="https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion">API docs</a> for full list of options)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="golibrary">
+<h2 id="golibrary">GoLibrary<a class="headerlink" href="#golibrary" title="Link to this heading">¶</a></h2>
+<p>Represents a Go library dependency as listed in a go.mod file.
+All GoLibrary nodes are also SemgrepDependency nodes.
+See <a class="reference internal" href="../../usage/schema.html#semgrepdependency"><span class="std std-ref">SemgrepDependency</span></a> for details.</p>
+</section>
+<section id="npmlibrary">
+<h2 id="npmlibrary">NpmLibrary<a class="headerlink" href="#npmlibrary" title="Link to this heading">¶</a></h2>
+<p>Represents a NPM library dependency as listed in a package-lock.json file.
+All NpmLibrary nodes are also SemgrepDependency nodes.
+See <a class="reference internal" href="../../usage/schema.html#semgrepdependency"><span class="std std-ref">SemgrepDependency</span></a> for details.</p>
+<section id="id3">
+<h3 id="id3">Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>A SemgrepDependency is required by a GithubRepository (optional)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(:</span><span class="n">SemgrepDependency</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">REQUIRES</span><span class="p">{</span><span class="n">specifier</span><span class="p">,</span> <span class="n">transitivity</span><span class="p">,</span> <span class="n">url</span><span class="p">}]</span><span class="o">-</span><span class="p">(:</span><span class="n">GithubRepository</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>specifier: A string describing the library version required by the repo (e.g. “==1.0.2”)</p></li>
+<li><p>transitivity: A string describing whether the dependency is direct or <a class="reference external" href="https://en.wikipedia.org/wiki/Transitive_dependency">transitive</a> (e.g. direct, transitive)</p></li>
+<li><p>url: The URL where the dependency is defined (e.g. <code class="docutils literal notranslate"><span class="pre">https://github.com/org/repo/blob/00000000000000000000000000000000/go.mod#L6</span></code>)</p></li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="md-footer">
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+          
+            <a href="config.html" title="Semgrep Configuration"
+               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+               rel="prev">
+              <div class="md-flex__cell md-flex__cell--shrink">
+                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+              </div>
+              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+                <span class="md-flex__ellipsis">
+                  <span
+                      class="md-footer-nav__direction"> "Previous" </span> Semgrep Configuration </span>
+              </div>
+            </a>
+          
+          
+            <a href="../snipeit/index.html" title="SnipeIT"
+               class="md-flex md-footer-nav__link md-footer-nav__link--next"
+               rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
+                class="md-flex__ellipsis"> <span
+                class="md-footer-nav__direction"> "Next" </span> SnipeIT </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink"><i
+                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          
+        </a>
+        
+      </nav>
+    </div>
+    <div class="md-footer-meta md-typeset">
+      <div class="md-footer-meta__inner md-grid">
+        <div class="md-footer-copyright">
+          <div class="md-footer-copyright__highlight">
+              &#169; Copyright 2021-2025, The Linux Foundation.
+              
+          </div>
+            Created using
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+             and
+            <a href="https://github.com/bashtage/sphinx-material/">Material for
+              Sphinx</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="../../_static/javascripts/application.js"></script>
+  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+  </body>
+</html>

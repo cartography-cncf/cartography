@@ -1,0 +1,7 @@
+Kubernetes
+##########
+
+.. toctree::
+
+    config
+    schema

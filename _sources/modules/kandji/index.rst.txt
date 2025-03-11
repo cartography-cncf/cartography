@@ -1,0 +1,7 @@
+Kandji
+####
+
+.. toctree::
+
+    config
+    schema
