@@ -5,6 +5,7 @@ from botocore.exceptions import ClientError
 from moto import mock_aws
 
 import cartography.intel.aws.ec2.launch_templates
+from cartography.intel.aws.ec2.launch_templates import get_launch_template_versions
 from cartography.intel.aws.ec2.launch_templates import get_launch_templates
 from cartography.intel.aws.ec2.launch_templates import load_launch_template_versions
 from cartography.intel.aws.ec2.launch_templates import load_launch_templates
@@ -54,7 +55,8 @@ def test_get_launch_template_throws_exception(mock_get_template_versions, *args)
     session = boto3.Session(region_name=TEST_REGION)
     # Act: get the launch template versions
 
-    templates, versions = get_launch_templates(session, TEST_REGION)
+    templates = get_launch_templates(session, TEST_REGION)
+    versions = get_launch_template_versions(session, TEST_REGION, templates)
 
     # Assert: the launch template versions are as expected
     assert len(templates) == 1

@@ -21,27 +21,36 @@ logger = logging.getLogger(__name__)
 def get_launch_templates(
     boto3_session: boto3.session.Session,
     region: str,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> list[dict[str, Any]]:
     client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('describe_launch_templates')
     templates: list[dict[str, Any]] = []
-    template_versions: list[dict[str, Any]] = []
     for page in paginator.paginate():
         paginated_templates = page['LaunchTemplates']
-        for template in paginated_templates:
-            template_id = template['LaunchTemplateId']
-            try:
-                versions = get_launch_template_versions_by_template(boto3_session, template_id, region)
-            except ClientError as e:
-                logger.warning(
-                    f"Failed to get launch template versions for {template_id}: {e}",
-                    exc_info=True,
-                )
-                versions = []
-            # Using a key not defined in latest boto3 documentation
-            template_versions.extend(versions)
         templates.extend(paginated_templates)
-    return templates, template_versions
+    return templates
+
+
+@timeit
+@aws_handle_regions
+def get_launch_template_versions(
+    boto3_session: boto3.session.Session,
+    region: str,
+    templates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    template_versions: list[dict[str, Any]] = []
+    for template in templates:
+        template_id = template['LaunchTemplateId']
+        try:
+            versions = get_launch_template_versions_by_template(boto3_session, template_id, region)
+        except ClientError as e:
+            logger.warning(
+                f"Failed to get launch template versions for {template_id}: {e}",
+                exc_info=True,
+            )
+            versions = []
+        template_versions.extend(versions)
+    return template_versions
 
 
 def transform_launch_templates(templates: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -153,7 +162,8 @@ def sync_ec2_launch_templates(
 ) -> None:
     for region in regions:
         logger.info(f"Syncing launch templates for region '{region}' in account '{current_aws_account_id}'.")
-        templates, versions = get_launch_templates(boto3_session, region)
+        templates = get_launch_templates(boto3_session, region)
+        versions = get_launch_template_versions(boto3_session, region, templates)
         templates = transform_launch_templates(templates)
         load_launch_templates(neo4j_session, templates, region, current_aws_account_id, update_tag)
         versions = transform_launch_template_versions(versions)
