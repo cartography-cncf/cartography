@@ -33,13 +33,21 @@ def get_ecr_repositories(boto3_session: boto3.session.Session, region: str) -> L
 def get_ecr_repository_images(boto3_session: boto3.session.Session, region: str, repository_name: str) -> List[Dict]:
     logger.debug("Getting ECR images in repository '%s' for region '%s'.", repository_name, region)
     client = boto3_session.client('ecr', region_name=region)
-    paginator = client.get_paginator('list_images')
+    list_paginator = client.get_paginator('list_images')
     ecr_repository_images: List[Dict] = []
-    for page in paginator.paginate(repositoryName=repository_name):
+    for page in list_paginator.paginate(repositoryName=repository_name):
         image_ids = page['imageIds']
-        if image_ids:
-            response = client.describe_images(repositoryName=repository_name, imageIds=image_ids)
-            ecr_repository_images.extend(response['imageDetails'])
+        if not image_ids:
+            continue
+        describe_paginator = client.get_paginator('describe_images')
+        describe_response = describe_paginator.paginate(repositoryName=repository_name, imageIds=image_ids)
+        for response in describe_response:
+            image_details = response['imageDetails']
+            image_details = [
+                {**detail, 'imageTag': detail['imageTags'][0]} if detail.get('imageTags') else detail
+                for detail in image_details
+            ]
+            ecr_repository_images.extend(image_details)
     return ecr_repository_images
 
 
