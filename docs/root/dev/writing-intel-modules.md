@@ -11,6 +11,10 @@ running, testing, and linting your code there.
 
 To get started coding without reading this doc, just copy the structure of our [AWS EMR module](https://github.com/lyft/cartography/blob/master/cartography/intel/aws/emr.py) and use it as an example. For a longer written explanation of the "how" and "why", read on.
 
+### AWS
+
+We have a [Jupyter notebook](./generate_aws_node_schema.ipynb) with some helper functions that can help you quickly get started with writing a new AWS intel module. See the docstring at the top for details.
+
 ## Configuration and credential management
 
 ### Supplying credentials and arguments to your module
