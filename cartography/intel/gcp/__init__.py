@@ -19,6 +19,7 @@ from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
+from cartography.intel.gcp.iam import ParentType
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -300,12 +301,20 @@ def _sync_multiple_projects(
     for project in projects:
         project_id = project['projectId']
         logger.info("Syncing GCP project %s for IAM", project_id)
+
+        # Add project ID to job parameters
+        project_job_parameters = {
+            **common_job_parameters,
+            'PROJECT_ID': project_id,
+        }
+
         iam.sync(
             neo4j_session,
             resources.iam,
             project_id,
+            ParentType.PROJECT,  # specify that this is a project-level sync
             gcp_update_tag,
-            common_job_parameters,
+            project_job_parameters,
         )
 
 
@@ -319,7 +328,7 @@ def get_gcp_credentials() -> GoogleCredentials:
     try:
         # Explicitly use Application Default Credentials.
         # See https://google-auth.readthedocs.io/en/master/user-guide.html#application-default-credentials
-        credentials, project_id = default()
+        credentials, _ = default()
     except DefaultCredentialsError as e:
         logger.debug("Error occurred calling GoogleCredentials.get_application_default().", exc_info=True)
         logger.error(
@@ -349,15 +358,35 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     credentials = get_gcp_credentials()
-
     resources = _initialize_resources(credentials)
 
-    # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
+    # Sync organizations and get the list of organizations
+    organizations = crm.get_gcp_organizations(resources.crm_v1)
     crm.sync_gcp_organizations(neo4j_session, resources.crm_v1, config.update_tag, common_job_parameters)
+
+    # Sync organization-level IAM for each organization
+    for org in organizations:
+        org_id = org['name'].removeprefix("organizations/")
+        logger.info(f"Syncing organization-level IAM for organization {org_id}")
+
+        # Add organization ID to job parameters
+        org_job_parameters = {
+            **common_job_parameters,
+            'ORGANIZATION_ID': f"organizations/{org_id}",
+        }
+
+        iam.sync(
+            neo4j_session,
+            resources.iam,
+            org_id,
+            ParentType.ORGANIZATION,
+            config.update_tag,
+            org_job_parameters,
+        )
+
     crm.sync_gcp_folders(neo4j_session, resources.crm_v2, config.update_tag, common_job_parameters)
 
     projects = crm.get_gcp_projects(resources.crm_v1)
-
     _sync_multiple_projects(neo4j_session, resources, projects, config.update_tag, common_job_parameters)
 
     run_analysis_job(
