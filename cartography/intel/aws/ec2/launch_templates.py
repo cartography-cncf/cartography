@@ -35,12 +35,12 @@ def get_launch_templates(
 def get_launch_template_versions(
     boto3_session: boto3.session.Session,
     region: str,
-    templates: list[dict[str, Any]],
+    launch_templates: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     template_versions: list[dict[str, Any]] = []
-    for template in templates:
-        template_id = template['LaunchTemplateId']
-        versions = get_launch_template_versions_by_template(boto3_session, template_id, region)
+    for template in launch_templates:
+        launch_template_id = template['LaunchTemplateId']
+        versions = get_launch_template_versions_by_template(boto3_session, launch_template_id, region)
         template_versions.extend(versions)
 
     return template_versions
@@ -50,13 +50,13 @@ def get_launch_template_versions(
 @aws_handle_regions
 def get_launch_template_versions_by_template(
         boto3_session: boto3.session.Session,
-        template: str,
+        launch_template_id: str,
         region: str,
 ) -> list[dict[str, Any]]:
     client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
     v_paginator = client.get_paginator('describe_launch_template_versions')
     template_versions = []
-    for versions in v_paginator.paginate(LaunchTemplateId=template):
+    for versions in v_paginator.paginate(LaunchTemplateId=launch_template_id):
         template_versions.extend(versions['LaunchTemplateVersions'])
     return template_versions
 
