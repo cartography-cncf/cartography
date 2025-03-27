@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="lang:clipboard.copy" content="Copy to clipboard">
+  <meta name="lang:clipboard.copied" content="Copied to clipboard">
+  <meta name="lang:search.language" content="en">
+  <meta name="lang:search.pipeline.stopwords" content="True">
+  <meta name="lang:search.pipeline.trimmer" content="True">
+  <meta name="lang:search.result.none" content="No matching documents">
+  <meta name="lang:search.result.one" content="1 matching document">
+  <meta name="lang:search.result.other" content="# matching documents">
+  <meta name="lang:search.tokenizer" content="[\s\-]+">
+
+  
+    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
+
+    <style>
+      body,
+      input {
+        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
+      }
+
+      code,
+      kbd,
+      pre {
+        font-family: "Roboto Mono", "Courier New", Courier, monospace
+      }
+    </style>
+  
+
+  <link rel="stylesheet" href="../_static/stylesheets/application.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-palette.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-fixes.css"/>
+  
+  <link rel="stylesheet" href="../_static/fonts/material-icons.css"/>
+  
+  <meta name="theme-color" content="#3f51b5">
+  <script src="../_static/javascripts/modernizr.js"></script>
+  
+  
+  
+    <title>How to write a new intel module &#8212; cartography  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=75810a84" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css?v=79c92029" />
+    <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="icon" href="../_static/logo-vertical.svg"/>
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Contact" href="../contact.html" />
+    <link rel="prev" title="How to extend Cartography with Analysis Jobs" href="writing-analysis-jobs.html" />
+  
+   
+
+  </head>
+  <body dir=ltr
+        data-md-color-primary=blue-grey data-md-color-accent=blue>
+  
+  <svg class="md-svg">
+    <defs data-children-count="0">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
+      
+    </defs>
+  </svg>
+  
+  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
+  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
+  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+  <a href="#dev/writing-intel-modules" tabindex="1" class="md-skip"> Skip to content </a>
+  <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex navheader">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../index.html" title="cartography  documentation"
+           class="md-header-nav__button md-logo">
+          
+            &nbsp;
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          <span class="md-header-nav__topic">cartography  documentation</span>
+          <span class="md-header-nav__topic"> How to write a new intel module </span>
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+        
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" action="../search.html" method="get" name="search">
+      <input type="text" class="md-search__input" name="q" placeholder=""Search""
+             autocapitalize="off" autocomplete="off" spellcheck="false"
+             data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+          </div>
+        </div>
+      
+      
+  
+  <script src="../_static/javascripts/version_dropdown.js"></script>
+  <script>
+    var json_loc = "../"versions.json"",
+        target_loc = "../../",
+        text = "Versions";
+    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
+  </script>
+  
+
+    </div>
+  </nav>
+</header>
+
+  
+  <div class="md-container">
+    
+    
+    
+  <nav class="md-tabs" data-md-component="tabs">
+    <div class="md-tabs__inner md-grid">
+      <ul class="md-tabs__list">
+          <li class="md-tabs__item"><a href="../index.html" class="md-tabs__link">cartography  documentation</a></li>
+          <li class="md-tabs__item"><a href="index.html" class="md-tabs__link">Developer docs</a></li>
+      </ul>
+    </div>
+  </nav>
+    <main class="md-main">
+      <div class="md-main__inner md-grid" data-md-component="container">
+        
+          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="../index.html" title="cartography documentation" class="md-nav__button md-logo">
+      
+        <img src="../_static/" alt=" logo" width="48" height="48">
+      
+    </a>
+    <a href="../index.html"
+       title="cartography documentation">cartography  documentation</a>
+  </label>
+    <div class="md-nav__source">
+      <a href="https://github.com/lyft/cartography" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    cartography
+  </div>
+</a>
+    </div>
+  
+  
+
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+    
+      <a href="../info.html" class="md-nav__link">What is Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../info.html#why-cartography" class="md-nav__link">Why Cartography?</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Basic Use</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../install.html" class="md-nav__link">Install and Run Cartography On Test Machine</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../usage/index.html" class="md-nav__link">Usage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../ops.html" class="md-nav__link">Cartography Production Operations</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Intel Modules</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/aws/index.html" class="md-nav__link">Amazon Web Services (AWS)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/azure/index.html" class="md-nav__link">Microsoft Azure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/bigfix/index.html" class="md-nav__link">BigFix</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/crowdstrike/index.html" class="md-nav__link">Crowdstrike</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/cve/index.html" class="md-nav__link">CVE</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/digitalocean/index.html" class="md-nav__link">DigitalOcean</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/duo/index.html" class="md-nav__link">Duo</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/gcp/index.html" class="md-nav__link">Google Cloud Compute (GCP)</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/github/index.html" class="md-nav__link">Github</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/gsuite/index.html" class="md-nav__link">Google GSuite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/jamf/index.html" class="md-nav__link">Jamf</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/kandji/index.html" class="md-nav__link">Kandji</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/kubernetes/index.html" class="md-nav__link">Kubernetes</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/lastpass/index.html" class="md-nav__link">Lastpass</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/oci/index.html" class="md-nav__link">Oracle Cloud Infrastructure</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/okta/index.html" class="md-nav__link">Okta</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/pagerduty/index.html" class="md-nav__link">PagerDuty</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/semgrep/index.html" class="md-nav__link">Semgrep</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../modules/snipeit/index.html" class="md-nav__link">SnipeIT</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Development Docs</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="index.html" class="md-nav__link">Developer docs</a>
+      <ul class="md-nav__list"> 
+    <li class="md-nav__item">
+    
+    
+      <a href="developer-guide.html" class="md-nav__link">Cartography Developer Guide</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="writing-analysis-jobs.html" class="md-nav__link">How to extend Cartography with Analysis Jobs</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> How to write a new intel module </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">How to write a new intel module</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#dev-writing-intel-modules--page-root" class="md-nav__link">How to write a new intel module</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#before-getting-started" class="md-nav__link">Before getting started…</a>
+        </li>
+        <li class="md-nav__item"><a href="#the-fast-way" class="md-nav__link">The fast way</a>
+        </li>
+        <li class="md-nav__item"><a href="#configuration-and-credential-management" class="md-nav__link">Configuration and credential management</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#supplying-credentials-and-arguments-to-your-module" class="md-nav__link">Supplying credentials and arguments to your module</a>
+        </li>
+        <li class="md-nav__item"><a href="#an-important-note-on-validating-your-commandline-args" class="md-nav__link">An important note on validating your commandline args</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#sync-get-transform-load-cleanup" class="md-nav__link">Sync = Get, Transform, Load, Cleanup</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#get" class="md-nav__link">Get</a>
+        </li>
+        <li class="md-nav__item"><a href="#transform" class="md-nav__link">Transform</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#handling-required-versus-optional-fields" class="md-nav__link">Handling required versus optional fields</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#load" class="md-nav__link">Load</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#defining-a-node" class="md-nav__link">Defining a node</a>
+        </li>
+        <li class="md-nav__item"><a href="#defining-node-properties" class="md-nav__link">Defining node properties</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#node-property-indexes" class="md-nav__link">Node property indexes</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#defining-relationships" class="md-nav__link">Defining relationships</a>
+        </li>
+        <li class="md-nav__item"><a href="#the-result" class="md-nav__link">The result</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#additional-concepts" class="md-nav__link">Additional concepts</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#cartography-s-update-tag" class="md-nav__link">cartography’s <code class="docutils literal notranslate"><span class="pre">update_tag</span></code>:</a>
+        </li>
+        <li class="md-nav__item"><a href="#all-nodes-need-these-fields" class="md-nav__link">All nodes need these fields</a>
+        </li>
+        <li class="md-nav__item"><a href="#all-relationships-need-these-fields" class="md-nav__link">All relationships need these fields</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-queries-only-on-indexed-fields-for-best-performance" class="md-nav__link">Run queries only on indexed fields for best performance</a>
+        </li>
+        <li class="md-nav__item"><a href="#indexes-cypher" class="md-nav__link">indexes.cypher</a>
+        </li>
+        <li class="md-nav__item"><a href="#lastupdated-and-firstseen" class="md-nav__link">lastupdated and firstseen</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#cleanup" class="md-nav__link">Cleanup</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#error-handling-principles" class="md-nav__link">Error handling principles</a>
+        </li>
+        <li class="md-nav__item"><a href="#schema" class="md-nav__link">Schema</a>
+        </li>
+        <li class="md-nav__item"><a href="#making-tests" class="md-nav__link">Making tests</a>
+        </li>
+        <li class="md-nav__item"><a href="#other" class="md-nav__link">Other</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/dev/writing-intel-modules.md.txt">Show Source</a> </li>
+
+  </ul>
+</nav>
+      
+    
+    </li></ul>
+    
+    </li>
+    <li class="md-nav__item">
+    
+      <span class="md-nav__link caption"><span class="caption-text">Get In Touch</span></span>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../contact.html" class="md-nav__link">Contact</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../contact.html#community-meeting" class="md-nav__link">Community Meeting</a>
+      
+    
+    </li>
+  </ul>
+  
+
+</nav>
+              </div>
+            </div>
+          </div>
+          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">"Contents"</label>
+  <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#dev-writing-intel-modules--page-root" class="md-nav__link">How to write a new intel module</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#before-getting-started" class="md-nav__link">Before getting started…</a>
+        </li>
+        <li class="md-nav__item"><a href="#the-fast-way" class="md-nav__link">The fast way</a>
+        </li>
+        <li class="md-nav__item"><a href="#configuration-and-credential-management" class="md-nav__link">Configuration and credential management</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#supplying-credentials-and-arguments-to-your-module" class="md-nav__link">Supplying credentials and arguments to your module</a>
+        </li>
+        <li class="md-nav__item"><a href="#an-important-note-on-validating-your-commandline-args" class="md-nav__link">An important note on validating your commandline args</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#sync-get-transform-load-cleanup" class="md-nav__link">Sync = Get, Transform, Load, Cleanup</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#get" class="md-nav__link">Get</a>
+        </li>
+        <li class="md-nav__item"><a href="#transform" class="md-nav__link">Transform</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#handling-required-versus-optional-fields" class="md-nav__link">Handling required versus optional fields</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#load" class="md-nav__link">Load</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#defining-a-node" class="md-nav__link">Defining a node</a>
+        </li>
+        <li class="md-nav__item"><a href="#defining-node-properties" class="md-nav__link">Defining node properties</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#node-property-indexes" class="md-nav__link">Node property indexes</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#defining-relationships" class="md-nav__link">Defining relationships</a>
+        </li>
+        <li class="md-nav__item"><a href="#the-result" class="md-nav__link">The result</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#additional-concepts" class="md-nav__link">Additional concepts</a><nav class="md-nav">
+              <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#cartography-s-update-tag" class="md-nav__link">cartography’s <code class="docutils literal notranslate"><span class="pre">update_tag</span></code>:</a>
+        </li>
+        <li class="md-nav__item"><a href="#all-nodes-need-these-fields" class="md-nav__link">All nodes need these fields</a>
+        </li>
+        <li class="md-nav__item"><a href="#all-relationships-need-these-fields" class="md-nav__link">All relationships need these fields</a>
+        </li>
+        <li class="md-nav__item"><a href="#run-queries-only-on-indexed-fields-for-best-performance" class="md-nav__link">Run queries only on indexed fields for best performance</a>
+        </li>
+        <li class="md-nav__item"><a href="#indexes-cypher" class="md-nav__link">indexes.cypher</a>
+        </li>
+        <li class="md-nav__item"><a href="#lastupdated-and-firstseen" class="md-nav__link">lastupdated and firstseen</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#cleanup" class="md-nav__link">Cleanup</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#error-handling-principles" class="md-nav__link">Error handling principles</a>
+        </li>
+        <li class="md-nav__item"><a href="#schema" class="md-nav__link">Schema</a>
+        </li>
+        <li class="md-nav__item"><a href="#making-tests" class="md-nav__link">Making tests</a>
+        </li>
+        <li class="md-nav__item"><a href="#other" class="md-nav__link">Other</a>
+        </li></ul>
+            </nav>
+        </li>
+    
+<li class="md-nav__item"><a class="md-nav__extra_link" href="../_sources/dev/writing-intel-modules.md.txt">Show Source</a> </li>
+
+<li id="searchbox" class="md-nav__item"></li>
+
+  </ul>
+</nav>
+              </div>
+            </div>
+          </div>
+        
+        <div class="md-content">
+          <article class="md-content__inner md-typeset" role="main">
+            
+  <section id="how-to-write-a-new-intel-module">
+<h1 id="dev-writing-intel-modules--page-root">How to write a new intel module<a class="headerlink" href="#dev-writing-intel-modules--page-root" title="Link to this heading">¶</a></h1>
+<p>If you want to add a new data type to Cartography, this is the guide for you. We look forward to receiving your PR!</p>
+<section id="before-getting-started">
+<h2 id="before-getting-started">Before getting started…<a class="headerlink" href="#before-getting-started" title="Link to this heading">¶</a></h2>
+<p>Read through and follow the setup steps in <a class="reference external" href="developer-guide.html">the Cartography developer guide</a>. Learn the basics of
+running, testing, and linting your code there.</p>
+</section>
+<section id="the-fast-way">
+<h2 id="the-fast-way">The fast way<a class="headerlink" href="#the-fast-way" title="Link to this heading">¶</a></h2>
+<p>To get started coding without reading this doc, just copy the structure of our <a class="reference external" href="https://github.com/lyft/cartography/blob/master/cartography/intel/aws/emr.py">AWS EMR module</a> and use it as an example. For a longer written explanation of the “how” and “why”, read on.</p>
+</section>
+<section id="configuration-and-credential-management">
+<h2 id="configuration-and-credential-management">Configuration and credential management<a class="headerlink" href="#configuration-and-credential-management" title="Link to this heading">¶</a></h2>
+<section id="supplying-credentials-and-arguments-to-your-module">
+<h3 id="supplying-credentials-and-arguments-to-your-module">Supplying credentials and arguments to your module<a class="headerlink" href="#supplying-credentials-and-arguments-to-your-module" title="Link to this heading">¶</a></h3>
+<p>If you need to supply an API key or other credential to your Cartography module, we recommend adding a CLI argument. An example of this can be seen <a class="reference external" href="https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/cli.py#L136">in our Okta module</a> where we require the user to specify the name of an environment variable containing their Okta API key. This credential will then be bound to Cartography’s <a class="reference external" href="https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/config.py#L3">Config object</a> which is present in all modules. You can specify different arguments from the commandline for your module via the Config object.</p>
+</section>
+<section id="an-important-note-on-validating-your-commandline-args">
+<h3 id="an-important-note-on-validating-your-commandline-args">An important note on validating your commandline args<a class="headerlink" href="#an-important-note-on-validating-your-commandline-args" title="Link to this heading">¶</a></h3>
+<p>Note that it is your module’s responsibility to validate arguments that you introduce. For example with the Okta module, we <a class="reference external" href="https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/intel/okta/__init__.py#L37">validate</a> that <code class="docutils literal notranslate"><span class="pre">config.okta_api_key</span></code> has been defined before attempting to continue.</p>
+</section>
+</section>
+<section id="sync-get-transform-load-cleanup">
+<h2 id="sync-get-transform-load-cleanup">Sync = Get, Transform, Load, Cleanup<a class="headerlink" href="#sync-get-transform-load-cleanup" title="Link to this heading">¶</a></h2>
+<p>A cartography intel module consists of one <code class="docutils literal notranslate"><span class="pre">sync</span></code> function. <code class="docutils literal notranslate"><span class="pre">sync</span></code> should call <code class="docutils literal notranslate"><span class="pre">get</span></code>, then <code class="docutils literal notranslate"><span class="pre">load</span></code>, and finally <code class="docutils literal notranslate"><span class="pre">cleanup</span></code>.</p>
+<section id="get">
+<h3 id="get">Get<a class="headerlink" href="#get" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">get</span></code> function <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L98">returns data as a list of dicts</a>
+from a resource provider API, which is GCP in this particular example.</p>
+<p><code class="docutils literal notranslate"><span class="pre">get</span></code> should be “dumb” in the sense that it should not handle retry logic or data
+manipulation. It should also raise an exception if it’s not able to complete successfully.</p>
+</section>
+<section id="transform">
+<h3 id="transform">Transform<a class="headerlink" href="#transform" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">transform</span></code> function <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L193">manipulates the list of dicts</a>
+to make it easier to ingest to the graph. <code class="docutils literal notranslate"><span class="pre">transform</span></code> functions are sometimes omitted when a module author decides that the output from the <code class="docutils literal notranslate"><span class="pre">get</span></code> is already in the shape that they need.</p>
+<p>We have some best practices on handling transforms:</p>
+<section id="handling-required-versus-optional-fields">
+<h4 id="handling-required-versus-optional-fields">Handling required versus optional fields<a class="headerlink" href="#handling-required-versus-optional-fields" title="Link to this heading">¶</a></h4>
+<p>We should directly access dicts in cases where not having the data should cause a sync to fail.
+For example, if we are transforming AWS data, we definitely need an AWS object’s ARN field because it uniquely
+identifies the object. Therefore, we should access an object’s ARN using <code class="docutils literal notranslate"><span class="pre">data['arn']</span></code> as opposed to
+using <code class="docutils literal notranslate"><span class="pre">data.get('arn')</span></code> (the former will raise a <code class="docutils literal notranslate"><span class="pre">KeyError</span></code> if <code class="docutils literal notranslate"><span class="pre">arn</span></code> does not exist and the latter will just return
+<code class="docutils literal notranslate"><span class="pre">None</span></code> without an exception).</p>
+<p>We <em>want</em> the sync to fail if an important field is not present in our data. The idea here is that
+it is better to fail a sync than to add malformed data.</p>
+<p>On the other hand, we should use <code class="docutils literal notranslate"><span class="pre">data.get('SomeField')</span></code> if <code class="docutils literal notranslate"><span class="pre">SomeField</span></code> is something optional that can afford to be
+<code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<p>For the sake of consistency, if a field does not exist, set it to <code class="docutils literal notranslate"><span class="pre">None</span></code> and not <code class="docutils literal notranslate"><span class="pre">""</span></code>.</p>
+</section>
+</section>
+<section id="load">
+<h3 id="load">Load<a class="headerlink" href="#load" title="Link to this heading">¶</a></h3>
+<p><a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L113-L132">As seen in our AWS EMR example</a>, the <code class="docutils literal notranslate"><span class="pre">load</span></code> function ingests a list of dicts to Neo4j by calling <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/client/core/tx.py#L191-L212">cartography.client.core.tx.load()</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">load_emr_clusters</span><span class="p">(</span>
+        <span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+        <span class="n">cluster_data</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+        <span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">current_aws_account_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">aws_update_tag</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Loading EMR </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> clusters for region '</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2">' into graph."</span><span class="p">)</span>
+    <span class="n">load</span><span class="p">(</span>
+        <span class="n">neo4j_session</span><span class="p">,</span>
+        <span class="n">EMRClusterSchema</span><span class="p">(),</span>
+        <span class="n">cluster_data</span><span class="p">,</span>
+        <span class="n">lastupdated</span><span class="o">=</span><span class="n">aws_update_tag</span><span class="p">,</span>
+        <span class="n">Region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+        <span class="n">AWS_ID</span><span class="o">=</span><span class="n">current_aws_account_id</span><span class="p">,</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+<section id="defining-a-node">
+<h4 id="defining-a-node">Defining a node<a class="headerlink" href="#defining-a-node" title="Link to this heading">¶</a></h4>
+<p>As an example of a <code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code>, you can view our <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110">EMRClusterSchema code</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterSchema</span><span class="p">(</span><span class="n">CartographyNodeSchema</span><span class="p">):</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'EMRCluster'</span>  <span class="c1"># The label of the node</span>
+    <span class="n">properties</span><span class="p">:</span> <span class="n">EMRClusterNodeProperties</span> <span class="o">=</span> <span class="n">EMRClusterNodeProperties</span><span class="p">()</span>  <span class="c1"># An object representing all properties on the EMR Cluster node</span>
+    <span class="n">sub_resource_relationship</span><span class="p">:</span> <span class="n">EMRClusterToAWSAccount</span> <span class="o">=</span> <span class="n">EMRClusterToAWSAccount</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>An <code class="docutils literal notranslate"><span class="pre">EMRClusterSchema</span></code> object inherits from the <code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code> class and contains a node label, properties, and connection to its <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228">sub-resource</a>: an <code class="docutils literal notranslate"><span class="pre">AWSAccount</span></code>.</p>
+<p>Note that the typehints are necessary for Python dataclasses to work properly.</p>
+</section>
+<section id="defining-node-properties">
+<h4 id="defining-node-properties">Defining node properties<a class="headerlink" href="#defining-node-properties" title="Link to this heading">¶</a></h4>
+<p>Here’s our <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110">EMRClusterNodeProperties code</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterNodeProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+    <span class="n">arn</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">'ClusterArn'</span><span class="p">,</span> <span class="n">extra_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">firstseen</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">'firstseen'</span><span class="p">)</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">'Id'</span><span class="p">)</span>
+    <span class="c1"># ...</span>
+    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">'lastupdated'</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">region</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">'Region'</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">security_configuration</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">'SecurityConfiguration'</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>A <code class="docutils literal notranslate"><span class="pre">CartographyNodeProperties</span></code> object consists of <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L37">PropertyRef</a> objects. <code class="docutils literal notranslate"><span class="pre">PropertyRefs</span></code> tell <code class="docutils literal notranslate"><span class="pre">querybuilder.build_ingestion_query()</span></code> where to find appropriate values for each field from the list of dicts.</p>
+<p>For example, <code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">PropertyRef</span> <span class="pre">=</span> <span class="pre">PropertyRef('Id')</span></code> above tells the querybuilder to set a field called <code class="docutils literal notranslate"><span class="pre">id</span></code> on the <code class="docutils literal notranslate"><span class="pre">EMRCluster</span></code> node using the value located at key <code class="docutils literal notranslate"><span class="pre">'id'</span></code> on each dict in the list.</p>
+<p>As another example, <code class="docutils literal notranslate"><span class="pre">region:</span> <span class="pre">PropertyRef</span> <span class="pre">=</span> <span class="pre">PropertyRef('Region',</span> <span class="pre">set_in_kwargs=True)</span></code> tells the querybuilder to set a field called <code class="docutils literal notranslate"><span class="pre">region</span></code> on the <code class="docutils literal notranslate"><span class="pre">EMRCluster</span></code> node using a keyword argument called <code class="docutils literal notranslate"><span class="pre">Region</span></code> supplied to <code class="docutils literal notranslate"><span class="pre">cartography.client.core.tx.load()</span></code>. <code class="docutils literal notranslate"><span class="pre">set_in_kwargs=True</span></code> is useful in cases where we want every object loaded by a single call to <code class="docutils literal notranslate"><span class="pre">load()</span></code> to have the same value for a given attribute.</p>
+<section id="node-property-indexes">
+<h5 id="node-property-indexes">Node property indexes<a class="headerlink" href="#node-property-indexes" title="Link to this heading">¶</a></h5>
+<p>Cartography uses its data model to automatically create indexes for</p>
+<ul class="simple">
+<li><p>node properties that uniquely identify the node (e.g. <code class="docutils literal notranslate"><span class="pre">id</span></code>)</p></li>
+<li><p>node properties are used to connect a node to other nodes (i.e. they are used as part of a <code class="docutils literal notranslate"><span class="pre">TargetNodeMatcher</span></code> on a <code class="docutils literal notranslate"><span class="pre">CartographyRelSchema</span></code>.)</p></li>
+<li><p>a node’s <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> field – this is used to enable faster cleanup jobs</p></li>
+</ul>
+<p>As seen in the above definition for <code class="docutils literal notranslate"><span class="pre">EMRClusterNodeProperties.arn</span></code>, you can also explicitly specify additional indexes for fields that you expect to be queried on by providing <code class="docutils literal notranslate"><span class="pre">extra_index=True</span></code> to the <code class="docutils literal notranslate"><span class="pre">PropertyRef</span></code> constructor:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterNodeProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+    <span class="c1"># ...</span>
+    <span class="n">arn</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">'ClusterArn'</span><span class="p">,</span> <span class="n">extra_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Index creation is idempotent (we only create them if they don’t exist).</p>
+<p>See <span class="xref std std-ref">below</span> for more information on indexes.</p>
+</section>
+</section>
+<section id="defining-relationships">
+<h4 id="defining-relationships">Defining relationships<a class="headerlink" href="#defining-relationships" title="Link to this heading">¶</a></h4>
+<p>Relationships can be defined on <code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code> on either their <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228">sub_resource_relationship</a> field or their <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237">other_relationships</a> field (you can find an example of <code class="docutils literal notranslate"><span class="pre">other_relationships</span></code> <a class="reference external" href="https://github.com/lyft/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94">here in our test data</a>).</p>
+<p>As seen above, an <code class="docutils literal notranslate"><span class="pre">EMRClusterSchema</span></code> only has a single relationship defined: an <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L94-L103">EMRClusterToAWSAccount</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="c1"># (:EMRCluster)&lt;-[:RESOURCE]-(:AWSAccount)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterToAWSAccount</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'AWSAccount'</span>  <span class="c1"># (1)</span>
+    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">(</span>  <span class="c1"># (2)</span>
+        <span class="p">{</span><span class="s1">'id'</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">'AccountId'</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+    <span class="p">)</span>
+    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">INWARD</span>  <span class="c1"># (3)</span>
+    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"RESOURCE"</span>  <span class="c1"># (4)</span>
+    <span class="n">properties</span><span class="p">:</span> <span class="n">EMRClusterToAwsAccountRelProperties</span> <span class="o">=</span> <span class="n">EMRClusterToAwsAccountRelProperties</span><span class="p">()</span>  <span class="c1">#  (5)</span>
+</pre></div>
+</div>
+<p>This class is best described by explaining how it is processed: <code class="docutils literal notranslate"><span class="pre">build_ingestion_query()</span></code> will traverse the <code class="docutils literal notranslate"><span class="pre">EMRClusterSchema</span></code> to its <code class="docutils literal notranslate"><span class="pre">sub_resource_relationship</span></code> field and find the above <code class="docutils literal notranslate"><span class="pre">EMRClusterToAWSAccount</span></code> object. With this information, we know to</p>
+<ul class="simple">
+<li><p>draw a relationship to an <code class="docutils literal notranslate"><span class="pre">AWSAccount</span></code> node (1) using the label “<code class="docutils literal notranslate"><span class="pre">RESOURCE</span></code>” (4)</p></li>
+<li><p>by matching on the AWSAccount’s “<code class="docutils literal notranslate"><span class="pre">id</span></code>” field” (2)</p></li>
+<li><p>where the relationship <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L12-L34">directionality</a> is pointed <em>inward</em> toward the EMRCluster (3)</p></li>
+<li><p>making sure to define a set of properties for the relationship (5). The <a class="reference external" href="https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L89-L91">full example RelProperties</a> is very short:</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterToAwsAccountRelProperties</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">'lastupdated'</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="the-result">
+<h4 id="the-result">The result<a class="headerlink" href="#the-result" title="Link to this heading">¶</a></h4>
+<p>And those are all the objects necessary for this example! The resulting query will look something like this:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span class="k">UNWIND</span><span class="w"> </span><span class="err">$</span><span class="n">DictList</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">item</span>
+<span class="w">    </span><span class="k">MERGE</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">EMRCluster</span><span class="p">{</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">Id</span><span class="p">})</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="k">CREATE</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">firstseen</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">timestamp</span><span class="p">()</span>
+<span class="w">    </span><span class="k">SET</span>
+<span class="w">        </span><span class="n">i</span><span class="p">.</span><span class="n">lastupdated</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="err">$</span><span class="n">lastupdated</span><span class="p">,</span>
+<span class="w">        </span><span class="n">i</span><span class="p">.</span><span class="n">arn</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">ClusterArn</span>
+<span class="w">        </span><span class="c1">// ...</span>
+
+<span class="w">        </span><span class="k">WITH</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">item</span>
+<span class="w">        </span><span class="k">CALL</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">WITH</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">item</span>
+
+<span class="w">            </span><span class="k">OPTIONAL</span><span class="w"> </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">j</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">{</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="err">$</span><span class="n">AccountId</span><span class="p">})</span>
+<span class="w">            </span><span class="k">WITH</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="n">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="w">            </span><span class="k">MERGE</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">&lt;-[</span><span class="n">r</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+<span class="w">            </span><span class="k">ON</span><span class="w"> </span><span class="k">CREATE</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">firstseen</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">timestamp</span><span class="p">()</span>
+<span class="w">            </span><span class="k">SET</span>
+<span class="w">                </span><span class="n">r</span><span class="p">.</span><span class="n">lastupdated</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="err">$</span><span class="n">lastupdated</span>
+<span class="w">        </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>And that’s basically all you need to know to understand how to define your own nodes and relationships using cartography’s data objects. For more information, you can view the <a class="reference external" href="https://github.com/lyft/cartography/blob/master/cartography/graph/model.py">object model API documentation</a> as a reference.</p>
+</section>
+</section>
+<section id="additional-concepts">
+<h3 id="additional-concepts">Additional concepts<a class="headerlink" href="#additional-concepts" title="Link to this heading">¶</a></h3>
+<p>This section explains cartography general patterns, conventions, and design decisions.</p>
+<section id="cartography-s-update-tag">
+<h4 id="cartography-s-update-tag">cartography’s <code class="docutils literal notranslate"><span class="pre">update_tag</span></code>:<a class="headerlink" href="#cartography-s-update-tag" title="Link to this heading">¶</a></h4>
+<p><code class="docutils literal notranslate"><span class="pre">cartography</span></code>’s global <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/cli.py#L91-L98">config object carries around an update_tag property</a>
+which is a tag/label associated with the current sync.
+Cartography’s CLI code <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134">sets this to a Unix timestamp of when the CLI was run</a>.</p>
+<p>All <code class="docutils literal notranslate"><span class="pre">cartography</span></code> intel modules set the <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> property on all nodes and all relationships to this <code class="docutils literal notranslate"><span class="pre">update_tag</span></code>.</p>
+</section>
+<section id="all-nodes-need-these-fields">
+<h4 id="all-nodes-need-these-fields">All nodes need these fields<a class="headerlink" href="#all-nodes-need-these-fields" title="Link to this heading">¶</a></h4>
+<ul>
+<li><p><span class="raw-html-md"><a name="id">id</a></span> - an ID should be a string that uniquely identifies the node. In AWS, this is usually an
+ARN. In GCP, this is usually a partial URI.</p>
+<p>If possible, we should use API-provided fields for IDs and not create our own.
+In some cases though this is unavoidable -
+see <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema/gcp.md#gcpnetworktag">GCPNetworkTag</a>.</p>
+<p>When setting an <code class="docutils literal notranslate"><span class="pre">id</span></code>, ensure that you also include the field name that it came from. For example, since we’ve
+decided to use <code class="docutils literal notranslate"><span class="pre">partial_uri``s</span> <span class="pre">as</span> <span class="pre">an</span> <span class="pre">id</span> <span class="pre">for</span> <span class="pre">a</span> <span class="pre">GCPVpc,</span>  <span class="pre">we</span> <span class="pre">should</span> <span class="pre">include</span> <span class="pre">both</span> <span class="pre">``partial_uri</span></code> <em>and</em> <code class="docutils literal notranslate"><span class="pre">id</span></code> on the node.
+This way, a user can tell what fields were used to derive the <code class="docutils literal notranslate"><span class="pre">id</span></code>. This is accomplished <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L455-L457">here</a></p>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> - See <span class="xref std std-ref">below</span> on how this gets set automatically.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">firstseen</span></code> - See <span class="xref std std-ref">below</span> on how this gets set automatically.</p></li>
+</ul>
+</section>
+<section id="all-relationships-need-these-fields">
+<h4 id="all-relationships-need-these-fields">All relationships need these fields<a class="headerlink" href="#all-relationships-need-these-fields" title="Link to this heading">¶</a></h4>
+<p>Cartography currently does not create indexes on relationships, so in most cases we should keep relationships lightweight with only these two fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> - See <span class="xref std std-ref">below</span> on how this gets set automatically.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">firstseen</span></code> - See <span class="xref std std-ref">below</span> on how this gets set automatically.</p></li>
+</ul>
+</section>
+<section id="run-queries-only-on-indexed-fields-for-best-performance">
+<h4 id="run-queries-only-on-indexed-fields-for-best-performance">Run queries only on indexed fields for best performance<a class="headerlink" href="#run-queries-only-on-indexed-fields-for-best-performance" title="Link to this heading">¶</a></h4>
+<p>In this older example of ingesting GCP VPCs, we connect VPCs with GCPProjects
+<a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L451">based on their id fields</a>.
+<a href="#id1"><span class="problematic" id="id2">``</span></a>id``s are indexed, as seen <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L45">here</a>
+and <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L42">here</a>.
+All of these queries use indexes for faster lookup.</p>
+</section>
+<section id="indexes-cypher">
+<h4 id="indexes-cypher">indexes.cypher<a class="headerlink" href="#indexes-cypher" title="Link to this heading">¶</a></h4>
+<p>Older intel modules define indexes in <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher">indexes.cypher</a>.
+By using CartographyNodeSchema and CartographyRelSchema objects, indexes are automatically created so you don’t need to update this file!</p>
+</section>
+<section id="lastupdated-and-firstseen">
+<h4 id="lastupdated-and-firstseen">lastupdated and firstseen<a class="headerlink" href="#lastupdated-and-firstseen" title="Link to this heading">¶</a></h4>
+<p>On every cartography node and relationship, we set the <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> field to the <code class="docutils literal notranslate"><span class="pre">UPDATE_TAG</span></code> and <code class="docutils literal notranslate"><span class="pre">firstseen</span></code> field to <code class="docutils literal notranslate"><span class="pre">timestamp()</span></code> (a built-in Neo4j function equivalent to epoch time in milliseconds). This is automatically handled by the cartography object model.</p>
+</section>
+</section>
+<section id="cleanup">
+<h3 id="cleanup">Cleanup<a class="headerlink" href="#cleanup" title="Link to this heading">¶</a></h3>
+<p>We have just added new nodes and relationships to the graph, and we have also updated previously-added ones
+by using <code class="docutils literal notranslate"><span class="pre">MERGE</span></code>. We now need to delete nodes and relationships that no longer exist, and we do this by removing
+all nodes and relationships that have <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> NOT set to the <code class="docutils literal notranslate"><span class="pre">update_tag</span></code> of this current run.</p>
+<p>By using Cartography schema objects, a cleanup function is <a class="reference external" href="https://github.com/lyft/cartography/blob/82e1dd0e851475381ac8f2a9a08027d67ec1d772/cartography/intel/aws/emr.py#L77-L80">trivial to write</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">cleanup</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"Running EMR cleanup job."</span><span class="p">)</span>
+    <span class="n">cleanup_job</span> <span class="o">=</span> <span class="n">GraphJob</span><span class="o">.</span><span class="n">from_node_schema</span><span class="p">(</span><span class="n">EMRClusterSchema</span><span class="p">(),</span> <span class="n">common_job_parameters</span><span class="p">)</span>
+    <span class="n">cleanup_job</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Older intel modules still do this process with hand-written cleanup jobs that work like this:</p>
+<ul>
+<li><p>Delete all old nodes</p>
+<p>You can see this in our <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L4">GCP VPCs example</a>.
+We run <code class="docutils literal notranslate"><span class="pre">DETACH</span> <span class="pre">DELETE</span></code> to delete an old node and disconnect it from all other nodes.</p>
+</li>
+<li><p>Delete all old relationships</p>
+<p>You can see this in the GCP VPC example <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L10">here</a>
+and <a class="reference external" href="https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L16">here</a>.</p>
+<ul class="simple">
+<li><p>Q: We just <code class="docutils literal notranslate"><span class="pre">DETACH</span> <span class="pre">DELETE</span></code>’d the node. Why do we need to delete the relationships too?</p></li>
+<li><p>A: There are cases where the node may continue to exist but the relationships between it and other nodes have changed.
+Explicitly deleting stale relationships accounts for this case.
+See this <a class="reference external" href="https://github.com/lyft/cartography/pull/124/files#r312277725">short discussion</a>.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="error-handling-principles">
+<h2 id="error-handling-principles">Error handling principles<a class="headerlink" href="#error-handling-principles" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Don’t catch the base Exception class when error handling because it makes problems difficult to trace.</p></li>
+<li><p>Do catch the narrowest possible class of exception.</p></li>
+<li><p>Only catch exceptions when your code can resolve the issue. Otherwise, allow exceptions to bubble up.</p></li>
+</ul>
+</section>
+<section id="schema">
+<h2 id="schema">Schema<a class="headerlink" href="#schema" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Update the <a class="reference external" href="https://github.com/lyft/cartography/tree/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema">schema</a>
+with every change!</p></li>
+</ul>
+</section>
+<section id="making-tests">
+<h2 id="making-tests">Making tests<a class="headerlink" href="#making-tests" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Before making tests, read through and follow the setup steps in <a class="reference external" href="developer-guide.html">the Cartography developer guide</a>.</p></li>
+<li><p>Add fake data for testing at <code class="docutils literal notranslate"><span class="pre">tests/data</span></code>. We can see
+the GCP VPC example <a class="reference external" href="https://github.com/lyft/cartography/blob/0652c2b6dede589e805156925353bffc72da6c2b/tests/data/gcp/compute.py#L2">here</a>.</p></li>
+<li><p>Add unit tests to <code class="docutils literal notranslate"><span class="pre">tests/unit/cartography/intel</span></code>. See this <a class="reference external" href="https://github.com/lyft/cartography/blob/828ed600f2b14adae9d0b78ef82de0acaf24b86a/tests/unit/cartography/intel/gcp/test_compute.py">example</a>.
+These tests ensure that <code class="docutils literal notranslate"><span class="pre">transform*</span></code> manipulates the data in expected ways.</p></li>
+<li><p>Add integration tests to  <code class="docutils literal notranslate"><span class="pre">tests/integration/cartography/intel</span></code>. See this <a class="reference external" href="https://github.com/lyft/cartography/blob/828ed600f2b14adae9d0b78ef82de0acaf24b86a/tests/integration/cartography/intel/gcp/test_compute.py">example</a>.
+These tests assume that you have neo4j running at localhost:7687 with no password, and ensure that nodes loaded to the
+graph match your mock data.</p></li>
+</ul>
+</section>
+<section id="other">
+<h2 id="other">Other<a class="headerlink" href="#other" title="Link to this heading">¶</a></h2>
+<ul>
+<li><p>We prefer and will accept PRs which incrementally add information from a particular data source. Incomplete
+representations are OK provided they are consistent over time. For example, we don’t sync 100% of AWS resources but the
+resources that exist in the graph don’t change across syncs.</p></li>
+<li><p>Each intel module offers its own view of the graph</p>
+<p>ℹ️ This best practice is a little less precise, so if you’ve gotten to this point and you need clarification, just
+submit your PR and ask us.</p>
+<p>As much as possible, each intel module should ingest data without assuming that a different module will ingest the
+same data. Explained another way, each module should “offer its own perspective” on the data. We believe doing this
+gives us a more complete graph. Below are some key guidelines clarifying and justifying this design choice.</p>
+</li>
+<li><p>It is possible (and encouraged) for more than one intel module to modify the same node type.</p>
+<p>For example, when we <a class="reference external" href="https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L188">connect RDS instances to their associated EC2 security
+groups</a>
+there are actually two different intel modules that retrieve EC2 security group data: the <a class="reference external" href="https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L13">RDS module</a>
+returns <a class="reference external" href="https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSecurityGroupMembership.html">partial group data</a>,
+and the EC2 module returns more complete data as it calls APIs specific for <a class="reference external" href="https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/ec2.py#L166">retrieving and loading security groups</a>.
+Because both the RDS and EC2 modules <code class="docutils literal notranslate"><span class="pre">MERGE</span></code> on a unique ID, we don’t need to worry about
+creating duplicate nodes in the graph.</p>
+<p>Another less obvious benefit of using <code class="docutils literal notranslate"><span class="pre">MERGE</span></code> across more than one intel module to connect nodes in this way is that
+in many cases, we’ve seen an intel module discover nodes that another module was not aware of!</p>
+</li>
+</ul>
+</section>
+</section>
+
+
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="md-footer">
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+          
+            <a href="writing-analysis-jobs.html" title="How to extend Cartography with Analysis Jobs"
+               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+               rel="prev">
+              <div class="md-flex__cell md-flex__cell--shrink">
+                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+              </div>
+              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+                <span class="md-flex__ellipsis">
+                  <span
+                      class="md-footer-nav__direction"> "Previous" </span> How to extend Cartography with Analysis Jobs </span>
+              </div>
+            </a>
+          
+          
+            <a href="../contact.html" title="Contact"
+               class="md-flex md-footer-nav__link md-footer-nav__link--next"
+               rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
+                class="md-flex__ellipsis"> <span
+                class="md-footer-nav__direction"> "Next" </span> Contact </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink"><i
+                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          
+        </a>
+        
+      </nav>
+    </div>
+    <div class="md-footer-meta md-typeset">
+      <div class="md-footer-meta__inner md-grid">
+        <div class="md-footer-copyright">
+          <div class="md-footer-copyright__highlight">
+              &#169; Copyright 2021-2025, The Linux Foundation.
+              
+          </div>
+            Created using
+            <a href="http://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+             and
+            <a href="https://github.com/bashtage/sphinx-material/">Material for
+              Sphinx</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="../_static/javascripts/application.js"></script>
+  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+  </body>
+</html>

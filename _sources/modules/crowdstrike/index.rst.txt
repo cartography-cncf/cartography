@@ -1,0 +1,7 @@
+Crowdstrike
+###########
+
+.. toctree::
+
+    config
+    schema
