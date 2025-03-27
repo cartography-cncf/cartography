@@ -23,7 +23,6 @@ OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/admin.directory.user.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.member',
-    'https://www.googleapis.com/auth/cloud-platform',
 ]
 
 logger = logging.getLogger(__name__)

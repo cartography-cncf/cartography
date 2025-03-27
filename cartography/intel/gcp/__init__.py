@@ -254,6 +254,30 @@ def _sync_single_project_dns(
         dns.sync(neo4j_session, dns_cred, project_id, gcp_update_tag, common_job_parameters)
 
 
+def _sync_single_project_iam(
+    neo4j_session: neo4j.Session,
+    resources: Resource,
+    project_id: str,
+    gcp_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Handles graph sync for a single GCP project's IAM resources.
+    :param neo4j_session: The Neo4j session
+    :param resources: namedtuple of the GCP resource objects
+    :param project_id: The project ID number to sync.  See  the `projectId` field in
+    https://cloud.google.com/resource-manager/reference/rest/v1/projects
+    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
+    :param common_job_parameters: Other parameters sent to Neo4j
+    :return: Nothing
+    """
+    # Determine if IAM service is enabled
+    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
+    iam_cred = _get_iam_resource(get_gcp_credentials())
+    if service_names.iam in enabled_services:
+        iam.sync(neo4j_session, iam_cred, project_id, gcp_update_tag, common_job_parameters)
+
+
 def _sync_multiple_projects(
     neo4j_session: neo4j.Session, resources: Resource, projects: List[Dict],
     gcp_update_tag: int, common_job_parameters: Dict,
@@ -300,13 +324,7 @@ def _sync_multiple_projects(
     for project in projects:
         project_id = project['projectId']
         logger.info("Syncing GCP project %s for IAM", project_id)
-        iam.sync(
-            neo4j_session,
-            resources.iam,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
+        _sync_single_project_iam(neo4j_session, resources, project_id, gcp_update_tag, common_job_parameters)
 
 
 @timeit
