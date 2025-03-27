@@ -1,10 +1,14 @@
 import datetime
 import logging
 import traceback
+from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import cpu_count
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Optional
+from typing import Tuple
 
 import boto3
 import botocore.exceptions
@@ -15,13 +19,13 @@ from . import organizations
 from .resources import RESOURCE_FUNCTIONS
 from cartography.config import Config
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
+from cartography.neo4j_session_factory import neo4j_session_factory
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
 from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
-
 
 stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)
@@ -138,6 +142,47 @@ def _autodiscover_accounts(
         logger.warning(f"The current account ({account_id}) doesn't have enough permissions to perform autodiscovery.")
 
 
+def sync_one_account_runner(
+        profile_name: str,
+        account_id: str,
+        boto3_session: boto3.Session,
+        neo4j_session: neo4j.Session,
+        sync_tag: int,
+        common_job_parameters: Dict[str, Any],
+        aws_requested_syncs: List[str],
+        aws_best_effort_mode: bool,
+) -> Optional[Tuple[str, str]]:
+    logger.info(f"Syncing AWS account with ID '{account_id}' using configured profile '{profile_name}'.")
+    common_job_parameters["AWS_ID"] = account_id
+    _autodiscover_accounts(neo4j_session, boto3_session, account_id, sync_tag, common_job_parameters)
+    try:
+        _sync_one_account(
+            neo4j_session,
+            boto3_session,
+            account_id,
+            sync_tag,
+            common_job_parameters,
+            aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
+        )
+    except Exception as e:
+        exception_traceback = traceback.TracebackException.from_exception(e)
+        if aws_best_effort_mode:
+            timestamp = datetime.datetime.now()
+            traceback_string = ''.join(exception_traceback.format())
+            exc_result_string = f'{timestamp} - Exception for account ID: {account_id}\n{traceback_string}'
+            logger.warning(
+                f"Caught exception syncing account {account_id}. aws-best-effort-mode is on so we are continuing "
+                f"on to the next AWS account. All exceptions will be aggregated and re-logged at the end of the "
+                f"sync.",
+                exc_info=True,
+            )
+            return account_id, exc_result_string
+        else:
+            logger.error(f"AWS sync failed for account {account_id}, see traceback; {exception_traceback}")
+            raise
+    return None
+
+
 def _sync_multiple_accounts(
     neo4j_session: neo4j.Session,
     accounts: Dict[str, str],
@@ -153,43 +198,32 @@ def _sync_multiple_accounts(
     exception_tracebacks = []
 
     num_accounts = len(accounts)
+    num_threads = cpu_count()
 
-    for profile_name, account_id in accounts.items():
-        logger.info("Syncing AWS account with ID '%s' using configured profile '%s'.", account_id, profile_name)
-        common_job_parameters["AWS_ID"] = account_id
-        if num_accounts == 1:
-            # Use the default boto3 session because boto3 gets confused if you give it a profile name with 1 account
-            boto3_session = boto3.Session()
-        else:
-            boto3_session = boto3.Session(profile_name=profile_name)
+    logger.info(f"AWS: Using {num_threads} threads.")
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        for profile_name, account_id in accounts.items():
+            with neo4j_session_factory.get_new_session() as neo4j_thread_session:
+                if num_accounts == 1:
+                    # Use the default boto3 session because boto3 gets confused if you give it a profile name w/ 1 acc.
+                    boto3_session = boto3.Session()
+                else:
+                    boto3_session = boto3.Session(profile_name=profile_name)
 
-        _autodiscover_accounts(neo4j_session, boto3_session, account_id, sync_tag, common_job_parameters)
-
-        try:
-            _sync_one_account(
-                neo4j_session,
-                boto3_session,
-                account_id,
-                sync_tag,
-                common_job_parameters,
-                aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
-            )
-        except Exception as e:
-            if aws_best_effort_mode:
-                timestamp = datetime.datetime.now()
-                failed_account_ids.append(account_id)
-                exception_traceback = traceback.TracebackException.from_exception(e)
-                traceback_string = ''.join(exception_traceback.format())
-                exception_tracebacks.append(f'{timestamp} - Exception for account ID: {account_id}\n{traceback_string}')
-                logger.warning(
-                    f"Caught exception syncing account {account_id}. aws-best-effort-mode is on so we are continuing "
-                    f"on to the next AWS account. All exceptions will be aggregated and re-logged at the end of the "
-                    f"sync.",
-                    exc_info=True,
-                )
-                continue
-            else:
-                raise
+                failure: Optional[Tuple[str, str]] = executor.submit(
+                    sync_one_account_runner,
+                    profile_name,
+                    account_id,
+                    boto3_session,
+                    neo4j_thread_session,
+                    sync_tag,
+                    common_job_parameters,
+                    aws_requested_syncs,
+                    aws_best_effort_mode,
+                ).result()
+                if failure:
+                    failed_account_ids.append(failure[0])
+                    exception_tracebacks.append(failure[1])
 
     if failed_account_ids:
         logger.error(f'AWS sync failed for accounts {failed_account_ids}')
