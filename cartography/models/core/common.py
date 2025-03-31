@@ -9,12 +9,13 @@ class PropertyRef:
     """
 
     def __init__(
-        self,
-        name: str,
-        set_in_kwargs=False,
-        extra_index=False,
-        ignore_case=False,
-        fuzzy_and_ignore_case=False,
+            self,
+            name: str,
+            set_in_kwargs=False,
+            extra_index=False,
+            ignore_case=False,
+            fuzzy_and_ignore_case=False,
+            one_to_many=False,
     ):
         """
         :param name: The name of the property
@@ -50,6 +51,7 @@ class PropertyRef:
         self.extra_index = extra_index
         self.ignore_case = ignore_case
         self.fuzzy_and_ignore_case = fuzzy_and_ignore_case
+        self.one_to_many = one_to_many
         if self.fuzzy_and_ignore_case and self.ignore_case:
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": ignore_case cannot be used together with'

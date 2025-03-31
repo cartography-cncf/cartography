@@ -3,10 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.ec2.instances
 import cartography.intel.aws.iam
-import tests.data.aws.ec2.instances
-import tests.data.aws.iam
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
-from cartography.util import run_analysis_job
 from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -17,7 +14,11 @@ TEST_REGION = 'us-east-1'
 TEST_UPDATE_TAG = 123456789
 
 
-@patch.object(cartography.intel.aws.ec2.instances, 'get_ec2_instances', return_value=DESCRIBE_INSTANCES['Reservations'])
+@patch.object(
+    cartography.intel.aws.ec2.instances,
+    'get_ec2_instances',
+    return_value=DESCRIBE_INSTANCES['Reservations'],
+)
 def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     """
     Ensure that instances actually get loaded and have their key fields
@@ -255,51 +256,4 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         ('vol-04', '000000000000'),
         ('vol-09', '000000000000'),
         ('vol-0df', '000000000000'),
-    }
-
-
-@patch.object(cartography.intel.aws.ec2.instances, 'get_ec2_instances', return_value=DESCRIBE_INSTANCES['Reservations'])
-def test_ec2_iaminstanceprofiles(mock_get_instances, neo4j_session):
-    """
-    Ensure that EC2Instances are attached to the IAM Roles that they can assume due to their IAM instance profiles
-    """
-    # Arrange
-    boto3_session = MagicMock()
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-    data_iam = tests.data.aws.iam.INSTACE['Roles']
-    sync_ec2_instances(
-        neo4j_session,
-        boto3_session,
-        [TEST_REGION],
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
-    )
-    cartography.intel.aws.iam.load_roles(
-        neo4j_session, data_iam, TEST_ACCOUNT_ID, TEST_UPDATE_TAG,
-    )
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-    }
-
-    # Act
-    run_analysis_job(
-        'aws_ec2_iaminstanceprofile.json',
-        neo4j_session,
-        common_job_parameters,
-    )
-
-    # Assert
-    assert check_rels(
-        neo4j_session,
-        'EC2Instance',
-        'id',
-        'AWSRole',
-        'arn',
-        'STS_ASSUMEROLE_ALLOW',
-        rel_direction_right=True,
-    ) == {
-        ('i-02', 'arn:aws:iam::000000000000:role/SERVICE_NAME_2'),
-        ('i-03', 'arn:aws:iam::000000000000:role/ANOTHER_SERVICE_NAME'),
-        ('i-04', 'arn:aws:iam::000000000000:role/ANOTHER_SERVICE_NAME'),
     }

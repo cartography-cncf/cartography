@@ -72,6 +72,22 @@ class EC2InstanceToEC2Reservation(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class EC2InstanceToInstanceProfileRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class EC2InstanceToInstanceProfile(CartographyRelSchema):
+    target_node_label: str = 'AWSInstanceProfile'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'arn': PropertyRef('IamInstanceProfile')},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "INSTANCE_PROFILE"
+    properties: EC2InstanceToInstanceProfileRelProperties = EC2InstanceToInstanceProfileRelProperties()
+
+
+@dataclass(frozen=True)
 class EC2InstanceSchema(CartographyNodeSchema):
     label: str = 'EC2Instance'
     properties: EC2InstanceNodeProperties = EC2InstanceNodeProperties()
@@ -79,5 +95,6 @@ class EC2InstanceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             EC2InstanceToEC2Reservation(),
+            EC2InstanceToInstanceProfile(),  # Add the new relationship
         ],
     )

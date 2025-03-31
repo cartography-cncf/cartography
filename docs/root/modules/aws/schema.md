@@ -240,6 +240,44 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
         (AWSAccount)-[RESOURCE]->(AWSInspectorPackages)
         ```
 
+
+### AWSInstanceProfile
+
+Representation of an AWS [IAM Instance Profile](https://docs.aws.amazon.com/IAM/latest/APIReference/API_InstanceProfile.html)
+
+
+| Field                 | Description                                        |
+|-----------------------|----------------------------------------------------|
+| firstseen             | Timestamp of when a sync job first discovered this node |
+| lastupdated           | Timestamp of the last time the node was updated    |
+| **arn**               | The arn                                            |
+| **id**                | The arn                                            |
+| instance_profile_id   | The instance profile id                            |
+| instance_profile_name | The instance profile name                          |
+| path                  | e.g. '/'                                           |
+
+
+#### Relationships
+
+- AWSInstanceProfiles belong to accounts
+
+        ```
+        (AWSAccount)-[RESOURCE]->(AWSInstanceProfile)
+        ```
+
+- Instance profiles can be associated with one or more IAM roles.
+
+    ```
+    (AWSRole)<-[ASSOCIATED_WITH]-(AWSInstanceProfile)
+    ```
+
+- Instance profiles can be associated with one or more EC2 instances.
+
+    ```
+    (EC2Instance)-[INSTANCE_PROFILE]->(AWSInstanceProfile)
+    ```
+
+
 ### AWSLambda
 
 Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/latest/dg/API_FunctionConfiguration.html).
@@ -564,6 +602,12 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 
     ```
     (AWSRole)-[ALLOWED_BY]->(OktaGroup)
+    ```
+
+- An IamInstanceProfile can be associated with a role.
+
+    ```
+    (AWSRole)<-[ASSOCIATED_WITH]-(AWSInstanceProfile)
     ```
 
 - AWS Roles are defined in AWS Accounts.
@@ -990,7 +1034,13 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
         (EBSVolume)-[ATTACHED_TO]->(EC2Instance)
         ```
 
--  EC2 Instances can assume IAM Roles.
+- Instance profiles can be associated with one or more EC2 instances.
+
+    ```
+    (EC2Instance)-[INSTANCE_PROFILE]->(AWSInstanceProfile)
+    ```
+
+-  EC2 Instances can assume IAM Roles (due to their IAM instance profiles).
 
         ```
         (EC2Instance)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
