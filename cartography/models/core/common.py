@@ -45,6 +45,24 @@ class PropertyRef:
         this property using the `CONTAINS` operator.
         query. Defaults to False. This only has effect as part of a TargetNodeMatcher and is not supported for the
         sub resource relationship.
+        :param one_to_many: Indicates that this property is meant to create one-to-many associations. If set to True,
+        this property ref points to a list stored on the data dict where each item is an ID. Only has effect as
+        part of a TargetNodeMatcher and is not supported for the sub resource relationship. Defaults to False.
+            Example on why you would set this to True:
+            AWS IAM instance profiles can be associated with one or more roles. This is reflected in their API object:
+            when we call describe-iam-instance-profiles, the `Roles` field contains a list of all the roles that the
+            profile is associated with. So, to create AWSInstanceProfile nodes while attaching them to multiple roles,
+            we can create a CartographyRelSchema with
+            ```
+            class InstanceProfileSchema(Schema):
+                target_node_label: str = 'AWSRole'
+                target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+                    'arn': PropertyRef('Roles', one_to_many=True),
+                )
+                ...
+            ```
+            This means that as we create AWSInstanceProfile nodes, we will search for AWSRoles to attach to, and we do
+            this by checking if each role's `arn` field is in the `Roles` list of the data dict.
         """
         self.name = name
         self.set_in_kwargs = set_in_kwargs
