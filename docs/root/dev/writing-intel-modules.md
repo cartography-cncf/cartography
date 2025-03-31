@@ -251,6 +251,94 @@ By using CartographyNodeSchema and CartographyRelSchema objects, indexes are aut
 
 On every cartography node and relationship, we set the `lastupdated` field to the `UPDATE_TAG` and `firstseen` field to `timestamp()` (a built-in Neo4j function equivalent to epoch time in milliseconds). This is automatically handled by the cartography object model.
 
+#### One-to-many relationships
+We can use the Cartography data model to represent one-to-many relationships. For example, an AWS IAM instance profile
+([API docs]()) maps to one or more roles.
+
+An example instance profile object looks like this:
+
+```python
+INSTANCE_PROFILES = [
+    {
+        "Path": "/",
+        "InstanceProfileName": "my-instance-profile",
+        "InstanceProfileId": "AIPA4SD",
+        "Arn": "arn:aws:iam::1234:instance-profile/my-instance-profile",
+        "CreateDate": datetime.datetime(2024, 12, 21, 23, 54, 16),
+        "Roles": [
+            {
+                "Path": "/",
+                "RoleName": "role1",
+                "RoleId": "AROA4",
+                "Arn": "arn:aws:iam::1234:role/role1",
+                "CreateDate": datetime.datetime(2024, 12, 21, 6, 53, 29),
+            },
+            {
+                "Path": "/",
+                "RoleName": "role2",
+                "RoleId": "AROA5",
+                "Arn": "arn:aws:iam::1234:role/role2",
+                "CreateDate": datetime.datetime(2024, 12, 21, 6, 53, 29),
+            },
+        ],
+    },
+]
+```
+
+Note that the `Roles` field in this data object is a list of objects (and that this is a one-to-many setup).
+
+Here's how to represent this in the Cartography data model:
+
+1. Transform the data so that `Roles` becomes a list of IDs and not dicts. Here we will use ARNs. The result should be:
+
+```python
+TRANSFORMED_INSTANCE_PROFILES = [
+    {
+        "Path": "/",
+        "InstanceProfileName": "my-instance-profile",
+        "InstanceProfileId": "AIPA4SD",
+        "Arn": "arn:aws:iam::1234:instance-profile/my-instance-profile",
+        "CreateDate": datetime.datetime(2024, 12, 21, 23, 54, 16),
+        "Roles": [
+            "arn:aws:iam::1234:role/role1",
+            "arn:aws:iam::1234:role/role2",
+        ]
+    },
+]
+```
+
+1. Define the InstanceProfile node (irrelevant fields omitted for brevity):
+
+```python
+@dataclass(frozen=True)
+class InstanceProfileSchema(CartographyNodeSchema):
+    label: str = 'AWSInstanceProfile'
+    properties: ...
+    sub_resource_relationship: ...
+    other_relationships: OtherRelationships = OtherRelationships([
+        InstanceProfileToAWSRole(),
+    ])
+```
+
+1. Define its association with AWS roles
+
+```python
+@dataclass(frozen=True)
+class InstanceProfileToAWSRole(CartographyRelSchema):
+    target_node_label: str = 'AWSRole'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'arn': PropertyRef('Roles', one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ASSOCIATED_WITH"
+    properties: ...
+```
+
+The key part is setting `one_to_many=True` in the PropertyRef for the TargetNodeMatcher. This instructs the data model
+to look for AWSRoles in the graph where their `arn` field is in the list pointed to by the `Roles` key on the data dict.
+
+Now we can use the same steps described above in this doc to finish data ingestion.
+
 ### Cleanup
 
 We have just added new nodes and relationships to the graph, and we have also updated previously-added ones
