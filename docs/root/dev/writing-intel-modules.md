@@ -253,7 +253,7 @@ On every cartography node and relationship, we set the `lastupdated` field to th
 
 #### One-to-many relationships
 We can use the Cartography data model to represent one-to-many relationships. For example, an AWS IAM instance profile
-([API docs]()) maps to one or more roles.
+([API docs](https://docs.aws.amazon.com/IAM/latest/APIReference/API_InstanceProfile.html)) maps to one or more roles.
 
 An example instance profile object looks like this:
 
