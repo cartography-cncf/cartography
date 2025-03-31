@@ -70,13 +70,24 @@ class PropertyRef:
         self.ignore_case = ignore_case
         self.fuzzy_and_ignore_case = fuzzy_and_ignore_case
         self.one_to_many = one_to_many
+
         if self.fuzzy_and_ignore_case and self.ignore_case:
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": ignore_case cannot be used together with'
                 'fuzzy_and_ignore_case. Pick one or the other.',
             )
 
+        if self.one_to_many and (self.ignore_case or self.fuzzy_and_ignore_case):
+            raise ValueError(
+                f'Error setting PropertyRef "{self.name}": one_to_many cannot be used together with '
+                '`ignore_case` or `fuzzy_and_ignore_case`.',
+            )
+
     def _parameterize_name(self) -> str:
+        """
+        Prefixes the name of the property ref with a '$' so that we can receive keyword args. See docs on __repr__ for
+        PropertyRef.
+        """
         return f"${self.name}"
 
     def __repr__(self) -> str:
