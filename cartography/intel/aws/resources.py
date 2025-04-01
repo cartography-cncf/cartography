@@ -1,3 +1,4 @@
+from typing import Callable
 from typing import Dict
 
 from . import apigateway
@@ -43,9 +44,11 @@ from .ec2.tgw import sync_transit_gateways
 from .ec2.volumes import sync_ebs_volumes
 from .ec2.vpc import sync_vpc
 from .ec2.vpc_peerings import sync_vpc_peerings
+from .iam_instance_profiles import sync_iam_instance_profiles
 
-RESOURCE_FUNCTIONS: Dict = {
+RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     'iam': iam.sync,
+    'iaminstanceprofiles': sync_iam_instance_profiles,
     's3': s3.sync,
     'dynamodb': dynamodb.sync,
     'ec2:launch_templates': sync_ec2_launch_templates,

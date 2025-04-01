@@ -196,8 +196,9 @@ def test_start_aws_ingestion_does_cleanup(
 @mock.patch('cartography.intel.aws.permission_relationships.sync')
 @mock.patch.object(cartography.intel.aws, '_autodiscover_account_regions', return_value=TEST_REGIONS)
 @mock.patch.object(cartography.intel.aws, 'run_cleanup_job', return_value=None)
+@mock.patch.object(cartography.intel.aws, 'run_scoped_analysis_job', return_value=None)
 def test_sync_one_account_all_sync_functions(
-    mock_cleanup, mock_autodiscover, mock_perm_rels, mock_tags, mock_boto3_session, neo4j_session,
+    mock_analysis, mock_cleanup, mock_autodiscover, mock_perm_rels, mock_tags, mock_boto3_session, neo4j_session,
 ):
     aws_sync_test_kwargs: Dict[str, Any] = make_aws_sync_test_kwargs(neo4j_session, mock_boto3_session)
     cartography.intel.aws._sync_one_account(
@@ -211,6 +212,7 @@ def test_sync_one_account_all_sync_functions(
     # Check that the boilerplate functions get called as expected. Brittle, but a good sanity check.
     assert mock_autodiscover.call_count == 0
     assert mock_cleanup.call_count == 0
+    assert mock_analysis.call_count == 1
 
 
 @mock.patch('cartography.intel.aws.boto3.Session')
@@ -219,8 +221,9 @@ def test_sync_one_account_all_sync_functions(
 @mock.patch('cartography.intel.aws.permission_relationships.sync')
 @mock.patch.object(cartography.intel.aws, '_autodiscover_account_regions', return_value=TEST_REGIONS)
 @mock.patch.object(cartography.intel.aws, 'run_cleanup_job', return_value=None)
+@mock.patch.object(cartography.intel.aws, 'run_scoped_analysis_job', return_value=None)
 def test_sync_one_account_just_iam_rels_and_tags(
-    mock_cleanup, mock_autodiscover, mock_perm_rels, mock_tags, mock_boto3_session, neo4j_session,
+    mock_analysis, mock_cleanup, mock_autodiscover, mock_perm_rels, mock_tags, mock_boto3_session, neo4j_session,
 ):
     aws_sync_test_kwargs: Dict[str, any] = make_aws_sync_test_kwargs(neo4j_session, mock_boto3_session)
     cartography.intel.aws._sync_one_account(
@@ -236,6 +239,7 @@ def test_sync_one_account_just_iam_rels_and_tags(
     # _sync_one_account() above did not specify regions, so we expect 1 call to _autodiscover_account_regions().
     assert mock_autodiscover.call_count == 1
     assert mock_cleanup.call_count == 0
+    assert mock_analysis.call_count == 1
 
 
 def test_standardize_aws_sync_kwargs():

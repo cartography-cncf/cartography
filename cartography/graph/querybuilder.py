@@ -109,7 +109,10 @@ def _build_match_clause(matcher: TargetNodeMatcher) -> str:
     return ', '.join(match.safe_substitute(Key=key, PropRef=prop_ref) for key, prop_ref in matcher_asdict.items())
 
 
-def _build_where_clause_for_rel_match(node_var: str, matcher: TargetNodeMatcher) -> str:
+def _build_where_clause_for_rel_match(
+        node_var: str,
+        matcher: TargetNodeMatcher,
+) -> str:
     """
     Same as _build_match_clause, but puts the matching logic in a WHERE clause.
     This is intended specifically to use for joining with relationships where we need a case-insensitive match.
@@ -119,6 +122,8 @@ def _build_where_clause_for_rel_match(node_var: str, matcher: TargetNodeMatcher)
     match = Template("$node_var.$key = $prop_ref")
     case_insensitive_match = Template("toLower($node_var.$key) = toLower($prop_ref)")
     fuzzy_and_ignorecase_match = Template("toLower($node_var.$key) CONTAINS toLower($prop_ref)")
+    # This assumes that item.$prop_ref points to a list available on the data object
+    one_to_many_match = Template("$node_var.$key IN $prop_ref")
 
     matcher_asdict = asdict(matcher)
 
@@ -128,6 +133,9 @@ def _build_where_clause_for_rel_match(node_var: str, matcher: TargetNodeMatcher)
             prop_line = case_insensitive_match.safe_substitute(node_var=node_var, key=key, prop_ref=prop_ref)
         elif prop_ref.fuzzy_and_ignore_case:
             prop_line = fuzzy_and_ignorecase_match.safe_substitute(node_var=node_var, key=key, prop_ref=prop_ref)
+        elif prop_ref.one_to_many:
+            # Allow a single node to be attached to multiple others at once using a list of IDs provided in kwargs
+            prop_line = one_to_many_match.safe_substitute(node_var=node_var, key=key, prop_ref=prop_ref)
         else:
             # Exact match (default; most efficient)
             prop_line = match.safe_substitute(node_var=node_var, key=key, prop_ref=prop_ref)
