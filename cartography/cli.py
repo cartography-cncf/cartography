@@ -798,9 +798,9 @@ class CLI:
             config.duo_api_secret = os.environ.get(config.duo_api_secret_env_var)
             settings.update({
                 'duo': {
-                'api_key': config.duo_api_key,
-                'api_secret': config.duo_api_secret,
-                'api_hostname': config.duo_api_hostname,
+                    'api_key': config.duo_api_key,
+                    'api_secret': config.duo_api_secret,
+                    'api_hostname': config.duo_api_hostname,
                 },
             })
         elif settings.duo.get('api_key', None) and settings.duo.get('api_secret', None):

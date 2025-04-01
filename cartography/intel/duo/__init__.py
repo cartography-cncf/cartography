@@ -14,6 +14,7 @@ from cartography.intel.duo.phones import sync as sync_duo_phones
 from cartography.intel.duo.tokens import sync as sync_duo_tokens
 from cartography.intel.duo.users import sync_duo_users
 from cartography.intel.duo.web_authn_credentials import sync as sync_duo_web_authn_credentials
+from cartography.settings import check_module_settings
 from cartography.settings import settings
 from cartography.util import timeit
 
@@ -55,15 +56,7 @@ def start_duo_ingestion(neo4j_session: neo4j.Session, _: Config) -> None:
     :param config: A cartography.config object
     :return: None
     '''
-    if not all([
-        settings.duo.get('api_key', None),
-        settings.duo.get('api_secret', None),
-        settings.duo.get('api_hostname', None),
-    ]):
-        logger.info(
-            'Duo import is not configured - skipping this module. '
-            'See docs to configure.',
-        )
+    if not check_module_settings('Duo', ['api_key', 'api_secret', 'api_hostname']):
         return
 
     client = get_client(_)

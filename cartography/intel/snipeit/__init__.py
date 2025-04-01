@@ -5,6 +5,7 @@ import neo4j
 from cartography.config import Config
 from cartography.intel.snipeit import asset
 from cartography.intel.snipeit import user
+from cartography.settings import check_module_settings
 from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -15,10 +16,7 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 def start_snipeit_ingestion(neo4j_session: neo4j.Session, _: Config) -> None:
-    if settings.snipeit.get('base_uri') is None or settings.snipeit.get('token') is None or settings.snipeit.get('tenant_id') is None:
-        logger.warning(
-            "Required parameter(s) missing. Skipping sync.",
-        )
+    if not check_module_settings('SnipeIT', ['base_uri', 'token', 'tenant_id']):
         return
 
     common_job_parameters = {

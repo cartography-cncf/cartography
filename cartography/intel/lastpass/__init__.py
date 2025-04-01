@@ -4,6 +4,7 @@ import neo4j
 
 import cartography.intel.lastpass.users
 from cartography.config import Config
+from cartography.settings import check_module_settings
 from cartography.settings import settings
 from cartography.util import timeit
 
@@ -18,12 +19,7 @@ def start_lastpass_ingestion(neo4j_session: neo4j.Session, _: Config) -> None:
     :param config: A cartography.config object (DEPRECATED)
     :return: None
     """
-
-    if not settings.lastpass.get('cid') or not settings.lastpass.get('provhash'):
-        logger.info(
-            'Lastpass import is not configured - skipping this module. '
-            'See docs to configure.',
-        )
+    if not check_module_settings('Lastpass', ['cid', 'provhash']):
         return
 
     common_job_parameters = {
