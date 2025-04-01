@@ -764,8 +764,8 @@ class CLI:
             logger.debug(f"Reading CID for Lastpass from environment variable {config.lastpass_cid_env_var}")
             config.lastpass_cid = os.environ.get(config.lastpass_cid_env_var)
             settings.update({'lastpass': {'cid': config.lastpass_cid}})
-        elif settings.lastpass.get('cid', None):
-            config.lastpass_cid = settings.lastpass.cid
+        elif settings.get('lastpass', {}).get('cid', None):
+            config.lastpass_cid = settings.get('lastpass', {}).cid
         else:
             config.lastpass_cid = None
         if config.lastpass_provhash_env_var:
@@ -774,8 +774,8 @@ class CLI:
             logger.debug(f"Reading provhash for Lastpass from environment variable {config.lastpass_provhash_env_var}")
             config.lastpass_provhash = os.environ.get(config.lastpass_provhash_env_var)
             settings.update({'lastpass': {'provhash': config.lastpass_provhash}})
-        elif settings.lastpass.get('provhash', None):
-            config.lastpass_provhash = settings.lastpass.provhash
+        elif settings.get('lastpass', {}).get('provhash', None):
+            config.lastpass_provhash = settings.get('lastpass', {}).provhash
         else:
             config.lastpass_provhash = None
 
@@ -803,10 +803,10 @@ class CLI:
                     'api_hostname': config.duo_api_hostname,
                 },
             })
-        elif settings.duo.get('api_key', None) and settings.duo.get('api_secret', None):
-            config.duo_api_key = settings.duo.api_key
-            config.duo_api_secret = settings.duo.api_secret
-            config.duo_api_hostname = settings.duo.api_hostname
+        elif settings.get('duo', {}).get('api_key', None) and settings.get('duo', {}).get('api_secret', None):
+            config.duo_api_key = settings.get('duo', {}).api_key
+            config.duo_api_secret = settings.get('duo', {}).api_secret
+            config.duo_api_hostname = settings.get('duo', {}).api_hostname
         else:
             config.duo_api_key = None
             config.duo_api_secret = None
@@ -819,16 +819,16 @@ class CLI:
             logger.debug(f"Reading Semgrep App Token from environment variable {config.semgrep_app_token_env_var}")
             config.semgrep_app_token = os.environ.get(config.semgrep_app_token_env_var)
             settings.update({'semgrep': {'token': config.semgrep_app_token}})
-        elif settings.semgrep.get('token', None):
-            config.semgrep_app_token = settings.semgrep.token
+        elif settings.get('semgrep', {}).get('token', None):
+            config.semgrep_app_token = settings.get('semgrep', {}).token
         else:
             config.semgrep_app_token = None
         if config.semgrep_dependency_ecosystems:
             # DEPRECATED: please use cartography.settings instead
             decrecated_config('semgrep_dependency_ecosystems', 'CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS')
             settings.update({'semgrep': {'dependency_ecosystems': config.semgrep_dependency_ecosystems}})
-        elif settings.semgrep.get('dependency_ecosystems', None):
-            config.semgrep_dependency_ecosystems = settings.semgrep.dependency_ecosystems
+        elif settings.get('semgrep', {}).get('dependency_ecosystems', None):
+            config.semgrep_dependency_ecosystems = settings.get('semgrep', {}).dependency_ecosystems
         else:
             config.semgrep_dependency_ecosystems = None
 
@@ -851,6 +851,8 @@ class CLI:
                 config.snipeit_token = os.environ.get(config.snipeit_token_env_var)
                 settings.update({'snipeit': {'token': config.snipeit_token}})
             elif os.environ.get('SNIPEIT_TOKEN'):
+                # DEPRECATED: please use cartography.settings instead
+                decrecated_config('SNIPEIT_TOKEN', 'CARTOGRAPHY_SNIPEIT__TOKEN')
                 logger.debug(
                     "Reading SnipeIT API token from environment variable 'SNIPEIT_TOKEN'.",
                 )
@@ -860,7 +862,7 @@ class CLI:
                 logger.warning("A SnipeIT base URI was provided but a token was not.")
                 config.kandji_token = None
             settings.update({'snipeit': {'tenant_id': config.snipeit_tenant_id}})
-        elif settings.snipeit.get('base_uri', None):
+        elif settings.get('snipeit', {}).get('base_uri', None):
             config.snipeit_base_uri = settings.snipeit.base_uri
             config.snipeit_token = settings.snipeit.token
             config.snipeit_tenant_id = settings.snipeit.tenant_id
@@ -870,8 +872,8 @@ class CLI:
             config.snipeit_tenant_id = None
 
         # Settings validation
-        if settings.semgrep.get('dependency_ecosystems', None):
-            parse_and_validate_semgrep_ecosystems(settings.semgrep.dependency_ecosystems)
+        if settings.get('semgrep', {}).get('dependency_ecosystems', None):
+            parse_and_validate_semgrep_ecosystems(settings.get('semgrep', {}).dependency_ecosystems)
 
         # Run cartography
         try:
