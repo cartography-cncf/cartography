@@ -22,3 +22,7 @@ max_connection_lifetime=3600
 #api_key=""
 #api_secret=""
 #api_hostname=""
+[bigfix]
+#username=""
+#password=""
+#root_url=""

@@ -488,6 +488,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_BIGFIX__USERNAME instead.'
                 'The BigFix username for authentication.'
             ),
         )
@@ -496,6 +497,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_BIGFIX__PASSWORD instead.'
                 'The name of environment variable containing the BigFix password for authentication.'
             ),
         )
@@ -504,6 +506,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_BIGFIX__ROOT_URL instead.'
                 'The BigFix Root URL, a.k.a the BigFix API URL'
             ),
         )
@@ -765,7 +768,7 @@ class CLI:
             config.lastpass_cid = os.environ.get(config.lastpass_cid_env_var)
             settings.update({'lastpass': {'cid': config.lastpass_cid}})
         elif settings.get('lastpass', {}).get('cid', None):
-            config.lastpass_cid = settings.get('lastpass', {}).cid
+            config.lastpass_cid = settings.lastpass.cid
         else:
             config.lastpass_cid = None
         if config.lastpass_provhash_env_var:
@@ -775,14 +778,29 @@ class CLI:
             config.lastpass_provhash = os.environ.get(config.lastpass_provhash_env_var)
             settings.update({'lastpass': {'provhash': config.lastpass_provhash}})
         elif settings.get('lastpass', {}).get('provhash', None):
-            config.lastpass_provhash = settings.get('lastpass', {}).provhash
+            config.lastpass_provhash = settings.lastpass.provhash
         else:
             config.lastpass_provhash = None
 
-        # WIP: BigFix config
+        # BigFix config
         if config.bigfix_username and config.bigfix_password_env_var and config.bigfix_root_url:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('bigfix_username', 'CARTOGRAPHY_BIGFIX__USERNAME')
+            decrecated_config('bigfix_password_env_var', 'CARTOGRAPHY_BIGFIX__PASSWORD')
+            decrecated_config('bigfix_root_url', 'CARTOGRAPHY_BIGFIX__ROOT_URL')
             logger.debug(f"Reading BigFix password from environment variable {config.bigfix_password_env_var}")
             config.bigfix_password = os.environ.get(config.bigfix_password_env_var)
+            settings.update({
+                'bigfix': {
+                    'username': config.bigfix_username,
+                    'password': config.bigfix_password,
+                    'root_url': config.bigfix_root_url,
+                },
+            })
+        elif settings.get('bigfix', {}).get('username', None) and settings.get('bigfix', {}).get('password', None):
+            config.bigfix_username = settings.bigfix.username
+            config.bigfix_password = settings.bigfix.password
+            config.bigfix_root_url = settings.bigfix.root_url
 
         # Duo config
         if config.duo_api_key_env_var and config.duo_api_secret_env_var and config.duo_api_hostname:
@@ -804,9 +822,9 @@ class CLI:
                 },
             })
         elif settings.get('duo', {}).get('api_key', None) and settings.get('duo', {}).get('api_secret', None):
-            config.duo_api_key = settings.get('duo', {}).api_key
-            config.duo_api_secret = settings.get('duo', {}).api_secret
-            config.duo_api_hostname = settings.get('duo', {}).api_hostname
+            config.duo_api_key = settings.duo.api_key
+            config.duo_api_secret = settings.duo.api_secret
+            config.duo_api_hostname = settings.duo.api_hostname
         else:
             config.duo_api_key = None
             config.duo_api_secret = None
@@ -820,7 +838,7 @@ class CLI:
             config.semgrep_app_token = os.environ.get(config.semgrep_app_token_env_var)
             settings.update({'semgrep': {'token': config.semgrep_app_token}})
         elif settings.get('semgrep', {}).get('token', None):
-            config.semgrep_app_token = settings.get('semgrep', {}).token
+            config.semgrep_app_token = settings.semgrep.token
         else:
             config.semgrep_app_token = None
         if config.semgrep_dependency_ecosystems:
@@ -828,7 +846,7 @@ class CLI:
             decrecated_config('semgrep_dependency_ecosystems', 'CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS')
             settings.update({'semgrep': {'dependency_ecosystems': config.semgrep_dependency_ecosystems}})
         elif settings.get('semgrep', {}).get('dependency_ecosystems', None):
-            config.semgrep_dependency_ecosystems = settings.get('semgrep', {}).dependency_ecosystems
+            config.semgrep_dependency_ecosystems = settings.semgrep.dependency_ecosystems
         else:
             config.semgrep_dependency_ecosystems = None
 

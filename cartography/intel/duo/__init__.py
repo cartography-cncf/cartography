@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 def get_client(_: Config) -> duo_client.Admin:
     '''
     Return a duo Admin client with the creds in the config object
+    :param config: A cartography.config object (DEPRECATED)
     '''
     client = duo_client.Admin(
         ikey=settings.duo.api_key,
@@ -53,7 +54,7 @@ def start_duo_ingestion(neo4j_session: neo4j.Session, _: Config) -> None:
     '''
     If this module is configured, perform ingestion of duo data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
-    :param config: A cartography.config object
+    :param config: A cartography.config object (DEPRECATED)
     :return: None
     '''
     if not check_module_settings('Duo', ['api_key', 'api_secret', 'api_hostname']):
