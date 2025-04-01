@@ -8,6 +8,7 @@ import neo4j
 from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.ec2.images import EC2ImageSchema
@@ -20,22 +21,26 @@ logger = logging.getLogger(__name__)
 @timeit
 def get_images_in_use(neo4j_session: neo4j.Session, region: str, current_aws_account_id: str) -> List[str]:
     get_images_query = """
+    CALL {
     MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(i:EC2Instance)
-    WHERE i.region = $Region
-    RETURN DISTINCT(i.imageid) as image
-    UNION
+    WHERE i.region = $Region AND i.imageid IS NOT NULL
+    RETURN i.imageid AS image
+    UNION ALL
     MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(lc:LaunchConfiguration)
-    WHERE lc.region = $Region
-    RETURN DISTINCT(lc.image_id) as image
-    UNION
+    WHERE lc.region = $Region AND lc.image_id IS NOT NULL
+    RETURN lc.image_id AS image
+    UNION ALL
     MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(ltv:LaunchTemplateVersion)
-    WHERE ltv.region = $Region
-    RETURN DISTINCT(ltv.image_id) as image
+    WHERE ltv.region = $Region AND ltv.image_id IS NOT NULL
+    RETURN ltv.image_id AS image
+    }
+    RETURN DISTINCT image;
     """
-    results = neo4j_session.run(get_images_query, AWS_ACCOUNT_ID=current_aws_account_id, Region=region)
-    images = []
-    for r in results:
-        images.append(r['image'])
+    result = read_list_of_values_tx(
+        neo4j_session, get_images_query,
+        AWS_ACCOUNT_ID=current_aws_account_id, Region=region,
+    )
+    images = [str(image) for image in result]
     return images
 
 
@@ -44,22 +49,23 @@ def get_images_in_use(neo4j_session: neo4j.Session, region: str, current_aws_acc
 def get_images(boto3_session: boto3.session.Session, region: str, image_ids: List[str]) -> List[Dict]:
     client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
     images = []
+    self_images = []
     try:
         self_images = client.describe_images(Owners=['self'])['Images']
-        images.extend(self_images)
     except ClientError as e:
-        logger.warning(f"Failed retrieve images for region - {region}. Error - {e}")
-    try:
-        if image_ids:
-            image_ids = [image_id for image_id in image_ids if image_id is not None]
-            images_in_use = client.describe_images(ImageIds=image_ids)['Images']
-            # Ensure we're not adding duplicates
-            _ids = [image["ImageId"] for image in images]
-            for image in images_in_use:
-                if image["ImageId"] not in _ids:
-                    images.append(image)
-    except ClientError as e:
-        logger.warning(f"Failed retrieve images for region - {region}. Error - {e}")
+        logger.warning(f"Failed retrieve self owned images for region - {region}. Error - {e}")
+    images.extend(self_images)
+    if image_ids:
+        self_image_ids = {image['ImageId'] for image in images}
+        # Go one by one to avoid losing all images if one fails
+        for image in image_ids:
+            if image in self_image_ids:
+                continue
+            try:
+                public_images = client.describe_images(ImageIds=[image])['Images']
+                images.extend(public_images)
+            except ClientError as e:
+                logger.warning(f"Failed retrieve image id {image} for region - {region}. Error - {e}")
     return images
 
 

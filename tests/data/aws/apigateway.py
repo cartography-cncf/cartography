@@ -1,4 +1,5 @@
 import datetime
+import json
 
 DOUBLY_ESCAPED_POLICY = """{\\\"Version\\\":\\\"2012-10-17\\\",""" + \
     """\\\"Statement\\\":[{\\\"Effect\\\":\\\"Allow\\\",""" + \
@@ -143,4 +144,35 @@ GET_RESOURCES = [
         'pathPart': 'resource',
         'path': '/restapis/test-001/resources/3kzxbg5sa2',
     },
+]
+
+# This represents the tuple of (api_id, stage, certificate, resource, policy) that get_rest_api_details returns
+GET_REST_API_DETAILS = [
+    # We use json.dumps() to simulate the fact that the policy is a string,
+    # see https://boto3.amazonaws.com/v1/documentation/
+    # api/latest/reference/services/apigateway/client/get_rest_apis.html
+    (
+        'test-001', [GET_STAGES[0]], GET_CERTIFICATES[0], [GET_RESOURCES[0]],
+        json.dumps({
+            'Version': '2012-10-17',
+            'Statement': [{
+                'Effect': 'Allow',
+                'Principal': '*',
+                'Action': ['execute-api:Invoke', 'execute-api:GetApi'],
+                'Resource': 'arn:aws:execute-api:us-east-1:000000000000:test-001/*',
+            }],
+        }),
+    ),
+    (
+        'test-002', [GET_STAGES[1]], GET_CERTIFICATES[1], [],
+        json.dumps({
+            'Version': '2012-10-17',
+            'Statement': [{
+                'Effect': 'Allow',
+                'Principal': {'AWS': 'arn:aws:iam::000000000000:some-principal'},
+                'Action': 'execute-api:Invoke',
+                'Resource': 'arn:aws:execute-api:us-east-1:000000000000:test-002/*',
+            }],
+        }),
+    ),
 ]

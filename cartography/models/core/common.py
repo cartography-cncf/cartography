@@ -9,12 +9,13 @@ class PropertyRef:
     """
 
     def __init__(
-        self,
-        name: str,
-        set_in_kwargs=False,
-        extra_index=False,
-        ignore_case=False,
-        fuzzy_and_ignore_case=False,
+            self,
+            name: str,
+            set_in_kwargs=False,
+            extra_index=False,
+            ignore_case=False,
+            fuzzy_and_ignore_case=False,
+            one_to_many=False,
     ):
         """
         :param name: The name of the property
@@ -44,19 +45,49 @@ class PropertyRef:
         this property using the `CONTAINS` operator.
         query. Defaults to False. This only has effect as part of a TargetNodeMatcher and is not supported for the
         sub resource relationship.
+        :param one_to_many: Indicates that this property is meant to create one-to-many associations. If set to True,
+        this property ref points to a list stored on the data dict where each item is an ID. Only has effect as
+        part of a TargetNodeMatcher and is not supported for the sub resource relationship. Defaults to False.
+            Example on why you would set this to True:
+            AWS IAM instance profiles can be associated with one or more roles. This is reflected in their API object:
+            when we call describe-iam-instance-profiles, the `Roles` field contains a list of all the roles that the
+            profile is associated with. So, to create AWSInstanceProfile nodes while attaching them to multiple roles,
+            we can create a CartographyRelSchema with
+            ```
+            class InstanceProfileSchema(Schema):
+                target_node_label: str = 'AWSRole'
+                target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+                    'arn': PropertyRef('Roles', one_to_many=True),
+                )
+                ...
+            ```
+            This means that as we create AWSInstanceProfile nodes, we will search for AWSRoles to attach to, and we do
+            this by checking if each role's `arn` field is in the `Roles` list of the data dict.
         """
         self.name = name
         self.set_in_kwargs = set_in_kwargs
         self.extra_index = extra_index
         self.ignore_case = ignore_case
         self.fuzzy_and_ignore_case = fuzzy_and_ignore_case
+        self.one_to_many = one_to_many
+
         if self.fuzzy_and_ignore_case and self.ignore_case:
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": ignore_case cannot be used together with'
                 'fuzzy_and_ignore_case. Pick one or the other.',
             )
 
+        if self.one_to_many and (self.ignore_case or self.fuzzy_and_ignore_case):
+            raise ValueError(
+                f'Error setting PropertyRef "{self.name}": one_to_many cannot be used together with '
+                '`ignore_case` or `fuzzy_and_ignore_case`.',
+            )
+
     def _parameterize_name(self) -> str:
+        """
+        Prefixes the name of the property ref with a '$' so that we can receive keyword args. See docs on __repr__ for
+        PropertyRef.
+        """
         return f"${self.name}"
 
     def __repr__(self) -> str:

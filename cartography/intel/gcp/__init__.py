@@ -17,21 +17,23 @@ from cartography.intel.gcp import compute
 from cartography.intel.gcp import crm
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
+from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-Resources = namedtuple('Resources', 'compute container crm_v1 crm_v2 dns storage serviceusage')
+Resources = namedtuple('Resources', 'compute container crm_v1 crm_v2 dns storage serviceusage iam')
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple('Services', 'compute storage gke dns')
+Services = namedtuple('Services', 'compute storage gke dns iam')
 service_names = Services(
     compute='compute.googleapis.com',
     storage='storage.googleapis.com',
     gke='container.googleapis.com',
     dns='dns.googleapis.com',
+    iam='iam.googleapis.com',
 )
 
 
@@ -112,6 +114,13 @@ def _get_serviceusage_resource(credentials: GoogleCredentials) -> Resource:
     return googleapiclient.discovery.build('serviceusage', 'v1', credentials=credentials, cache_discovery=False)
 
 
+def _get_iam_resource(credentials: GoogleCredentials) -> Resource:
+    """
+    Instantiates a Google IAM resource object to call the IAM API.
+    """
+    return googleapiclient.discovery.build('iam', 'v1', credentials=credentials, cache_discovery=False)
+
+
 def _initialize_resources(credentials: GoogleCredentials) -> Resource:
     """
     Create namedtuple of all resource objects necessary for GCP data gathering.
@@ -126,6 +135,7 @@ def _initialize_resources(credentials: GoogleCredentials) -> Resource:
         container=None,
         dns=None,
         storage=None,
+        iam=_get_iam_resource(credentials),
     )
 
 
@@ -244,6 +254,30 @@ def _sync_single_project_dns(
         dns.sync(neo4j_session, dns_cred, project_id, gcp_update_tag, common_job_parameters)
 
 
+def _sync_single_project_iam(
+    neo4j_session: neo4j.Session,
+    resources: Resource,
+    project_id: str,
+    gcp_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Handles graph sync for a single GCP project's IAM resources.
+    :param neo4j_session: The Neo4j session
+    :param resources: namedtuple of the GCP resource objects
+    :param project_id: The project ID number to sync.  See  the `projectId` field in
+    https://cloud.google.com/resource-manager/reference/rest/v1/projects
+    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
+    :param common_job_parameters: Other parameters sent to Neo4j
+    :return: Nothing
+    """
+    # Determine if IAM service is enabled
+    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
+    iam_cred = _get_iam_resource(get_gcp_credentials())
+    if service_names.iam in enabled_services:
+        iam.sync(neo4j_session, iam_cred, project_id, gcp_update_tag, common_job_parameters)
+
+
 def _sync_multiple_projects(
     neo4j_session: neo4j.Session, resources: Resource, projects: List[Dict],
     gcp_update_tag: int, common_job_parameters: Dict,
@@ -285,6 +319,12 @@ def _sync_multiple_projects(
         project_id = project['projectId']
         logger.info("Syncing GCP project %s for DNS", project_id)
         _sync_single_project_dns(neo4j_session, resources, project_id, gcp_update_tag, common_job_parameters)
+
+    # IAM data sync
+    for project in projects:
+        project_id = project['projectId']
+        logger.info("Syncing GCP project %s for IAM", project_id)
+        _sync_single_project_iam(neo4j_session, resources, project_id, gcp_update_tag, common_job_parameters)
 
 
 @timeit

@@ -42,7 +42,7 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.ifconfig",
     "sphinx.ext.githubpages",
-    "m2r2",
+    "sphinx_mdinclude",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

@@ -637,3 +637,51 @@ Representation of an IP range or subnet.
 	```
 	(GCPIpRule, IpRule, IpPermissionInbound)<-[MEMBER_OF_IP_RULE)-(:IpRange)
 	```
+
+### GCPServiceAccount
+
+Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts).
+
+| Field          | Description                                                                                     |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| id             | The unique identifier for the service account.                                                  |
+| email          | The email address associated with the service account.                                          |
+| displayName    | The display name of the service account.                                                        |
+| oauth2ClientId | The OAuth2 client ID associated with the service account.                                       |
+| uniqueId       | The unique ID of the service account.                                                           |
+| disabled       | A boolean indicating if the service account is disabled.                                        |
+| lastupdated    | The timestamp of the last update.                                                               |
+| projectId      | The ID of the GCP project to which the service account belongs.                                 |
+
+#### Relationships
+
+- GCPServiceAccounts are resources of GCPProjects.
+
+    ```
+    (GCPServiceAccount)-[RESOURCE]->(GCPProject)
+    ```
+
+### GCPRole
+
+Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).
+
+| Field               | Description                                                                 |
+| ------------------- | --------------------------------------------------------------------------- |
+| id                  | The unique identifier for the role.                                         |
+| name                | The name of the role.                                                       |
+| title               | The title of the role.                                                      |
+| description         | A description of the role.                                                  |
+| deleted             | A boolean indicating if the role is deleted.                                |
+| etag                | The ETag of the role.                                                       |
+| includedPermissions | A list of permissions included in the role.                                 |
+| roleType            | The type of the role (e.g., BASIC, PREDEFINED, CUSTOM).                     |
+| lastupdated         | The timestamp of the last update.                                           |
+| projectId           | The ID of the GCP project to which the role belongs.                        |
+
+#### Relationships
+
+- GCPRoles are resources of GCPProjects.
+
+    ```
+    (GCPRole)-[RESOURCE]->(GCPProject)
+    ```

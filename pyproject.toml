@@ -37,7 +37,7 @@ dependencies = [
     "botocore>=1.18.1",
     "dnspython>=1.15.0",
     "dynaconf>=3.2.7",
-    "neo4j>=4.4.4,<5.0.0",
+    "neo4j>=4.4.4",
     "policyuniverse>=1.1.0.0",
     "google-api-python-client>=1.7.8",
     "google-auth>=2.37.0",
@@ -76,10 +76,10 @@ dev = [
     "pre-commit",
     "pytest>=6.2.4",
     "pytest-mock",
-    "pytest-cov==2.10.0",
+    "pytest-cov==6.0.0",
     "pytest-rerunfailures",
     "types-PyYAML",
-    "types-requests<2.31.0.7",
+    "types-requests<2.32.0.20250329",
 ]
 
 # Makes sure to look inside cartography/cartography/ for cli command
