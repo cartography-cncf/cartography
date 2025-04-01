@@ -11,3 +11,7 @@ max_connection_lifetime=3600
 [lastpass]
 #cid=""
 #provhash=""
+[snipeit]
+#base_uri=""
+#token=""
+#tenant_id=""

@@ -64,6 +64,32 @@ class CLI:
             help='Restrict cartography logging to warnings and errors only.',
         )
         parser.add_argument(
+            '--update-tag',
+            type=int,
+            default=None,
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__UPDATE_TAG instead.'
+                'A unique tag to apply to all Neo4j nodes and relationships created or updated during the sync run. '
+                'This tag is used by cleanup jobs to identify nodes and relationships that are stale and need to be '
+                'removed from the graph. By default, cartography will use a UNIX timestamp as the update tag.'
+            ),
+        )
+        parser.add_argument(
+            '--selected-modules',
+            type=str,
+            default=None,
+            help=(
+                'Comma-separated list of cartography top-level modules to sync. Example 1: "aws,gcp" to run AWS and GCP'
+                'modules. See the full list available in source code at cartography.sync. '
+                'If not specified, cartography by default will run all modules available and log warnings when it '
+                'does not find credentials configured for them. '
+                # TODO remove this mention about the create-indexes module when everything is using auto-indexes.
+                'We recommend that you always specify the `create-indexes` module first in this list. '
+                'If you specify the `analysis` module, we recommend that you include it as the LAST item of this list, '
+                '(because it does not make sense to perform analysis on an empty/out-of-date graph).'
+            ),
+        )
+        parser.add_argument(
             '--neo4j-uri',
             type=str,
             default='bolt://localhost:7687',
@@ -122,33 +148,6 @@ class CLI:
                 'The name of the database in Neo4j to connect to. If not specified, uses the config settings of your '
                 'Neo4j database itself to infer which database is set to default. '
                 'See https://neo4j.com/docs/api/python-driver/4.4/api.html#database.'
-            ),
-        )
-        parser.add_argument(
-            '--selected-modules',
-            type=str,
-            default=None,
-            help=(
-                'Comma-separated list of cartography top-level modules to sync. Example 1: "aws,gcp" to run AWS and GCP'
-                'modules. See the full list available in source code at cartography.sync. '
-                'If not specified, cartography by default will run all modules available and log warnings when it '
-                'does not find credentials configured for them. '
-                # TODO remove this mention about the create-indexes module when everything is using auto-indexes.
-                'We recommend that you always specify the `create-indexes` module first in this list. '
-                'If you specify the `analysis` module, we recommend that you include it as the LAST item of this list, '
-                '(because it does not make sense to perform analysis on an empty/out-of-date graph).'
-            ),
-        )
-        # TODO add the below parameters to a 'sync' subparser
-        parser.add_argument(
-            '--update-tag',
-            type=int,
-            default=None,
-            help=(
-                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__UPDATE_TAG instead.'
-                'A unique tag to apply to all Neo4j nodes and relationships created or updated during the sync run. '
-                'This tag is used by cleanup jobs to identify nodes and relationships that are stale and need to be '
-                'removed from the graph. By default, cartography will use a UNIX timestamp as the update tag.'
             ),
         )
         parser.add_argument(
@@ -557,6 +556,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__BASE_URI instead.'
                 'Your SnipeIT base URI'
                 'Required if you are using the SnipeIT intel module. Ignored otherwise.'
             ),
@@ -565,13 +565,20 @@ class CLI:
             '--snipeit-token-env-var',
             type=str,
             default=None,
-            help='The name of an environment variable containing token with which to authenticate to SnipeIT.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__TOKEN instead.'
+                'The name of an environment variable containing token with which to authenticate to SnipeIT.'
+            )
+                
         )
         parser.add_argument(
             '--snipeit-tenant-id',
             type=str,
             default=None,
-            help='An ID for the SnipeIT tenant.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__TENANT_ID instead.'
+                'An ID for the SnipeIT tenant.',
+            )
         )
 
         return parser
@@ -804,19 +811,28 @@ class CLI:
         # SnipeIT config
         if config.snipeit_base_uri:
             if config.snipeit_token_env_var:
+                # DEPRECATED: please use cartography.settings instead
+                decrecated_config('snipeit_token_env_var', 'CARTOGRAPHY_SNIPEIT__TOKEN')
                 logger.debug(
                     "Reading SnipeIT API token from environment variable '%s'.",
                     config.snipeit_token_env_var,
                 )
                 config.snipeit_token = os.environ.get(config.snipeit_token_env_var)
+                settings.update({'snipeit': {'token': config.snipeit_token}})
             elif os.environ.get('SNIPEIT_TOKEN'):
                 logger.debug(
                     "Reading SnipeIT API token from environment variable 'SNIPEIT_TOKEN'.",
                 )
                 config.snipeit_token = os.environ.get('SNIPEIT_TOKEN')
+                settings.update({'snipeit': {'token': config.snipeit_token}})
             else:
                 logger.warning("A SnipeIT base URI was provided but a token was not.")
                 config.kandji_token = None
+            settings.update({'snipeit': {'tenant_id': config.snipeit_tenant_id}})
+        elif settings.snipeit.get('base_uri', None):
+            config.snipeit_base_uri = settings.snipeit.base_uri
+            config.snipeit_token = settings.snipeit.token
+            config.snipeit_tenant_id = settings.snipeit.tenant_id
         else:
             logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
