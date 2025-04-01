@@ -14,6 +14,7 @@ from cartography.intel.duo.phones import sync as sync_duo_phones
 from cartography.intel.duo.tokens import sync as sync_duo_tokens
 from cartography.intel.duo.users import sync_duo_users
 from cartography.intel.duo.web_authn_credentials import sync as sync_duo_web_authn_credentials
+from cartography.settings import settings
 from cartography.util import timeit
 
 
@@ -21,14 +22,14 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_client(config: Config) -> duo_client.Admin:
+def get_client(_: Config) -> duo_client.Admin:
     '''
     Return a duo Admin client with the creds in the config object
     '''
     client = duo_client.Admin(
-        ikey=config.duo_api_key,
-        skey=config.duo_api_secret,
-        host=config.duo_api_hostname,
+        ikey=settings.duo.api_key,
+        skey=settings.duo.api_secret,
+        host=settings.duo.api_hostname,
     )
     # Duo's library does not automatically respect the HTTP_PROXY env variable
     proxy_url = os.environ.get('HTTP_PROXY')
@@ -47,7 +48,7 @@ def get_client(config: Config) -> duo_client.Admin:
 
 
 @timeit
-def start_duo_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_duo_ingestion(neo4j_session: neo4j.Session, _: Config) -> None:
     '''
     If this module is configured, perform ingestion of duo data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
@@ -55,9 +56,9 @@ def start_duo_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :return: None
     '''
     if not all([
-        config.duo_api_key,
-        config.duo_api_secret,
-        config.duo_api_hostname,
+        settings.duo.get('api_key', None),
+        settings.duo.get('api_secret', None),
+        settings.duo.get('api_hostname', None),
     ]):
         logger.info(
             'Duo import is not configured - skipping this module. '
@@ -65,10 +66,10 @@ def start_duo_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
-    client = get_client(config)
+    client = get_client(_)
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-        "DUO_API_HOSTNAME": config.duo_api_hostname,
+        "UPDATE_TAG": settings.commong.update_tag,
+        "DUO_API_HOSTNAME": settings.duo.api_hostname,
     }
 
     sync_duo_api_host(

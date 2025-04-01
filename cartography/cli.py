@@ -512,6 +512,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_DUO__API_KEY instead.'
                 'The name of environment variable containing the Duo api key'
             ),
         )
@@ -520,6 +521,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_DUO__API_SECRET instead.'
                 'The name of environment variable containing the Duo api secret'
             ),
         )
@@ -528,6 +530,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_DUO__API_HOSTNAME instead.'
                 'The Duo api hostname'
             ),
         )
@@ -642,12 +645,12 @@ class CLI:
         if config.selected_modules:
             self.sync = cartography.sync.build_sync(config.selected_modules)
 
-        # AWS config
+        # WIP: AWS config
         if config.aws_requested_syncs:
             # No need to store the returned value; we're using this for input validation.
             parse_and_validate_aws_requested_syncs(config.aws_requested_syncs)
 
-        # Azure config
+        # WIP: Azure config
         if config.azure_sp_auth and config.azure_client_secret_env_var:
             logger.debug(
                 "Reading Client Secret for Azure Service Principal Authentication from environment variable %s",
@@ -657,28 +660,28 @@ class CLI:
         else:
             config.azure_client_secret = None
 
-        # Okta config
+        # WIP: Okta config
         if config.okta_org_id and config.okta_api_key_env_var:
             logger.debug(f"Reading API key for Okta from environment variable {config.okta_api_key_env_var}")
             config.okta_api_key = os.environ.get(config.okta_api_key_env_var)
         else:
             config.okta_api_key = None
 
-        # GitHub config
+        # WIP: GitHub config
         if config.github_config_env_var:
             logger.debug(f"Reading config string for GitHub from environment variable {config.github_config_env_var}")
             config.github_config = os.environ.get(config.github_config_env_var)
         else:
             config.github_config = None
 
-        # DigitalOcean config
+        # WIP: DigitalOcean config
         if config.digitalocean_token_env_var:
             logger.debug(f"Reading token for DigitalOcean from env variable {config.digitalocean_token_env_var}")
             config.digitalocean_token = os.environ.get(config.digitalocean_token_env_var)
         else:
             config.digitalocean_token = None
 
-        # Jamf config
+        # WIP: Jamf config
         if config.jamf_base_uri:
             if config.jamf_user:
                 config.jamf_password = None
@@ -697,7 +700,7 @@ class CLI:
             config.jamf_user = None
             config.jamf_password = None
 
-        # Kandji config
+        # WIP: Kandji config
         if config.kandji_base_uri:
             if config.kandji_token_env_var:
                 logger.debug(
@@ -717,20 +720,21 @@ class CLI:
             logger.warning("A Kandji base URI was not provided.")
             config.kandji_base_uri = None
 
+        # WIP: ???
         if config.statsd_enabled:
             logger.debug(
                 f'statsd enabled. Sending metrics to server {config.statsd_host}:{config.statsd_port}. '
                 f'Metrics have prefix "{config.statsd_prefix}".',
             )
 
-        # Pagerduty config
+        # WIP: Pagerduty config
         if config.pagerduty_api_key_env_var:
             logger.debug(f"Reading API key for PagerDuty from environment variable {config.pagerduty_api_key_env_var}")
             config.pagerduty_api_key = os.environ.get(config.pagerduty_api_key_env_var)
         else:
             config.pagerduty_api_key = None
 
-        # Crowdstrike config
+        # WIP: Crowdstrike config
         if config.crowdstrike_client_id_env_var:
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_id_env_var}",
@@ -738,7 +742,6 @@ class CLI:
             config.crowdstrike_client_id = os.environ.get(config.crowdstrike_client_id_env_var)
         else:
             config.crowdstrike_client_id = None
-
         if config.crowdstrike_client_secret_env_var:
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_secret_env_var}",
@@ -747,7 +750,7 @@ class CLI:
         else:
             config.crowdstrike_client_secret = None
 
-        # GSuite config
+        # WIP: GSuite config
         if config.gsuite_tokens_env_var:
             logger.debug(f"Reading config string for GSuite from environment variable {config.gsuite_tokens_env_var}")
             config.gsuite_config = os.environ.get(config.gsuite_tokens_env_var)
@@ -776,22 +779,38 @@ class CLI:
         else:
             config.lastpass_provhash = None
 
-        # BigFix config
+        # WIP: BigFix config
         if config.bigfix_username and config.bigfix_password_env_var and config.bigfix_root_url:
             logger.debug(f"Reading BigFix password from environment variable {config.bigfix_password_env_var}")
             config.bigfix_password = os.environ.get(config.bigfix_password_env_var)
 
         # Duo config
         if config.duo_api_key_env_var and config.duo_api_secret_env_var and config.duo_api_hostname:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('duo_api_key_env_var', 'CARTOGRAPHY_DUO__API_KEY')
+            decrecated_config('duo_api_secret_env_var', 'CARTOGRAPHY_DUO__API_SECRET')
+            decrecated_config('duo_api_hostname', 'CARTOGRAPHY_DUO__API_HOSTNAME')
             logger.debug(
                 f"Reading Duo api key and secret from environment variables {config.duo_api_key_env_var}"
                 f", {config.duo_api_secret_env_var}",
             )
             config.duo_api_key = os.environ.get(config.duo_api_key_env_var)
             config.duo_api_secret = os.environ.get(config.duo_api_secret_env_var)
+            settings.update({
+                'duo': {
+                'api_key': config.duo_api_key,
+                'api_secret': config.duo_api_secret,
+                'api_hostname': config.duo_api_hostname,
+                },
+            })
+        elif settings.duo.get('api_key', None) and settings.duo.get('api_secret', None):
+            config.duo_api_key = settings.duo.api_key
+            config.duo_api_secret = settings.duo.api_secret
+            config.duo_api_hostname = settings.duo.api_hostname
         else:
             config.duo_api_key = None
             config.duo_api_secret = None
+            config.duo_api_hostname = None
 
         # Semgrep config
         if config.semgrep_app_token_env_var:
@@ -802,14 +821,18 @@ class CLI:
             settings.update({'semgrep': {'token': config.semgrep_app_token}})
         elif settings.semgrep.get('token', None):
             config.semgrep_app_token = settings.semgrep.token
+        else:
+            config.semgrep_app_token = None
         if config.semgrep_dependency_ecosystems:
             # DEPRECATED: please use cartography.settings instead
             decrecated_config('semgrep_dependency_ecosystems', 'CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS')
             settings.update({'semgrep': {'dependency_ecosystems': config.semgrep_dependency_ecosystems}})
         elif settings.semgrep.get('dependency_ecosystems', None):
             config.semgrep_dependency_ecosystems = settings.semgrep.dependency_ecosystems
+        else:
+            config.semgrep_dependency_ecosystems = None
 
-        # CVE feed config
+        # WIP: CVE feed config
         if config.cve_api_key_env_var:
             logger.debug(f"Reading NVD CVE API key environment variable {config.cve_api_key_env_var}")
             config.cve_api_key = os.environ.get(config.cve_api_key_env_var)
@@ -841,6 +864,10 @@ class CLI:
             config.snipeit_base_uri = settings.snipeit.base_uri
             config.snipeit_token = settings.snipeit.token
             config.snipeit_tenant_id = settings.snipeit.tenant_id
+        else:
+            config.snipeit_base_uri = None
+            config.snipeit_token = None
+            config.snipeit_tenant_id = None
 
         # Settings validation
         if settings.semgrep.get('dependency_ecosystems', None):

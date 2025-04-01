@@ -18,3 +18,7 @@ max_connection_lifetime=3600
 [semgrep]
 #token=""
 #dependency_ecosystems="gomod,npm,pypi"
+[duo]
+#api_key=""
+#api_secret=""
+#api_hostname=""
