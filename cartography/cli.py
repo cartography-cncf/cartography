@@ -536,6 +536,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SEMGREP__TOKEN instead.'
                 'The name of environment variable containing the Semgrep app token key. '
                 'Required if you are using the Semgrep intel module. Ignored otherwise.'
             ),
@@ -545,6 +546,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS instead.'
                 'Comma-separated list of language ecosystems for which dependencies will be retrieved from Semgrep. '
                 'For example, a value of "gomod,npm" will retrieve Go and NPM dependencies. '
                 'See the full list of supported ecosystems in source code at cartography.intel.semgrep.dependencies. '
@@ -568,8 +570,8 @@ class CLI:
             help=(
                 'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__TOKEN instead.'
                 'The name of an environment variable containing token with which to authenticate to SnipeIT.'
-            )
-                
+            ),
+
         )
         parser.add_argument(
             '--snipeit-tenant-id',
@@ -578,7 +580,7 @@ class CLI:
             help=(
                 'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__TENANT_ID instead.'
                 'An ID for the SnipeIT tenant.',
-            )
+            ),
         )
 
         return parser
@@ -793,13 +795,19 @@ class CLI:
 
         # Semgrep config
         if config.semgrep_app_token_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('semgrep_app_token_env_var', 'CARTOGRAPHY_SEMGREP__TOKEN')
             logger.debug(f"Reading Semgrep App Token from environment variable {config.semgrep_app_token_env_var}")
             config.semgrep_app_token = os.environ.get(config.semgrep_app_token_env_var)
-        else:
-            config.semgrep_app_token = None
+            settings.update({'semgrep': {'token': config.semgrep_app_token}})
+        elif settings.semgrep.get('token', None):
+            config.semgrep_app_token = settings.semgrep.token
         if config.semgrep_dependency_ecosystems:
-            # No need to store the returned value; we're using this for input validation.
-            parse_and_validate_semgrep_ecosystems(config.semgrep_dependency_ecosystems)
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('semgrep_dependency_ecosystems', 'CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS')
+            settings.update({'semgrep': {'dependency_ecosystems': config.semgrep_dependency_ecosystems}})
+        elif settings.semgrep.get('dependency_ecosystems', None):
+            config.semgrep_dependency_ecosystems = settings.semgrep.dependency_ecosystems
 
         # CVE feed config
         if config.cve_api_key_env_var:
@@ -833,9 +841,10 @@ class CLI:
             config.snipeit_base_uri = settings.snipeit.base_uri
             config.snipeit_token = settings.snipeit.token
             config.snipeit_tenant_id = settings.snipeit.tenant_id
-        else:
-            logger.warning("A SnipeIT base URI was not provided.")
-            config.snipeit_base_uri = None
+
+        # Settings validation
+        if settings.semgrep.get('dependency_ecosystems', None):
+            parse_and_validate_semgrep_ecosystems(settings.semgrep.dependency_ecosystems)
 
         # Run cartography
         try:

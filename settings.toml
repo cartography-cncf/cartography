@@ -15,3 +15,6 @@ max_connection_lifetime=3600
 #base_uri=""
 #token=""
 #tenant_id=""
+[semgrep]
+#token=""
+#dependency_ecosystems="gomod,npm,pypi"
