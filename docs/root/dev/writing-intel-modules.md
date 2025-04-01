@@ -289,53 +289,53 @@ Note that the `Roles` field in this data object is a list of objects (and that t
 
 Here's how to represent this in the Cartography data model:
 
-1. Transform the data so that `Roles` becomes a list of IDs and not dicts. Here we will use ARNs. The result should be:
+  1. Transform the data so that `Roles` becomes a list of IDs and not dicts. Here we will use ARNs. The result should be:
 
-```python
-TRANSFORMED_INSTANCE_PROFILES = [
-    {
-        "Path": "/",
-        "InstanceProfileName": "my-instance-profile",
-        "InstanceProfileId": "AIPA4SD",
-        "Arn": "arn:aws:iam::1234:instance-profile/my-instance-profile",
-        "CreateDate": datetime.datetime(2024, 12, 21, 23, 54, 16),
-        "Roles": [
-            "arn:aws:iam::1234:role/role1",
-            "arn:aws:iam::1234:role/role2",
-        ]
-    },
-]
-```
+      ```python
+      TRANSFORMED_INSTANCE_PROFILES = [
+          {
+              "Path": "/",
+              "InstanceProfileName": "my-instance-profile",
+              "InstanceProfileId": "AIPA4SD",
+              "Arn": "arn:aws:iam::1234:instance-profile/my-instance-profile",
+              "CreateDate": datetime.datetime(2024, 12, 21, 23, 54, 16),
+              "Roles": [
+                  "arn:aws:iam::1234:role/role1",
+                  "arn:aws:iam::1234:role/role2",
+              ]
+          },
+      ]
+      ```
 
-1. Define the InstanceProfile node (irrelevant fields omitted for brevity):
+  1. Define the InstanceProfile node (irrelevant fields omitted for brevity):
 
-```python
-@dataclass(frozen=True)
-class InstanceProfileSchema(CartographyNodeSchema):
-    label: str = 'AWSInstanceProfile'
-    properties: ...
-    sub_resource_relationship: ...
-    other_relationships: OtherRelationships = OtherRelationships([
-        InstanceProfileToAWSRole(),
-    ])
-```
+      ```python
+      @dataclass(frozen=True)
+      class InstanceProfileSchema(CartographyNodeSchema):
+          label: str = 'AWSInstanceProfile'
+          properties: ...
+          sub_resource_relationship: ...
+          other_relationships: OtherRelationships = OtherRelationships([
+              InstanceProfileToAWSRole(),
+          ])
+      ```
 
-1. Define its association with AWS roles
+  1. Define its association with AWS roles
 
-```python
-@dataclass(frozen=True)
-class InstanceProfileToAWSRole(CartographyRelSchema):
-    target_node_label: str = 'AWSRole'
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'arn': PropertyRef('Roles', one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "ASSOCIATED_WITH"
-    properties: ...
-```
+      ```python
+      @dataclass(frozen=True)
+      class InstanceProfileToAWSRole(CartographyRelSchema):
+          target_node_label: str = 'AWSRole'
+          target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+              {'arn': PropertyRef('Roles', one_to_many=True)},
+          )
+          direction: LinkDirection = LinkDirection.OUTWARD
+          rel_label: str = "ASSOCIATED_WITH"
+          properties: ...
+      ```
 
-The key part is setting `one_to_many=True` in the PropertyRef for the TargetNodeMatcher. This instructs the data model
-to look for AWSRoles in the graph where their `arn` field is in the list pointed to by the `Roles` key on the data dict.
+        The key part is setting `one_to_many=True` in the PropertyRef for the TargetNodeMatcher. This instructs the data model
+        to look for AWSRoles in the graph where their `arn` field is in the list pointed to by the `Roles` key on the data dict.
 
 Now we can use the same steps described above in this doc to finish data ingestion.
 
@@ -390,12 +390,12 @@ with every change!
 - Before making tests, read through and follow the setup steps in [the Cartography developer guide](developer-guide.html).
 
 - Add fake data for testing at `tests/data`. We can see
-the GCP VPC example [here](https://github.com/lyft/cartography/blob/0652c2b6dede589e805156925353bffc72da6c2b/tests/data/gcp/compute.py#L2).
+the AWS EC2 instance example [here](https://github.com/cartography-cncf/cartography/blob/d42253b9223ced996fa9c51dee3a51942e0a08f4/tests/data/aws/ec2/instances.py#L4).
 
-- Add unit tests to `tests/unit/cartography/intel`. See this [example](https://github.com/lyft/cartography/blob/828ed600f2b14adae9d0b78ef82de0acaf24b86a/tests/unit/cartography/intel/gcp/test_compute.py).
-  These tests ensure that `transform*` manipulates the data in expected ways.
+- If needed, add unit tests to `tests/unit/cartography/intel`. As seen in this GCP [example](https://github.com/lyft/cartography/blob/828ed600f2b14adae9d0b78ef82de0acaf24b86a/tests/unit/cartography/intel/gcp/test_compute.py),
+  these tests ensure that `transform*` manipulates the data in expected ways.
 
-- Add integration tests to  `tests/integration/cartography/intel`. See this [example](https://github.com/lyft/cartography/blob/828ed600f2b14adae9d0b78ef82de0acaf24b86a/tests/integration/cartography/intel/gcp/test_compute.py).
+- Add integration tests to  `tests/integration/cartography/intel`. See this AWS EC2 instance [example](https://github.com/cartography-cncf/cartography/blob/d42253b9223ced996fa9c51dee3a51942e0a08f4/tests/integration/cartography/intel/aws/ec2/test_ec2_instances.py#L17-L22).
   These tests assume that you have neo4j running at localhost:7687 with no password, and ensure that nodes loaded to the
   graph match your mock data.
 

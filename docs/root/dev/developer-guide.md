@@ -1,6 +1,6 @@
 # Cartography Developer Guide
 
-## Develepment using a Python venv
+## Development using a Python venv
 
 ### Running the source code
 
@@ -101,7 +101,7 @@ We include a dev.Dockerfile that can help streamline common dev tasks. It is dif
 
 To use it, build dev.Dockerfile with
 ```bash
-cd /path/to/cartography/repo
+cd /path/to/cartography/repo  # We are assuming that you've already cloned the cartography source code
 docker build -t cartography-cncf/cartography-dev -f dev.Dockerfile ./
 ```
 

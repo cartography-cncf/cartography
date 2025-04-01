@@ -1,4 +1,4 @@
-# Install and Run Cartography On Test Machine
+# Quick start: Install and Run Cartography On Test Machine
 
 .. _cartography-installation:
 
@@ -6,13 +6,27 @@ Time to set up a test machine to run Cartography.
 
 ## Option 1: Run docker-compose (preferred)
 
-This is the quickest way to get started (assuming docker does what it's supposed to do).
+This is the quickest way to get started: you will run a cartography cron job and a Neo4j docker container on your
+machine to pull data from AWS.
 
 ![dockercompose-flow.png](images/dockercompose-flow.png)
+
+1. Clone the Cartography repo to your machine.
+
+    ```bash
+    git clone git@github.com:cartography-cncf/cartography.git
+    ```
+
+    or
+
+    ```bash
+    git clone https://github.com/cartography-cncf/cartography
+    ```
 
 1. **Start up the Neo4j graph database.**
 
     ```bash
+    cd cartography
     docker-compose up -d
     ```
 
