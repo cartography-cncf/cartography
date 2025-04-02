@@ -29,6 +29,9 @@ database="neo4j"
 #api_key=""
 #api_secret=""
 #api_hostname=""
+[github]
+#org1.token=""
+#org1.url=""
 [gsuite]
 #auth_method=""
 #delegated_admin=""

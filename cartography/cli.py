@@ -284,6 +284,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_GITHUB__* instead.'
                 'The name of an environment variable containing a Base64 encoded GitHub config object.'
                 'Required if you are using the GitHub intel module. Ignored otherwise.'
             ),
@@ -705,12 +706,21 @@ class CLI:
                 },
             })
 
-        # WIP: GitHub config
+        # GitHub config
         if config.github_config_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('github_config_env_var', 'CARTOGRAPHY_GITHUB__*')
             logger.debug(f"Reading config string for GitHub from environment variable {config.github_config_env_var}")
-            config.github_config = os.environ.get(config.github_config_env_var)
-        else:
-            config.github_config = None
+            auth_tokens = json.loads(base64.b64decode(config.github_config).decode())
+            for auth_data in auth_tokens['organization']:
+                settings.update({
+                    'github': {
+                        auth_data['name']: {
+                            'token': auth_data['token'],
+                            'url': auth_data['url'],
+                        },
+                    },
+                })
 
         # DigitalOcean config
         if config.digitalocean_token_env_var:

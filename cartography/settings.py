@@ -14,13 +14,14 @@ settings = Dynaconf(
 )
 
 
-def check_module_settings(module_name: str, required_settings: List[str]) -> bool:
+def check_module_settings(module_name: str, required_settings: List[str], multi_tenant: bool = False) -> bool:
     """
     Check if the required settings for a module are set in the configuration.
 
     Args:
         module_name (str): The name of the module.
         required_settings (List[str]): A list of required settings for the module.
+        multi_tenant (bool): If True, check for each configured tenant.
 
     Returns:
         bool: True if all required settings are present, False otherwise.
@@ -29,8 +30,17 @@ def check_module_settings(module_name: str, required_settings: List[str]) -> boo
     if module_settings is None:
         logger.info('%s import is not configured - skipping this module. See docs to configure.', module_name)
         return False
-    missing_settings = [setting for setting in required_settings if not settings.get(setting)]
-    if missing_settings:
+
+    if multi_tenant:
+        missing_settings = []
+        for tenant_name, tenant_settings in module_settings.items():
+            missing_settings.extend(
+                [f"{tenant_name}.{setting}" for setting in required_settings if not tenant_settings.get(setting)]
+            )
+    else:
+        missing_settings = [setting for setting in required_settings if not settings.get(setting)] 
+
+    if len(missing_settings) > 0:
         logger.warning(
             '%s import is not configured - skipping this module. Missing settings: %s',
             module_name, ", ".join(missing_settings),
