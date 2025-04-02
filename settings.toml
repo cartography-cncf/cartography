@@ -41,6 +41,8 @@ database="neo4j"
 #base_url=""
 #user=""
 #password=""
+[k8s]
+#kubeconfig=""
 [kandji]
 #base_url=""
 #tenant_id=""

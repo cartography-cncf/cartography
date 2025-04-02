@@ -369,6 +369,7 @@ class CLI:
             default=None,
             type=str,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_K8S__KUBECONFIG instead.'
                 'The path to kubeconfig file specifying context to access K8s cluster(s).'
             ),
         )
@@ -922,6 +923,12 @@ class CLI:
                     'base_url': config.snipeit_base_uri,
                 },
             })
+
+        # K8s config
+        if config.k8s_kubeconfig:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('k8s_kubeconfig', 'CARTOGRAPHY_K8S__KUBECONFIG')
+            settings.update({'k8s': {'kubeconfig': config.k8s_kubeconfig}})
 
         # Settings validation
         if settings.get('semgrep', {}).get('dependency_ecosystems', None):
