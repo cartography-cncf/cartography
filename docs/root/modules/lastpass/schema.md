@@ -1,10 +1,15 @@
 ## Lastpass Schema
 
+```mermaid
+graph LR
+A(Human) -- IDENTITY_LASTPASS --> B(LastpassUser)
+```
+
 ### Human
 
 Lastpass use Human node as pivot with other Identity Providers (GSuite, GitHub ...)
 
-:::{info}
+:::{hint}
 Human nodes are not created by Lastpass module, link is made using analysis job.
 :::
 

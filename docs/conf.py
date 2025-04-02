@@ -41,6 +41,7 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.ifconfig",
     "sphinx.ext.githubpages",
+    "sphinxcontrib.mermaid",
     "myst_parser",
 ]
 
@@ -239,3 +240,4 @@ myst_enable_extensions = [
 ]
 myst_linkify_fuzzy_links = False
 suppress_warnings = ["myst.header"]
+myst_fence_as_directive = ["mermaid"]

@@ -1,5 +1,24 @@
 ## Github Schema
 
+```mermaid
+graph LR
+
+O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
+O -- RESOURCE --> T(GitHubTeam)
+U(GitHubUser) -- MEMBER_OF --> O
+U -- ADMIN_OF --> O
+U -- UNAFFILIATED --> O
+U -- OWNER --> R
+U -- OUTSIDE_COLLAB_{ACTION} --> R
+U -- DIRECT_COLLAB_{ACTION} --> R
+R -- LANGUAGE --> L(ProgrammingLanguage)
+R -- BRANCH --> B(GitHubBranch)
+T -- {ROLE} --> R
+T -- MEMBER_OF_TEAM --> T
+U -- MEMBER --> T
+U -- MAINTENER --> T
+```
+
 ### GitHubRepository
 
 Representation of a single GitHubRepository (repo) [repository object](https://developer.github.com/v4/object/repository/). This node contains all data unique to the repo.
