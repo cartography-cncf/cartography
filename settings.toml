@@ -30,3 +30,5 @@ max_connection_lifetime=3600
 #client_id=""
 #client_secret=""
 #api_url=""
+[pagerduty]
+#api_key=""

@@ -412,6 +412,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_PAGERDUTY__API_KEY instead.'
                 'The name of environment variable containing the pagerduty API key for authentication.'
             ),
         )
@@ -420,6 +421,7 @@ class CLI:
             type=int,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__HTTP_TIMEOUT instead.'
                 'Seconds to timeout for pagerduty API sessions.'
             ),
         )
@@ -733,12 +735,27 @@ class CLI:
                 f'Metrics have prefix "{config.statsd_prefix}".',
             )
 
-        # WIP: Pagerduty config
+        # Pagerduty config
         if config.pagerduty_api_key_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('pagerduty_api_key_env_var', 'CARTOGRAPHY_PAGERDUTY__API_KEY')
             logger.debug(f"Reading API key for PagerDuty from environment variable {config.pagerduty_api_key_env_var}")
             config.pagerduty_api_key = os.environ.get(config.pagerduty_api_key_env_var)
+            settings.update({'pagerduty': {'api_key': config.pagerduty_api_key}})
+        elif settings.get('pagerduty', {}).get('api_key', None):
+            config.pagerduty_api_key = settings.pagerduty.api_key
         else:
             config.pagerduty_api_key = None
+        if config.pagerduty_request_timeout:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('pagerduty_request_timeout', 'CARTOGRAPHY_COMMON__HTTP_TIMEOUT')
+            if config.pagerduty_request_timeout > settings.common.http_timeout:
+                logger.warning(
+                    "(LEGACY) PagerDuty request timeout (%d) is greater than the default HTTP timeout (%d).",
+                    config.pagerduty_request_timeout,
+                    settings.common.http_timeout,
+                )
+                settings.update({'common': {'http_timeout': config.pagerduty_request_timeout}})
 
         # Crowdstrike config
         if config.crowdstrike_client_id_env_var:
