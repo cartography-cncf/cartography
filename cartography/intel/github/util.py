@@ -70,6 +70,14 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dic
         # Add context and re-raise for callers to handle
         logger.warning("GitHub: requests.get('%s') timed out.", api_url)
         raise
+
+    if response.status_code == 502:
+        logger.error(
+            "GitHub API returned 502 Bad Gateway error. This often indicates GitHub's internal issues. "
+            "Response headers: %s, Response body: %s",
+            dict(response.headers),
+            response.text,
+        )
     response.raise_for_status()
     response_json = response.json()
     if "errors" in response_json:
