@@ -44,3 +44,7 @@ max_connection_lifetime=3600
 #base_url=""
 #tenant_id=""
 #token=""
+[okta]
+#saml_role_regex="^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"
+#api_key=""
+#org_id=""

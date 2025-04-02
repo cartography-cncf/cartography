@@ -250,6 +250,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_OKTA__ORG_ID instead.'
                 'Okta organizational id to sync. Required if you are using the Okta intel module. Ignored otherwise.'
             ),
         )
@@ -258,6 +259,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_OKTA__API_KEY instead.'
                 'The name of an environment variable containing a key with which to auth to the Okta API.'
                 'Required if you are using the Okta intel module. Ignored otherwise.'
             ),
@@ -267,6 +269,7 @@ class CLI:
             type=str,
             default=r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$",
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_OKTA__SAML_ROLE_REGEX instead.'
                 'The regex used to map Okta groups to AWS roles when using okta as a SAML provider.'
                 'The regex is the one entered in Step 5: Enabling Group Based Role Mapping in Okta'
                 'https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#c-step5'
@@ -683,10 +686,20 @@ class CLI:
         else:
             config.azure_client_secret = None
 
-        # WIP: Okta config
+        # Okta config
         if config.okta_org_id and config.okta_api_key_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('okta_org_id', 'CARTOGRAPHY_OKTA__ORG_ID')
+            deprecated_config('okta_api_key_env_var', 'CARTOGRAPHY_OKTA__API_KEY')
             logger.debug(f"Reading API key for Okta from environment variable {config.okta_api_key_env_var}")
             config.okta_api_key = os.environ.get(config.okta_api_key_env_var)
+            settings.update({'okta': {
+                'api_key': config.okta_api_key,
+                'org_id': config.okta_org_id,
+            }})
+        elif settings.get('okta', {}).get('api_key', None):
+            config.okta_org_id = settings.okta.org_id
+            config.okta_api_key = settings.okta.api_key
         else:
             config.okta_api_key = None
 

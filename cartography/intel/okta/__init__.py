@@ -5,6 +5,8 @@ import neo4j
 from okta.framework.OktaError import OktaError
 
 from cartography.config import Config
+from cartography.settings import settings
+from cartography.settings import check_module_settings
 from cartography.intel.okta import applications
 from cartography.intel.okta import awssaml
 from cartography.intel.okta import factors
@@ -40,42 +42,42 @@ def cleanup_okta_groups(neo4j_session: neo4j.Session, common_job_parameters: Dic
 
 
 @timeit
-def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_okta_ingestion(neo4j_session: neo4j.Session, _: Config) -> None:
     """
     Starts the OKTA ingestion process
     :param neo4j_session: The Neo4j session
-    :param config: A `cartography.config` object
+    :param config: A `cartography.config` object (DEPRECATED)
     :return: Nothing
     """
-    if not config.okta_api_key:
-        logger.warning(
-            "No valid Okta credentials could be found. Exiting Okta sync stage.",
-        )
+    if not check_module_settings('Okta', ['okta_org_id', 'okta_api_key']):
         return
+    
+    if settings.okta.get('saml_role_regex') is None:
+        settings.okla.update({'saml_role_regex': r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"})
 
-    logger.debug(f"Starting Okta sync on {config.okta_org_id}")
+    logger.debug(f"Starting Okta sync on {settings.okta.org_id}")
 
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-        "OKTA_ORG_ID": config.okta_org_id,
+        "UPDATE_TAG": settings.common.update_tag,
+        "OKTA_ORG_ID": settings.okta.org_id,
     }
 
     state = OktaSyncState()
 
-    organization.create_okta_organization(neo4j_session, config.okta_org_id, config.update_tag)
-    users.sync_okta_users(neo4j_session, config.okta_org_id, config.update_tag, config.okta_api_key, state)
-    groups.sync_okta_groups(neo4j_session, config.okta_org_id, config.update_tag, config.okta_api_key, state)
-    applications.sync_okta_applications(neo4j_session, config.okta_org_id, config.update_tag, config.okta_api_key)
-    factors.sync_users_factors(neo4j_session, config.okta_org_id, config.update_tag, config.okta_api_key, state)
-    origins.sync_trusted_origins(neo4j_session, config.okta_org_id, config.update_tag, config.okta_api_key)
-    awssaml.sync_okta_aws_saml(neo4j_session, config.okta_saml_role_regex, config.update_tag, config.okta_org_id)
+    organization.create_okta_organization(neo4j_session, settings.okta.org_id, settings.common.update_tag)
+    users.sync_okta_users(neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state)
+    groups.sync_okta_groups(neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state)
+    applications.sync_okta_applications(neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key)
+    factors.sync_users_factors(neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state)
+    origins.sync_trusted_origins(neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key)
+    awssaml.sync_okta_aws_saml(neo4j_session, settings.okta.role_regex, settings.common.update_tag, settings.okta.org_id)
 
     # need creds with permission
     # soft fail as some won't be able to get such high priv token
     # when we get the E0000006 error
     # see https://developer.okta.com/docs/reference/error-codes/
     try:
-        roles.sync_roles(neo4j_session, config.okta_org_id, config.update_tag, config.okta_api_key, state)
+        roles.sync_roles(neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state)
     except OktaError as okta_error:
         logger.warning(f"Unable to pull admin roles got {okta_error}")
 
@@ -88,8 +90,8 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     merge_module_sync_metadata(
         neo4j_session,
         group_type='OktaOrganization',
-        group_id=config.okta_org_id,
+        group_id=settings.okta.org_id,
         synced_type='OktaOrganization',
-        update_tag=config.update_tag,
+        update_tag=settings.common.update_tag,
         stat_handler=stat_handler,
     )
