@@ -7,9 +7,9 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 from cartography.config import Config
-from cartography.settings import settings
-from cartography.settings import check_module_settings
 from cartography.intel.cve import feed
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit

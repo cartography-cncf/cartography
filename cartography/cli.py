@@ -711,15 +711,17 @@ class CLI:
                 config.jamf_password_env_var,
             )
             config.jamf_password = os.environ.get(config.jamf_password_env_var)
-            settings.update({'jamf': {
-                'user': config.jamf_user,
-                'base_url': config.jamf_base_uri,
-                'password': config.password
-            }})
+            settings.update({
+                'jamf': {
+                    'user': config.jamf_user,
+                    'base_url': config.jamf_base_uri,
+                    'password': config.password,
+                },
+            })
         elif settings.jamf.get('user', None):
             config.jamf_base_uri = settings.jamf.base_url
             config.jamf_user = settings.jamf.user
-            config.jamf_password = settings.jamf.password    
+            config.jamf_password = settings.jamf.password
         else:
             config.jamf_user = None
             config.jamf_password = None
@@ -920,7 +922,7 @@ class CLI:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('cve_enabled', 'CARTOGRAPHY_CVE__ENABLED')
             settings.update({'cve': {'enabled': config.cve_enabled}})
-    
+
         # SnipeIT config
         if config.snipeit_base_uri:
             if config.snipeit_token_env_var:

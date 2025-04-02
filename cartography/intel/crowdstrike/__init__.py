@@ -3,11 +3,11 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.settings import settings
-from cartography.settings import check_module_settings
 from cartography.intel.crowdstrike.endpoints import sync_hosts
 from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
 from cartography.intel.crowdstrike.util import get_authorization
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -27,7 +27,7 @@ def start_crowdstrike_ingestion(
     :param config: A cartography.config object (DEPRECATED)
     :return: None
     """
-    if not check_module_settings('Crowdstrike', ['client_id', 'client_secret'],):
+    if not check_module_settings('Crowdstrike', ['client_id', 'client_secret']):
         return
 
     common_job_parameters = {

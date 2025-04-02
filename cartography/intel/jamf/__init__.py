@@ -1,9 +1,9 @@
 import neo4j
 
 from cartography.config import Config
-from cartography.settings import settings
-from cartography.settings import check_module_settings
 from cartography.intel.jamf import computers
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.util import timeit
 
 
