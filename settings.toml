@@ -36,3 +36,7 @@ max_connection_lifetime=3600
 #enabled=true
 #url="https://services.nvd.nist.gov/rest/json/cves/2.0/"
 #api_key=""
+[jamf]
+#base_url=""
+#user=""
+#password=""
