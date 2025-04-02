@@ -358,6 +358,7 @@ class CLI:
             type=str,
             default='https://services.nvd.nist.gov/rest/json/cves/2.0/',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CVE__URL instead.'
                 'The base url for the NIST CVE data. Default = https://services.nvd.nist.gov/rest/json/cves/2.0/'
             ),
         )
@@ -365,6 +366,7 @@ class CLI:
             '--cve-enabled',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CVE__ENABLED instead.'
                 'If set, CVE data will be synced from NIST.'
             ),
         )
@@ -373,6 +375,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CVE__API_KEY instead.'
                 'If set, uses the provided NIST NVD API v2.0 key.'
             ),
         )
@@ -888,13 +891,22 @@ class CLI:
         else:
             config.semgrep_dependency_ecosystems = None
 
-        # WIP: CVE feed config
+        # CVE feed config
         if config.cve_api_key_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('cve_api_key_env_var', 'CARTOGRAPHY_CVE__API_KEY')
             logger.debug(f"Reading NVD CVE API key environment variable {config.cve_api_key_env_var}")
             config.cve_api_key = os.environ.get(config.cve_api_key_env_var)
+            settings.update({'cve': {'api_key': config.cve_api_key}})
+        elif settings.get('cve', {}).get('api_key', None):
+            config.cve_api_key = settings.cve.api_key
         else:
             config.cve_api_key = None
-
+        if config.cve_enabled:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('cve_enabled', 'CARTOGRAPHY_CVE__ENABLED')
+            settings.update({'cve': {'enabled': config.cve_enabled}})
+    
         # SnipeIT config
         if config.snipeit_base_uri:
             if config.snipeit_token_env_var:
