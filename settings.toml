@@ -26,3 +26,7 @@ max_connection_lifetime=3600
 #username=""
 #password=""
 #root_url=""
+[crowdstrike]
+#client_id=""
+#client_secret=""
+#api_url=""

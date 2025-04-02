@@ -428,6 +428,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CROWDSTRIKE__CLIENT_ID instead.'
                 'The name of environment variable containing the crowdstrike client id for authentication.'
             ),
         )
@@ -436,6 +437,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CROWDSTRIKE__CLIENT_SECRET instead.'
                 'The name of environment variable containing the crowdstrike secret key for authentication.'
             ),
         )
@@ -444,6 +446,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CROWDSTRIKE__API_URL instead.'
                 'The crowdstrike URL, if using self-hosted. Defaults to the public crowdstrike API URL otherwise.'
             ),
         )
@@ -737,21 +740,39 @@ class CLI:
         else:
             config.pagerduty_api_key = None
 
-        # WIP: Crowdstrike config
+        # Crowdstrike config
         if config.crowdstrike_client_id_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('crowdstrike_client_id_env_var', 'CARTOGRAPHY_CROWDSTRIKE__CLIENT_ID')
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_id_env_var}",
             )
             config.crowdstrike_client_id = os.environ.get(config.crowdstrike_client_id_env_var)
+            settings.update({'crowdstrike': {'client_id': config.crowdstrike_client_id}})
+        elif settings.get('crowdstrike', {}).get('client_id', None):
+            config.crowdstrike_client_id = settings.crowdstrike.client_id
         else:
             config.crowdstrike_client_id = None
         if config.crowdstrike_client_secret_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('crowdstrike_client_secret_env_var', 'CARTOGRAPHY_CROWDSTRIKE__CLIENT_SECRET')
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_secret_env_var}",
             )
             config.crowdstrike_client_secret = os.environ.get(config.crowdstrike_client_secret_env_var)
+            settings.update({'crowdstrike': {'client_secret': config.crowdstrike_client_secret}})
+        elif settings.get('crowdstrike', {}).get('client_secret', None):
+            config.crowdstrike_client_secret = settings.crowdstrike.client_secret
         else:
             config.crowdstrike_client_secret = None
+        if config.crowdstrike_api_url:
+            # DEPRECATED: please use cartography.settings instead
+            decrecated_config('crowdstrike_api_url', 'CARTOGRAPHY_CROWDSTRIKE__API_URL')
+            settings.update({'crowdstrike': {'api_url': config.crowdstrike_api_url}})
+        elif settings.get('crowdstrike', {}).get('api_url', None):
+            config.crowdstrike_api_url = settings.crowdstrike.api_url
+        else:
+            config.crowdstrike_api_url = None
 
         # WIP: GSuite config
         if config.gsuite_tokens_env_var:
