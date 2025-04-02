@@ -290,6 +290,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_DIGITALOCEAN__TOKEN instead.'
                 'The name of an environment variable containing a DigitalOcean access token.'
                 'Required if you are using the DigitalOcean intel module. Ignored otherwise.'
             ),
@@ -710,10 +711,15 @@ class CLI:
         else:
             config.github_config = None
 
-        # WIP: DigitalOcean config
+        # DigitalOcean config
         if config.digitalocean_token_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('digitalocean_token_env_var', 'CARTOGRAPHY_DIGITALOCEAN__TOKEN')
             logger.debug(f"Reading token for DigitalOcean from env variable {config.digitalocean_token_env_var}")
             config.digitalocean_token = os.environ.get(config.digitalocean_token_env_var)
+            settings.update({'digitalocean': {'token': config.digitalocean_token}})
+        elif settings.get('digitalocean', {}).get('token', None):
+            config.digitalocean_token = settings.digitalocean.token
         else:
             config.digitalocean_token = None
 
