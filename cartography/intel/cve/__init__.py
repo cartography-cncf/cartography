@@ -6,7 +6,6 @@ from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
-from cartography.config import Config
 from cartography.intel.cve import feed
 from cartography.settings import check_module_settings
 from cartography.settings import settings
@@ -82,13 +81,10 @@ def _sync_modified_data(
 
 
 @timeit
-def start_cve_ingestion(
-    neo4j_session: neo4j.Session, _: Config,
-) -> None:
+def start_cve_ingestion(neo4j_session: neo4j.Session) -> None:
     """
     Perform ingestion of CVE data from NIST APIs.
     :param neo4j_session: Neo4J session for database interface
-    :param config: A cartography.config object (DEPRECATED)
     :return: None
     """
     if not check_module_settings('CVE', ['enabled']):

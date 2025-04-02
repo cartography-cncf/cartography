@@ -2,7 +2,6 @@ import logging
 
 import neo4j
 
-from cartography.config import Config
 from cartography.intel.semgrep.dependencies import sync_dependencies
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
@@ -15,9 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_semgrep_ingestion(
-    neo4j_session: neo4j.Session, _: Config,
-) -> None:
+def start_semgrep_ingestion(neo4j_session: neo4j.Session) -> None:
     if not check_module_settings('Semgrep', ['token', 'dependency_ecosystems']):
         return
 

@@ -4,9 +4,6 @@ from typing import Dict
 import neo4j
 from okta.framework.OktaError import OktaError
 
-from cartography.config import Config
-from cartography.settings import settings
-from cartography.settings import check_module_settings
 from cartography.intel.okta import applications
 from cartography.intel.okta import awssaml
 from cartography.intel.okta import factors
@@ -16,6 +13,8 @@ from cartography.intel.okta import origins
 from cartography.intel.okta import roles
 from cartography.intel.okta import users
 from cartography.intel.okta.sync_state import OktaSyncState
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -42,16 +41,15 @@ def cleanup_okta_groups(neo4j_session: neo4j.Session, common_job_parameters: Dic
 
 
 @timeit
-def start_okta_ingestion(neo4j_session: neo4j.Session, _: Config) -> None:
+def start_okta_ingestion(neo4j_session: neo4j.Session) -> None:
     """
     Starts the OKTA ingestion process
     :param neo4j_session: The Neo4j session
-    :param config: A `cartography.config` object (DEPRECATED)
     :return: Nothing
     """
     if not check_module_settings('Okta', ['okta_org_id', 'okta_api_key']):
         return
-    
+
     if settings.okta.get('saml_role_regex') is None:
         settings.okla.update({'saml_role_regex': r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"})
 

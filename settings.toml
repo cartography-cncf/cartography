@@ -8,6 +8,7 @@ uri="bolt://localhost:7687"
 #password="neo4j"
 password_prompt=false
 max_connection_lifetime=3600
+database="neo4j"
 [analysis]
 #job_directory
 [bigfix]
@@ -49,6 +50,6 @@ max_connection_lifetime=3600
 #token=""
 #dependency_ecosystems="gomod,npm,pypi"
 [snipeit]
-#base_uri=""
+#base_url=""
 #token=""
 #tenant_id=""

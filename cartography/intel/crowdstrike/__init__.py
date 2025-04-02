@@ -2,7 +2,6 @@ import logging
 
 import neo4j
 
-from cartography.config import Config
 from cartography.intel.crowdstrike.endpoints import sync_hosts
 from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
 from cartography.intel.crowdstrike.util import get_authorization
@@ -18,13 +17,10 @@ stat_handler = get_stats_client(__name__)
 
 
 @timeit
-def start_crowdstrike_ingestion(
-    neo4j_session: neo4j.Session, _: Config,
-) -> None:
+def start_crowdstrike_ingestion(neo4j_session: neo4j.Session) -> None:
     """
     Perform ingestion of crowdstrike data.
     :param neo4j_session: Neo4J session for database interface
-    :param config: A cartography.config object (DEPRECATED)
     :return: None
     """
     if not check_module_settings('Crowdstrike', ['client_id', 'client_secret']):

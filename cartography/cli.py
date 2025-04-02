@@ -589,7 +589,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__BASE_URI instead.'
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__BASE_URL instead.'
                 'Your SnipeIT base URI'
                 'Required if you are using the SnipeIT intel module. Ignored otherwise.'
             ),
@@ -623,7 +623,6 @@ class CLI:
         :type argv: string
         :param argv: The parameters supplied to the command line program.
         """
-        # TODO support parameter lookup in environment variables if not present on command line
         config: argparse.Namespace = self.parser.parse_args(argv)
         # DEPRECATED: please use cartography.settings instead
         if config.update_tag:
@@ -639,7 +638,7 @@ class CLI:
             logging.getLogger('cartography').setLevel(logging.INFO)
         logger.debug("Launching cartography with CLI configuration: %r", vars(config))
 
-        # Neo4j config
+        # WIP: Neo4j config
         if config.neo4j_user:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('neo4j_user', 'CARTOGRAPHY_NEO4J__USER')
@@ -694,16 +693,12 @@ class CLI:
             deprecated_config('okta_org_id', 'CARTOGRAPHY_OKTA__ORG_ID')
             deprecated_config('okta_api_key_env_var', 'CARTOGRAPHY_OKTA__API_KEY')
             logger.debug(f"Reading API key for Okta from environment variable {config.okta_api_key_env_var}")
-            config.okta_api_key = os.environ.get(config.okta_api_key_env_var)
-            settings.update({'okta': {
-                'api_key': config.okta_api_key,
-                'org_id': config.okta_org_id,
-            }})
-        elif settings.get('okta', {}).get('api_key', None):
-            config.okta_org_id = settings.okta.org_id
-            config.okta_api_key = settings.okta.api_key
-        else:
-            config.okta_api_key = None
+            settings.update({
+                'okta': {
+                    'api_key': os.environ.get(config.okta_api_key_env_var),
+                    'org_id': config.okta_org_id,
+                },
+            })
 
         # WIP: GitHub config
         if config.github_config_env_var:
@@ -717,12 +712,7 @@ class CLI:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('digitalocean_token_env_var', 'CARTOGRAPHY_DIGITALOCEAN__TOKEN')
             logger.debug(f"Reading token for DigitalOcean from env variable {config.digitalocean_token_env_var}")
-            config.digitalocean_token = os.environ.get(config.digitalocean_token_env_var)
-            settings.update({'digitalocean': {'token': config.digitalocean_token}})
-        elif settings.get('digitalocean', {}).get('token', None):
-            config.digitalocean_token = settings.digitalocean.token
-        else:
-            config.digitalocean_token = None
+            settings.update({'digitalocean': {'token': os.environ.get(config.digitalocean_token_env_var)}})
 
         # Jamf config
         if config.jamf_base_uri and config.jamf_user and config.jamf_password_env_var:
@@ -735,42 +725,40 @@ class CLI:
                 config.jamf_user,
                 config.jamf_password_env_var,
             )
-            config.jamf_password = os.environ.get(config.jamf_password_env_var)
             settings.update({
                 'jamf': {
                     'user': config.jamf_user,
                     'base_url': config.jamf_base_uri,
-                    'password': config.password,
+                    'password': os.environ.get(config.jamf_password_env_var),
                 },
             })
-        elif settings.jamf.get('user', None):
-            config.jamf_base_uri = settings.jamf.base_url
-            config.jamf_user = settings.jamf.user
-            config.jamf_password = settings.jamf.password
-        else:
-            config.jamf_user = None
-            config.jamf_password = None
-            config.jamf_base_uri = None
 
-        # WIP: Kandji config
-        if config.kandji_base_uri:
-            if config.kandji_token_env_var:
-                logger.debug(
-                    "Reading Kandji API token from environment variable '%s'.",
-                    config.kandji_token_env_var,
-                )
-                config.kandji_token = os.environ.get(config.kandji_token_env_var)
-            elif os.environ.get('KANDJI_TOKEN'):
-                logger.debug(
-                    "Reading Kandji API token from environment variable 'KANDJI_TOKEN'.",
-                )
-                config.kandji_token = os.environ.get('KANDJI_TOKEN')
-            else:
-                logger.warning("A Kandji base URI was provided but a token was not.")
-                config.kandji_token = None
-        else:
-            logger.warning("A Kandji base URI was not provided.")
-            config.kandji_base_uri = None
+        # Kandji config
+        if config.kandji_base_uri and config.kandji_tenant_id:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('kandji_base_uri', 'CARTOGRAPHY_KANDJI__BASE_URL')
+            deprecated_config('kandji_tenant_id', 'CARTOGRAPHY_KANDJI__TENANT_ID')
+            settings.update({
+                'kandji': {
+                    'base_url': config.kandji_base_uri,
+                    'tenant_id': config.kandji_tenant_id,
+                },
+            })
+        if config.kandji_token_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('kandji_token_env_var', 'CARTOGRAPHY_KANDJI__TOKEN')
+            logger.debug(
+                "Reading Kandji API token from environment variable '%s'.",
+                config.kandji_token_env_var,
+            )
+            settings.update({'kandji': {'token': os.environ.get(config.kandji_token_env_var)}})
+        elif os.environ.get('KANDJI_TOKEN'):
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('KANDJI_TOKEN', 'CARTOGRAPHY_KANDJI__TOKEN')
+            logger.debug(
+                "Reading Kandji API token from environment variable 'KANDJI_TOKEN'.",
+            )
+            settings.update({'kandji': {'token': os.environ.get('KANDJI_TOKEN')}})
 
         # WIP: ???
         if config.statsd_enabled:
@@ -784,12 +772,7 @@ class CLI:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('pagerduty_api_key_env_var', 'CARTOGRAPHY_PAGERDUTY__API_KEY')
             logger.debug(f"Reading API key for PagerDuty from environment variable {config.pagerduty_api_key_env_var}")
-            config.pagerduty_api_key = os.environ.get(config.pagerduty_api_key_env_var)
-            settings.update({'pagerduty': {'api_key': config.pagerduty_api_key}})
-        elif settings.get('pagerduty', {}).get('api_key', None):
-            config.pagerduty_api_key = settings.pagerduty.api_key
-        else:
-            config.pagerduty_api_key = None
+            settings.update({'pagerduty': {'api_key': os.environ.get(config.pagerduty_api_key_env_var)}})
         if config.pagerduty_request_timeout:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('pagerduty_request_timeout', 'CARTOGRAPHY_COMMON__HTTP_TIMEOUT')
@@ -808,32 +791,18 @@ class CLI:
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_id_env_var}",
             )
-            config.crowdstrike_client_id = os.environ.get(config.crowdstrike_client_id_env_var)
-            settings.update({'crowdstrike': {'client_id': config.crowdstrike_client_id}})
-        elif settings.get('crowdstrike', {}).get('client_id', None):
-            config.crowdstrike_client_id = settings.crowdstrike.client_id
-        else:
-            config.crowdstrike_client_id = None
+            settings.update({'crowdstrike': {'client_id': os.environ.get(config.crowdstrike_client_id_env_var)}})
         if config.crowdstrike_client_secret_env_var:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('crowdstrike_client_secret_env_var', 'CARTOGRAPHY_CROWDSTRIKE__CLIENT_SECRET')
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_secret_env_var}",
             )
-            config.crowdstrike_client_secret = os.environ.get(config.crowdstrike_client_secret_env_var)
-            settings.update({'crowdstrike': {'client_secret': config.crowdstrike_client_secret}})
-        elif settings.get('crowdstrike', {}).get('client_secret', None):
-            config.crowdstrike_client_secret = settings.crowdstrike.client_secret
-        else:
-            config.crowdstrike_client_secret = None
+            settings.update({'crowdstrike': {'client_secret': os.environ.get(config.crowdstrike_client_secret_env_var)}})
         if config.crowdstrike_api_url:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('crowdstrike_api_url', 'CARTOGRAPHY_CROWDSTRIKE__API_URL')
             settings.update({'crowdstrike': {'api_url': config.crowdstrike_api_url}})
-        elif settings.get('crowdstrike', {}).get('api_url', None):
-            config.crowdstrike_api_url = settings.crowdstrike.api_url
-        else:
-            config.crowdstrike_api_url = None
 
         # WIP: GSuite config
         if config.gsuite_tokens_env_var:
@@ -847,22 +816,12 @@ class CLI:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('lastpass_cid_env_var', 'CARTOGRAPHY_LASTPASS__CID')
             logger.debug(f"Reading CID for Lastpass from environment variable {config.lastpass_cid_env_var}")
-            config.lastpass_cid = os.environ.get(config.lastpass_cid_env_var)
-            settings.update({'lastpass': {'cid': config.lastpass_cid}})
-        elif settings.get('lastpass', {}).get('cid', None):
-            config.lastpass_cid = settings.lastpass.cid
-        else:
-            config.lastpass_cid = None
+            settings.update({'lastpass': {'cid': os.environ.get(config.lastpass_cid_env_var)}})
         if config.lastpass_provhash_env_var:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('lastpass_provhash_env_var', 'CARTOGRAPHY_LASTPASS__PROVHASH')
             logger.debug(f"Reading provhash for Lastpass from environment variable {config.lastpass_provhash_env_var}")
-            config.lastpass_provhash = os.environ.get(config.lastpass_provhash_env_var)
-            settings.update({'lastpass': {'provhash': config.lastpass_provhash}})
-        elif settings.get('lastpass', {}).get('provhash', None):
-            config.lastpass_provhash = settings.lastpass.provhash
-        else:
-            config.lastpass_provhash = None
+            settings.update({'lastpass': {'provhash': os.environ.get(config.lastpass_provhash_env_var)}})
 
         # BigFix config
         if config.bigfix_username and config.bigfix_password_env_var and config.bigfix_root_url:
@@ -871,18 +830,13 @@ class CLI:
             deprecated_config('bigfix_password_env_var', 'CARTOGRAPHY_BIGFIX__PASSWORD')
             deprecated_config('bigfix_root_url', 'CARTOGRAPHY_BIGFIX__ROOT_URL')
             logger.debug(f"Reading BigFix password from environment variable {config.bigfix_password_env_var}")
-            config.bigfix_password = os.environ.get(config.bigfix_password_env_var)
             settings.update({
                 'bigfix': {
                     'username': config.bigfix_username,
-                    'password': config.bigfix_password,
+                    'password': os.environ.get(config.bigfix_password_env_var),
                     'root_url': config.bigfix_root_url,
                 },
             })
-        elif settings.get('bigfix', {}).get('username', None) and settings.get('bigfix', {}).get('password', None):
-            config.bigfix_username = settings.bigfix.username
-            config.bigfix_password = settings.bigfix.password
-            config.bigfix_root_url = settings.bigfix.root_url
 
         # Duo config
         if config.duo_api_key_env_var and config.duo_api_secret_env_var and config.duo_api_hostname:
@@ -894,91 +848,59 @@ class CLI:
                 f"Reading Duo api key and secret from environment variables {config.duo_api_key_env_var}"
                 f", {config.duo_api_secret_env_var}",
             )
-            config.duo_api_key = os.environ.get(config.duo_api_key_env_var)
-            config.duo_api_secret = os.environ.get(config.duo_api_secret_env_var)
             settings.update({
                 'duo': {
-                    'api_key': config.duo_api_key,
-                    'api_secret': config.duo_api_secret,
+                    'api_key': os.environ.get(config.duo_api_key_env_var),
+                    'api_secret': os.environ.get(config.duo_api_secret_env_var),
                     'api_hostname': config.duo_api_hostname,
                 },
             })
-        elif settings.get('duo', {}).get('api_key', None) and settings.get('duo', {}).get('api_secret', None):
-            config.duo_api_key = settings.duo.api_key
-            config.duo_api_secret = settings.duo.api_secret
-            config.duo_api_hostname = settings.duo.api_hostname
-        else:
-            config.duo_api_key = None
-            config.duo_api_secret = None
-            config.duo_api_hostname = None
 
         # Semgrep config
         if config.semgrep_app_token_env_var:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('semgrep_app_token_env_var', 'CARTOGRAPHY_SEMGREP__TOKEN')
             logger.debug(f"Reading Semgrep App Token from environment variable {config.semgrep_app_token_env_var}")
-            config.semgrep_app_token = os.environ.get(config.semgrep_app_token_env_var)
-            settings.update({'semgrep': {'token': config.semgrep_app_token}})
-        elif settings.get('semgrep', {}).get('token', None):
-            config.semgrep_app_token = settings.semgrep.token
-        else:
-            config.semgrep_app_token = None
+            settings.update({'semgrep': {'token': os.environ.get(config.semgrep_app_token_env_var)}})
         if config.semgrep_dependency_ecosystems:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('semgrep_dependency_ecosystems', 'CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS')
             settings.update({'semgrep': {'dependency_ecosystems': config.semgrep_dependency_ecosystems}})
-        elif settings.get('semgrep', {}).get('dependency_ecosystems', None):
-            config.semgrep_dependency_ecosystems = settings.semgrep.dependency_ecosystems
-        else:
-            config.semgrep_dependency_ecosystems = None
 
         # CVE feed config
         if config.cve_api_key_env_var:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('cve_api_key_env_var', 'CARTOGRAPHY_CVE__API_KEY')
             logger.debug(f"Reading NVD CVE API key environment variable {config.cve_api_key_env_var}")
-            config.cve_api_key = os.environ.get(config.cve_api_key_env_var)
-            settings.update({'cve': {'api_key': config.cve_api_key}})
-        elif settings.get('cve', {}).get('api_key', None):
-            config.cve_api_key = settings.cve.api_key
-        else:
-            config.cve_api_key = None
+            settings.update({'cve': {'api_key': os.environ.get(config.cve_api_key_env_var)}})
         if config.cve_enabled:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('cve_enabled', 'CARTOGRAPHY_CVE__ENABLED')
             settings.update({'cve': {'enabled': config.cve_enabled}})
 
         # SnipeIT config
-        if config.snipeit_base_uri:
+        if config.snipeit_base_uri and config.snipeit_tenant_id:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('snipeit_base_uri', 'CARTOGRAPHY_SNIPEIT__BASE_URL')
             if config.snipeit_token_env_var:
-                # DEPRECATED: please use cartography.settings instead
                 deprecated_config('snipeit_token_env_var', 'CARTOGRAPHY_SNIPEIT__TOKEN')
                 logger.debug(
                     "Reading SnipeIT API token from environment variable '%s'.",
                     config.snipeit_token_env_var,
                 )
-                config.snipeit_token = os.environ.get(config.snipeit_token_env_var)
-                settings.update({'snipeit': {'token': config.snipeit_token}})
+                settings.update({'snipeit': {'token': os.environ.get(config.snipeit_token_env_var)}})
             elif os.environ.get('SNIPEIT_TOKEN'):
-                # DEPRECATED: please use cartography.settings instead
                 deprecated_config('SNIPEIT_TOKEN', 'CARTOGRAPHY_SNIPEIT__TOKEN')
                 logger.debug(
                     "Reading SnipeIT API token from environment variable 'SNIPEIT_TOKEN'.",
                 )
-                config.snipeit_token = os.environ.get('SNIPEIT_TOKEN')
-                settings.update({'snipeit': {'token': config.snipeit_token}})
-            else:
-                logger.warning("A SnipeIT base URI was provided but a token was not.")
-                config.kandji_token = None
-            settings.update({'snipeit': {'tenant_id': config.snipeit_tenant_id}})
-        elif settings.get('snipeit', {}).get('base_uri', None):
-            config.snipeit_base_uri = settings.snipeit.base_uri
-            config.snipeit_token = settings.snipeit.token
-            config.snipeit_tenant_id = settings.snipeit.tenant_id
-        else:
-            config.snipeit_base_uri = None
-            config.snipeit_token = None
-            config.snipeit_tenant_id = None
+                settings.update({'snipeit': {'token': os.environ.get('SNIPEIT_TOKEN')}})
+            settings.update({
+                'snipeit': {
+                    'tenant_id': config.snipeit_tenant_id,
+                    'base_url': config.snipeit_base_uri,
+                },
+            })
 
         # Settings validation
         if settings.get('semgrep', {}).get('dependency_ecosystems', None):

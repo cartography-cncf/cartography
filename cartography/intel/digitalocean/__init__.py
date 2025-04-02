@@ -3,12 +3,11 @@ import logging
 import neo4j
 from digitalocean import Manager
 
-from cartography.config import Config
-from cartography.settings import check_module_settings
-from cartography.settings import settings
 from cartography.intel.digitalocean import compute
 from cartography.intel.digitalocean import management
 from cartography.intel.digitalocean import platform
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.util import timeit
 
 
@@ -16,11 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_digitalocean_ingestion(neo4j_session: neo4j.Session, _: Config) -> None:
+def start_digitalocean_ingestion(neo4j_session: neo4j.Session) -> None:
     """
     If this module is configured, perform ingestion of DigitalOcean  data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
-    :param config: A cartography.config object (DEPRECATED)
     :return: None
     """
 

@@ -3,9 +3,9 @@ import pathlib
 
 import neo4j
 
-from cartography.settings import settings
-from cartography.settings import check_module_settings
 from cartography.graph.job import GraphJob
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 
 logger = logging.getLogger(__name__)
 
