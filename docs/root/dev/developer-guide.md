@@ -43,7 +43,9 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
     - `make test_lint` runs [pre-commit](https://pre-commit.com) linting against the codebase.
     - `make test_unit` runs the unit test suite.
 
-    ⚠️ Important!  The below commands will **DELETE ALL NODES** on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this. ⚠️
+    :::{warning}
+    The below commands will **DELETE ALL NODES** on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this.
+    :::
 
     - `make test_integration` runs the integration test suite.
     For more granular testing, you can invoke `pytest` directly:
