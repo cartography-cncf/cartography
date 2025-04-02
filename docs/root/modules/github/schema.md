@@ -1,7 +1,5 @@
 ## Github Schema
 
-.. _github_schema:
-
 ### GitHubRepository
 
 Representation of a single GitHubRepository (repo) [repository object](https://developer.github.com/v4/object/repository/). This node contains all data unique to the repo.

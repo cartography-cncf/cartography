@@ -1,6 +1,5 @@
 ## AWS Schema
 
-.. _aws_schema:
 
 ### AWSAccount
 

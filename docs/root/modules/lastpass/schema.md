@@ -1,8 +1,5 @@
 ## Lastpass Schema
 
-.. _lastpass_schema:
-
-
 ### Human
 
 Lastpass use Human node as pivot with other Identity Providers (GSuite, GitHub ...)

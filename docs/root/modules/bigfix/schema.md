@@ -1,8 +1,5 @@
 ## BigFix Schema
 
-.. _bigfix_schema:
-
-
 ### BigfixComputer
 
 Represents a computer tracked by BigFix.

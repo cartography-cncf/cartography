@@ -1,7 +1,5 @@
 ## Pagerduty Schema
 
-.. _pagerduty_schema:
-
 ### PagerDutyEscalationPolicy
 
 Representation of a [PagerDuty Escalation Policy](https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMjE-escalation-policy)

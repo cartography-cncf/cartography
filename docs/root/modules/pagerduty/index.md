@@ -1,0 +1,6 @@
+# PagerDuty
+
+```{toctree}
+config
+schema
+```

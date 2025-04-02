@@ -1,7 +1,5 @@
 ## Github Configuration
 
-.. _github_config:
-
 Follow these steps to analyze GitHub repos and other objects with Cartography.
 
 1. Prepare your GitHub credentials.

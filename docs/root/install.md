@@ -1,7 +1,5 @@
 # Quick start: Install and Run Cartography On Test Machine
 
-.. _cartography-installation:
-
 Time to set up a test machine to run Cartography.
 
 ## Option 1: Run docker-compose (preferred)

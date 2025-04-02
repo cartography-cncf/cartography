@@ -1,7 +1,5 @@
 ## Kandji Configuration
 
-.. _kandji_config:
-
 Follow these steps to analyze Kandji device objects in Cartography.
 
 1. Prepare an API token for Kandji

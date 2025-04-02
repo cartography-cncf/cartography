@@ -1,0 +1,6 @@
+# Kandji
+
+```{toctree}
+config
+schema
+```

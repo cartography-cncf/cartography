@@ -1,7 +1,5 @@
 ## GCP Configuration
 
-.. _gcp_config:
-
 Follow these steps to analyze GCP projects with Cartography.
 
 1. Prepare your GCP credential(s).
