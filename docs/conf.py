@@ -236,7 +236,7 @@ gettext_compact = False
 myst_enable_extensions = [
     "linkify",
     "html_image",
-    "colon_fence"
+    "colon_fence",
 ]
 myst_linkify_fuzzy_links = False
 suppress_warnings = ["myst.header"]
