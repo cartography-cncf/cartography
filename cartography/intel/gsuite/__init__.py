@@ -1,7 +1,4 @@
-import base64
-import json
 import logging
-import os
 from collections import namedtuple
 
 import googleapiclient.discovery
@@ -15,7 +12,8 @@ from google.oauth2.credentials import Credentials as OAuth2Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from googleapiclient.discovery import Resource
 
-from cartography.config import Config
+from cartography.settings import settings
+from cartography.settings import check_module_settings
 from cartography.intel.gsuite import api
 from cartography.util import timeit
 
@@ -53,27 +51,31 @@ def _initialize_resources(credentials: OAuth2Credentials | ServiceAccountCredent
 
 
 @timeit
-def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_gsuite_ingestion(neo4j_session: neo4j.Session) -> None:
     """
     Starts the GSuite ingestion process by initializing
 
     :param neo4j_session: The Neo4j session
-    :param config: A `cartography.config` object
     :return: Nothing
     """
+    if not check_module_settings('GSuite', ['auth_method']):
+        return
+
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
+        "UPDATE_TAG": settings.common.update_tag,
     }
 
     creds: OAuth2Credentials | ServiceAccountCredentials
-    if config.gsuite_auth_method == 'delegated':  # Legacy delegated method
+    if settings.gsuite.auth_method == 'delegated':  # Legacy delegated method
         logger.info('Attempting to authenticate to GSuite using legacy delegated method')
+        if not check_module_settings('GSuite', ['settings_account_file', 'delegated_admin']):
+            return
         try:
             creds = service_account.Credentials.from_service_account_file(
-                config.gsuite_config,
+                settings.gsuite.settings_account_file,
                 scopes=OAUTH_SCOPES,
             )
-            creds = creds.with_subject(os.environ.get('GSUITE_DELEGATED_ADMIN'))
+            creds = creds.with_subject(settings.gsuite.delegated_admin)
 
         except DefaultCredentialsError as e:
             logger.error(
@@ -86,17 +88,18 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 e,
             )
             return
-    elif config.gsuite_auth_method == 'oauth':
-        auth_tokens = json.loads(str(base64.b64decode(config.gsuite_config).decode()))
+    elif settings.gsuite.auth_method == 'oauth':
         logger.info('Attempting to authenticate to GSuite using OAuth')
+        if not check_module_settings('GSuite', ['client_id', 'client_secret', 'refresh_token', 'token_uri']):
+            return
         try:
             creds = credentials.Credentials(
                 token=None,
-                client_id=auth_tokens['client_id'],
-                client_secret=auth_tokens['client_secret'],
-                refresh_token=auth_tokens['refresh_token'],
+                client_id=settings.gsuite.client_id,
+                client_secret=settings.gsuite.client_secret,
+                refresh_token=settings.gsuite.refresh_token,
                 expiry=None,
-                token_uri=auth_tokens['token_uri'],
+                token_uri=settings.gsuite.token_uri,
                 scopes=OAUTH_SCOPES,
             )
             creds.refresh(Request())
@@ -112,7 +115,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 e,
             )
             return
-    elif config.gsuite_auth_method == 'default':
+    elif settings.gsuite.auth_method == 'default':
         logger.info('Attempting to authenticate to GSuite using default credentials')
         try:
             creds, _ = default(scopes=OAUTH_SCOPES)
@@ -129,5 +132,5 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             return
 
     resources = _initialize_resources(creds)
-    api.sync_gsuite_users(neo4j_session, resources.admin, config.update_tag, common_job_parameters)
-    api.sync_gsuite_groups(neo4j_session, resources.admin, config.update_tag, common_job_parameters)
+    api.sync_gsuite_users(neo4j_session, resources.admin, settings.common.update_tag, common_job_parameters)
+    api.sync_gsuite_groups(neo4j_session, resources.admin, settings.common.update_tag, common_job_parameters)

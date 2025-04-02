@@ -4,6 +4,8 @@ import logging
 import os
 import sys
 from typing import Optional
+import json
+import base64
 
 import cartography.config
 import cartography.sync
@@ -478,6 +480,7 @@ class CLI:
             default='delegated',
             choices=['delegated', 'oauth', 'default'],
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_GSUITE__AUTH_METHOD instead.'
                 'GSuite authentication method. Can be "delegated" for service account or "oauth" for OAuth. '
                 '"Default" best if using gcloud CLI.'
             ),
@@ -487,6 +490,7 @@ class CLI:
             type=str,
             default='GSUITE_GOOGLE_APPLICATION_CREDENTIALS',
             help=(
+                'DEPRECATED: Use settings.toml or refer to documentation for available variables.'
                 'The name of environment variable containing secrets for GSuite authentication.'
             ),
         )
@@ -804,12 +808,29 @@ class CLI:
             deprecated_config('crowdstrike_api_url', 'CARTOGRAPHY_CROWDSTRIKE__API_URL')
             settings.update({'crowdstrike': {'api_url': config.crowdstrike_api_url}})
 
-        # WIP: GSuite config
+        # GSuite config
         if config.gsuite_tokens_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('gsuite_tokens_env_var', 'CARTOGRAPHY_GSUITE__*')
             logger.debug(f"Reading config string for GSuite from environment variable {config.gsuite_tokens_env_var}")
-            config.gsuite_config = os.environ.get(config.gsuite_tokens_env_var)
-        else:
-            config.gsuite_tokens_env_var = None
+            if config.gsuite_auth_method == 'delegated':
+                settings.update({'gsuite': {
+                    'auth_method': 'delegated',
+                    'settings_account_file': os.environ.get(config.gsuite_tokens_env_var),
+                }})
+            elif config.gsuite_auth_method == 'oauth':
+                auth_tokens = json.loads(str(base64.b64decode(os.environ.get(config.gsuite_tokens_env_var)).decode()))
+                settings.update({'gsuite': {
+                    'auth_method': 'oauth',
+                    'client_id': auth_tokens.get('client_id'),
+                    'client_secret': auth_tokens.get('client_secret'),
+                    'refresh_token': auth_tokens.get('refresh_token'),
+                    'token_uri': auth_tokens.get('token_uri'),
+                }})
+        if os.environ.get('GSUITE_DELEGATED_ADMIN') is not None:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('GSUITE_DELEGATED_ADMIN', 'CARTOGRAPHY_GSUITE__DELEGATED_ADMIN')
+            settings.update({'gsuite': {'delegated_admin': os.environ.get('GSUITE_DELEGATED_ADMIN')}})
 
         # Lastpass config
         if config.lastpass_cid_env_var:
