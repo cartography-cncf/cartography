@@ -235,7 +235,6 @@ gettext_compact = False
 # myst_parser
 myst_enable_extensions = [
     "linkify",
-    "html_image",
     "colon_fence",
 ]
 myst_linkify_fuzzy_links = False
