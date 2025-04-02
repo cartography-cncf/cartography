@@ -4,36 +4,34 @@ import neo4j
 
 import cartography.intel.kandji.devices
 from cartography.config import Config
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_kandji_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_kandji_ingestion(neo4j_session: neo4j.Session, _: Config) -> None:
     """
     If this module is configured, perform ingestion of Kandji devices. Otherwise warn and exit
 
     :param neo4j_session: Neo4J session for database interface
-    :param config: A cartography.config object
+    :param config: A cartography.config object (DEPRECATED)
 
     :return: None
     """
-    if config.kandji_base_uri is None or config.kandji_token is None or config.kandji_tenant_id is None:
-        logger.warning(
-            'Required parameter missing. Skipping sync. '
-            'See docs to configure.',
-        )
+    if not check_module_settings('Kandji', ['base_uri', 'token', 'tenant_id']):
         return
 
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-        "TENANT_ID": config.kandji_tenant_id,
+        "UPDATE_TAG": settings.common.update_tag,
+        "TENANT_ID": settings.kandji.tenant_id,
     }
 
     cartography.intel.kandji.devices.sync(
         neo4j_session,
-        config.kandji_base_uri,
-        config.kandji_token,
+        settings.kandji.base_uri,
+        settings.kandji.token,
         common_job_parameters=common_job_parameters,
     )

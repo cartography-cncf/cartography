@@ -333,6 +333,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_KANDJI__BASE_URL instead.'
                 'Your Kandji base URI, e.g. https://company.api.kandji.io.'
                 'Required if you are using the Kandji intel module. Ignored otherwise.'
             ),
@@ -342,6 +343,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_KANDJI__TENANT_ID instead.'
                 'Your Kandji tenant id e.g. company.'
                 'Required using the Kandji intel module. Ignored otherwise.'
             ),
@@ -350,7 +352,10 @@ class CLI:
             '--kandji-token-env-var',
             type=str,
             default=None,
-            help='The name of an environment variable containing token with which to authenticate to Kandji.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_KANDJI__TOKEN instead.'
+                'The name of an environment variable containing token with which to authenticate to Kandji.'
+            ),
         )
         parser.add_argument(
             '--k8s-kubeconfig',

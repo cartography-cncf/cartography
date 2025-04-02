@@ -40,3 +40,7 @@ max_connection_lifetime=3600
 #base_url=""
 #user=""
 #password=""
+[kandji]
+#base_url=""
+#tenant_id=""
+#token=""
