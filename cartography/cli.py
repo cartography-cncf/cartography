@@ -238,6 +238,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY instead.'
                 'A path to a directory containing analysis jobs to run at the conclusion of the sync. cartography will '
                 'discover all JSON files in the given directory (and its subdirectories) and pass them to the GraphJob '
                 'API to execute against the graph. This allows you to apply data transformation and augmentation at '

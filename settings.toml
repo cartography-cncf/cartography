@@ -8,6 +8,8 @@ uri="bolt://localhost:7687"
 #password="neo4j"
 password_prompt=false
 max_connection_lifetime=3600
+[analysis]
+#job_directory
 [bigfix]
 #username=""
 #password=""
