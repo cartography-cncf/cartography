@@ -1,11 +1,11 @@
-import argparse
+import warnings
 import logging
 import time
 from collections import OrderedDict
 from typing import Callable
 from typing import List
 from typing import Tuple
-from typing import Union
+from typing import Any
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
@@ -31,6 +31,9 @@ import cartography.intel.okta
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 from cartography.config import Config
+from cartography.settings import settings
+from cartography.settings import check_module_settings
+from cartography.settings import parse_env_bool
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
 from cartography.util import STATUS_SUCCESS
@@ -96,21 +99,19 @@ class Sync:
         for name, func in stages:
             self.add_stage(name, func)
 
-    def run(self, neo4j_driver: neo4j.Driver, config: Union[Config, argparse.Namespace]) -> int:
+    def run(self, neo4j_driver: neo4j.Driver) -> int:
         """
         Execute all stages in the sync task in sequence.
 
         :type neo4j_driver: neo4j.Driver
         :param neo4j_driver: Neo4j driver object.
-        :type config: cartography.config.Config
-        :param config: Configuration for the sync run.
         """
-        logger.info("Starting sync with update tag '%d'", config.update_tag)
-        with neo4j_driver.session(database=config.neo4j_database) as neo4j_session:
+        logger.info("Starting sync with update tag '%d'", settings.common.update_tag)
+        with neo4j_driver.session(database=settings.neo4j.database) as neo4j_session:
             for stage_name, stage_func in self._stages.items():
                 logger.info("Starting sync stage '%s'", stage_name)
                 try:
-                    stage_func(neo4j_session, config)
+                    stage_func(neo4j_session)
                 except (KeyboardInterrupt, SystemExit):
                     logger.warning("Sync interrupted during stage '%s'.", stage_name)
                     raise
@@ -118,40 +119,56 @@ class Sync:
                     logger.exception("Unhandled exception during sync stage '%s'", stage_name)
                     raise  # TODO this should be configurable
                 logger.info("Finishing sync stage '%s'", stage_name)
-        logger.info("Finishing sync with update tag '%d'", config.update_tag)
+        logger.info("Finishing sync with update tag '%d'", settings.common.update_tag)
         return STATUS_SUCCESS
 
 
-def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:
-    """
-    Execute the cartography.sync.Sync.run method with parameters built from the given configuration object.
+def run(sync: Sync) -> int:
+    # DOC
 
-    This function will create a Neo4j driver object from the given Neo4j configuration options (URI, auth, etc.) and
-    will choose a sensible update tag if one is not specified in the given configuration.
-
-    :type sync: cartography.sync.Sync
-    :param sync: A sync task to run.
-    :type config: cartography.config.Config
-    :param config: The configuration to use to run the sync task.
-    """
-    # Initialize statsd client if enabled
-    if config.statsd_enabled:
+    # StatsD
+    if parse_env_bool(settings.get('statsd', {}).get('enabled', False)):
+        statsd_host = settings.get('statsd', {}).get('host', '127.0.0.1')
+        statsd_port = settings.get('statsd', {}).get('port', 8125)
+        statsd_prefix = settings.get('statsd', {}).get('prefix', '')
+        logger.debug(
+            f'statsd enabled. Sending metrics to server {statsd_host}:{statsd_port}. '
+            f'Metrics have prefix "{statsd_prefix}".',
+        )
         set_stats_client(
             StatsClient(
-                host=config.statsd_host,
-                port=config.statsd_port,
-                prefix=config.statsd_prefix,
+                host=statsd_host,
+                port=statsd_port,
+                prefix=statsd_prefix,
             ),
         )
 
+    # Commons
+    if settings.get('common', {}).get('update_tag', None) is None:
+        settings.update({
+            'common': {
+                'update_tag': int(time.time()),
+            },
+        })
+    if settings.get('common', {}).get('http_timeout', None) is None:
+        settings.update({
+            'common': {
+                'http_timeout': 60,
+            },
+        })
+
+    # Neo4j
     neo4j_auth = None
-    if config.neo4j_user or config.neo4j_password:
-        neo4j_auth = (config.neo4j_user, config.neo4j_password)
+    if settings.get('neo4j', {}).get('user', None) or settings.get('neo4j', {}).get('password', {}):
+        neo4j_auth = (
+            settings.get('neo4j', {}).get('user', None), 
+            settings.get('neo4j', {}).get('password', {})
+        )
     try:
         neo4j_driver = GraphDatabase.driver(
-            config.neo4j_uri,
+            settings.get('neo4j', {}).get('uri', 'bolt://localhost:7687'),
             auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+            max_connection_lifetime=settings.get('neo4j', {}).get('max_connection_lifetime', 3600),
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)
@@ -160,7 +177,7 @@ def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> in
                 "Unable to connect to Neo4j using the provided URI '%s', an error occurred: '%s'. Make sure the Neo4j "
                 "server is running and accessible from your network."
             ),
-            config.neo4j_uri,
+            settings.get('neo4j', {}).get('uri', 'bolt://localhost:7687'),
             e,
         )
         return STATUS_FAILURE
@@ -185,10 +202,16 @@ def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> in
                 e,
             )
         return STATUS_FAILURE
-    default_update_tag = int(time.time())
-    if not config.update_tag:
-        config.update_tag = default_update_tag
-    return sync.run(neo4j_driver, config)
+
+    return sync.run(neo4j_driver)
+
+
+# DEPRECATED: use 
+def run_with_config(sync: Sync, config: Any) -> int:
+    msg = "The 'run_with_config' function is deprecated" \
+        "and will be removed in next versionm, use 'run' instead."
+    warnings.warn(msg, DeprecationWarning, stacklevel=2)
+    return run(sync)
 
 
 def build_default_sync() -> Sync:

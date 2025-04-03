@@ -405,6 +405,7 @@ class CLI:
             '--statsd-enabled',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_STATSD__ENABLED instead.'
                 'If set, enables sending metrics using statsd to a server of your choice.'
             ),
         )
@@ -413,6 +414,7 @@ class CLI:
             type=str,
             default='',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_STATSD__PREFIX instead.'
                 'The string to prefix statsd metrics with. Only used if --statsd-enabled is on. Default = empty string.'
             ),
         )
@@ -421,6 +423,7 @@ class CLI:
             type=str,
             default='127.0.0.1',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_STATSD__HOST instead.'
                 'The IP address of your statsd server. Only used if --statsd-enabled is on. Default = 127.0.0.1.'
             ),
         )
@@ -429,6 +432,7 @@ class CLI:
             type=int,
             default=8125,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_STATSD__PORT instead.'
                 'The port of your statsd server. Only used if --statsd-enabled is on. Default = UDP 8125.'
             ),
         )
@@ -781,13 +785,6 @@ class CLI:
                 "Reading Kandji API token from environment variable 'KANDJI_TOKEN'.",
             )
             settings.update({'kandji': {'token': os.environ.get('KANDJI_TOKEN')}})
-
-        # WIP: ???
-        if config.statsd_enabled:
-            logger.debug(
-                f'statsd enabled. Sending metrics to server {config.statsd_host}:{config.statsd_port}. '
-                f'Metrics have prefix "{config.statsd_prefix}".',
-            )
 
         # Pagerduty config
         if config.pagerduty_api_key_env_var:
