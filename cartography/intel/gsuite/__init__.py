@@ -1,5 +1,6 @@
 import logging
 from collections import namedtuple
+import os
 
 import googleapiclient.discovery
 import neo4j
@@ -67,6 +68,14 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session) -> None:
 
     creds: OAuth2Credentials | ServiceAccountCredentials
     if settings.gsuite.auth_method == 'delegated':  # Legacy delegated method
+        if settings.gsuite.get('config') is None or not os.path.isfile(settings.gsuite.config):
+            logger.warning(
+                (
+                    "The GSuite config file is not set or is not a valid file."
+                    "Skipping GSuite ingestion."
+                ),
+            )
+            return
         logger.info('Attempting to authenticate to GSuite using legacy delegated method')
         if not check_module_settings('GSuite', ['settings_account_file', 'delegated_admin']):
             return
