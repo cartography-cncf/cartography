@@ -714,7 +714,16 @@ class CLI:
                     'client_secret': os.environ.get(config.azure_client_secret_env_var),
                 },
             })
-
+        if config.azure_sync_all_subscriptions:
+            deprecated_config('azure_sync_all_subscriptions', 'CARTOGRAPHY_AZURE__SYNC_ALL_SUBSCRIPTIONS')
+            settings.update({'azure': {'sync_all_subscriptions': config.azure_sync_all_subscriptions}})
+        if config.azure_tenant_id:
+            deprecated_config('azure_tenant_id', 'CARTOGRAPHY_AZURE__TENANT_ID')
+            settings.update({'azure': {'tenant_id': config.azure_tenant_id}})
+        if config.azure_client_id:
+            deprecated_config('azure_client_id', 'CARTOGRAPHY_AZURE__CLIENT_ID')
+            settings.update({'azure': {'client_id': config.azure_client_id}})
+        
         # DEPRECATED: OCI config (please use cartography.settings instead)
         if config.oci_sync_all_profiles:
             deprecated_config('oci_sync_all_profiles', 'CARTOGRAPHY_OCI__SYNC_ALL_PROFILES')
