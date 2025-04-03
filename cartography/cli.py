@@ -813,8 +813,8 @@ class CLI:
             )
             settings.update({
                 'crowdstrike': {
-                    'client_secret': os.environ.get(config.crowdstrike_client_secret_env_var)
-                    }
+                    'client_secret': os.environ.get(config.crowdstrike_client_secret_env_var),
+                },
             })
         if config.crowdstrike_api_url:
             deprecated_config('crowdstrike_api_url', 'CARTOGRAPHY_CROWDSTRIKE__API_URL')
@@ -832,7 +832,11 @@ class CLI:
                     },
                 })
             elif config.gsuite_auth_method == 'oauth':
-                auth_tokens = json.loads(str(base64.b64decode(os.environ.get(config.gsuite_tokens_env_var)).decode()))
+                auth_tokens = json.loads(
+                    str(
+                        base64.b64decode(os.environ.get(config.gsuite_tokens_env_var, '')).decode(),
+                    ),
+                )
                 settings.update({
                     'gsuite': {
                         'auth_method': 'oauth',

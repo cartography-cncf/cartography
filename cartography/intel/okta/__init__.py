@@ -63,25 +63,25 @@ def start_okta_ingestion(neo4j_session: neo4j.Session) -> None:
     state = OktaSyncState()
 
     organization.create_okta_organization(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag
+        neo4j_session, settings.okta.org_id, settings.common.update_tag,
     )
     users.sync_okta_users(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state
+        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state,
     )
     groups.sync_okta_groups(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state
+        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state,
     )
     applications.sync_okta_applications(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key
+        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key,
     )
     factors.sync_users_factors(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state
+        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state,
     )
     origins.sync_trusted_origins(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key
+        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key,
     )
     awssaml.sync_okta_aws_saml(
-        neo4j_session, settings.okta.role_regex, settings.common.update_tag, settings.okta.org_id
+        neo4j_session, settings.okta.role_regex, settings.common.update_tag, settings.okta.org_id,
     )
 
     # need creds with permission
