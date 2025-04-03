@@ -13,8 +13,9 @@ import neo4j
 from . import ec2
 from . import organizations
 from .resources import RESOURCE_FUNCTIONS
-from cartography.config import Config
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
@@ -257,10 +258,13 @@ def _perform_aws_analysis(
 
 
 @timeit
-def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_aws_ingestion(neo4j_session: neo4j.Session) -> None:
+    if not check_module_settings("AWS", []):
+        return
+
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-        "permission_relationships_file": config.permission_relationships_file,
+        "UPDATE_TAG": settings.common.update_tag,
+        "permission_relationships_file": settings.common.permission_relationships_file,
     }
     try:
         boto3_session = boto3.Session()
@@ -276,7 +280,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
-    if config.aws_sync_all_profiles:
+    if settings.aws.get('sync_all_profiles', False):
         aws_accounts = organizations.get_aws_accounts_from_botocore_config(boto3_session)
     else:
         aws_accounts = organizations.get_aws_account_default(boto3_session)
@@ -296,15 +300,15 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
 
     requested_syncs: List[str] = list(RESOURCE_FUNCTIONS.keys())
-    if config.aws_requested_syncs:
-        requested_syncs = parse_and_validate_aws_requested_syncs(config.aws_requested_syncs)
+    if settings.aws.get('aws_requested_syncs') is not None:
+        requested_syncs = parse_and_validate_aws_requested_syncs(settings.aws.get('aws_requested_syncs'))
 
     sync_successful = _sync_multiple_accounts(
         neo4j_session,
         aws_accounts,
-        config.update_tag,
+        settings.common.update_tag,
         common_job_parameters,
-        config.aws_best_effort_mode,
+        settings.aws.get('best_effort_mode', False),
         requested_syncs,
     )
 
