@@ -351,6 +351,7 @@ def get_gcp_credentials() -> Optional[GoogleCredentials]:
             ),
             e,
         )
+    return None
 
 
 @timeit
