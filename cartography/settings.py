@@ -50,21 +50,6 @@ def check_module_settings(module_name: str, required_settings: List[str], multi_
     return True
 
 
-def parse_env_bool(val: Any) -> bool:
-    """
-    Parse a string value as a boolean.
-
-    Args:
-        val (Any): The value to parse.
-
-    Returns:
-        bool: True if the value is 'true', '1', or 'yes' (case-insensitive), False otherwise.
-    """
-    if isinstance(val, bool):
-        return val
-    return str(val).lower() in ('true', '1', 'yes')
-
-
 def deprecated_config(argument_name: str, env_name: str):
     """ Helper to deprecate a config argument in favor of an environment variable """
     msg = f"The '{argument_name}' parameter is deprecated" \

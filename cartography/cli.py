@@ -65,17 +65,6 @@ class CLI:
             help='Restrict cartography logging to warnings and errors only.',
         )
         parser.add_argument(
-            '--update-tag',
-            type=int,
-            default=None,
-            help=(
-                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__UPDATE_TAG instead.'
-                'A unique tag to apply to all Neo4j nodes and relationships created or updated during the sync run. '
-                'This tag is used by cleanup jobs to identify nodes and relationships that are stale and need to be '
-                'removed from the graph. By default, cartography will use a UNIX timestamp as the update tag.'
-            ),
-        )
-        parser.add_argument(
             '--selected-modules',
             type=str,
             default=None,
@@ -88,6 +77,28 @@ class CLI:
                 'We recommend that you always specify the `create-indexes` module first in this list. '
                 'If you specify the `analysis` module, we recommend that you include it as the LAST item of this list, '
                 '(because it does not make sense to perform analysis on an empty/out-of-date graph).'
+            ),
+        )
+        # DEPRECATED: following arguments are deprecated in favor of settings.toml or environment variables
+        parser.add_argument(
+            '--update-tag',
+            type=int,
+            default=None,
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__UPDATE_TAG instead.'
+                'A unique tag to apply to all Neo4j nodes and relationships created or updated during the sync run. '
+                'This tag is used by cleanup jobs to identify nodes and relationships that are stale and need to be '
+                'removed from the graph. By default, cartography will use a UNIX timestamp as the update tag.'
+            ),
+        )
+        parser.add_argument(
+            '--permission-relationships-file',
+            type=str,
+            default="cartography/data/permission_relationships.yaml",
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__PERMISSION_RELATIONSHIPS_FILE instead.'
+                'The path to the permission relationships mapping file.'
+                'If omitted the default permission relationships will be created'
             ),
         )
         parser.add_argument(
@@ -155,6 +166,7 @@ class CLI:
             '--aws-sync-all-profiles',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AWS__SYNC_ALL_PROFILES instead.'
                 'Enable AWS sync for all discovered named profiles. When this parameter is supplied cartography will '
                 'discover all configured AWS named profiles (see '
                 'https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) and run the AWS sync '
@@ -170,8 +182,20 @@ class CLI:
             '--aws-best-effort-mode',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AWS__BEST_EFFORT_MODE instead.'
                 'Enable AWS sync best effort mode when syncing AWS accounts. This will allow cartography to continue '
                 'syncing other accounts and delay raising an exception until the very end.'
+            ),
+        )
+        parser.add_argument(
+            '--aws-requested-syncs',
+            type=str,
+            default=None,
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AWS__REQUESTED_SYNCS instead.'
+                'Comma-separated list of AWS resources to sync. Example 1: "ecr,s3,ec2:instance" for ECR, S3, and all '
+                'EC2 instance resources. See the full list available in source code at cartography.intel.aws.resources.'
+                ' If not specified, cartography by default will run all AWS sync modules available.'
             ),
         )
         parser.add_argument(
@@ -228,16 +252,6 @@ class CLI:
             help=(
                 'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__CLIENT_SECRET.'
                 'The name of environment variable containing Azure Client Secret for Service Principal Authentication.'
-            ),
-        )
-        parser.add_argument(
-            '--aws-requested-syncs',
-            type=str,
-            default=None,
-            help=(
-                'Comma-separated list of AWS resources to sync. Example 1: "ecr,s3,ec2:instance" for ECR, S3, and all '
-                'EC2 instance resources. See the full list available in source code at cartography.intel.aws.resources.'
-                ' If not specified, cartography by default will run all AWS sync modules available.'
             ),
         )
         parser.add_argument(
@@ -302,15 +316,6 @@ class CLI:
                 'DEPRECATED: Use settings.toml or CARTOGRAPHY_DIGITALOCEAN__TOKEN instead.'
                 'The name of an environment variable containing a DigitalOcean access token.'
                 'Required if you are using the DigitalOcean intel module. Ignored otherwise.'
-            ),
-        )
-        parser.add_argument(
-            '--permission-relationships-file',
-            type=str,
-            default="cartography/data/permission_relationships.yaml",
-            help=(
-                'The path to the permission relationships mapping file.'
-                'If omitted the default permission relationships will be created'
             ),
         )
         parser.add_argument(
@@ -639,11 +644,6 @@ class CLI:
         :param argv: The parameters supplied to the command line program.
         """
         config: argparse.Namespace = self.parser.parse_args(argv)
-        # DEPRECATED: please use cartography.settings instead
-        if config.update_tag:
-            deprecated_config('update_tag', 'CARTOGRAPHY_COMMON__UPDATE_TAG')
-            settings.update({'common': {'update_tag': config.update_tag}})
-
         # Logging config
         if config.verbose:
             logging.getLogger('cartography').setLevel(logging.DEBUG)
@@ -653,9 +653,12 @@ class CLI:
             logging.getLogger('cartography').setLevel(logging.INFO)
         logger.debug("Launching cartography with CLI configuration: %r", vars(config))
 
-        # Neo4j config
+        # Selected modules
+        if config.selected_modules:
+            self.sync = cartography.sync.build_sync(config.selected_modules)
+
+        # DEPRECATED: Neo4j config (please use cartography.settings instead)
         if config.neo4j_user:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('neo4j_user', 'CARTOGRAPHY_NEO4J__USER')
             settings.update({'neo4j': {'user': config.neo4j_user}})
             config.neo4j_password = None
@@ -665,7 +668,6 @@ class CLI:
                 config.neo4j_password = getpass.getpass()
                 settings.update({'neo4j': {'password': config.neo4j_password}})
             elif config.neo4j_password_env_var:
-                # DEPRECATED: please use cartography.settings instead
                 deprecated_config('neo4j_password_env_var', 'CARTOGRAPHY_NEO4J__PASSWORD')
                 logger.debug(
                     "Reading password for Neo4j user '%s' from environment variable '%s'.",
@@ -677,18 +679,18 @@ class CLI:
             if not config.neo4j_password:
                 logger.warning("Neo4j username was provided but a password could not be found.")
 
-        # Selected modules
-        if config.selected_modules:
-            self.sync = cartography.sync.build_sync(config.selected_modules)
+        # DEPRECATED: please use cartography.settings instead
+        if config.update_tag:
+            deprecated_config('update_tag', 'CARTOGRAPHY_COMMON__UPDATE_TAG')
+            settings.update({'common': {'update_tag': config.update_tag}})
 
-        # WIP: AWS config
+        # DEPRECATED: AWS config (please use cartography.settings instead)
         if config.aws_requested_syncs:
-            # No need to store the returned value; we're using this for input validation.
-            parse_and_validate_aws_requested_syncs(config.aws_requested_syncs)
+            deprecated_config('aws_requested_syncs', 'CARTOGRAPHY_AWS__REQUESTED_SYNCS')
+            settings.update({'aws': {'requested_syncs': config.aws_requested_syncs}})
 
-        # Azure config
+        # DEPRECATED: Azure config (please use cartography.settings instead)
         if config.azure_sp_auth and config.azure_client_secret_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('azure_sp_auth', 'CARTOGRAPHY_AZURE__SP_AUTH')
             deprecated_config('azure_client_secret_env_var', 'CARTOGRAPHY_AZURE__CLIENT_SECRET')
             logger.debug(
@@ -702,15 +704,13 @@ class CLI:
                 }
             })
 
-        # OCI config
+        # DEPRECATED: OCI config (please use cartography.settings instead)
         if config.oci_sync_all_profiles:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('oci_sync_all_profiles', 'CARTOGRAPHY_OCI__SYNC_ALL_PROFILES')
             settings.update({'oci': {'sync_all_profiles': config.oci_sync_all_profiles}})
 
-        # Okta config
+        # DEPRECATED: Okta config (please use cartography.settings instead)
         if config.okta_org_id and config.okta_api_key_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('okta_org_id', 'CARTOGRAPHY_OKTA__ORG_ID')
             deprecated_config('okta_api_key_env_var', 'CARTOGRAPHY_OKTA__API_KEY')
             logger.debug(f"Reading API key for Okta from environment variable {config.okta_api_key_env_var}")
@@ -721,9 +721,8 @@ class CLI:
                 },
             })
 
-        # GitHub config
+        # DEPRECATED: GitHub config (please use cartography.settings instead)
         if config.github_config_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('github_config_env_var', 'CARTOGRAPHY_GITHUB__*')
             logger.debug(f"Reading config string for GitHub from environment variable {config.github_config_env_var}")
             auth_tokens = json.loads(base64.b64decode(config.github_config).decode())
@@ -737,16 +736,14 @@ class CLI:
                     },
                 })
 
-        # DigitalOcean config
+        # DEPRECATED: DigitalOcean config (please use cartography.settings instead)
         if config.digitalocean_token_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('digitalocean_token_env_var', 'CARTOGRAPHY_DIGITALOCEAN__TOKEN')
             logger.debug(f"Reading token for DigitalOcean from env variable {config.digitalocean_token_env_var}")
             settings.update({'digitalocean': {'token': os.environ.get(config.digitalocean_token_env_var)}})
 
-        # Jamf config
+        # DEPRECATED: Jamf config (please use cartography.settings instead)
         if config.jamf_base_uri and config.jamf_user and config.jamf_password_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('jamf_base_uri', 'CARTOGRAPHY_JAMF__BASE_URL')
             deprecated_config('jamf_user', 'CARTOGRAPHY_JAMF__USER')
             deprecated_config('jamf_password_env_var', 'CARTOGRAPHY_JAMF__PASSWORD')
@@ -763,9 +760,8 @@ class CLI:
                 },
             })
 
-        # Kandji config
+        # DEPRECATED: Kandji config (please use cartography.settings instead)
         if config.kandji_base_uri and config.kandji_tenant_id:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('kandji_base_uri', 'CARTOGRAPHY_KANDJI__BASE_URL')
             deprecated_config('kandji_tenant_id', 'CARTOGRAPHY_KANDJI__TENANT_ID')
             settings.update({
@@ -775,7 +771,6 @@ class CLI:
                 },
             })
         if config.kandji_token_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('kandji_token_env_var', 'CARTOGRAPHY_KANDJI__TOKEN')
             logger.debug(
                 "Reading Kandji API token from environment variable '%s'.",
@@ -783,21 +778,18 @@ class CLI:
             )
             settings.update({'kandji': {'token': os.environ.get(config.kandji_token_env_var)}})
         elif os.environ.get('KANDJI_TOKEN'):
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('KANDJI_TOKEN', 'CARTOGRAPHY_KANDJI__TOKEN')
             logger.debug(
                 "Reading Kandji API token from environment variable 'KANDJI_TOKEN'.",
             )
             settings.update({'kandji': {'token': os.environ.get('KANDJI_TOKEN')}})
 
-        # Pagerduty config
+        # DEPRECATED: Pagerduty config (please use cartography.settings instead)
         if config.pagerduty_api_key_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('pagerduty_api_key_env_var', 'CARTOGRAPHY_PAGERDUTY__API_KEY')
             logger.debug(f"Reading API key for PagerDuty from environment variable {config.pagerduty_api_key_env_var}")
             settings.update({'pagerduty': {'api_key': os.environ.get(config.pagerduty_api_key_env_var)}})
         if config.pagerduty_request_timeout:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('pagerduty_request_timeout', 'CARTOGRAPHY_COMMON__HTTP_TIMEOUT')
             if config.pagerduty_request_timeout > settings.common.http_timeout:
                 logger.warning(
@@ -807,29 +799,25 @@ class CLI:
                 )
                 settings.update({'common': {'http_timeout': config.pagerduty_request_timeout}})
 
-        # Crowdstrike config
+        # DEPRECATED: Crowdstrike config (please use cartography.settings instead)
         if config.crowdstrike_client_id_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('crowdstrike_client_id_env_var', 'CARTOGRAPHY_CROWDSTRIKE__CLIENT_ID')
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_id_env_var}",
             )
             settings.update({'crowdstrike': {'client_id': os.environ.get(config.crowdstrike_client_id_env_var)}})
         if config.crowdstrike_client_secret_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('crowdstrike_client_secret_env_var', 'CARTOGRAPHY_CROWDSTRIKE__CLIENT_SECRET')
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_secret_env_var}",
             )
             settings.update({'crowdstrike': {'client_secret': os.environ.get(config.crowdstrike_client_secret_env_var)}})
         if config.crowdstrike_api_url:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('crowdstrike_api_url', 'CARTOGRAPHY_CROWDSTRIKE__API_URL')
             settings.update({'crowdstrike': {'api_url': config.crowdstrike_api_url}})
 
-        # GSuite config
+        # DEPRECATED: GSuite config (please use cartography.settings instead)
         if config.gsuite_tokens_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('gsuite_tokens_env_var', 'CARTOGRAPHY_GSUITE__*')
             logger.debug(f"Reading config string for GSuite from environment variable {config.gsuite_tokens_env_var}")
             if config.gsuite_auth_method == 'delegated':
@@ -851,25 +839,21 @@ class CLI:
                     },
                 })
         if os.environ.get('GSUITE_DELEGATED_ADMIN') is not None:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('GSUITE_DELEGATED_ADMIN', 'CARTOGRAPHY_GSUITE__DELEGATED_ADMIN')
             settings.update({'gsuite': {'delegated_admin': os.environ.get('GSUITE_DELEGATED_ADMIN')}})
 
-        # Lastpass config
+        # DEPRECATED: Lastpass config (please use cartography.settings instead)
         if config.lastpass_cid_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('lastpass_cid_env_var', 'CARTOGRAPHY_LASTPASS__CID')
             logger.debug(f"Reading CID for Lastpass from environment variable {config.lastpass_cid_env_var}")
             settings.update({'lastpass': {'cid': os.environ.get(config.lastpass_cid_env_var)}})
         if config.lastpass_provhash_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('lastpass_provhash_env_var', 'CARTOGRAPHY_LASTPASS__PROVHASH')
             logger.debug(f"Reading provhash for Lastpass from environment variable {config.lastpass_provhash_env_var}")
             settings.update({'lastpass': {'provhash': os.environ.get(config.lastpass_provhash_env_var)}})
 
-        # BigFix config
+        # DEPRECATED: BigFix config (please use cartography.settings instead)
         if config.bigfix_username and config.bigfix_password_env_var and config.bigfix_root_url:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('bigfix_username', 'CARTOGRAPHY_BIGFIX__USERNAME')
             deprecated_config('bigfix_password_env_var', 'CARTOGRAPHY_BIGFIX__PASSWORD')
             deprecated_config('bigfix_root_url', 'CARTOGRAPHY_BIGFIX__ROOT_URL')
@@ -882,9 +866,8 @@ class CLI:
                 },
             })
 
-        # Duo config
+        # DEPRECATED: Duo config (please use cartography.settings instead)
         if config.duo_api_key_env_var and config.duo_api_secret_env_var and config.duo_api_hostname:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('duo_api_key_env_var', 'CARTOGRAPHY_DUO__API_KEY')
             deprecated_config('duo_api_secret_env_var', 'CARTOGRAPHY_DUO__API_SECRET')
             deprecated_config('duo_api_hostname', 'CARTOGRAPHY_DUO__API_HOSTNAME')
@@ -900,31 +883,26 @@ class CLI:
                 },
             })
 
-        # Semgrep config
+        # DEPRECATED: Semgrep config (please use cartography.settings instead)
         if config.semgrep_app_token_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('semgrep_app_token_env_var', 'CARTOGRAPHY_SEMGREP__TOKEN')
             logger.debug(f"Reading Semgrep App Token from environment variable {config.semgrep_app_token_env_var}")
             settings.update({'semgrep': {'token': os.environ.get(config.semgrep_app_token_env_var)}})
         if config.semgrep_dependency_ecosystems:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('semgrep_dependency_ecosystems', 'CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS')
             settings.update({'semgrep': {'dependency_ecosystems': config.semgrep_dependency_ecosystems}})
 
-        # CVE feed config
+        # DEPRECATED: CVE feed config (please use cartography.settings instead)
         if config.cve_api_key_env_var:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('cve_api_key_env_var', 'CARTOGRAPHY_CVE__API_KEY')
             logger.debug(f"Reading NVD CVE API key environment variable {config.cve_api_key_env_var}")
             settings.update({'cve': {'api_key': os.environ.get(config.cve_api_key_env_var)}})
         if config.cve_enabled:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('cve_enabled', 'CARTOGRAPHY_CVE__ENABLED')
             settings.update({'cve': {'enabled': config.cve_enabled}})
 
-        # SnipeIT config
+        # DEPRECATED: SnipeIT config (please use cartography.settings instead)
         if config.snipeit_base_uri and config.snipeit_tenant_id:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('snipeit_base_uri', 'CARTOGRAPHY_SNIPEIT__BASE_URL')
             if config.snipeit_token_env_var:
                 deprecated_config('snipeit_token_env_var', 'CARTOGRAPHY_SNIPEIT__TOKEN')
@@ -946,15 +924,16 @@ class CLI:
                 },
             })
 
-        # K8s config
+        # DEPRECATED: K8s config (please use cartography.settings instead)
         if config.k8s_kubeconfig:
-            # DEPRECATED: please use cartography.settings instead
             deprecated_config('k8s_kubeconfig', 'CARTOGRAPHY_K8S__KUBECONFIG')
             settings.update({'k8s': {'kubeconfig': config.k8s_kubeconfig}})
 
         # Settings validation
-        if settings.get('semgrep', {}).get('dependency_ecosystems', None):
-            parse_and_validate_semgrep_ecosystems(settings.get('semgrep', {}).dependency_ecosystems)
+        if settings.get('semgrep', {}).get('dependency_ecosystems'):
+            parse_and_validate_semgrep_ecosystems(settings.semgrep.dependency_ecosystems)
+        if settings.get('aws', {}).get('requested_syncs'):
+            parse_and_validate_aws_requested_syncs(settings.aws.requested_syncs)
 
         # Run cartography
         try:

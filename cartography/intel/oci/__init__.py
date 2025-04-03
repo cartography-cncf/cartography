@@ -14,8 +14,8 @@ from oci.exceptions import ProfileNotFound
 from . import iam
 from . import organizations
 from . import utils
-from cartography.settings import parse_env_bool
 from cartography.settings import settings
+from cartography.settings import check_module_settings
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
 # from . import network
@@ -134,6 +134,9 @@ def start_oci_ingestion(neo4j_session: neo4j.Session) -> None:
     :param neo4j_session: The Neo4j session
     :return: Nothing
     """
+    if not check_module_settings('OCI', []):
+        return
+
     common_job_parameters = {
         "UPDATE_TAG": settings.common.update_tag,
     }
@@ -156,7 +159,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session) -> None:
         )
         return
 
-    if parse_env_bool(settings.get('oci', {}).get('sync_all_profiles')):
+    if settings.oci.get('sync_all_profiles', False):
         oci_accounts = organizations.get_oci_accounts_from_config()
     else:
         oci_accounts = organizations.get_oci_account_default()

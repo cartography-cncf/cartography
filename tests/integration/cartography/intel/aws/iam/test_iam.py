@@ -4,7 +4,7 @@ import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
 import tests.data.aws.iam
 from cartography.cli import CLI
-from cartography.config import Config
+from cartography.settings import settings
 from cartography.sync import build_default_sync
 from tests.integration.util import check_nodes
 
@@ -19,11 +19,15 @@ def test_permission_relationships_file_arguments():
     """
     # Test the correct field is set in the Cartography config object
     fname = '/some/test/file.yaml'
-    config = Config(
-        neo4j_uri='bolt://thisdoesnotmatter:1234',
-        permission_relationships_file=fname,
-    )
-    assert config.permission_relationships_file == fname
+    settings.update({
+        'neo4j': {
+            'uri': 'bolt://thisdoesnotmatter:1234',
+        },
+        'common': {
+            'permission_relationships_file': fname,
+        }
+    })
+    assert settings.common.permission_relationships_file == fname
 
     # Test the correct field is set in the Cartography CLI object
     argv = ['--permission-relationships-file', '/some/test/file.yaml']

@@ -124,7 +124,7 @@ def get_sso_users(
     for page in paginator.paginate(IdentityStoreId=identity_store_id):
         user_page = page.get('Users', [])
         for user in user_page:
-            if user.get('ExternalIds', None):
+            if user.get('ExternalIds'):
                 user['ExternalId'] = user.get('ExternalIds')[0].get('Id')
             users.append(user)
 

@@ -15,7 +15,6 @@ from .util.credentials import Authenticator
 from .util.credentials import Credentials
 from cartography.settings import settings
 from cartography.settings import check_module_settings
-from cartography.settings import parse_env_bool
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -59,7 +58,7 @@ def _sync_multiple_subscriptions(
 @timeit
 def start_azure_ingestion(neo4j_session: neo4j.Session) -> None:
     # Check config
-    if parse_env_bool(settings.azure.get('sp_auth', None)):
+    if settings.azure.get('sp_auth', False):
         required_settings = ['tenant_id', 'client_id', 'client_secret']
     else:
         required_settings = []
@@ -74,7 +73,7 @@ def start_azure_ingestion(neo4j_session: neo4j.Session) -> None:
     }
 
     try:
-        if parse_env_bool(settings.azure.get('sp_auth', None)):
+        if settings.azure.get('sp_auth', False):
             credentials = Authenticator().authenticate_sp(
                 settings.azure.tenant_id, settings.azure.client_id, settings.azure.client_secret,
             )
@@ -96,7 +95,7 @@ def start_azure_ingestion(neo4j_session: neo4j.Session) -> None:
         common_job_parameters,
     )
 
-    if parse_env_bool(settings.azure.get('sync_all_subscriptions', None)):
+    if settings.azure.get('sync_all_subscriptions', False):
         subscriptions = subscription.get_all_azure_subscriptions(credentials)
 
     else:

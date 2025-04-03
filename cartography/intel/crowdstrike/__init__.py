@@ -33,7 +33,7 @@ def start_crowdstrike_ingestion(neo4j_session: neo4j.Session) -> None:
     authorization = get_authorization(
         settings.crowdstrike.client_id,
         settings.crowdstrike.client_secret,
-        settings.crowdstrike.get('api_url', None),
+        settings.crowdstrike.get('api_url'),
     )
     sync_hosts(
         neo4j_session,
@@ -52,7 +52,7 @@ def start_crowdstrike_ingestion(neo4j_session: neo4j.Session) -> None:
     )
 
     group_id = "public"
-    if settings.crowdstrike.get('api_url', None):
+    if settings.crowdstrike.get('api_url'):
         group_id = settings.crowdstrike.api_url
     merge_module_sync_metadata(
         neo4j_session,

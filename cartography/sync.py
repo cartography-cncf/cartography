@@ -31,9 +31,6 @@ import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.semgrep
 import cartography.intel.snipeit
-from cartography.config import Config
-from cartography.settings import check_module_settings
-from cartography.settings import parse_env_bool
 from cartography.settings import settings
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -128,7 +125,7 @@ def run(sync: Sync) -> int:
     # DOC
 
     # StatsD
-    if parse_env_bool(settings.get('statsd', {}).get('enabled', False)):
+    if settings.get('statsd', {}).get('enabled', False):
         statsd_host = settings.get('statsd', {}).get('host', '127.0.0.1')
         statsd_port = settings.get('statsd', {}).get('port', 8125)
         statsd_prefix = settings.get('statsd', {}).get('prefix', '')
@@ -145,13 +142,13 @@ def run(sync: Sync) -> int:
         )
 
     # Commons
-    if settings.get('common', {}).get('update_tag', None) is None:
+    if settings.get('common', {}).get('update_tag') is None:
         settings.update({
             'common': {
                 'update_tag': int(time.time()),
             },
         })
-    if settings.get('common', {}).get('http_timeout', None) is None:
+    if settings.get('common', {}).get('http_timeout') is None:
         settings.update({
             'common': {
                 'http_timeout': 60,
@@ -160,11 +157,11 @@ def run(sync: Sync) -> int:
 
     # Neo4j
     neo4j_auth = None
-    if settings.get('neo4j', {}).get('user', None):
-        if parse_env_bool(settings.get('neo4j', {}).get('password_prompt', False)):
+    if settings.get('neo4j', {}).get('user'):
+        if settings.get('neo4j', {}).get('password_prompt', False):
             logger.info(
                 "Reading password for Neo4j user '%s' interactively.",
-                settings.get('neo4j', {}).get('user', None)
+                settings.get('neo4j', {}).get('user')
             )
             settings.update({
                 'neo4j': {
@@ -173,8 +170,8 @@ def run(sync: Sync) -> int:
             })
 
         neo4j_auth = (
-            settings.get('neo4j', {}).get('user', None),
-            settings.get('neo4j', {}).get('password', {}),
+            settings.get('neo4j', {}).get('user'),
+            settings.get('neo4j', {}).get('password'),
         )
     try:
         neo4j_driver = GraphDatabase.driver(

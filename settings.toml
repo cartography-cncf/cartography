@@ -2,6 +2,7 @@
 [common]
 http_timeout=60
 #update_tag="<CHANGEME>"
+permission_relationships_file="cartography/data/permission_relationships.yaml"
 [neo4j]
 uri="bolt://localhost:7687"
 #user="neo4j"
@@ -11,6 +12,10 @@ max_connection_lifetime=3600
 database="neo4j"
 [analysis]
 #job_directory
+[aws]
+#sync_all_profiles=True
+#best_effort_mode=True
+#requested_syncs=ec2,iam,lambda,rds,s3,sqs,sts
 [azure]
 #sync_all_subscriptions=True
 #sp_auth=True
