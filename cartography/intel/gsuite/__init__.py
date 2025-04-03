@@ -67,6 +67,14 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     creds: OAuth2Credentials | ServiceAccountCredentials
     if config.gsuite_auth_method == 'delegated':  # Legacy delegated method
+        if config.gsuite_config is None or os.path.isfile(config.gsuite_config):
+            logger.warning(
+                (
+                    "The GSuite config file is not set or is not a valid file."
+                    "Skipping GSuite ingestion."
+                ),
+            )
+            return
         logger.info('Attempting to authenticate to GSuite using legacy delegated method')
         try:
             creds = service_account.Credentials.from_service_account_file(
