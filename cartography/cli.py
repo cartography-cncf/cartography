@@ -928,6 +928,9 @@ class CLI:
         if config.cve_enabled:
             deprecated_config('cve_enabled', 'CARTOGRAPHY_CVE__ENABLED')
             settings.update({'cve': {'enabled': config.cve_enabled}})
+        if config.nist_cve_url:
+            deprecated_config('nist_cve_url', 'CARTOGRAPHY_CVE__URL')
+            settings.update({'cve': {'url': config.nist_cve_url}})
 
         # DEPRECATED: SnipeIT config (please use cartography.settings instead)
         if config.snipeit_base_uri and config.snipeit_tenant_id:
