@@ -684,10 +684,21 @@ class CLI:
             deprecated_config('update_tag', 'CARTOGRAPHY_COMMON__UPDATE_TAG')
             settings.update({'common': {'update_tag': config.update_tag}})
 
+        # DEPRECATED: please use cartography.settings instead
+        if config.analysis_job_directory:
+            deprecated_config('analysis-job-directory', 'CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY')
+            settings.update({'analysis': {'job_directory': config.analysis_job_directory}})
+
         # DEPRECATED: AWS config (please use cartography.settings instead)
         if config.aws_requested_syncs:
             deprecated_config('aws_requested_syncs', 'CARTOGRAPHY_AWS__REQUESTED_SYNCS')
             settings.update({'aws': {'requested_syncs': config.aws_requested_syncs}})
+        if config.aws_sync_all_profiles:
+            deprecated_config('aws_sync_all_profiles', 'CARTOGRAPHY_AWS__SYNC_ALL_PROFILES')
+            settings.update({'aws': {'sync_all_profiles': config.aws_sync_all_profiles}})
+        if config.aws_best_effort_mode:
+            deprecated_config('aws_best_effort_mode', 'CARTOGRAPHY_AWS__BEST_EFFORT_MODE')
+            settings.update({'aws': {'best_effort_mode': config.aws_best_effort_mode}})
 
         # DEPRECATED: Azure config (please use cartography.settings instead)
         if config.azure_sp_auth and config.azure_client_secret_env_var:

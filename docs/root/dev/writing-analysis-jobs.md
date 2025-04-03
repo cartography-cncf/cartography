@@ -7,7 +7,7 @@ In a nutshell, Analysis Jobs let you add your own customizations to Cartography 
 There are 3 stages to a cartography sync. First we create database indexes, next we ingest assets via intel modules, and finally we can run Analysis Jobs on the database (see [cartography.sync.build\_default\_sync()](https://github.com/lyft/cartography/blob/master/cartography/sync.py)). This tutorial focuses on Analysis Jobs.
 
 ### How to run
-Each Analysis Job is a JSON file with a list of Neo4j statements which get run in order. To run Analysis Jobs, in your call to `cartography`, set the `--analysis-job-directory` parameter to the folder path of your jobs. Although the order of statements within a single job is preserved, we don't guarantee the order in which jobs are executed.
+Each Analysis Job is a JSON file with a list of Neo4j statements which get run in order. To run Analysis Jobs, in your call to `cartography`, set the `CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY` variable to the folder path of your jobs. Although the order of statements within a single job is preserved, we don't guarantee the order in which jobs are executed.
 
 ## Example job: which of my EC2 instances is accessible to any host on the internet?
 The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs that we've included by default in Cartography's source tree is [cartography/data/jobs/analysis/aws_ec2_asset_exposure.json](https://github.com/lyft/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.
