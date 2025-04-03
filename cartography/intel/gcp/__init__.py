@@ -370,7 +370,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     credentials = get_gcp_credentials()
     if credentials is None:
-        logger.warning("Unable to initialize GCP credentials. Skipping ;odule.")
+        logger.warning("Unable to initialize GCP credentials. Skipping module.")
         return
 
     resources = _initialize_resources(credentials)
