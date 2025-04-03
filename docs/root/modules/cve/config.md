@@ -7,8 +7,8 @@ Follow these steps to analyze CVE objects with Cartography.
 
 ### Cartography Configuration
 
-| Name | Type     | Description |
-|------|----------|-------------|
-| CARTOGRAPHY_CVE__ENABLED | `bool` _(default: False)_ | If set, CVE data will be synced from NIST. |
-| CARTOGRAPHY_CVE__URL | `str` | The base url for the NIST CVE data. Default = https://services.nvd.nist.gov/rest/json/cves/2.0/' |
-| CARTOGRAPHY_CVE__API_KEY | `str` | If set, uses the provided NIST NVD API v2.0 key. |
+| **Name** | **Type** | **Description** |
+|----------|----------|-----------------|
+| **CARTOGRAPHY_CVE__ENABLED** | `bool` _(default: False)_ | If set, CVE data will be synced from NIST. |
+| **CARTOGRAPHY_CVE__URL** | `str` | The base url for the NIST CVE data. Default = https://services.nvd.nist.gov/rest/json/cves/2.0/' |
+| **CARTOGRAPHY_CVE__API_KEY** | `str` | If set, uses the provided NIST NVD API v2.0 key. |

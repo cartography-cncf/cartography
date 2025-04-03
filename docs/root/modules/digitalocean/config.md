@@ -13,6 +13,6 @@ more up to date info.
 
 ### Cartography Configuration
 
-| Name | Type     | Description |
-|------|----------|-------------|
-| CARTOGRAPHY_DIGITALOCEAN__TOKEN | `str` | The DigitalOcean access token. |
+| **Name** | **Type** | **Description** |
+|----------|----------|-----------------|
+| **CARTOGRAPHY_DIGITALOCEAN__TOKEN** | `str` | The DigitalOcean access token. |

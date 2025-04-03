@@ -17,10 +17,10 @@ Follow these steps to analyze GitHub repos and other objects with Cartography.
 
 GitHub intel supports multiple instance, for each instance you must define following variables:
 
-| Name | Type     | Description |
-|------|----------|-------------|
-| CARTOGRAPHY__GITHUB__{ORGNAME}__TOKEN | `str` | The personnal access Token |
-| CARTOGRAPHY__GITHUB__{ORGNAME}__URL | `str` | The GraphQL API URL (e.g. https://api.github.com/graphql). |
+| **Name** | **Type** | **Description** |
+|----------|----------|-----------------|
+| **CARTOGRAPHY__GITHUB__{ORGNAME}__TOKEN** | `str` | The personnal access Token |
+| **CARTOGRAPHY__GITHUB__{ORGNAME}__URL** | `str` | The GraphQL API URL (e.g. https://api.github.com/graphql). |
 
 Example:
 ```

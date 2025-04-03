@@ -11,8 +11,8 @@ Follow these steps to analyze Okta objects with Cartography.
 
 ### Cartography Configuration
 
-| Name | Type     | Description |
-|------|----------|-------------|
-| CARTOGRAPHY_OKTA__ORG_ID | `str` | Okta organizational id to sync. |
-| CARTOGRAPHY_OKTA__API_KEY | `str` | The key with which to auth to the Okta API. |
-| CARTOGRAPHY_OKTA__SAML_ROLE_REGEX | `regex` | The regex used to map Okta groups to AWS roles when using okta as a SAML provider. The regex is the one entered in Step 5: Enabling Group Based Role Mapping in Okta 'https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#c-step5'. The regex must contain the `{{role}}` and `{{accountid}}` tags. |
+| **Name** | **Type** | **Description** |
+|----------|----------|-----------------|
+| **CARTOGRAPHY_OKTA__ORG_ID** | `str` | Okta organizational id to sync. |
+| **CARTOGRAPHY_OKTA__API_KEY** | `str` | The key with which to auth to the Okta API. |
+| **CARTOGRAPHY_OKTA__SAML_ROLE_REGEX** | `regex` | The regex used to map Okta groups to AWS roles when using okta as a SAML provider. The regex is the one entered in Step 5: Enabling Group Based Role Mapping in Okta 'https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#c-step5'. The regex must contain the `{{role}}` and `{{accountid}}` tags. |

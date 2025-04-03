@@ -10,8 +10,8 @@ Follow these steps to analyze Kandji device objects in Cartography.
 
 ### Cartography Configuration
 
-| Name | Type     | Description |
-|------|----------|-------------|
-| CARTOGRAPHY_KANDJI__BASE_URL | `str` | Your Kandji base URI (e.g. https://company.api.kandji.io.) |
-| CARTOGRAPHY_KANDJI__TENANT_ID | `str` | Your Kandji tenant id (e.g. company). |
-| CARTOGRAPHY_KANDJI__TOKEN `str` | Token with which to authenticate to Kandji. |
+| **Name** | **Type** | **Description** |
+|----------|----------|-----------------|
+| **CARTOGRAPHY_KANDJI__BASE_URL** | `str` | Your Kandji base URI (e.g. https://company.api.kandji.io.) |
+| **CARTOGRAPHY_KANDJI__TENANT_ID** | `str` | Your Kandji tenant id (e.g. company). |
+| **CARTOGRAPHY_KANDJI__TOKEN `str` | Token with which to authenticate to Kandji. |

@@ -8,8 +8,8 @@ Follow these steps to analyze Duo objects with Cartography.
 
 ### Cartography Configuration
 
-| Name | Type     | Description |
-|------|----------|-------------|
-| CARTOGRAPHY_DUO__API_KEY | `str` | The Duo api key. |
-| CARTOGRAPHY_DUO__API_SECRET | `str` | The Duo api secret. |
-| CARTOGRAPHY_DUO__API_HOSTNAME | `str` | The Duo api hostname. |
+| **Name** | **Type** | **Description** |
+|----------|----------|-----------------|
+| **CARTOGRAPHY_DUO__API_KEY** | `str` | The Duo api key. |
+| **CARTOGRAPHY_DUO__API_SECRET** | `str` | The Duo api secret. |
+| **CARTOGRAPHY_DUO__API_HOSTNAME** | `str` | The Duo api hostname. |

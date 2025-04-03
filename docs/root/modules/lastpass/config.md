@@ -8,7 +8,7 @@ Follow these steps to analyze Lastpass objects with Cartography.
 
 ### Cartography Configuration
 
-| Name | Type     | Description |
-|------|----------|-------------|
-| CARTOGRAPHY_LASTPASS__CID | `str` | The Lastpass CID for authentication. |
-| CARTOGRAPHY_LASTPASS__PROVHASH | `str` | The Lastpass provhash for authentication. |
+| **Name** | **Type** | **Description** |
+|----------|----------|-----------------|
+| **CARTOGRAPHY_LASTPASS__CID** | `str` | The Lastpass CID for authentication. |
+| **CARTOGRAPHY_LASTPASS__PROVHASH** | `str` | The Lastpass provhash for authentication. |

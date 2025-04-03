@@ -9,8 +9,8 @@ Follow these steps to analyze Crowdstrike falcon objects in Cartography.
 
 ### Cartography Configuration
 
-| Name | Type     | Description |
-|------|----------|-------------|
-| CARTOGRAPHY_CROWDSTRIKE__CLIENT_ID | `str` | The crowdstrike client id for authentication. |
-| CARTOGRAPHY_CROWDSTRIKE__CLIENT_SECRET | `str` | The crowdstrike secret key for authentication. |
-| CARTOGRAPHY_CROWDSTRIKE__API_URL | `str` | The crowdstrike URL, if using self-hosted. Defaults to the public crowdstrike API URL otherwise. |
+| **Name** | **Type** | **Description** |
+|----------|----------|-----------------|
+| **CARTOGRAPHY_CROWDSTRIKE__CLIENT_ID** | `str` | The crowdstrike client id for authentication. |
+| **CARTOGRAPHY_CROWDSTRIKE__CLIENT_SECRET** | `str` | The crowdstrike secret key for authentication. |
+| **CARTOGRAPHY_CROWDSTRIKE__API_URL** | `str` | The crowdstrike URL, if using self-hosted. Defaults to the public crowdstrike API URL otherwise. |

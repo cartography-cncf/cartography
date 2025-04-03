@@ -10,6 +10,6 @@ Follow these steps to analyze PagerDuty objects with Cartography.
 
 ### Cartography Configuration
 
-| Name | Type     | Description |
-|------|----------|-------------|
-| CARTOGRAPHY_PAGERDUTY__API_KEY | `str` | The pagerduty API key for authentication. |
+| **Name** | **Type** | **Description** |
+|----------|----------|-----------------|
+| **CARTOGRAPHY_PAGERDUTY__API_KEY** | `str` | The pagerduty API key for authentication. |
