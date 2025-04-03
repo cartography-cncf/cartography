@@ -1,7 +1,5 @@
 ## SnipeIT Schema
 
-.. _snipeit_schema:
-
 ### SnipeitTenant
 
 Representation of a SnipeIT Tenant.

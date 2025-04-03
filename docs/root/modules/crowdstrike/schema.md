@@ -1,7 +1,5 @@
 ## Crowdstrike Schema
 
-.. _crowdstrike_schema:
-
 ### CrowdstrikeHost
 
 Representation of a Crowdstrike Host

@@ -1,7 +1,5 @@
 ## Crowdstrike Configuration
 
-.. _crowdstrike_config:
-
 Follow these steps to analyze Crowdstrike falcon objects in Cartography.
 
 1. Prepare an API key for crowdstrike falcon

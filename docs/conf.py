@@ -38,11 +38,11 @@ def setup(app):
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.autosectionlabel",
     "sphinx.ext.extlinks",
     "sphinx.ext.ifconfig",
     "sphinx.ext.githubpages",
-    "sphinx_mdinclude",
+    "sphinxcontrib.mermaid",
+    "myst_parser",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -231,3 +231,12 @@ html_search_language = "en"
 # i18n
 locale_dirs = ['locale/']
 gettext_compact = False
+
+# myst_parser
+myst_enable_extensions = [
+    "linkify",
+    "colon_fence",
+]
+myst_linkify_fuzzy_links = False
+suppress_warnings = ["myst.header"]
+myst_fence_as_directive = ["mermaid"]

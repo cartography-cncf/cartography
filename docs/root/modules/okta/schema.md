@@ -1,7 +1,5 @@
 ## Okta Schema
 
-.. _okta_schema:
-
 ### OktaOrganization
 
 Representation of an [Okta Organization](https://developer.okta.com/docs/concepts/okta-organizations/).

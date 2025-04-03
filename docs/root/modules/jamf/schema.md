@@ -1,7 +1,5 @@
 ## Jamf Schema
 
-.. _jamf_schema:
-
 ### JamfComputerGroup
 
 Representation of a Jamf computer group.

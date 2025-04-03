@@ -1,7 +1,5 @@
 ## Kandji Schema
 
-.. _kandji_schema:
-
 ### KandjiTenant
 
 Representation of a Kandji Tenant.

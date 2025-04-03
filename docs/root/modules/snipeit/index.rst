@@ -1,7 +1,0 @@
-SnipeIT
-#######
-
-.. toctree::
-
-    config
-    schema
