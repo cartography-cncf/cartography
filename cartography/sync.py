@@ -1,7 +1,6 @@
 import getpass
 import logging
 import time
-import warnings
 from collections import OrderedDict
 from typing import Any
 from typing import Callable
@@ -219,7 +218,7 @@ def run(sync: Sync) -> int:
 def run_with_config(sync: Sync, config: Any) -> int:
     msg = "The 'run_with_config' function is deprecated" \
         "and will be removed in next versionm, use 'run' instead."
-    warnings.warn(msg, DeprecationWarning, stacklevel=2)
+    logger.warning(msg)
     return run(sync)
 
 

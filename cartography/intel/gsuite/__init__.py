@@ -1,6 +1,6 @@
 import logging
-from collections import namedtuple
 import os
+from collections import namedtuple
 
 import googleapiclient.discovery
 import neo4j

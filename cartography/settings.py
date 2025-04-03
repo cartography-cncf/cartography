@@ -1,5 +1,4 @@
 import logging
-import warnings
 from typing import List
 
 from dynaconf import Dynaconf
@@ -39,7 +38,7 @@ def check_module_settings(module_name: str, required_settings: List[str], multi_
                 [f"{tenant_name}.{setting}" for setting in required_settings if not tenant_settings.get(setting)],
             )
     else:
-        missing_settings = [setting for setting in required_settings if not settings.get(setting)]
+        missing_settings = [setting for setting in required_settings if not module_settings.get(setting)]
 
     if len(missing_settings) > 0:
         logger.warning(
@@ -54,4 +53,4 @@ def deprecated_config(argument_name: str, env_name: str):
     """ Helper to deprecate a config argument in favor of an environment variable """
     msg = f"The '{argument_name}' parameter is deprecated" \
         f" use '{env_name}' varenv instead (or define it in settings.toml)"
-    warnings.warn(msg, DeprecationWarning, stacklevel=2)
+    logger.warning(msg)
