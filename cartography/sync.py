@@ -1,3 +1,4 @@
+import getpass
 import logging
 import time
 import warnings
@@ -6,7 +7,6 @@ from typing import Any
 from typing import Callable
 from typing import List
 from typing import Tuple
-import getpass
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
@@ -161,7 +161,7 @@ def run(sync: Sync) -> int:
         if settings.get('neo4j', {}).get('password_prompt', False):
             logger.info(
                 "Reading password for Neo4j user '%s' interactively.",
-                settings.get('neo4j', {}).get('user')
+                settings.get('neo4j', {}).get('user'),
             )
             settings.update({
                 'neo4j': {

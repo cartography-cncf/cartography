@@ -17,7 +17,8 @@ from cartography.settings import settings
 
 
 logger = logging.getLogger(__name__)
-# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+# Connect and read timeouts as defined in settings;
+# see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 

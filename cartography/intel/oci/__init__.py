@@ -14,8 +14,8 @@ from oci.exceptions import ProfileNotFound
 from . import iam
 from . import organizations
 from . import utils
-from cartography.settings import settings
 from cartography.settings import check_module_settings
+from cartography.settings import settings
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
 # from . import network

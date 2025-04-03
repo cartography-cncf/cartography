@@ -700,8 +700,8 @@ class CLI:
             settings.update({
                 'azure': {
                     'sp_auth': config.sp_auth,
-                    'client_secret': os.environ.get(config.azure_client_secret_env_var)
-                }
+                    'client_secret': os.environ.get(config.azure_client_secret_env_var),
+                },
             })
 
         # DEPRECATED: OCI config (please use cartography.settings instead)
@@ -811,7 +811,11 @@ class CLI:
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_secret_env_var}",
             )
-            settings.update({'crowdstrike': {'client_secret': os.environ.get(config.crowdstrike_client_secret_env_var)}})
+            settings.update({
+                'crowdstrike': {
+                    'client_secret': os.environ.get(config.crowdstrike_client_secret_env_var)
+                    }
+            })
         if config.crowdstrike_api_url:
             deprecated_config('crowdstrike_api_url', 'CARTOGRAPHY_CROWDSTRIKE__API_URL')
             settings.update({'crowdstrike': {'api_url': config.crowdstrike_api_url}})

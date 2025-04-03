@@ -8,10 +8,10 @@ from unittest import mock
 import neo4j
 from pytest import raises
 
-import cartography.config
 import cartography.intel.aws
 import cartography.util
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
+from cartography.settings import settings
 # These unit tests are a sanity check for start*() and sync*() functions.
 
 TEST_ACCOUNTS = {'profile1': '000000000000', 'profile2': '000000000001', 'profile3': '000000000002'}
@@ -49,11 +49,14 @@ def make_aws_sync_test_kwargs(neo4j_session: neo4j.Session, mock_boto3_session: 
 def test_sync_multiple_accounts(
     mock_cleanup, mock_autodiscover, mock_sync_one, mock_boto3_session, mock_sync_orgs, neo4j_session,
 ):
-    test_config = cartography.config.Config(
-        neo4j_uri='bolt://localhost:7687',
-    )
+    settings.update({
+        'neo4j': {
+            'uri': 'bolt://localhost:7687',
+        },
+    })
+
     cartography.intel.aws._sync_multiple_accounts(
-        neo4j_session, TEST_ACCOUNTS, TEST_UPDATE_TAG, GRAPH_JOB_PARAMETERS, test_config,
+        neo4j_session, TEST_ACCOUNTS, TEST_UPDATE_TAG, GRAPH_JOB_PARAMETERS, False, [],
     )
 
     # Ensure we call _sync_one_account on all accounts in our list.
@@ -84,14 +87,20 @@ def test_sync_multiple_accounts(
 @mock.patch.object(cartography.intel.aws, '_perform_aws_analysis', return_value=None)
 def test_start_aws_ingestion(mock_perform_analysis, mock_sync_multiple, mock_orgs, mock_boto3, neo4j_session):
     # Arrange
-    test_config = cartography.config.Config(
-        neo4j_uri='bolt://localhost:7687',
-        update_tag=TEST_UPDATE_TAG,
-        aws_sync_all_profiles=True,
-    )
+    settings.update({
+        'neo4j': {
+            'uri': 'bolt://localhost:7687',
+        },
+        'aws': {
+            'sync_all_profiles': True,
+        },
+        'common': {
+            'update_tag': TEST_UPDATE_TAG,
+        },
+    })
 
     # Act
-    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+    cartography.intel.aws.start_aws_ingestion(neo4j_session)
 
     # Assert
     assert mock_sync_multiple.call_count == 1
@@ -99,8 +108,9 @@ def test_start_aws_ingestion(mock_perform_analysis, mock_sync_multiple, mock_org
         list(RESOURCE_FUNCTIONS.keys()),
         neo4j_session,
         {
-            "UPDATE_TAG": test_config.update_tag,
-            "permission_relationships_file": test_config.permission_relationships_file,
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            # WIP: Check for default value
+            "permission_relationships_file": settings.common.permission_relationships_file,
         },
     )
 
@@ -114,18 +124,24 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
     mock_run_cleanup_job, mock_perform_analysis, mock_sync_one, mock_get_aws_account, mock_boto3, neo4j_session,
 ):
     # Arrange
-    test_config = cartography.config.Config(
-        neo4j_uri='bolt://localhost:7687',
-        update_tag=TEST_UPDATE_TAG,
-        aws_sync_all_profiles=True,
-        aws_best_effort_mode=True,
-    )
+    settings.update({
+        'neo4j': {
+            'uri': 'bolt://localhost:7687',
+        },
+        'aws': {
+            'sync_all_profiles': True,
+            'best_effort_mode': True,
+        },
+        'common': {
+            'update_tag': TEST_UPDATE_TAG,
+        },
+    })
     mock_sync_one.side_effect = KeyError('foo')
     mock_get_aws_account.return_value = {'test_profile': 'test_account', 'test_profile2': 'test_account2'}
 
     # Act
     with raises(Exception) as e:
-        cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+        cartography.intel.aws.start_aws_ingestion(neo4j_session)
 
     # Assert
     message = str(e.value)
@@ -146,17 +162,25 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     mock_run_cleanup_job, mock_perform_analysis, mock_sync_one, mock_get_aws_account, mock_boto3, neo4j_session,
 ):
     # Arrange
-    test_config = cartography.config.Config(
-        neo4j_uri='bolt://localhost:7687',
-        update_tag=TEST_UPDATE_TAG,
-        aws_sync_all_profiles=True,
-    )
+    settings.update({
+        'neo4j': {
+            'uri': 'bolt://localhost:7687',
+        },
+        'aws': {
+            'sync_all_profiles': True,
+            'best_effort_mode': False,
+        },
+        'common': {
+            'update_tag': TEST_UPDATE_TAG,
+        },
+    })
+
     mock_sync_one.side_effect = KeyError('foo')
     mock_get_aws_account.return_value = {'test_profile': 'test_account', 'test_profile2': 'test_account2'}
 
     # Act
     with raises(Exception) as e:
-        cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+        cartography.intel.aws.start_aws_ingestion(neo4j_session)
 
     # Assert
     assert 'KeyError' in str(e)
@@ -175,15 +199,22 @@ def test_start_aws_ingestion_does_cleanup(
     mock_run_cleanup_job, mock_perform_analysis, mock_sync_one, mock_get_aws_account, mock_boto3, neo4j_session,
 ):
     # Arrange
-    test_config = cartography.config.Config(
-        neo4j_uri='bolt://localhost:7687',
-        update_tag=TEST_UPDATE_TAG,
-        aws_sync_all_profiles=True,
-    )
+    settings.update({
+        'neo4j': {
+            'uri': 'bolt://localhost:7687',
+        },
+        'aws': {
+            'sync_all_profiles': True,
+            'best_effort_mode': False,
+        },
+        'common': {
+            'update_tag': TEST_UPDATE_TAG,
+        },
+    })
     mock_get_aws_account.return_value = {'test_profile': 'test_account', 'test_profile2': 'test_account2'}
 
     # Act
-    cartography.intel.aws.start_aws_ingestion(neo4j_session, test_config)
+    cartography.intel.aws.start_aws_ingestion(neo4j_session)
 
     # Assert
     assert mock_perform_analysis.call_count == 1

@@ -24,7 +24,8 @@ stat_handler = get_stats_client(__name__)
 _PAGE_SIZE = 500
 _MAX_RETRIES = 3
 
-# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+# Connect and read timeouts as defined in settings;
+# see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 
 

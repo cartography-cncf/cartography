@@ -1,6 +1,5 @@
 import logging
 import warnings
-from typing import Any
 from typing import List
 
 from dynaconf import Dynaconf

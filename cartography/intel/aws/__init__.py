@@ -13,9 +13,9 @@ import neo4j
 from . import ec2
 from . import organizations
 from .resources import RESOURCE_FUNCTIONS
-from cartography.settings import settings
-from cartography.settings import check_module_settings
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
@@ -264,8 +264,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session) -> None:
 
     common_job_parameters = {
         "UPDATE_TAG": settings.common.update_tag,
-        # BUG
-        "permission_relationships_file": config.permission_relationships_file,
+        "permission_relationships_file": settings.common.permission_relationships_file,
     }
     try:
         boto3_session = boto3.Session()

@@ -92,9 +92,9 @@ def start_cve_ingestion(neo4j_session: neo4j.Session) -> None:
     if not settings.cve.enabled:
         logger.debug("CVE ingestion is disabled. Skipping.")
         return
-    if settings.cve.get('url', None) is None:
+    if settings.cve.get('url') is None:
         settings.cve.update({'url': 'https://services.nvd.nist.gov/rest/json/cves/2.0/'})
-    cve_api_key: str | None = settings.cve.get('api_key', None)
+    cve_api_key: str | None = settings.cve.get('api_key')
     with _retryable_session() as http_session:
         _sync_year_archives(http_session, neo4j_session=neo4j_session, cve_api_key=cve_api_key)
         _sync_modified_data(http_session, neo4j_session=neo4j_session, cve_api_key=cve_api_key)

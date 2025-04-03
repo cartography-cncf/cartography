@@ -25,7 +25,7 @@ def test_permission_relationships_file_arguments():
         },
         'common': {
             'permission_relationships_file': fname,
-        }
+        },
     })
     assert settings.common.permission_relationships_file == fname
 

@@ -13,8 +13,8 @@ from . import subscription
 from . import tenant
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
-from cartography.settings import settings
 from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -68,8 +68,7 @@ def start_azure_ingestion(neo4j_session: neo4j.Session) -> None:
 
     common_job_parameters = {
         "UPDATE_TAG": settings.common.update_tag,
-        # BUG: change this parameter when migrating AWS
-        "permission_relationships_file": config.permission_relationships_file,
+        "permission_relationships_file": settings.common.permission_relationships_file,
     }
 
     try:

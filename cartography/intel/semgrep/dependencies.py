@@ -23,7 +23,8 @@ stat_handler = get_stats_client(__name__)
 _PAGE_SIZE = 10000
 _MAX_RETRIES = 3
 
-# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+# Connect and read timeouts as defined in settings;
+# see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 # The keys in this dictionary must be in Semgrep's list of supported ecosystems, defined here:
 # https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion

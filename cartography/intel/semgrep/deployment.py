@@ -13,7 +13,8 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
-# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+# Connect and read timeouts as defined in settings; 
+# see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 
 
