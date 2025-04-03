@@ -9,6 +9,7 @@ from urllib3 import Retry
 from cartography.intel.cve import feed
 from cartography.settings import check_module_settings
 from cartography.settings import settings
+from cartography.settings import parse_env_bool
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
@@ -88,6 +89,9 @@ def start_cve_ingestion(neo4j_session: neo4j.Session) -> None:
     :return: None
     """
     if not check_module_settings('CVE', ['enabled']):
+        return
+    if not parse_env_bool(settings.cve.enabled):
+        logger.debug("CVE ingestion is disabled. Skipping.")
         return
     if settings.cve.get('url', None) is None:
         settings.cve.update({'url': 'https://services.nvd.nist.gov/rest/json/cves/2.0/'})

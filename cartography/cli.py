@@ -179,6 +179,7 @@ class CLI:
             '--oci-sync-all-profiles',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_OCI__SYNC_ALL_PROFILES instead.'
                 'Enable OCI sync for all discovered named profiles. When this parameter is supplied cartography will '
                 'discover all configured OCI named profiles (see '
                 'https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm) and run the OCI sync '
@@ -692,6 +693,12 @@ class CLI:
             config.azure_client_secret = os.environ.get(config.azure_client_secret_env_var)
         else:
             config.azure_client_secret = None
+
+        # OCI config
+        if config.oci_sync_all_profiles:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('oci_sync_all_profiles', 'CARTOGRAPHY_OCI__SYNC_ALL_PROFILES')
+            settings.update({'oci': {'sync_all_profiles': config.oci_sync_all_profiles}})
 
         # Okta config
         if config.okta_org_id and config.okta_api_key_env_var:

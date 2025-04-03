@@ -11,10 +11,12 @@ from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
 from oci.exceptions import ProfileNotFound
 
+from cartography.settings import settings
+from cartography.settings import parse_env_bool
+
 from . import iam
 from . import organizations
 from . import utils
-from cartography.config import Config
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
 # from . import network
@@ -125,17 +127,16 @@ def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
     )
 
 
-def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_oci_ingestion(neo4j_session: neo4j.Session) -> None:
     """
     Starts the OCI ingestion process by initializing OCI Application Default Credentials, creating the necessary
     resource objects, listing all OCI organizations and projects available to the OCI identity, and supplying that
     context to all intel modules.
     :param neo4j_session: The Neo4j session
-    :param config: A `cartography.config` object
     :return: Nothing
     """
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
+        "UPDATE_TAG": settings.common.update_tag,
     }
     try:
         # Explicitly use Application Default Credentials.
@@ -156,7 +157,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
-    if config.oci_sync_all_profiles:
+    if parse_env_bool(settings.get('oci', {}).get('sync_all_profiles')):
         oci_accounts = organizations.get_oci_accounts_from_config()
     else:
         oci_accounts = organizations.get_oci_account_default()
@@ -180,7 +181,7 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
-    _sync_multiple_accounts(neo4j_session, oci_accounts, config.update_tag, common_job_parameters)
+    _sync_multiple_accounts(neo4j_session, oci_accounts, settings.common.update_tag, common_job_parameters)
 
     # Look into adding analysis job once compute is implemented.
     # run_analysis_job(
