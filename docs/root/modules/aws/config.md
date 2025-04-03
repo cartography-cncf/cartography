@@ -101,7 +101,7 @@ There are many ways to allow Cartography to pull from more than one AWS account.
 
 ### Cartography Configuration
 
-| Name | Type | Description |
+| Name | Type     | Description |
 |------|----------|-------------|
 | CARTOGRAPHY_AWS__SYNC_ALL_PROFILES | `bool` _(default: False)_ | Enable AWS sync for all discovered named profiles. When this parameter is supplied cartography will discover all configured AWS named profiles (see https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) and run the AWS sync job for each profile not named "default". If this parameter is not supplied, cartography will use the default AWS credentials available in your environment to run the AWS sync once. When using this parameter it is suggested that you create an AWS config file containing a named profile for each AWS account you want to sync and use the AWS_CONFIG_FILE environment variable to point to that config file (see https://docs.aws.amazon.com/cli/latest/userguide/ cli-configure-envvars.html). cartography respects the AWS CLI/SDK environment variables and does not override them. |
 | CARTOGRAPHY_AWS__BEST_EFFORT_MODE | `bool` _(default: False)_ | Enable AWS sync best effort mode when syncing AWS accounts. This will allow cartography to continue syncing other accounts and delay raising an exception until the very end. |
