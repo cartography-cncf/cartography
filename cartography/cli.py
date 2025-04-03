@@ -7,7 +7,6 @@ import os
 import sys
 from typing import Optional
 
-import cartography.config
 import cartography.sync
 import cartography.util
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
@@ -191,6 +190,7 @@ class CLI:
             '--azure-sync-all-subscriptions',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__SYNC_ALL_SUBSCRIPTIONS instead.'
                 'Enable Azure sync for all discovered subscriptions. When this parameter is supplied cartography will '
                 'discover all configured Azure subscriptions.'
             ),
@@ -199,6 +199,7 @@ class CLI:
             '--azure-sp-auth',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__SP_AUTH instead.'
                 'Use Service Principal authentication for Azure sync.'
             ),
         )
@@ -207,6 +208,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__TENANT_ID.'
                 'Azure Tenant Id for Service Principal Authentication.'
             ),
         )
@@ -215,6 +217,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__CLIENT_ID.'
                 'Azure Client Id for Service Principal Authentication.'
             ),
         )
@@ -223,6 +226,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__CLIENT_SECRET.'
                 'The name of environment variable containing Azure Client Secret for Service Principal Authentication.'
             ),
         )
@@ -682,15 +686,21 @@ class CLI:
             # No need to store the returned value; we're using this for input validation.
             parse_and_validate_aws_requested_syncs(config.aws_requested_syncs)
 
-        # WIP: Azure config
+        # Azure config
         if config.azure_sp_auth and config.azure_client_secret_env_var:
+            # DEPRECATED: please use cartography.settings instead
+            deprecated_config('azure_sp_auth', 'CARTOGRAPHY_AZURE__SP_AUTH')
+            deprecated_config('azure_client_secret_env_var', 'CARTOGRAPHY_AZURE__CLIENT_SECRET')
             logger.debug(
                 "Reading Client Secret for Azure Service Principal Authentication from environment variable %s",
                 config.azure_client_secret_env_var,
             )
-            config.azure_client_secret = os.environ.get(config.azure_client_secret_env_var)
-        else:
-            config.azure_client_secret = None
+            settings.update({
+                'azure': {
+                    'sp_auth': config.sp_auth,
+                    'client_secret': os.environ.get(config.azure_client_secret_env_var)
+                }
+            })
 
         # OCI config
         if config.oci_sync_all_profiles:

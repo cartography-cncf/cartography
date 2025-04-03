@@ -11,6 +11,12 @@ max_connection_lifetime=3600
 database="neo4j"
 [analysis]
 #job_directory
+[azure]
+#sync_all_subscriptions=True
+#sp_auth=True
+#tenant_id=""
+#client_id=""
+#client_secret=""
 [bigfix]
 #username=""
 #password=""

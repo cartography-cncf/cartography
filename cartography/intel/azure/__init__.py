@@ -13,7 +13,9 @@ from . import subscription
 from . import tenant
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
-from cartography.config import Config
+from cartography.settings import settings
+from cartography.settings import check_module_settings
+from cartography.settings import parse_env_bool
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -55,16 +57,26 @@ def _sync_multiple_subscriptions(
 
 
 @timeit
-def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_azure_ingestion(neo4j_session: neo4j.Session) -> None:
+    # Check config
+    if parse_env_bool(settings.azure.get('sp_auth', None)):
+        required_settings = ['tenant_id', 'client_id', 'client_secret']
+    else:
+        required_settings = []
+
+    if not check_module_settings("Azure", required_settings):
+        return
+
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
+        "UPDATE_TAG": settings.common.update_tag,
+        # BUG: change this parameter when migrating AWS
         "permission_relationships_file": config.permission_relationships_file,
     }
 
     try:
-        if config.azure_sp_auth:
+        if parse_env_bool(settings.azure.get('sp_auth', None)):
             credentials = Authenticator().authenticate_sp(
-                config.azure_tenant_id, config.azure_client_id, config.azure_client_secret,
+                settings.azure.tenant_id, settings.azure.client_id, settings.azure.client_secret,
             )
         else:
             credentials = Authenticator().authenticate_cli()
@@ -80,11 +92,11 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         return
 
     _sync_tenant(
-        neo4j_session, credentials.get_tenant_id(), credentials.get_current_user(), config.update_tag,
+        neo4j_session, credentials.get_tenant_id(), credentials.get_current_user(), settings.common.update_tag,
         common_job_parameters,
     )
 
-    if config.azure_sync_all_subscriptions:
+    if parse_env_bool(settings.azure.get('sync_all_subscriptions', None)):
         subscriptions = subscription.get_all_azure_subscriptions(credentials)
 
     else:
@@ -97,6 +109,6 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         return
 
     _sync_multiple_subscriptions(
-        neo4j_session, credentials, credentials.get_tenant_id(), subscriptions, config.update_tag,
+        neo4j_session, credentials, credentials.get_tenant_id(), subscriptions, settings.common.update_tag,
         common_job_parameters,
     )
