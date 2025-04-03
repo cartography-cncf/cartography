@@ -18,12 +18,13 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import read_single_value_tx
 from cartography.models.cve.cve import CVESchema
 from cartography.models.cve.cve_feed import CVEFeedSchema
+from cartography.settings import settings
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# Connect and read timeouts of 120 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
-CONNECT_AND_READ_TIMEOUT = (30, 120)
+# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+_TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 CVE_FEED_ID = "NIST_NVD"
 BATCH_SIZE_DAYS = 120
 RESULTS_PER_PAGE = 2000
@@ -84,7 +85,7 @@ def _call_cves_api(http_session: Session, url: str, api_key: str | None, params:
 
     while params["resultsPerPage"] > 0 or params["startIndex"] < total_results:
         logger.info(f"Calling NIST NVD API at {url} with params {params}")
-        res = http_session.get(url, params=params, headers=headers, timeout=CONNECT_AND_READ_TIMEOUT)
+        res = http_session.get(url, params=params, headers=headers, timeout=_TIMEOUT)
         res.raise_for_status()
         data = res.json()
         _map_cve_dict(results, data)

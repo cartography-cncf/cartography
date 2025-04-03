@@ -1,11 +1,11 @@
-import warnings
 import logging
 import time
+import warnings
 from collections import OrderedDict
+from typing import Any
 from typing import Callable
 from typing import List
 from typing import Tuple
-from typing import Any
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
@@ -31,9 +31,9 @@ import cartography.intel.okta
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 from cartography.config import Config
-from cartography.settings import settings
 from cartography.settings import check_module_settings
 from cartography.settings import parse_env_bool
+from cartography.settings import settings
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
 from cartography.util import STATUS_SUCCESS
@@ -161,8 +161,8 @@ def run(sync: Sync) -> int:
     neo4j_auth = None
     if settings.get('neo4j', {}).get('user', None) or settings.get('neo4j', {}).get('password', {}):
         neo4j_auth = (
-            settings.get('neo4j', {}).get('user', None), 
-            settings.get('neo4j', {}).get('password', {})
+            settings.get('neo4j', {}).get('user', None),
+            settings.get('neo4j', {}).get('password', {}),
         )
     try:
         neo4j_driver = GraphDatabase.driver(
@@ -206,7 +206,7 @@ def run(sync: Sync) -> int:
     return sync.run(neo4j_driver)
 
 
-# DEPRECATED: use 
+# DEPRECATED: use
 def run_with_config(sync: Sync, config: Any) -> int:
     msg = "The 'run_with_config' function is deprecated" \
         "and will be removed in next versionm, use 'run' instead."

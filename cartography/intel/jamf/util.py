@@ -4,11 +4,12 @@ from typing import List
 
 import requests.auth
 
+from cartography.settings import settings
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-# Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
-_TIMEOUT = (60, 60)
+# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+_TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 
 
 @timeit

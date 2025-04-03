@@ -1,11 +1,11 @@
 import argparse
+import base64
 import getpass
+import json
 import logging
 import os
 import sys
 from typing import Optional
-import json
-import base64
 
 import cartography.config
 import cartography.sync
@@ -829,19 +829,23 @@ class CLI:
             deprecated_config('gsuite_tokens_env_var', 'CARTOGRAPHY_GSUITE__*')
             logger.debug(f"Reading config string for GSuite from environment variable {config.gsuite_tokens_env_var}")
             if config.gsuite_auth_method == 'delegated':
-                settings.update({'gsuite': {
-                    'auth_method': 'delegated',
-                    'settings_account_file': os.environ.get(config.gsuite_tokens_env_var),
-                }})
+                settings.update({
+                    'gsuite': {
+                        'auth_method': 'delegated',
+                        'settings_account_file': os.environ.get(config.gsuite_tokens_env_var),
+                    },
+                })
             elif config.gsuite_auth_method == 'oauth':
                 auth_tokens = json.loads(str(base64.b64decode(os.environ.get(config.gsuite_tokens_env_var)).decode()))
-                settings.update({'gsuite': {
-                    'auth_method': 'oauth',
-                    'client_id': auth_tokens.get('client_id'),
-                    'client_secret': auth_tokens.get('client_secret'),
-                    'refresh_token': auth_tokens.get('refresh_token'),
-                    'token_uri': auth_tokens.get('token_uri'),
-                }})
+                settings.update({
+                    'gsuite': {
+                        'auth_method': 'oauth',
+                        'client_id': auth_tokens.get('client_id'),
+                        'client_secret': auth_tokens.get('client_secret'),
+                        'refresh_token': auth_tokens.get('refresh_token'),
+                        'token_uri': auth_tokens.get('token_uri'),
+                    },
+                })
         if os.environ.get('GSUITE_DELEGATED_ADMIN') is not None:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('GSUITE_DELEGATED_ADMIN', 'CARTOGRAPHY_GSUITE__DELEGATED_ADMIN')

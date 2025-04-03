@@ -6,8 +6,8 @@ from requests import exceptions
 import cartography.intel.github.repos
 import cartography.intel.github.teams
 import cartography.intel.github.users
-from cartography.settings import settings
 from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

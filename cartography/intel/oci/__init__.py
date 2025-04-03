@@ -11,12 +11,11 @@ from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
 from oci.exceptions import ProfileNotFound
 
-from cartography.settings import settings
-from cartography.settings import parse_env_bool
-
 from . import iam
 from . import organizations
 from . import utils
+from cartography.settings import parse_env_bool
+from cartography.settings import settings
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
 # from . import network

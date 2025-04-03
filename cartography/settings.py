@@ -1,7 +1,7 @@
 import logging
 import warnings
-from typing import List
 from typing import Any
+from typing import List
 
 from dynaconf import Dynaconf
 
@@ -36,10 +36,10 @@ def check_module_settings(module_name: str, required_settings: List[str], multi_
         missing_settings = []
         for tenant_name, tenant_settings in module_settings.items():
             missing_settings.extend(
-                [f"{tenant_name}.{setting}" for setting in required_settings if not tenant_settings.get(setting)]
+                [f"{tenant_name}.{setting}" for setting in required_settings if not tenant_settings.get(setting)],
             )
     else:
-        missing_settings = [setting for setting in required_settings if not settings.get(setting)] 
+        missing_settings = [setting for setting in required_settings if not settings.get(setting)]
 
     if len(missing_settings) > 0:
         logger.warning(

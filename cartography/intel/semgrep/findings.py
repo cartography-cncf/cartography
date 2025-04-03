@@ -13,6 +13,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.semgrep.findings import SemgrepSCAFindingSchema
 from cartography.models.semgrep.locations import SemgrepSCALocationSchema
+from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_scoped_analysis_job
@@ -21,8 +22,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 _PAGE_SIZE = 500
-_TIMEOUT = (60, 60)
 _MAX_RETRIES = 3
+
+# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+_TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 
 
 @timeit

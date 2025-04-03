@@ -13,10 +13,12 @@ from typing import Tuple
 
 import requests
 
+from cartography.settings import settings
+
 
 logger = logging.getLogger(__name__)
-# Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
-_TIMEOUT = (60, 60)
+# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+_TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 
 

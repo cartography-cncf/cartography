@@ -7,12 +7,14 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.models.semgrep.deployment import SemgrepDeploymentSchema
+from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
-_TIMEOUT = (60, 60)
+# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+_TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 
 
 @timeit

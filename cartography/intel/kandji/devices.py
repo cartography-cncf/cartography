@@ -10,11 +10,12 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.kandji.device import KandjiDeviceSchema
 from cartography.models.kandji.tenant import KandjiTenantSchema
+from cartography.settings import settings
 from cartography.util import timeit
 
 
-logger = logging.getLogger(__name__)
-_TIMEOUT = (60, 60)
+# Connect and read timeouts as defined in settings; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
+_TIMEOUT = (settings.common.http_timeout, settings.common.http_timeout)
 
 
 @timeit

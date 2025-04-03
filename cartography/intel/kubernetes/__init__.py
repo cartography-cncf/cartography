@@ -2,13 +2,13 @@ import logging
 
 from neo4j import Session
 
-from cartography.settings import settings
-from cartography.settings import check_module_settings
 from cartography.intel.kubernetes.namespaces import sync_namespaces
 from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.util import get_k8s_clients
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def start_k8s_ingestion(session: Session) -> None:
     if not check_module_settings('k8s', ['kubeconfig']):
         return
-    
+
     common_job_parameters = {"UPDATE_TAG": settings.common.update_tag}
 
     for client in get_k8s_clients(settings.k8s.kubeconfig):

@@ -12,9 +12,9 @@ from google.oauth2.credentials import Credentials as OAuth2Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from googleapiclient.discovery import Resource
 
-from cartography.settings import settings
-from cartography.settings import check_module_settings
 from cartography.intel.gsuite import api
+from cartography.settings import check_module_settings
+from cartography.settings import settings
 from cartography.util import timeit
 
 OAUTH_SCOPES = [
