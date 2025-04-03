@@ -15,5 +15,5 @@ See the full list of supported ecosystems in source code at cartography.intel.se
 
 | **Name** | **Type** | **Description** |
 |----------|----------|-----------------|
-| **CARTOGRAPHY_SEMGREP__TOKEN**** | `str` | The Semgrep app token key. |
-| **CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS**** | `str` | Comma-separated list of language ecosystems for which dependencies will be retrieved from Semgrep. For example, a value of "gomod,npm" will retrieve Go and NPM dependencies. See the full list of supported ecosystems in source code at cartography.intel.semgrep.dependencies. |
+| **CARTOGRAPHY_SEMGREP__TOKEN** | `str` | The Semgrep app token key. |
+| **CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS** | `str` | Comma-separated list of language ecosystems for which dependencies will be retrieved from Semgrep. For example, a value of "gomod,npm" will retrieve Go and NPM dependencies. See the full list of supported ecosystems in source code at cartography.intel.semgrep.dependencies. |
