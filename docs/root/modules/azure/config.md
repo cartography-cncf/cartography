@@ -8,7 +8,7 @@ Follow these steps to analyze Microsoft Azure assets with Cartography:
     * Create a Service Principal: `$ az ad sp create-for-rbac --name cartography --role Reader`
     * Note the values of the `tenant`, `appId`, and `password` fields
 
-### Cartography Configuration 
+### Cartography Configuration
 
 | Name | Type     | Description |
 |------|----------|-------------|

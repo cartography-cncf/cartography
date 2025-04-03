@@ -96,7 +96,7 @@ def test_start_aws_ingestion(mock_perform_analysis, mock_sync_multiple, mock_org
         },
         'common': {
             'update_tag': TEST_UPDATE_TAG,
-            'permission_relationships_file': 'cartography/data/permission_relationships.yaml'
+            'permission_relationships_file': 'cartography/data/permission_relationships.yaml',
         },
     })
 
@@ -134,7 +134,7 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
         },
         'common': {
             'update_tag': TEST_UPDATE_TAG,
-            'permission_relationships_file': 'cartography/data/permission_relationships.yaml'
+            'permission_relationships_file': 'cartography/data/permission_relationships.yaml',
         },
     })
     mock_sync_one.side_effect = KeyError('foo')
@@ -173,7 +173,7 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
         },
         'common': {
             'update_tag': TEST_UPDATE_TAG,
-            'permission_relationships_file': 'cartography/data/permission_relationships.yaml'
+            'permission_relationships_file': 'cartography/data/permission_relationships.yaml',
         },
     })
 
@@ -211,7 +211,7 @@ def test_start_aws_ingestion_does_cleanup(
         },
         'common': {
             'update_tag': TEST_UPDATE_TAG,
-            'permission_relationships_file': 'cartography/data/permission_relationships.yaml'
+            'permission_relationships_file': 'cartography/data/permission_relationships.yaml',
         },
     })
     mock_get_aws_account.return_value = {'test_profile': 'test_account', 'test_profile2': 'test_account2'}

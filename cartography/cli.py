@@ -723,7 +723,7 @@ class CLI:
         if config.azure_client_id:
             deprecated_config('azure_client_id', 'CARTOGRAPHY_AZURE__CLIENT_ID')
             settings.update({'azure': {'client_id': config.azure_client_id}})
-        
+
         # DEPRECATED: OCI config (please use cartography.settings instead)
         if config.oci_sync_all_profiles:
             deprecated_config('oci_sync_all_profiles', 'CARTOGRAPHY_OCI__SYNC_ALL_PROFILES')
@@ -740,6 +740,9 @@ class CLI:
                     'org_id': config.okta_org_id,
                 },
             })
+        if config.okta_saml_role_regex:
+            deprecated_config('okta_saml_role_regex', 'CARTOGRAPHY_OKTA__SAML_ROLE_REGEX')
+            settings.update({'okta': {'saml_role_regex': config.okta_saml_role_regex}})
 
         # DEPRECATED: GitHub config (please use cartography.settings instead)
         if config.github_config_env_var:
