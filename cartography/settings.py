@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 settings = Dynaconf(
     includes=['settings.toml'],
     load_dotenv=True,
+    merge_enabled=True,
     envvar_prefix="CARTOGRAPHY",
 )
 
