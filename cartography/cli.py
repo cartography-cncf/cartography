@@ -649,18 +649,20 @@ class CLI:
             logging.getLogger('cartography').setLevel(logging.INFO)
         logger.debug("Launching cartography with CLI configuration: %r", vars(config))
 
-        # WIP: Neo4j config
+        # Neo4j config
         if config.neo4j_user:
             # DEPRECATED: please use cartography.settings instead
             deprecated_config('neo4j_user', 'CARTOGRAPHY_NEO4J__USER')
-
             settings.update({'neo4j': {'user': config.neo4j_user}})
             config.neo4j_password = None
             if config.neo4j_password_prompt:
+                deprecated_config('neo4j_password_prompt', 'CARTOGRAPHY_NEO4J__PASSWORD_PROMPT')
                 logger.info("Reading password for Neo4j user '%s' interactively.", config.neo4j_user)
                 config.neo4j_password = getpass.getpass()
                 settings.update({'neo4j': {'password': config.neo4j_password}})
             elif config.neo4j_password_env_var:
+                # DEPRECATED: please use cartography.settings instead
+                deprecated_config('neo4j_password_env_var', 'CARTOGRAPHY_NEO4J__PASSWORD')
                 logger.debug(
                     "Reading password for Neo4j user '%s' from environment variable '%s'.",
                     config.neo4j_user,
@@ -670,14 +672,6 @@ class CLI:
                 settings.update({'neo4j': {'password': config.neo4j_password}})
             if not config.neo4j_password:
                 logger.warning("Neo4j username was provided but a password could not be found.")
-        elif settings.neo4j.get('user', None):
-            config.neo4j_uri = settings.neo4j.uri
-            config.neo4j_max_connection_lifetime = settings.max_connection_lifetime
-            config.neo4j_database = settings.neo4j.database
-            config.neo4j_user = settings.neo4j.user
-            config.neo4j_password = settings.neo4j.password
-        else:
-            config.neo4j_password = None
 
         # Selected modules
         if config.selected_modules:
@@ -954,7 +948,7 @@ class CLI:
 
         # Run cartography
         try:
-            return cartography.sync.run_with_config(self.sync, config)
+            return cartography.sync.run(self.sync)
         except KeyboardInterrupt:
             return cartography.util.STATUS_KEYBOARD_INTERRUPT
 

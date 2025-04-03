@@ -6,6 +6,7 @@ from typing import Any
 from typing import Callable
 from typing import List
 from typing import Tuple
+import getpass
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
@@ -107,7 +108,7 @@ class Sync:
         :param neo4j_driver: Neo4j driver object.
         """
         logger.info("Starting sync with update tag '%d'", settings.common.update_tag)
-        with neo4j_driver.session(database=settings.neo4j.database) as neo4j_session:
+        with neo4j_driver.session(database=settings.get('neo4j', {}).get('database')) as neo4j_session:
             for stage_name, stage_func in self._stages.items():
                 logger.info("Starting sync stage '%s'", stage_name)
                 try:
@@ -159,7 +160,18 @@ def run(sync: Sync) -> int:
 
     # Neo4j
     neo4j_auth = None
-    if settings.get('neo4j', {}).get('user', None) or settings.get('neo4j', {}).get('password', {}):
+    if settings.get('neo4j', {}).get('user', None):
+        if parse_env_bool(settings.get('neo4j', {}).get('password_prompt', False)):
+            logger.info(
+                "Reading password for Neo4j user '%s' interactively.",
+                settings.get('neo4j', {}).get('user', None)
+            )
+            settings.update({
+                'neo4j': {
+                    'password': getpass.getpass(),
+                },
+            })
+
         neo4j_auth = (
             settings.get('neo4j', {}).get('user', None),
             settings.get('neo4j', {}).get('password', {}),
