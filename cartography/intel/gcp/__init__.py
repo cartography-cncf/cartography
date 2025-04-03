@@ -3,6 +3,7 @@ import logging
 from collections import namedtuple
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Set
 
 import googleapiclient.discovery
@@ -328,7 +329,7 @@ def _sync_multiple_projects(
 
 
 @timeit
-def get_gcp_credentials() -> GoogleCredentials:
+def get_gcp_credentials() -> Optional[GoogleCredentials]:
     """
     Gets access tokens for GCP API access.
     :param: None
@@ -338,6 +339,7 @@ def get_gcp_credentials() -> GoogleCredentials:
         # Explicitly use Application Default Credentials.
         # See https://google-auth.readthedocs.io/en/master/user-guide.html#application-default-credentials
         credentials, project_id = default()
+        return credentials
     except DefaultCredentialsError as e:
         logger.debug("Error occurred calling GoogleCredentials.get_application_default().", exc_info=True)
         logger.error(
@@ -349,7 +351,6 @@ def get_gcp_credentials() -> GoogleCredentials:
             ),
             e,
         )
-        return credentials
 
 
 @timeit
@@ -367,6 +368,9 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     credentials = get_gcp_credentials()
+    if credentials is None:
+        logger.warning("Unable to initialize GCP credentials. Skipping ;odule.")
+        return
 
     resources = _initialize_resources(credentials)
 
