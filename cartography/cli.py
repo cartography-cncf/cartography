@@ -687,7 +687,7 @@ class CLI:
         # DEPRECATED: statsd config (please use cartography.settings instead)
         if config.statsd_enabled:
             deprecated_config('statsd_enabled', 'CARTOGRAPHY_STATSD__ENABLED')
-            settings.update({'statsd':{'enabled': config.statsd_enabled}})
+            settings.update({'statsd': {'enabled': config.statsd_enabled}})
         if config.statsd_prefix:
             deprecated_config('statsd_prefix', 'CARTOGRAPHY_STATSD__PREFIX')
             settings.update({'statsd': {'prefix': config.statsd_prefix}})
