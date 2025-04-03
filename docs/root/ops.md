@@ -52,10 +52,10 @@ Windows). Determine your needs for data freshness and adjust accordingly.
 
 ### statsd
 
-Cartography can be configured to send metrics to a [statsd](https://github.com/statsd/statsd) server. Specify the
-`--statsd-enabled` flag when running `cartography` for sync execution times to be recorded and sent to
-`127.0.0.1:8125` by default (these options are also configurable with the `--statsd-host` and `--statsd-port` options).
-You can also provide your own `--statsd-prefix` to make these metrics easier to find in your own environment.
+Cartography can be configured to send metrics to a [statsd](https://github.com/statsd/statsd) server. Set the
+`CARTOGRAPHY_STATSD__ENABLED=True` flag when running `cartography` for sync execution times to be recorded and sent to
+`127.0.0.1:8125` by default (these options are also configurable with the `CARTOGRAPHY_STATSD__HOST` and `CARTOGRAPHY_STATSD__PORT` options).
+You can also provide your own `CARTOGRAPHY_STATSD__PREFIX` to make these metrics easier to find in your own environment.
 
 ## Docker image
 

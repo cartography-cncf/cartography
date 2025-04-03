@@ -657,6 +657,11 @@ class CLI:
         if config.selected_modules:
             self.sync = cartography.sync.build_sync(config.selected_modules)
 
+        # DEPRECATED: please use cartography.settings instead
+        if config.update_tag:
+            deprecated_config('update_tag', 'CARTOGRAPHY_COMMON__UPDATE_TAG')
+            settings.update({'common': {'update_tag': config.update_tag}})
+
         # DEPRECATED: Neo4j config (please use cartography.settings instead)
         if config.neo4j_user:
             deprecated_config('neo4j_user', 'CARTOGRAPHY_NEO4J__USER')
@@ -679,10 +684,19 @@ class CLI:
             if not config.neo4j_password:
                 logger.warning("Neo4j username was provided but a password could not be found.")
 
-        # DEPRECATED: please use cartography.settings instead
-        if config.update_tag:
-            deprecated_config('update_tag', 'CARTOGRAPHY_COMMON__UPDATE_TAG')
-            settings.update({'common': {'update_tag': config.update_tag}})
+        # DEPRECATED: statsd config (please use cartography.settings instead)
+        if config.statsd_enabled:
+            deprecated_config('statsd_enabled', 'CARTOGRAPHY_STATSD__ENABLED')
+            settings.update({'statsd':{'enabled': config.statsd_enabled}})
+        if config.statsd_prefix:
+            deprecated_config('statsd_prefix', 'CARTOGRAPHY_STATSD__PREFIX')
+            settings.update({'statsd': {'prefix': config.statsd_prefix}})
+        if config.statsd_host:
+            deprecated_config('statsd_host', 'CARTOGRAPHY_STATSD__HOST')
+            settings.update({'statsd': {'host': config.statsd_host}})
+        if config.statsd_host:
+            deprecated_config('statsd_port', 'CARTOGRAPHY_STATSD__PORT')
+            settings.update({'statsd': {'port': config.statsd_port}})          
 
         # DEPRECATED: please use cartography.settings instead
         if config.analysis_job_directory:

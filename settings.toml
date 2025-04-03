@@ -10,6 +10,11 @@ uri="bolt://localhost:7687"
 password_prompt=false
 max_connection_lifetime=3600
 database="neo4j"
+[statsd]
+#enabled=false
+#prefix=""
+#host="127.0.0.1"
+#port=8125
 [analysis]
 #job_directory
 [aws]
