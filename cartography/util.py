@@ -439,3 +439,27 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
     results = to_synchronous(future_1, future_2)
     '''
     return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))
+
+def load_node_data(session, schema, data, update_tag):
+    """Mock implementation for loading node data into Neo4j."""
+    logger.debug(f"Loading {len(data)} nodes for schema {schema.label}")
+    # Replace with actual logic for loading nodes into Neo4j
+
+def load_relationship_data(session, schema, data, update_tag):
+    """Mock implementation for loading relationship data into Neo4j."""
+    logger.debug(f"Loading {len(data)} relationships for schema {schema.type}")
+    # Replace with actual logic for loading relationships into Neo4j
+
+class GraphJob:
+    """Mock implementation of a cleanup job."""
+    def __init__(self, schema, parameters):
+        self.schema = schema
+        self.parameters = parameters
+
+    @classmethod
+    def from_node_schema(cls, schema, parameters):
+        return cls(schema, parameters)
+
+    def run(self, session):
+        logger.debug(f"Running cleanup job for schema {self.schema.label}")
+        # Replace with actual logic for running cleanup jobs

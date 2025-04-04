@@ -30,6 +30,7 @@ import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.semgrep
 import cartography.intel.snipeit
+import cartography.intel.msft365
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -58,6 +59,7 @@ TOP_LEVEL_MODULES = OrderedDict({  # preserve order so that the default sync alw
     'semgrep': cartography.intel.semgrep.start_semgrep_ingestion,
     'snipeit': cartography.intel.snipeit.start_snipeit_ingestion,
     'analysis': cartography.intel.analysis.run,
+    'msft365': cartography.intel.msft365.start_Msft365_ingestion,
 })
 
 

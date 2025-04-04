@@ -1,0 +1,19 @@
+[
+    {
+      "id": "user1",
+      "displayName": "Alice Johnson",
+      "userPrincipalName": "alice.johnson@example.com",
+      "mail": "alice.johnson@example.com",
+      "jobTitle": "Software Engineer",
+      "department": "Engineering"
+    },
+    {
+      "id": "user2",
+      "displayName": "Bob Smith",
+      "userPrincipalName": "bob.smith@example.com",
+      "mail": "bob.smith@example.com",
+      "jobTitle": "Product Manager",
+      "department": "Product"
+    }
+  ]
+  

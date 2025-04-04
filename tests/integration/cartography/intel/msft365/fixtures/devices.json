@@ -1,0 +1,17 @@
+[
+    {
+      "id": "device1",
+      "displayName": "Alice's Laptop",
+      "operatingSystem": "Windows 10",
+      "deviceOwnership": "CompanyOwned",
+      "approximateLastSignInDateTime": "2025-03-30T12:34:56Z"
+    },
+    {
+      "id": "device2",
+      "displayName": "Bob's Laptop",
+      "operatingSystem": "MAC OS",
+      "deviceOwnership": "CompanyOwned",
+      "approximateLastSignInDateTime": null
+    }
+  ]
+  

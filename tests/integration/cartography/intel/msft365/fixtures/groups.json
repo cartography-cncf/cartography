@@ -1,0 +1,15 @@
+[
+    {
+      "id": "group1",
+      "displayName": "Engineering Team",
+      "description": "Group for all engineering team members.",
+      "mail": "engineering-team@example.com"
+    },
+    {
+      "id": "group2",
+      "displayName": "Product Team",
+      "description": "Group for all product team members.",
+      "mail": null
+    }
+  ]
+  
