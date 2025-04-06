@@ -59,7 +59,7 @@ def start_duo_ingestion(neo4j_session: neo4j.Session) -> None:
 
     client = get_client()
     common_job_parameters = {
-        "UPDATE_TAG": settings.commong.update_tag,
+        "UPDATE_TAG": settings.common.update_tag,
         "DUO_API_HOSTNAME": settings.duo.api_hostname,
     }
 
