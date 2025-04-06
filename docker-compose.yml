@@ -52,6 +52,10 @@ services:
     # Provide AWS creds to the container
     # Add other volumes here to support other data providers.
       - ~/.aws:/var/cartography/.aws/
+    # You can either import the settings from the .env file or set them here.
+    # If you set them here, you can remove the .env file.
+    env_file:
+      - ./.env
     environment:
       # Point to the neo4j service defined in this docker-compose file.
       - NEO4J_URL=bolt://cartography-neo4j-1:7687

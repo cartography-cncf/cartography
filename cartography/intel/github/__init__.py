@@ -20,7 +20,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session) -> None:
     :param neo4j_session: Neo4J session for database interface
     :return: None
     """
-    if not check_module_settings('GitHub', ['token', 'url', 'name'], multi_tenant=True):
+    if not check_module_settings('GitHub', ['token', 'url'], multi_tenant=True):
         return
 
     common_job_parameters = {
