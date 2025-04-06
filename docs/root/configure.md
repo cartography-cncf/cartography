@@ -2,7 +2,7 @@
 
 Cartography uses [**Dynaconf**](https://www.dynaconf.com/) for configuration management. All parameters can be provided in the form of a `settings.toml` file or as environment variables. Dynaconf will also automatically load any `.env` file present in the current directory.
 
-Environment variables follow the pattern:  
+Environment variables follow the pattern:
 `PREFIX_MODULE__KEY(__OPTIONAL_SUB_KEY)`
 
 ```{warning}

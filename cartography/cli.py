@@ -662,7 +662,8 @@ class CLI:
             deprecated_config('update_tag', 'CARTOGRAPHY_COMMON__UPDATE_TAG')
             settings.update({'common': {'update_tag': config.update_tag}})
         if config.permission_relationships_file:
-            deprecated_config('permission_relationships_file', 'CARTOGRAPHY_COMMON__PERMISSION_RELATIONSHIPS_FILE')
+            # We do not raise a deprecation warning here because there is a default value
+            # for permission_relationships_file
             settings.update({'common': {'permission_relationships_file': config.permission_relationships_file}})
 
         # DEPRECATED: Neo4j config (please use cartography.settings instead)
@@ -687,10 +688,11 @@ class CLI:
             if not config.neo4j_password:
                 logger.warning("Neo4j username was provided but a password could not be found.")
         if config.neo4j_uri:
-            deprecated_config('neo4j_uri', 'CARTOGRAPHY_NEO4J__URI')
+            # We do not raise a deprecation warning here because there is a default value for neo4j_uri
             settings.update({'neo4j': {'uri': config.neo4j_uri}})
         if config.neo4j_max_connection_lifetime:
-            deprecated_config('neo4j_max_connection_lifetime', 'CARTOGRAPHY_NEO4J__MAX_CONNECTION_LIFETIME')
+            # We do not raise a deprecation warning here because there is a default value
+            # for neo4j_max_connection_lifetime
             settings.update({'neo4j': {'max_connection_lifetime': config.neo4j_max_connection_lifetime}})
         if config.neo4j_database:
             deprecated_config('neo4j_database', 'CARTOGRAPHY_NEO4J__DATABASE')
@@ -704,11 +706,11 @@ class CLI:
             deprecated_config('statsd_prefix', 'CARTOGRAPHY_STATSD__PREFIX')
             settings.update({'statsd': {'prefix': config.statsd_prefix}})
         if config.statsd_host:
-            deprecated_config('statsd_host', 'CARTOGRAPHY_STATSD__HOST')
+            # We do not raise a deprecation warning here because there is a default value for statsd_host
             settings.update({'statsd': {'host': config.statsd_host}})
         if config.statsd_host:
-            deprecated_config('statsd_port', 'CARTOGRAPHY_STATSD__PORT')
-            settings.update({'statsd': {'port': config.statsd_port}})          
+            # We do not raise a deprecation warning here because there is a default value for statsd_port
+            settings.update({'statsd': {'port': config.statsd_port}})
 
         # DEPRECATED: please use cartography.settings instead
         if config.analysis_job_directory:
@@ -767,7 +769,7 @@ class CLI:
                 },
             })
         if config.okta_saml_role_regex:
-            deprecated_config('okta_saml_role_regex', 'CARTOGRAPHY_OKTA__SAML_ROLE_REGEX')
+            # We do not raise a deprecation warning here because there is a default value for okta_saml_role_regex
             settings.update({'okta': {'saml_role_regex': config.okta_saml_role_regex}})
 
         # DEPRECATED: GitHub config (please use cartography.settings instead)
@@ -871,7 +873,7 @@ class CLI:
 
         # DEPRECATED: GSuite config (please use cartography.settings instead)
         if config.gsuite_tokens_env_var:
-            deprecated_config('gsuite_tokens_env_var', 'CARTOGRAPHY_GSUITE__*')
+            # We do not raise a deprecation warning here because there is a default value for gsuite_tokens_env_var
             logger.debug(f"Reading config string for GSuite from environment variable {config.gsuite_tokens_env_var}")
             if config.gsuite_auth_method == 'delegated':
                 settings.update({
@@ -958,7 +960,7 @@ class CLI:
             deprecated_config('cve_enabled', 'CARTOGRAPHY_CVE__ENABLED')
             settings.update({'cve': {'enabled': config.cve_enabled}})
         if config.nist_cve_url:
-            deprecated_config('nist_cve_url', 'CARTOGRAPHY_CVE__URL')
+            # We do not raise a deprecation warning here because there is a default value for nist_cve_url
             settings.update({'cve': {'url': config.nist_cve_url}})
 
         # DEPRECATED: SnipeIT config (please use cartography.settings instead)
