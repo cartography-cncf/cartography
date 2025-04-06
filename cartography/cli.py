@@ -661,6 +661,9 @@ class CLI:
         if config.update_tag:
             deprecated_config('update_tag', 'CARTOGRAPHY_COMMON__UPDATE_TAG')
             settings.update({'common': {'update_tag': config.update_tag}})
+        if config.permission_relationships_file:
+            deprecated_config('permission_relationships_file', 'CARTOGRAPHY_COMMON__PERMISSION_RELATIONSHIPS_FILE')
+            settings.update({'common': {'permission_relationships_file': config.permission_relationships_file}})
 
         # DEPRECATED: Neo4j config (please use cartography.settings instead)
         if config.neo4j_user:
@@ -683,6 +686,15 @@ class CLI:
                 settings.update({'neo4j': {'password': config.neo4j_password}})
             if not config.neo4j_password:
                 logger.warning("Neo4j username was provided but a password could not be found.")
+        if config.neo4j_uri:
+            deprecated_config('neo4j_uri', 'CARTOGRAPHY_NEO4J__URI')
+            settings.update({'neo4j': {'uri': config.neo4j_uri}})
+        if config.neo4j_max_connection_lifetime:
+            deprecated_config('neo4j_max_connection_lifetime', 'CARTOGRAPHY_NEO4J__MAX_CONNECTION_LIFETIME')
+            settings.update({'neo4j': {'max_connection_lifetime': config.neo4j_max_connection_lifetime}})
+        if config.neo4j_database:
+            deprecated_config('neo4j_database', 'CARTOGRAPHY_NEO4J__DATABASE')
+            settings.update({'neo4j': {'database': config.neo4j_database}})
 
         # DEPRECATED: statsd config (please use cartography.settings instead)
         if config.statsd_enabled:

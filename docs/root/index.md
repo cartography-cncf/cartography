@@ -11,6 +11,7 @@ info
 :hidden: true
 
 install
+configure
 usage/index
 ops
 ```
