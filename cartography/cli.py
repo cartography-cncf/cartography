@@ -776,7 +776,9 @@ class CLI:
         if config.github_config_env_var:
             deprecated_config('github_config_env_var', 'CARTOGRAPHY_GITHUB__*')
             logger.debug(f"Reading config string for GitHub from environment variable {config.github_config_env_var}")
-            auth_tokens = json.loads(base64.b64decode(config.github_config).decode())
+            github_config = os.environ.get(config.github_config_env_var, '')
+            logger.debug(f"Reading config string for GitHub from environment variable {config.github_config_env_var}")
+            auth_tokens = json.loads(base64.b64decode(github_config.encode()).decode())
             for auth_data in auth_tokens['organization']:
                 settings.update({
                     'github': {
