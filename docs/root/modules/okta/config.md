@@ -1,7 +1,5 @@
 ## Okta Configuration
 
-.. _okta_config:
-
 Follow these steps to analyze Okta objects with Cartography.
 
 1. Prepare your Okta API token.

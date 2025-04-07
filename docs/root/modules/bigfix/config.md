@@ -1,7 +1,5 @@
 ## BigFix Configuration
 
-.. _bigfix_config:
-
 Follow these steps to analyze BigFix objects with Cartography.
 
 1. Prepare a read-only BigFix username and password.

@@ -1,7 +1,5 @@
 ## Cartography metadata schema
 
-.. _metadata_schema:
-
 Some Cartography sync jobs write nodes to convey information about the job itself. See https://github.com/lyft/cartography/issues/758 for more background on this.
 
 ### SyncMetadata:ModuleSyncMetadata

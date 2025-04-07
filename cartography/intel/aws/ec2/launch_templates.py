@@ -35,13 +35,29 @@ def get_launch_templates(
 def get_launch_template_versions(
     boto3_session: boto3.session.Session,
     region: str,
+    launch_templates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    template_versions: list[dict[str, Any]] = []
+    for template in launch_templates:
+        launch_template_id = template['LaunchTemplateId']
+        versions = get_launch_template_versions_by_template(boto3_session, launch_template_id, region)
+        template_versions.extend(versions)
+
+    return template_versions
+
+
+@timeit
+@aws_handle_regions
+def get_launch_template_versions_by_template(
+        boto3_session: boto3.session.Session,
+        launch_template_id: str,
+        region: str,
 ) -> list[dict[str, Any]]:
     client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
-    paginator = client.get_paginator('describe_launch_template_versions')
-    template_versions: list[dict[str, Any]] = []
-    for page in paginator.paginate():
-        paginated_versions = page['LaunchTemplateVersions']
-        template_versions.extend(paginated_versions)
+    v_paginator = client.get_paginator('describe_launch_template_versions')
+    template_versions = []
+    for versions in v_paginator.paginate(LaunchTemplateId=launch_template_id):
+        template_versions.extend(versions['LaunchTemplateVersions'])
     return template_versions
 
 
@@ -140,7 +156,7 @@ def sync_ec2_launch_templates(
     for region in regions:
         logger.info(f"Syncing launch templates for region '{region}' in account '{current_aws_account_id}'.")
         templates = get_launch_templates(boto3_session, region)
-        versions = get_launch_template_versions(boto3_session, region)
+        versions = get_launch_template_versions(boto3_session, region, templates)
         templates = transform_launch_templates(templates)
         load_launch_templates(neo4j_session, templates, region, current_aws_account_id, update_tag)
         versions = transform_launch_template_versions(versions)

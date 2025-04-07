@@ -1,7 +1,0 @@
-Github
-######
-
-.. toctree::
-
-    config
-    schema

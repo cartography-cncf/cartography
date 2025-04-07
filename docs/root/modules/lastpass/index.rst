@@ -1,7 +1,0 @@
-Lastpass
-########
-
-.. toctree::
-
-    config
-    schema

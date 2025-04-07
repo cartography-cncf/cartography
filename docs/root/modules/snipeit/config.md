@@ -1,7 +1,5 @@
 ## SnipeIT Configuration
 
-.. _SnipeIT_config:
-
 Follow these steps to analyze SnipeIT users and assets in Cartography.
 
 1. Prepare an API token for SnipeIT

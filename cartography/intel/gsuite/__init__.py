@@ -23,7 +23,6 @@ OAUTH_SCOPES = [
     'https://www.googleapis.com/auth/admin.directory.user.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.readonly',
     'https://www.googleapis.com/auth/admin.directory.group.member',
-    'https://www.googleapis.com/auth/cloud-platform',
 ]
 
 logger = logging.getLogger(__name__)
@@ -68,6 +67,14 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     creds: OAuth2Credentials | ServiceAccountCredentials
     if config.gsuite_auth_method == 'delegated':  # Legacy delegated method
+        if config.gsuite_config is None or not os.path.isfile(config.gsuite_config):
+            logger.warning(
+                (
+                    "The GSuite config file is not set or is not a valid file."
+                    "Skipping GSuite ingestion."
+                ),
+            )
+            return
         logger.info('Attempting to authenticate to GSuite using legacy delegated method')
         try:
             creds = service_account.Credentials.from_service_account_file(

@@ -1,7 +1,5 @@
 ## CVE Configuration
 
-.. _cve_config:
-
 Follow these steps to analyze CVE objects with Cartography.
 
 1. Call cartography with the `--cve-enabled` flag.

@@ -1,7 +1,5 @@
 ## Semgrep Schema
 
-.. _semgrep_schema:
-
 ### SemgrepDeployment
 
 Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deployment), a unit encapsulating a security organization inside Semgrep Cloud. Works as the parent of all other Semgrep resources.

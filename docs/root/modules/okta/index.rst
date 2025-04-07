@@ -1,7 +1,0 @@
-Okta
-####
-
-.. toctree::
-
-    config
-    schema

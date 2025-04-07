@@ -20,6 +20,7 @@ from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
 from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 
@@ -75,7 +76,7 @@ def _sync_one_account(
     if 'resourcegroupstaggingapi' in aws_requested_syncs:
         RESOURCE_FUNCTIONS['resourcegroupstaggingapi'](**sync_args)
 
-    run_analysis_job(
+    run_scoped_analysis_job(
         'aws_ec2_iaminstanceprofile.json',
         neo4j_session,
         common_job_parameters,
@@ -211,6 +212,9 @@ def _perform_aws_analysis(
         neo4j_session: neo4j.Session,
         common_job_parameters: Dict[str, Any],
 ) -> None:
+    """
+    Performs AWS analysis jobs that span multiple accounts.
+    """
     requested_syncs_as_set = set(requested_syncs)
 
     ec2_asset_exposure_requirements = {

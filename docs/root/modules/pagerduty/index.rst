@@ -1,7 +1,0 @@
-PagerDuty
-#########
-
-.. toctree::
-
-    config
-    schema

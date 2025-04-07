@@ -1,6 +1,5 @@
 ## AWS Configuration
 
-.. _aws_config:
 
 Follow these steps to analyze AWS assets with Cartography.
 

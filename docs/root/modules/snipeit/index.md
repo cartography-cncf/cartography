@@ -1,0 +1,6 @@
+# SnipeIT
+
+```{toctree}
+config
+schema
+```

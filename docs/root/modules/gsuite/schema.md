@@ -1,7 +1,5 @@
 ## GSuite Schema
 
-.. _gsuite_schema:
-
 ### GSuiteUser
 
 Reference:
