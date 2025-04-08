@@ -9,18 +9,26 @@ import logging
 from typing import Dict, List, Any, Optional
 
 # Import functions from msft365.py 
-from cartography.intel.msft365.msft365 import (
-    sync_Msft365_users,
-    sync_Msft365_groups,
-    sync_Msft365_organizational_units,
-    sync_Msft365_devices,
-    sync_Msft365_user_group_relationships,
-    sync_Msft365_ou_relationships,
-    sync_Msft365_device_relationships,
-
-    get_access_token,
-    run_cleanup_jobs
+from cartography.intel.msft365 import msft365
+from tests.integration.cartography.intel.msft365.msft365_test_util import (
+    get_neo4j_session,
+    _mock_auth_response,
+    _mock_api_response,
+    load_fixture,
 )
+
+
+#from cartography.intel.msft365.msft365 import (
+#    sync_Msft365_users,
+#    sync_Msft365_groups,
+#    sync_Msft365_organizational_units,
+#    sync_Msft365_devices,
+#    sync_Msft365_user_group_relationships,
+#    sync_Msft365_ou_relationships,
+#    sync_Msft365_device_relationships,
+#    get_access_token,
+#   run_cleanup_jobs
+#)
 
 # Define module-level constants
 Msft365_USER_LABEL = "Msft365User"

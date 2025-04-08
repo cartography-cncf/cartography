@@ -12,14 +12,17 @@ from neo4j import GraphDatabase
 class TestMsft365BasicFunctionality(unittest.TestCase):
     def setUp(self):
         # Get credentials from environment variables
-        self.tenant_id = os.environ.get('Msft365_TENANT_ID')
-        self.client_id = os.environ.get('Msft365_CLIENT_ID')
-        self.client_secret = os.environ.get('Msft365_CLIENT_SECRET')
+        self.tenant_id = os.environ.get('CARTOGRAPHY_MSFT365_TENANT_ID')
+        self.client_id = os.environ.get('CARTOGRAPHY_MSFT365_CLIENT_ID')
+        self.client_secret = os.environ.get('CARTOGRAPHY_MSFT365_CLIENT_SECRET')
         
         # Neo4j connection parameters - use container name instead of localhost
-        self.neo4j_uri = os.environ.get('NEO4J_URI', 'bolt://neo4j:7687')
-        self.neo4j_user = os.environ.get('NEO4J_USER', 'neo4j')
-        self.neo4j_password = os.environ.get('NEO4J_PASSWORD', 'password')
+        self.neo4j_uri = os.environ.get("CARTOGRAPHY_NEO4J_URI", "bolt://localhost:7687")
+        self.neo4j_user = os.environ.get("CARTOGRAPHY_NEO4J_USER", "neo4j")
+        self.neo4j_password = os.environ.get("CARTOGRAPHY_NEO4J_PASSWORD")
+       
+        if not all([self.neo4j_uri, self.neo4j_user, self.neo4j_password]):
+            raise EnvironmentError("Neo4j credentials missing, must be set using the environment variables: CARTOGRAPHY_NEO4J_URI, CARTOGRAPHY_NEO4J_USER, and CARTOGRAPHY_NEO4J_PASSWORD")
         
         # Skip test if credentials are not available
         if not all([self.tenant_id, self.client_id, self.client_secret]):
@@ -173,7 +176,49 @@ class TestMsft365BasicFunctionality(unittest.TestCase):
 
 
     #Test that we can fetch members of a group.
-    def test_can_fetch_group_members(self):
+    def test_can_fetch_group_members(self, group_id=None):
+        # Authenticate first to get the access token
+        access_token = self.test_can_authenticate_with_graph_api()
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        # If no group_id is provided, fetch groups and use the first group's ID
+        if not group_id:
+            groups = self.test_can_fetch_groups()
+
+            if not groups:
+                self.skipTest("No groups available to test membership")
+
+            group_id = groups[0].get("id")
+            group_name = groups[0].get("displayName")
+        else:
+            group_name = f"Group with ID {group_id}"
+
+        # Request group members
+        url = f"https://graph.microsoft.com/v1.0/groups/{group_id}/members"
+        response = requests.get(url, headers=headers)
+
+        print(f"Group members response status: {response.status_code}")
+        if response.status_code != 200:
+            print(f"Error fetching group members: {response.text}")
+
+        self.assertEqual(response.status_code, 200)
+
+        members = response.json().get("value", [])
+
+        self.assertIsInstance(members, list)
+        print(f"Retrieved {len(members)} members for '{group_name}'")
+
+        for member in members[:3]:  # Show first 3 members
+            print(f"  - {member.get('displayName')}")
+
+        return members
+
+
+    def test_can_fetch_group_membersX(self):
     
         # First fetch groups to get a group ID
         groups = self.test_can_fetch_groups()
