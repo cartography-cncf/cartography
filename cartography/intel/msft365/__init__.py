@@ -8,14 +8,7 @@ into the Cartography graph database.
 import logging
 from typing import Dict, List, Any, Optional
 
-# Import functions from msft365.py 
-from cartography.intel.msft365 import msft365
-from tests.integration.cartography.intel.msft365.msft365_test_util import (
-    get_neo4j_session,
-    _mock_auth_response,
-    _mock_api_response,
-    load_fixture,
-)
+ 
 
 
 #from cartography.intel.msft365.msft365 import (
@@ -55,18 +48,6 @@ def start_Msft365_ingestion(
     :param common_job_parameters: Parameters to be passed to each Neo4j job.
     :return: None
     """
-    tenant_id = config.get('Msft365_tenant_id')
-    client_id = config.get('Msft365_client_id')
-    client_secret = config.get('Msft365_client_secret')
-    
-    if not (tenant_id and client_id and client_secret):
-        logger.warning(
-            "Msft365 credentials are not configured correctly. Make sure Msft365_tenant_id, "
-            "Msft365_client_id, and Msft365_client_secret are set in the config."
-        )
-        return
-    
-    logger.info("Starting Msft365 sync")
     
     # Get update tag
     update_tag = common_job_parameters.get('UPDATE_TAG')
