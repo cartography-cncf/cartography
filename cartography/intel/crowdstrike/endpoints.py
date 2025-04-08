@@ -34,8 +34,8 @@ def load_host_data(
     UNWIND $Hosts AS host
         MERGE (h:CrowdstrikeHost{id: host.device_id})
         ON CREATE SET h.cid = host.cid,
-            h.cid = host.cid,
             h.instance_id = host.instance_id,
+            h.serial_number = host.serial_number,
             h.firstseen = timestamp()
         SET h.status = host.status,
             h.hostname = host.hostname,
