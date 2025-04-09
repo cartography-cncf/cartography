@@ -64,7 +64,6 @@ def get_launch_template_versions_by_template(
         if error_code == 'InvalidLaunchTemplateId.NotFound':
             logger.warning("Launch template %s no longer exists in region %s", launch_template_id, region)
         else:
-            # Re-raise other client errors
             raise
     return template_versions
 
