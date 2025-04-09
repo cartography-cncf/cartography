@@ -5,6 +5,7 @@ import botocore
 import pytest
 
 from cartography.intel.aws.ec2.launch_templates import get_launch_template_versions_by_template
+from tests.utils import unwrapper
 
 
 @patch('cartography.intel.aws.ec2.launch_templates.logger')
@@ -51,13 +52,16 @@ def test_get_launch_template_versions_by_template_other_error():
     mock_session.client.return_value = mock_client
     mock_client.get_paginator.return_value = mock_paginator
     mock_paginator.paginate.side_effect = botocore.exceptions.ClientError(
-        error_response={'Error': {'Code': 'SomeOtherError', 'Message': 'Some other error'}},
-        operation_name='FakeDescribeLaunchTemplateVersions',
+        error_response={'Error': {'Code': 'ValidationError', 'Message': 'Validation error'}},
+        operation_name='DescribeLaunchTemplateVersions',
     )
+
+    # Unwrap the function to bypass retry logic
+    original_func = unwrapper(get_launch_template_versions_by_template)
 
     # Act & Assert
     with pytest.raises(botocore.exceptions.ClientError):
-        get_launch_template_versions_by_template(
+        original_func(
             mock_session,
             'fake-template-id',
             'us-east-1',
