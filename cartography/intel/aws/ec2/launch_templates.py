@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import boto3
+import botocore
 import neo4j
 
 from .util import get_botocore_config
@@ -59,7 +60,7 @@ def get_launch_template_versions_by_template(
     try:
         for versions in v_paginator.paginate(LaunchTemplateId=launch_template_id):
             template_versions.extend(versions['LaunchTemplateVersions'])
-    except client.exceptions.ClientError as e:
+    except botocore.exceptions.ClientError as e:
         error_code = e.response['Error']['Code']
         if error_code == 'InvalidLaunchTemplateId.NotFound':
             logger.warning("Launch template %s no longer exists in region %s", launch_template_id, region)
