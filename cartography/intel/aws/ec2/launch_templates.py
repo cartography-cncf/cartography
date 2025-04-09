@@ -56,8 +56,16 @@ def get_launch_template_versions_by_template(
     client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
     v_paginator = client.get_paginator('describe_launch_template_versions')
     template_versions = []
-    for versions in v_paginator.paginate(LaunchTemplateId=launch_template_id):
-        template_versions.extend(versions['LaunchTemplateVersions'])
+    try:
+        for versions in v_paginator.paginate(LaunchTemplateId=launch_template_id):
+            template_versions.extend(versions['LaunchTemplateVersions'])
+    except client.exceptions.ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == 'InvalidLaunchTemplateId.NotFound':
+            logger.warning("Launch template %s no longer exists in region %s", launch_template_id, region)
+        else:
+            # Re-raise other client errors
+            raise
     return template_versions
 
 
