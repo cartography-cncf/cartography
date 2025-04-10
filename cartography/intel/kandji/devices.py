@@ -19,6 +19,7 @@ _TIMEOUT = (60, 60)
 
 @timeit
 def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
+    # Ref: https://github.com/kandji-inc/support/blob/main/api-tools/code-examples/pagination_with_limit_and_offset_example.py#L190
     api_endpoint = f"{kandji_base_uri}/api/v1/devices"
     headers = {
         'Accept': 'application/json',
@@ -26,10 +27,9 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
     }
 
     offset = 0
-    limit = 300
-    params: dict[str, str | int] = {
+    params = {
         "sort": "serial_number",
-        "limit": limit,
+        "limit": 300,
         "offset": offset,
     }
 
@@ -40,7 +40,6 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
 
         params["offset"] = offset
         response = session.get(api_endpoint, headers=headers, timeout=_TIMEOUT, params=params)
-        response.raise_for_status()
 
         result = response.json()
         # If no more result, we are done
@@ -49,7 +48,7 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
 
         devices.extend(result)
 
-        offset += limit
+        offset += params["limit"]
 
     logger.debug("Kandji device count: %d", len(devices))
     return devices
@@ -82,7 +81,6 @@ def load_devices(
         lastupdated=update_tag,
     )
 
-    logger.info(f"Loading {len(data)} kandji devices.")
     load(
         neo4j_session,
         KandjiDeviceSchema(),
