@@ -1,4 +1,3 @@
-# cartography/models/crowdstrike/host_schema.py
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
