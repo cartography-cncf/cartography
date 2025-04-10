@@ -37,18 +37,37 @@ def get_launch_template_versions(
     boto3_session: boto3.session.Session,
     region: str,
     launch_templates: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    template_versions: list[dict[str, Any]] = []
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    found_versions: list[dict[str, Any]] = []
+    found_templates: list[dict[str, Any]] = []
     for template in launch_templates:
         launch_template_id = template['LaunchTemplateId']
-        versions = get_launch_template_versions_by_template(boto3_session, launch_template_id, region)
-        template_versions.extend(versions)
+        try:
+            versions = get_launch_template_versions_by_template(
+                boto3_session,
+                launch_template_id,
+                region,
+            )
+            # If the call succeeded, the template still exists.
+            # Add it and its versions (list might be empty if no versions exist).
+            found_templates.append(template)
+            found_versions.extend(versions)
+        except botocore.exceptions.ClientError as e:
+            if e.response['Error']['Code'] == 'InvalidLaunchTemplateId.NotFound':
+                logger.warning(
+                    "Launch template %s no longer exists in region %s, skipping.",
+                    launch_template_id, region,
+                )
+                # Skip this template, don't add it or its versions
+                continue
+            else:
+                # Re-raise any other client error
+                raise
 
-    return template_versions
+    return found_versions, found_templates
 
 
 @timeit
-@aws_handle_regions
 def get_launch_template_versions_by_template(
         boto3_session: boto3.session.Session,
         launch_template_id: str,
@@ -57,15 +76,8 @@ def get_launch_template_versions_by_template(
     client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
     v_paginator = client.get_paginator('describe_launch_template_versions')
     template_versions = []
-    try:
-        for versions in v_paginator.paginate(LaunchTemplateId=launch_template_id):
-            template_versions.extend(versions['LaunchTemplateVersions'])
-    except botocore.exceptions.ClientError as e:
-        error_code = e.response['Error']['Code']
-        if error_code == 'InvalidLaunchTemplateId.NotFound':
-            logger.warning("Launch template %s no longer exists in region %s", launch_template_id, region)
-        else:
-            raise
+    for versions_page in v_paginator.paginate(LaunchTemplateId=launch_template_id):
+        template_versions.extend(versions_page['LaunchTemplateVersions'])
     return template_versions
 
 
@@ -164,10 +176,12 @@ def sync_ec2_launch_templates(
     for region in regions:
         logger.info(f"Syncing launch templates for region '{region}' in account '{current_aws_account_id}'.")
         templates = get_launch_templates(boto3_session, region)
-        versions = get_launch_template_versions(boto3_session, region, templates)
-        templates = transform_launch_templates(templates)
-        load_launch_templates(neo4j_session, templates, region, current_aws_account_id, update_tag)
-        versions = transform_launch_template_versions(versions)
-        load_launch_template_versions(neo4j_session, versions, region, current_aws_account_id, update_tag)
+        versions, found_templates = get_launch_template_versions(boto3_session, region, templates)
+
+        # Transform and load only the templates that were found to exist
+        transformed_templates = transform_launch_templates(found_templates)
+        load_launch_templates(neo4j_session, transformed_templates, region, current_aws_account_id, update_tag)
+        transformed_versions = transform_launch_template_versions(versions)
+        load_launch_template_versions(neo4j_session, transformed_versions, region, current_aws_account_id, update_tag)
 
     cleanup(neo4j_session, common_job_parameters)
