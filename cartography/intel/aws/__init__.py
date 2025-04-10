@@ -17,8 +17,8 @@ from .resources import RESOURCE_FUNCTIONS
 from cartography.config import Config
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.settings import check_module_settings
-from cartography.settings import settings
 from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
@@ -261,7 +261,7 @@ def _perform_aws_analysis(
 
 
 @timeit
-def start_aws_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_aws_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     if not check_module_settings("AWS", []):
         return
 

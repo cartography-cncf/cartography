@@ -14,10 +14,10 @@ from google.oauth2.credentials import Credentials as OAuth2Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from googleapiclient.discovery import Resource
 
-from cartography.intel.gsuite import api
 from cartography.config import Config
-from cartography.settings import populate_settings_from_config
+from cartography.intel.gsuite import api
 from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.util import timeit
 
@@ -55,7 +55,7 @@ def _initialize_resources(credentials: OAuth2Credentials | ServiceAccountCredent
 
 
 @timeit
-def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     """
     Starts the GSuite ingestion process by initializing
 

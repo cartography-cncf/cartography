@@ -4,6 +4,7 @@ from typing import Optional
 import neo4j
 from pdpyras import APISession
 
+from cartography.config import Config
 from cartography.intel.pagerduty.escalation_policies import (
     sync_escalation_policies,
 )
@@ -12,9 +13,8 @@ from cartography.intel.pagerduty.services import sync_services
 from cartography.intel.pagerduty.teams import sync_teams
 from cartography.intel.pagerduty.users import sync_users
 from cartography.intel.pagerduty.vendors import sync_vendors
-from cartography.config import Config
-from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -26,7 +26,7 @@ stat_handler = get_stats_client(__name__)
 
 
 @timeit
-def start_pagerduty_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_pagerduty_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     """
     Perform ingestion of pagerduty data.
     :param neo4j_session: Neo4J session for database interface

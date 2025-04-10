@@ -1,11 +1,13 @@
 import logging
 import os
 from base64 import b64encode
+from typing import Optional
 from urllib.parse import urlparse
 
 import duo_client
 import neo4j
 
+from cartography.config import Config
 from cartography.intel.duo.api_host import sync_duo_api_host
 from cartography.intel.duo.endpoints import sync_duo_endpoints
 from cartography.intel.duo.groups import sync_duo_groups
@@ -13,9 +15,8 @@ from cartography.intel.duo.phones import sync as sync_duo_phones
 from cartography.intel.duo.tokens import sync as sync_duo_tokens
 from cartography.intel.duo.users import sync_duo_users
 from cartography.intel.duo.web_authn_credentials import sync as sync_duo_web_authn_credentials
-from cartography.config import Config
-from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.util import timeit
 
@@ -50,7 +51,7 @@ def get_client() -> duo_client.Admin:
 
 
 @timeit
-def start_duo_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_duo_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     '''
     If this module is configured, perform ingestion of duo data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface

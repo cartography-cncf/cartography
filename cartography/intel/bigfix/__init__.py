@@ -3,10 +3,10 @@ from typing import Optional
 
 import neo4j
 
-from cartography.intel.bigfix.computers import sync
-from cartography.settings import populate_settings_from_config
 from cartography.config import Config
+from cartography.intel.bigfix.computers import sync
 from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.util import timeit
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_bigfix_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_bigfix_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     """
     If this module is configured, perform ingestion of BigFix data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface

@@ -16,8 +16,8 @@ from . import iam
 from . import organizations
 from . import utils
 from cartography.config import Config
-from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
@@ -129,7 +129,7 @@ def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
     )
 
 
-def start_oci_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_oci_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     """
     Starts the OCI ingestion process by initializing OCI Application Default Credentials, creating the necessary
     resource objects, listing all OCI organizations and projects available to the OCI identity, and supplying that

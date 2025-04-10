@@ -4,16 +4,16 @@ from typing import Optional
 
 import neo4j
 
-from cartography.graph.job import GraphJob
 from cartography.config import Config
-from cartography.settings import populate_settings_from_config
+from cartography.graph.job import GraphJob
 from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 
 logger = logging.getLogger(__name__)
 
 
-def run(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def run(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     # DEPRECATED: This is a temporary measure to support the old config format
     # and the new config format. The old config format is deprecated and will be removed in a future release.
     if config is not None:

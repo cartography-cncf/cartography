@@ -5,8 +5,8 @@ import neo4j
 
 import cartography.intel.kandji.devices
 from cartography.config import Config
-from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.util import timeit
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_kandji_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_kandji_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     """
     If this module is configured, perform ingestion of Kandji devices. Otherwise warn and exit
 

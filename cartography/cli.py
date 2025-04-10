@@ -1,7 +1,5 @@
 import argparse
-import base64
 import getpass
-import json
 import logging
 import os
 import sys
@@ -11,7 +9,7 @@ import cartography.sync
 import cartography.util
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
-from cartography.settings import deprecated_config
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 
 
@@ -657,341 +655,139 @@ class CLI:
         if config.selected_modules:
             self.sync = cartography.sync.build_sync(config.selected_modules)
 
-        # DEPRECATED: please use cartography.settings instead
-        if config.update_tag:
-            deprecated_config('update_tag', 'CARTOGRAPHY_COMMON__UPDATE_TAG')
-            settings.update({'common': {'update_tag': config.update_tag}})
-        if config.permission_relationships_file:
-            # We do not raise a deprecation warning here because there is a default value
-            # for permission_relationships_file
-            settings.update({'common': {'permission_relationships_file': config.permission_relationships_file}})
-
         # DEPRECATED: Neo4j config (please use cartography.settings instead)
         if config.neo4j_user:
-            deprecated_config('neo4j_user', 'CARTOGRAPHY_NEO4J__USER')
-            settings.update({'neo4j': {'user': config.neo4j_user}})
             config.neo4j_password = None
             if config.neo4j_password_prompt:
-                deprecated_config('neo4j_password_prompt', 'CARTOGRAPHY_NEO4J__PASSWORD_PROMPT')
                 logger.info("Reading password for Neo4j user '%s' interactively.", config.neo4j_user)
                 config.neo4j_password = getpass.getpass()
-                settings.update({'neo4j': {'password': config.neo4j_password}})
             elif config.neo4j_password_env_var:
-                deprecated_config('neo4j_password_env_var', 'CARTOGRAPHY_NEO4J__PASSWORD')
                 logger.debug(
                     "Reading password for Neo4j user '%s' from environment variable '%s'.",
                     config.neo4j_user,
                     config.neo4j_password_env_var,
                 )
                 config.neo4j_password = os.environ.get(config.neo4j_password_env_var)
-                settings.update({'neo4j': {'password': config.neo4j_password}})
             if not config.neo4j_password:
                 logger.warning("Neo4j username was provided but a password could not be found.")
-        if config.neo4j_uri:
-            # We do not raise a deprecation warning here because there is a default value for neo4j_uri
-            settings.update({'neo4j': {'uri': config.neo4j_uri}})
-        if config.neo4j_max_connection_lifetime:
-            # We do not raise a deprecation warning here because there is a default value
-            # for neo4j_max_connection_lifetime
-            settings.update({'neo4j': {'max_connection_lifetime': config.neo4j_max_connection_lifetime}})
-        if config.neo4j_database:
-            deprecated_config('neo4j_database', 'CARTOGRAPHY_NEO4J__DATABASE')
-            settings.update({'neo4j': {'database': config.neo4j_database}})
-
-        # DEPRECATED: statsd config (please use cartography.settings instead)
-        if config.statsd_enabled:
-            deprecated_config('statsd_enabled', 'CARTOGRAPHY_STATSD__ENABLED')
-            settings.update({'statsd': {'enabled': config.statsd_enabled}})
-        if config.statsd_prefix:
-            deprecated_config('statsd_prefix', 'CARTOGRAPHY_STATSD__PREFIX')
-            settings.update({'statsd': {'prefix': config.statsd_prefix}})
-        if config.statsd_host:
-            # We do not raise a deprecation warning here because there is a default value for statsd_host
-            settings.update({'statsd': {'host': config.statsd_host}})
-        if config.statsd_host:
-            # We do not raise a deprecation warning here because there is a default value for statsd_port
-            settings.update({'statsd': {'port': config.statsd_port}})
-
-        # DEPRECATED: please use cartography.settings instead
-        if config.analysis_job_directory:
-            deprecated_config('analysis-job-directory', 'CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY')
-            settings.update({'analysis': {'job_directory': config.analysis_job_directory}})
-
-        # DEPRECATED: AWS config (please use cartography.settings instead)
-        if config.aws_requested_syncs:
-            deprecated_config('aws_requested_syncs', 'CARTOGRAPHY_AWS__REQUESTED_SYNCS')
-            settings.update({'aws': {'requested_syncs': config.aws_requested_syncs}})
-        if config.aws_sync_all_profiles:
-            deprecated_config('aws_sync_all_profiles', 'CARTOGRAPHY_AWS__SYNC_ALL_PROFILES')
-            settings.update({'aws': {'sync_all_profiles': config.aws_sync_all_profiles}})
-        if config.aws_best_effort_mode:
-            deprecated_config('aws_best_effort_mode', 'CARTOGRAPHY_AWS__BEST_EFFORT_MODE')
-            settings.update({'aws': {'best_effort_mode': config.aws_best_effort_mode}})
 
         # DEPRECATED: Azure config (please use cartography.settings instead)
         if config.azure_sp_auth and config.azure_client_secret_env_var:
-            deprecated_config('azure_sp_auth', 'CARTOGRAPHY_AZURE__SP_AUTH')
-            deprecated_config('azure_client_secret_env_var', 'CARTOGRAPHY_AZURE__CLIENT_SECRET')
             logger.debug(
                 "Reading Client Secret for Azure Service Principal Authentication from environment variable %s",
                 config.azure_client_secret_env_var,
             )
-            settings.update({
-                'azure': {
-                    'sp_auth': config.sp_auth,
-                    'client_secret': os.environ.get(config.azure_client_secret_env_var),
-                },
-            })
-        if config.azure_sync_all_subscriptions:
-            deprecated_config('azure_sync_all_subscriptions', 'CARTOGRAPHY_AZURE__SYNC_ALL_SUBSCRIPTIONS')
-            settings.update({'azure': {'sync_all_subscriptions': config.azure_sync_all_subscriptions}})
-        if config.azure_tenant_id:
-            deprecated_config('azure_tenant_id', 'CARTOGRAPHY_AZURE__TENANT_ID')
-            settings.update({'azure': {'tenant_id': config.azure_tenant_id}})
-        if config.azure_client_id:
-            deprecated_config('azure_client_id', 'CARTOGRAPHY_AZURE__CLIENT_ID')
-            settings.update({'azure': {'client_id': config.azure_client_id}})
-
-        # DEPRECATED: OCI config (please use cartography.settings instead)
-        if config.oci_sync_all_profiles:
-            deprecated_config('oci_sync_all_profiles', 'CARTOGRAPHY_OCI__SYNC_ALL_PROFILES')
-            settings.update({'oci': {'sync_all_profiles': config.oci_sync_all_profiles}})
+            config.azure_client_secret = os.environ.get(config.azure_client_secret_env_var)
 
         # DEPRECATED: Okta config (please use cartography.settings instead)
         if config.okta_org_id and config.okta_api_key_env_var:
-            deprecated_config('okta_org_id', 'CARTOGRAPHY_OKTA__ORG_ID')
-            deprecated_config('okta_api_key_env_var', 'CARTOGRAPHY_OKTA__API_KEY')
             logger.debug(f"Reading API key for Okta from environment variable {config.okta_api_key_env_var}")
-            settings.update({
-                'okta': {
-                    'api_key': os.environ.get(config.okta_api_key_env_var),
-                    'org_id': config.okta_org_id,
-                },
-            })
-        if config.okta_saml_role_regex:
-            # We do not raise a deprecation warning here because there is a default value for okta_saml_role_regex
-            settings.update({'okta': {'saml_role_regex': config.okta_saml_role_regex}})
+            config.okta_api_key = os.environ.get(config.okta_api_key_env_var)
 
         # DEPRECATED: GitHub config (please use cartography.settings instead)
         if config.github_config_env_var:
-            deprecated_config('github_config_env_var', 'CARTOGRAPHY_GITHUB__*')
             logger.debug(f"Reading config string for GitHub from environment variable {config.github_config_env_var}")
-            github_config = os.environ.get(config.github_config_env_var, '')
-            logger.debug(f"Reading config string for GitHub from environment variable {config.github_config_env_var}")
-            auth_tokens = json.loads(base64.b64decode(github_config.encode()).decode())
-            for auth_data in auth_tokens['organization']:
-                settings.update({
-                    'github': {
-                        auth_data['name']: {
-                            'token': auth_data['token'],
-                            'url': auth_data['url'],
-                        },
-                    },
-                })
+            config.github_config = os.environ.get(config.github_config_env_var, '')
 
         # DEPRECATED: DigitalOcean config (please use cartography.settings instead)
         if config.digitalocean_token_env_var:
-            deprecated_config('digitalocean_token_env_var', 'CARTOGRAPHY_DIGITALOCEAN__TOKEN')
             logger.debug(f"Reading token for DigitalOcean from env variable {config.digitalocean_token_env_var}")
-            settings.update({'digitalocean': {'token': os.environ.get(config.digitalocean_token_env_var)}})
+            config.digitalocean_token = os.environ.get(config.digitalocean_token_env_var)
 
         # DEPRECATED: Jamf config (please use cartography.settings instead)
         if config.jamf_base_uri and config.jamf_user and config.jamf_password_env_var:
-            deprecated_config('jamf_base_uri', 'CARTOGRAPHY_JAMF__BASE_URL')
-            deprecated_config('jamf_user', 'CARTOGRAPHY_JAMF__USER')
-            deprecated_config('jamf_password_env_var', 'CARTOGRAPHY_JAMF__PASSWORD')
             logger.debug(
                 "Reading password for Jamf user '%s' from environment variable '%s'.",
                 config.jamf_user,
                 config.jamf_password_env_var,
             )
-            settings.update({
-                'jamf': {
-                    'user': config.jamf_user,
-                    'base_url': config.jamf_base_uri,
-                    'password': os.environ.get(config.jamf_password_env_var),
-                },
-            })
+            config.jamf_password = os.environ.get(config.jamf_password_env_var)
 
         # DEPRECATED: Kandji config (please use cartography.settings instead)
-        if config.kandji_base_uri and config.kandji_tenant_id:
-            deprecated_config('kandji_base_uri', 'CARTOGRAPHY_KANDJI__BASE_URL')
-            deprecated_config('kandji_tenant_id', 'CARTOGRAPHY_KANDJI__TENANT_ID')
-            settings.update({
-                'kandji': {
-                    'base_url': config.kandji_base_uri,
-                    'tenant_id': config.kandji_tenant_id,
-                },
-            })
         if config.kandji_token_env_var:
-            deprecated_config('kandji_token_env_var', 'CARTOGRAPHY_KANDJI__TOKEN')
             logger.debug(
                 "Reading Kandji API token from environment variable '%s'.",
                 config.kandji_token_env_var,
             )
-            settings.update({'kandji': {'token': os.environ.get(config.kandji_token_env_var)}})
+            config.kandji_token = os.environ.get(config.kandji_token_env_var)
         elif os.environ.get('KANDJI_TOKEN'):
-            deprecated_config('KANDJI_TOKEN', 'CARTOGRAPHY_KANDJI__TOKEN')
             logger.debug(
                 "Reading Kandji API token from environment variable 'KANDJI_TOKEN'.",
             )
-            settings.update({'kandji': {'token': os.environ.get('KANDJI_TOKEN')}})
+            config.kandji_token = os.environ.get('KANDJI_TOKEN')
 
         # DEPRECATED: Pagerduty config (please use cartography.settings instead)
         if config.pagerduty_api_key_env_var:
-            deprecated_config('pagerduty_api_key_env_var', 'CARTOGRAPHY_PAGERDUTY__API_KEY')
             logger.debug(f"Reading API key for PagerDuty from environment variable {config.pagerduty_api_key_env_var}")
-            settings.update({'pagerduty': {'api_key': os.environ.get(config.pagerduty_api_key_env_var)}})
-        if config.pagerduty_request_timeout:
-            deprecated_config('pagerduty_request_timeout', 'CARTOGRAPHY_COMMON__HTTP_TIMEOUT')
-            if config.pagerduty_request_timeout > settings.common.http_timeout:
-                logger.warning(
-                    "(LEGACY) PagerDuty request timeout (%d) is greater than the default HTTP timeout (%d).",
-                    config.pagerduty_request_timeout,
-                    settings.common.http_timeout,
-                )
-                settings.update({'common': {'http_timeout': config.pagerduty_request_timeout}})
+            config.pagerduty_api_key = os.environ.get(config.pagerduty_api_key_env_var)
 
         # DEPRECATED: Crowdstrike config (please use cartography.settings instead)
         if config.crowdstrike_client_id_env_var:
-            deprecated_config('crowdstrike_client_id_env_var', 'CARTOGRAPHY_CROWDSTRIKE__CLIENT_ID')
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_id_env_var}",
             )
-            settings.update({'crowdstrike': {'client_id': os.environ.get(config.crowdstrike_client_id_env_var)}})
+            config.crowdstrike_client_id = os.environ.get(config.crowdstrike_client_id_env_var)
         if config.crowdstrike_client_secret_env_var:
-            deprecated_config('crowdstrike_client_secret_env_var', 'CARTOGRAPHY_CROWDSTRIKE__CLIENT_SECRET')
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_secret_env_var}",
             )
-            settings.update({
-                'crowdstrike': {
-                    'client_secret': os.environ.get(config.crowdstrike_client_secret_env_var),
-                },
-            })
-        if config.crowdstrike_api_url:
-            deprecated_config('crowdstrike_api_url', 'CARTOGRAPHY_CROWDSTRIKE__API_URL')
-            settings.update({'crowdstrike': {'api_url': config.crowdstrike_api_url}})
+            config.crowdstrike_client_secret = os.environ.get(config.crowdstrike_client_secret_env_var)
 
         # DEPRECATED: GSuite config (please use cartography.settings instead)
         if config.gsuite_tokens_env_var:
             # We do not raise a deprecation warning here because there is a default value for gsuite_tokens_env_var
             logger.debug(f"Reading config string for GSuite from environment variable {config.gsuite_tokens_env_var}")
-            if config.gsuite_auth_method == 'delegated':
-                settings.update({
-                    'gsuite': {
-                        'auth_method': 'delegated',
-                        'settings_account_file': os.environ.get(config.gsuite_tokens_env_var),
-                    },
-                })
-            elif config.gsuite_auth_method == 'oauth':
-                auth_tokens = json.loads(
-                    str(
-                        base64.b64decode(os.environ.get(config.gsuite_tokens_env_var, '')).decode(),
-                    ),
-                )
-                settings.update({
-                    'gsuite': {
-                        'auth_method': 'oauth',
-                        'client_id': auth_tokens.get('client_id'),
-                        'client_secret': auth_tokens.get('client_secret'),
-                        'refresh_token': auth_tokens.get('refresh_token'),
-                        'token_uri': auth_tokens.get('token_uri'),
-                    },
-                })
-        if os.environ.get('GSUITE_DELEGATED_ADMIN') is not None:
-            deprecated_config('GSUITE_DELEGATED_ADMIN', 'CARTOGRAPHY_GSUITE__DELEGATED_ADMIN')
-            settings.update({'gsuite': {'delegated_admin': os.environ.get('GSUITE_DELEGATED_ADMIN')}})
+            config.gsuite_config = os.environ.get(config.gsuite_tokens_env_var, '')
 
         # DEPRECATED: Lastpass config (please use cartography.settings instead)
         if config.lastpass_cid_env_var:
-            deprecated_config('lastpass_cid_env_var', 'CARTOGRAPHY_LASTPASS__CID')
             logger.debug(f"Reading CID for Lastpass from environment variable {config.lastpass_cid_env_var}")
-            settings.update({'lastpass': {'cid': os.environ.get(config.lastpass_cid_env_var)}})
+            config.lastpass_cid = os.environ.get(config.lastpass_cid_env_var)
         if config.lastpass_provhash_env_var:
-            deprecated_config('lastpass_provhash_env_var', 'CARTOGRAPHY_LASTPASS__PROVHASH')
             logger.debug(f"Reading provhash for Lastpass from environment variable {config.lastpass_provhash_env_var}")
-            settings.update({'lastpass': {'provhash': os.environ.get(config.lastpass_provhash_env_var)}})
+            config.lastpass_provhash = os.environ.get(config.lastpass_provhash_env_var)
 
         # DEPRECATED: BigFix config (please use cartography.settings instead)
         if config.bigfix_username and config.bigfix_password_env_var and config.bigfix_root_url:
-            deprecated_config('bigfix_username', 'CARTOGRAPHY_BIGFIX__USERNAME')
-            deprecated_config('bigfix_password_env_var', 'CARTOGRAPHY_BIGFIX__PASSWORD')
-            deprecated_config('bigfix_root_url', 'CARTOGRAPHY_BIGFIX__ROOT_URL')
             logger.debug(f"Reading BigFix password from environment variable {config.bigfix_password_env_var}")
-            settings.update({
-                'bigfix': {
-                    'username': config.bigfix_username,
-                    'password': os.environ.get(config.bigfix_password_env_var),
-                    'root_url': config.bigfix_root_url,
-                },
-            })
+            config.bigfix_password = os.environ.get(config.bigfix_password_env_var)
 
         # DEPRECATED: Duo config (please use cartography.settings instead)
         if config.duo_api_key_env_var and config.duo_api_secret_env_var and config.duo_api_hostname:
-            deprecated_config('duo_api_key_env_var', 'CARTOGRAPHY_DUO__API_KEY')
-            deprecated_config('duo_api_secret_env_var', 'CARTOGRAPHY_DUO__API_SECRET')
-            deprecated_config('duo_api_hostname', 'CARTOGRAPHY_DUO__API_HOSTNAME')
             logger.debug(
                 f"Reading Duo api key and secret from environment variables {config.duo_api_key_env_var}"
                 f", {config.duo_api_secret_env_var}",
             )
-            settings.update({
-                'duo': {
-                    'api_key': os.environ.get(config.duo_api_key_env_var),
-                    'api_secret': os.environ.get(config.duo_api_secret_env_var),
-                    'api_hostname': config.duo_api_hostname,
-                },
-            })
+            config.duo_api_key = os.environ.get(config.duo_api_key_env_var)
+            config.duo_api_secret = os.environ.get(config.duo_api_secret_env_var)
 
         # DEPRECATED: Semgrep config (please use cartography.settings instead)
         if config.semgrep_app_token_env_var:
-            deprecated_config('semgrep_app_token_env_var', 'CARTOGRAPHY_SEMGREP__TOKEN')
             logger.debug(f"Reading Semgrep App Token from environment variable {config.semgrep_app_token_env_var}")
-            settings.update({'semgrep': {'token': os.environ.get(config.semgrep_app_token_env_var)}})
-        if config.semgrep_dependency_ecosystems:
-            deprecated_config('semgrep_dependency_ecosystems', 'CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS')
-            settings.update({'semgrep': {'dependency_ecosystems': config.semgrep_dependency_ecosystems}})
+            config.semgrep_app_token = os.environ.get(config.semgrep_app_token_env_var)
 
         # DEPRECATED: CVE feed config (please use cartography.settings instead)
         if config.cve_api_key_env_var:
-            deprecated_config('cve_api_key_env_var', 'CARTOGRAPHY_CVE__API_KEY')
             logger.debug(f"Reading NVD CVE API key environment variable {config.cve_api_key_env_var}")
-            settings.update({'cve': {'api_key': os.environ.get(config.cve_api_key_env_var)}})
-        if config.cve_enabled:
-            deprecated_config('cve_enabled', 'CARTOGRAPHY_CVE__ENABLED')
-            settings.update({'cve': {'enabled': config.cve_enabled}})
-        if config.nist_cve_url:
-            # We do not raise a deprecation warning here because there is a default value for nist_cve_url
-            settings.update({'cve': {'url': config.nist_cve_url}})
+            config.cve_api_key = os.environ.get(config.cve_api_key_env_var)
 
         # DEPRECATED: SnipeIT config (please use cartography.settings instead)
         if config.snipeit_base_uri and config.snipeit_tenant_id:
-            deprecated_config('snipeit_base_uri', 'CARTOGRAPHY_SNIPEIT__BASE_URL')
             if config.snipeit_token_env_var:
-                deprecated_config('snipeit_token_env_var', 'CARTOGRAPHY_SNIPEIT__TOKEN')
                 logger.debug(
                     "Reading SnipeIT API token from environment variable '%s'.",
                     config.snipeit_token_env_var,
                 )
-                settings.update({'snipeit': {'token': os.environ.get(config.snipeit_token_env_var)}})
+                config.snipeit_token = os.environ.get(config.snipeit_token_env_var)
             elif os.environ.get('SNIPEIT_TOKEN'):
-                deprecated_config('SNIPEIT_TOKEN', 'CARTOGRAPHY_SNIPEIT__TOKEN')
                 logger.debug(
                     "Reading SnipeIT API token from environment variable 'SNIPEIT_TOKEN'.",
                 )
-                settings.update({'snipeit': {'token': os.environ.get('SNIPEIT_TOKEN')}})
-            settings.update({
-                'snipeit': {
-                    'tenant_id': config.snipeit_tenant_id,
-                    'base_url': config.snipeit_base_uri,
-                },
-            })
+                config.snipeit_token = os.environ.get('SNIPEIT_TOKEN')
 
-        # DEPRECATED: K8s config (please use cartography.settings instead)
-        if config.k8s_kubeconfig:
-            deprecated_config('k8s_kubeconfig', 'CARTOGRAPHY_K8S__KUBECONFIG')
-            settings.update({'k8s': {'kubeconfig': config.k8s_kubeconfig}})
+        # DEPRECATED: This is a temporary measure to support the old config format
+        # and the new config format. The old config format is deprecated and will be removed in a future release.
+        populate_settings_from_config(config)
 
         # Settings validation
         if settings.get('semgrep', {}).get('dependency_ecosystems'):

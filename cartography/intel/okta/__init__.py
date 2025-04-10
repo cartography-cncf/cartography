@@ -5,6 +5,7 @@ from typing import Optional
 import neo4j
 from okta.framework.OktaError import OktaError
 
+from cartography.config import Config
 from cartography.intel.okta import applications
 from cartography.intel.okta import awssaml
 from cartography.intel.okta import factors
@@ -14,9 +15,8 @@ from cartography.intel.okta import origins
 from cartography.intel.okta import roles
 from cartography.intel.okta import users
 from cartography.intel.okta.sync_state import OktaSyncState
-from cartography.config import Config
-from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -44,7 +44,7 @@ def cleanup_okta_groups(neo4j_session: neo4j.Session, common_job_parameters: Dic
 
 
 @timeit
-def start_okta_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_okta_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     """
     Starts the OKTA ingestion process
     :param neo4j_session: The Neo4j session

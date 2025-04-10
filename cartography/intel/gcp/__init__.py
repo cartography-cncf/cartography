@@ -13,15 +13,15 @@ from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.exceptions import DefaultCredentialsError
 from googleapiclient.discovery import Resource
 
+from cartography.config import Config
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import crm
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
-from cartography.settings import settings
 from cartography.settings import populate_settings_from_config
-from cartography.config import Config
+from cartography.settings import settings
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -357,7 +357,7 @@ def get_gcp_credentials() -> Optional[GoogleCredentials]:
 
 
 @timeit
-def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     """
     Starts the GCP ingestion process by initializing Google Application Default Credentials, creating the necessary
     resource objects, listing all GCP organizations and projects available to the GCP identity, and supplying that

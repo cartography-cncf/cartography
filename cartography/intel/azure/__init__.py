@@ -14,8 +14,8 @@ from . import tenant
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
 from cartography.config import Config
-from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.util import timeit
 
@@ -58,7 +58,7 @@ def _sync_multiple_subscriptions(
 
 
 @timeit
-def start_azure_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+def start_azure_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     # DEPRECATED: This is a temporary measure to support the old config format
     # and the new config format. The old config format is deprecated and will be removed in a future release.
     if config is not None:

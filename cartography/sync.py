@@ -1,11 +1,12 @@
+import argparse
 import getpass
 import logging
 import time
 from collections import OrderedDict
-from typing import Any
 from typing import Callable
 from typing import List
 from typing import Tuple
+from typing import Union
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
@@ -30,6 +31,8 @@ import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.semgrep
 import cartography.intel.snipeit
+from cartography.config import Config
+from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -214,11 +217,15 @@ def run(sync: Sync) -> int:
     return sync.run(neo4j_driver)
 
 
-# DEPRECATED: use
-def run_with_config(sync: Sync, config: Any) -> int:
-    msg = "The 'run_with_config' function is deprecated" \
-        "and will be removed in next versionm, use 'run' instead."
-    logger.warning(msg)
+# DEPRECATED: use run() instead
+def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:
+    logger.warning(
+        "The 'run_with_config' function is deprecated"
+        "and will be removed in next version, use 'run' instead.",
+    )
+
+    populate_settings_from_config(config)
+
     return run(sync)
 
 
