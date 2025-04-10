@@ -1,9 +1,12 @@
 import logging
+from typing import Optional
 
 import neo4j
 
 from cartography.intel.snipeit import asset
 from cartography.intel.snipeit import user
+from cartography.config import Config
+from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
 from cartography.settings import settings
 from cartography.stats import get_stats_client
@@ -14,7 +17,12 @@ stat_handler = get_stats_client(__name__)
 
 
 @timeit
-def start_snipeit_ingestion(neo4j_session: neo4j.Session) -> None:
+def start_snipeit_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
     if not check_module_settings('SnipeIT', ['base_url', 'token', 'tenant_id']):
         return
 

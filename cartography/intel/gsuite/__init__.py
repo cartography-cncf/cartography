@@ -1,6 +1,7 @@
 import logging
 import os
 from collections import namedtuple
+from typing import Optional
 
 import googleapiclient.discovery
 import neo4j
@@ -14,6 +15,8 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 from googleapiclient.discovery import Resource
 
 from cartography.intel.gsuite import api
+from cartography.config import Config
+from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
 from cartography.settings import settings
 from cartography.util import timeit
@@ -52,13 +55,19 @@ def _initialize_resources(credentials: OAuth2Credentials | ServiceAccountCredent
 
 
 @timeit
-def start_gsuite_ingestion(neo4j_session: neo4j.Session) -> None:
+def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
     """
     Starts the GSuite ingestion process by initializing
 
     :param neo4j_session: The Neo4j session
+    :param config: Configuration object for Cartography (DEPRECATED: use settings instead)
     :return: Nothing
     """
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
     if not check_module_settings('GSuite', ['auth_method']):
         return
 

@@ -20,6 +20,8 @@ from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
 from cartography.settings import settings
+from cartography.settings import populate_settings_from_config
+from cartography.config import Config
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -355,15 +357,20 @@ def get_gcp_credentials() -> Optional[GoogleCredentials]:
 
 
 @timeit
-def start_gcp_ingestion(neo4j_session: neo4j.Session) -> None:
+def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
     """
     Starts the GCP ingestion process by initializing Google Application Default Credentials, creating the necessary
     resource objects, listing all GCP organizations and projects available to the GCP identity, and supplying that
     context to all intel modules.
     :param neo4j_session: The Neo4j session
-    :param config: A `cartography.config` object
+    :param config: A `cartography.config` object (DEPRECATED: use settings instead)
     :return: Nothing
     """
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
     common_job_parameters = {
         "UPDATE_TAG": settings.common.update_tag,
     }

@@ -5,6 +5,7 @@ from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Optional
 
 import boto3
 import botocore.exceptions
@@ -13,9 +14,11 @@ import neo4j
 from . import ec2
 from . import organizations
 from .resources import RESOURCE_FUNCTIONS
+from cartography.config import Config
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.settings import check_module_settings
 from cartography.settings import settings
+from cartography.settings import populate_settings_from_config
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
@@ -258,7 +261,7 @@ def _perform_aws_analysis(
 
 
 @timeit
-def start_aws_ingestion(neo4j_session: neo4j.Session) -> None:
+def start_aws_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
     if not check_module_settings("AWS", []):
         return
 
@@ -266,6 +269,12 @@ def start_aws_ingestion(neo4j_session: neo4j.Session) -> None:
         "UPDATE_TAG": settings.common.update_tag,
         "permission_relationships_file": settings.common.permission_relationships_file,
     }
+
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
     try:
         boto3_session = boto3.Session()
     except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError) as e:

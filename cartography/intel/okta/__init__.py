@@ -1,5 +1,6 @@
 import logging
 from typing import Dict
+from typing import Optional
 
 import neo4j
 from okta.framework.OktaError import OktaError
@@ -13,6 +14,8 @@ from cartography.intel.okta import origins
 from cartography.intel.okta import roles
 from cartography.intel.okta import users
 from cartography.intel.okta.sync_state import OktaSyncState
+from cartography.config import Config
+from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
 from cartography.settings import settings
 from cartography.stats import get_stats_client
@@ -41,17 +44,23 @@ def cleanup_okta_groups(neo4j_session: neo4j.Session, common_job_parameters: Dic
 
 
 @timeit
-def start_okta_ingestion(neo4j_session: neo4j.Session) -> None:
+def start_okta_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
     """
     Starts the OKTA ingestion process
     :param neo4j_session: The Neo4j session
+    :param config: The configuration object (Deprecated: use settings instead)
     :return: Nothing
     """
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
     if not check_module_settings('Okta', ['okta_org_id', 'okta_api_key']):
         return
 
     if settings.okta.get('saml_role_regex') is None:
-        settings.okla.update({'saml_role_regex': r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"})
+        settings.okta.update({'saml_role_regex': r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"})
 
     logger.debug(f"Starting Okta sync on {settings.okta.org_id}")
 
@@ -81,7 +90,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session) -> None:
         neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key,
     )
     awssaml.sync_okta_aws_saml(
-        neo4j_session, settings.okta.role_regex, settings.common.update_tag, settings.okta.org_id,
+        neo4j_session, settings.okta.saml_role_regex, settings.common.update_tag, settings.okta.org_id,
     )
 
     # need creds with permission

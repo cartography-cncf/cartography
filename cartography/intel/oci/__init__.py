@@ -4,6 +4,7 @@ from collections import namedtuple
 from typing import Any
 from typing import Dict
 from typing import NamedTuple
+from typing import Optional
 
 import neo4j
 import oci
@@ -14,6 +15,8 @@ from oci.exceptions import ProfileNotFound
 from . import iam
 from . import organizations
 from . import utils
+from cartography.config import Config
+from cartography.settings import populate_settings_from_config
 from cartography.settings import check_module_settings
 from cartography.settings import settings
 # from cartography.util import run_analysis_job
@@ -126,14 +129,20 @@ def _initialize_resources(credentials: Dict[str, Any]) -> Resources:
     )
 
 
-def start_oci_ingestion(neo4j_session: neo4j.Session) -> None:
+def start_oci_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]) -> None:
     """
     Starts the OCI ingestion process by initializing OCI Application Default Credentials, creating the necessary
     resource objects, listing all OCI organizations and projects available to the OCI identity, and supplying that
     context to all intel modules.
     :param neo4j_session: The Neo4j session
+    :param config: The configuration object for settings (Deprecated: use settings instead)
     :return: Nothing
     """
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
     if not check_module_settings('OCI', []):
         return
 

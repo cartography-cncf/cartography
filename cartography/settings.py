@@ -3,6 +3,8 @@ from typing import List
 
 from dynaconf import Dynaconf
 
+from cartography.config import Config
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,3 +56,17 @@ def deprecated_config(argument_name: str, env_name: str):
     msg = f"The '{argument_name}' parameter is deprecated" \
         f" use '{env_name}' varenv instead (or define it in settings.toml)"
     logger.warning(msg)
+
+
+# WIP:
+def populate_settings_from_config(config: Config):
+    """
+    Populate settings from a Config object.
+
+    This function ensures backwards compatibility with the old settings
+    system by allowing settings to be populated from a Config object.
+
+    Args:
+        config (Config): The Config object containing the settings.
+    """
+    pass
