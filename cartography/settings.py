@@ -63,7 +63,6 @@ def deprecated_config(argument_name: str, env_name: str):
     logger.warning(msg)
 
 
-# WIP:
 def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
     """
     Populate settings from a Config object.
@@ -107,7 +106,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('neo4j_user', 'CARTOGRAPHY_NEO4J__USER')
         settings.update({'neo4j': {'user': config.neo4j_user}})
-    if config.neo4j_password:
+    if hasattr(config, 'neo4j_password'):
         if show_deprecation_warning:
             deprecated_config('neo4j_password_*', 'CARTOGRAPHY_NEO4J__PASSWORD')
         settings.update({'neo4j': {'password': config.neo4j_password}})
@@ -168,7 +167,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('azure_client_id', 'CARTOGRAPHY_AZURE__CLIENT_ID')
         settings.update({'azure': {'client_id': config.azure_client_id}})
-    if config.azure_client_secret:
+    if hasattr(config, 'azure_client_secret'):
         if show_deprecation_warning:
             deprecated_config('azure_client_secret_env_var', 'CARTOGRAPHY_AZURE__CLIENT_SECRET')
         settings.update({'azure': {'client_secret': config.azure_client_secret}})
@@ -181,7 +180,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('bigfix_username', 'CARTOGRAPHY_BIGFIX__USERNAME')
         settings.update({'bigfix': {'username': config.bigfix_username}})
-    if config.bigfix_password:
+    if hasattr(config, 'bigfix_password'):
         if show_deprecation_warning:
             deprecated_config('bigfix_password_env_var', 'CARTOGRAPHY_BIGFIX__PASSWORD')
         settings.update({'bigfix': {'password': config.bigfix_password}})
@@ -190,11 +189,11 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
             deprecated_config('bigfix_root_url', 'CARTOGRAPHY_BIGFIX__ROOT_URL')
         settings.update({'bigfix': {'root_url': config.bigfix_root_url}})
     # Crowdstrike
-    if config.crowdstrike_client_id:
+    if hasattr(config, 'crowdstrike_client_id'):
         if show_deprecation_warning:
             deprecated_config('crowdstrike_client_id_env_var', 'CARTOGRAPHY_CROWDSTRIKE__CLIENT_ID')
         settings.update({'crowdstrike': {'client_id': config.crowdstrike_client_id}})
-    if config.crowdstrike_client_secret:
+    if hasattr(config, 'crowdstrike_client_secret'):
         if show_deprecation_warning:
             deprecated_config('crowdstrike_client_secret_env_var', 'CARTOGRAPHY_CROWDSTRIKE__CLIENT_SECRET')
         settings.update({'crowdstrike': {'client_secret': config.crowdstrike_client_secret}})
@@ -203,7 +202,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
             deprecated_config('crowdstrike_api_url', 'CARTOGRAPHY_CROWDSTRIKE__API_URL')
         settings.update({'crowdstrike': {'api_url': config.crowdstrike_api_url}})
     # CVE
-    if config.cve_api_key:
+    if hasattr(config, 'cve_api_key'):
         if show_deprecation_warning:
             deprecated_config('cve_api_key_env_var', 'CARTOGRAPHY_CVE__API_KEY')
         settings.update({'cve': {'api_key': config.cve_api_key}})
@@ -215,16 +214,16 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         # We do not raise a deprecation warning here because there is a default value for nist_cve_url
         settings.update({'cve': {'url': config.nist_cve_url}})
     # DigitaOcean
-    if config.digitalocean_token:
+    if hasattr(config, 'digitalocean_token'):
         if show_deprecation_warning:
             deprecated_config('digitalocean_token_env_var', 'CARTOGRAPHY_DIGITALOCEAN__TOKEN')
         settings.update({'digitalocean': {'token': config.digitalocean_token}})
     # Duo
-    if config.duo_api_key:
+    if hasattr(config, 'duo_api_key'):
         if show_deprecation_warning:
             deprecated_config('duo_api_key_env_var', 'CARTOGRAPHY_DUO__API_KEY')
         settings.update({'duo': {'api_key': config.duo_api_key}})
-    if config.duo_api_secret:
+    if hasattr(config, 'duo_api_secret'):
         if show_deprecation_warning:
             deprecated_config('duo_api_secret_env_var', 'CARTOGRAPHY_DUO__API_SECRET')
         settings.update({'duo': {'api_secret': config.duo_api_secret}})
@@ -233,7 +232,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
             deprecated_config('duo_api_hostname', 'CARTOGRAPHY_DUO__API_HOSTNAME')
         settings.update({'duo': {'api_hostname': config.duo_api_hostname}})
     # GitHub
-    if config.github_config:
+    if hasattr(config, 'github_config'):
         deprecated_config('github_config_env_var', 'CARTOGRAPHY_GITHUB__*')
         try:
             auth_tokens = json.loads(
@@ -306,7 +305,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('jamf_user', 'CARTOGRAPHY_JAMF__USER')
         settings.update({'jamf': {'user': config.jamf_user}})
-    if config.jamf_password:
+    if hasattr(config, 'jamf_password'):
         if show_deprecation_warning:
             deprecated_config('jamf_password_env_var', 'CARTOGRAPHY_JAMF__PASSWORD')
         settings.update({'jamf': {'password': config.jamf_password}})
@@ -324,16 +323,16 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('kandji_tenant_id', 'CARTOGRAPHY_KANDJI__TENANT_ID')
         settings.update({'kandji': {'tenant_id': config.kandji_tenant_id}})
-    if config.kandji_token:
+    if hasattr(config, 'kandji_token'):
         if show_deprecation_warning:
             deprecated_config('kandji_token_env_var', 'CARTOGRAPHY_KANDJI__TOKEN')
         settings.update({'kandji': {'token': config.kandji_token}})
     # LastPass
-    if config.lastpass_cid:
+    if hasattr(config, 'lastpass_cid'):
         if show_deprecation_warning:
             deprecated_config('lastpass_cid_env_var', 'CARTOGRAPHY_LASTPASS__CID')
         settings.update({'lastpass': {'cid': config.lastpass_cid}})
-    if config.lastpass_provhash:
+    if hasattr(config, 'lastpass_provhash'):
         if show_deprecation_warning:
             deprecated_config('lastpass_provhash_env_var', 'CARTOGRAPHY_LASTPASS__PROVHASH')
         settings.update({'lastpass': {'provhash': config.lastpass_provhash}})
@@ -347,7 +346,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('okta_org_id', 'CARTOGRAPHY_OKTA__ORG_ID')
         settings.update({'okta': {'org_id': config.okta_org_id}})
-    if config.okta_api_key:
+    if hasattr(config, 'okta_api_key'):
         if show_deprecation_warning:
             deprecated_config('okta_api_key_env_var', 'CARTOGRAPHY_OKTA__API_KEY')
         settings.update({'okta': {'api_key': config.okta_api_key}})
@@ -355,7 +354,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         # We do not raise a deprecation warning here because there is a default value for okta_saml_role_regex
         settings.update({'okta': {'saml_role_regex': config.okta_saml_role_regex}})
     # PagerDuty
-    if config.pagerduty_api_key:
+    if hasattr(config, 'pagerduty_api_key'):
         if show_deprecation_warning:
             deprecated_config('pagerduty_api_key_env_var', 'CARTOGRAPHY_PAGERDUTY__API_KEY')
         settings.update({'pagerduty': {'api_key': config.pagerduty_api_key}})
@@ -370,7 +369,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
             )
             settings.update({'common': {'http_timeout': config.pagerduty_request_timeout}})
     # Semgrep
-    if config.semgrep_app_token:
+    if hasattr(config, 'semgrep_app_token'):
         if show_deprecation_warning:
             deprecated_config('semgrep_app_token_env_var', 'CARTOGRAPHY_SEMGREP__TOKEN')
         settings.update({'semgrep': {'token': config.semgrep_app_token}})
@@ -387,7 +386,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('snipeit_tenant_id', 'CARTOGRAPHY_SNIPEIT__TENANT_ID')
         settings.update({'snipeit': {'tenant_id': config.snipeit_tenant_id}})
-    if config.snipeit_token:
+    if hasattr(config, 'snipeit_token'):
         if show_deprecation_warning:
             deprecated_config('snipeit_token_env_var', 'CARTOGRAPHY_SNIPEIT__TOKEN')
         settings.update({'snipeit': {'token': config.snipeit_token}})
