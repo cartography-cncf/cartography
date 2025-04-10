@@ -1,8 +1,7 @@
-import base64
-import json
 import logging
 import os
 from collections import namedtuple
+from typing import Optional
 
 import googleapiclient.discovery
 import neo4j
@@ -17,6 +16,9 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.intel.gsuite import api
+from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 from cartography.util import timeit
 
 OAUTH_SCOPES = [
@@ -53,21 +55,29 @@ def _initialize_resources(credentials: OAuth2Credentials | ServiceAccountCredent
 
 
 @timeit
-def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     """
     Starts the GSuite ingestion process by initializing
 
     :param neo4j_session: The Neo4j session
-    :param config: A `cartography.config` object
+    :param config: Configuration object for Cartography (DEPRECATED: use settings instead)
     :return: Nothing
     """
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
+    if not check_module_settings('GSuite', ['auth_method']):
+        return
+
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
+        "UPDATE_TAG": settings.common.update_tag,
     }
 
     creds: OAuth2Credentials | ServiceAccountCredentials
-    if config.gsuite_auth_method == 'delegated':  # Legacy delegated method
-        if config.gsuite_config is None or not os.path.isfile(config.gsuite_config):
+    if settings.gsuite.auth_method == 'delegated':  # Legacy delegated method
+        if settings.gsuite.get('config') is None or not os.path.isfile(settings.gsuite.config):
             logger.warning(
                 (
                     "The GSuite config file is not set or is not a valid file."
@@ -76,12 +86,14 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             )
             return
         logger.info('Attempting to authenticate to GSuite using legacy delegated method')
+        if not check_module_settings('GSuite', ['settings_account_file', 'delegated_admin']):
+            return
         try:
             creds = service_account.Credentials.from_service_account_file(
-                config.gsuite_config,
+                settings.gsuite.settings_account_file,
                 scopes=OAUTH_SCOPES,
             )
-            creds = creds.with_subject(os.environ.get('GSUITE_DELEGATED_ADMIN'))
+            creds = creds.with_subject(settings.gsuite.delegated_admin)
 
         except DefaultCredentialsError as e:
             logger.error(
@@ -94,17 +106,18 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 e,
             )
             return
-    elif config.gsuite_auth_method == 'oauth':
-        auth_tokens = json.loads(str(base64.b64decode(config.gsuite_config).decode()))
+    elif settings.gsuite.auth_method == 'oauth':
         logger.info('Attempting to authenticate to GSuite using OAuth')
+        if not check_module_settings('GSuite', ['client_id', 'client_secret', 'refresh_token', 'token_uri']):
+            return
         try:
             creds = credentials.Credentials(
                 token=None,
-                client_id=auth_tokens['client_id'],
-                client_secret=auth_tokens['client_secret'],
-                refresh_token=auth_tokens['refresh_token'],
+                client_id=settings.gsuite.client_id,
+                client_secret=settings.gsuite.client_secret,
+                refresh_token=settings.gsuite.refresh_token,
                 expiry=None,
-                token_uri=auth_tokens['token_uri'],
+                token_uri=settings.gsuite.token_uri,
                 scopes=OAUTH_SCOPES,
             )
             creds.refresh(Request())
@@ -120,7 +133,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 e,
             )
             return
-    elif config.gsuite_auth_method == 'default':
+    elif settings.gsuite.auth_method == 'default':
         logger.info('Attempting to authenticate to GSuite using default credentials')
         try:
             creds, _ = default(scopes=OAUTH_SCOPES)
@@ -137,5 +150,5 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             return
 
     resources = _initialize_resources(creds)
-    api.sync_gsuite_users(neo4j_session, resources.admin, config.update_tag, common_job_parameters)
-    api.sync_gsuite_groups(neo4j_session, resources.admin, config.update_tag, common_job_parameters)
+    api.sync_gsuite_users(neo4j_session, resources.admin, settings.common.update_tag, common_job_parameters)
+    api.sync_gsuite_groups(neo4j_session, resources.admin, settings.common.update_tag, common_job_parameters)

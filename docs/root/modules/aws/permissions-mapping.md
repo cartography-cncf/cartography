@@ -5,7 +5,7 @@ An AWSPrincipal contains AWSPolicies which contain AWSPolicyStatements which gra
 
 As mapping all permissions is infeasible both to calculate and store Cartography will only map in the relationships defined in the [permission relationship file](https://github.com/lyft/cartography/blob/master/cartography/data/permission_relationships.yaml) which includes some default permission mappings including s3 read access.
 
-You can specify your own permission mapping file using the `--permission-relationships-file` command line parameter
+You can specify your own permission mapping file using the `CARTOGRAPHY_COMMON__PERMISSION_RELATIONSHIPS_FILE` environmental variable.
 
 #### Permission Mapping File
 The [permission relationship file](https://github.com/lyft/cartography/blob/master/cartography/data/permission_relationships.yaml) is a yaml file that specifies what permission relationships should be created in the graph. It consists of RPR (Resource Permission Relationship) sections that are going to map specific permissions between AWSPrincipals and resources

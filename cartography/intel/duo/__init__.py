@@ -1,6 +1,7 @@
 import logging
 import os
 from base64 import b64encode
+from typing import Optional
 from urllib.parse import urlparse
 
 import duo_client
@@ -14,6 +15,9 @@ from cartography.intel.duo.phones import sync as sync_duo_phones
 from cartography.intel.duo.tokens import sync as sync_duo_tokens
 from cartography.intel.duo.users import sync_duo_users
 from cartography.intel.duo.web_authn_credentials import sync as sync_duo_web_authn_credentials
+from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 from cartography.util import timeit
 
 
@@ -21,14 +25,14 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_client(config: Config) -> duo_client.Admin:
+def get_client() -> duo_client.Admin:
     '''
-    Return a duo Admin client with the creds in the config object
+    Return a duo Admin client with the creds in settings
     '''
     client = duo_client.Admin(
-        ikey=config.duo_api_key,
-        skey=config.duo_api_secret,
-        host=config.duo_api_hostname,
+        ikey=settings.duo.api_key,
+        skey=settings.duo.api_secret,
+        host=settings.duo.api_hostname,
     )
     # Duo's library does not automatically respect the HTTP_PROXY env variable
     proxy_url = os.environ.get('HTTP_PROXY')
@@ -47,28 +51,25 @@ def get_client(config: Config) -> duo_client.Admin:
 
 
 @timeit
-def start_duo_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_duo_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     '''
     If this module is configured, perform ingestion of duo data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
-    :param config: A cartography.config object
+    :param config: Configuration object for Cartography (DEPRECATED: use settings instead)
     :return: None
     '''
-    if not all([
-        config.duo_api_key,
-        config.duo_api_secret,
-        config.duo_api_hostname,
-    ]):
-        logger.info(
-            'Duo import is not configured - skipping this module. '
-            'See docs to configure.',
-        )
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
+    if not check_module_settings('Duo', ['api_key', 'api_secret', 'api_hostname']):
         return
 
-    client = get_client(config)
+    client = get_client()
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-        "DUO_API_HOSTNAME": config.duo_api_hostname,
+        "UPDATE_TAG": settings.common.update_tag,
+        "DUO_API_HOSTNAME": settings.duo.api_hostname,
     }
 
     sync_duo_api_host(
