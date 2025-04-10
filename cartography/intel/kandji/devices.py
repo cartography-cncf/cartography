@@ -26,9 +26,10 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
     }
 
     offset = 0
-    params = {
+    limit = 300
+    params: dict[str, str | int] = {
         "sort": "serial_number",
-        "limit": 300,
+        "limit": limit,
         "offset": offset,
     }
 
@@ -48,7 +49,7 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
 
         devices.extend(result)
 
-        offset += params["limit"]
+        offset += limit
 
     logger.debug("Kandji device count: %d", len(devices))
     return devices
