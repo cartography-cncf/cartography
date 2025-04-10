@@ -82,6 +82,7 @@ def load_devices(
         lastupdated=update_tag,
     )
 
+    logger.info(f"Loading {len(data)} kandji devices.")
     load(
         neo4j_session,
         KandjiDeviceSchema(),
