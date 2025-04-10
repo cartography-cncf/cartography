@@ -40,6 +40,7 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
 
         params["offset"] = offset
         response = session.get(api_endpoint, headers=headers, timeout=_TIMEOUT, params=params)
+        response.raise_for_status()
 
         result = response.json()
         # If no more result, we are done
