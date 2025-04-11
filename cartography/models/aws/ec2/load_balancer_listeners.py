@@ -61,7 +61,6 @@ class ELBListenerSchema(CartographyNodeSchema):
     properties: ELBListenerNodeProperties = ELBListenerNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(['Endpoint'])
     sub_resource_relationship: ELBListenerToAWSAccount = ELBListenerToAWSAccount()
-
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ELBListenerToLoadBalancer(),
