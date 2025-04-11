@@ -19,7 +19,7 @@ class LoadBalancerNodeProperties(CartographyNodeProperties):
     canonicalhostedzonename: PropertyRef = PropertyRef('canonicalhostedzonename')
     canonicalhostedzonenameid: PropertyRef = PropertyRef('canonicalhostedzonenameid')
     scheme: PropertyRef = PropertyRef('scheme')
-    region: PropertyRef = PropertyRef('region')
+    region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
     createdtime: PropertyRef = PropertyRef('createdtime')
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 

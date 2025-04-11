@@ -81,8 +81,7 @@ def transform_load_balancer_data(load_balancers: List[Dict]) -> Tuple[List[Dict]
             'canonicalhostedzonename': lb.get('CanonicalHostedZoneName'),
             'canonicalhostedzonenameid': lb.get('CanonicalHostedZoneNameID'),
             'scheme': lb.get('Scheme'),
-            'region': lb.get('Region'),
-            'createdtime': str(lb['CreatedTime']),  # TODO check on this
+            'createdtime': str(lb['CreatedTime']),
             'GROUP_NAME': lb.get('SourceSecurityGroup', {}).get('GroupName'),
             'GROUP_IDS': [str(group) for group in lb.get('SecurityGroups', [])],
             'INSTANCE_IDS': [instance['InstanceId'] for instance in lb.get('Instances', [])],
