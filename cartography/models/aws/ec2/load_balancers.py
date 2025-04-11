@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class LoadBalancerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef('id')
     name: PropertyRef = PropertyRef('name')
-    dnsname: PropertyRef = PropertyRef('dnsname')
+    dnsname: PropertyRef = PropertyRef('dnsname', extra_index=True)
     canonicalhostedzonename: PropertyRef = PropertyRef('canonicalhostedzonename')
     canonicalhostedzonenameid: PropertyRef = PropertyRef('canonicalhostedzonenameid')
     scheme: PropertyRef = PropertyRef('scheme')
