@@ -45,10 +45,10 @@ def transform_load_balancer_listener_data(load_balancer_id: str, listener_data: 
         listener_info = listener['Listener']
         transformed_listener = {
             'id': _get_listener_id(load_balancer_id, listener_info['LoadBalancerPort'], listener_info['Protocol']),
-            'port': listener_info['LoadBalancerPort'],
-            'protocol': listener_info['Protocol'],
-            'instance_port': listener_info['InstancePort'],
-            'instance_protocol': listener_info['InstanceProtocol'],
+            'port': listener_info.get('LoadBalancerPort'),
+            'protocol': listener_info.get('Protocol'),
+            'instance_port': listener_info.get('InstancePort'),
+            'instance_protocol': listener_info.get('InstanceProtocol'),
             'policy_names': listener.get('PolicyNames', []),
             'LoadBalancerId': load_balancer_id,
         }
