@@ -428,3 +428,18 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
         ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', '000000000000'),
         ('test-lb-2-1234567890.us-east-1.elb.amazonaws.com', '000000000000'),
     }
+
+    # Assert ELBListener to AWS Account relationship
+    assert check_rels(
+        neo4j_session,
+        'ELBListener',
+        'id',
+        'AWSAccount',
+        'id',
+        'RESOURCE',
+        rel_direction_right=False,
+    ) == {
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP', '000000000000'),
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS', '000000000000'),
+        ('test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP', '000000000000'),
+    }

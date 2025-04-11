@@ -1667,6 +1667,12 @@ Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazo
         (LoadBalancer)-[ELB_LISTENER]->(ELBListener)
         ```
 
+- A ELBListener is associated with an AWS Account.
+
+        ```
+        (AWSAccount)-[RESOURCE]->(ELBListener)
+        ```
+
 ### Endpoint::ELBV2Listener
 
 Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html).

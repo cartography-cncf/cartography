@@ -1,7 +1,4 @@
 import logging
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 import boto3
 import neo4j
@@ -32,7 +29,7 @@ def _get_listener_id(load_balancer_id: str, port: int, protocol: str) -> str:
     return f"{load_balancer_id}{port}{protocol}"
 
 
-def transform_load_balancer_listener_data(load_balancer_id: str, listener_data: List[Dict]) -> List[Dict]:
+def transform_load_balancer_listener_data(load_balancer_id: str, listener_data: list[dict]) -> list[dict]:
     """
     Transform load balancer listener data into a format suitable for cartography ingestion.
 
@@ -59,7 +56,7 @@ def transform_load_balancer_listener_data(load_balancer_id: str, listener_data: 
     return transformed
 
 
-def transform_load_balancer_data(load_balancers: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+def transform_load_balancer_data(load_balancers: list[dict]) -> tuple[list[dict], list[dict]]:
     """
     Transform load balancer data into a format suitable for cartography ingestion.
 
@@ -110,10 +107,10 @@ def transform_load_balancer_data(load_balancers: List[Dict]) -> Tuple[List[Dict]
 
 @timeit
 @aws_handle_regions
-def get_loadbalancer_data(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
+def get_loadbalancer_data(boto3_session: boto3.session.Session, region: str) -> list[dict]:
     client = boto3_session.client('elb', region_name=region, config=get_botocore_config())
     paginator = client.get_paginator('describe_load_balancers')
-    elbs: List[Dict] = []
+    elbs: list[dict] = []
     for page in paginator.paginate():
         elbs.extend(page['LoadBalancerDescriptions'])
     return elbs
@@ -121,19 +118,9 @@ def get_loadbalancer_data(boto3_session: boto3.session.Session, region: str) -> 
 
 @timeit
 def load_load_balancers(
-    neo4j_session: neo4j.Session, data: List[Dict], region: str, current_aws_account_id: str,
+    neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Load load balancer data into the graph database.
-
-    Args:
-        neo4j_session: Neo4j session
-        data: List of load balancer data
-        region: AWS region
-        current_aws_account_id: AWS account ID
-        update_tag: Update tag
-    """
     load(
         neo4j_session,
         LoadBalancerSchema(),
@@ -146,19 +133,9 @@ def load_load_balancers(
 
 @timeit
 def load_load_balancer_listeners(
-    neo4j_session: neo4j.Session, data: List[Dict], region: str, current_aws_account_id: str,
+    neo4j_session: neo4j.Session, data: list[dict], region: str, current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Load load balancer listener data into the graph database.
-
-    Args:
-        neo4j_session: Neo4j session
-        data: List of listener data
-        region: AWS region
-        current_aws_account_id: AWS account ID
-        update_tag: Update tag
-    """
     load(
         neo4j_session,
         ELBListenerSchema(),
@@ -170,34 +147,16 @@ def load_load_balancer_listeners(
 
 
 @timeit
-def cleanup_load_balancers(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    """
-    Clean up load balancer data in the graph database.
-
-    Args:
-        neo4j_session: Neo4j session
-        common_job_parameters: Common job parameters
-    """
-    GraphJob.from_node_schema(LoadBalancerSchema(), common_job_parameters).run(neo4j_session)
+def cleanup_load_balancers(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
     GraphJob.from_node_schema(ELBListenerSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(LoadBalancerSchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit
 def sync_load_balancers(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: list[str], current_aws_account_id: str,
+    update_tag: int, common_job_parameters: dict,
 ) -> None:
-    """
-    Sync load balancer data from AWS to the graph database.
-
-    Args:
-        neo4j_session: Neo4j session
-        boto3_session: Boto3 session
-        regions: List of AWS regions
-        current_aws_account_id: AWS account ID
-        update_tag: Update tag
-        common_job_parameters: Common job parameters
-    """
     for region in regions:
         logger.info("Syncing EC2 load balancers for region '%s' in account '%s'.", region, current_aws_account_id)
         data = get_loadbalancer_data(boto3_session, region)
