@@ -1,6 +1,6 @@
 import argparse
-import re
 import logging
+import re
 import time
 from collections import OrderedDict
 from pkgutil import iter_modules
