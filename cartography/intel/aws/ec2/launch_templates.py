@@ -165,9 +165,18 @@ def sync_ec2_launch_templates(
         logger.info(f"Syncing launch templates for region '{region}' in account '{current_aws_account_id}'.")
         templates = get_launch_templates(boto3_session, region)
         versions = get_launch_template_versions(boto3_session, region, templates)
-        templates = transform_launch_templates(templates)
-        load_launch_templates(neo4j_session, templates, region, current_aws_account_id, update_tag)
-        versions = transform_launch_template_versions(versions)
-        load_launch_template_versions(neo4j_session, versions, region, current_aws_account_id, update_tag)
+
+        # Ensure we only load templates for which we found versions
+        # (handles templates deleted between the two API calls)
+        valid_template_ids = {v['LaunchTemplateId'] for v in versions}
+        existing_templates = [t for t in templates if t['LaunchTemplateId'] in valid_template_ids]
+
+        # Transform and load the templates that have versions
+        transformed_templates = transform_launch_templates(existing_templates)
+        load_launch_templates(neo4j_session, transformed_templates, region, current_aws_account_id, update_tag)
+
+        # Transform and load the versions
+        transformed_versions = transform_launch_template_versions(versions)
+        load_launch_template_versions(neo4j_session, transformed_versions, region, current_aws_account_id, update_tag)
 
     cleanup(neo4j_session, common_job_parameters)
