@@ -1,4 +1,5 @@
 import argparse
+import re
 import logging
 import time
 from collections import OrderedDict
@@ -98,9 +99,23 @@ class Sync:
         """
         available_modules = OrderedDict({})
         available_modules['create-indexes'] = cartography.intel.create_indexes.run
+        callable_regex = re.compile(r'^start_(.+)_ingestion$')
         # Load built-in modules
         for intel_module_info in iter_modules(cartography.intel.__path__):
             if intel_module_info.name in ('analysis', 'create_indexes'):
+                continue
+            try:
+                logger.debug("Loading module: %s", intel_module_info.name)
+                intel_module = __import__(
+                    f"cartography.intel.{intel_module_info.name}",
+                    fromlist=[''],
+                )
+            except ImportError as e:
+                logger.error(
+                    "Failed to import module '%s'. Error: %s",
+                    intel_module_info.name,
+                    e,
+                )
                 continue
             logger.debug("Loading module: %s", intel_module_info.name)
             intel_module = __import__(
@@ -108,9 +123,12 @@ class Sync:
                 fromlist=[''],
             )
             for k, v in intel_module.__dict__.items():
-                if not k.startswith('start_') or not k.endswith('_ingestion') or not callable(v):
+                if not callable(v):
                     continue
-                callable_module_name = k[6:-10]
+                match_callable_name = callable_regex.match(k)
+                if not match_callable_name:
+                    continue
+                callable_module_name = match_callable_name.group(1) if match_callable_name else None
                 if callable_module_name != intel_module_info.name:
                     logger.debug(
                         "Module name '%s' does not match intel module name '%s'.",
@@ -122,8 +140,7 @@ class Sync:
         return available_modules
 
 
-# DEPRECATED: This global variable is kept for backwards compatibility with the CLI.
-# It will be removed in a future release.
+# Used to avoid repeatedly calling Sync.list_intel_modules()
 TOP_LEVEL_MODULES = Sync.list_intel_modules()
 
 
@@ -205,7 +222,7 @@ def build_default_sync() -> Sync:
     """
     sync = Sync()
     sync.add_stages([
-        (stage_name, stage_func) for stage_name, stage_func in Sync.list_intel_modules().items()
+        (stage_name, stage_func) for stage_name, stage_func in TOP_LEVEL_MODULES.items()
     ])
     return sync
 
@@ -220,11 +237,10 @@ def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
     for module in selected_modules.split(','):
         module = module.strip()
 
-        top_level_modules = Sync.list_intel_modules()
-        if module in top_level_modules.keys():
+        if module in TOP_LEVEL_MODULES.keys():
             validated_modules.append(module)
         else:
-            valid_modules = ', '.join(top_level_modules.keys())
+            valid_modules = ', '.join(TOP_LEVEL_MODULES.keys())
             raise ValueError(
                 f'Error parsing `selected_modules`. You specified "{selected_modules}". '
                 f'Please check that your string is formatted properly. '
@@ -240,9 +256,8 @@ def build_sync(selected_modules_as_str: str) -> Sync:
     modules to run.
     """
     selected_modules = parse_and_validate_selected_modules(selected_modules_as_str)
-    available_modules = Sync.list_intel_modules()
     sync = Sync()
     sync.add_stages(
-        [(sync_name, available_modules[sync_name]) for sync_name in selected_modules],
+        [(sync_name, TOP_LEVEL_MODULES[sync_name]) for sync_name in selected_modules],
     )
     return sync
