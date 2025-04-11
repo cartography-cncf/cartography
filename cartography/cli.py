@@ -558,6 +558,32 @@ class CLI:
             default=None,
             help='An ID for the SnipeIT tenant.',
         )
+        parser.add_argument(
+            '--msft365-tenant-id',
+            type=str,
+            default=None,
+            help='Azure AD tenant ID for Microsoft 365 authentication'
+        )
+
+        parser.add_argument(
+            '--msft365-client-id',
+            type=str,
+            default=None,
+            help='Azure AD client ID for Microsoft 365 authentication'
+        )
+
+        parser.add_argument(
+            '--msft365-client-secret-env-var',
+            type=str,
+            default=None,
+            help='Environment variable name containing Microsoft 365 client secret'
+        )
+
+        parser.add_argument(
+            '--msft365-sync-all-users',
+            action='store_true',
+            help='Enable sync of all Microsoft 365 users and groups'
+        )
 
         return parser
 
@@ -774,6 +800,27 @@ class CLI:
             else:
                 logger.warning("A SnipeIT base URI was provided but a token was not.")
                 config.kandji_token = None
+        
+        # Msft365 Configuration
+        if any(['msft365' in mod for mod in self.sync.modules]):
+            logger.debug("Configuring Microsoft 365 credentials")
+            
+            if config.msft365_client_secret_env_var:
+                logger.debug(
+                    "Reading Microsoft 365 client secret from environment variable %s",
+                    config.msft365_client_secret_env_var
+                )
+                config.msft365_client_secret = os.environ.get(config.msft365_client_secret_env_var)
+            else:
+                config.msft365_client_secret = None
+
+            # Validate required parameters
+            if not all([config.msft365_tenant_id, config.msft365_client_id, config.msft365_client_secret]):
+                logger.warning(
+                    "Microsoft 365 sync enabled but missing one or more required parameters: "
+                    "tenant_id, client_id, client_secret"
+                )
+                return 1 #end execution
         else:
             logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None

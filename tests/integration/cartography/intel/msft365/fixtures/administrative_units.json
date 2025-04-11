@@ -1,0 +1,13 @@
+[
+    {
+      "id": "au1",
+      "displayName": "North America Division",
+      "description": "Administrative unit for North America operations."
+    },
+    {
+      "id": "au2",
+      "displayName": "Europe Division",
+      "description": "Administrative unit for European operations."
+    }
+  ]
+  

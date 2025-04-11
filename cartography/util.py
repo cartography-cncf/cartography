@@ -439,3 +439,4 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
     results = to_synchronous(future_1, future_2)
     '''
     return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))
+
