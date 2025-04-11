@@ -25,10 +25,34 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
         'Authorization': f'Bearer {kandji_token}',
     }
 
+    offset = 0
+    limit = 300
+    params: dict[str, str | int] = {
+        "sort": "serial_number",
+        "limit": limit,
+        "offset": offset,
+    }
+
+    devices: List[Dict[str, Any]] = []
     session = Session()
-    req = session.get(api_endpoint, headers=headers, timeout=_TIMEOUT)
-    req.raise_for_status()
-    return req.json()
+    while True:
+        logger.debug("Kandji device offset: %s", offset)
+
+        params["offset"] = offset
+        response = session.get(api_endpoint, headers=headers, timeout=_TIMEOUT, params=params)
+        response.raise_for_status()
+
+        result = response.json()
+        # If no more result, we are done
+        if len(result) == 0:
+            break
+
+        devices.extend(result)
+
+        offset += limit
+
+    logger.debug("Kandji device count: %d", len(devices))
+    return devices
 
 
 @timeit

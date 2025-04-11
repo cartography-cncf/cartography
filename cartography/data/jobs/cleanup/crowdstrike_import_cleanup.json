@@ -6,11 +6,6 @@
       "iterationsize": 100
     },
     {
-      "query": "MATCH (h:CrowdstrikeHost) WHERE h.lastupdated <> $UPDATE_TAG WITH h LIMIT $LIMIT_SIZE DETACH DELETE (h)",
-      "iterative": true,
-      "iterationsize": 100
-    },
-    {
       "query": "MATCH (:CrowdstrikeFinding)<-[hc:HAS_CVE]-(:SpotlightVulnerability) WHERE hc.lastupdated <> $UPDATE_TAG WITH hc LIMIT $LIMIT_SIZE DELETE (hc)",
       "iterative": true,
       "iterationsize": 100,
