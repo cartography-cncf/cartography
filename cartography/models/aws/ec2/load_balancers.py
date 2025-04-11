@@ -46,7 +46,7 @@ class LoadBalancerToSecurityGroupRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class LoadBalancerToSecurityGroup(CartographyRelSchema):
+class LoadBalancerToSourceSecurityGroup(CartographyRelSchema):
     target_node_label: str = 'EC2SecurityGroup'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {'name': PropertyRef('GROUP_NAME')},
@@ -95,7 +95,7 @@ class LoadBalancerSchema(CartographyNodeSchema):
     sub_resource_relationship: LoadBalancerToAWSAccount = LoadBalancerToAWSAccount()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            LoadBalancerToSecurityGroup(),
+            LoadBalancerToSourceSecurityGroup(),
             LoadBalancerToEC2SecurityGroup(),
             LoadBalancerToEC2Instance(),
         ],
