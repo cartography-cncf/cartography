@@ -53,7 +53,7 @@ class RouteTableAssociationToSubnetRelProperties(CartographyRelProperties):
 class RouteTableAssociationToSubnet(CartographyRelSchema):
     target_node_label: str = 'EC2Subnet'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('SubnetId')},
+        {'subnetid': PropertyRef('subnet_id')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATED_WITH"
@@ -69,7 +69,7 @@ class RouteTableAssociationToGatewayRelProperties(CartographyRelProperties):
 class RouteTableAssociationToGateway(CartographyRelSchema):
     target_node_label: str = 'AWSInternetGateway'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('GatewayId')},
+        {'id': PropertyRef('gateway_id')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATED_WITH"

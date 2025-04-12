@@ -4,6 +4,7 @@ from unittest.mock import patch
 import cartography.intel.aws.ec2.route_tables
 from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from tests.data.aws.ec2.route_tables import DESCRIBE_ROUTE_TABLES
+from tests.data.aws.ec2.subnets import DESCRIBE_SUBNETS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -11,6 +12,16 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = '000000000000'
 TEST_REGION = 'us-east-1'
 TEST_UPDATE_TAG = 123456789
+
+
+def _create_fake_subnets(neo4j_session):
+    cartography.intel.aws.ec2.subnets.load_subnets(
+        neo4j_session,
+        DESCRIBE_SUBNETS,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(
@@ -25,6 +36,7 @@ def test_sync_route_tables(mock_get_route_tables, neo4j_session):
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _create_fake_subnets(neo4j_session)
 
     # Act
     sync_route_tables(
@@ -146,4 +158,18 @@ def test_sync_route_tables(mock_get_route_tables, neo4j_session):
         ("rtbassoc-aaaaaaaaaaaaaaaaa", TEST_ACCOUNT_ID),
         ("rtbassoc-bbbbbbbbbbbbbbbbb", TEST_ACCOUNT_ID),
         ("rtbassoc-ccccccccccccccccc", TEST_ACCOUNT_ID),
+    }
+
+    # Assert route table association to subnet relationships
+    assert check_rels(
+        neo4j_session,
+        'EC2RouteTableAssociation',
+        'id',
+        'EC2Subnet',
+        'subnetid',
+        'ASSOCIATED_WITH',
+        rel_direction_right=True,
+    ) == {
+        ("rtbassoc-bbbbbbbbbbbbbbbbb", "subnet-0773409557644dca4"),
+        ("rtbassoc-ccccccccccccccccc", "subnet-0773409557644dca4"),
     }

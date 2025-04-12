@@ -37,7 +37,8 @@ DESCRIBE_ROUTE_TABLES = {
                     "Main": False,
                     "RouteTableAssociationId": "rtbassoc-bbbbbbbbbbbbbbbbb",
                     "RouteTableId": "rtb-bbbbbbbbbbbbbbbbb",
-                    "SubnetId": "subnet-aaaaaaaaaaaaaaaaa",
+                    # From tests.data.aws.ec2.subnets.DESCRIBE_SUBNETS
+                    "SubnetId": "subnet-0773409557644dca4",
                     "AssociationState": {
                         "State": "associated",
                     },
@@ -46,7 +47,8 @@ DESCRIBE_ROUTE_TABLES = {
                     "Main": False,
                     "RouteTableAssociationId": "rtbassoc-ccccccccccccccccc",
                     "RouteTableId": "rtb-bbbbbbbbbbbbbbbbb",
-                    "SubnetId": "subnet-bbbbbbbbbbbbbbbbb",
+                    # From tests.data.aws.ec2.subnets.DESCRIBE_SUBNETS
+                    "SubnetId": "subnet-0773409557644dca4",
                     "AssociationState": {
                         "State": "associated",
                     },
