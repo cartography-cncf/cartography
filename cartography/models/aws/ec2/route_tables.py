@@ -77,6 +77,22 @@ class RouteTableToRoute(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RouteTableToAssociationRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class RouteTableToAssociation(CartographyRelSchema):
+    target_node_label: str = 'EC2RouteTableAssociation'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('RouteTableAssociationId', one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ASSOCIATION"
+    properties: RouteTableToAssociationRelProperties = RouteTableToAssociationRelProperties()
+
+
+@dataclass(frozen=True)
 class RouteTableSchema(CartographyNodeSchema):
     label: str = 'EC2RouteTable'
     properties: RouteTableNodeProperties = RouteTableNodeProperties()
@@ -85,5 +101,6 @@ class RouteTableSchema(CartographyNodeSchema):
         [
             RouteTableToVpc(),
             RouteTableToRoute(),
+            RouteTableToAssociation(),
         ],
     ) 
