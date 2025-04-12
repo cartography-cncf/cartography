@@ -93,6 +93,23 @@ class RouteTableToAssociation(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RouteTableToVpnGatewayRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+
+# TODO implement AWSVpnGateways
+@dataclass(frozen=True)
+class RouteTableToVpnGateway(CartographyRelSchema):
+    target_node_label: str = 'AWSVpnGateway'
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {'id': PropertyRef('VpnGatewayIds', one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONNECTED_TO"
+    properties: RouteTableToVpnGatewayRelProperties = RouteTableToVpnGatewayRelProperties()
+
+
+@dataclass(frozen=True)
 class RouteTableSchema(CartographyNodeSchema):
     label: str = 'EC2RouteTable'
     properties: RouteTableNodeProperties = RouteTableNodeProperties()
@@ -102,5 +119,6 @@ class RouteTableSchema(CartographyNodeSchema):
             RouteTableToVpc(),
             RouteTableToRoute(),
             RouteTableToAssociation(),
+            RouteTableToVpnGateway(),
         ],
     ) 
