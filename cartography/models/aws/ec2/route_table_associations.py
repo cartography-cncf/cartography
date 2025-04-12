@@ -16,13 +16,14 @@ class RouteTableAssociationNodeProperties(CartographyNodeProperties):
     """
     Schema describing a RouteTableAssociation.
     """
-    id: PropertyRef = PropertyRef('RouteTableAssociationId')
-    route_table_association_id: PropertyRef = PropertyRef('RouteTableAssociationId', extra_index=True)
-    association_state: PropertyRef = PropertyRef('AssociationState')
-    gateway_id: PropertyRef = PropertyRef('GatewayId')
-    main: PropertyRef = PropertyRef('Main')
-    route_table_id: PropertyRef = PropertyRef('RouteTableId')
-    subnet_id: PropertyRef = PropertyRef('SubnetId')
+    id: PropertyRef = PropertyRef('id')
+    route_table_association_id: PropertyRef = PropertyRef('id', extra_index=True)
+    gateway_id: PropertyRef = PropertyRef('gateway_id')
+    main: PropertyRef = PropertyRef('main')
+    route_table_id: PropertyRef = PropertyRef('route_table_id')
+    subnet_id: PropertyRef = PropertyRef('subnet_id')
+    association_state: PropertyRef = PropertyRef('association_state')
+    association_state_message: PropertyRef = PropertyRef('association_state_message')
     region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 

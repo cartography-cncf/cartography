@@ -7,9 +7,9 @@ DESCRIBE_ROUTE_TABLES = {
                     "RouteTableAssociationId": "rtbassoc-aaaaaaaaaaaaaaaaa",
                     "RouteTableId": "rtb-aaaaaaaaaaaaaaaaa",
                     "AssociationState": {
-                        "State": "associated"
-                    }
-                }
+                        "State": "associated",
+                    },
+                },
             ],
             "PropagatingVgws": [],
             "RouteTableId": "rtb-aaaaaaaaaaaaaaaaa",
@@ -18,18 +18,18 @@ DESCRIBE_ROUTE_TABLES = {
                     "DestinationCidrBlock": "172.31.0.0/16",
                     "GatewayId": "local",
                     "Origin": "CreateRouteTable",
-                    "State": "active"
+                    "State": "active",
                 },
                 {
                     "DestinationCidrBlock": "0.0.0.0/0",
                     "GatewayId": "igw-aaaaaaaaaaaaaaaaa",
                     "Origin": "CreateRoute",
-                    "State": "active"
-                }
+                    "State": "active",
+                },
             ],
             "Tags": [],
             "VpcId": "vpc-aaaaaaaaaaaaaaaaa",
-            "OwnerId": "000000000000"
+            "OwnerId": "000000000000",
         },
         {
             "Associations": [
@@ -39,8 +39,8 @@ DESCRIBE_ROUTE_TABLES = {
                     "RouteTableId": "rtb-bbbbbbbbbbbbbbbbb",
                     "SubnetId": "subnet-aaaaaaaaaaaaaaaaa",
                     "AssociationState": {
-                        "State": "associated"
-                    }
+                        "State": "associated",
+                    },
                 },
                 {
                     "Main": False,
@@ -48,9 +48,9 @@ DESCRIBE_ROUTE_TABLES = {
                     "RouteTableId": "rtb-bbbbbbbbbbbbbbbbb",
                     "SubnetId": "subnet-bbbbbbbbbbbbbbbbb",
                     "AssociationState": {
-                        "State": "associated"
-                    }
-                }
+                        "State": "associated",
+                    },
+                },
             ],
             "PropagatingVgws": [],
             "RouteTableId": "rtb-bbbbbbbbbbbbbbbbb",
@@ -59,35 +59,35 @@ DESCRIBE_ROUTE_TABLES = {
                     "DestinationCidrBlock": "10.1.0.0/16",
                     "GatewayId": "local",
                     "Origin": "CreateRouteTable",
-                    "State": "active"
+                    "State": "active",
                 },
                 {
                     "DestinationCidrBlock": "0.0.0.0/0",
                     "GatewayId": "igw-bbbbbbbbbbbbbbbbb",
                     "Origin": "CreateRoute",
-                    "State": "active"
-                }
+                    "State": "active",
+                },
             ],
             "Tags": [
                 {
                     "Key": "Customer",
-                    "Value": "subimage"
+                    "Value": "subimage",
                 },
                 {
                     "Key": "Environment",
-                    "Value": "staging"
+                    "Value": "staging",
                 },
                 {
                     "Key": "Name",
-                    "Value": "subimage-public"
+                    "Value": "subimage-public",
                 },
                 {
                     "Key": "ManagedBy",
-                    "Value": "terraform"
-                }
+                    "Value": "terraform",
+                },
             ],
             "VpcId": "vpc-bbbbbbbbbbbbbbbbb",
-            "OwnerId": "000000000000"
-        }
-    ]
-} 
+            "OwnerId": "000000000000",
+        },
+    ],
+}

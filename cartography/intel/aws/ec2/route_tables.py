@@ -19,7 +19,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def transform_route_table_associations(route_table_id: str, associations: List[Dict]) -> List[Dict]:
+def _transform_route_table_associations(route_table_id: str, associations: List[Dict]) -> List[Dict]:
     """
     Transform route table association data into a format suitable for cartography ingestion.
 
@@ -38,12 +38,14 @@ def transform_route_table_associations(route_table_id: str, associations: List[D
             'subnet_id': association.get('SubnetId'),
             'gateway_id': association.get('GatewayId'),
             'main': association.get('Main', False),
+            'association_state': association.get('AssociationState', {}).get('State'),
+            'association_state_message': association.get('AssociationState', {}).get('Message'),
         }
         transformed.append(transformed_association)
     return transformed
 
 
-def transform_route_table_routes(route_table_id: str, routes: List[Dict]) -> List[Dict]:
+def _transform_route_table_routes(route_table_id: str, routes: List[Dict]) -> List[Dict]:
     """
     Transform route table route data into a format suitable for cartography ingestion.
 
@@ -57,9 +59,7 @@ def transform_route_table_routes(route_table_id: str, routes: List[Dict]) -> Lis
     transformed = []
     for route in routes:
         transformed_route = {
-            'id': (
-                f"{route_table_id}-{route.get('DestinationCidrBlock', '')}-{route.get('DestinationIpv6CidrBlock', '')}"
-            ),
+            'id': _get_route_id(route_table_id, route),
             'route_table_id': route_table_id,
             'destination_cidr_block': route.get('DestinationCidrBlock'),
             'destination_ipv6_cidr_block': route.get('DestinationIpv6CidrBlock'),
@@ -74,6 +74,9 @@ def transform_route_table_routes(route_table_id: str, routes: List[Dict]) -> Lis
             'vpc_peering_connection_id': route.get('VpcPeeringConnectionId'),
             'state': route.get('State'),
             'origin': route.get('Origin'),
+            'core_network_arn': route.get('CoreNetworkArn'),
+            'destination_prefix_list_id': route.get('DestinationPrefixListId'),
+            'egress_only_internet_gateway_id': route.get('EgressOnlyInternetGatewayId'),
         }
         transformed.append(transformed_route)
     return transformed
@@ -95,6 +98,13 @@ def transform_route_table_data(route_tables: List[Dict]) -> Tuple[List[Dict], Li
 
     for rt in route_tables:
         route_table_id = rt['RouteTableId']
+
+        # Transform routes
+        current_routes = []
+        if rt.get('Routes'):
+            current_routes = _transform_route_table_routes(route_table_id, rt['Routes'])
+            route_data.extend(current_routes)
+
         transformed_rt = {
             'id': route_table_id,
             'route_table_id': route_table_id,
@@ -102,18 +112,14 @@ def transform_route_table_data(route_tables: List[Dict]) -> Tuple[List[Dict], Li
             'vpc_id': rt.get('VpcId'),
             'VpnGatewayIds': [vgw['GatewayId'] for vgw in rt.get('PropagatingVgws', [])],
             'RouteTableAssociationIds': [assoc['RouteTableAssociationId'] for assoc in rt.get('Associations', [])],
-            'RouteIds': [route['RouteId'] for route in rt.get('Routes', [])],
+            'RouteIds': [route['id'] for route in current_routes],
             'tags': rt.get('Tags', []),
         }
         transformed_tables.append(transformed_rt)
 
         # Transform associations
         if rt.get('Associations'):
-            association_data.extend(transform_route_table_associations(route_table_id, rt['Associations']))
-
-        # Transform routes
-        if rt.get('Routes'):
-            route_data.extend(transform_route_table_routes(route_table_id, rt['Routes']))
+            association_data.extend(_transform_route_table_associations(route_table_id, rt['Associations']))
 
     return transformed_tables, association_data, route_data
 
@@ -222,7 +228,60 @@ def sync_route_tables(
         logger.info("Syncing EC2 route tables for region '%s' in account '%s'.", region, current_aws_account_id)
         route_tables = get_route_tables(boto3_session, region)
         transformed_tables, association_data, route_data = transform_route_table_data(route_tables)
-        load_route_tables(neo4j_session, transformed_tables, region, current_aws_account_id, update_tag)
-        load_route_table_associations(neo4j_session, association_data, region, current_aws_account_id, update_tag)
         load_routes(neo4j_session, route_data, region, current_aws_account_id, update_tag)
+        load_route_table_associations(neo4j_session, association_data, region, current_aws_account_id, update_tag)
+        load_route_tables(neo4j_session, transformed_tables, region, current_aws_account_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
+
+
+def _get_route_id(route_table_id: str, route: Dict[str, Any]) -> str:
+    """
+    Generate a unique identifier for an AWS EC2 route.
+
+    Args:
+        route_table_id: The ID of the route table this route belongs to
+        route: The route data from AWS API
+
+    Returns:
+        A string that uniquely identifies the route
+    """
+    # Start with the route table ID
+    parts = [route_table_id]
+
+    # Add destination CIDR block (IPv4 or IPv6)
+    if 'DestinationCidrBlock' in route:
+        parts.append(route['DestinationCidrBlock'])
+    elif 'DestinationIpv6CidrBlock' in route:
+        parts.append(route['DestinationIpv6CidrBlock'])
+    else:
+        parts.append('')
+
+    # Add target information
+    target_parts = []
+
+    # Check for different types of targets
+    if 'GatewayId' in route and route['GatewayId']:
+        target_parts.append(f"gw-{route['GatewayId']}")
+    if 'InstanceId' in route and route['InstanceId']:
+        target_parts.append(f"i-{route['InstanceId']}")
+    if 'NetworkInterfaceId' in route and route['NetworkInterfaceId']:
+        target_parts.append(f"eni-{route['NetworkInterfaceId']}")
+    if 'NatGatewayId' in route and route['NatGatewayId']:
+        target_parts.append(f"nat-{route['NatGatewayId']}")
+    if 'TransitGatewayId' in route and route['TransitGatewayId']:
+        target_parts.append(f"tgw-{route['TransitGatewayId']}")
+    if 'LocalGatewayId' in route and route['LocalGatewayId']:
+        target_parts.append(f"lgw-{route['LocalGatewayId']}")
+    if 'CarrierGatewayId' in route and route['CarrierGatewayId']:
+        target_parts.append(f"cagw-{route['CarrierGatewayId']}")
+    if 'VpcPeeringConnectionId' in route and route['VpcPeeringConnectionId']:
+        target_parts.append(f"pcx-{route['VpcPeeringConnectionId']}")
+    if 'EgressOnlyInternetGatewayId' in route and route['EgressOnlyInternetGatewayId']:
+        target_parts.append(f"eigw-{route['EgressOnlyInternetGatewayId']}")
+
+    # Join target parts with underscores
+    target_str = '_'.join(target_parts) if target_parts else ''
+    parts.append(target_str)
+
+    # Join all parts with dashes
+    return '/'.join(parts)

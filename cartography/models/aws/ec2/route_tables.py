@@ -16,14 +16,11 @@ class RouteTableNodeProperties(CartographyNodeProperties):
     """
     Schema describing a RouteTable.
     """
-    id: PropertyRef = PropertyRef('RouteTableId')
-    route_table_id: PropertyRef = PropertyRef('RouteTableId', extra_index=True)
-    associations: PropertyRef = PropertyRef('Associations')
-    owner_id: PropertyRef = PropertyRef('OwnerId')
-    # TODO remove this property
-    propagating_vgws: PropertyRef = PropertyRef('PropagatingVgws')
-    routes: PropertyRef = PropertyRef('Routes')
-    tags: PropertyRef = PropertyRef('Tags')
+    id: PropertyRef = PropertyRef('id')
+    route_table_id: PropertyRef = PropertyRef('route_table_id', extra_index=True)
+    owner_id: PropertyRef = PropertyRef('owner_id')
+    # TODO
+    # tags: PropertyRef = PropertyRef('Tags')
     vpc_id: PropertyRef = PropertyRef('VpcId')
     region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
@@ -54,7 +51,7 @@ class RouteTableToVpcRelProperties(CartographyRelProperties):
 class RouteTableToVpc(CartographyRelSchema):
     target_node_label: str = 'AWSVpc'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('VpcId')},
+        {'id': PropertyRef('vpc_id')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF_VPC"
