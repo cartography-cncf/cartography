@@ -59,4 +59,4 @@ class RouteSchema(CartographyNodeSchema):
     label: str = 'EC2Route'
     properties: RouteNodeProperties = RouteNodeProperties()
     sub_resource_relationship: RouteToAWSAccount = RouteToAWSAccount()
-    other_relationships: OtherRelationships = OtherRelationships([]) 
+    other_relationships: OtherRelationships = OtherRelationships([])

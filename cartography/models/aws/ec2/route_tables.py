@@ -20,6 +20,7 @@ class RouteTableNodeProperties(CartographyNodeProperties):
     route_table_id: PropertyRef = PropertyRef('RouteTableId', extra_index=True)
     associations: PropertyRef = PropertyRef('Associations')
     owner_id: PropertyRef = PropertyRef('OwnerId')
+    # TODO remove this property
     propagating_vgws: PropertyRef = PropertyRef('PropagatingVgws')
     routes: PropertyRef = PropertyRef('Routes')
     tags: PropertyRef = PropertyRef('Tags')
@@ -69,7 +70,7 @@ class RouteTableToRouteRelProperties(CartographyRelProperties):
 class RouteTableToRoute(CartographyRelSchema):
     target_node_label: str = 'EC2Route'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('RouteId', one_to_many=True)},
+        {'id': PropertyRef('RouteIds', one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CONTAINS"
@@ -85,7 +86,7 @@ class RouteTableToAssociationRelProperties(CartographyRelProperties):
 class RouteTableToAssociation(CartographyRelSchema):
     target_node_label: str = 'EC2RouteTableAssociation'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('RouteTableAssociationId', one_to_many=True)},
+        {'id': PropertyRef('RouteTableAssociationIds', one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_ASSOCIATION"
@@ -121,4 +122,4 @@ class RouteTableSchema(CartographyNodeSchema):
             RouteTableToAssociation(),
             RouteTableToVpnGateway(),
         ],
-    ) 
+    )

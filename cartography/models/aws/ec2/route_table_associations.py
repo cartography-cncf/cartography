@@ -85,4 +85,4 @@ class RouteTableAssociationSchema(CartographyNodeSchema):
             RouteTableAssociationToSubnet(),
             RouteTableAssociationToGateway(),
         ],
-    ) 
+    )
