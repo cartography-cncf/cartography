@@ -70,24 +70,6 @@ DESCRIBE_ROUTE_TABLES = {
                     "State": "active",
                 },
             ],
-            "Tags": [
-                {
-                    "Key": "Customer",
-                    "Value": "subimage",
-                },
-                {
-                    "Key": "Environment",
-                    "Value": "staging",
-                },
-                {
-                    "Key": "Name",
-                    "Value": "subimage-public",
-                },
-                {
-                    "Key": "ManagedBy",
-                    "Value": "terraform",
-                },
-            ],
             "VpcId": "vpc-bbbbbbbbbbbbbbbbb",
             "OwnerId": "000000000000",
         },
