@@ -58,19 +58,19 @@ class RouteTableAssociationToSubnet(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class RouteTableAssociationToGatewayRelProperties(CartographyRelProperties):
+class RouteTableAssociationToIgwRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteTableAssociationToGateway(CartographyRelSchema):
+class RouteTableAssociationToIgw(CartographyRelSchema):
     target_node_label: str = 'AWSInternetGateway'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {'id': PropertyRef('gateway_id')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "TARGET_IGW"
-    properties: RouteTableAssociationToGatewayRelProperties = RouteTableAssociationToGatewayRelProperties()
+    properties: RouteTableAssociationToIgwRelProperties = RouteTableAssociationToIgwRelProperties()
 
 
 @dataclass(frozen=True)
@@ -81,6 +81,6 @@ class RouteTableAssociationSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             RouteTableAssociationToSubnet(),
-            RouteTableAssociationToGateway(),
+            RouteTableAssociationToIgw(),
         ],
     )

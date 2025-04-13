@@ -38,7 +38,7 @@ def _get_route_id(route_table_id: str, route: dict[str, Any]) -> str:
     else:
         parts.append('')
 
-    # Join all parts with dashes
+    # Join all parts with '|'
     return '|'.join(parts)
 
 
