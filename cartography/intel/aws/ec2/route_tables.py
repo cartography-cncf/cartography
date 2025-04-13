@@ -1,8 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 import boto3
 import neo4j
@@ -19,7 +16,47 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def _transform_route_table_associations(route_table_id: str, associations: List[Dict]) -> List[Dict]:
+def _get_route_id(route_table_id: str, route: dict[str, Any]) -> str:
+    """
+    Generate a unique identifier for an AWS EC2 route.
+
+    Args:
+        route_table_id: The ID of the route table this route belongs to
+        route: The route data from AWS API
+
+    Returns:
+        A string that uniquely identifies the route
+    """
+    # Start with the route table ID
+    parts = [route_table_id]
+
+    # Add destination CIDR block (IPv4 or IPv6)
+    if 'DestinationCidrBlock' in route:
+        parts.append(route['DestinationCidrBlock'])
+    elif 'DestinationIpv6CidrBlock' in route:
+        parts.append(route['DestinationIpv6CidrBlock'])
+    else:
+        parts.append('')
+
+    # Join all parts with dashes
+    return '|'.join(parts)
+
+
+@timeit
+@aws_handle_regions
+def get_route_tables(boto3_session: boto3.session.Session, region: str) -> list[dict[str, Any]]:
+    client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
+    paginator = client.get_paginator('describe_route_tables')
+    route_tables: list[dict[str, Any]] = []
+    for page in paginator.paginate():
+        route_tables.extend(page['RouteTables'])
+    return route_tables
+
+
+def _transform_route_table_associations(
+        route_table_id: str,
+        associations: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """
     Transform route table association data into a format suitable for cartography ingestion.
 
@@ -45,7 +82,7 @@ def _transform_route_table_associations(route_table_id: str, associations: List[
     return transformed
 
 
-def _transform_route_table_routes(route_table_id: str, routes: List[Dict]) -> List[Dict]:
+def _transform_route_table_routes(route_table_id: str, routes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Transform route table route data into a format suitable for cartography ingestion.
 
@@ -82,7 +119,9 @@ def _transform_route_table_routes(route_table_id: str, routes: List[Dict]) -> Li
     return transformed
 
 
-def transform_route_table_data(route_tables: List[Dict]) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+def transform_route_table_data(
+        route_tables: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Transform route table data into a format suitable for cartography ingestion.
 
@@ -125,30 +164,13 @@ def transform_route_table_data(route_tables: List[Dict]) -> Tuple[List[Dict], Li
 
 
 @timeit
-@aws_handle_regions
-def get_route_tables(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    """
-    Get route tables for a given region.
-    """
-    client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
-    paginator = client.get_paginator('describe_route_tables')
-    route_tables: List[Dict[str, Any]] = []
-    for page in paginator.paginate():
-        route_tables.extend(page['RouteTables'])
-    return route_tables
-
-
-@timeit
 def load_route_tables(
         neo4j_session: neo4j.Session,
-        data: List[Dict],
+        data: list[dict[str, Any]],
         region: str,
         current_aws_account_id: str,
         update_tag: int,
 ) -> None:
-    """
-    Load route tables into Neo4j.
-    """
     load(
         neo4j_session,
         RouteTableSchema(),
@@ -162,14 +184,11 @@ def load_route_tables(
 @timeit
 def load_route_table_associations(
         neo4j_session: neo4j.Session,
-        data: List[Dict],
+        data: list[dict[str, Any]],
         region: str,
         current_aws_account_id: str,
         update_tag: int,
 ) -> None:
-    """
-    Load route table associations into Neo4j.
-    """
     load(
         neo4j_session,
         RouteTableAssociationSchema(),
@@ -183,14 +202,11 @@ def load_route_table_associations(
 @timeit
 def load_routes(
         neo4j_session: neo4j.Session,
-        data: List[Dict],
+        data: list[dict[str, Any]],
         region: str,
         current_aws_account_id: str,
         update_tag: int,
 ) -> None:
-    """
-    Load routes into Neo4j.
-    """
     load(
         neo4j_session,
         RouteSchema(),
@@ -202,10 +218,7 @@ def load_routes(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    """
-    Clean up old route table data.
-    """
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     logger.debug("Running EC2 route tables cleanup")
     GraphJob.from_node_schema(RouteTableSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(RouteSchema(), common_job_parameters).run(neo4j_session)
@@ -216,14 +229,11 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any])
 def sync_route_tables(
         neo4j_session: neo4j.Session,
         boto3_session: boto3.session.Session,
-        regions: List[str],
+        regions: list[str],
         current_aws_account_id: str,
         update_tag: int,
-        common_job_parameters: Dict[str, Any],
+        common_job_parameters: dict[str, Any],
 ) -> None:
-    """
-    Sync route tables for all regions.
-    """
     for region in regions:
         logger.info("Syncing EC2 route tables for region '%s' in account '%s'.", region, current_aws_account_id)
         route_tables = get_route_tables(boto3_session, region)
@@ -232,29 +242,3 @@ def sync_route_tables(
         load_route_table_associations(neo4j_session, association_data, region, current_aws_account_id, update_tag)
         load_route_tables(neo4j_session, transformed_tables, region, current_aws_account_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
-
-
-def _get_route_id(route_table_id: str, route: Dict[str, Any]) -> str:
-    """
-    Generate a unique identifier for an AWS EC2 route.
-
-    Args:
-        route_table_id: The ID of the route table this route belongs to
-        route: The route data from AWS API
-
-    Returns:
-        A string that uniquely identifies the route
-    """
-    # Start with the route table ID
-    parts = [route_table_id]
-
-    # Add destination CIDR block (IPv4 or IPv6)
-    if 'DestinationCidrBlock' in route:
-        parts.append(route['DestinationCidrBlock'])
-    elif 'DestinationIpv6CidrBlock' in route:
-        parts.append(route['DestinationIpv6CidrBlock'])
-    else:
-        parts.append('')
-
-    # Join all parts with dashes
-    return '|'.join(parts)
