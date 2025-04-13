@@ -157,5 +157,5 @@ def test_sync_route_tables(mock_get_route_tables, neo4j_session):
         rel_direction_right=True,
     ) == {
         ("rtbassoc-bbbbbbbbbbbbbbbbb", "subnet-0773409557644dca4"),
-        ("rtbassoc-ccccccccccccccccc", "subnet-0773409557644dca4"),
+        ("rtbassoc-ccccccccccccccccc", "subnet-0fa9c8fa7cb241479"),
     }

@@ -48,7 +48,7 @@ DESCRIBE_ROUTE_TABLES = {
                     "RouteTableAssociationId": "rtbassoc-ccccccccccccccccc",
                     "RouteTableId": "rtb-bbbbbbbbbbbbbbbbb",
                     # From tests.data.aws.ec2.subnets.DESCRIBE_SUBNETS
-                    "SubnetId": "subnet-0773409557644dca4",
+                    "SubnetId": "subnet-0fa9c8fa7cb241479",
                     "AssociationState": {
                         "State": "associated",
                     },
