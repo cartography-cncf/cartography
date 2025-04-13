@@ -284,4 +284,4 @@ def _get_route_id(route_table_id: str, route: Dict[str, Any]) -> str:
     parts.append(target_str)
 
     # Join all parts with dashes
-    return '/'.join(parts)
+    return '|'.join(parts)

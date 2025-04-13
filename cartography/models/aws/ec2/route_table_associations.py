@@ -13,9 +13,6 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RouteTableAssociationNodeProperties(CartographyNodeProperties):
-    """
-    Schema describing a RouteTableAssociation.
-    """
     id: PropertyRef = PropertyRef('id')
     route_table_association_id: PropertyRef = PropertyRef('id', extra_index=True)
     gateway_id: PropertyRef = PropertyRef('gateway_id')

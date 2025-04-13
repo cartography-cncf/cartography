@@ -19,8 +19,6 @@ class RouteTableNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef('id')
     route_table_id: PropertyRef = PropertyRef('route_table_id', extra_index=True)
     owner_id: PropertyRef = PropertyRef('owner_id')
-    # TODO
-    # tags: PropertyRef = PropertyRef('Tags')
     vpc_id: PropertyRef = PropertyRef('VpcId')
     region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)

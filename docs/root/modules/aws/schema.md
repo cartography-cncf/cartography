@@ -459,7 +459,7 @@ Representation of an [AWS Policy Statement](https://docs.aws.amazon.com/IAM/late
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated | Timestamp of the last time the node was updated |
+| lastupdated | Timestamp of the last time the node was updated|
 | resources | (array) The resources the statement is applied to. Can contain wildcards |
 | actions | (array) The permissions allowed or denied by the statement. Can contain wildcards |
 | notactions | (array) The permission explicitly not matched by the statement |
@@ -3532,3 +3532,120 @@ Representation of an AWS Identity Center Permission Set.
     ```
     (AWSPermissionSet)-[ASSIGNED_TO_ROLE]->(AWSRole)
     ```
+
+### EC2RouteTable
+
+Representation of an AWS [EC2 Route Table](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RouteTable.html).
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The ID of the route table|
+|route_table_id| The ID of the route table (same as id)|
+|vpc_id| The ID of the VPC the route table is associated with|
+|owner_id| The AWS account ID of the route table owner|
+|region| The AWS region the route table is in|
+
+#### Relationships
+- EC2RouteTable belongs to an AWSAccount.
+
+        ```
+        (AWSAccount)-[RESOURCE]->(EC2RouteTable)
+        ```
+
+- EC2RouteTable is associated with a VPC.
+
+        ```
+        (EC2RouteTable)-[MEMBER_OF_VPC]->(AWSVpc)
+        ```
+
+- EC2RouteTable contains EC2Routes.
+
+        ```
+        (EC2RouteTable)-[CONTAINS]->(EC2Route)
+        ```
+
+- EC2RouteTable has EC2RouteTableAssociations.
+
+        ```
+        (EC2RouteTable)-[HAS_ASSOCIATION]->(EC2RouteTableAssociation)
+        ```
+
+### EC2RouteTableAssociation
+
+Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RouteTableAssociation.html).
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The ID of the route table association|
+|route_table_association_id| The ID of the route table association (same as id)|
+|route_table_id| The ID of the route table|
+|subnet_id| The ID of the subnet (if associated with a subnet)|
+|gateway_id| The ID of the gateway (if associated with a gateway)|
+|main| Whether this is the main route table association|
+|association_state| The state of the association|
+|association_state_message| The message describing the state of the association|
+|region| The AWS region the association is in|
+
+#### Relationships
+- EC2RouteTableAssociation belongs to an AWSAccount.
+
+        ```
+        (AWSAccount)-[RESOURCE]->(EC2RouteTableAssociation)
+        ```
+
+- EC2RouteTableAssociation is associated with a subnet.
+
+        ```
+        (EC2RouteTableAssociation)-[ASSOCIATED_WITH]->(EC2Subnet)
+        ```
+
+- EC2RouteTableAssociation is associated with an internet gateway.
+
+        ```
+        (EC2RouteTableAssociation)-[ASSOCIATED_WITH]->(AWSInternetGateway)
+        ```
+
+### EC2Route
+
+Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Route.html).
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The ID of the route, formatted as `route_table_id|destination_cidr|target_components` where target components are prefixed with their type (e.g., gw-, nat-, pcx-) and joined with underscores.|
+|route_id| The ID of the route (same as id)|
+|destination_cidr_block| The IPv4 CIDR block used for the destination match|
+|destination_ipv6_cidr_block| The IPv6 CIDR block used for the destination match|
+|destination_prefix_list_id| The ID of the prefix list used for the destination match|
+|carrier_gateway_id| The ID of the carrier gateway|
+|core_network_arn| The Amazon Resource Name (ARN) of the core network|
+|egress_only_internet_gateway_id| The ID of the egress-only internet gateway|
+|gateway_id| The ID of the gateway|
+|instance_id| The ID of the instance|
+|instance_owner_id| The owner ID of the instance|
+|local_gateway_id| The ID of the local gateway|
+|nat_gateway_id| The ID of the NAT gateway|
+|network_interface_id| The ID of the network interface|
+|origin| How the route was created|
+|state| The state of the route|
+|transit_gateway_id| The ID of the transit gateway|
+|vpc_peering_connection_id| The ID of the VPC peering connection|
+|region| The AWS region the route is in|
+
+#### Relationships
+- EC2Route belongs to an AWSAccount.
+
+        ```
+        (AWSAccount)-[RESOURCE]->(EC2Route)
+        ```
+
+- EC2Route is contained in an EC2RouteTable.
+
+        ```
+        (EC2RouteTable)-[CONTAINS]->(EC2Route)
+        ```
