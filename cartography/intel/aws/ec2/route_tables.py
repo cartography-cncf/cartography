@@ -256,32 +256,5 @@ def _get_route_id(route_table_id: str, route: Dict[str, Any]) -> str:
     else:
         parts.append('')
 
-    # Add target information
-    target_parts = []
-
-    # Check for different types of targets
-    if 'GatewayId' in route and route['GatewayId']:
-        target_parts.append(f"gw-{route['GatewayId']}")
-    if 'InstanceId' in route and route['InstanceId']:
-        target_parts.append(f"i-{route['InstanceId']}")
-    if 'NetworkInterfaceId' in route and route['NetworkInterfaceId']:
-        target_parts.append(f"eni-{route['NetworkInterfaceId']}")
-    if 'NatGatewayId' in route and route['NatGatewayId']:
-        target_parts.append(f"nat-{route['NatGatewayId']}")
-    if 'TransitGatewayId' in route and route['TransitGatewayId']:
-        target_parts.append(f"tgw-{route['TransitGatewayId']}")
-    if 'LocalGatewayId' in route and route['LocalGatewayId']:
-        target_parts.append(f"lgw-{route['LocalGatewayId']}")
-    if 'CarrierGatewayId' in route and route['CarrierGatewayId']:
-        target_parts.append(f"cagw-{route['CarrierGatewayId']}")
-    if 'VpcPeeringConnectionId' in route and route['VpcPeeringConnectionId']:
-        target_parts.append(f"pcx-{route['VpcPeeringConnectionId']}")
-    if 'EgressOnlyInternetGatewayId' in route and route['EgressOnlyInternetGatewayId']:
-        target_parts.append(f"eigw-{route['EgressOnlyInternetGatewayId']}")
-
-    # Join target parts with underscores
-    target_str = '_'.join(target_parts) if target_parts else ''
-    parts.append(target_str)
-
     # Join all parts with dashes
     return '|'.join(parts)

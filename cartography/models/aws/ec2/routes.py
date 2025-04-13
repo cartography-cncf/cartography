@@ -13,11 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class RouteNodeProperties(CartographyNodeProperties):
-    """
-    Schema describing a Route.
-    """
     id: PropertyRef = PropertyRef('id')
-    route_id: PropertyRef = PropertyRef('RouteId', extra_index=True)
     carrier_gateway_id: PropertyRef = PropertyRef('carrier_gateway_id')
     core_network_arn: PropertyRef = PropertyRef('core_network_arn')
     destination_cidr_block: PropertyRef = PropertyRef('destination_cidr_block')
