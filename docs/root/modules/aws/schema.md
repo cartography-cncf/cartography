@@ -1282,6 +1282,12 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 
         (NetworkInterface)-[PRIVATE_IP_ADDRESS]->(EC2PrivateIp)
 
+- EC2RouteTableAssociation is associated with a subnet.
+
+        ```
+        (EC2RouteTableAssociation)-[TARGET_SUBNET]->(EC2Subnet)
+        ```
+
 
 ### AWSInternetGateway
 
@@ -1307,6 +1313,12 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
          ```
          (AWSAccount)-[RESOURCE]->(AWSInternetGateway)
          ```
+
+- EC2RouteTableAssociation is associated with an internet gateway.
+
+        ```
+        (EC2RouteTableAssociation)-[TARGET_IGW]->(AWSInternetGateway)
+        ```
 
 ### ECRRepository
 
@@ -3600,13 +3612,13 @@ Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.c
 - EC2RouteTableAssociation is associated with a subnet.
 
         ```
-        (EC2RouteTableAssociation)-[ASSOCIATED_WITH]->(EC2Subnet)
+        (EC2RouteTableAssociation)-[TARGET_SUBNET]->(EC2Subnet)
         ```
 
 - EC2RouteTableAssociation is associated with an internet gateway.
 
         ```
-        (EC2RouteTableAssociation)-[ASSOCIATED_WITH]->(AWSInternetGateway)
+        (EC2RouteTableAssociation)-[TARGET_IGW]->(AWSInternetGateway)
         ```
 
 ### EC2Route

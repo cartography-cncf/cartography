@@ -53,7 +53,7 @@ class RouteTableAssociationToSubnet(CartographyRelSchema):
         {'subnetid': PropertyRef('subnet_id')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "ASSOCIATED_WITH"
+    rel_label: str = "TARGET_SUBNET"
     properties: RouteTableAssociationToSubnetRelProperties = RouteTableAssociationToSubnetRelProperties()
 
 
@@ -69,7 +69,7 @@ class RouteTableAssociationToGateway(CartographyRelSchema):
         {'id': PropertyRef('gateway_id')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "ASSOCIATED_WITH"
+    rel_label: str = "TARGET_IGW"
     properties: RouteTableAssociationToGatewayRelProperties = RouteTableAssociationToGatewayRelProperties()
 
 

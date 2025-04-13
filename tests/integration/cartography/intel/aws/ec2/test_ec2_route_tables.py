@@ -153,7 +153,7 @@ def test_sync_route_tables(mock_get_route_tables, neo4j_session):
         'id',
         'EC2Subnet',
         'subnetid',
-        'ASSOCIATED_WITH',
+        'TARGET_SUBNET',
         rel_direction_right=True,
     ) == {
         ("rtbassoc-bbbbbbbbbbbbbbbbb", "subnet-0773409557644dca4"),
