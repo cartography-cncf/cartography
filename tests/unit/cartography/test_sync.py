@@ -3,13 +3,13 @@ import pytest
 from cartography.sync import build_default_sync
 from cartography.sync import build_sync
 from cartography.sync import parse_and_validate_selected_modules
-from cartography.sync import TOP_LEVEL_MODULES
+from cartography.sync import Sync
 
 
 def test_build_default_sync():
     sync = build_default_sync()
     # Use list because order matters
-    assert [name for name in sync._stages.keys()] == list(TOP_LEVEL_MODULES.keys())
+    assert [name for name in sync._stages.keys()] == list(Sync.list_intel_modules().keys())
 
 
 def test_build_sync():
