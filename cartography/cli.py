@@ -212,6 +212,30 @@ class CLI:
             ),
         )
         parser.add_argument(
+            '--entra-tenant-id',
+            type=str,
+            default=None,
+            help=(
+                'Entra Tenant Id for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
+            '--entra-client-id',
+            type=str,
+            default=None,
+            help=(
+                'Entra Client Id for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
+            '--entra-client-secret-env-var',
+            type=str,
+            default=None,
+            help=(
+                'The name of environment variable containing Entra Client Secret for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
             '--aws-requested-syncs',
             type=str,
             default=None,
