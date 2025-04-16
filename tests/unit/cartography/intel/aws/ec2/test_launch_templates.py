@@ -6,7 +6,7 @@ import botocore
 import pytest
 
 from cartography.intel.aws.ec2.launch_templates import get_launch_template_versions_by_template
-from cartography.intel.aws.ec2.launch_templates import sync_ec2_launch_templates
+from cartography.intel.aws.ec2.launch_templates import transform_launch_templates
 from tests.utils import unwrapper
 
 FAKE_AWS_ACCOUNT_ID = '123456789012'
@@ -126,144 +126,101 @@ def test_get_launch_template_versions_empty_input():
     assert result_versions == []
 
 
-@patch('cartography.intel.aws.ec2.launch_templates.logger')
-@patch('cartography.intel.aws.ec2.launch_templates.cleanup')
-@patch('cartography.intel.aws.ec2.launch_templates.load_launch_template_versions')
-@patch('cartography.intel.aws.ec2.launch_templates.transform_launch_template_versions')
-@patch('cartography.intel.aws.ec2.launch_templates.load_launch_templates')
-@patch('cartography.intel.aws.ec2.launch_templates.transform_launch_templates')
-@patch('cartography.intel.aws.ec2.launch_templates.get_launch_template_versions')
-@patch('cartography.intel.aws.ec2.launch_templates.get_launch_templates')
-def test_sync_ec2_launch_templates_success(
-    mock_get_templates, mock_get_versions, mock_transform_templates, mock_load_templates,
-    mock_transform_versions, mock_load_versions, mock_cleanup, mock_logger,
-):
+def test_transform_launch_templates_no_matching_ids():
     """
-    Test sync function runs successfully, calling downstream functions with expected data.
+    Test that the function returns an empty list when no template IDs match version IDs.
     """
     # Arrange
-    mock_neo4j_session = MagicMock()
-    mock_boto3_session = MagicMock()
-    regions = [FAKE_REGION]
-
-    # Mock return values
-    templates_raw = [{'LaunchTemplateId': 'lt-1', 'DefaultVersionNumber': 1, 'CreateTime': MOCK_CREATE_TIME_DT}]
-    versions_raw = [{
-        'LaunchTemplateId': 'lt-1',
-        'VersionNumber': 1,
-        'CreateTime': MOCK_CREATE_TIME_DT,
-    }]
-    found_templates_filtered = templates_raw
-
-    # Transformed data needs CreateTime as string timestamp
-    templates_transformed = [
-        {'LaunchTemplateId': 'lt-1', 'DefaultVersionNumber': 1, 'CreateTime': MOCK_CREATE_TIME_STR},
+    templates = [
+        {
+            'LaunchTemplateId': 'lt-123456',
+            'CreateTime': MOCK_CREATE_TIME_DT,
+            'LaunchTemplateName': 'template1',
+        },
     ]
-    # Transformed data needs Id, CreateTime as string timestamp, and flattened LaunchTemplateData fields
-    versions_transformed = [{
-        'LaunchTemplateId': 'lt-1',
-        'VersionNumber': 1,
-        'Id': 'lt-1-1',
-        'CreateTime': MOCK_CREATE_TIME_STR,
-    }]
-
-    mock_get_templates.return_value = templates_raw
-    mock_get_versions.return_value = versions_raw
-    mock_transform_templates.return_value = templates_transformed
-    mock_transform_versions.return_value = versions_transformed
+    versions = [
+        {
+            'LaunchTemplateId': 'lt-789012',
+            'VersionNumber': 1,
+        },
+    ]
 
     # Act
-    sync_ec2_launch_templates(
-        mock_neo4j_session, mock_boto3_session, regions, FAKE_AWS_ACCOUNT_ID,
-        FAKE_UPDATE_TAG, COMMON_JOB_PARAMS,
-    )
+    result = transform_launch_templates(templates, versions)
 
     # Assert
-    mock_get_templates.assert_called_once_with(mock_boto3_session, FAKE_REGION)
-    mock_get_versions.assert_called_once_with(mock_boto3_session, FAKE_REGION, templates_raw)
-    mock_transform_templates.assert_called_once_with(found_templates_filtered)
-    mock_load_templates.assert_called_once_with(
-        mock_neo4j_session, templates_transformed, FAKE_REGION, FAKE_AWS_ACCOUNT_ID, FAKE_UPDATE_TAG,
-    )
-    mock_transform_versions.assert_called_once_with(versions_raw)
-    mock_load_versions.assert_called_once_with(
-        mock_neo4j_session, versions_transformed, FAKE_REGION, FAKE_AWS_ACCOUNT_ID, FAKE_UPDATE_TAG,
-    )
-    mock_cleanup.assert_called_once_with(mock_neo4j_session, COMMON_JOB_PARAMS)
-    mock_logger.info.assert_called_once_with(
-        f"Syncing launch templates for region '{FAKE_REGION}' in account '{FAKE_AWS_ACCOUNT_ID}'.",
-    )
+    assert result == []
 
 
-@patch('cartography.intel.aws.ec2.launch_templates.logger')
-@patch('cartography.intel.aws.ec2.launch_templates.cleanup')
-@patch('cartography.intel.aws.ec2.launch_templates.load_launch_template_versions')
-@patch('cartography.intel.aws.ec2.launch_templates.transform_launch_template_versions')
-@patch('cartography.intel.aws.ec2.launch_templates.load_launch_templates')
-@patch('cartography.intel.aws.ec2.launch_templates.transform_launch_templates')
-@patch('cartography.intel.aws.ec2.launch_templates.get_launch_template_versions')
-@patch('cartography.intel.aws.ec2.launch_templates.get_launch_templates')
-def test_sync_ec2_launch_templates_template_not_found(
-    mock_get_templates, mock_get_versions, mock_transform_templates, mock_load_templates,
-    mock_transform_versions, mock_load_versions, mock_cleanup, mock_logger,
-):
+def test_transform_launch_templates_multiple_matches():
     """
-    Test sync function when a template is not found during version fetch,
-    ensuring it's filtered out before transform/load.
+    Test that the function correctly transforms multiple templates with matching version IDs.
     """
     # Arrange
-    mock_neo4j_session = MagicMock()
-    mock_boto3_session = MagicMock()
-    regions = [FAKE_REGION]
-
-    # Mock return values
-    templates_raw = [
-        {'LaunchTemplateId': 'lt-not-found', 'DefaultVersionNumber': 1, 'CreateTime': MOCK_CREATE_TIME_DT},
-        {'LaunchTemplateId': 'lt-1', 'DefaultVersionNumber': 1, 'CreateTime': MOCK_CREATE_TIME_DT},
+    templates = [
+        {
+            'LaunchTemplateId': 'lt-123456',
+            'CreateTime': MOCK_CREATE_TIME_DT,
+            'LaunchTemplateName': 'template1',
+        },
+        {
+            'LaunchTemplateId': 'lt-789012',
+            'CreateTime': MOCK_CREATE_TIME_DT,
+            'LaunchTemplateName': 'template2',
+        },
     ]
-    versions_raw = [{
-        'LaunchTemplateId': 'lt-1',
-        'VersionNumber': 1,
-        'CreateTime': MOCK_CREATE_TIME_DT,
-    }]
-    found_templates_filtered = [
-        {'LaunchTemplateId': 'lt-1', 'DefaultVersionNumber': 1, 'CreateTime': MOCK_CREATE_TIME_DT},
+    versions = [
+        {
+            'LaunchTemplateId': 'lt-123456',
+            'VersionNumber': 1,
+        },
+        {
+            'LaunchTemplateId': 'lt-789012',
+            'VersionNumber': 1,
+        },
     ]
-    templates_transformed = [
-        {'LaunchTemplateId': 'lt-1', 'DefaultVersionNumber': 1, 'CreateTime': MOCK_CREATE_TIME_STR},
-    ]
-    versions_transformed = [{
-        'LaunchTemplateId': 'lt-1',
-        'VersionNumber': 1,
-        'Id': 'lt-1-1',
-        'CreateTime': MOCK_CREATE_TIME_STR,
-    }]
-    mock_get_templates.return_value = templates_raw
-    mock_get_versions.return_value = versions_raw
-    mock_transform_templates.return_value = templates_transformed
-    mock_transform_versions.return_value = versions_transformed
 
     # Act
-    sync_ec2_launch_templates(
-        mock_neo4j_session, mock_boto3_session, regions, FAKE_AWS_ACCOUNT_ID,
-        FAKE_UPDATE_TAG, COMMON_JOB_PARAMS,
-    )
+    result = transform_launch_templates(templates, versions)
 
     # Assert
-    mock_get_templates.assert_called_once_with(mock_boto3_session, FAKE_REGION)
-    mock_get_versions.assert_called_once_with(mock_boto3_session, FAKE_REGION, templates_raw)
+    assert len(result) == 2
+    assert result[0]['LaunchTemplateId'] == 'lt-123456'
+    assert result[0]['CreateTime'] == MOCK_CREATE_TIME_STR
+    assert result[1]['LaunchTemplateId'] == 'lt-789012'
+    assert result[1]['CreateTime'] == MOCK_CREATE_TIME_STR
 
-    # Crucially, assert transform/load are called with the *filtered* lists
-    mock_transform_templates.assert_called_once_with(found_templates_filtered)
-    mock_load_templates.assert_called_once_with(
-        mock_neo4j_session, templates_transformed, FAKE_REGION, FAKE_AWS_ACCOUNT_ID, FAKE_UPDATE_TAG,
-    )
-    mock_transform_versions.assert_called_once_with(versions_raw)
-    mock_load_versions.assert_called_once_with(
-        mock_neo4j_session, versions_transformed, FAKE_REGION, FAKE_AWS_ACCOUNT_ID, FAKE_UPDATE_TAG,
-    )
 
-    mock_cleanup.assert_called_once_with(mock_neo4j_session, COMMON_JOB_PARAMS)
-    mock_logger.info.assert_called_once_with(
-        f"Syncing launch templates for region '{FAKE_REGION}' in account '{FAKE_AWS_ACCOUNT_ID}'.",
-    )
+def test_transform_launch_templates_preserves_other_fields():
+    """
+    Test that the function preserves all other fields in the template.
+    """
+    # Arrange
+    templates = [
+        {
+            'LaunchTemplateId': 'lt-123456',
+            'CreateTime': MOCK_CREATE_TIME_DT,
+            'LaunchTemplateName': 'template1',
+            'CreatedBy': 'user1',
+            'DefaultVersionNumber': 1,
+            'LatestVersionNumber': 2,
+        },
+    ]
+    versions = [
+        {
+            'LaunchTemplateId': 'lt-123456',
+            'VersionNumber': 1,
+        },
+    ]
+
+    # Act
+    result = transform_launch_templates(templates, versions)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0]['LaunchTemplateId'] == 'lt-123456'
+    assert result[0]['LaunchTemplateName'] == 'template1'
+    assert result[0]['CreatedBy'] == 'user1'
+    assert result[0]['DefaultVersionNumber'] == 1
+    assert result[0]['LatestVersionNumber'] == 2
+    assert result[0]['CreateTime'] == MOCK_CREATE_TIME_STR

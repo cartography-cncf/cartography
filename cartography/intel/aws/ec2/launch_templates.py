@@ -69,10 +69,15 @@ def get_launch_template_versions_by_template(
     return template_versions
 
 
-def transform_launch_templates(templates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_launch_templates(templates: list[dict[str, Any]], versions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    valid_template_ids = {v['LaunchTemplateId'] for v in versions}
     result: list[dict[str, Any]] = []
     for template in templates:
+        if template['LaunchTemplateId'] not in valid_template_ids:
+            continue
+
         current = template.copy()
+        # Convert CreateTime to timestamp string
         current['CreateTime'] = str(int(current['CreateTime'].timestamp()))
         result.append(current)
     return result
@@ -166,13 +171,8 @@ def sync_ec2_launch_templates(
         templates = get_launch_templates(boto3_session, region)
         versions = get_launch_template_versions(boto3_session, region, templates)
 
-        # Ensure we only load templates for which we found versions
-        # (handles templates deleted between the two API calls)
-        valid_template_ids = {v['LaunchTemplateId'] for v in versions}
-        existing_templates = [t for t in templates if t['LaunchTemplateId'] in valid_template_ids]
-
         # Transform and load the templates that have versions
-        transformed_templates = transform_launch_templates(existing_templates)
+        transformed_templates = transform_launch_templates(templates, versions)
         load_launch_templates(neo4j_session, transformed_templates, region, current_aws_account_id, update_tag)
 
         # Transform and load the versions
