@@ -28,10 +28,24 @@ async def get_tenant(client: GraphServiceClient) -> Organization:
 @timeit
 async def get_users(client: GraphServiceClient) -> list[User]:
     """
-    Get all users from Microsoft Graph API
+    Get all users from Microsoft Graph API with pagination support
     """
-    users = await client.users.get()
-    return users.value
+    all_users: list[User] = []
+    request_configuration = client.users.UsersRequestBuilderGetRequestConfiguration(
+        query_parameters=client.users.UsersRequestBuilderGetQueryParameters(
+            # Request more items per page to reduce number of API calls
+            top=999,
+        ),
+    )
+
+    page = await client.users.get(request_configuration=request_configuration)
+    while page:
+        all_users.extend(page.value)
+        if not page.odata_next_link:
+            break
+        page = await client.users.with_url(page.odata_next_link).get()
+
+    return all_users
 
 
 @timeit

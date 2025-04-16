@@ -822,5 +822,9 @@ def main(argv=None):
     logging.getLogger('botocore').setLevel(logging.WARNING)
     logging.getLogger('googleapiclient').setLevel(logging.WARNING)
     logging.getLogger('neo4j').setLevel(logging.WARNING)
+    logging.getLogger('azure.identity').setLevel(logging.WARNING)
+    logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
+
     argv = argv if argv is not None else sys.argv[1:]
     sys.exit(CLI(prog='cartography').main(argv))
