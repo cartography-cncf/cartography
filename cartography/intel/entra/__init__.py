@@ -3,8 +3,8 @@ import logging
 
 import neo4j
 
-import cartography.intel.entra.users
 from cartography.config import Config
+from cartography.intel.entra.users import sync_entra_users
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     asyncio.run(
-        cartography.intel.entra.users.sync_entra_users(
+        sync_entra_users(
             neo4j_session,
             config.entra_tenant_id,
             config.entra_client_id,

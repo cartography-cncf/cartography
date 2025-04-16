@@ -78,6 +78,7 @@ dev = [
     "pytest-mock",
     "pytest-cov==6.1.1",
     "pytest-rerunfailures",
+    "pytest-asyncio",
     "types-PyYAML",
     "types-requests<2.32.0.20250329",
 ]

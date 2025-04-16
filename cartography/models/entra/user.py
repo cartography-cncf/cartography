@@ -17,7 +17,8 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     display_name: PropertyRef = PropertyRef('display_name')
     given_name: PropertyRef = PropertyRef('given_name')
     surname: PropertyRef = PropertyRef('surname')
-    mail: PropertyRef = PropertyRef('mail')
+    # The underlying datatype calls this 'mail' but everything else in cartography uses 'email'
+    email: PropertyRef = PropertyRef('mail', extra_index=True)
     other_mails: PropertyRef = PropertyRef('other_mails')
     preferred_language: PropertyRef = PropertyRef('preferred_language')
     preferred_name: PropertyRef = PropertyRef('preferred_name')
@@ -28,8 +29,6 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     sign_in_sessions_valid_from_date_time: PropertyRef = PropertyRef('sign_in_sessions_valid_from_date_time')
     security_identifier: PropertyRef = PropertyRef('security_identifier')
     account_enabled: PropertyRef = PropertyRef('account_enabled')
-    age_group: PropertyRef = PropertyRef('age_group')
-    business_phones: PropertyRef = PropertyRef('business_phones')
     city: PropertyRef = PropertyRef('city')
     company_name: PropertyRef = PropertyRef('company_name')
     consent_provided_for_minor: PropertyRef = PropertyRef('consent_provided_for_minor')
@@ -72,7 +71,7 @@ class EntraTenantToUserRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {'id': PropertyRef('TENANT_ID', set_in_kwargs=True)},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: EntraTenantToUserRelProperties = EntraTenantToUserRelProperties()
 

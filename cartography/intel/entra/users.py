@@ -1,13 +1,11 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
-from msgraph.generated.models import Organization
-from msgraph.generated.models import User
+from msgraph.generated.models.organization import Organization
+from msgraph.generated.models.user import User
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -19,46 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-async def sync_entra_users(
-    neo4j_session: neo4j.Session,
-    tenant_id: str,
-    client_id: str,
-    client_secret: str,
-    update_tag: int,
-    common_job_parameters: Dict[str, Any],
-) -> None:
-    """
-    Sync Entra users and tenant information
-    :param neo4j_session: Neo4J session for database interface
-    :param tenant_id: Entra tenant ID
-    :param client_id: Entra application client ID
-    :param client_secret: Entra application client secret
-    :param update_tag: Timestamp used to determine data freshness
-    :param common_job_parameters: dict of other job parameters to carry to sub-jobs
-    :return: None
-    """
-    # Initialize Graph client
-    credential = ClientSecretCredential(
-        tenant_id=tenant_id,
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-    client = GraphServiceClient(credential, scopes=['https://graph.microsoft.com/.default'])
-
-    # Get tenant information
-    tenant = await get_tenant(client)
-    # Get users
-    users = await get_users(client)
-    # Transform data
-    transformed_users = transform(users)
-    # Load data into Neo4j
-    load_data(neo4j_session, tenant, transformed_users, tenant_id, update_tag)
-    # Cleanup old data
-    cleanup(neo4j_session, common_job_parameters)
-
-
-@timeit
-async def get_tenant(client: GraphServiceClient) -> Dict[str, Any]:
+async def get_tenant(client: GraphServiceClient) -> dict[str, Any]:
     """
     Get tenant information from Microsoft Graph API
     """
@@ -67,7 +26,7 @@ async def get_tenant(client: GraphServiceClient) -> Dict[str, Any]:
 
 
 @timeit
-async def get_users(client: GraphServiceClient) -> List[Dict[str, Any]]:
+async def get_users(client: GraphServiceClient) -> list[dict[str, Any]]:
     """
     Get all users from Microsoft Graph API
     """
@@ -76,13 +35,12 @@ async def get_users(client: GraphServiceClient) -> List[Dict[str, Any]]:
 
 
 @timeit
-def transform(users: list[User]) -> list[dict[str, Any]]:
+def transform_users(users: list[User]) -> list[dict[str, Any]]:
     """
     Transform the API response into the format expected by our schema
     """
     result: list[dict[str, Any]] = []
     for user in users:
-        # Ensure all required fields are present
         transformed_user = {
             'id': user.id,
             'user_principal_name': user.user_principal_name,
@@ -134,42 +92,51 @@ def transform(users: list[User]) -> list[dict[str, Any]]:
     return result
 
 
-def load_data(
+@timeit
+def transform_tenant(tenant: Organization, tenant_id: str) -> dict[str, Any]:
+    """
+    Transform the tenant data into the format expected by our schema
+    """
+    return {
+        'id': tenant_id,
+        'created_date_time': tenant.created_date_time,
+        'default_usage_location': tenant.default_usage_location,
+        'deleted_date_time': tenant.deleted_date_time,
+        'display_name': tenant.display_name,
+        'marketing_notification_emails': tenant.marketing_notification_emails,
+        'mobile_device_management_authority': tenant.mobile_device_management_authority,
+        'on_premises_last_sync_date_time': tenant.on_premises_last_sync_date_time,
+        'on_premises_sync_enabled': tenant.on_premises_sync_enabled,
+        'partner_tenant_type': tenant.partner_tenant_type,
+        'postal_code': tenant.postal_code,
+        'preferred_language': tenant.preferred_language,
+        'state': tenant.state,
+        'street': tenant.street,
+        'tenant_type': tenant.tenant_type,
+    }
+
+
+@timeit
+def load_tenant(
     neo4j_session: neo4j.Session,
-    # TODO make this a dict or at least make it have the standard load signature
-    tenant: Organization,
+    tenant: dict[str, Any],
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        EntraTenantSchema(),
+        [tenant],
+        lastupdated=update_tag,
+    )
+
+
+@timeit
+def load_users(
+    neo4j_session: neo4j.Session,
     users: list[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Load the transformed data into Neo4j
-    """
-    # Load tenant
-    load(
-        neo4j_session,
-        EntraTenantSchema(),
-        [{
-            'id': tenant_id,
-            'created_date_time': tenant.created_date_time,
-            'default_usage_location': tenant.default_usage_location,
-            'deleted_date_time': tenant.deleted_date_time,
-            'display_name': tenant.display_name,
-            'marketing_notification_emails': tenant.marketing_notification_emails,
-            'mobile_device_management_authority': tenant.mobile_device_management_authority,
-            'on_premises_last_sync_date_time': tenant.on_premises_last_sync_date_time,
-            'on_premises_sync_enabled': tenant.on_premises_sync_enabled,
-            'partner_tenant_type': tenant.partner_tenant_type,
-            'postal_code': tenant.postal_code,
-            'preferred_language': tenant.preferred_language,
-            'state': tenant.state,
-            'street': tenant.street,
-            'tenant_type': tenant.tenant_type,
-        }],
-        lastupdated=update_tag,
-    )
-
-    # Load users
     load(
         neo4j_session,
         EntraUserSchema(),
@@ -179,8 +146,45 @@ def load_data(
     )
 
 
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    """
-    Clean up old data
-    """
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     GraphJob.from_node_schema(EntraUserSchema(), common_job_parameters).run(neo4j_session)
+
+
+@timeit
+async def sync_entra_users(
+    neo4j_session: neo4j.Session,
+    tenant_id: str,
+    client_id: str,
+    client_secret: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Sync Entra users and tenant information
+    :param neo4j_session: Neo4J session for database interface
+    :param tenant_id: Entra tenant ID
+    :param client_id: Entra application client ID
+    :param client_secret: Entra application client secret
+    :param update_tag: Timestamp used to determine data freshness
+    :param common_job_parameters: dict of other job parameters to carry to sub-jobs
+    :return: None
+    """
+    # Initialize Graph client
+    credential = ClientSecretCredential(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+    client = GraphServiceClient(credential, scopes=['https://graph.microsoft.com/.default'])
+
+    # Get tenant information
+    tenant = await get_tenant(client)
+    users = await get_users(client)
+
+    transformed_users = transform_users(users)
+    transformed_tenant = transform_tenant(tenant, tenant_id)
+
+    load_tenant(neo4j_session, transformed_tenant, update_tag)
+    load_users(neo4j_session, transformed_users, tenant_id, update_tag)
+
+    cleanup(neo4j_session, common_job_parameters)
