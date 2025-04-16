@@ -170,3 +170,67 @@ LOAD_BALANCER_DATA = [
 #         ]
 #     },
 # ],
+
+DESCRIBE_LOAD_BALANCERS = {
+    'LoadBalancerDescriptions': [
+        {
+            'LoadBalancerName': 'test-lb-1',
+            'DNSName': 'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
+            'CanonicalHostedZoneName': 'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
+            'CanonicalHostedZoneNameID': 'Z35SXDOTRQ7X7K',
+            'Scheme': 'internet-facing',
+            'CreatedTime': '2024-01-01T00:00:00.000Z',
+            'SecurityGroups': ['SOME_GROUP_ID_2', 'THIS_IS_A_SG_ID'],
+            'Instances': [
+                {'InstanceId': 'i-01'},
+                {'InstanceId': 'i-02'},
+            ],
+            'SourceSecurityGroup': {
+                'GroupName': 'default',
+                'OwnerAlias': 'abcdef',
+            },
+            'ListenerDescriptions': [
+                {
+                    'Listener': {
+                        'LoadBalancerPort': 80,
+                        'Protocol': 'HTTP',
+                        'InstancePort': 8080,
+                        'InstanceProtocol': 'HTTP',
+                    },
+                    'PolicyNames': ['test-policy-1'],
+                },
+                {
+                    'Listener': {
+                        'LoadBalancerPort': 443,
+                        'Protocol': 'HTTPS',
+                        'InstancePort': 8443,
+                        'InstanceProtocol': 'HTTPS',
+                    },
+                    'PolicyNames': ['test-policy-2'],
+                },
+            ],
+        },
+        {
+            'LoadBalancerName': 'test-lb-2',
+            'DNSName': 'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
+            'CanonicalHostedZoneName': 'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
+            'CanonicalHostedZoneNameID': 'Z35SXDOTRQ7X7K',
+            'Scheme': 'internal',
+            'CreatedTime': '2024-01-02T00:00:00.000Z',
+            'Instances': [
+                {'InstanceId': 'i-03'},
+            ],
+            'ListenerDescriptions': [
+                {
+                    'Listener': {
+                        'LoadBalancerPort': 8080,
+                        'Protocol': 'TCP',
+                        'InstancePort': 8080,
+                        'InstanceProtocol': 'TCP',
+                    },
+                    'PolicyNames': ['test-policy-3'],
+                },
+            ],
+        },
+    ],
+}

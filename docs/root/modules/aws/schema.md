@@ -1645,7 +1645,7 @@ Representation of a generic network endpoint.
 
 ### Endpoint::ELBListener
 
-Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_LoadBalancer.html).  Here, an ELBListener is a more specific type of Endpoint.  Here'a [good introduction](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/Welcome.html).
+Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_Listener.html).  Here, an ELBListener is a more specific type of Endpoint.  Here'a [good introduction](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/Welcome.html).
 
 | Field | Description |
 |-------|-------------|
@@ -1665,6 +1665,12 @@ Representation of an AWS Elastic Load Balancer [Listener](https://docs.aws.amazo
 
         ```
         (LoadBalancer)-[ELB_LISTENER]->(ELBListener)
+        ```
+
+- A ELBListener is associated with an AWS Account.
+
+        ```
+        (AWSAccount)-[RESOURCE]->(ELBListener)
         ```
 
 ### Endpoint::ELBV2Listener
@@ -1760,7 +1766,7 @@ An IpPermissionInbound node is a specific type of IpRule.  It represents a gener
 
 ### LoadBalancer
 
-Represents an AWS Elastic Load Balancer.  See [spec for details](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).
+Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).  See [spec for details](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).
 
 | Field | Description |
 |-------|-------------|
@@ -1785,7 +1791,7 @@ Represents an AWS Elastic Load Balancer.  See [spec for details](https://docs.aw
         (LoadBalancer)-[EXPOSE]->(EC2Instance)
         ```
 
-- LoadBalancers can have [source security groups](https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-security-groups.html) configured.
+- LoadBalancers can have [source security groups](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_SourceSecurityGroup.html) configured.
 
         ```
         (LoadBalancer)-[SOURCE_SECURITY_GROUP]->(EC2SecurityGroup)
