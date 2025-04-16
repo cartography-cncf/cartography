@@ -151,6 +151,7 @@ def load_users(
     tenant_id: str,
     update_tag: int,
 ) -> None:
+    logger.info(f"Loading {len(users)} Entra users")
     load(
         neo4j_session,
         EntraUserSchema(),
