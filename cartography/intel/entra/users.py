@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-async def get_tenant(client: GraphServiceClient) -> dict[str, Any]:
+async def get_tenant(client: GraphServiceClient) -> Organization:
     """
     Get tenant information from Microsoft Graph API
     """
@@ -26,7 +26,7 @@ async def get_tenant(client: GraphServiceClient) -> dict[str, Any]:
 
 
 @timeit
-async def get_users(client: GraphServiceClient) -> list[dict[str, Any]]:
+async def get_users(client: GraphServiceClient) -> list[User]:
     """
     Get all users from Microsoft Graph API
     """
