@@ -1320,6 +1320,13 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
         (EC2RouteTableAssociation)-[ASSOCIATED_WITH_IGW_FOR_INGRESS]->(AWSInternetGateway)
         ```
 
+- EC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
+
+        ```
+        (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
+        ```
+
+
 ### ECRRepository
 
 Representation of an AWS Elastic Container Registry [Repository](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_Repository.html).
@@ -3659,4 +3666,10 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 
         ```
         (EC2RouteTable)-[CONTAINS]->(EC2Route)
+        ```
+
+- EC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
+
+        ```
+        (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
         ```

@@ -220,3 +220,17 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     ) == {
         ("rtbassoc-ddddddddddddddddd", "igw-013cb"),
     }
+
+    # Assert route table to internet gateway relationships
+    assert check_rels(
+        neo4j_session,
+        'EC2Route',
+        'id',
+        'AWSInternetGateway',
+        'id',
+        'ROUTES_TO_GATEWAY',
+        rel_direction_right=True,
+    ) == {
+        ("rtb-aaaaaaaaaaaaaaaaa|0.0.0.0/0", "igw-0387"),
+        ("rtb-bbbbbbbbbbbbbbbbb|0.0.0.0/0", "igw-0387"),
+    }
