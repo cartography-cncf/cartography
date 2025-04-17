@@ -23,12 +23,6 @@ TEST_VPCS = [
             'CidrBlockState': {'State': 'associated'},
         }],
         'IsDefault': False,
-        'Tags': [
-            {'Key': 'Environment', 'Value': 'staging'},
-            {'Key': 'Customer', 'Value': 'subimage'},
-            {'Key': 'Name', 'Value': 'subimage-vpc'},
-            {'Key': 'ManagedBy', 'Value': 'terraform'},
-        ],
         'BlockPublicAccessStates': {'InternetGatewayBlockMode': 'off'},
         'VpcId': 'vpc-0f510',
         'State': 'available',
