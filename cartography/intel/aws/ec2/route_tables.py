@@ -16,30 +16,45 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def _get_route_id(route_table_id: str, route: dict[str, Any]) -> str:
+_ROUTE_TARGET_KEYS = [
+    'DestinationCidrBlock',
+    'DestinationIpv6CidrBlock',
+    'GatewayId',
+    'InstanceId',
+    'NatGatewayId',
+    'TransitGatewayId',
+    'LocalGatewayId',
+    'CarrierGatewayId',
+    'NetworkInterfaceId',
+    'VpcPeeringConnectionId',
+    'EgressOnlyInternetGatewayId',
+    'CoreNetworkArn',
+]
+
+
+def _get_route_id_and_target(route_table_id: str, route: dict[str, Any]) -> tuple[str, str | None]:
     """
-    Generate a unique identifier for an AWS EC2 route.
+    Generate a unique identifier for an AWS EC2 route and return the target of the route
+    regardless of its type.
 
     Args:
         route_table_id: The ID of the route table this route belongs to
         route: The route data from AWS API
 
     Returns:
-        A string that uniquely identifies the route
+        A tuple containing the unique identifier for the route and the target of the route
     """
     # Start with the route table ID
     parts = [route_table_id]
 
-    # Add destination CIDR block (IPv4 or IPv6)
-    if 'DestinationCidrBlock' in route:
-        parts.append(route['DestinationCidrBlock'])
-    elif 'DestinationIpv6CidrBlock' in route:
-        parts.append(route['DestinationIpv6CidrBlock'])
-    else:
-        parts.append('')
+    target = None
+    for key in _ROUTE_TARGET_KEYS:
+        if key in route:
+            parts.append(route[key])
+            target = route[key]
+            break
 
-    # Join all parts with '|'
-    return '|'.join(parts)
+    return '|'.join(parts), target
 
 
 @timeit
@@ -56,7 +71,7 @@ def get_route_tables(boto3_session: boto3.session.Session, region: str) -> list[
 def _transform_route_table_associations(
         route_table_id: str,
         associations: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     """
     Transform route table association data into a format suitable for cartography ingestion.
 
@@ -65,10 +80,21 @@ def _transform_route_table_associations(
         associations: List of association data from AWS API
 
     Returns:
-        List of transformed association data
+        1. List of transformed association data
+        2. Boolean indicating if the association is the main association, meaning that the route table is the main
+        route table for the VPC
     """
     transformed = []
+    is_main = False
     for association in associations:
+        target = 'main'
+        if association.get('SubnetId'):
+            target = association['SubnetId']
+        elif association.get('GatewayId'):
+            target = association['GatewayId']
+        else:
+            is_main = True
+
         transformed_association = {
             'id': association['RouteTableAssociationId'],
             'route_table_id': route_table_id,
@@ -77,9 +103,10 @@ def _transform_route_table_associations(
             'main': association.get('Main', False),
             'association_state': association.get('AssociationState', {}).get('State'),
             'association_state_message': association.get('AssociationState', {}).get('Message'),
+            '_target': target,
         }
         transformed.append(transformed_association)
-    return transformed
+    return transformed, is_main
 
 
 def _transform_route_table_routes(route_table_id: str, routes: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -95,8 +122,10 @@ def _transform_route_table_routes(route_table_id: str, routes: list[dict[str, An
     """
     transformed = []
     for route in routes:
+        route_id, target = _get_route_id_and_target(route_table_id, route)
+
         transformed_route = {
-            'id': _get_route_id(route_table_id, route),
+            'id': route_id,
             'route_table_id': route_table_id,
             'destination_cidr_block': route.get('DestinationCidrBlock'),
             'destination_ipv6_cidr_block': route.get('DestinationIpv6CidrBlock'),
@@ -114,6 +143,7 @@ def _transform_route_table_routes(route_table_id: str, routes: list[dict[str, An
             'core_network_arn': route.get('CoreNetworkArn'),
             'destination_prefix_list_id': route.get('DestinationPrefixListId'),
             'egress_only_internet_gateway_id': route.get('EgressOnlyInternetGatewayId'),
+            '_target': target,
         }
         transformed.append(transformed_route)
     return transformed
@@ -144,6 +174,13 @@ def transform_route_table_data(
             current_routes = _transform_route_table_routes(route_table_id, rt['Routes'])
             route_data.extend(current_routes)
 
+        # If the rt has a association marked with main=True, then it is the main route table for the VPC.
+        is_main = False
+        # Transform associations
+        if rt.get('Associations'):
+            associations, is_main = _transform_route_table_associations(route_table_id, rt['Associations'])
+            association_data.extend(associations)
+
         transformed_rt = {
             'id': route_table_id,
             'route_table_id': route_table_id,
@@ -153,12 +190,9 @@ def transform_route_table_data(
             'RouteTableAssociationIds': [assoc['RouteTableAssociationId'] for assoc in rt.get('Associations', [])],
             'RouteIds': [route['id'] for route in current_routes],
             'tags': rt.get('Tags', []),
+            'main': is_main,
         }
         transformed_tables.append(transformed_rt)
-
-        # Transform associations
-        if rt.get('Associations'):
-            association_data.extend(_transform_route_table_associations(route_table_id, rt['Associations']))
 
     return transformed_tables, association_data, route_data
 

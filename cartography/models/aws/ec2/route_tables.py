@@ -22,6 +22,7 @@ class RouteTableNodeProperties(CartographyNodeProperties):
     vpc_id: PropertyRef = PropertyRef('VpcId')
     region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    main: PropertyRef = PropertyRef('main')
 
 
 @dataclass(frozen=True)

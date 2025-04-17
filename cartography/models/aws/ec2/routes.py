@@ -32,6 +32,7 @@ class RouteNodeProperties(CartographyNodeProperties):
     vpc_peering_connection_id: PropertyRef = PropertyRef('vpc_peering_connection_id')
     region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    target: PropertyRef = PropertyRef('_target')
 
 
 @dataclass(frozen=True)

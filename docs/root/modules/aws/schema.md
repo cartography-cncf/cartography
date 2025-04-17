@@ -3562,6 +3562,7 @@ Representation of an AWS [EC2 Route Table](https://docs.aws.amazon.com/AWSEC2/la
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The ID of the route table|
 |route_table_id| The ID of the route table (same as id)|
+|main|If True, this route table is the main route table for VPC, meaning that any subnets in this VPC not explicitly associated with another route table will use this route table.|
 |vpc_id| The ID of the VPC the route table is associated with|
 |owner_id| The AWS account ID of the route table owner|
 |region| The AWS region the route table is in|
@@ -3600,6 +3601,7 @@ Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.c
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The ID of the route table association|
+|target||
 |route_table_association_id| The ID of the route table association (same as id)|
 |route_table_id| The ID of the route table|
 |subnet_id| The ID of the subnet (if associated with a subnet)|
@@ -3637,6 +3639,7 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The ID of the route, formatted as `route_table_id|destination_cidr|target_components` where target components are prefixed with their type (e.g., gw-, nat-, pcx-) and joined with underscores.|
 |route_id| The ID of the route (same as id)|
+|target|The ID of the route association's target -- either 'Main', or a subnet ID or a gateway ID. This is an invented field that we created to have an ID because the underlying EC2 route association is a "union" data structure of many different possible targets.|
 |destination_cidr_block| The IPv4 CIDR block used for the destination match|
 |destination_ipv6_cidr_block| The IPv6 CIDR block used for the destination match|
 |destination_prefix_list_id| The ID of the prefix list used for the destination match|
