@@ -10,6 +10,15 @@ DESCRIBE_ROUTE_TABLES = {
                         "State": "associated",
                     },
                 },
+                {
+                    "Main": False,
+                    "RouteTableAssociationId": "rtbassoc-ddddddddddddddddd",
+                    "RouteTableId": "rtb-aaaaaaaaaaaaaaaaa",
+                    "GatewayId": "igw-013cb",
+                    "AssociationState": {
+                        "State": "associated",
+                    },
+                },
             ],
             "PropagatingVgws": [],
             "RouteTableId": "rtb-aaaaaaaaaaaaaaaaa",
@@ -22,7 +31,7 @@ DESCRIBE_ROUTE_TABLES = {
                 },
                 {
                     "DestinationCidrBlock": "0.0.0.0/0",
-                    "GatewayId": "igw-aaaaaaaaaaaaaaaaa",
+                    "GatewayId": "igw-0387",
                     "Origin": "CreateRoute",
                     "State": "active",
                 },
@@ -65,7 +74,7 @@ DESCRIBE_ROUTE_TABLES = {
                 },
                 {
                     "DestinationCidrBlock": "0.0.0.0/0",
-                    "GatewayId": "igw-bbbbbbbbbbbbbbbbb",
+                    "GatewayId": "igw-0387",
                     "Origin": "CreateRoute",
                     "State": "active",
                 },

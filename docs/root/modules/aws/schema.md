@@ -1314,10 +1314,10 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
          (AWSAccount)-[RESOURCE]->(AWSInternetGateway)
          ```
 
-- EC2RouteTableAssociation is associated with an internet gateway.
+- EC2RouteTableAssociation is associated with an internet gateway. In this configuration, AWS uses this given route table to decide how to route packets that arrive through the given IGW.
 
         ```
-        (EC2RouteTableAssociation)-[TARGET_IGW]->(AWSInternetGateway)
+        (EC2RouteTableAssociation)-[ASSOCIATED_WITH_IGW_FOR_INGRESS]->(AWSInternetGateway)
         ```
 
 ### ECRRepository
@@ -3615,11 +3615,10 @@ Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.c
         (EC2RouteTableAssociation)-[TARGET_SUBNET]->(EC2Subnet)
         ```
 
-- EC2RouteTableAssociation is associated with an internet gateway.
+- EC2RouteTableAssociation is associated with an internet gateway. In this configuration, AWS uses this given route table to decide how to route packets that arrive through the given IGW.
 
         ```
-        (EC2RouteTableAssociation)-[TARGET_IGW]->(AWSInternetGateway)
-        ```
+        (EC2RouteTableAssociation)-[ASSOCIATED_WITH_IGW_FOR_INGRESS]->(AWSInternetGateway)
 
 ### EC2Route
 

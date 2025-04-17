@@ -69,7 +69,7 @@ class RouteTableAssociationToIgw(CartographyRelSchema):
         {'id': PropertyRef('gateway_id')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "TARGET_IGW"
+    rel_label: str = "ASSOCIATED_WITH_IGW_FOR_INGRESS"
     properties: RouteTableAssociationToIgwRelProperties = RouteTableAssociationToIgwRelProperties()
 
 

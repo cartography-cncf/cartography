@@ -92,6 +92,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         ("rtbassoc-aaaaaaaaaaaaaaaaa", "rtbassoc-aaaaaaaaaaaaaaaaa"),
         ("rtbassoc-bbbbbbbbbbbbbbbbb", "rtbassoc-bbbbbbbbbbbbbbbbb"),
         ("rtbassoc-ccccccccccccccccc", "rtbassoc-ccccccccccccccccc"),
+        ("rtbassoc-ddddddddddddddddd", "rtbassoc-ddddddddddddddddd"),
     }
 
     # Assert routes exist
@@ -129,6 +130,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         rel_direction_right=True,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "rtbassoc-aaaaaaaaaaaaaaaaa"),
+        ("rtb-aaaaaaaaaaaaaaaaa", "rtbassoc-ddddddddddddddddd"),
         ("rtb-bbbbbbbbbbbbbbbbb", "rtbassoc-bbbbbbbbbbbbbbbbb"),
         ("rtb-bbbbbbbbbbbbbbbbb", "rtbassoc-ccccccccccccccccc"),
     }
@@ -176,6 +178,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         ("rtbassoc-aaaaaaaaaaaaaaaaa", TEST_ACCOUNT_ID),
         ("rtbassoc-bbbbbbbbbbbbbbbbb", TEST_ACCOUNT_ID),
         ("rtbassoc-ccccccccccccccccc", TEST_ACCOUNT_ID),
+        ("rtbassoc-ddddddddddddddddd", TEST_ACCOUNT_ID),
     }
 
     # Assert route table association to subnet relationships
@@ -203,4 +206,17 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "vpc-038cf"),
         ("rtb-bbbbbbbbbbbbbbbbb", "vpc-0f510"),
+    }
+
+    # Assert route table associations to internet gateway relationships
+    assert check_rels(
+        neo4j_session,
+        'EC2RouteTableAssociation',
+        'id',
+        'AWSInternetGateway',
+        'id',
+        'ASSOCIATED_WITH_IGW_FOR_INGRESS',
+        rel_direction_right=True,
+    ) == {
+        ("rtbassoc-ddddddddddddddddd", "igw-013cb"),
     }
