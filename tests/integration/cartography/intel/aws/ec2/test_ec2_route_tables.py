@@ -2,10 +2,14 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2.route_tables
+from cartography.intel.aws.ec2.internet_gateways import sync_internet_gateways
 from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from cartography.intel.aws.ec2.subnets import load_subnets
+from cartography.intel.aws.ec2.vpc import sync_vpc
+from tests.data.aws.ec2.internet_gateways import TEST_INTERNET_GATEWAYS
 from tests.data.aws.ec2.route_tables import DESCRIBE_ROUTE_TABLES
 from tests.data.aws.ec2.subnets import DESCRIBE_SUBNETS
+from tests.data.aws.ec2.vpcs import TEST_VPCS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -26,11 +30,21 @@ def _create_fake_subnets(neo4j_session):
 
 
 @patch.object(
+    cartography.intel.aws.ec2.vpc,
+    'get_ec2_vpcs',
+    return_value=TEST_VPCS,
+)
+@patch.object(
+    cartography.intel.aws.ec2.internet_gateways,
+    'get_internet_gateways',
+    return_value=TEST_INTERNET_GATEWAYS,
+)
+@patch.object(
     cartography.intel.aws.ec2.route_tables,
     'get_route_tables',
     return_value=DESCRIBE_ROUTE_TABLES['RouteTables'],
 )
-def test_sync_route_tables(mock_get_route_tables, neo4j_session):
+def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tables, neo4j_session):
     """
     Ensure that route tables, routes, and associations get loaded and have their key fields
     """
@@ -38,6 +52,24 @@ def test_sync_route_tables(mock_get_route_tables, neo4j_session):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _create_fake_subnets(neo4j_session)
+    # Add in fake VPC data
+    sync_vpc(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+    )
+    # Add in fake internet gateway data
+    sync_internet_gateways(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+    )
 
     # Act
     sync_route_tables(
@@ -158,4 +190,17 @@ def test_sync_route_tables(mock_get_route_tables, neo4j_session):
     ) == {
         ("rtbassoc-bbbbbbbbbbbbbbbbb", "subnet-0773409557644dca4"),
         ("rtbassoc-ccccccccccccccccc", "subnet-0fa9c8fa7cb241479"),
+    }
+    # Assert route table to VPC relationships
+    assert check_rels(
+        neo4j_session,
+        'EC2RouteTable',
+        'id',
+        'AWSVpc',
+        'id',
+        'MEMBER_OF_VPC',
+        rel_direction_right=True,
+    ) == {
+        ("rtb-aaaaaaaaaaaaaaaaa", "vpc-038cf"),
+        ("rtb-bbbbbbbbbbbbbbbbb", "vpc-0f510"),
     }

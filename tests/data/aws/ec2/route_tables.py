@@ -28,8 +28,8 @@ DESCRIBE_ROUTE_TABLES = {
                 },
             ],
             "Tags": [],
-            "VpcId": "vpc-aaaaaaaaaaaaaaaaa",
-            "OwnerId": "000000000000",
+            "VpcId": "vpc-038cf",
+            "OwnerId": "12345",
         },
         {
             "Associations": [
@@ -70,8 +70,8 @@ DESCRIBE_ROUTE_TABLES = {
                     "State": "active",
                 },
             ],
-            "VpcId": "vpc-bbbbbbbbbbbbbbbbb",
-            "OwnerId": "000000000000",
+            "VpcId": "vpc-0f510",
+            "OwnerId": "12345",
         },
     ],
 }
