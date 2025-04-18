@@ -37,7 +37,7 @@ class K8sClient:
 
 
 def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
-    contexts, _ = config.list_kube_config_contexts(kubeconfig)
+    contexts, _ = config.list_kube_config_contexts(kubeconfig)  # returns a tuple of (all contexts, current context)
     if not contexts:
         raise KubernetesContextNotFound("No context found in kubeconfig.")
     clients = list()
