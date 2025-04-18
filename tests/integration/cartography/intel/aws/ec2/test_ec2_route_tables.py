@@ -110,7 +110,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         'id',
         'EC2Route',
         'id',
-        'CONTAINS',
+        'ROUTE',
         rel_direction_right=True,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "rtb-aaaaaaaaaaaaaaaaa|172.31.0.0/16"),
@@ -126,7 +126,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         'id',
         'EC2RouteTableAssociation',
         'id',
-        'HAS_ASSOCIATION',
+        'ASSOCIATION',
         rel_direction_right=True,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "rtbassoc-aaaaaaaaaaaaaaaaa"),
@@ -188,7 +188,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         'id',
         'EC2Subnet',
         'subnetid',
-        'TARGET_SUBNET',
+        'ASSOCIATED_SUBNET',
         rel_direction_right=True,
     ) == {
         ("rtbassoc-bbbbbbbbbbbbbbbbb", "subnet-0773409557644dca4"),
@@ -201,7 +201,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         'id',
         'AWSVpc',
         'id',
-        'MEMBER_OF_VPC',
+        'MEMBER_OF_AWS_VPC',
         rel_direction_right=True,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "vpc-038cf"),
@@ -215,7 +215,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         'id',
         'AWSInternetGateway',
         'id',
-        'ASSOCIATED_WITH_IGW_FOR_INGRESS',
+        'ASSOCIATED_IGW_FOR_INGRESS',
         rel_direction_right=True,
     ) == {
         ("rtbassoc-ddddddddddddddddd", "igw-013cb"),

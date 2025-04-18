@@ -1285,7 +1285,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 - EC2RouteTableAssociation is associated with a subnet.
 
         ```
-        (EC2RouteTableAssociation)-[TARGET_SUBNET]->(EC2Subnet)
+        (EC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(EC2Subnet)
         ```
 
 
@@ -1317,7 +1317,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 - EC2RouteTableAssociation is associated with an internet gateway. In this configuration, AWS uses this given route table to decide how to route packets that arrive through the given IGW.
 
         ```
-        (EC2RouteTableAssociation)-[ASSOCIATED_WITH_IGW_FOR_INGRESS]->(AWSInternetGateway)
+        (EC2RouteTableAssociation)-[ASSOCIATED_IGW_FOR_INGRESS]->(AWSInternetGateway)
         ```
 
 - EC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
@@ -3577,19 +3577,19 @@ Representation of an AWS [EC2 Route Table](https://docs.aws.amazon.com/AWSEC2/la
 - EC2RouteTable is associated with a VPC.
 
         ```
-        (EC2RouteTable)-[MEMBER_OF_VPC]->(AWSVpc)
+        (EC2RouteTable)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
         ```
 
 - EC2RouteTable contains EC2Routes.
 
         ```
-        (EC2RouteTable)-[CONTAINS]->(EC2Route)
+        (EC2RouteTable)-[ROUTE]->(EC2Route)
         ```
 
 - EC2RouteTable has EC2RouteTableAssociations.
 
         ```
-        (EC2RouteTable)-[HAS_ASSOCIATION]->(EC2RouteTableAssociation)
+        (EC2RouteTable)-[ASSOCIATION]->(EC2RouteTableAssociation)
         ```
 
 ### EC2RouteTableAssociation
@@ -3621,13 +3621,13 @@ Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.c
 - EC2RouteTableAssociation is associated with a subnet.
 
         ```
-        (EC2RouteTableAssociation)-[TARGET_SUBNET]->(EC2Subnet)
+        (EC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(EC2Subnet)
         ```
 
 - EC2RouteTableAssociation is associated with an internet gateway. In this configuration, AWS uses this given route table to decide how to route packets that arrive through the given IGW.
 
         ```
-        (EC2RouteTableAssociation)-[ASSOCIATED_WITH_IGW_FOR_INGRESS]->(AWSInternetGateway)
+        (EC2RouteTableAssociation)-[ASSOCIATED_IGW_FOR_INGRESS]->(AWSInternetGateway)
 
 ### EC2Route
 
@@ -3668,7 +3668,7 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 - EC2Route is contained in an EC2RouteTable.
 
         ```
-        (EC2RouteTable)-[CONTAINS]->(EC2Route)
+        (EC2RouteTable)-[ROUTE]->(EC2Route)
         ```
 
 - EC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".

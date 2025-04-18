@@ -53,7 +53,7 @@ class RouteTableToVpc(CartographyRelSchema):
         {'id': PropertyRef('vpc_id')},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "MEMBER_OF_VPC"
+    rel_label: str = "MEMBER_OF_AWS_VPC"
     properties: RouteTableToVpcRelProperties = RouteTableToVpcRelProperties()
 
 
@@ -69,7 +69,7 @@ class RouteTableToRoute(CartographyRelSchema):
         {'id': PropertyRef('RouteIds', one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "ROUTE"
     properties: RouteTableToRouteRelProperties = RouteTableToRouteRelProperties()
 
 
@@ -85,7 +85,7 @@ class RouteTableToAssociation(CartographyRelSchema):
         {'id': PropertyRef('RouteTableAssociationIds', one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_ASSOCIATION"
+    rel_label: str = "ASSOCIATION"
     properties: RouteTableToAssociationRelProperties = RouteTableToAssociationRelProperties()
 
 
