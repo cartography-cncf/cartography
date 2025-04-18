@@ -16,22 +16,6 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-_ROUTE_TARGET_KEYS = [
-    'DestinationCidrBlock',
-    'DestinationIpv6CidrBlock',
-    'GatewayId',
-    'InstanceId',
-    'NatGatewayId',
-    'TransitGatewayId',
-    'LocalGatewayId',
-    'CarrierGatewayId',
-    'NetworkInterfaceId',
-    'VpcPeeringConnectionId',
-    'EgressOnlyInternetGatewayId',
-    'CoreNetworkArn',
-]
-
-
 def _get_route_id_and_target(route_table_id: str, route: dict[str, Any]) -> tuple[str, str | None]:
     """
     Generate a unique identifier for an AWS EC2 route and return the target of the route
@@ -44,15 +28,40 @@ def _get_route_id_and_target(route_table_id: str, route: dict[str, Any]) -> tupl
     Returns:
         A tuple containing the unique identifier for the route and the target of the route
     """
+    route_target_keys = [
+        'DestinationCidrBlock',
+        'DestinationIpv6CidrBlock',
+        'GatewayId',
+        'InstanceId',
+        'NatGatewayId',
+        'TransitGatewayId',
+        'LocalGatewayId',
+        'CarrierGatewayId',
+        'NetworkInterfaceId',
+        'VpcPeeringConnectionId',
+        'EgressOnlyInternetGatewayId',
+        'CoreNetworkArn',
+    ]
+
     # Start with the route table ID
     parts = [route_table_id]
-
     target = None
-    for key in _ROUTE_TARGET_KEYS:
+    found_target = False
+
+    for key in route_target_keys:
+        # Each route is a "union"-like data structure, so only one of the keys will be present.
         if key in route:
             parts.append(route[key])
             target = route[key]
+            found_target = True
             break
+
+    if not found_target:
+        logger.warning(
+            f"No target found for route in {route_table_id}. Please review the route and file an issue to "
+            "https://github.com/cartography-cncf/cartography/issues sharing what the route table looks like "
+            "so that we can update the available keys.",
+        )
 
     return '|'.join(parts), target
 
@@ -87,13 +96,13 @@ def _transform_route_table_associations(
     transformed = []
     is_main = False
     for association in associations:
-        target = 'main'
         if association.get('SubnetId'):
             target = association['SubnetId']
         elif association.get('GatewayId'):
             target = association['GatewayId']
         else:
             is_main = True
+            target = 'main'
 
         transformed_association = {
             'id': association['RouteTableAssociationId'],
