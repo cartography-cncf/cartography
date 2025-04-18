@@ -13,26 +13,27 @@ class KubernetesContextNotFound(Exception):
 
 
 class K8CoreApiClient(CoreV1Api):
-    def __init__(self, name: str, api_client: ApiClient = None) -> None:
+    def __init__(self, name: str, config_file: str, api_client: ApiClient = None) -> None:
         self.name = name
         if not api_client:
-            api_client = config.new_client_from_config(context=name)
+            api_client = config.new_client_from_config(context=name, config_file=config_file)
         super().__init__(api_client=api_client)
 
 
 class K8NetworkingApiClient(NetworkingV1Api):
-    def __init__(self, name: str, api_client: ApiClient = None) -> None:
+    def __init__(self, name: str, config_file: str, api_client: ApiClient = None) -> None:
         self.name = name
         if not api_client:
-            api_client = config.new_client_from_config(context=name)
+            api_client = config.new_client_from_config(context=name, config_file=config_file)
         super().__init__(api_client=api_client)
 
 
 class K8sClient:
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, config_file: str) -> None:
         self.name = name
-        self.core = K8CoreApiClient(self.name)
-        self.networking = K8NetworkingApiClient(self.name)
+        self.config_file = config_file
+        self.core = K8CoreApiClient(self.name, self.config_file)
+        self.networking = K8NetworkingApiClient(self.name, self.config_file)
 
 
 def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
@@ -41,7 +42,7 @@ def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
         raise KubernetesContextNotFound("No context found in kubeconfig.")
     clients = list()
     for context in contexts:
-        clients.append(K8sClient(context["name"]))
+        clients.append(K8sClient(context["name"], kubeconfig))
     return clients
 
 
