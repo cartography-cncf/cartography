@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.config import Config
 from cartography.intel.entra.users import sync_entra_users
+from cartography.intel.entra.ou import sync_entra_ous
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -31,13 +32,28 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "TENANT_ID": config.entra_tenant_id,
     }
 
-    asyncio.run(
-        sync_entra_users(
+
+    async def main():
+        # Run user sync
+        await sync_entra_users(
             neo4j_session,
             config.entra_tenant_id,
             config.entra_client_id,
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
-        ),
-    )
+        )
+        
+        # Run OU sync
+        await sync_entra_ous(
+            neo4j_session,
+            config.entra_tenant_id,
+            config.entra_client_id,
+            config.entra_client_secret,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+    # Execute both syncs in sequence
+    asyncio.run(main())
+    
