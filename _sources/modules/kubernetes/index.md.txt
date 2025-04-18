@@ -1,0 +1,6 @@
+# Kubernetes
+
+```{toctree}
+config
+schema
+```
