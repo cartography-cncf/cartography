@@ -5,6 +5,8 @@ from msgraph.generated.models.administrative_unit import AdministrativeUnit
 
 # Use the same test tenant ID for consistency
 TEST_TENANT_ID = '02b2b7cc-fb03-4324-bf6b-eb207b39c479'
+TEST_CLIENT_ID = '02b2b7cc-fb03-4324-bf6b-eb207b39c479'
+TEST_CLIENT_SECRET = 'abcdefghijklmnopqrstuvwxyz'
 
 MOCK_ENTRA_OUS = [
     AdministrativeUnit(

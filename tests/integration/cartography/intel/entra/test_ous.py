@@ -7,6 +7,8 @@ import cartography.intel.entra.ou
 from cartography.intel.entra.ou import sync_entra_ous
 from tests.data.entra.ou import MOCK_ENTRA_OUS
 from tests.data.entra.ou import TEST_TENANT_ID
+from tests.data.entra.ou import TEST_CLIENT_ID
+from tests.data.entra.ou import TEST_CLIENT_SECRET
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -26,13 +28,15 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
     """
     # Arrange
     mock_tenant_id = TEST_TENANT_ID
+    mock_client_id = TEST_CLIENT_ID
+    mock_client_secret = TEST_CLIENT_SECRET
 
     # Act
     await sync_entra_ous(
         neo4j_session,
         mock_tenant_id,
-        'test-client-id',
-        'test-client-secret',
+        mock_client_id,
+        mock_client_secret,
         TEST_UPDATE_TAG,
         {'UPDATE_TAG': TEST_UPDATE_TAG, 'TENANT_ID': mock_tenant_id},
     )
