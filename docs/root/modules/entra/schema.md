@@ -32,7 +32,7 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 |user_principal_name | User Principal Name (UPN) of the user|
 |display_name | Display name of the user|
 |given_name | Given (first) name of the user|
-|surname | Surname (last name) of the user|
+|surname | Surname (last name) of the   user|
 |email | Primary email address of the user|
 |other_mails | Additional email addresses of the user|
 |preferred_language | Preferred language of the user|
@@ -72,6 +72,20 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 |on_premises_sync_enabled | Whether on-premises directory sync is enabled|
 |on_premises_user_principal_name | User Principal Name in on-premises directory|
 
+### EntraOU
+Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/administrativeunit-get?view=graph-rest-1.0&tabs=http).
+
+|Field | Description|
+|-------|-------------|
+|id | Entra Administrative Unit (OU) ID (GUID)|
+|display_name | Display name of the administrative unit|
+|description| Description of the administrative unit|
+|membership_type| Membership type ("Assigned" for static or "Dynamic for rule-based)|
+|visibility| Visibility setting ("Public" or "Private")|
+|is_member_management_restricted | Whether member management is restricted|
+|deleted_date_time | Date and time when the administrative unit was soft-deleted |
+
+
 #### Relationships
 
 - All Entra users are linked to an Entra Tenant
@@ -79,3 +93,4 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
     ```cypher
     (:EntraUser)-[:RESOURCE]->(:EntraTenant)
     ```
+
