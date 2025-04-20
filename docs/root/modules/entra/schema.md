@@ -32,7 +32,7 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 |user_principal_name | User Principal Name (UPN) of the user|
 |display_name | Display name of the user|
 |given_name | Given (first) name of the user|
-|surname | Surname (last name) of the   user|
+|surname | Surname (last name) of the user|
 |email | Primary email address of the user|
 |other_mails | Additional email addresses of the user|
 |preferred_language | Preferred language of the user|
@@ -92,5 +92,11 @@ Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/admi
 
     ```cypher
     (:EntraUser)-[:RESOURCE]->(:EntraTenant)
+    ```
+
+- All Entra OUs are linked to an Entra Tenant
+
+    ```cypher
+    (:EntraOU)-[:RESOURCE]->(:EntraTenant)
     ```
 

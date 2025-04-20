@@ -29,12 +29,12 @@ async def get_entra_ous(client: GraphServiceClient) -> list[AdministrativeUnit]:
     while request:
         response = await request.get()
         all_units.extend(response.value)
-        request = response.odata_next_link.copy() if response.odata_next_link else None
+        request = response.odata_next_link if response.odata_next_link else None
 
     return all_units
 
 
-@timeit
+
 def transform_ous(units: list[AdministrativeUnit], tenant_id: str) -> list[dict[str, Any]]:
     """
     Transform the API response into the format expected by our schema
@@ -68,7 +68,9 @@ def load_ous(
         EntraOUSchema(),
         units,
         lastupdated=update_tag,
-        **common_job_parameters,
+        TENANT_ID=common_job_parameters["TENANT_ID"],
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        
     )
 
 

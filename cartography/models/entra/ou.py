@@ -35,9 +35,9 @@ class EntraOUToTenantRel(CartographyRelSchema):
         {'id': PropertyRef('TENANT_ID', set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "BELONGS_TO_TENANT"
+    rel_label: str = "RESOURCE"
     properties: EntraTenantToOURelProperties = EntraTenantToOURelProperties()
-    rel_params: str = "tenant_id: $TENANT_ID"  
+     
 
 
 @dataclass(frozen=True)

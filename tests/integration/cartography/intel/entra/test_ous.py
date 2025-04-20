@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock
 from unittest.mock import patch
 
 import pytest
+import neo4j
 
 import cartography.intel.entra.ou
 from cartography.intel.entra.ou import sync_entra_ous
@@ -11,6 +12,9 @@ from tests.data.entra.ou import TEST_CLIENT_ID
 from tests.data.entra.ou import TEST_CLIENT_SECRET
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
+from datetime import timezone
+from neo4j.time import DateTime
+
 
 TEST_UPDATE_TAG = 1234567890
 
@@ -61,25 +65,31 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
         neo4j_session,
         'EntraOU', 'id',
         'EntraTenant', 'id',
-        'BELONGS_TO_TENANT',
+        'RESOURCE',
         rel_direction_right=False,
     ) == expected_rels
 
+
     # Assert full OU properties
-    query = """
-    MATCH (ou:EntraOU {id: 'a8f9e4b2-1234-5678-9abc-def012345678'})
-    RETURN ou.description, ou.membership_type, ou.is_member_management_restricted
-    """
-    result = neo4j_session.run(query)
-    expected_properties = [
-        ('Handles financial operations and budgeting', 'Dynamic', False),
-    ]
-    assert [tuple(record.values()) for record in result] == expected_properties
+    expected_properties = {
+        ('a8f9e4b2-1234-5678-9abc-def012345678', 'Handles financial operations and budgeting', 'Dynamic', False),
+        ('b6c5d3e4-5678-90ab-cdef-1234567890ab', 'Manages IT infrastructure and support', 'Assigned', True),
+    }
+    assert check_nodes(
+        neo4j_session,
+        'EntraOU',
+        ['id','description', 'membership_type', 'is_member_management_restricted'],   
+    ) == expected_properties
+
 
     # Assert soft-deleted OU is present
-    query = """
-    MATCH (ou:EntraOU {id: 'b6c5d3e4-5678-90ab-cdef-1234567890ab'})
-    RETURN ou.deleted_date_time IS NOT NULL
-    """
-    result = neo4j_session.run(query)
-    assert [record[0] for record in result] == [True]
+    expected_properties = {
+        ('a8f9e4b2-1234-5678-9abc-def012345678', None),
+        ('b6c5d3e4-5678-90ab-cdef-1234567890ab', DateTime(2025, 3, 1, 12, 0, 0, 0, tzinfo=timezone.utc)),
+    }
+    assert check_nodes(
+        neo4j_session,
+        'EntraOU',
+        ['id', 'deleted_date_time'], 
+    ) == expected_properties
+
