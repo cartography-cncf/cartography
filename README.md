@@ -70,6 +70,24 @@ Here are some points that can help you decide if adopting Cartography is a good 
 ### Trying out Cartography on a test machine
 Start [here](https://cartography-cncf.github.io/cartography/install.html) to set up a test graph and get data into it.
 
+### Neo4j credentials
+
+Cartography connects to a Neo4j database using a username and password.
+
+By default, Neo4j uses:
+
+- **Username**: `neo4j`
+- **Password**: `neo4j` (you will be prompted to change it on first login)
+
+You can override the password by setting the `NEO4J_PASSWORD` environment variable, or by using the `--neo4j-password-env-var` CLI flag. For example:
+
+```bash
+export NEO4J_PASSWORD='your-password'
+cartography --neo4j-uri bolt://localhost:7687 --neo4j-user neo4j --neo4j-password-env-var NEO4J_PASSWORD
+```
+
+You can find more connection options in the [official Neo4j documentation](https://neo4j.com/docs/api/python-driver/current/).
+
 ### Setting up Cartography in production
 When you are ready to try it in production, read [here](https://cartography-cncf.github.io/cartography/ops.html) for recommendations on getting cartography spun up in your environment.
 
