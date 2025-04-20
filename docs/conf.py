@@ -144,6 +144,8 @@ html_context = {
     "source_type": "github",
     "source_user": "cartography-cncf",
     "source_repo": "cartography",
+    "source_version": "master",
+    "source_docs_path": "/docs/root/",
 }
 # html_sidebars = {
 #     "**": ["globaltoc.html", "localtoc.html", "searchbox.html"],
