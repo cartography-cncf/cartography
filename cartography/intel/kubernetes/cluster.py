@@ -1,11 +1,15 @@
 import logging
-from typing import Dict, List, Any
+from typing import Any
+from typing import Dict
+from typing import List
+
 import neo4j
 
-from cartography.graph.job import GraphJob
-from cartography.intel.kubernetes.util import K8sClient, get_epoch
-from cartography.models.kubernetes.cluster import KubernetesClusterSchema
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import K8sClient
+from cartography.models.kubernetes.cluster import KubernetesClusterSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -54,14 +58,14 @@ def transform_kubernetes_cluster(client: K8sClient, namespace: Dict, version: Di
 def load_kubernetes_cluster(
         neo4j_session: neo4j.Session,
         cluster_data: List[Dict[str, Any]],
-        update_tag: int
+        update_tag: int,
 ) -> None:
     logger.info("Loading '{}' Kubernetes cluster into graph".format(cluster_data[0].get("name")))
     load(
         neo4j_session,
         KubernetesClusterSchema(),
         cluster_data,
-        lastupdated=update_tag
+        lastupdated=update_tag,
     )
 
 
