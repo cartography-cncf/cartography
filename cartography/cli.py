@@ -156,7 +156,8 @@ class CLI:
         )
         parser.add_argument(
             '--aws-regions',
-            action='store_true',
+            type=str,
+            default=None,
             help=(
                 '[EXPERIMENTAL!] Comma-separated list of AWS regions to sync. Example 1: "us-east-1,us-east-2" for US '
                 'East 1 and 2. Note that this syncs the same regions in ALL accounts. '
