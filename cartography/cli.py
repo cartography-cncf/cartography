@@ -8,6 +8,7 @@ from typing import Optional
 import cartography.config
 import cartography.sync
 import cartography.util
+from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
 
@@ -151,6 +152,14 @@ class CLI:
                 'account you want to sync and use the AWS_CONFIG_FILE environment variable to point to that config '
                 'file (see https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html). cartography '
                 'respects the AWS CLI/SDK environment variables and does not override them.'
+            ),
+        )
+        parser.add_argument(
+            '--aws-regions',
+            action='store_true',
+            help=(
+                '[EXPERIMENTAL!] Comma-separated list of AWS regions to sync. Example 1: "us-east-1,us-east-2" for US '
+                'East 1 and 2. Note that this syncs the same regions in ALL accounts.'
             ),
         )
         parser.add_argument(
@@ -628,6 +637,11 @@ class CLI:
         if config.aws_requested_syncs:
             # No need to store the returned value; we're using this for input validation.
             parse_and_validate_aws_requested_syncs(config.aws_requested_syncs)
+
+        # AWS regions
+        if config.aws_regions:
+            # No need to store the returned value; we're using this for input validation.
+            parse_and_validate_aws_regions(config.aws_regions)
 
         # Azure config
         if config.azure_sp_auth and config.azure_client_secret_env_var:

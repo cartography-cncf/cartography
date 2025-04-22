@@ -19,3 +19,17 @@ def parse_and_validate_aws_requested_syncs(aws_requested_syncs: str) -> List[str
                 f'Our full list of valid values is: {valid_syncs}.',
             )
     return validated_resources
+
+
+def parse_and_validate_aws_regions(aws_regions: str) -> list[str]:
+    """
+    Parse and validate a comma-separated string of AWS regions.
+    :param aws_regions: Comma-separated string of AWS regions
+    :return: A validated list of AWS regions
+    """
+    validated_regions: List[str] = []
+    for region in aws_regions.split(','):
+        region = region.strip()
+        if region:
+            validated_regions.append(region)
+    return validated_regions

@@ -133,6 +133,7 @@ class Config:
         selected_modules=None,
         update_tag=None,
         aws_sync_all_profiles=False,
+        aws_regions=None,
         aws_best_effort_mode=False,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
@@ -194,6 +195,7 @@ class Config:
         self.selected_modules = selected_modules
         self.update_tag = update_tag
         self.aws_sync_all_profiles = aws_sync_all_profiles
+        self.aws_regions = aws_regions
         self.aws_best_effort_mode = aws_best_effort_mode
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
