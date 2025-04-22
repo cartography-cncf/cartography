@@ -9,7 +9,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import K8sClient
-from cartography.models.kubernetes.namespace import KubernetesNamespaceSchema
+from cartography.models.kubernetes.namespaces import KubernetesNamespaceSchema
 from cartography.stats import get_stats_client
 from cartography.util import timeit
 

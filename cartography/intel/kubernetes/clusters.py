@@ -9,7 +9,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import K8sClient
-from cartography.models.kubernetes.cluster import KubernetesClusterSchema
+from cartography.models.kubernetes.clusters import KubernetesClusterSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
