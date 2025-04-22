@@ -159,7 +159,11 @@ class CLI:
             action='store_true',
             help=(
                 '[EXPERIMENTAL!] Comma-separated list of AWS regions to sync. Example 1: "us-east-1,us-east-2" for US '
-                'East 1 and 2. Note that this syncs the same regions in ALL accounts.'
+                'East 1 and 2. Note that this syncs the same regions in ALL accounts. '
+                'CAUTION: if you have already synced in assets in a previous sync, if that previous sync includes '
+                'regions that are not in the list of regions you are specifying here, those assets will be deleted. '
+                'This is because cartography\'s cleanup jobs use "lastupdated" and "account id" as freshness keys '
+                'and not regions.'
             ),
         )
         parser.add_argument(
