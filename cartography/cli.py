@@ -257,6 +257,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY instead.'
                 'Entra Tenant Id for Service Principal Authentication.'
             ),
         )
@@ -265,6 +266,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY instead.'
                 'Entra Client Id for Service Principal Authentication.'
             ),
         )
@@ -273,17 +275,8 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY instead.'
                 'The name of environment variable containing Entra Client Secret for Service Principal Authentication.'
-            ),
-        )
-        parser.add_argument(
-            '--aws-requested-syncs',
-            type=str,
-            default=None,
-            help=(
-                'Comma-separated list of AWS resources to sync. Example 1: "ecr,s3,ec2:instance" for ECR, S3, and all '
-                'EC2 instance resources. See the full list available in source code at cartography.intel.aws.resources.'
-                ' If not specified, cartography by default will run all AWS sync modules available.'
             ),
         )
         parser.add_argument(

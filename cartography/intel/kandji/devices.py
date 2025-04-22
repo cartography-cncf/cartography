@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -12,6 +13,7 @@ from cartography.models.kandji.tenant import KandjiTenantSchema
 from cartography.settings import settings
 from cartography.util import timeit
 
+logger = logging.getLogger(__name__)
 
 # Connect and read timeouts as defined in settings;
 # see https://requests.readthedocs.io/en/master/user/advanced/#timeouts

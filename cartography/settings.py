@@ -258,8 +258,7 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
             logger.debug(e)
     # GSuite
     if config.gsuite_auth_method:
-        if show_deprecation_warning:
-            deprecated_config('gsuite_auth_method', 'CARTOGRAPHY_GSUITE__AUTH_METHOD')
+        # We do not raise a deprecation warning here because there is a default value for gsuite_auth_method
         settings.update({'gsuite': {'auth_method': config.gsuite_auth_method}})
     if config.gsuite_config:
         if show_deprecation_warning:
@@ -395,10 +394,10 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('entra_client_id', 'CARTOGRAPHY_ENTRA__CLIENT_ID')
         settings.update({'entra': {'client_id': config.entra_client_id}})
-    if hasattr(config, 'entra_client_secret'):
+    if config.entra_client_secret:
         if show_deprecation_warning:
             deprecated_config('entra_client_secret_env_var', 'CARTOGRAPHY_ENTRA__CLIENT_SECRET')
-        settings.update({'entra', {'client_secret': config.entra_client_secret}})
+        settings.update({'entra', {'client_secret': str(config.entra_client_secret)}})
     if config.entra_tenant_id:
         if show_deprecation_warning:
             deprecated_config('entra_tenant_id', 'CARTOGRAPHY_ENTRA__TENANT_ID')

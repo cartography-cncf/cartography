@@ -4,9 +4,11 @@ from typing import Optional
 
 import neo4j
 
-from cartography.settings import settings, populate_settings_from_config, check_module_settings
 from cartography.config import Config
 from cartography.intel.entra.users import sync_entra_users
+from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

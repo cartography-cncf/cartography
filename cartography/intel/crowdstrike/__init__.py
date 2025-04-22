@@ -1,6 +1,6 @@
 import logging
-from typing import Optional
 from typing import Any
+from typing import Optional
 
 import neo4j
 
@@ -9,10 +9,10 @@ from cartography.graph.job import GraphJob
 from cartography.intel.crowdstrike.endpoints import sync_hosts
 from cartography.intel.crowdstrike.spotlight import sync_vulnerabilities
 from cartography.intel.crowdstrike.util import get_authorization
+from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.settings import check_module_settings
 from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
-from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
