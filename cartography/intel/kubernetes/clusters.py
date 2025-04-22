@@ -70,7 +70,6 @@ def load_kubernetes_cluster(
 
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    # Cleanup logic can be added here if needed
     logger.debug("Running cleanup job for KubernetesCluster")
     cleanup_job = GraphJob.from_node_schema(KubernetesClusterSchema(), common_job_parameters)
     cleanup_job.run(neo4j_session)
