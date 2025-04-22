@@ -39,7 +39,7 @@ def get_kubernetes_cluster_version(client: K8sClient) -> Dict[str, Any]:
     return version
 
 
-def transform_kubernetes_cluster(client: K8sClient, namespace: Dict, version: Dict) -> List[Dict]:
+def transform_kubernetes_cluster(client: K8sClient, namespace: Dict, version: Dict) -> List[Dict[str, Any]]:
     cluster = dict()
     cluster["id"] = namespace.get("id")
     cluster["creation_timestamp"] = namespace.get("creation_timestamp")
@@ -71,20 +71,22 @@ def load_kubernetes_cluster(
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     # Cleanup logic can be added here if needed
-    logger.debug("Running Kubernetes cluster cleanup job.")
+    logger.debug("Running cleanup job for KubernetesCluster")
     cleanup_job = GraphJob.from_node_schema(KubernetesClusterSchema(), common_job_parameters)
     cleanup_job.run(neo4j_session)
 
 
+@timeit
 def sync_kubernetes_cluster(
         neo4j_session: neo4j.Session,
         client: K8sClient,
         update_tag: int,
         common_job_parameters: Dict[str, Any],
-) -> None:
+) -> Dict[str, Any]:
     namespace = get_kubernetes_cluster_namespace(client)
     version = get_kubernetes_cluster_version(client)
     cluster_info = transform_kubernetes_cluster(client, namespace, version)
 
     load_kubernetes_cluster(neo4j_session, cluster_info, update_tag)
     cleanup(neo4j_session, common_job_parameters)
+    return cluster_info[0]

@@ -12,12 +12,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesNamespaceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('id')
+    id: PropertyRef = PropertyRef('uid')
     name: PropertyRef = PropertyRef('name')
-    created_at: PropertyRef = PropertyRef('created_at')
-    deleted_at: PropertyRef = PropertyRef('deleted_at')
+    creation_timestamp: PropertyRef = PropertyRef('creation_timestamp')
+    deletion_timestamp: PropertyRef = PropertyRef('deletion_timestamp')
+    status_phase: PropertyRef = PropertyRef('status_phase')
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
-    firstseen: PropertyRef = PropertyRef('firstseen', set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -30,7 +30,7 @@ class KubernetesNamespaceToKubernetesClusterProperties(CartographyRelProperties)
 class KubernetesNamespaceToKubernetesCluster(CartographyRelSchema):
     target_node_label: str = 'KubernetesCluster'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('KubernetesCluster_ID', set_in_kwargs=True)},
+        {'id': PropertyRef('CLUSTER_ID', set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = 'RESOURCE'
@@ -38,7 +38,7 @@ class KubernetesNamespaceToKubernetesCluster(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class KubernetesNamespaceNodeSchema(CartographyNodeSchema):
+class KubernetesNamespaceSchema(CartographyNodeSchema):
     label: str = 'KubernetesNamespace'
     properties: KubernetesNamespaceNodeProperties = KubernetesNamespaceNodeProperties()
-    sub_resource_relationship = None
+    sub_resource_relationship: KubernetesNamespaceToKubernetesCluster = KubernetesNamespaceToKubernetesCluster()
