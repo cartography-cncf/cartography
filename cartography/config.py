@@ -23,6 +23,8 @@ class Config:
     :param selected_modules: Comma-separated list of cartography top-level modules to sync. Optional.
     :type update_tag: int
     :param update_tag: Update tag for a cartography sync run. Optional.
+    :type aws_regions: str
+    :param aws_regions: Comma-separated list of AWS regions to sync. Optional.
     :type aws_sync_all_profiles: bool
     :param aws_sync_all_profiles: If True, AWS sync will run for all non-default profiles in the AWS_CONFIG_FILE. If
         False (default), AWS sync will run using the default credentials only. Optional.
