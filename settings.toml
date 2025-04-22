@@ -45,6 +45,10 @@ database="neo4j"
 #api_key=""
 #api_secret=""
 #api_hostname=""
+[entra]
+#client_id=""
+#client_secret=""
+#tenant_id=""
 [github]
 #org1.token=""
 #org1.url=""

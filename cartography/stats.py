@@ -97,7 +97,7 @@ def set_stats_client(stats_client: StatsClient) -> None:
     """
     This is used to set the module level stats client configured to talk with a statsd host
     """
-    global _scoped_stats_client
+    global _scoped_stats_client  # noqa: F824
     _scoped_stats_client.set_stats_client(stats_client)
 
 

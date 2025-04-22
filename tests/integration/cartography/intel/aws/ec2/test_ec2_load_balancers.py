@@ -1,5 +1,15 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import cartography.intel.aws.ec2
 import tests.data.aws.ec2.load_balancers
+from cartography.intel.aws.ec2.instances import sync_ec2_instances
+from cartography.intel.aws.ec2.load_balancers import sync_load_balancers
+from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
+from tests.data.aws.ec2.load_balancers import DESCRIBE_LOAD_BALANCERS
+from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = '000000000000'
 TEST_REGION = 'us-east-1'
@@ -245,3 +255,191 @@ def test_load_load_balancer_v2_subnets(neo4j_session, *args):
         for n in nodes
     }
     assert actual_nodes == expected_nodes
+
+
+def _ensure_load_instances(neo4j_session):
+    boto3_session = MagicMock()
+    sync_ec2_instances(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+    )
+
+
+@patch.object(
+    cartography.intel.aws.ec2.load_balancers,
+    'get_loadbalancer_data',
+    return_value=DESCRIBE_LOAD_BALANCERS['LoadBalancerDescriptions'],
+)
+@patch.object(cartography.intel.aws.ec2.instances, 'get_ec2_instances', return_value=DESCRIBE_INSTANCES['Reservations'])
+def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_session):
+    """
+    Ensure that load balancers and their listeners are loaded correctly
+    """
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _ensure_load_instances(neo4j_session)
+    # Ugly ugly ugly hack so that the security group name is present in the test.
+    # Currently the security group data in this test is only populated from describe-ec2-instances, which does not
+    # return the security group name. The correct way would be to load in describe-security-groups, but that's a
+    # lot of work for this test.
+    neo4j_session.run(
+        """
+        MATCH (sg:EC2SecurityGroup{id: "SOME_GROUP_ID_2"})
+        SET sg.name = "default"
+        """,
+    )
+
+    # Act
+    sync_load_balancers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+    )
+
+    # Assert Load Balancers exist
+    assert check_nodes(neo4j_session, 'LoadBalancer', ['id', 'name', 'dnsname', 'scheme']) == {
+        (
+            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
+            'test-lb-1',
+            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
+            'internet-facing',
+        ),
+        (
+            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
+            'test-lb-2',
+            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
+            'internal',
+        ),
+    }
+
+    # Assert Load Balancer Listeners exist
+    assert check_nodes(
+        neo4j_session,
+        'ELBListener',
+        ['id', 'port', 'protocol', 'instance_port', 'instance_protocol'],
+    ) == {
+        (
+            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP',
+            80,
+            'HTTP',
+            8080,
+            'HTTP',
+        ),
+        (
+            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS',
+            443,
+            'HTTPS',
+            8443,
+            'HTTPS',
+        ),
+        (
+            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP',
+            8080,
+            'TCP',
+            8080,
+            'TCP',
+        ),
+    }
+
+    # Assert Load Balancer to Security Group relationships
+    assert check_rels(
+        neo4j_session,
+        'LoadBalancer',
+        'id',
+        'EC2SecurityGroup',
+        'id',
+        'MEMBER_OF_EC2_SECURITY_GROUP',
+        rel_direction_right=True,
+    ) == {
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'THIS_IS_A_SG_ID'),
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'SOME_GROUP_ID_2'),
+    }
+
+    # Assert Load Balancers are attached to their Source Security Group
+    assert check_rels(
+        neo4j_session,
+        'LoadBalancer',
+        'id',
+        'EC2SecurityGroup',
+        'name',
+        'SOURCE_SECURITY_GROUP',
+        rel_direction_right=True,
+    ) == {
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'default'),
+    }
+
+    # Assert Load Balancer to Instance relationships
+    assert check_rels(
+        neo4j_session,
+        'LoadBalancer',
+        'id',
+        'EC2Instance',
+        'id',
+        'EXPOSE',
+        rel_direction_right=True,
+    ) == {
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'i-01'),
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'i-02'),
+        ('test-lb-2-1234567890.us-east-1.elb.amazonaws.com', 'i-03'),
+    }
+
+    # Assert Load Balancer to Listener relationships
+    assert check_rels(
+        neo4j_session,
+        'LoadBalancer',
+        'id',
+        'ELBListener',
+        'id',
+        'ELB_LISTENER',
+        rel_direction_right=True,
+    ) == {
+        (
+            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
+            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP',
+        ),
+        (
+            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
+            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS',
+        ),
+        (
+            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
+            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP',
+        ),
+    }
+
+    # Assert Load Balancer to AWS Account relationship
+    assert check_rels(
+        neo4j_session,
+        'LoadBalancer',
+        'id',
+        'AWSAccount',
+        'id',
+        'RESOURCE',
+        rel_direction_right=False,
+    ) == {
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', '000000000000'),
+        ('test-lb-2-1234567890.us-east-1.elb.amazonaws.com', '000000000000'),
+    }
+
+    # Assert ELBListener to AWS Account relationship
+    assert check_rels(
+        neo4j_session,
+        'ELBListener',
+        'id',
+        'AWSAccount',
+        'id',
+        'RESOURCE',
+        rel_direction_right=False,
+    ) == {
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP', '000000000000'),
+        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS', '000000000000'),
+        ('test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP', '000000000000'),
+    }

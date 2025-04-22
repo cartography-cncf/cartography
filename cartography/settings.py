@@ -390,3 +390,16 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('snipeit_token_env_var', 'CARTOGRAPHY_SNIPEIT__TOKEN')
         settings.update({'snipeit': {'token': config.snipeit_token}})
+    # Entra
+    if config.entra_client_id:
+        if show_deprecation_warning:
+            deprecated_config('entra_client_id', 'CARTOGRAPHY_ENTRA__CLIENT_ID')
+        settings.update({'entra': {'client_id': config.entra_client_id}})
+    if hasattr(config, 'entra_client_secret'):
+        if show_deprecation_warning:
+            deprecated_config('entra_client_secret_env_var', 'CARTOGRAPHY_ENTRA__CLIENT_SECRET')
+        settings.update({'entra', {'client_secret': config.entra_client_secret}})
+    if config.entra_tenant_id:
+        if show_deprecation_warning:
+            deprecated_config('entra_tenant_id', 'CARTOGRAPHY_ENTRA__TENANT_ID')
+        settings.update({'entra': {'tenant_id': config.entra_tenant_id}})

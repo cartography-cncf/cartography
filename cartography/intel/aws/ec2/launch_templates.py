@@ -69,10 +69,15 @@ def get_launch_template_versions_by_template(
     return template_versions
 
 
-def transform_launch_templates(templates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_launch_templates(templates: list[dict[str, Any]], versions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    valid_template_ids = {v['LaunchTemplateId'] for v in versions}
     result: list[dict[str, Any]] = []
     for template in templates:
+        if template['LaunchTemplateId'] not in valid_template_ids:
+            continue
+
         current = template.copy()
+        # Convert CreateTime to timestamp string
         current['CreateTime'] = str(int(current['CreateTime'].timestamp()))
         result.append(current)
     return result
@@ -165,9 +170,13 @@ def sync_ec2_launch_templates(
         logger.info(f"Syncing launch templates for region '{region}' in account '{current_aws_account_id}'.")
         templates = get_launch_templates(boto3_session, region)
         versions = get_launch_template_versions(boto3_session, region, templates)
-        templates = transform_launch_templates(templates)
-        load_launch_templates(neo4j_session, templates, region, current_aws_account_id, update_tag)
-        versions = transform_launch_template_versions(versions)
-        load_launch_template_versions(neo4j_session, versions, region, current_aws_account_id, update_tag)
+
+        # Transform and load the templates that have versions
+        transformed_templates = transform_launch_templates(templates, versions)
+        load_launch_templates(neo4j_session, transformed_templates, region, current_aws_account_id, update_tag)
+
+        # Transform and load the versions
+        transformed_versions = transform_launch_template_versions(versions)
+        load_launch_template_versions(neo4j_session, transformed_versions, region, current_aws_account_id, update_tag)
 
     cleanup(neo4j_session, common_job_parameters)
