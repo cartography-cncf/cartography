@@ -57,6 +57,7 @@ dependencies = [
     "azure-mgmt-storage>=16.0.0",
     "azure-mgmt-sql<=1.0.0",
     "azure-identity>=1.5.0",
+    "msgraph-sdk",
     "kubernetes>=22.6.0",
     "pdpyras>=4.3.0",
     "crowdstrike-falconpy>=0.5.1",
@@ -77,6 +78,7 @@ dev = [
     "pytest-mock",
     "pytest-cov==6.1.1",
     "pytest-rerunfailures",
+    "pytest-asyncio",
     "types-PyYAML",
     "types-requests<2.32.0.20250329",
 ]

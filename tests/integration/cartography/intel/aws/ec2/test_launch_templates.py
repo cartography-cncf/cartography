@@ -23,7 +23,7 @@ def test_load_launch_templates(neo4j_session, *args):
         aws_update_tag=TEST_UPDATE_TAG,
     )
     # Act: transform and load the launch templates
-    templates = transform_launch_templates(GET_LAUNCH_TEMPLATES)
+    templates = transform_launch_templates(GET_LAUNCH_TEMPLATES, GET_LAUNCH_TEMPLATE_VERSIONS)
     load_launch_templates(
         neo4j_session,
         templates,

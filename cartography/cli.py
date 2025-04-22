@@ -212,6 +212,30 @@ class CLI:
             ),
         )
         parser.add_argument(
+            '--entra-tenant-id',
+            type=str,
+            default=None,
+            help=(
+                'Entra Tenant Id for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
+            '--entra-client-id',
+            type=str,
+            default=None,
+            help=(
+                'Entra Client Id for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
+            '--entra-client-secret-env-var',
+            type=str,
+            default=None,
+            help=(
+                'The name of environment variable containing Entra Client Secret for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
             '--aws-requested-syncs',
             type=str,
             default=None,
@@ -615,6 +639,16 @@ class CLI:
         else:
             config.azure_client_secret = None
 
+        # Entra config
+        if config.entra_tenant_id and config.entra_client_id and config.entra_client_secret_env_var:
+            logger.debug(
+                "Reading Client Secret for Entra Authentication from environment variable %s",
+                config.entra_client_secret_env_var,
+            )
+            config.entra_client_secret = os.environ.get(config.entra_client_secret_env_var)
+        else:
+            config.entra_client_secret = None
+
         # Okta config
         if config.okta_org_id and config.okta_api_key_env_var:
             logger.debug(f"Reading API key for Okta from environment variable {config.okta_api_key_env_var}")
@@ -798,5 +832,9 @@ def main(argv=None):
     logging.getLogger('botocore').setLevel(logging.WARNING)
     logging.getLogger('googleapiclient').setLevel(logging.WARNING)
     logging.getLogger('neo4j').setLevel(logging.WARNING)
+    logging.getLogger('azure.identity').setLevel(logging.WARNING)
+    logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
+
     argv = argv if argv is not None else sys.argv[1:]
     sys.exit(CLI(prog='cartography').main(argv))
