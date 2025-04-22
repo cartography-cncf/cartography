@@ -1,11 +1,13 @@
 from datetime import datetime
 from typing import List
+from typing import Optional
 from typing import Union
 
 from kubernetes import config
 from kubernetes.client import ApiClient
 from kubernetes.client import CoreV1Api
 from kubernetes.client import NetworkingV1Api
+from kubernetes.client import VersionApi
 
 
 class KubernetesContextNotFound(Exception):
@@ -28,12 +30,22 @@ class K8NetworkingApiClient(NetworkingV1Api):
         super().__init__(api_client=api_client)
 
 
+class K8VersionApiClient(VersionApi):
+    def __init__(self, name: str, config_file: str, api_client: ApiClient = None) -> None:
+        self.name = name
+        if not api_client:
+            api_client = config.new_client_from_config(context=name, config_file=config_file)
+        super().__init__(api_client=api_client)
+
+
 class K8sClient:
-    def __init__(self, name: str, config_file: str) -> None:
+    def __init__(self, name: str, config_file: str, external_id: Optional[str] = None) -> None:
         self.name = name
         self.config_file = config_file
+        self.external_id = external_id
         self.core = K8CoreApiClient(self.name, self.config_file)
         self.networking = K8NetworkingApiClient(self.name, self.config_file)
+        self.version = K8VersionApiClient(self.name, self.config_file)
 
 
 def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
@@ -42,7 +54,13 @@ def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
         raise KubernetesContextNotFound("No context found in kubeconfig.")
     clients = list()
     for context in contexts:
-        clients.append(K8sClient(context["name"], kubeconfig))
+        clients.append(
+            K8sClient(
+                context["name"],
+                kubeconfig,
+                external_id=context["context"].get("cluster"),
+            ),
+        )
     return clients
 
 
