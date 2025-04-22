@@ -164,6 +164,7 @@ class CLI:
                 'regions that are not in the list of regions you are specifying here, those assets will be deleted. '
                 'This is because cartography\'s cleanup jobs use "lastupdated" and "account id" as freshness keys '
                 'and not regions.'
+                'If not specified, cartography will autodiscover the regions supported by each account you are syncing.'
             ),
         )
         parser.add_argument(
