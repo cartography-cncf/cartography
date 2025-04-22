@@ -1,5 +1,6 @@
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
-from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA, KUBERNETES_CLUSTER_ID
+from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
+from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_ID
 from tests.integration.util import check_nodes
 
 
@@ -14,7 +15,7 @@ def test_load_clusters(neo4j_session):
     load_kubernetes_cluster(
         neo4j_session,
         data,
-        TEST_UPDATE_TAG
+        TEST_UPDATE_TAG,
     )
 
     # Assert
