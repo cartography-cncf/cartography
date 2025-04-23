@@ -22,7 +22,7 @@ def get_namespaces(client: K8sClient) -> List[Dict[str, Any]]:
     return client.core.list_namespace().items
 
 
-def transform_namespaces(namespaces: List[V1Namespace], cluster_name: str) -> List[Dict[str, Any]]:
+def transform_namespaces(namespaces: List[V1Namespace]) -> List[Dict[str, Any]]:
     transformed_namespaces = []
     for namespace in namespaces:
         transformed_namespaces.append({
@@ -31,7 +31,6 @@ def transform_namespaces(namespaces: List[V1Namespace], cluster_name: str) -> Li
             "creation_timestamp": get_epoch(namespace.metadata.creation_timestamp),
             "deletion_timestamp": get_epoch(namespace.metadata.deletion_timestamp),
             "status_phase": namespace.status.phase,
-            "cluster_name": cluster_name,
         })
     return transformed_namespaces
 
@@ -40,6 +39,7 @@ def load_namespaces(
     session: neo4j.Session,
     namespaces: List[Dict[str, Any]],
     update_tag: int,
+    cluster_name: str,
     cluster_id: str,
 ) -> None:
     logger.info(f"Loading {len(namespaces)} kubernetes namespaces.")
@@ -48,6 +48,7 @@ def load_namespaces(
         KubernetesNamespaceSchema(),
         namespaces,
         lastupdated=update_tag,
+        cluster_name=cluster_name,
         CLUSTER_ID=cluster_id,
     )
 
@@ -66,11 +67,12 @@ def sync_namespaces(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     namespaces = get_namespaces(client)
-    transformed_namespaces = transform_namespaces(namespaces, client.name)
+    transformed_namespaces = transform_namespaces(namespaces)
     load_namespaces(
         session,
         transformed_namespaces,
         update_tag,
+        client.name,
         common_job_parameters.get("CLUSTER_ID"),
     )
     cleanup(session, common_job_parameters)

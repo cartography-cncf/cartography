@@ -17,7 +17,7 @@ class KubernetesNamespaceNodeProperties(CartographyNodeProperties):
     creation_timestamp: PropertyRef = PropertyRef('creation_timestamp')
     deletion_timestamp: PropertyRef = PropertyRef('deletion_timestamp')
     status_phase: PropertyRef = PropertyRef('status_phase')
-    cluster_name: PropertyRef = PropertyRef('cluster_name')
+    cluster_name: PropertyRef = PropertyRef('cluster_name', set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 
 
