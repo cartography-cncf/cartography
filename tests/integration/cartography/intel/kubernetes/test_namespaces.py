@@ -34,7 +34,7 @@ def test_load_namespaces(neo4j_session):
         neo4j_session,
         data,
         TEST_UPDATE_TAG,
-        TEST_COMMON_JOB_PARAMETERS,
+        TEST_CLUSTER_ID,
     )
 
     expected_nodes = {
@@ -54,7 +54,7 @@ def test_load_namespaces_relationships(neo4j_session):
         neo4j_session,
         data,
         TEST_UPDATE_TAG,
-        TEST_COMMON_JOB_PARAMETERS,
+        TEST_CLUSTER_ID,
     )
 
     expected_rels = {
@@ -79,7 +79,7 @@ def test_namespace_cleanup(neo4j_session):
         neo4j_session,
         data,
         TEST_UPDATE_TAG,
-        TEST_COMMON_JOB_PARAMETERS,
+        TEST_CLUSTER_ID,
     )
 
     # Act
