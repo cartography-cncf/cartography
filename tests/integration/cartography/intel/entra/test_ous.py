@@ -2,7 +2,6 @@ from unittest.mock import AsyncMock
 from unittest.mock import patch
 
 import pytest
-import neo4j
 
 import cartography.intel.entra.ou
 from cartography.intel.entra.ou import sync_entra_ous
@@ -69,7 +68,6 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
         rel_direction_right=False,
     ) == expected_rels
 
-
     # Assert full OU properties
     expected_properties = {
         ('a8f9e4b2-1234-5678-9abc-def012345678', 'Handles financial operations and budgeting', 'Dynamic', False),
@@ -78,9 +76,8 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
     assert check_nodes(
         neo4j_session,
         'EntraOU',
-        ['id','description', 'membership_type', 'is_member_management_restricted'],   
+        ['id', 'description', 'membership_type', 'is_member_management_restricted'],   
     ) == expected_properties
-
 
     # Assert soft-deleted OU is present
     expected_properties = {
@@ -92,4 +89,3 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
         'EntraOU',
         ['id', 'deleted_date_time'], 
     ) == expected_properties
-

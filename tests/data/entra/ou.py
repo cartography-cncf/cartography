@@ -51,6 +51,6 @@ MOCK_NESTED_OU = AdministrativeUnit(
         'parentUnit': {
             'id': 'a8f9e4b2-1234-5678-9abc-def012345678',
             'display_name': 'Finance Department'
-        }
+        },
     }
 )

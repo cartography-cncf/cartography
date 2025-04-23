@@ -99,4 +99,3 @@ Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/admi
     ```cypher
     (:EntraOU)-[:RESOURCE]->(:EntraTenant)
     ```
-

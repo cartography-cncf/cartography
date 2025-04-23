@@ -11,7 +11,6 @@ from msgraph.generated.models.administrative_unit import AdministrativeUnit
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.entra.ou import EntraOUSchema
-from cartography.models.entra.tenant import EntraTenantSchema
 from cartography.util import timeit
 from cartography.intel.entra.users import load_tenant
 
@@ -33,8 +32,6 @@ async def get_entra_ous(client: GraphServiceClient) -> list[AdministrativeUnit]:
 
     return all_units
 
-
-
 def transform_ous(units: list[AdministrativeUnit], tenant_id: str) -> list[dict[str, Any]]:
     """
     Transform the API response into the format expected by our schema
@@ -54,13 +51,12 @@ def transform_ous(units: list[AdministrativeUnit], tenant_id: str) -> list[dict[
         result.append(transformed_unit)
     return result
 
-
 @timeit
 def load_ous(
     neo4j_session: neo4j.Session,
     units: list[dict[str, Any]],
     update_tag: int,
-    common_job_parameters: dict[str,Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info(f"Loading {len(units)} Entra OUs")
     load(
@@ -73,10 +69,8 @@ def load_ous(
         
     )
 
-
 def cleanup_ous(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     GraphJob.from_node_schema(EntraOUSchema(), common_job_parameters).run(neo4j_session)
-
 
 @timeit
 async def sync_entra_ous(
@@ -102,7 +96,6 @@ async def sync_entra_ous(
     units = await get_entra_ous(client)
     transformed_units = transform_ous(units, tenant_id)
 
-  
     # Load data
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
     load_ous(neo4j_session, transformed_units, update_tag, common_job_parameters)
