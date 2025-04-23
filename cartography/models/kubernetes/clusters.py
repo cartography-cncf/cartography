@@ -11,7 +11,7 @@ class KubernetesClusterNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef('name')
     created_at: PropertyRef = PropertyRef('created_at')
     external_id: PropertyRef = PropertyRef('external_id')
-    version: PropertyRef = PropertyRef('version')
+    version: PropertyRef = PropertyRef('git_version')
     version_major: PropertyRef = PropertyRef('version_major')
     version_minor: PropertyRef = PropertyRef('version_minor')
     go_version: PropertyRef = PropertyRef('go_version')

@@ -4,6 +4,8 @@ from typing import Dict
 from typing import List
 
 import neo4j
+from kubernetes.client.models import V1Namespace
+from kubernetes.client.models import VersionInfo
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -16,41 +18,32 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_kubernetes_cluster_namespace(client: K8sClient) -> Dict[str, Any]:
-    ns = client.core.read_namespace("kube-system")
-    namespace = {
-        "id": ns.metadata.uid,
-        "creation_timestamp": get_epoch(ns.metadata.creation_timestamp),
-    }
-    return namespace
+def get_kubernetes_cluster_namespace(client: K8sClient) -> V1Namespace:
+    return client.core.read_namespace("kube-system")
 
 
 @timeit
-def get_kubernetes_cluster_version(client: K8sClient) -> Dict[str, Any]:
-    v = client.version.get_code()
-    version = {
-        "major": v.major,
-        "minor": v.minor,
-        "git_version": v.git_version,
-        "go_version": v.go_version,
-        "compiler": v.compiler,
-        "platform": v.platform,
+def get_kubernetes_cluster_version(client: K8sClient) -> VersionInfo:
+    return client.version.get_code()
+
+
+def transform_kubernetes_cluster(
+        client: K8sClient,
+        namespace: V1Namespace,
+        version: VersionInfo,
+) -> List[Dict[str, Any]]:
+    cluster = {
+        "id": namespace.metadata.uid,
+        "creation_timestamp": get_epoch(namespace.metadata.creation_timestamp),
+        "external_id": client.external_id,
+        "name": client.name,
+        "git_version": version.git_version,
+        "version_major": version.major,
+        "version_minor": version.minor,
+        "go_version": version.go_version,
+        "compiler": version.compiler,
+        "platform": version.platform,
     }
-    return version
-
-
-def transform_kubernetes_cluster(client: K8sClient, namespace: Dict, version: Dict) -> List[Dict[str, Any]]:
-    cluster = dict()
-    cluster["id"] = namespace.get("id")
-    cluster["creation_timestamp"] = namespace.get("creation_timestamp")
-    cluster["external_id"] = client.external_id
-    cluster["name"] = client.name
-    cluster["git_version"] = version.get("git_version")
-    cluster["version_major"] = version.get("major")
-    cluster["version_minor"] = version.get("minor")
-    cluster["go_version"] = version.get("go_version")
-    cluster["compiler"] = version.get("compiler")
-    cluster["platform"] = version.get("platform")
 
     return [cluster]
 
