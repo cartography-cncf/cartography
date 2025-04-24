@@ -1,60 +1,96 @@
+import json
 import logging
+from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
-from neo4j import Session
+import neo4j
+from kubernetes.client.models import V1OwnerReference
+from kubernetes.client.models import V1Secret
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.models.kubernetes.secrets import KubernetesSecretSchema
 from cartography.util import timeit
+
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def sync_secrets(
-    session: Session,
-    client: K8sClient,
-    update_tag: int,
-    cluster: Dict,
-) -> List[Dict]:
-    secrets = get_secrets(client, cluster)
-    load_secrets(session, secrets, update_tag)
-    return secrets
+def get_secrets(client: K8sClient) -> List[V1Secret]:
+    return client.core.list_secret_for_all_namespaces().items
 
 
-@timeit
-def get_secrets(client: K8sClient, cluster: Dict) -> List[Dict]:
-    return [
-        {
+def _get_owner_references(owner_references: Optional[V1OwnerReference]) -> Optional[str]:
+    if owner_references:
+        owner_references_list = []
+        for owner_reference in owner_references:
+            owner_references_list.append({
+                "kind": owner_reference.kind,
+                "name": owner_reference.name,
+                "uid": owner_reference.uid,
+                "apiVersion": owner_reference.api_version,
+                "controller": owner_reference.controller,
+            })
+        return json.dumps(owner_references_list)
+    return None
+
+
+def transform_secrets(secrets: List[V1Secret]) -> List[Dict[str, Any]]:
+    secrets_list = []
+    for secret in secrets:
+        secrets_list.append({
             "uid": secret.metadata.uid,
             "name": secret.metadata.name,
             "creation_timestamp": get_epoch(secret.metadata.creation_timestamp),
             "deletion_timestamp": get_epoch(secret.metadata.deletion_timestamp),
+            "owner_references": _get_owner_references(secret.metadata.owner_references),
             "namespace": secret.metadata.namespace,
-            "cluster_uid": cluster["uid"],
-            "labels": secret.metadata.labels,
             "type": secret.type,
-        }
-        for secret in client.core.list_secret_for_all_namespaces().items
-    ]
+        })
+
+    return secrets_list
 
 
-def load_secrets(session: Session, data: List[Dict], update_tag: int) -> None:
-    ingestion_cypher_query = """
-    UNWIND $secrets as k8secret
-        MERGE (secret:KubernetesSecret {id: k8secret.uid})
-        ON CREATE SET secret.firstseen = timestamp()
-        SET secret.lastupdated = $update_tag,
-            secret.name = k8secret.name,
-            secret.created_at = k8secret.creation_timestamp,
-            secret.deleted_at = k8secret.deletion_timestamp,
-            secret.type = k8secret.type
-        WITH secret, k8secret.namespace as ns, k8secret.cluster_uid as cuid
-        MATCH (cluster:KubernetesCluster {id: cuid})-[:HAS_NAMESPACE]->(space:KubernetesNamespace {name: ns})
-        MERGE (space)-[rel1:HAS_SECRET]->(secret)
-        ON CREATE SET rel1.firstseen = timestamp()
-        SET rel1.lastupdated = $update_tag
-    """
-    logger.info(f"Loading {len(data)} kubernetes secrets.")
-    session.run(ingestion_cypher_query, secrets=data, update_tag=update_tag)
+@timeit
+def load_secrets(
+    session: neo4j.Session,
+    secrets_data: List[Dict[str, Any]],
+    update_tag: int,
+    cluster_name: str,
+) -> None:
+    logger.info(f"Loading {len(secrets_data)} KubernetesSecrets")
+    load(
+        session,
+        KubernetesSecretSchema(),
+        secrets_data,
+        lastupdated=update_tag,
+        CLUSTER_NAME=cluster_name,
+    )
+
+
+@timeit
+def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+    logger.debug("Running cleanup for KubernetesSecrets")
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesSecretSchema(),
+        common_job_parameters,
+    )
+    cleanup_job.run(session)
+
+
+@timeit
+def sync_secrets(
+    session: neo4j.Session,
+    client: K8sClient,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    secrets = get_secrets(client)
+    transformed_secrets = transform_secrets(secrets)
+    load_secrets(session, transformed_secrets, update_tag, client.name)
+    cleanup(session, common_job_parameters)
