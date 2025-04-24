@@ -68,11 +68,12 @@ def sync_namespaces(
 ) -> None:
     namespaces = get_namespaces(client)
     transformed_namespaces = transform_namespaces(namespaces)
+    cluster_id: str = common_job_parameters["CLUSTER_ID"]
     load_namespaces(
         session,
         transformed_namespaces,
         update_tag,
         client.name,
-        common_job_parameters.get("CLUSTER_ID"),
+        cluster_id,
     )
     cleanup(session, common_job_parameters)

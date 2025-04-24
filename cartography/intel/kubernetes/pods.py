@@ -58,7 +58,6 @@ def get_pods(client: K8sClient) -> List[Dict[str, Any]]:
 
 def transform_pods(pods: List[V1Pod]) -> List[Dict[str, Any]]:
     transformed_pods = []
-    containers = []
 
     for pod in pods:
         containers = _extract_pod_containers(pod)
@@ -127,7 +126,10 @@ def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> No
 
 @timeit
 def sync_pods(
-    session: neo4j.Session, client: K8sClient, update_tag: int, common_job_parameters: Dict[str, any],
+    session: neo4j.Session,
+    client: K8sClient,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     pods = get_pods(client)
 
