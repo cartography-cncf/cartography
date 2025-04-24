@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import List
 from typing import Optional
-from typing import Union
 
 from kubernetes import config
 from kubernetes.client import ApiClient
@@ -15,7 +14,7 @@ class KubernetesContextNotFound(Exception):
 
 
 class K8CoreApiClient(CoreV1Api):
-    def __init__(self, name: str, config_file: str, api_client: ApiClient = None) -> None:
+    def __init__(self, name: str, config_file: str, api_client: Optional[ApiClient] = None) -> None:
         self.name = name
         if not api_client:
             api_client = config.new_client_from_config(context=name, config_file=config_file)
@@ -23,7 +22,7 @@ class K8CoreApiClient(CoreV1Api):
 
 
 class K8NetworkingApiClient(NetworkingV1Api):
-    def __init__(self, name: str, config_file: str, api_client: ApiClient = None) -> None:
+    def __init__(self, name: str, config_file: str, api_client: Optional[ApiClient] = None) -> None:
         self.name = name
         if not api_client:
             api_client = config.new_client_from_config(context=name, config_file=config_file)
@@ -31,7 +30,7 @@ class K8NetworkingApiClient(NetworkingV1Api):
 
 
 class K8VersionApiClient(VersionApi):
-    def __init__(self, name: str, config_file: str, api_client: ApiClient = None) -> None:
+    def __init__(self, name: str, config_file: str, api_client: Optional[ApiClient] = None) -> None:
         self.name = name
         if not api_client:
             api_client = config.new_client_from_config(context=name, config_file=config_file)
@@ -64,7 +63,7 @@ def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
     return clients
 
 
-def get_epoch(date: datetime) -> Union[int, None]:
+def get_epoch(date: Optional[datetime]) -> Optional[int]:
     if date:
         return int(date.strftime("%s"))
     return None
