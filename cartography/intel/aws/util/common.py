@@ -1,6 +1,9 @@
+import logging
 from typing import List
 
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
+
+logger = logging.getLogger(__name__)
 
 
 def parse_and_validate_aws_requested_syncs(aws_requested_syncs: str) -> List[str]:
@@ -32,4 +35,12 @@ def parse_and_validate_aws_regions(aws_regions: str) -> list[str]:
         region = region.strip()
         if region:
             validated_regions.append(region)
+        else:
+            logger.warning(
+                f'Unable to parse string "{region}". Please check the value you passed to --aws-regions:'
+                f'{aws_regions}. Continuing on.',
+            )
+
+    if not validated_regions:
+        raise ValueError(f'--aws-regions was set but no regions were specified. Value = "{aws_regions}"')
     return validated_regions
