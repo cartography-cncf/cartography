@@ -159,13 +159,16 @@ class CLI:
             type=str,
             default=None,
             help=(
-                '[EXPERIMENTAL!] Comma-separated list of AWS regions to sync. Example 1: "us-east-1,us-east-2" for US '
-                'East 1 and 2. Note that this syncs the same regions in ALL accounts. '
-                'CAUTION: if you have already synced in assets in a previous sync, if that previous sync includes '
-                'regions that are not in the list of regions you are specifying here, those assets will be deleted. '
-                'This is because cartography\'s cleanup jobs use "lastupdated" and "account id" as freshness keys '
-                'and not regions.'
-                'If not specified, cartography will autodiscover the regions supported by each account you are syncing.'
+                '[EXPERIMENTAL!] Comma-separated list of AWS regions to sync. Example: specify "us-east-1,us-east-2" '
+                'to sync US East 1 and 2. Note that this syncs the same regions in ALL accounts and it is currently '
+                'not possible to specify different regions per account. '
+                'CAUTION: if you previously synced assets from regions that are _not_ included in your current list, '
+                'those assets will be _deleted_ during this sync. '
+                'This is because cartography\'s cleanup process uses "lastupdated" and "account id" to determine data '
+                'freshness and not regions. So, if a previously synced region is missing in the current sync, '
+                'Cartography assumes the associated assets are stale and removes them. '
+                'Default behahvior: If not `--aws-regions` is not specified, cartography will _autodiscover_ the '
+                'regions supported by each account being synced.'
             ),
         )
         parser.add_argument(
