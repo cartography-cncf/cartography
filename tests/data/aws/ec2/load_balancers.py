@@ -18,6 +18,25 @@ LOAD_BALANCER_LISTENERS = [
         'Port': 443,
         'Protocol': 'HTTPS',
         'TargetGroupArn': 'arn:aws:ec2:us-east-1:012345678912:targetgroup',
+        'Rules': [
+            {
+                'ConditionStrings': {
+                    "path_pattern": "foo",
+                },
+                'RuleArn': 'arn:aws:elasticloadbalancing:us-east-1:000000000000:listener-rule/app/myawesomeloadb/' +
+                           '50dc6c495c0c9188/f2f7dc8efc522ab2/9683b2d02a6cabee',
+                'Actions': [
+                    {
+                        'id': 'arn:aws:elasticloadbalancing:us-east-1:000000000000:listener-rule/app/myawesomeloadb/' +
+                              '50dc6c495c0c9188/f2f7dc8efc522ab2/9683b2d02a6cabee-action-default',
+                        'Type': 'forward',
+                        'ForwardConfig': {
+                            'TargetGroups': [],
+                        },
+                    },
+                ],
+            },
+        ],
     },
 ]
 
@@ -91,6 +110,8 @@ LOAD_BALANCER_DATA = [
         'DNSName': 'myawesomeloadbalancer.amazonaws.com',
         'CreatedTime': '10-27-2019 12:35AM',
         'LoadBalancerName': 'myawesomeloadbalancer',
+        'LoadBalancerArn': 'arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/' +
+                           'amyawesomeloadbalancer/50dc6c495c0c9188',
         'Type': 'application',
         'Scheme': 'internet-facing',
         'AvailabilityZones': [
