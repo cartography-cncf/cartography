@@ -1,3 +1,4 @@
+import json
 from uuid import uuid4
 
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
@@ -44,10 +45,10 @@ KUBERNETES_PODS_DATA = [
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
         "node": "my-node",
-        "labels": {
+        "labels": json.dumps({
             "key1": "val1",
             "key2": "val2",
-        },
+        }),
         "containers": [
             KUBERNETES_CONTAINER_DATA[0],
         ],
@@ -60,10 +61,10 @@ KUBERNETES_PODS_DATA = [
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
         "node": "my-node",
-        "labels": {
+        "labels": json.dumps({
             "key1": "val3",
             "key2": "val4",
-        },
+        }),
         "containers": [
             KUBERNETES_CONTAINER_DATA[1],
         ],
