@@ -718,6 +718,23 @@ class CLI:
                 "If not specified, all accessible accounts will be synced."
             ),
         )
+        parser.add_argument(
+            "--sentinelone-api-url",
+            type=str,
+            default=None,
+            help=(
+                "SentinelOne API URL. Required if you are using the SentinelOne intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--sentinelone-api-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing the SentinelOne API token. "
+                "Required if you are using the SentinelOne intel module. Ignored otherwise."
+            ),
+        )
 
         return parser
 
@@ -1075,6 +1092,21 @@ class CLI:
             )
         else:
             config.sentinelone_account_ids = None
+
+        # SentinelOne config
+        if config.sentinelone_api_url and config.sentinelone_api_token_env_var:
+            logger.debug(
+                f"Reading API token for SentinelOne from environment variable {config.sentinelone_api_token_env_var}",
+            )
+            config.sentinelone_api_token = os.environ.get(
+                config.sentinelone_api_token_env_var
+            )
+        else:
+            if config.sentinelone_api_url and not config.sentinelone_api_token_env_var:
+                logger.warning(
+                    "A SentinelOne API URL was provided but an API token environment variable was not."
+                )
+            config.sentinelone_api_token = None
 
         # Run cartography
         try:
