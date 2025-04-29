@@ -5,11 +5,12 @@ import os
 import sys
 from typing import Optional
 
-import cartography.config
 import cartography.sync
 import cartography.util
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
+from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 
 
 logger = logging.getLogger(__name__)
@@ -62,57 +63,6 @@ class CLI:
             help='Restrict cartography logging to warnings and errors only.',
         )
         parser.add_argument(
-            '--neo4j-uri',
-            type=str,
-            default='bolt://localhost:7687',
-            help=(
-                'A valid Neo4j URI to sync against. See '
-                'https://neo4j.com/docs/api/python-driver/current/driver.html#uri for complete documentation on the '
-                'structure of a Neo4j URI.'
-            ),
-        )
-        parser.add_argument(
-            '--neo4j-user',
-            type=str,
-            default=None,
-            help='A username with which to authenticate to Neo4j.',
-        )
-        parser.add_argument(
-            '--neo4j-password-env-var',
-            type=str,
-            default=None,
-            help='The name of an environment variable containing a password with which to authenticate to Neo4j.',
-        )
-        parser.add_argument(
-            '--neo4j-password-prompt',
-            action='store_true',
-            help=(
-                'Present an interactive prompt for a password with which to authenticate to Neo4j. This parameter '
-                'supersedes other methods of supplying a Neo4j password.'
-            ),
-        )
-        parser.add_argument(
-            '--neo4j-max-connection-lifetime',
-            type=int,
-            default=3600,
-            help=(
-                'Time in seconds for the Neo4j driver to consider a TCP connection alive. cartography default = 3600, '
-                'which is the same as the Neo4j driver default. See '
-                'https://neo4j.com/docs/driver-manual/1.7/client-applications/#driver-config-connection-pool-management'
-                '.'
-            ),
-        )
-        parser.add_argument(
-            '--neo4j-database',
-            type=str,
-            default=None,
-            help=(
-                'The name of the database in Neo4j to connect to. If not specified, uses the config settings of your '
-                'Neo4j database itself to infer which database is set to default. '
-                'See https://neo4j.com/docs/api/python-driver/4.4/api.html#database.'
-            ),
-        )
-        parser.add_argument(
             '--selected-modules',
             type=str,
             default=None,
@@ -127,21 +77,94 @@ class CLI:
                 '(because it does not make sense to perform analysis on an empty/out-of-date graph).'
             ),
         )
-        # TODO add the below parameters to a 'sync' subparser
+        # DEPRECATED: following arguments are deprecated in favor of settings.toml or environment variables
         parser.add_argument(
             '--update-tag',
             type=int,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__UPDATE_TAG instead.'
                 'A unique tag to apply to all Neo4j nodes and relationships created or updated during the sync run. '
                 'This tag is used by cleanup jobs to identify nodes and relationships that are stale and need to be '
                 'removed from the graph. By default, cartography will use a UNIX timestamp as the update tag.'
             ),
         )
         parser.add_argument(
+            '--permission-relationships-file',
+            type=str,
+            default="cartography/data/permission_relationships.yaml",
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__PERMISSION_RELATIONSHIPS_FILE instead.'
+                'The path to the permission relationships mapping file.'
+                'If omitted the default permission relationships will be created'
+            ),
+        )
+        parser.add_argument(
+            '--neo4j-uri',
+            type=str,
+            default='bolt://localhost:7687',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__URI instead.'
+                'A valid Neo4j URI to sync against. See '
+                'https://neo4j.com/docs/api/python-driver/current/driver.html#uri for complete documentation on the '
+                'structure of a Neo4j URI.'
+            ),
+        )
+        parser.add_argument(
+            '--neo4j-user',
+            type=str,
+            default=None,
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__USER instead.'
+                'A username with which to authenticate to Neo4j.'
+            ),
+        )
+        parser.add_argument(
+            '--neo4j-password-env-var',
+            type=str,
+            default=None,
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__PASSWORD instead.'
+                'The name of an environment variable containing a password with which to authenticate to Neo4j.'
+            ),
+        )
+        parser.add_argument(
+            '--neo4j-password-prompt',
+            action='store_true',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__PASSWORD_PROMPT instead.'
+                'Present an interactive prompt for a password with which to authenticate to Neo4j. This parameter '
+                'supersedes other methods of supplying a Neo4j password.'
+            ),
+        )
+        parser.add_argument(
+            '--neo4j-max-connection-lifetime',
+            type=int,
+            default=3600,
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__MAX_CONNECTION_LIFETIME instead.'
+                'Time in seconds for the Neo4j driver to consider a TCP connection alive. cartography default = 3600, '
+                'which is the same as the Neo4j driver default. See '
+                'https://neo4j.com/docs/driver-manual/1.7/client-applications/#driver-config-connection-pool-management'
+                '.'
+            ),
+        )
+        parser.add_argument(
+            '--neo4j-database',
+            type=str,
+            default=None,
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_NEO4J__DATABASE instead.'
+                'The name of the database in Neo4j to connect to. If not specified, uses the config settings of your '
+                'Neo4j database itself to infer which database is set to default. '
+                'See https://neo4j.com/docs/api/python-driver/4.4/api.html#database.'
+            ),
+        )
+        parser.add_argument(
             '--aws-sync-all-profiles',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AWS__SYNC_ALL_PROFILES instead.'
                 'Enable AWS sync for all discovered named profiles. When this parameter is supplied cartography will '
                 'discover all configured AWS named profiles (see '
                 'https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) and run the AWS sync '
@@ -157,14 +180,27 @@ class CLI:
             '--aws-best-effort-mode',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AWS__BEST_EFFORT_MODE instead.'
                 'Enable AWS sync best effort mode when syncing AWS accounts. This will allow cartography to continue '
                 'syncing other accounts and delay raising an exception until the very end.'
+            ),
+        )
+        parser.add_argument(
+            '--aws-requested-syncs',
+            type=str,
+            default=None,
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AWS__REQUESTED_SYNCS instead.'
+                'Comma-separated list of AWS resources to sync. Example 1: "ecr,s3,ec2:instance" for ECR, S3, and all '
+                'EC2 instance resources. See the full list available in source code at cartography.intel.aws.resources.'
+                ' If not specified, cartography by default will run all AWS sync modules available.'
             ),
         )
         parser.add_argument(
             '--oci-sync-all-profiles',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_OCI__SYNC_ALL_PROFILES instead.'
                 'Enable OCI sync for all discovered named profiles. When this parameter is supplied cartography will '
                 'discover all configured OCI named profiles (see '
                 'https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm) and run the OCI sync '
@@ -176,6 +212,7 @@ class CLI:
             '--azure-sync-all-subscriptions',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__SYNC_ALL_SUBSCRIPTIONS instead.'
                 'Enable Azure sync for all discovered subscriptions. When this parameter is supplied cartography will '
                 'discover all configured Azure subscriptions.'
             ),
@@ -184,6 +221,7 @@ class CLI:
             '--azure-sp-auth',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__SP_AUTH instead.'
                 'Use Service Principal authentication for Azure sync.'
             ),
         )
@@ -192,6 +230,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__TENANT_ID.'
                 'Azure Tenant Id for Service Principal Authentication.'
             ),
         )
@@ -200,6 +239,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__CLIENT_ID.'
                 'Azure Client Id for Service Principal Authentication.'
             ),
         )
@@ -208,6 +248,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AZURE__CLIENT_SECRET.'
                 'The name of environment variable containing Azure Client Secret for Service Principal Authentication.'
             ),
         )
@@ -216,6 +257,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY instead.'
                 'Entra Tenant Id for Service Principal Authentication.'
             ),
         )
@@ -224,6 +266,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY instead.'
                 'Entra Client Id for Service Principal Authentication.'
             ),
         )
@@ -232,17 +275,8 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY instead.'
                 'The name of environment variable containing Entra Client Secret for Service Principal Authentication.'
-            ),
-        )
-        parser.add_argument(
-            '--aws-requested-syncs',
-            type=str,
-            default=None,
-            help=(
-                'Comma-separated list of AWS resources to sync. Example 1: "ecr,s3,ec2:instance" for ECR, S3, and all '
-                'EC2 instance resources. See the full list available in source code at cartography.intel.aws.resources.'
-                ' If not specified, cartography by default will run all AWS sync modules available.'
             ),
         )
         parser.add_argument(
@@ -250,6 +284,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_ANALYSIS__JOB_DIRECTORY instead.'
                 'A path to a directory containing analysis jobs to run at the conclusion of the sync. cartography will '
                 'discover all JSON files in the given directory (and its subdirectories) and pass them to the GraphJob '
                 'API to execute against the graph. This allows you to apply data transformation and augmentation at '
@@ -262,6 +297,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_OKTA__ORG_ID instead.'
                 'Okta organizational id to sync. Required if you are using the Okta intel module. Ignored otherwise.'
             ),
         )
@@ -270,6 +306,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_OKTA__API_KEY instead.'
                 'The name of an environment variable containing a key with which to auth to the Okta API.'
                 'Required if you are using the Okta intel module. Ignored otherwise.'
             ),
@@ -279,6 +316,7 @@ class CLI:
             type=str,
             default=r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$",
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_OKTA__SAML_ROLE_REGEX instead.'
                 'The regex used to map Okta groups to AWS roles when using okta as a SAML provider.'
                 'The regex is the one entered in Step 5: Enabling Group Based Role Mapping in Okta'
                 'https://saml-doc.okta.com/SAML_Docs/How-to-Configure-SAML-2.0-for-Amazon-Web-Service#c-step5'
@@ -290,6 +328,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_GITHUB__* instead.'
                 'The name of an environment variable containing a Base64 encoded GitHub config object.'
                 'Required if you are using the GitHub intel module. Ignored otherwise.'
             ),
@@ -299,17 +338,9 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_DIGITALOCEAN__TOKEN instead.'
                 'The name of an environment variable containing a DigitalOcean access token.'
                 'Required if you are using the DigitalOcean intel module. Ignored otherwise.'
-            ),
-        )
-        parser.add_argument(
-            '--permission-relationships-file',
-            type=str,
-            default="cartography/data/permission_relationships.yaml",
-            help=(
-                'The path to the permission relationships mapping file.'
-                'If omitted the default permission relationships will be created'
             ),
         )
         parser.add_argument(
@@ -317,6 +348,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_JAMF__BASE_URL instead.'
                 'Your Jamf base URI, e.g. https://hostname.com/JSSResource.'
                 'Required if you are using the Jamf intel module. Ignored otherwise.'
             ),
@@ -325,19 +357,26 @@ class CLI:
             '--jamf-user',
             type=str,
             default=None,
-            help='A username with which to authenticate to Jamf.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_JAMF__USER instead.'
+                'A username with which to authenticate to Jamf.'
+            ),
         )
         parser.add_argument(
             '--jamf-password-env-var',
             type=str,
             default=None,
-            help='The name of an environment variable containing a password with which to authenticate to Jamf.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_JAMF__PASSWORD instead.'
+                'The name of an environment variable containing a password with which to authenticate to Jamf.'
+            ),
         )
         parser.add_argument(
             '--kandji-base-uri',
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_KANDJI__BASE_URL instead.'
                 'Your Kandji base URI, e.g. https://company.api.kandji.io.'
                 'Required if you are using the Kandji intel module. Ignored otherwise.'
             ),
@@ -347,6 +386,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_KANDJI__TENANT_ID instead.'
                 'Your Kandji tenant id e.g. company.'
                 'Required using the Kandji intel module. Ignored otherwise.'
             ),
@@ -355,13 +395,17 @@ class CLI:
             '--kandji-token-env-var',
             type=str,
             default=None,
-            help='The name of an environment variable containing token with which to authenticate to Kandji.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_KANDJI__TOKEN instead.'
+                'The name of an environment variable containing token with which to authenticate to Kandji.'
+            ),
         )
         parser.add_argument(
             '--k8s-kubeconfig',
             default=None,
             type=str,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_K8S__KUBECONFIG instead.'
                 'The path to kubeconfig file specifying context to access K8s cluster(s).'
             ),
         )
@@ -370,6 +414,7 @@ class CLI:
             type=str,
             default='https://services.nvd.nist.gov/rest/json/cves/2.0/',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CVE__URL instead.'
                 'The base url for the NIST CVE data. Default = https://services.nvd.nist.gov/rest/json/cves/2.0/'
             ),
         )
@@ -377,6 +422,7 @@ class CLI:
             '--cve-enabled',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CVE__ENABLED instead.'
                 'If set, CVE data will be synced from NIST.'
             ),
         )
@@ -385,6 +431,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CVE__API_KEY instead.'
                 'If set, uses the provided NIST NVD API v2.0 key.'
             ),
         )
@@ -392,6 +439,7 @@ class CLI:
             '--statsd-enabled',
             action='store_true',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_STATSD__ENABLED instead.'
                 'If set, enables sending metrics using statsd to a server of your choice.'
             ),
         )
@@ -400,6 +448,7 @@ class CLI:
             type=str,
             default='',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_STATSD__PREFIX instead.'
                 'The string to prefix statsd metrics with. Only used if --statsd-enabled is on. Default = empty string.'
             ),
         )
@@ -408,6 +457,7 @@ class CLI:
             type=str,
             default='127.0.0.1',
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_STATSD__HOST instead.'
                 'The IP address of your statsd server. Only used if --statsd-enabled is on. Default = 127.0.0.1.'
             ),
         )
@@ -416,6 +466,7 @@ class CLI:
             type=int,
             default=8125,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_STATSD__PORT instead.'
                 'The port of your statsd server. Only used if --statsd-enabled is on. Default = UDP 8125.'
             ),
         )
@@ -424,6 +475,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_PAGERDUTY__API_KEY instead.'
                 'The name of environment variable containing the pagerduty API key for authentication.'
             ),
         )
@@ -432,6 +484,7 @@ class CLI:
             type=int,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_COMMON__HTTP_TIMEOUT instead.'
                 'Seconds to timeout for pagerduty API sessions.'
             ),
         )
@@ -440,6 +493,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CROWDSTRIKE__CLIENT_ID instead.'
                 'The name of environment variable containing the crowdstrike client id for authentication.'
             ),
         )
@@ -448,6 +502,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CROWDSTRIKE__CLIENT_SECRET instead.'
                 'The name of environment variable containing the crowdstrike secret key for authentication.'
             ),
         )
@@ -456,6 +511,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_CROWDSTRIKE__API_URL instead.'
                 'The crowdstrike URL, if using self-hosted. Defaults to the public crowdstrike API URL otherwise.'
             ),
         )
@@ -465,6 +521,7 @@ class CLI:
             default='delegated',
             choices=['delegated', 'oauth', 'default'],
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_GSUITE__AUTH_METHOD instead.'
                 'GSuite authentication method. Can be "delegated" for service account or "oauth" for OAuth. '
                 '"Default" best if using gcloud CLI.'
             ),
@@ -474,6 +531,7 @@ class CLI:
             type=str,
             default='GSUITE_GOOGLE_APPLICATION_CREDENTIALS',
             help=(
+                'DEPRECATED: Use settings.toml or refer to documentation for available variables.'
                 'The name of environment variable containing secrets for GSuite authentication.'
             ),
         )
@@ -482,6 +540,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_LASTPASS__CID instead.'
                 'The name of environment variable containing the Lastpass CID for authentication.'
             ),
         )
@@ -490,6 +549,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_LASTPASS__PROVHASH instead.'
                 'The name of environment variable containing the Lastpass provhash for authentication.'
             ),
         )
@@ -498,6 +558,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_BIGFIX__USERNAME instead.'
                 'The BigFix username for authentication.'
             ),
         )
@@ -506,6 +567,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_BIGFIX__PASSWORD instead.'
                 'The name of environment variable containing the BigFix password for authentication.'
             ),
         )
@@ -514,6 +576,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_BIGFIX__ROOT_URL instead.'
                 'The BigFix Root URL, a.k.a the BigFix API URL'
             ),
         )
@@ -522,6 +585,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_DUO__API_KEY instead.'
                 'The name of environment variable containing the Duo api key'
             ),
         )
@@ -530,6 +594,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_DUO__API_SECRET instead.'
                 'The name of environment variable containing the Duo api secret'
             ),
         )
@@ -538,6 +603,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_DUO__API_HOSTNAME instead.'
                 'The Duo api hostname'
             ),
         )
@@ -546,6 +612,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SEMGREP__TOKEN instead.'
                 'The name of environment variable containing the Semgrep app token key. '
                 'Required if you are using the Semgrep intel module. Ignored otherwise.'
             ),
@@ -555,6 +622,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SEMGREP__DEPENDENCY_ECOSYSTEMS instead.'
                 'Comma-separated list of language ecosystems for which dependencies will be retrieved from Semgrep. '
                 'For example, a value of "gomod,npm" will retrieve Go and NPM dependencies. '
                 'See the full list of supported ecosystems in source code at cartography.intel.semgrep.dependencies. '
@@ -566,6 +634,7 @@ class CLI:
             type=str,
             default=None,
             help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__BASE_URL instead.'
                 'Your SnipeIT base URI'
                 'Required if you are using the SnipeIT intel module. Ignored otherwise.'
             ),
@@ -574,13 +643,20 @@ class CLI:
             '--snipeit-token-env-var',
             type=str,
             default=None,
-            help='The name of an environment variable containing token with which to authenticate to SnipeIT.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__TOKEN instead.'
+                'The name of an environment variable containing token with which to authenticate to SnipeIT.'
+            ),
+
         )
         parser.add_argument(
             '--snipeit-tenant-id',
             type=str,
             default=None,
-            help='An ID for the SnipeIT tenant.',
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__TENANT_ID instead.'
+                'An ID for the SnipeIT tenant.',
+            ),
         )
 
         return parser
@@ -592,7 +668,6 @@ class CLI:
         :type argv: string
         :param argv: The parameters supplied to the command line program.
         """
-        # TODO support parameter lookup in environment variables if not present on command line
         config: argparse.Namespace = self.parser.parse_args(argv)
         # Logging config
         if config.verbose:
@@ -602,7 +677,12 @@ class CLI:
         else:
             logging.getLogger('cartography').setLevel(logging.INFO)
         logger.debug("Launching cartography with CLI configuration: %r", vars(config))
-        # Neo4j config
+
+        # Selected modules
+        if config.selected_modules:
+            self.sync = cartography.sync.build_sync(config.selected_modules)
+
+        # DEPRECATED: Neo4j config (please use cartography.settings instead)
         if config.neo4j_user:
             config.neo4j_password = None
             if config.neo4j_password_prompt:
@@ -617,29 +697,16 @@ class CLI:
                 config.neo4j_password = os.environ.get(config.neo4j_password_env_var)
             if not config.neo4j_password:
                 logger.warning("Neo4j username was provided but a password could not be found.")
-        else:
-            config.neo4j_password = None
 
-        # Selected modules
-        if config.selected_modules:
-            self.sync = cartography.sync.build_sync(config.selected_modules)
-
-        # AWS config
-        if config.aws_requested_syncs:
-            # No need to store the returned value; we're using this for input validation.
-            parse_and_validate_aws_requested_syncs(config.aws_requested_syncs)
-
-        # Azure config
+        # DEPRECATED: Azure config (please use cartography.settings instead)
         if config.azure_sp_auth and config.azure_client_secret_env_var:
             logger.debug(
                 "Reading Client Secret for Azure Service Principal Authentication from environment variable %s",
                 config.azure_client_secret_env_var,
             )
             config.azure_client_secret = os.environ.get(config.azure_client_secret_env_var)
-        else:
-            config.azure_client_secret = None
 
-        # Entra config
+        # DEPRECATED: Entra config (please use cartography.settings instead)
         if config.entra_tenant_id and config.entra_client_id and config.entra_client_secret_env_var:
             logger.debug(
                 "Reading Client Secret for Entra Authentication from environment variable %s",
@@ -649,121 +716,80 @@ class CLI:
         else:
             config.entra_client_secret = None
 
-        # Okta config
+        # DEPRECATED: Okta config (please use cartography.settings instead)
         if config.okta_org_id and config.okta_api_key_env_var:
             logger.debug(f"Reading API key for Okta from environment variable {config.okta_api_key_env_var}")
             config.okta_api_key = os.environ.get(config.okta_api_key_env_var)
-        else:
-            config.okta_api_key = None
 
-        # GitHub config
+        # DEPRECATED: GitHub config (please use cartography.settings instead)
         if config.github_config_env_var:
             logger.debug(f"Reading config string for GitHub from environment variable {config.github_config_env_var}")
-            config.github_config = os.environ.get(config.github_config_env_var)
-        else:
-            config.github_config = None
+            config.github_config = os.environ.get(config.github_config_env_var, '')
 
-        # DigitalOcean config
+        # DEPRECATED: DigitalOcean config (please use cartography.settings instead)
         if config.digitalocean_token_env_var:
             logger.debug(f"Reading token for DigitalOcean from env variable {config.digitalocean_token_env_var}")
             config.digitalocean_token = os.environ.get(config.digitalocean_token_env_var)
-        else:
-            config.digitalocean_token = None
 
-        # Jamf config
-        if config.jamf_base_uri:
-            if config.jamf_user:
-                config.jamf_password = None
-                if config.jamf_password_env_var:
-                    logger.debug(
-                        "Reading password for Jamf user '%s' from environment variable '%s'.",
-                        config.jamf_user,
-                        config.jamf_password_env_var,
-                    )
-                    config.jamf_password = os.environ.get(config.jamf_password_env_var)
-            if not config.jamf_user:
-                logger.warning("A Jamf base URI was provided but a user was not.")
-            if not config.jamf_password:
-                logger.warning("A Jamf password could not be found.")
-        else:
-            config.jamf_user = None
-            config.jamf_password = None
-
-        # Kandji config
-        if config.kandji_base_uri:
-            if config.kandji_token_env_var:
-                logger.debug(
-                    "Reading Kandji API token from environment variable '%s'.",
-                    config.kandji_token_env_var,
-                )
-                config.kandji_token = os.environ.get(config.kandji_token_env_var)
-            elif os.environ.get('KANDJI_TOKEN'):
-                logger.debug(
-                    "Reading Kandji API token from environment variable 'KANDJI_TOKEN'.",
-                )
-                config.kandji_token = os.environ.get('KANDJI_TOKEN')
-            else:
-                logger.warning("A Kandji base URI was provided but a token was not.")
-                config.kandji_token = None
-        else:
-            logger.warning("A Kandji base URI was not provided.")
-            config.kandji_base_uri = None
-
-        if config.statsd_enabled:
+        # DEPRECATED: Jamf config (please use cartography.settings instead)
+        if config.jamf_base_uri and config.jamf_user and config.jamf_password_env_var:
             logger.debug(
-                f'statsd enabled. Sending metrics to server {config.statsd_host}:{config.statsd_port}. '
-                f'Metrics have prefix "{config.statsd_prefix}".',
+                "Reading password for Jamf user '%s' from environment variable '%s'.",
+                config.jamf_user,
+                config.jamf_password_env_var,
             )
+            config.jamf_password = os.environ.get(config.jamf_password_env_var)
 
-        # Pagerduty config
+        # DEPRECATED: Kandji config (please use cartography.settings instead)
+        if config.kandji_token_env_var:
+            logger.debug(
+                "Reading Kandji API token from environment variable '%s'.",
+                config.kandji_token_env_var,
+            )
+            config.kandji_token = os.environ.get(config.kandji_token_env_var)
+        elif os.environ.get('KANDJI_TOKEN'):
+            logger.debug(
+                "Reading Kandji API token from environment variable 'KANDJI_TOKEN'.",
+            )
+            config.kandji_token = os.environ.get('KANDJI_TOKEN')
+
+        # DEPRECATED: Pagerduty config (please use cartography.settings instead)
         if config.pagerduty_api_key_env_var:
             logger.debug(f"Reading API key for PagerDuty from environment variable {config.pagerduty_api_key_env_var}")
             config.pagerduty_api_key = os.environ.get(config.pagerduty_api_key_env_var)
-        else:
-            config.pagerduty_api_key = None
 
-        # Crowdstrike config
+        # DEPRECATED: Crowdstrike config (please use cartography.settings instead)
         if config.crowdstrike_client_id_env_var:
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_id_env_var}",
             )
             config.crowdstrike_client_id = os.environ.get(config.crowdstrike_client_id_env_var)
-        else:
-            config.crowdstrike_client_id = None
-
         if config.crowdstrike_client_secret_env_var:
             logger.debug(
                 f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_secret_env_var}",
             )
             config.crowdstrike_client_secret = os.environ.get(config.crowdstrike_client_secret_env_var)
-        else:
-            config.crowdstrike_client_secret = None
 
-        # GSuite config
+        # DEPRECATED: GSuite config (please use cartography.settings instead)
         if config.gsuite_tokens_env_var:
+            # We do not raise a deprecation warning here because there is a default value for gsuite_tokens_env_var
             logger.debug(f"Reading config string for GSuite from environment variable {config.gsuite_tokens_env_var}")
-            config.gsuite_config = os.environ.get(config.gsuite_tokens_env_var)
-        else:
-            config.gsuite_tokens_env_var = None
+            config.gsuite_config = os.environ.get(config.gsuite_tokens_env_var, '')
 
-        # Lastpass config
+        # DEPRECATED: Lastpass config (please use cartography.settings instead)
         if config.lastpass_cid_env_var:
             logger.debug(f"Reading CID for Lastpass from environment variable {config.lastpass_cid_env_var}")
             config.lastpass_cid = os.environ.get(config.lastpass_cid_env_var)
-        else:
-            config.lastpass_cid = None
         if config.lastpass_provhash_env_var:
             logger.debug(f"Reading provhash for Lastpass from environment variable {config.lastpass_provhash_env_var}")
             config.lastpass_provhash = os.environ.get(config.lastpass_provhash_env_var)
-        else:
-            config.lastpass_provhash = None
 
-        # BigFix config
+        # DEPRECATED: BigFix config (please use cartography.settings instead)
         if config.bigfix_username and config.bigfix_password_env_var and config.bigfix_root_url:
             logger.debug(f"Reading BigFix password from environment variable {config.bigfix_password_env_var}")
             config.bigfix_password = os.environ.get(config.bigfix_password_env_var)
 
-        # Duo config
+        # DEPRECATED: Duo config (please use cartography.settings instead)
         if config.duo_api_key_env_var and config.duo_api_secret_env_var and config.duo_api_hostname:
             logger.debug(
                 f"Reading Duo api key and secret from environment variables {config.duo_api_key_env_var}"
@@ -771,29 +797,19 @@ class CLI:
             )
             config.duo_api_key = os.environ.get(config.duo_api_key_env_var)
             config.duo_api_secret = os.environ.get(config.duo_api_secret_env_var)
-        else:
-            config.duo_api_key = None
-            config.duo_api_secret = None
 
-        # Semgrep config
+        # DEPRECATED: Semgrep config (please use cartography.settings instead)
         if config.semgrep_app_token_env_var:
             logger.debug(f"Reading Semgrep App Token from environment variable {config.semgrep_app_token_env_var}")
             config.semgrep_app_token = os.environ.get(config.semgrep_app_token_env_var)
-        else:
-            config.semgrep_app_token = None
-        if config.semgrep_dependency_ecosystems:
-            # No need to store the returned value; we're using this for input validation.
-            parse_and_validate_semgrep_ecosystems(config.semgrep_dependency_ecosystems)
 
-        # CVE feed config
+        # DEPRECATED: CVE feed config (please use cartography.settings instead)
         if config.cve_api_key_env_var:
             logger.debug(f"Reading NVD CVE API key environment variable {config.cve_api_key_env_var}")
             config.cve_api_key = os.environ.get(config.cve_api_key_env_var)
-        else:
-            config.cve_api_key = None
 
-        # SnipeIT config
-        if config.snipeit_base_uri:
+        # DEPRECATED: SnipeIT config (please use cartography.settings instead)
+        if config.snipeit_base_uri and config.snipeit_tenant_id:
             if config.snipeit_token_env_var:
                 logger.debug(
                     "Reading SnipeIT API token from environment variable '%s'.",
@@ -805,16 +821,20 @@ class CLI:
                     "Reading SnipeIT API token from environment variable 'SNIPEIT_TOKEN'.",
                 )
                 config.snipeit_token = os.environ.get('SNIPEIT_TOKEN')
-            else:
-                logger.warning("A SnipeIT base URI was provided but a token was not.")
-                config.kandji_token = None
-        else:
-            logger.warning("A SnipeIT base URI was not provided.")
-            config.snipeit_base_uri = None
+
+        # DEPRECATED: This is a temporary measure to support the old config format
+        # and the new config format. The old config format is deprecated and will be removed in a future release.
+        populate_settings_from_config(config)
+
+        # Settings validation
+        if settings.get('semgrep', {}).get('dependency_ecosystems'):
+            parse_and_validate_semgrep_ecosystems(settings.semgrep.dependency_ecosystems)
+        if settings.get('aws', {}).get('requested_syncs'):
+            parse_and_validate_aws_requested_syncs(settings.aws.requested_syncs)
 
         # Run cartography
         try:
-            return cartography.sync.run_with_config(self.sync, config)
+            return cartography.sync.run(self.sync)
         except KeyboardInterrupt:
             return cartography.util.STATUS_KEYBOARD_INTERRUPT
 

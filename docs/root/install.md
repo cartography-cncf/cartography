@@ -32,7 +32,11 @@ machine to pull data from AWS.
 
     It may take a minute for the Neo4j container to spin up.
 
-1. **Configure and run Cartography.**
+1. **Run Cartography.**
+
+```{hint}
+Please refer to [cartography configuration](usage/configure.md) for more details on available settings.
+```
 
     In this example we will run Cartography on [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html) with a profile called "1234_testprofile" and default region set to "us-east-1".
 
@@ -40,7 +44,8 @@ machine to pull data from AWS.
     docker-compose run \
         -e AWS_PROFILE=1234_testprofile \
         -e AWS_DEFAULT_REGION=us-east-1 \
-        cartography --neo4j-uri bolt://cartography-neo4j-1:7687
+        -e CARTOGRAPHY_NEO4J__URI=bolt://cartography-neo4j-1:7687 \
+        cartography
     ```
 
     If you get a connection error like `ValueError: Cannot resolve address cartography-neo4j-1:7687`, you may need to wait a bit for the Neo4j container to be ready. Run `docker ps` periodically to check on it and then retry the `docker-compose run ..` command.
@@ -124,7 +129,11 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 
     - If you experience very slow write performance using an ARM-based machine like an M1 Mac, see if using an ARM image helps. Neo4j keeps ARM builds [here](https://hub.docker.com/r/arm64v8/neo4j/).
 
-1. **Configure and run Cartography.**
+1. **Run Cartography.**
+
+```{hint}
+Please refer to [cartography configuration](usage/configure.md) for more details on available settings.
+```
 
     See the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) to set up each data source. In this example we will use [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html).
 
@@ -136,7 +145,8 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
         -v ~/.aws:/var/cartography/.aws/ \
         -e AWS_PROFILE=1234_testprofile \
         -e AWS_DEFAULT_REGION=us-east-1 \
-        cartography-cncf/cartography --neo4j-uri bolt://cartography-neo4j:7687
+        -e CARTOGRAPHY_NEO4J__URI=bolt://cartography-neo4j:7687 \
+        cartography-cncf/cartography
      ```
 
    If things work, your terminal will look like this where you see log messages displaying how many assets are being loaded to the graph:
@@ -208,19 +218,19 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
     - For a specific AWS account defined as a separate profile in your AWS config file, set the `AWS_PROFILE` environment variable, for example this command runs cartography on an AWS profile called "1234_testprofile" on region us-east-1.
 
         ```bash
-        AWS_PROFILE=1234_testprofile AWS_DEFAULT_REGION=us-east-1 cartography --neo4j-uri bolt://localhost:7687
+        AWS_PROFILE=1234_testprofile AWS_DEFAULT_REGION=us-east-1 CARTOGRAPHY__NEO4J_URI=bolt://localhost:7687 cartography
         ```
 
     - For one account using the `default` profile defined in your AWS config file, run
 
         ```bash
-        cartography --neo4j-uri bolt://localhost:7687
+        CARTOGRAPHY__NEO4J_URI=bolt://localhost:7687  cartography
         ```
 
     - For more than one AWS account, run
 
         ```bash
-        AWS_CONFIG_FILE=/path/to/your/aws/config cartography --neo4j-uri bolt://localhost:7687 --aws-sync-all-profiles
+        AWS_CONFIG_FILE=/path/to/your/aws/config CARTOGRAPHY__NEO4J_URI=bolt://localhost:7687 CARTOGRAPHY_WAS__SYNC_ALL_PROFILES=True cartography
         ```
 
     You can view a full list of Cartography's CLI arguments by running `cartography --help`.

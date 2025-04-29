@@ -13,13 +13,19 @@ To get started coding without reading this doc, just copy the structure of our [
 
 ## Configuration and credential management
 
-### Supplying credentials and arguments to your module
+### Supplying credentials and settings to your module
 
-If you need to supply an API key or other credential to your Cartography module, we recommend adding a CLI argument. An example of this can be seen [in our Okta module](https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/cli.py#L136) where we require the user to specify the name of an environment variable containing their Okta API key. This credential will then be bound to Cartography's [Config object](https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/config.py#L3) which is present in all modules. You can specify different arguments from the commandline for your module via the Config object.
+If you need to supply an API key or other credential to your Cartography module, we recommend adding a settings. An example of this can be seen [in our Okta module](https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/cli.py#L136) where we require the user to Okta API Key with a environment variable. This credential will then be bound to Cartography's [Dynaconf settings object](https://www.dynaconf.com/) which is present in all modules.
+
+```{hint}
+Please refer to [cartography configuration](../usage/configure.md) for more details on configuration.
+```
 
 ### An important note on validating your commandline args
 
-Note that it is your module's responsibility to validate arguments that you introduce. For example with the Okta module, we [validate](https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/intel/okta/__init__.py#L37) that `config.okta_api_key` has been defined before attempting to continue.
+Note that it is your module's responsibility to validate arguments that you introduce. For example with the Okta module, we validate that `settings.okta.api_key` has been defined before attempting to continue.
+
+You can use `settings.check_module_settings` helper to validate settings.
 
 ## Sync = Get, Transform, Load, Cleanup
 

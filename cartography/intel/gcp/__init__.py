@@ -20,6 +20,8 @@ from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
+from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -355,17 +357,22 @@ def get_gcp_credentials() -> Optional[GoogleCredentials]:
 
 
 @timeit
-def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     """
     Starts the GCP ingestion process by initializing Google Application Default Credentials, creating the necessary
     resource objects, listing all GCP organizations and projects available to the GCP identity, and supplying that
     context to all intel modules.
     :param neo4j_session: The Neo4j session
-    :param config: A `cartography.config` object
+    :param config: A `cartography.config` object (DEPRECATED: use settings instead)
     :return: Nothing
     """
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
+        "UPDATE_TAG": settings.common.update_tag,
     }
 
     credentials = get_gcp_credentials()
@@ -376,12 +383,12 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     resources = _initialize_resources(credentials)
 
     # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
-    crm.sync_gcp_organizations(neo4j_session, resources.crm_v1, config.update_tag, common_job_parameters)
-    crm.sync_gcp_folders(neo4j_session, resources.crm_v2, config.update_tag, common_job_parameters)
+    crm.sync_gcp_organizations(neo4j_session, resources.crm_v1, settings.common.update_tag, common_job_parameters)
+    crm.sync_gcp_folders(neo4j_session, resources.crm_v2, settings.common.update_tag, common_job_parameters)
 
     projects = crm.get_gcp_projects(resources.crm_v1)
 
-    _sync_multiple_projects(neo4j_session, resources, projects, config.update_tag, common_job_parameters)
+    _sync_multiple_projects(neo4j_session, resources, projects, settings.common.update_tag, common_job_parameters)
 
     run_analysis_job(
         'gcp_compute_asset_inet_exposure.json',

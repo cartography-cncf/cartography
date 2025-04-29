@@ -96,7 +96,7 @@ def transform_auto_scaling_groups(groups: list[dict[str, Any]]) -> AsgData:
             'Status': group.get('Status'),
         })
 
-        if group.get('VPCZoneIdentifier', None):
+        if group.get('VPCZoneIdentifier'):
             vpclist = group['VPCZoneIdentifier']
             subnet_ids = vpclist.split(',') if ',' in vpclist else [vpclist]
             subnets = []
