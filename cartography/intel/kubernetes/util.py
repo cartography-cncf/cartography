@@ -65,5 +65,5 @@ def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
 
 def get_epoch(date: Optional[datetime]) -> Optional[int]:
     if date:
-        return int(date.strftime("%s"))
+        return int(date.timestamp())
     return None
