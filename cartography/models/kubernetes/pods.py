@@ -19,6 +19,7 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
     creation_timestamp: PropertyRef = PropertyRef('creation_timestamp')
     deletion_timestamp: PropertyRef = PropertyRef('deletion_timestamp')
     namespace: PropertyRef = PropertyRef('namespace')
+    labels: PropertyRef = PropertyRef('labels')
     cluster_name: PropertyRef = PropertyRef('CLUSTER_NAME', set_in_kwargs=True)
     node: PropertyRef = PropertyRef('node')
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)

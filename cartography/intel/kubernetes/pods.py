@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 from typing import Dict
@@ -56,6 +57,10 @@ def get_pods(client: K8sClient) -> List[Dict[str, Any]]:
     return client.core.list_pod_for_all_namespaces().items
 
 
+def _format_pod_labels(labels: Dict[str, str]) -> str:
+    return json.dumps(labels)
+
+
 def transform_pods(pods: List[V1Pod]) -> List[Dict[str, Any]]:
     transformed_pods = []
 
@@ -70,7 +75,7 @@ def transform_pods(pods: List[V1Pod]) -> List[Dict[str, Any]]:
                 "deletion_timestamp": get_epoch(pod.metadata.deletion_timestamp),
                 "namespace": pod.metadata.namespace,
                 "node": pod.spec.node_name,
-                "labels": pod.metadata.labels,
+                "labels": _format_pod_labels(pod.metadata.labels),
                 "containers": list(containers.values()),
             },
         )
@@ -130,7 +135,7 @@ def sync_pods(
     client: K8sClient,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
-) -> None:
+) -> List[Dict[str, Any]]:
     pods = get_pods(client)
 
     transformed_pods = transform_pods(pods)
@@ -140,3 +145,4 @@ def sync_pods(
     load_containers(session, transformed_containers, update_tag, client.name)
 
     cleanup(session, common_job_parameters)
+    return transformed_pods
