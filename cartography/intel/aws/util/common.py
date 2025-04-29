@@ -37,10 +37,12 @@ def parse_and_validate_aws_regions(aws_regions: str) -> list[str]:
             validated_regions.append(region)
         else:
             logger.warning(
-                f'Unable to parse string "{region}". Please check the value you passed to --aws-regions:'
-                f'{aws_regions}. Continuing on.',
+                f'Unable to parse string "{region}". Please check the value you passed to `aws-regions`. '
+                f'You specified "{aws_regions}". Continuing on with sync.',
             )
 
     if not validated_regions:
-        raise ValueError(f'--aws-regions was set but no regions were specified. Value = "{aws_regions}"')
+        raise ValueError(
+            f'`aws-regions` was set but no regions were specified. You provided this string: "{aws_regions}"',
+        )
     return validated_regions

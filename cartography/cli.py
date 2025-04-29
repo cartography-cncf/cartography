@@ -167,7 +167,7 @@ class CLI:
                 'This is because cartography\'s cleanup process uses "lastupdated" and "account id" to determine data '
                 'freshness and not regions. So, if a previously synced region is missing in the current sync, '
                 'Cartography assumes the associated assets are stale and removes them. '
-                'Default behahvior: If not `--aws-regions` is not specified, cartography will _autodiscover_ the '
+                'Default behavior: If `--aws-regions` is not specified, cartography will _autodiscover_ the '
                 'regions supported by each account being synced.'
             ),
         )

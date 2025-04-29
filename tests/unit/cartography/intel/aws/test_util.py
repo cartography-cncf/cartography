@@ -31,7 +31,7 @@ def test_parse_and_validate_aws_regions():
 
     # Test empty input
     empty_input = ""
-    with pytest.raises(ValueError, match='--aws-regions was set but no regions were specified'):
+    with pytest.raises(ValueError, match='`aws-regions` was set but no regions were specified'):
         parse_and_validate_aws_regions(empty_input)
 
     # Test input with empty elements
@@ -44,5 +44,5 @@ def test_parse_and_validate_aws_regions():
 
     # Test input with only empty elements
     only_empty = ",,"
-    with pytest.raises(ValueError, match='--aws-regions was set but no regions were specified'):
+    with pytest.raises(ValueError, match='`aws-regions` was set but no regions were specified'):
         parse_and_validate_aws_regions(only_empty)
