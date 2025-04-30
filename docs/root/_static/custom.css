@@ -23,3 +23,27 @@ li.toctree-l1._collapse {
     z-index: 10;
     pointer-events: auto;
   }
+
+/* <UGLY hack!>
+When Sphinx renders a TOC entry for the schema docs, it makes it look like:
+
+AWSInstanceProfile
+  Relationships
+
+This crowds the page if there's dozens of items there, and these
+extra headings aren't valuable.
+The below hack uses CSS selectors to remove the 'relationships'
+thing.
+It's too hard to figure out how to get Sphinx to not render it in the
+first place but this works fine.
+*/
+/* Hide auto-ID entries */
+li > ul > li > a[href^="#id"] {
+    display: none !important;
+  }
+
+  /* Also hide deterministic anchor version */
+  li > ul > li > a[href="#relationships"] {
+    display: none !important;
+  }
+/* </UGLY hack!>

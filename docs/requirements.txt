@@ -3,4 +3,3 @@ myst-parser[linkify]==4.0.1
 sphinxcontrib-mermaid==1.0.0
 shibuya
 sphinx-copybutton
-sphinx_docsearch

@@ -42,7 +42,6 @@ extensions = [
     "sphinxcontrib.mermaid",
     "myst_parser",
     "sphinx_copybutton",
-    "sphinx_docsearch",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -130,7 +129,7 @@ html_theme = "shibuya"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'globaltoc_depth': 2,
+    'globaltoc_depth': 0,
     'globaltoc_collapse': True,
     'github_url': 'https://github.com/cartography-cncf/cartography',
     'repo_name': 'cartography',
