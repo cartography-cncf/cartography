@@ -42,7 +42,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
         )
-        
+
         # Run OU sync
         await sync_entra_ous(
             neo4j_session,
@@ -55,4 +55,3 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     # Execute both syncs in sequence
     asyncio.run(main())
-    

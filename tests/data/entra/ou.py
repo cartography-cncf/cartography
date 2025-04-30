@@ -1,5 +1,4 @@
 import datetime
-import uuid
 
 from msgraph.generated.models.administrative_unit import AdministrativeUnit
 
@@ -18,9 +17,9 @@ MOCK_ENTRA_OUS = [
         visibility='Public',
         membership_type='Dynamic',
         membership_rule='user.department -eq "Finance"',
-        
+
         is_member_management_restricted=False,
-        
+
     ),
     AdministrativeUnit(
         id='b6c5d3e4-5678-90ab-cdef-1234567890ab',
@@ -33,7 +32,7 @@ MOCK_ENTRA_OUS = [
         membership_rule=None,
         membership_rule_processing_state=None,
         is_member_management_restricted=True,
-        
+
     ),
 ]
 
@@ -50,7 +49,7 @@ MOCK_NESTED_OU = AdministrativeUnit(
     additional_data={
         'parentUnit': {
             'id': 'a8f9e4b2-1234-5678-9abc-def012345678',
-            'display_name': 'Finance Department'
+            'display_name': 'Finance Department',
         },
-    }
+    },
 )

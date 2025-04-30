@@ -1,5 +1,4 @@
 # cartography/intel/entra/ou.py
-
 import logging
 from typing import Any
 
@@ -10,9 +9,9 @@ from msgraph.generated.models.administrative_unit import AdministrativeUnit
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.entra.users import load_tenant
 from cartography.models.entra.ou import EntraOUSchema
 from cartography.util import timeit
-from cartography.intel.entra.users import load_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +23,14 @@ async def get_entra_ous(client: GraphServiceClient) -> list[AdministrativeUnit]:
     """
     all_units: list[AdministrativeUnit] = []
     request = client.directory.administrative_units.request()
-    
+
     while request:
         response = await request.get()
         all_units.extend(response.value)
         request = response.odata_next_link if response.odata_next_link else None
 
     return all_units
+
 
 def transform_ous(units: list[AdministrativeUnit], tenant_id: str) -> list[dict[str, Any]]:
     """
@@ -51,6 +51,7 @@ def transform_ous(units: list[AdministrativeUnit], tenant_id: str) -> list[dict[
         result.append(transformed_unit)
     return result
 
+
 @timeit
 def load_ous(
     neo4j_session: neo4j.Session,
@@ -66,11 +67,13 @@ def load_ous(
         lastupdated=update_tag,
         TENANT_ID=common_job_parameters["TENANT_ID"],
         UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-        
+
     )
+
 
 def cleanup_ous(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     GraphJob.from_node_schema(EntraOUSchema(), common_job_parameters).run(neo4j_session)
+
 
 @timeit
 async def sync_entra_ous(

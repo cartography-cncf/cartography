@@ -1,18 +1,18 @@
+from datetime import timezone
 from unittest.mock import AsyncMock
 from unittest.mock import patch
 
 import pytest
+from neo4j.time import DateTime
 
 import cartography.intel.entra.ou
 from cartography.intel.entra.ou import sync_entra_ous
 from tests.data.entra.ou import MOCK_ENTRA_OUS
-from tests.data.entra.ou import TEST_TENANT_ID
 from tests.data.entra.ou import TEST_CLIENT_ID
 from tests.data.entra.ou import TEST_CLIENT_SECRET
+from tests.data.entra.ou import TEST_TENANT_ID
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
-from datetime import timezone
-from neo4j.time import DateTime
 
 
 TEST_UPDATE_TAG = 1234567890
@@ -76,7 +76,7 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
     assert check_nodes(
         neo4j_session,
         'EntraOU',
-        ['id', 'description', 'membership_type', 'is_member_management_restricted'],   
+        ['id', 'description', 'membership_type', 'is_member_management_restricted'],
     ) == expected_properties
 
     # Assert soft-deleted OU is present
@@ -87,5 +87,5 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
     assert check_nodes(
         neo4j_session,
         'EntraOU',
-        ['id', 'deleted_date_time'], 
+        ['id', 'deleted_date_time'],
     ) == expected_properties
