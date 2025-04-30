@@ -122,8 +122,6 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = "shibuya"
-# html_theme_path = sphinx_material.html_theme_path()
-# html_context = sphinx_material.get_html_context()
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -146,9 +144,6 @@ html_context = {
     "source_version": "master",
     "source_docs_path": "/docs/root/",
 }
-# html_sidebars = {
-#     "**": ["globaltoc.html", "localtoc.html", "searchbox.html"],
-# }
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
