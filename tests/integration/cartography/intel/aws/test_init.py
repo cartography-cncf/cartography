@@ -59,15 +59,15 @@ def test_sync_multiple_accounts(
     # Ensure we call _sync_one_account on all accounts in our list.
     mock_sync_one.assert_any_call(
         neo4j_session, mock_boto3_session(), '000000000000', TEST_UPDATE_TAG, GRAPH_JOB_PARAMETERS,
-        aws_requested_syncs=[],
+        regions=None, aws_requested_syncs=[],
     )
     mock_sync_one.assert_any_call(
         neo4j_session, mock_boto3_session(), '000000000001', TEST_UPDATE_TAG, GRAPH_JOB_PARAMETERS,
-        aws_requested_syncs=[],
+        regions=None, aws_requested_syncs=[],
     )
     mock_sync_one.assert_any_call(
         neo4j_session, mock_boto3_session(), '000000000002', TEST_UPDATE_TAG, GRAPH_JOB_PARAMETERS,
-        aws_requested_syncs=[],
+        regions=None, aws_requested_syncs=[],
     )
 
     # Ensure _sync_one_account and _autodiscover is called once for each account
