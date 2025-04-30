@@ -26,6 +26,8 @@ class Config:
     :type aws_sync_all_profiles: bool
     :param aws_sync_all_profiles: If True, AWS sync will run for all non-default profiles in the AWS_CONFIG_FILE. If
         False (default), AWS sync will run using the default credentials only. Optional.
+    :type aws_regions: str
+    :param aws_regions: Comma-separated list of AWS regions to sync. Optional.
     :type aws_best_effort_mode: bool
     :param aws_best_effort_mode: If True, AWS sync will not raise any exceptions, just log. If False (default),
         exceptions will be raised.
@@ -133,6 +135,7 @@ class Config:
         selected_modules=None,
         update_tag=None,
         aws_sync_all_profiles=False,
+        aws_regions=None,
         aws_best_effort_mode=False,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
@@ -194,6 +197,7 @@ class Config:
         self.selected_modules = selected_modules
         self.update_tag = update_tag
         self.aws_sync_all_profiles = aws_sync_all_profiles
+        self.aws_regions = aws_regions
         self.aws_best_effort_mode = aws_best_effort_mode
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
