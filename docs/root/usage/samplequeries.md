@@ -85,7 +85,7 @@ ORDER by elbv2.dnsname, listener.port
 ### Which open ports are internet accesible from ELB or ELBv2?
 ```cypher
     MATCH (elb:LoadBalancer{exposed_internet: true})—->(listener:ELBListener)
-    RETURN DISTINCT elb.dnsname as dnsname, listener.port as port 
+    RETURN DISTINCT elb.dnsname as dnsname, listener.port as port
     UNION
     MATCH (lb:LoadBalancerV2)-[:ELBV2_LISTENER]->(l:ELBV2Listener)
     WHERE lb.scheme = "internet-facing"
@@ -174,5 +174,3 @@ MATCH (repo:GitHubRepository)-[edge:REQUIRES]->(dep:Dependency)
 RETURN repo.name, dep.name, edge.specifier, dep.version
 ```
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28repo%3AGitHubRepository%29-%5Bedge%3AREQUIRES%5D-%3E%28dep%3ADependency%29%0ARETURN%20repo.name%2C%20dep.name%2C%20edge.specifier%2C%20dep.version)
-
-
