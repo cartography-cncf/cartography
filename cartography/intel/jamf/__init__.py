@@ -14,7 +14,9 @@ def start_jamf_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     if not config.jamf_base_uri or not config.jamf_user or not config.jamf_password:
         # If the config is not set, we don't want to run this module
-        logger.info('Jamf import is not configured - skipping this module. See docs to configure.')
+        logger.info(
+            "Jamf import is not configured - skipping this module. See docs to configure."
+        )
         return
 
     common_job_parameters = {

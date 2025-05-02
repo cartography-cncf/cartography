@@ -149,17 +149,17 @@ class Sync:
         :return: A dictionary of available intel modules.
         """
         available_modules = OrderedDict({})
-        available_modules['create-indexes'] = cartography.intel.create_indexes.run
-        callable_regex = re.compile(r'^start_(.+)_ingestion$')
+        available_modules["create-indexes"] = cartography.intel.create_indexes.run
+        callable_regex = re.compile(r"^start_(.+)_ingestion$")
         # Load built-in modules
         for intel_module_info in iter_modules(cartography.intel.__path__):
-            if intel_module_info.name in ('analysis', 'create_indexes'):
+            if intel_module_info.name in ("analysis", "create_indexes"):
                 continue
             try:
                 logger.debug("Loading module: %s", intel_module_info.name)
                 intel_module = __import__(
                     f"cartography.intel.{intel_module_info.name}",
-                    fromlist=[''],
+                    fromlist=[""],
                 )
             except ImportError as e:
                 logger.error(
@@ -171,7 +171,7 @@ class Sync:
             logger.debug("Loading module: %s", intel_module_info.name)
             intel_module = __import__(
                 f"cartography.intel.{intel_module_info.name}",
-                fromlist=[''],
+                fromlist=[""],
             )
             for k, v in intel_module.__dict__.items():
                 if not callable(v):
@@ -179,7 +179,9 @@ class Sync:
                 match_callable_name = callable_regex.match(k)
                 if not match_callable_name:
                     continue
-                callable_module_name = match_callable_name.group(1) if match_callable_name else None
+                callable_module_name = (
+                    match_callable_name.group(1) if match_callable_name else None
+                )
                 if callable_module_name != intel_module_info.name:
                     logger.debug(
                         "Module name '%s' does not match intel module name '%s'.",
@@ -187,7 +189,7 @@ class Sync:
                         intel_module_info.name,
                     )
                 available_modules[intel_module_info.name] = v
-        available_modules['analysis'] = cartography.intel.analysis.run
+        available_modules["analysis"] = cartography.intel.analysis.run
         return available_modules
 
 
