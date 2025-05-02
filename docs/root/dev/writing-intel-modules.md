@@ -4,7 +4,7 @@ If you want to add a new data type to Cartography, this is the guide for you. We
 
 ## Before getting started...
 
-Read through and follow the setup steps in [the Cartography developer guide](developer-guide.html). Learn the basics of
+Read through and follow the setup steps in [the Cartography developer guide](developer-guide). Learn the basics of
 running, testing, and linting your code there.
 
 ## The fast way
@@ -387,7 +387,7 @@ with every change!
 
 ## Making tests
 
-- Before making tests, read through and follow the setup steps in [the Cartography developer guide](developer-guide.html).
+- Before making tests, read through and follow the setup steps in [the Cartography developer guide](developer-guide).
 
 - Add fake data for testing at `tests/data`. We can see
 the AWS EC2 instance example [here](https://github.com/cartography-cncf/cartography/blob/d42253b9223ced996fa9c51dee3a51942e0a08f4/tests/data/aws/ec2/instances.py#L4).
@@ -407,8 +407,9 @@ resources that exist in the graph don't change across syncs.
 
 - Each intel module offers its own view of the graph
 
-    ℹ️ This best practice is a little less precise, so if you've gotten to this point and you need clarification, just
-    submit your PR and ask us.
+    ```{note}
+    This best practice is a little less precise, so if you've gotten to this point and you need clarification, just submit your PR and ask us.
+    ```
 
     As much as possible, each intel module should ingest data without assuming that a different module will ingest the
     same data. Explained another way, each module should "offer its own perspective" on the data. We believe doing this

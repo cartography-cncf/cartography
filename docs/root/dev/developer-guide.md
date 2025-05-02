@@ -5,11 +5,11 @@
 ### Running the source code
 
 This document assumes familiarity with Python dev practices such as using [virtualenvs](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/).
-If you prefer docker instead, skip this and scroll down to [these instructions](#devdockerfile).
+If you prefer docker instead, skip this and scroll down to [these instructions](#dev-dockerfile).
 
 1. **Run Neo4j**
 
-    Follow the [Install Steps](../install.html) so that you get Neo4j running locally. It's up to you if you want to use Docker or a native install.
+    Follow the [Install Steps](../install) so that you get Neo4j running locally. It's up to you if you want to use Docker or a native install.
 
 1. **Install Python 3.10**
 
@@ -221,4 +221,4 @@ docker run --rm cartography-cncf/cartography-dev cartography --help
 ```
 
 ## How to write a new intel module
-See [here](writing-intel-modules.html).
+See [here](writing-intel-modules).

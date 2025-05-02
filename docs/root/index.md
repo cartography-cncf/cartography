@@ -3,10 +3,6 @@
 
 
 ```{toctree}
-info
-```
-
-```{toctree}
 :caption: Basic Use
 :hidden: true
 
@@ -27,7 +23,9 @@ modules/*/index
 :caption: Development Docs
 :hidden: true
 
-dev/index
+dev/developer-guide
+dev/writing-intel-modules
+dev/writing-analysis-jobs
 ```
 
 ```{toctree}

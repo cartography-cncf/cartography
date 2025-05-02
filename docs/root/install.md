@@ -241,8 +241,8 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 ## Things to do next
 Here's some ideas to get the most out of Cartography:
-- [Set up other data providers](https://cartography-cncf.github.io/cartography/modules)
-- View our [Operations Guide](ops.html) for tips on running Cartography in production
-- Read our [usage instructions](https://cartography-cncf.github.io/cartography/usage/tutorial.html) and [schema](https://cartography-cncf.github.io/cartography/usage/schema.html) to learn how to query the graph
-- Think of [applications](https://cartography-cncf.github.io/cartography/usage/applications.html) to build around it
-- Consider [writing your own Cartography custom modules](dev/writing-intel-modules.md)
+- [Set up other data providers](module-list)
+- View our [Operations Guide](ops) for tips on running Cartography in production
+- Read our [usage instructions](usage/tutorial) and [schema](usage/schema) to learn how to query the graph
+- Think of [applications](usage/applications) to build around it
+- Consider [writing your own Cartography custom modules](dev/writing-intel-modules)

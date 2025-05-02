@@ -15,8 +15,6 @@ import os
 import sys
 from datetime import datetime
 
-import sphinx_material
-
 sys.path.insert(0, os.path.abspath("../.."))
 
 
@@ -43,6 +41,7 @@ extensions = [
     "sphinx.ext.githubpages",
     "sphinxcontrib.mermaid",
     "myst_parser",
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -122,22 +121,28 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinx_material"
-html_theme_path = sphinx_material.html_theme_path()
-html_context = sphinx_material.get_html_context()
+html_theme = "shibuya"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'globaltoc_depth': 2,
+    'globaltoc_depth': 0,
     'globaltoc_collapse': True,
-    'repo_url': 'https://github.com/lyft/cartography',
+    'github_url': 'https://github.com/cartography-cncf/cartography',
     'repo_name': 'cartography',
     'repo_type': 'github',
+    'page_layout': 'default',
+    'accent_color': 'cyan',
+    "slack_url": "https://communityinviter.com/apps/cloud-native/cncf",
 }
-html_sidebars = {
-    "**": ["globaltoc.html", "localtoc.html", "searchbox.html"],
+
+html_context = {
+    "source_type": "github",
+    "source_user": "cartography-cncf",
+    "source_repo": "cartography",
+    "source_version": "master",
+    "source_docs_path": "/docs/root/",
 }
 
 # The name for this set of Sphinx documents.
@@ -159,7 +164,8 @@ html_favicon = 'images/logo-vertical.svg'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ["_static"]
+html_static_path = ["_static"]
+html_css_files = ['custom.css']
 
 # html_style = 'css/cartography.css'
 

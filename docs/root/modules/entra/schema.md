@@ -72,10 +72,30 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 |on_premises_sync_enabled | Whether on-premises directory sync is enabled|
 |on_premises_user_principal_name | User Principal Name in on-premises directory|
 
+### EntraOU
+Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/administrativeunit-get?view=graph-rest-1.0&tabs=http).
+
+|Field | Description|
+|-------|-------------|
+|id | Entra Administrative Unit (OU) ID (GUID)|
+|display_name | Display name of the administrative unit|
+|description| Description of the administrative unit|
+|membership_type| Membership type ("Assigned" for static or "Dynamic for rule-based)|
+|visibility| Visibility setting ("Public" or "Private")|
+|is_member_management_restricted | Whether member management is restricted|
+|deleted_date_time | Date and time when the administrative unit was soft-deleted |
+
+
 #### Relationships
 
 - All Entra users are linked to an Entra Tenant
 
     ```cypher
     (:EntraUser)-[:RESOURCE]->(:EntraTenant)
+    ```
+
+- All Entra OUs are linked to an Entra Tenant
+
+    ```cypher
+    (:EntraOU)-[:RESOURCE]->(:EntraTenant)
     ```
