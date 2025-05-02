@@ -33,21 +33,24 @@ def get_ecr_repositories(
 
 @timeit
 @aws_handle_regions
-def get_ecr_repository_images(
-    boto3_session: boto3.session.Session,
-    region: str,
-    repository_name: str,
-) -> List[Dict]:
-    logger.debug(
-        "Getting ECR images in repository '%s' for region '%s'.",
-        repository_name,
-        region,
-    )
-    client = boto3_session.client("ecr", region_name=region)
-    paginator = client.get_paginator("list_images")
+def get_ecr_repository_images(boto3_session: boto3.session.Session, region: str, repository_name: str) -> List[Dict]:
+    logger.debug("Getting ECR images in repository '%s' for region '%s'.", repository_name, region)
+    client = boto3_session.client('ecr', region_name=region)
+    list_paginator = client.get_paginator('list_images')
     ecr_repository_images: List[Dict] = []
-    for page in paginator.paginate(repositoryName=repository_name):
-        ecr_repository_images.extend(page["imageIds"])
+    for page in list_paginator.paginate(repositoryName=repository_name):
+        image_ids = page['imageIds']
+        if not image_ids:
+            continue
+        describe_paginator = client.get_paginator('describe_images')
+        describe_response = describe_paginator.paginate(repositoryName=repository_name, imageIds=image_ids)
+        for response in describe_response:
+            image_details = response['imageDetails']
+            image_details = [
+                {**detail, 'imageTag': detail['imageTags'][0]} if detail.get('imageTags') else detail
+                for detail in image_details
+            ]
+            ecr_repository_images.extend(image_details)
     return ecr_repository_images
 
 
@@ -121,7 +124,12 @@ def _load_ecr_repo_img_tx(
         ON CREATE SET ri.firstseen = timestamp()
         SET ri.lastupdated = $aws_update_tag,
             ri.tag = repo_img.imageTag,
-            ri.uri = repo_img.repo_uri + COALESCE(":" + repo_img.imageTag, '')
+            ri.uri = repo_img.repo_uri + COALESCE(":" + repo_img.imageTag, ''),
+            ri.image_size_bytes = repo_img.imageSizeInBytes,
+            ri.image_pushed_at = repo_img.imagePushedAt,
+            ri.image_manifest_media_type = repo_img.imageManifestMediaType,
+            ri.artifact_media_type = repo_img.artifactMediaType,
+            ri.last_recorded_pull_time = repo_img.lastRecordedPullTime
         WITH ri, repo_img
 
         MERGE (img:ECRImage{id: repo_img.imageDigest})

@@ -20,6 +20,7 @@ import cartography.intel.crowdstrike
 import cartography.intel.cve
 import cartography.intel.digitalocean
 import cartography.intel.duo
+import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gsuite
@@ -38,29 +39,28 @@ from cartography.util import STATUS_SUCCESS
 logger = logging.getLogger(__name__)
 
 
-TOP_LEVEL_MODULES = OrderedDict(
-    {  # preserve order so that the default sync always runs `analysis` at the very end
-        "create-indexes": cartography.intel.create_indexes.run,
-        "aws": cartography.intel.aws.start_aws_ingestion,
-        "azure": cartography.intel.azure.start_azure_ingestion,
-        "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
-        "gcp": cartography.intel.gcp.start_gcp_ingestion,
-        "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
-        "cve": cartography.intel.cve.start_cve_ingestion,
-        "oci": cartography.intel.oci.start_oci_ingestion,
-        "okta": cartography.intel.okta.start_okta_ingestion,
-        "github": cartography.intel.github.start_github_ingestion,
-        "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
-        "kandji": cartography.intel.kandji.start_kandji_ingestion,
-        "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
-        "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
-        "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
-        "duo": cartography.intel.duo.start_duo_ingestion,
-        "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
-        "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
-        "analysis": cartography.intel.analysis.run,
-    },
-)
+TOP_LEVEL_MODULES = OrderedDict({  # preserve order so that the default sync always runs `analysis` at the very end
+    'create-indexes': cartography.intel.create_indexes.run,
+    'aws': cartography.intel.aws.start_aws_ingestion,
+    'azure': cartography.intel.azure.start_azure_ingestion,
+    'entra': cartography.intel.entra.start_entra_ingestion,
+    'crowdstrike': cartography.intel.crowdstrike.start_crowdstrike_ingestion,
+    'gcp': cartography.intel.gcp.start_gcp_ingestion,
+    'gsuite': cartography.intel.gsuite.start_gsuite_ingestion,
+    'cve': cartography.intel.cve.start_cve_ingestion,
+    'oci': cartography.intel.oci.start_oci_ingestion,
+    'okta': cartography.intel.okta.start_okta_ingestion,
+    'github': cartography.intel.github.start_github_ingestion,
+    'digitalocean': cartography.intel.digitalocean.start_digitalocean_ingestion,
+    'kandji': cartography.intel.kandji.start_kandji_ingestion,
+    'kubernetes': cartography.intel.kubernetes.start_k8s_ingestion,
+    'lastpass': cartography.intel.lastpass.start_lastpass_ingestion,
+    'bigfix': cartography.intel.bigfix.start_bigfix_ingestion,
+    'duo': cartography.intel.duo.start_duo_ingestion,
+    'semgrep': cartography.intel.semgrep.start_semgrep_ingestion,
+    'snipeit': cartography.intel.snipeit.start_snipeit_ingestion,
+    'analysis': cartography.intel.analysis.run,
+})
 
 
 class Sync:

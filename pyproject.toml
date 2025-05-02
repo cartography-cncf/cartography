@@ -36,7 +36,7 @@ dependencies = [
     "boto3>=1.15.1",
     "botocore>=1.18.1",
     "dnspython>=1.15.0",
-    "neo4j>=4.4.4,<5.0.0",
+    "neo4j>=4.4.4",
     "policyuniverse>=1.1.0.0",
     "google-api-python-client>=1.7.8",
     "google-auth>=2.37.0",
@@ -57,6 +57,7 @@ dependencies = [
     "azure-mgmt-storage>=16.0.0",
     "azure-mgmt-sql<=1.0.0",
     "azure-identity>=1.5.0",
+    "msgraph-sdk",
     "kubernetes>=22.6.0",
     "pdpyras>=4.3.0",
     "crowdstrike-falconpy>=0.5.1",
@@ -75,11 +76,12 @@ dev = [
     "pre-commit",
     "pytest>=6.2.4",
     "pytest-mock",
-    "pytest-cov==2.10.0",
+    "pytest-cov==6.1.1",
     "pytest-rerunfailures",
+    "pytest-asyncio",
     "types-PyYAML",
-    "types-requests<2.32.0.20241017",
-    "black==25.1.0"
+    "black==25.1.0",
+    "types-requests<2.32.0.20250329",
 ]
 
 # Makes sure to look inside cartography/cartography/ for cli command

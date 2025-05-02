@@ -8,6 +8,7 @@ from typing import Optional
 import cartography.config
 import cartography.sync
 import cartography.util
+from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
 
@@ -158,8 +159,25 @@ class CLI:
             ),
         )
         parser.add_argument(
-            "--aws-best-effort-mode",
-            action="store_true",
+            '--aws-regions',
+            type=str,
+            default=None,
+            help=(
+                '[EXPERIMENTAL!] Comma-separated list of AWS regions to sync. Example: specify "us-east-1,us-east-2" '
+                'to sync US East 1 and 2. Note that this syncs the same regions in ALL accounts and it is currently '
+                'not possible to specify different regions per account. '
+                'CAUTION: if you previously synced assets from regions that are _not_ included in your current list, '
+                'those assets will be _deleted_ during this sync. '
+                'This is because cartography\'s cleanup process uses "lastupdated" and "account id" to determine data '
+                'freshness and not regions. So, if a previously synced region is missing in the current sync, '
+                'Cartography assumes the associated assets are stale and removes them. '
+                'Default behavior: If `--aws-regions` is not specified, cartography will _autodiscover_ the '
+                'regions supported by each account being synced.'
+            ),
+        )
+        parser.add_argument(
+            '--aws-best-effort-mode',
+            action='store_true',
             help=(
                 "Enable AWS sync best effort mode when syncing AWS accounts. This will allow cartography to continue "
                 "syncing other accounts and delay raising an exception until the very end."
@@ -210,7 +228,47 @@ class CLI:
             ),
         )
         parser.add_argument(
-            "--aws-requested-syncs",
+            '--azure-client-id',
+            type=str,
+            default=None,
+            help=(
+                'Azure Client Id for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
+            '--azure-client-secret-env-var',
+            type=str,
+            default=None,
+            help=(
+                'The name of environment variable containing Azure Client Secret for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
+            '--entra-tenant-id',
+            type=str,
+            default=None,
+            help=(
+                'Entra Tenant Id for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
+            '--entra-client-id',
+            type=str,
+            default=None,
+            help=(
+                'Entra Client Id for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
+            '--entra-client-secret-env-var',
+            type=str,
+            default=None,
+            help=(
+                'The name of environment variable containing Entra Client Secret for Service Principal Authentication.'
+            ),
+        )
+        parser.add_argument(
+            '--aws-requested-syncs',
             type=str,
             default=None,
             help=(
@@ -430,10 +488,11 @@ class CLI:
         parser.add_argument(
             "--gsuite-auth-method",
             type=str,
-            default="delegated",
-            choices=["delegated", "oauth"],
+            default='delegated',
+            choices=['delegated', 'oauth', 'default'],
             help=(
-                "The method used by GSuite to authenticate. delegated is the legacy one."
+                'GSuite authentication method. Can be "delegated" for service account or "oauth" for OAuth. '
+                '"Default" best if using gcloud CLI.'
             ),
         )
         parser.add_argument(
@@ -591,6 +650,11 @@ class CLI:
             # No need to store the returned value; we're using this for input validation.
             parse_and_validate_aws_requested_syncs(config.aws_requested_syncs)
 
+        # AWS regions
+        if config.aws_regions:
+            # No need to store the returned value; we're using this for input validation.
+            parse_and_validate_aws_regions(config.aws_regions)
+
         # Azure config
         if config.azure_sp_auth and config.azure_client_secret_env_var:
             logger.debug(
@@ -602,6 +666,16 @@ class CLI:
             )
         else:
             config.azure_client_secret = None
+
+        # Entra config
+        if config.entra_tenant_id and config.entra_client_id and config.entra_client_secret_env_var:
+            logger.debug(
+                "Reading Client Secret for Entra Authentication from environment variable %s",
+                config.entra_client_secret_env_var,
+            )
+            config.entra_client_secret = os.environ.get(config.entra_client_secret_env_var)
+        else:
+            config.entra_client_secret = None
 
         # Okta config
         if config.okta_org_id and config.okta_api_key_env_var:
@@ -817,8 +891,12 @@ def main(argv=None):
     :return: The return code.
     """
     logging.basicConfig(level=logging.INFO)
-    logging.getLogger("botocore").setLevel(logging.WARNING)
-    logging.getLogger("googleapiclient").setLevel(logging.WARNING)
-    logging.getLogger("neo4j").setLevel(logging.WARNING)
+    logging.getLogger('botocore').setLevel(logging.WARNING)
+    logging.getLogger('googleapiclient').setLevel(logging.WARNING)
+    logging.getLogger('neo4j').setLevel(logging.WARNING)
+    logging.getLogger('azure.identity').setLevel(logging.WARNING)
+    logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
+
     argv = argv if argv is not None else sys.argv[1:]
     sys.exit(CLI(prog="cartography").main(argv))

@@ -26,6 +26,8 @@ class Config:
     :type aws_sync_all_profiles: bool
     :param aws_sync_all_profiles: If True, AWS sync will run for all non-default profiles in the AWS_CONFIG_FILE. If
         False (default), AWS sync will run using the default credentials only. Optional.
+    :type aws_regions: str
+    :param aws_regions: Comma-separated list of AWS regions to sync. Optional.
     :type aws_best_effort_mode: bool
     :param aws_best_effort_mode: If True, AWS sync will not raise any exceptions, just log. If False (default),
         exceptions will be raised.
@@ -41,6 +43,12 @@ class Config:
     :param azure_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
     :type azure_client_secret: str
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
+    :type entra_tenant_id: str
+    :param entra_tenant_id: Tenant Id for connecting in a Service Principal Authentication approach. Optional.
+    :type entra_client_id: str
+    :param entra_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
+    :type entra_client_secret: str
+    :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
     :type analysis_job_directory: str
@@ -127,12 +135,16 @@ class Config:
         selected_modules=None,
         update_tag=None,
         aws_sync_all_profiles=False,
+        aws_regions=None,
         aws_best_effort_mode=False,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
         azure_client_id=None,
         azure_client_secret=None,
+        entra_tenant_id=None,
+        entra_client_id=None,
+        entra_client_secret=None,
         aws_requested_syncs=None,
         analysis_job_directory=None,
         oci_sync_all_profiles=None,
@@ -185,12 +197,16 @@ class Config:
         self.selected_modules = selected_modules
         self.update_tag = update_tag
         self.aws_sync_all_profiles = aws_sync_all_profiles
+        self.aws_regions = aws_regions
         self.aws_best_effort_mode = aws_best_effort_mode
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id
         self.azure_client_id = azure_client_id
         self.azure_client_secret = azure_client_secret
+        self.entra_tenant_id = entra_tenant_id
+        self.entra_client_id = entra_client_id
+        self.entra_client_secret = entra_client_secret
         self.aws_requested_syncs = aws_requested_syncs
         self.analysis_job_directory = analysis_job_directory
         self.oci_sync_all_profiles = oci_sync_all_profiles

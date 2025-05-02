@@ -1,15 +1,15 @@
 # Cartography Developer Guide
 
-## Develepment using a Python venv
+## Development using a Python venv
 
 ### Running the source code
 
 This document assumes familiarity with Python dev practices such as using [virtualenvs](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/).
-If you prefer docker instead, skip this and scroll down to [these instructions](#devdockerfile).
+If you prefer docker instead, skip this and scroll down to [these instructions](#dev-dockerfile).
 
 1. **Run Neo4j**
 
-    Follow the [Install Steps](../install.html) so that you get Neo4j running locally. It's up to you if you want to use Docker or a native install.
+    Follow the [Install Steps](../install) so that you get Neo4j running locally. It's up to you if you want to use Docker or a native install.
 
 1. **Install Python 3.10**
 
@@ -45,7 +45,9 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
     - `make test_lint` runs [pre-commit](https://pre-commit.com) linting against the codebase.
     - `make test_unit` runs the unit test suite.
 
-    ⚠️ Important!  The below commands will **DELETE ALL NODES** on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this. ⚠️
+    :::{warning}
+    The below commands will **DELETE ALL NODES** on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this.
+    :::
 
     - `make test_integration` runs the integration test suite.
     For more granular testing, you can invoke `pytest` directly:
@@ -103,7 +105,7 @@ We include a dev.Dockerfile that can help streamline common dev tasks. It is dif
 
 To use it, build dev.Dockerfile with
 ```bash
-cd /path/to/cartography/repo
+cd /path/to/cartography/repo  # We are assuming that you've already cloned the cartography source code
 docker build -t cartography-cncf/cartography-dev -f dev.Dockerfile ./
 ```
 
@@ -221,4 +223,4 @@ docker run --rm cartography-cncf/cartography-dev cartography --help
 ```
 
 ## How to write a new intel module
-See [here](writing-intel-modules.html).
+See [here](writing-intel-modules).

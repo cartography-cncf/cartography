@@ -1,18 +1,30 @@
-# Install and Run Cartography On Test Machine
-
-.. _cartography-installation:
+# Quick start: Install and Run Cartography On Test Machine
 
 Time to set up a test machine to run Cartography.
 
 ## Option 1: Run docker-compose (preferred)
 
-This is the quickest way to get started (assuming docker does what it's supposed to do).
+This is the quickest way to get started: you will run a cartography cron job and a Neo4j docker container on your
+machine to pull data from AWS.
 
 ![dockercompose-flow.png](images/dockercompose-flow.png)
+
+1. Clone the Cartography repo to your machine.
+
+    ```bash
+    git clone git@github.com:cartography-cncf/cartography.git
+    ```
+
+    or
+
+    ```bash
+    git clone https://github.com/cartography-cncf/cartography
+    ```
 
 1. **Start up the Neo4j graph database.**
 
     ```bash
+    cd cartography
     docker-compose up -d
     ```
 
@@ -231,8 +243,8 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 ## Things to do next
 Here's some ideas to get the most out of Cartography:
-- [Set up other data providers](https://cartography-cncf.github.io/cartography/modules)
-- View our [Operations Guide](ops.html) for tips on running Cartography in production
-- Read our [usage instructions](https://cartography-cncf.github.io/cartography/usage/tutorial.html) and [schema](https://cartography-cncf.github.io/cartography/usage/schema.html) to learn how to query the graph
-- Think of [applications](https://cartography-cncf.github.io/cartography/usage/applications.html) to build around it
-- Consider [writing your own Cartography custom modules](dev/writing-intel-modules.md)
+- [Set up other data providers](module-list)
+- View our [Operations Guide](ops) for tips on running Cartography in production
+- Read our [usage instructions](usage/tutorial) and [schema](usage/schema) to learn how to query the graph
+- Think of [applications](usage/applications) to build around it
+- Consider [writing your own Cartography custom modules](dev/writing-intel-modules)

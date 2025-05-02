@@ -1,7 +1,5 @@
 ## OCI Schema
 
-.. _oci_schema:
-
 ### OCITenancy
 
 Representation of an OCI Tenancy.

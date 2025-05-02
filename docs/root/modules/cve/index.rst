@@ -1,7 +1,0 @@
-CVE
-###
-
-.. toctree::
-
-    config
-    schema

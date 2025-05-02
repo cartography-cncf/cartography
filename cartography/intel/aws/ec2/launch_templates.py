@@ -2,8 +2,8 @@ import logging
 from typing import Any
 
 import boto3
+import botocore
 import neo4j
-from botocore.exceptions import ClientError
 
 from .util import get_botocore_config
 from cartography.client.core.tx import load
@@ -23,42 +23,64 @@ logger = logging.getLogger(__name__)
 def get_launch_templates(
     boto3_session: boto3.session.Session,
     region: str,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    client = boto3_session.client(
-        "ec2",
-        region_name=region,
-        config=get_botocore_config(),
-    )
-    paginator = client.get_paginator("describe_launch_templates")
+) -> list[dict[str, Any]]:
+    client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
+    paginator = client.get_paginator('describe_launch_templates')
     templates: list[dict[str, Any]] = []
-    template_versions: list[dict[str, Any]] = []
     for page in paginator.paginate():
-        paginated_templates = page["LaunchTemplates"]
-        for template in paginated_templates:
-            template_id = template["LaunchTemplateId"]
-            try:
-                versions = get_launch_template_versions_by_template(
-                    boto3_session,
-                    template_id,
-                    region,
-                )
-            except ClientError as e:
-                logger.warning(
-                    f"Failed to get launch template versions for {template_id}: {e}",
-                    exc_info=True,
-                )
-                versions = []
-            # Using a key not defined in latest boto3 documentation
-            template_versions.extend(versions)
+        paginated_templates = page['LaunchTemplates']
         templates.extend(paginated_templates)
-    return templates, template_versions
+    return templates
 
 
-def transform_launch_templates(templates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+@timeit
+@aws_handle_regions
+def get_launch_template_versions(
+    boto3_session: boto3.session.Session,
+    region: str,
+    launch_templates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    template_versions: list[dict[str, Any]] = []
+    for template in launch_templates:
+        launch_template_id = template['LaunchTemplateId']
+        versions = get_launch_template_versions_by_template(boto3_session, launch_template_id, region)
+        template_versions.extend(versions)
+
+    return template_versions
+
+
+@timeit
+@aws_handle_regions
+def get_launch_template_versions_by_template(
+        boto3_session: boto3.session.Session,
+        launch_template_id: str,
+        region: str,
+) -> list[dict[str, Any]]:
+    client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
+    v_paginator = client.get_paginator('describe_launch_template_versions')
+    template_versions = []
+    try:
+        for versions in v_paginator.paginate(LaunchTemplateId=launch_template_id):
+            template_versions.extend(versions['LaunchTemplateVersions'])
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == 'InvalidLaunchTemplateId.NotFound':
+            logger.warning("Launch template %s no longer exists in region %s", launch_template_id, region)
+        else:
+            raise
+    return template_versions
+
+
+def transform_launch_templates(templates: list[dict[str, Any]], versions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    valid_template_ids = {v['LaunchTemplateId'] for v in versions}
     result: list[dict[str, Any]] = []
     for template in templates:
+        if template['LaunchTemplateId'] not in valid_template_ids:
+            continue
+
         current = template.copy()
-        current["CreateTime"] = str(int(current["CreateTime"].timestamp()))
+        # Convert CreateTime to timestamp string
+        current['CreateTime'] = str(int(current['CreateTime'].timestamp()))
         result.append(current)
     return result
 
@@ -81,28 +103,7 @@ def load_launch_templates(
     )
 
 
-@timeit
-@aws_handle_regions
-def get_launch_template_versions_by_template(
-    boto3_session: boto3.session.Session,
-    template: str,
-    region: str,
-) -> list[dict[str, Any]]:
-    client = boto3_session.client(
-        "ec2",
-        region_name=region,
-        config=get_botocore_config(),
-    )
-    v_paginator = client.get_paginator("describe_launch_template_versions")
-    template_versions = []
-    for versions in v_paginator.paginate(LaunchTemplateId=template):
-        template_versions.extend(versions["LaunchTemplateVersions"])
-    return template_versions
-
-
-def transform_launch_template_versions(
-    versions: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+def transform_launch_template_versions(versions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for version in versions:
         current = version.copy()
@@ -179,25 +180,16 @@ def sync_ec2_launch_templates(
     common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
-        logger.info(
-            f"Syncing launch templates for region '{region}' in account '{current_aws_account_id}'.",
-        )
-        templates, versions = get_launch_templates(boto3_session, region)
-        templates = transform_launch_templates(templates)
-        load_launch_templates(
-            neo4j_session,
-            templates,
-            region,
-            current_aws_account_id,
-            update_tag,
-        )
-        versions = transform_launch_template_versions(versions)
-        load_launch_template_versions(
-            neo4j_session,
-            versions,
-            region,
-            current_aws_account_id,
-            update_tag,
-        )
+        logger.info(f"Syncing launch templates for region '{region}' in account '{current_aws_account_id}'.")
+        templates = get_launch_templates(boto3_session, region)
+        versions = get_launch_template_versions(boto3_session, region, templates)
+
+        # Transform and load the templates that have versions
+        transformed_templates = transform_launch_templates(templates, versions)
+        load_launch_templates(neo4j_session, transformed_templates, region, current_aws_account_id, update_tag)
+
+        # Transform and load the versions
+        transformed_versions = transform_launch_template_versions(versions)
+        load_launch_template_versions(neo4j_session, transformed_versions, region, current_aws_account_id, update_tag)
 
     cleanup(neo4j_session, common_job_parameters)

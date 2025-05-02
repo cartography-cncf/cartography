@@ -1,7 +1,0 @@
-BigFix
-########
-
-.. toctree::
-
-    config
-    schema

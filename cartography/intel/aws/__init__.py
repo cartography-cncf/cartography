@@ -14,12 +14,14 @@ from . import ec2
 from . import organizations
 from .resources import RESOURCE_FUNCTIONS
 from cartography.config import Config
+from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_analysis_and_ensure_deps
 from cartography.util import run_analysis_job
 from cartography.util import run_cleanup_job
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 
@@ -51,9 +53,10 @@ def _sync_one_account(
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
-    regions: List[str] = [],
+    regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
 ) -> None:
+    # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
         regions = _autodiscover_account_regions(boto3_session, current_aws_account_id)
 
@@ -89,8 +92,8 @@ def _sync_one_account(
     if "resourcegroupstaggingapi" in aws_requested_syncs:
         RESOURCE_FUNCTIONS["resourcegroupstaggingapi"](**sync_args)
 
-    run_analysis_job(
-        "aws_ec2_iaminstanceprofile.json",
+    run_scoped_analysis_job(
+        'aws_ec2_iaminstanceprofile.json',
         neo4j_session,
         common_job_parameters,
     )
@@ -174,6 +177,7 @@ def _sync_multiple_accounts(
     common_job_parameters: Dict[str, Any],
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
+    regions: list[str] | None = None,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
@@ -211,6 +215,7 @@ def _sync_multiple_accounts(
                 account_id,
                 sync_tag,
                 common_job_parameters,
+                regions=regions,
                 aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
             )
         except Exception as e:
@@ -256,6 +261,9 @@ def _perform_aws_analysis(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    """
+    Performs AWS analysis jobs that span multiple accounts.
+    """
     requested_syncs_as_set = set(requested_syncs)
 
     ec2_asset_exposure_requirements = {
@@ -344,6 +352,11 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.aws_requested_syncs,
         )
 
+    if config.aws_regions:
+        regions = parse_and_validate_aws_regions(config.aws_regions)
+    else:
+        regions = None
+
     sync_successful = _sync_multiple_accounts(
         neo4j_session,
         aws_accounts,
@@ -351,6 +364,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
         config.aws_best_effort_mode,
         requested_syncs,
+        regions=regions,
     )
 
     if sync_successful:

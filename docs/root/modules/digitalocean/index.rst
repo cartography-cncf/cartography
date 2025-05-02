@@ -1,7 +1,0 @@
-DigitalOcean
-############
-
-.. toctree::
-
-    config
-    schema

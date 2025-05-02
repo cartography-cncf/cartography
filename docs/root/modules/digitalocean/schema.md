@@ -1,7 +1,5 @@
 ## DigitalOcean Schema
 
-.. _digitalocean_schema:
-
 ### DOAccount
 Representation of a DigitalOcean [Account](https://developers.digitalocean.com/documentation/v2/#account) object.
 

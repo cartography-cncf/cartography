@@ -4,6 +4,7 @@ from typing import List
 
 import neo4j
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -34,9 +35,21 @@ def get_all_groups(admin: Resource) -> List[Dict]:
     )
     response_objects = []
     while request is not None:
-        resp = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
-        response_objects.append(resp)
-        request = admin.groups().list_next(request, resp)
+        try:
+            resp = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+            response_objects.append(resp)
+            request = admin.groups().list_next(request, resp)
+        except HttpError as e:
+            if e.resp.status == 403 and "Request had insufficient authentication scopes" in str(e):
+                logger.error(
+                    "Missing required GSuite scopes. If using the gcloud CLI, ",
+                    "run: gcloud auth application-default login --scopes="
+                    '"https://www.googleapis.com/auth/admin.directory.user.readonly,'
+                    'https://www.googleapis.com/auth/admin.directory.group.readonly,'
+                    'https://www.googleapis.com/auth/admin.directory.group.member.readonly,'
+                    'https://www.googleapis.com/auth/cloud-platform"',
+                )
+            raise
     return response_objects
 
 
@@ -152,6 +165,7 @@ def load_gsuite_groups(
         g.etag = group.etag,
         g.kind = group.kind,
         g.name = group.name,
+        g:GCPPrincipal,
         g.lastupdated = $UpdateTag
     """
     logger.info(f"Ingesting {len(groups)} gsuite groups")
@@ -195,6 +209,7 @@ def load_gsuite_users(
         u.suspended = user.suspended,
         u.thumbnail_photo_etag = user.thumbnailPhotoEtag,
         u.thumbnail_photo_url = user.thumbnailPhotoUrl,
+        u:GCPPrincipal,
         u.lastupdated = $UpdateTag
     """
     logger.info(f"Ingesting {len(users)} gsuite users")

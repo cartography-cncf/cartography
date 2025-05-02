@@ -22,23 +22,63 @@
 
 - In these docs, more specific nodes will be decorated with `GenericNode::SpecificNode` notation. For example, if we have a `Car` node and a `RaceCar` node, we will refer to the `RaceCar` as `Car::RaceCar`.
 
-.. mdinclude:: ../modules/_cartography-metadata/schema.md
-.. mdinclude:: ../modules/aws/schema.md
-.. mdinclude:: ../modules/azure/schema.md
-.. mdinclude:: ../modules/bigfix/schema.md
-.. mdinclude:: ../modules/crowdstrike/schema.md
-.. mdinclude:: ../modules/cve/schema.md
-.. mdinclude:: ../modules/digitalocean/schema.md
-.. mdinclude:: ../modules/duo/schema.md
-.. mdinclude:: ../modules/gcp/schema.md
-.. mdinclude:: ../modules/github/schema.md
-.. mdinclude:: ../modules/gsuite/schema.md
-.. mdinclude:: ../modules/jamf/schema.md
-.. mdinclude:: ../modules/kandji/schema.md
-.. mdinclude:: ../modules/kubernetes/schema.md
-.. mdinclude:: ../modules/lastpass/schema.md
-.. mdinclude:: ../modules/oci/schema.md
-.. mdinclude:: ../modules/okta/schema.md
-.. mdinclude:: ../modules/pagerduty/schema.md
-.. mdinclude:: ../modules/semgrep/schema.md
-.. mdinclude:: ../modules/snipeit/schema.md
+
+```{include} ../modules/_cartography-metadata/schema.md
+```
+
+```{include} ../modules/aws/schema.md
+```
+
+```{include} ../modules/azure/schema.md
+```
+
+```{include} ../modules/bigfix/schema.md
+```
+
+```{include} ../modules/crowdstrike/schema.md
+```
+
+```{include} ../modules/cve/schema.md
+```
+
+```{include} ../modules/digitalocean/schema.md
+```
+
+```{include} ../modules/duo/schema.md
+```
+
+```{include} ../modules/gcp/schema.md
+```
+
+```{include} ../modules/github/schema.md
+```
+
+```{include} ../modules/gsuite/schema.md
+```
+
+```{include} ../modules/jamf/schema.md
+```
+
+```{include} ../modules/kandji/schema.md
+```
+
+```{include} ../modules/kubernetes/schema.md
+```
+
+```{include} ../modules/lastpass/schema.md
+```
+
+```{include} ../modules/oci/schema.md
+```
+
+```{include} ../modules/okta/schema.md
+```
+
+```{include} ../modules/pagerduty/schema.md
+```
+
+```{include} ../modules/semgrep/schema.md
+```
+
+```{include} ../modules/snipeit/schema.md
+```
