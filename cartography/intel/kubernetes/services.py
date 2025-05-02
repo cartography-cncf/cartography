@@ -27,7 +27,9 @@ def _format_service_selector(selector: Dict[str, str]) -> str:
     return json.dumps(selector)
 
 
-def transform_services(services: List[V1Service], all_pods: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def transform_services(
+    services: List[V1Service], all_pods: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     services_list = []
     for service in services:
         item = {
@@ -55,7 +57,10 @@ def transform_services(services: List[V1Service], all_pods: List[Dict[str, Any]]
 
                 # check if pod labels match service selector
                 if service_selector:
-                    if all(service_selector[key] == pod_labels.get(key) for key in service_selector):
+                    if all(
+                        service_selector[key] == pod_labels.get(key)
+                        for key in service_selector
+                    ):
                         pod_ids.append(pod["uid"])
 
         item["pod_ids"] = pod_ids
@@ -64,7 +69,12 @@ def transform_services(services: List[V1Service], all_pods: List[Dict[str, Any]]
     return services_list
 
 
-def load_services(session: neo4j.Session, services: List[Dict], update_tag: int, cluster_name: str) -> None:
+def load_services(
+    session: neo4j.Session,
+    services: List[Dict],
+    update_tag: int,
+    cluster_name: str,
+) -> None:
     logger.info(f"Loading {len(services)} KubernetesServices")
     load(
         session,
@@ -77,7 +87,9 @@ def load_services(session: neo4j.Session, services: List[Dict], update_tag: int,
 
 def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     logger.debug("Running cleanup job for KubernetesService")
-    cleanup_job = GraphJob.from_node_schema(KubernetesServiceSchema(), common_job_parameters)
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesServiceSchema(), common_job_parameters
+    )
     cleanup_job.run(session)
 
 

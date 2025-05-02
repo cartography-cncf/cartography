@@ -86,28 +86,34 @@ def test_load_pod_relationships(neo4j_session, _create_test_cluster):
         ("my-namespace", "my-pod"),
         ("my-namespace", "my-service-pod"),
     }
-    assert check_rels(
-        neo4j_session,
-        "KubernetesNamespace",
-        "name",
-        "KubernetesPod",
-        "name",
-        "RESOURCE",
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesNamespace",
+            "name",
+            "KubernetesPod",
+            "name",
+            "RESOURCE",
+        )
+        == expected_rels
+    )
 
     # Assert: Expect pods to be in the correct namespace in the correct cluster
     expected_rels = {
         (KUBERNETES_CLUSTER_NAMES[0], "my-pod"),
         (KUBERNETES_CLUSTER_NAMES[0], "my-service-pod"),
     }
-    assert check_rels(
-        neo4j_session,
-        "KubernetesNamespace",
-        "cluster_name",
-        "KubernetesPod",
-        "name",
-        "RESOURCE",
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesNamespace",
+            "cluster_name",
+            "KubernetesPod",
+            "name",
+            "RESOURCE",
+        )
+        == expected_rels
+    )
 
 
 def test_load_pod_containers(neo4j_session, _create_test_cluster):
@@ -154,25 +160,31 @@ def test_load_pod_containers_relationships(neo4j_session, _create_test_cluster):
         ("my-pod", "my-pod-container"),
         ("my-service-pod", "my-service-pod-container"),
     }
-    assert check_rels(
-        neo4j_session,
-        "KubernetesPod",
-        "name",
-        "KubernetesContainer",
-        "name",
-        "CONTAINS",
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesPod",
+            "name",
+            "KubernetesContainer",
+            "name",
+            "CONTAINS",
+        )
+        == expected_rels
+    )
 
     # Assert: Expect containers to be in the correct pod in the correct cluster
     expected_rels = {
         (KUBERNETES_CLUSTER_NAMES[0], "my-pod-container"),
         (KUBERNETES_CLUSTER_NAMES[0], "my-service-pod-container"),
     }
-    assert check_rels(
-        neo4j_session,
-        "KubernetesPod",
-        "cluster_name",
-        "KubernetesContainer",
-        "name",
-        "CONTAINS",
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesPod",
+            "cluster_name",
+            "KubernetesContainer",
+            "name",
+            "CONTAINS",
+        )
+        == expected_rels
+    )

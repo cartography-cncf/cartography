@@ -25,13 +25,15 @@ def get_namespaces(client: K8sClient) -> List[Dict[str, Any]]:
 def transform_namespaces(namespaces: List[V1Namespace]) -> List[Dict[str, Any]]:
     transformed_namespaces = []
     for namespace in namespaces:
-        transformed_namespaces.append({
-            "uid": namespace.metadata.uid,
-            "name": namespace.metadata.name,
-            "creation_timestamp": get_epoch(namespace.metadata.creation_timestamp),
-            "deletion_timestamp": get_epoch(namespace.metadata.deletion_timestamp),
-            "status_phase": namespace.status.phase,
-        })
+        transformed_namespaces.append(
+            {
+                "uid": namespace.metadata.uid,
+                "name": namespace.metadata.name,
+                "creation_timestamp": get_epoch(namespace.metadata.creation_timestamp),
+                "deletion_timestamp": get_epoch(namespace.metadata.deletion_timestamp),
+                "status_phase": namespace.status.phase,
+            }
+        )
     return transformed_namespaces
 
 
@@ -53,9 +55,13 @@ def load_namespaces(
     )
 
 
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+) -> None:
     logger.debug("Running cleanup job for KubernetesNamespace")
-    cleanup_job = GraphJob.from_node_schema(KubernetesNamespaceSchema(), common_job_parameters)
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesNamespaceSchema(), common_job_parameters
+    )
     cleanup_job.run(neo4j_session)
 
 

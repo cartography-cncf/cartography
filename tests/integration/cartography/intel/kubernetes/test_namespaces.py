@@ -15,7 +15,7 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_COMMON_JOB_PARAMETERS = {
-    'UPDATE_TAG': TEST_UPDATE_TAG,
+    "UPDATE_TAG": TEST_UPDATE_TAG,
 }
 
 
@@ -73,7 +73,7 @@ def test_load_namespaces(neo4j_session, _create_test_cluster):
         (KUBERNETES_CLUSTER_2_NAMESPACE_IDS[0],),
         (KUBERNETES_CLUSTER_2_NAMESPACE_IDS[1],),
     }
-    assert check_nodes(neo4j_session, 'KubernetesNamespace', ['id']) == expected_nodes
+    assert check_nodes(neo4j_session, "KubernetesNamespace", ["id"]) == expected_nodes
 
 
 def test_load_namespaces_relationships(neo4j_session, _create_test_cluster):
@@ -98,19 +98,22 @@ def test_load_namespaces_relationships(neo4j_session, _create_test_cluster):
 
     # Assert: Expect the relationship only exists between the cluster and its own namespaces
     expected_rels = {
-        (KUBERNETES_CLUSTER_IDS[0], 'kube-system'),
-        (KUBERNETES_CLUSTER_IDS[0], 'my-namespace'),
-        (KUBERNETES_CLUSTER_IDS[1], 'kube-system'),
-        (KUBERNETES_CLUSTER_IDS[1], 'my-namespace'),
+        (KUBERNETES_CLUSTER_IDS[0], "kube-system"),
+        (KUBERNETES_CLUSTER_IDS[0], "my-namespace"),
+        (KUBERNETES_CLUSTER_IDS[1], "kube-system"),
+        (KUBERNETES_CLUSTER_IDS[1], "my-namespace"),
     }
-    assert check_rels(
-        neo4j_session,
-        'KubernetesCluster',
-        'id',
-        'KubernetesNamespace',
-        'name',
-        'RESOURCE',
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesCluster",
+            "id",
+            "KubernetesNamespace",
+            "name",
+            "RESOURCE",
+        )
+        == expected_rels
+    )
 
 
 def test_namespace_cleanup(neo4j_session, _create_test_cluster):
@@ -125,26 +128,29 @@ def test_namespace_cleanup(neo4j_session, _create_test_cluster):
     )
 
     # Act
-    TEST_COMMON_JOB_PARAMETERS['UPDATE_TAG'] = TEST_UPDATE_TAG + 1
-    TEST_COMMON_JOB_PARAMETERS['CLUSTER_ID'] = KUBERNETES_CLUSTER_IDS[0]
+    TEST_COMMON_JOB_PARAMETERS["UPDATE_TAG"] = TEST_UPDATE_TAG + 1
+    TEST_COMMON_JOB_PARAMETERS["CLUSTER_ID"] = KUBERNETES_CLUSTER_IDS[0]
     cleanup(
         neo4j_session,
         TEST_COMMON_JOB_PARAMETERS,
     )
 
     # Assert: Expect no namespaces in the graph
-    assert check_nodes(neo4j_session, 'KubernetesNamespace', ['name']) == set()
-    assert check_rels(
-        neo4j_session,
-        'KubernetesCluster',
-        'id',
-        'KubernetesNamespace',
-        'name',
-        'RESOURCE',
-    ) == set()
+    assert check_nodes(neo4j_session, "KubernetesNamespace", ["name"]) == set()
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesCluster",
+            "id",
+            "KubernetesNamespace",
+            "name",
+            "RESOURCE",
+        )
+        == set()
+    )
 
     # Assert: Expect that the cluster was not touched by the cleanup job
-    assert check_nodes(neo4j_session, 'KubernetesCluster', ['id']) == {
+    assert check_nodes(neo4j_session, "KubernetesCluster", ["id"]) == {
         (KUBERNETES_CLUSTER_IDS[0],),
         (KUBERNETES_CLUSTER_IDS[1],),
     }

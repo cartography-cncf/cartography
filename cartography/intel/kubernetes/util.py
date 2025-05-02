@@ -14,31 +14,57 @@ class KubernetesContextNotFound(Exception):
 
 
 class K8CoreApiClient(CoreV1Api):
-    def __init__(self, name: str, config_file: str, api_client: Optional[ApiClient] = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: Optional[ApiClient] = None,
+    ) -> None:
         self.name = name
         if not api_client:
-            api_client = config.new_client_from_config(context=name, config_file=config_file)
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
         super().__init__(api_client=api_client)
 
 
 class K8NetworkingApiClient(NetworkingV1Api):
-    def __init__(self, name: str, config_file: str, api_client: Optional[ApiClient] = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: Optional[ApiClient] = None,
+    ) -> None:
         self.name = name
         if not api_client:
-            api_client = config.new_client_from_config(context=name, config_file=config_file)
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
         super().__init__(api_client=api_client)
 
 
 class K8VersionApiClient(VersionApi):
-    def __init__(self, name: str, config_file: str, api_client: Optional[ApiClient] = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        api_client: Optional[ApiClient] = None,
+    ) -> None:
         self.name = name
         if not api_client:
-            api_client = config.new_client_from_config(context=name, config_file=config_file)
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
         super().__init__(api_client=api_client)
 
 
 class K8sClient:
-    def __init__(self, name: str, config_file: str, external_id: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        config_file: str,
+        external_id: Optional[str] = None,
+    ) -> None:
         self.name = name
         self.config_file = config_file
         self.external_id = external_id
@@ -48,10 +74,12 @@ class K8sClient:
 
 
 def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
-    contexts, _ = config.list_kube_config_contexts(kubeconfig)  # returns a tuple of (all contexts, current context)
+    # returns a tuple of (all contexts, current context)
+    contexts, _ = config.list_kube_config_contexts(kubeconfig)
     if not contexts:
         raise KubernetesContextNotFound("No context found in kubeconfig.")
-    clients = list()
+
+    clients = []
     for context in contexts:
         clients.append(
             K8sClient(

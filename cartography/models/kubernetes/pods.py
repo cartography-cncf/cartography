@@ -13,39 +13,45 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesPodNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('uid')
-    name: PropertyRef = PropertyRef('name')
-    status_phase: PropertyRef = PropertyRef('status_phase')
-    creation_timestamp: PropertyRef = PropertyRef('creation_timestamp')
-    deletion_timestamp: PropertyRef = PropertyRef('deletion_timestamp')
-    namespace: PropertyRef = PropertyRef('namespace')
-    labels: PropertyRef = PropertyRef('labels')
-    cluster_name: PropertyRef = PropertyRef('CLUSTER_NAME', set_in_kwargs=True)
-    node: PropertyRef = PropertyRef('node')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("uid")
+    name: PropertyRef = PropertyRef("name")
+    status_phase: PropertyRef = PropertyRef("status_phase")
+    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
+    deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
+    namespace: PropertyRef = PropertyRef("namespace")
+    labels: PropertyRef = PropertyRef("labels")
+    cluster_name: PropertyRef = PropertyRef("CLUSTER_NAME", set_in_kwargs=True)
+    node: PropertyRef = PropertyRef("node")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class KubernetesPodToKubernetesNamespaceProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:KubernetesPod)<-[:RESOURCE]-(:KubernetesNamespace)
 class KubernetesPodToKubernetesNamespace(CartographyRelSchema):
-    target_node_label: str = 'KubernetesNamespace'
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        'cluster_name': PropertyRef('CLUSTER_NAME', set_in_kwargs=True),
-        'name': PropertyRef('namespace'),
-    })
+    target_node_label: str = "KubernetesNamespace"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "name": PropertyRef("namespace"),
+        }
+    )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = 'RESOURCE'
-    properties: KubernetesPodToKubernetesNamespaceProperties = KubernetesPodToKubernetesNamespaceProperties()
+    rel_label: str = "RESOURCE"
+    properties: KubernetesPodToKubernetesNamespaceProperties = (
+        KubernetesPodToKubernetesNamespaceProperties()
+    )
 
 
 @dataclass(frozen=True)
 class KubernetesPodSchema(CartographyNodeSchema):
-    label: str = 'KubernetesPod'
+    label: str = "KubernetesPod"
     properties: KubernetesPodNodeProperties = KubernetesPodNodeProperties()
     # sub_resource_relationship: KubernetesPodToKubernetesNamespace = KubernetesPodToKubernetesNamespace()
-    other_relationships: OtherRelationships = OtherRelationships([KubernetesPodToKubernetesNamespace()])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [KubernetesPodToKubernetesNamespace()]
+    )

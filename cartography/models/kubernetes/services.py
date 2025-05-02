@@ -13,62 +13,72 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesServiceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('uid')
-    name: PropertyRef = PropertyRef('name')
-    creation_timestamp: PropertyRef = PropertyRef('creation_timestamp')
-    deletion_timestamp: PropertyRef = PropertyRef('deletion_timestamp')
-    namespace: PropertyRef = PropertyRef('namespace')
-    selector: PropertyRef = PropertyRef('selector')
-    type: PropertyRef = PropertyRef('type')
-    load_balancer_ip: PropertyRef = PropertyRef('load_balancer_ip')
-    load_balancer_ingress: PropertyRef = PropertyRef('load_balancer_ingress')
-    cluster_name: PropertyRef = PropertyRef('CLUSTER_NAME', set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("uid")
+    name: PropertyRef = PropertyRef("name")
+    creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
+    deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
+    namespace: PropertyRef = PropertyRef("namespace")
+    selector: PropertyRef = PropertyRef("selector")
+    type: PropertyRef = PropertyRef("type")
+    load_balancer_ip: PropertyRef = PropertyRef("load_balancer_ip")
+    load_balancer_ingress: PropertyRef = PropertyRef("load_balancer_ingress")
+    cluster_name: PropertyRef = PropertyRef("CLUSTER_NAME", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class KubernetesServiceToKubernetesNamespaceProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:KubernetesService)<-[:RESOURCE]-(:KubernetesNamespace)
 class KubernetesServiceToKubernetesNamespace(CartographyRelSchema):
-    target_node_label: str = 'KubernetesNamespace'
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        'cluster_name': PropertyRef('CLUSTER_NAME', set_in_kwargs=True),
-        'name': PropertyRef('namespace'),
-    })
+    target_node_label: str = "KubernetesNamespace"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "name": PropertyRef("namespace"),
+        }
+    )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = 'RESOURCE'
-    properties: KubernetesServiceToKubernetesNamespaceProperties = KubernetesServiceToKubernetesNamespaceProperties()
+    rel_label: str = "RESOURCE"
+    properties: KubernetesServiceToKubernetesNamespaceProperties = (
+        KubernetesServiceToKubernetesNamespaceProperties()
+    )
 
 
 @dataclass(frozen=True)
 class KubernetesServiceToKubernetesPodProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:KubernetesService)-[:TARGET]->(:KubernetesPod)
 class KubernetesServiceToKubernetesPod(CartographyRelSchema):
-    target_node_label: str = 'KubernetesPod'
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        'cluster_name': PropertyRef('CLUSTER_NAME', set_in_kwargs=True),
-        'namespace': PropertyRef('namespace'),
-        'id': PropertyRef('pod_ids', one_to_many=True),
-    })
+    target_node_label: str = "KubernetesPod"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "namespace": PropertyRef("namespace"),
+            "id": PropertyRef("pod_ids", one_to_many=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = 'TARGET'
-    properties: KubernetesServiceToKubernetesPodProperties = KubernetesServiceToKubernetesPodProperties()
+    rel_label: str = "TARGET"
+    properties: KubernetesServiceToKubernetesPodProperties = (
+        KubernetesServiceToKubernetesPodProperties()
+    )
 
 
 @dataclass(frozen=True)
 class KubernetesServiceSchema(CartographyNodeSchema):
-    label: str = 'KubernetesService'
+    label: str = "KubernetesService"
     properties: KubernetesServiceNodeProperties = KubernetesServiceNodeProperties()
     # sub_resource_relationship: KubernetesServiceToKubernetesNamespace = KubernetesServiceToKubernetesNamespace()
-    other_relationships: OtherRelationships = OtherRelationships([
-        KubernetesServiceToKubernetesNamespace(),
-        KubernetesServiceToKubernetesPod(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            KubernetesServiceToKubernetesNamespace(),
+            KubernetesServiceToKubernetesPod(),
+        ]
+    )

@@ -11,6 +11,7 @@ from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_2_NAMESPACES_DAT
 from tests.data.kubernetes.secrets import KUBERNETES_SECRETS_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
+
 # from cartography.intel.kubernetes.secrets import cleanup
 
 
@@ -56,7 +57,7 @@ def test_load_secrets(neo4j_session, _create_test_cluster):
         ("my-secret-1",),
         ("my-secret-2",),
     }
-    assert check_nodes(neo4j_session, 'KubernetesSecret', ['name']) == expected_nodes
+    assert check_nodes(neo4j_session, "KubernetesSecret", ["name"]) == expected_nodes
 
 
 def test_load_secrets_relationships(neo4j_session, _create_test_cluster):
@@ -73,28 +74,34 @@ def test_load_secrets_relationships(neo4j_session, _create_test_cluster):
         (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "my-secret-1"),
         (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "my-secret-2"),
     }
-    assert check_rels(
-        neo4j_session,
-        "KubernetesNamespace",
-        "name",
-        "KubernetesSecret",
-        "name",
-        "RESOURCE",
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesNamespace",
+            "name",
+            "KubernetesSecret",
+            "name",
+            "RESOURCE",
+        )
+        == expected_rels
+    )
 
     # Assert: Expect secrets to be in the correct cluster and namespace
     expected_rels = {
         (KUBERNETES_CLUSTER_NAMES[0], "my-secret-1"),
         (KUBERNETES_CLUSTER_NAMES[0], "my-secret-2"),
     }
-    assert check_rels(
-        neo4j_session,
-        "KubernetesNamespace",
-        "cluster_name",
-        "KubernetesSecret",
-        "name",
-        "RESOURCE",
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesNamespace",
+            "cluster_name",
+            "KubernetesSecret",
+            "name",
+            "RESOURCE",
+        )
+        == expected_rels
+    )
 
 
 # TODO: fix secrets cleanup

@@ -83,7 +83,12 @@ def transform_pods(pods: List[V1Pod]) -> List[Dict[str, Any]]:
 
 
 @timeit
-def load_pods(session: neo4j.Session, pods_data: List[Dict[str, Any]], update_tag: int, cluster_name: str) -> None:
+def load_pods(
+    session: neo4j.Session,
+    pods_data: List[Dict[str, Any]],
+    update_tag: int,
+    cluster_name: str,
+) -> None:
     logger.info(f"Loading {len(pods_data)} kubernetes pods.")
     load(
         session,
@@ -121,11 +126,15 @@ def load_containers(
 @timeit
 def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     logger.debug("Running cleanup job for KubernetesContainer")
-    cleanup_job = GraphJob.from_node_schema(KubernetesContainerSchema(), common_job_parameters)
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesContainerSchema(), common_job_parameters
+    )
     cleanup_job.run(session)
 
     logger.debug("Running cleanup job for KubernetesPod")
-    cleanup_job = GraphJob.from_node_schema(KubernetesPodSchema(), common_job_parameters)
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesPodSchema(), common_job_parameters
+    )
     cleanup_job.run(session)
 
 

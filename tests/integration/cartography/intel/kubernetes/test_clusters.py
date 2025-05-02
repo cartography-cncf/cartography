@@ -24,7 +24,7 @@ def test_load_clusters(neo4j_session):
         (KUBERNETES_CLUSTER_IDS[0],),
         (KUBERNETES_CLUSTER_IDS[1],),
     }
-    assert check_nodes(neo4j_session, 'KubernetesCluster', ['id']) == expected_nodes
+    assert check_nodes(neo4j_session, "KubernetesCluster", ["id"]) == expected_nodes
 
 
 # Cleanup for an entire cluster is not supported yet

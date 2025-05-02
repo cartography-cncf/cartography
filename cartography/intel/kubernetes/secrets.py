@@ -25,17 +25,21 @@ def get_secrets(client: K8sClient) -> List[V1Secret]:
     return client.core.list_secret_for_all_namespaces().items
 
 
-def _get_owner_references(owner_references: Optional[V1OwnerReference]) -> Optional[str]:
+def _get_owner_references(
+    owner_references: Optional[V1OwnerReference],
+) -> Optional[str]:
     if owner_references:
         owner_references_list = []
         for owner_reference in owner_references:
-            owner_references_list.append({
-                "kind": owner_reference.kind,
-                "name": owner_reference.name,
-                "uid": owner_reference.uid,
-                "apiVersion": owner_reference.api_version,
-                "controller": owner_reference.controller,
-            })
+            owner_references_list.append(
+                {
+                    "kind": owner_reference.kind,
+                    "name": owner_reference.name,
+                    "uid": owner_reference.uid,
+                    "apiVersion": owner_reference.api_version,
+                    "controller": owner_reference.controller,
+                }
+            )
         return json.dumps(owner_references_list)
     return None
 
@@ -43,15 +47,19 @@ def _get_owner_references(owner_references: Optional[V1OwnerReference]) -> Optio
 def transform_secrets(secrets: List[V1Secret]) -> List[Dict[str, Any]]:
     secrets_list = []
     for secret in secrets:
-        secrets_list.append({
-            "uid": secret.metadata.uid,
-            "name": secret.metadata.name,
-            "creation_timestamp": get_epoch(secret.metadata.creation_timestamp),
-            "deletion_timestamp": get_epoch(secret.metadata.deletion_timestamp),
-            "owner_references": _get_owner_references(secret.metadata.owner_references),
-            "namespace": secret.metadata.namespace,
-            "type": secret.type,
-        })
+        secrets_list.append(
+            {
+                "uid": secret.metadata.uid,
+                "name": secret.metadata.name,
+                "creation_timestamp": get_epoch(secret.metadata.creation_timestamp),
+                "deletion_timestamp": get_epoch(secret.metadata.deletion_timestamp),
+                "owner_references": _get_owner_references(
+                    secret.metadata.owner_references
+                ),
+                "namespace": secret.metadata.namespace,
+                "type": secret.type,
+            }
+        )
 
     return secrets_list
 

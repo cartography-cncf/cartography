@@ -13,6 +13,7 @@ from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
 from tests.data.kubernetes.services import KUBERNETES_SERVICES_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
+
 TEST_UPDATE_TAG = 123456789
 
 
@@ -58,7 +59,7 @@ def test_load_services(neo4j_session, _create_test_cluster):
 
     # Assert: Expect that the services were loaded
     expected_nodes = {("my-service",)}
-    assert check_nodes(neo4j_session, 'KubernetesService', ['name']) == expected_nodes
+    assert check_nodes(neo4j_session, "KubernetesService", ["name"]) == expected_nodes
 
 
 def test_load_services_relationships(neo4j_session, _create_test_cluster):
@@ -74,24 +75,30 @@ def test_load_services_relationships(neo4j_session, _create_test_cluster):
     expected_rels = {
         (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "my-service"),
     }
-    assert check_rels(
-        neo4j_session,
-        "KubernetesNamespace",
-        "name",
-        "KubernetesService",
-        "name",
-        "RESOURCE",
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesNamespace",
+            "name",
+            "KubernetesService",
+            "name",
+            "RESOURCE",
+        )
+        == expected_rels
+    )
 
     # Assert: Expect services to be in the correct cluster
     expected_rels = {
         (KUBERNETES_CLUSTER_NAMES[0], "my-service"),
     }
-    assert check_rels(
-        neo4j_session,
-        "KubernetesNamespace",
-        "cluster_name",
-        "KubernetesService",
-        "name",
-        "RESOURCE",
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesNamespace",
+            "cluster_name",
+            "KubernetesService",
+            "name",
+            "RESOURCE",
+        )
+        == expected_rels
+    )

@@ -28,9 +28,9 @@ def get_kubernetes_cluster_version(client: K8sClient) -> VersionInfo:
 
 
 def transform_kubernetes_cluster(
-        client: K8sClient,
-        namespace: V1Namespace,
-        version: VersionInfo,
+    client: K8sClient,
+    namespace: V1Namespace,
+    version: VersionInfo,
 ) -> List[Dict[str, Any]]:
     cluster = {
         "id": namespace.metadata.uid,
@@ -49,11 +49,13 @@ def transform_kubernetes_cluster(
 
 
 def load_kubernetes_cluster(
-        neo4j_session: neo4j.Session,
-        cluster_data: List[Dict[str, Any]],
-        update_tag: int,
+    neo4j_session: neo4j.Session,
+    cluster_data: List[Dict[str, Any]],
+    update_tag: int,
 ) -> None:
-    logger.info("Loading '{}' Kubernetes cluster into graph".format(cluster_data[0].get("name")))
+    logger.info(
+        "Loading '{}' Kubernetes cluster into graph".format(cluster_data[0].get("name"))
+    )
     load(
         neo4j_session,
         KubernetesClusterSchema(),
@@ -62,18 +64,22 @@ def load_kubernetes_cluster(
     )
 
 
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+) -> None:
     logger.debug("Running cleanup job for KubernetesCluster")
-    cleanup_job = GraphJob.from_node_schema(KubernetesClusterSchema(), common_job_parameters)
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesClusterSchema(), common_job_parameters
+    )
     cleanup_job.run(neo4j_session)
 
 
 @timeit
 def sync_kubernetes_cluster(
-        neo4j_session: neo4j.Session,
-        client: K8sClient,
-        update_tag: int,
-        common_job_parameters: Dict[str, Any],
+    neo4j_session: neo4j.Session,
+    client: K8sClient,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
 ) -> Dict[str, Any]:
     namespace = get_kubernetes_cluster_namespace(client)
     version = get_kubernetes_cluster_version(client)
