@@ -4,7 +4,7 @@ Note: you might want to add `LIMIT 30` at the end of these queries to make sure 
 quickly in case you have a large graph.
 
 ### Which AWS IAM roles have admin permissions in my accounts?
-```
+```cypher
 MATCH (stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
 WHERE stmt.effect = "Allow"
 AND any(x IN stmt.action WHERE x = '*')
@@ -13,7 +13,7 @@ RETURN *
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28stmt%3AAWSPolicyStatement%29--%28pol%3AAWSPolicy%29--%28principal%3AAWSPrincipal%29--%28a%3AAWSAccount%29%0AWHERE%20stmt.effect%20%3D%20%22Allow%22%0AAND%20any%28x%20IN%20stmt.action%20WHERE%20x%20%3D%20%27%2A%27%29%0ARETURN%20%2A)
 
 ### Which AWS IAM roles in my environment have the ability to delete policies?
-```
+```cypher
 MATCH (stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(acc:AWSAccount)
 WHERE stmt.effect = "Allow"
 AND any(x IN stmt.action WHERE x="iam:DeletePolicy" )
