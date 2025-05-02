@@ -228,20 +228,6 @@ class CLI:
             ),
         )
         parser.add_argument(
-            "--azure-client-id",
-            type=str,
-            default=None,
-            help=("Azure Client Id for Service Principal Authentication."),
-        )
-        parser.add_argument(
-            "--azure-client-secret-env-var",
-            type=str,
-            default=None,
-            help=(
-                "The name of environment variable containing Azure Client Secret for Service Principal Authentication."
-            ),
-        )
-        parser.add_argument(
             "--entra-tenant-id",
             type=str,
             default=None,
