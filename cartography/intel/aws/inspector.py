@@ -15,7 +15,6 @@ from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 # As of 7/22/24, Inspector is only available in the below regions. We will need to update this hardcoded list here over

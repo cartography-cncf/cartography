@@ -14,9 +14,10 @@ from azure.mgmt.sql.models import SecurityAlertPolicyName
 from azure.mgmt.sql.models import TransparentDataEncryptionName
 from msrestazure.azure_exceptions import CloudError
 
-from .util.credentials import Credentials
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
+from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
 

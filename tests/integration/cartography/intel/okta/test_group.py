@@ -8,7 +8,6 @@ from cartography.intel.okta.groups import load_okta_group_members
 from cartography.intel.okta.groups import transform_okta_group_member_list
 from tests.data.okta.groups import GROUP_MEMBERS_SAMPLE_DATA
 
-
 TEST_ORG_ID = "ORG_ID"
 
 

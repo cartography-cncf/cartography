@@ -1,7 +1,6 @@
 import cartography.intel.aws.ec2
 import tests.data.aws.ec2.vpc_peerings
 
-
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "eu-north-1"
 TEST_UPDATE_TAG = 123456789

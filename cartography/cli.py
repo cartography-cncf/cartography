@@ -12,7 +12,6 @@ from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
 
-
 logger = logging.getLogger(__name__)
 
 

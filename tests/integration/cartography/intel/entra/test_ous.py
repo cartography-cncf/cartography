@@ -14,7 +14,6 @@ from tests.data.entra.ou import TEST_TENANT_ID
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-
 TEST_UPDATE_TAG = 1234567890
 
 

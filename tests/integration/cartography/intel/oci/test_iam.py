@@ -3,7 +3,6 @@ import tests.data.oci.iam
 from cartography.intel.oci import iam
 from cartography.intel.oci import utils
 
-
 TEST_TENANCY_ID = (
     "ocid1.user.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0"
 )

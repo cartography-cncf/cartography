@@ -1,6 +1,5 @@
 import datetime
 
-
 TRANSIT_GATEWAYS = [
     {
         "TransitGatewayId": "tgw-0123456789abcdef0",

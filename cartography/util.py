@@ -30,7 +30,6 @@ from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
 from cartography.stats import ScopedStatsClient
 
-
 logger = logging.getLogger(__name__)
 
 

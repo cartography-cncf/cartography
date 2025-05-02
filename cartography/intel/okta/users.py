@@ -12,7 +12,6 @@ from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

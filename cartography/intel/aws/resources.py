@@ -1,6 +1,8 @@
 from typing import Callable
 from typing import Dict
 
+from cartography.intel.aws.ec2.route_tables import sync_route_tables
+
 from . import apigateway
 from . import config
 from . import dynamodb
@@ -45,7 +47,6 @@ from .ec2.volumes import sync_ebs_volumes
 from .ec2.vpc import sync_vpc
 from .ec2.vpc_peerings import sync_vpc_peerings
 from .iam_instance_profiles import sync_iam_instance_profiles
-from cartography.intel.aws.ec2.route_tables import sync_route_tables
 
 RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "iam": iam.sync,

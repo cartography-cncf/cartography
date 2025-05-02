@@ -1,6 +1,5 @@
 from cartography.graph.statement import GraphStatement
 
-
 SAMPLE_STATEMENT_AS_DICT = {
     "query": "Query goes here",
     "iterative": False,

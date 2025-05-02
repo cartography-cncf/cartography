@@ -3,13 +3,14 @@ import logging
 import boto3
 import neo4j
 
-from .util import get_botocore_config
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.ec2.load_balancer_listeners import ELBListenerSchema
 from cartography.models.aws.ec2.load_balancers import LoadBalancerSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
+
+from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,6 @@
 import cartography.intel.gcp.crm
 import tests.data.gcp.crm
 
-
 TEST_UPDATE_TAG = 123456789
 
 

@@ -5,12 +5,13 @@ from typing import List
 
 import neo4j
 
-from .util import call_snipeit_api
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.snipeit.tenant import SnipeitTenantSchema
 from cartography.models.snipeit.user import SnipeitUserSchema
 from cartography.util import timeit
+
+from .util import call_snipeit_api
 
 logger = logging.getLogger(__name__)
 

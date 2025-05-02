@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 from cartography.intel.oci import iam
 
-
 JSON_OCI_OBJECT = {
     "capabilities": {
         "can_use_api_keys": True,

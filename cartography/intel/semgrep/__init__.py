@@ -8,7 +8,6 @@ from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

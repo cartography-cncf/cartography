@@ -1,7 +1,6 @@
 import cartography.intel.gcp.storage
 import tests.data.gcp.storage
 
-
 TEST_UPDATE_TAG = 123456789
 
 

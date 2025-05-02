@@ -12,7 +12,6 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_single_value_tx
 from cartography.util import timeit
 
-
 AccountRole = namedtuple("AccountRole", ["account_id", "role_name"])
 OktaGroup = namedtuple("OktaGroup", ["group_id", "group_name"])
 GroupRole = namedtuple("GroupRole", ["okta_group_id", "aws_role_arn"])

@@ -3,7 +3,6 @@ from tests.data.github.repos import DIRECT_COLLABORATORS
 from tests.data.github.repos import GET_REPOS
 from tests.data.github.repos import OUTSIDE_COLLABORATORS
 
-
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://fake.github.net/graphql/"

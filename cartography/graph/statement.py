@@ -11,7 +11,6 @@ import neo4j
 
 from cartography.stats import get_stats_client
 
-
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 

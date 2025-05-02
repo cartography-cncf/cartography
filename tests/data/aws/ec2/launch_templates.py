@@ -1,7 +1,6 @@
 import datetime
 from datetime import timezone as tz
 
-
 GET_LAUNCH_TEMPLATES = [
     {
         "LaunchTemplateId": "lt-00000000000000000",

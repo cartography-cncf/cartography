@@ -5,6 +5,9 @@ from typing import Optional
 
 import neo4j
 
+from cartography.config import Config
+from cartography.util import timeit
+
 from . import compute
 from . import cosmosdb
 from . import sql
@@ -13,8 +16,6 @@ from . import subscription
 from . import tenant
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
-from cartography.config import Config
-from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 

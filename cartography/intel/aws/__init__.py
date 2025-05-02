@@ -10,9 +10,6 @@ import boto3
 import botocore.exceptions
 import neo4j
 
-from . import ec2
-from . import organizations
-from .resources import RESOURCE_FUNCTIONS
 from cartography.config import Config
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
@@ -24,6 +21,9 @@ from cartography.util import run_cleanup_job
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
+from . import ec2
+from . import organizations
+from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)

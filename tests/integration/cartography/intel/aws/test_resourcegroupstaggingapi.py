@@ -9,7 +9,6 @@ from cartography.intel.aws.ec2.instances import sync_ec2_instances
 from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.integration.cartography.intel.aws.common import create_test_account
 
-
 TEST_ACCOUNT_ID = "1234"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789

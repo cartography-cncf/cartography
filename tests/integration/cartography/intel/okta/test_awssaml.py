@@ -5,7 +5,6 @@ from cartography.intel.okta.awssaml import GroupRole
 from cartography.intel.okta.awssaml import OktaGroup
 from tests.integration.util import check_rels
 
-
 TEST_UPDATE_TAG = 000000
 TEST_ORG_ID = "ORG_ID"
 DEFAULT_REGEX = r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"

@@ -1,7 +1,6 @@
 import cartography.intel.aws.s3
 import tests.data.aws.s3
 
-
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789

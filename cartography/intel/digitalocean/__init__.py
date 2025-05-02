@@ -9,7 +9,6 @@ from cartography.intel.digitalocean import management
 from cartography.intel.digitalocean import platform
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

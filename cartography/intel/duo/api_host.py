@@ -8,7 +8,6 @@ from cartography.client.core.tx import load
 from cartography.models.duo.api_host import DuoApiHostSchema
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -1,6 +1,5 @@
 from datetime import datetime
 
-
 LIST_FINDINGS_NETWORK = [
     {
         "awsAccountId": "123456789011",

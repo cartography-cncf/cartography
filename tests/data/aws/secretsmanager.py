@@ -1,7 +1,6 @@
 import datetime
 from datetime import timezone as tz
 
-
 LIST_SECRETS = [
     {
         "ARN": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",

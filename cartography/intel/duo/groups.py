@@ -11,7 +11,6 @@ from cartography.graph.job import GraphJob
 from cartography.models.duo.group import DuoGroupSchema
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

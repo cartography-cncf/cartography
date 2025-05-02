@@ -12,9 +12,10 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
-from .util.credentials import Credentials
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
+from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
 

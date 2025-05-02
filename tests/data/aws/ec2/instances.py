@@ -1,6 +1,5 @@
 import datetime
 
-
 DESCRIBE_INSTANCES = {
     "NextToken": "INSERT_TOKEN_HERE",
     "Reservations": [

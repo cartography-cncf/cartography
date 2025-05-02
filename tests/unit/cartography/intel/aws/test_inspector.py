@@ -4,7 +4,6 @@ from cartography.intel.aws.inspector import transform_inspector_findings
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
 
-
 TEST_UPDATE_TAG = 123456789
 
 

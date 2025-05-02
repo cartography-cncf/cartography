@@ -6,9 +6,10 @@ import neo4j
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.compute import ComputeManagementClient
 
-from .util.credentials import Credentials
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
+from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
 

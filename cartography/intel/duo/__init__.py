@@ -18,7 +18,6 @@ from cartography.intel.duo.web_authn_credentials import (
 )
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

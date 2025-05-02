@@ -1,7 +1,6 @@
 import cartography.intel.aws.securityhub
 import tests.data.aws.securityhub
 
-
 TEST_ACCOUNT_ID = "000000000000"
 TEST_UPDATE_TAG = 123456789
 

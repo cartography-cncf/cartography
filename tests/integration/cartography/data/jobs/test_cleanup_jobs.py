@@ -3,7 +3,6 @@ from unittest import mock
 import cartography.util
 from cartography.util import run_cleanup_job
 
-
 UPDATE_TAG_T1 = 111111
 UPDATE_TAG_T2 = 222222
 UPDATE_TAG_T3 = 333333

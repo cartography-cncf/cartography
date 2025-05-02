@@ -12,7 +12,6 @@ from cartography.models.kandji.device import KandjiDeviceSchema
 from cartography.models.kandji.tenant import KandjiTenantSchema
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 

@@ -8,7 +8,6 @@ from cartography.intel.jamf.util import call_jamf_api
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

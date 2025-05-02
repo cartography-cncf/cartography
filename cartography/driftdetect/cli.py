@@ -8,7 +8,6 @@ from cartography.driftdetect.add_shortcut import run_add_shortcut
 from cartography.driftdetect.detect_deviations import run_drift_detection
 from cartography.driftdetect.get_states import run_get_states
 
-
 logger = logging.getLogger(__name__)
 
 

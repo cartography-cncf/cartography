@@ -5,7 +5,6 @@ from digitalocean import Account
 
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

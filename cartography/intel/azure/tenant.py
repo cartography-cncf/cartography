@@ -3,9 +3,10 @@ from typing import Dict
 
 import neo4j
 
-from .util.credentials import Credentials
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
+from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
 

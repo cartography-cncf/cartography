@@ -1,6 +1,5 @@
 from datetime import datetime
 
-
 GET_USER_LIST_DATA = {
     "Users": [
         {

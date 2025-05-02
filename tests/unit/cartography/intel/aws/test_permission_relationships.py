@@ -1,6 +1,5 @@
 from cartography.intel.aws import permission_relationships
 
-
 GET_OBJECT_LOWERCASE_RESOURCE_WILDCARD = [
     {
         "action": [

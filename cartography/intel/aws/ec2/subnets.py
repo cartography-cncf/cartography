@@ -5,7 +5,6 @@ from typing import List
 import boto3
 import neo4j
 
-from .util import get_botocore_config
 from cartography.graph.job import GraphJob
 from cartography.models.aws.ec2.auto_scaling_groups import (
     EC2SubnetAutoScalingGroupSchema,
@@ -14,6 +13,8 @@ from cartography.models.aws.ec2.subnet_instance import EC2SubnetInstanceSchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
+from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 

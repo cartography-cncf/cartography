@@ -10,8 +10,9 @@ from typing import List
 import neo4j
 import oci
 
-from . import utils
 from cartography.util import run_cleanup_job
+
+from . import utils
 
 logger = logging.getLogger(__name__)
 

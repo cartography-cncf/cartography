@@ -2,7 +2,6 @@ import cartography.intel.crowdstrike.spotlight
 import tests.data.crowdstrike.endpoints
 import tests.data.crowdstrike.spotlight
 
-
 TEST_UPDATE_TAG = 123456789
 
 

@@ -10,7 +10,6 @@ from cartography.intel.okta.awssaml import OktaGroup
 from cartography.intel.okta.awssaml import query_for_okta_to_awssso_role_mapping
 from cartography.intel.okta.awssaml import transform_okta_group_to_aws_role
 
-
 SAMPLE_OKTA_GROUP_IDS = ["00g9oh2", "00g9oh3", "00g9oh4"]
 
 
