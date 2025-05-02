@@ -27,9 +27,12 @@ def get_gcp_organizations(crm_v1: Resource) -> List[Resource]:
     try:
         req = crm_v1.organizations().search(body={})
         res = req.execute()
-        return res.get('organizations', [])
+        return res.get("organizations", [])
     except HttpError as e:
-        logger.warning("HttpError occurred in crm.get_gcp_organizations(), returning empty list. Details: %r", e)
+        logger.warning(
+            "HttpError occurred in crm.get_gcp_organizations(), returning empty list. Details: %r",
+            e,
+        )
         return []
 
 
@@ -45,9 +48,12 @@ def get_gcp_folders(crm_v2: Resource) -> List[Resource]:
     try:
         req = crm_v2.folders().search(body={})
         res = req.execute()
-        return res.get('folders', [])
+        return res.get("folders", [])
     except HttpError as e:
-        logger.warning("HttpError occurred in crm.get_gcp_folders(), returning empty list. Details: %r", e)
+        logger.warning(
+            "HttpError occurred in crm.get_gcp_folders(), returning empty list. Details: %r",
+            e,
+        )
         return []
 
 
@@ -65,17 +71,27 @@ def get_gcp_projects(crm_v1: Resource) -> List[Resource]:
         req = crm_v1.projects().list(filter="lifecycleState:ACTIVE")
         while req is not None:
             res = req.execute()
-            page = res.get('projects', [])
+            page = res.get("projects", [])
             projects.extend(page)
-            req = crm_v1.projects().list_next(previous_request=req, previous_response=res)
+            req = crm_v1.projects().list_next(
+                previous_request=req,
+                previous_response=res,
+            )
         return projects
     except HttpError as e:
-        logger.warning("HttpError occurred in crm.get_gcp_projects(), returning empty list. Details: %r", e)
+        logger.warning(
+            "HttpError occurred in crm.get_gcp_projects(), returning empty list. Details: %r",
+            e,
+        )
         return []
 
 
 @timeit
-def load_gcp_organizations(neo4j_session: neo4j.Session, data: List[Dict], gcp_update_tag: int) -> None:
+def load_gcp_organizations(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    gcp_update_tag: int,
+) -> None:
     """
     Ingest the GCP organizations to Neo4j
     :param neo4j_session: The Neo4j session
@@ -94,15 +110,19 @@ def load_gcp_organizations(neo4j_session: neo4j.Session, data: List[Dict], gcp_u
     for org_object in data:
         neo4j_session.run(
             query,
-            OrgName=org_object['name'],
-            DisplayName=org_object.get('displayName', None),
-            LifecycleState=org_object.get('lifecycleState', None),
+            OrgName=org_object["name"],
+            DisplayName=org_object.get("displayName", None),
+            LifecycleState=org_object.get("lifecycleState", None),
             gcp_update_tag=gcp_update_tag,
         )
 
 
 @timeit
-def load_gcp_folders(neo4j_session: neo4j.Session, data: List[Dict], gcp_update_tag: int) -> None:
+def load_gcp_folders(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    gcp_update_tag: int,
+) -> None:
     """
     Ingest the GCP folders to Neo4j
     :param neo4j_session: The Neo4j session
@@ -114,9 +134,9 @@ def load_gcp_folders(neo4j_session: neo4j.Session, data: List[Dict], gcp_update_
         # Get the correct parent type.
         # Parents of folders can only be GCPOrganizations or other folders, see
         # https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy
-        if folder['parent'].startswith("organizations"):
+        if folder["parent"].startswith("organizations"):
             query = "MATCH (parent:GCPOrganization{id:$ParentId})"
-        elif folder['parent'].startswith("folders"):
+        elif folder["parent"].startswith("folders"):
             query = """
             MERGE (parent:GCPFolder{id:$ParentId})
             ON CREATE SET parent.firstseen = timestamp()
@@ -135,16 +155,20 @@ def load_gcp_folders(neo4j_session: neo4j.Session, data: List[Dict], gcp_update_
         """
         neo4j_session.run(
             query,
-            ParentId=folder['parent'],
-            FolderName=folder['name'],
-            DisplayName=folder.get('displayName', None),
-            LifecycleState=folder.get('lifecycleState', None),
+            ParentId=folder["parent"],
+            FolderName=folder["name"],
+            DisplayName=folder.get("displayName", None),
+            LifecycleState=folder.get("lifecycleState", None),
             gcp_update_tag=gcp_update_tag,
         )
 
 
 @timeit
-def load_gcp_projects(neo4j_session: neo4j.Session, data: List[Dict], gcp_update_tag: int) -> None:
+def load_gcp_projects(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    gcp_update_tag: int,
+) -> None:
     """
     Ingest the GCP projects to Neo4j
     :param neo4j_session: The Neo4j session
@@ -165,35 +189,40 @@ def load_gcp_projects(neo4j_session: neo4j.Session, data: List[Dict], gcp_update
     for project in data:
         neo4j_session.run(
             query,
-            ProjectId=project['projectId'],
-            ProjectNumber=project['projectNumber'],
-            DisplayName=project.get('name', None),
-            LifecycleState=project.get('lifecycleState', None),
+            ProjectId=project["projectId"],
+            ProjectNumber=project["projectNumber"],
+            DisplayName=project.get("name", None),
+            LifecycleState=project.get("lifecycleState", None),
             gcp_update_tag=gcp_update_tag,
         )
-        if project.get('parent'):
+        if project.get("parent"):
             _attach_gcp_project_parent(neo4j_session, project, gcp_update_tag)
 
 
 @timeit
-def _attach_gcp_project_parent(neo4j_session: neo4j.Session, project: Dict, gcp_update_tag: int) -> None:
+def _attach_gcp_project_parent(
+    neo4j_session: neo4j.Session,
+    project: Dict,
+    gcp_update_tag: int,
+) -> None:
     """
     Attach a project to its respective parent, as in the Resource Hierarchy -
     https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy
     """
-    if project['parent']['type'] == 'organization':
-        parent_label = 'GCPOrganization'
-    elif project['parent']['type'] == 'folder':
-        parent_label = 'GCPFolder'
+    if project["parent"]["type"] == "organization":
+        parent_label = "GCPOrganization"
+    elif project["parent"]["type"] == "folder":
+        parent_label = "GCPFolder"
     else:
         raise NotImplementedError(
             "Ingestion of GCP {}s as parent nodes is currently not supported. "
-            "Please file an issue at https://github.com/lyft/cartography/issues.".format(
-                project['parent']['type'],
+            "Please file an issue at https://github.com/cartography-cncf/cartography/issues.".format(
+                project["parent"]["type"],
             ),
         )
     parent_id = f"{project['parent']['type']}s/{project['parent']['id']}"
-    INGEST_PARENT_TEMPLATE = Template("""
+    INGEST_PARENT_TEMPLATE = Template(
+        """
     MATCH (project:GCPProject{id:$ProjectId})
 
     MERGE (parent:$parent_label{id:$ParentId})
@@ -202,51 +231,71 @@ def _attach_gcp_project_parent(neo4j_session: neo4j.Session, project: Dict, gcp_
     MERGE (parent)-[r:RESOURCE]->(project)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $gcp_update_tag
-    """)
+    """,
+    )
     neo4j_session.run(
         INGEST_PARENT_TEMPLATE.safe_substitute(parent_label=parent_label),
         ParentId=parent_id,
-        ProjectId=project['projectId'],
+        ProjectId=project["projectId"],
         gcp_update_tag=gcp_update_tag,
     )
 
 
 @timeit
-def cleanup_gcp_organizations(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_gcp_organizations(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
     """
     Remove stale GCP organizations and their relationships
     :param neo4j_session: The Neo4j session
     :param common_job_parameters: Parameters to carry to the cleanup job
     :return: Nothing
     """
-    run_cleanup_job('gcp_crm_organization_cleanup.json', neo4j_session, common_job_parameters)
+    run_cleanup_job(
+        "gcp_crm_organization_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
-def cleanup_gcp_folders(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_gcp_folders(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
     """
     Remove stale GCP folders and their relationships
     :param neo4j_session: The Neo4j session
     :param common_job_parameters: Parameters to carry to the cleanup job
     :return: Nothing
     """
-    run_cleanup_job('gcp_crm_folder_cleanup.json', neo4j_session, common_job_parameters)
+    run_cleanup_job("gcp_crm_folder_cleanup.json", neo4j_session, common_job_parameters)
 
 
 @timeit
-def cleanup_gcp_projects(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_gcp_projects(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
     """
     Remove stale GCP projects and their relationships
     :param neo4j_session: The Neo4j session
     :param common_job_parameters: Parameters to carry to the cleanup job
     :return: Nothing
     """
-    run_cleanup_job('gcp_crm_project_cleanup.json', neo4j_session, common_job_parameters)
+    run_cleanup_job(
+        "gcp_crm_project_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync_gcp_organizations(
-    neo4j_session: neo4j.Session, crm_v1: Resource, gcp_update_tag: int,
+    neo4j_session: neo4j.Session,
+    crm_v1: Resource,
+    gcp_update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     """
@@ -266,7 +315,9 @@ def sync_gcp_organizations(
 
 @timeit
 def sync_gcp_folders(
-    neo4j_session: neo4j.Session, crm_v2: Resource, gcp_update_tag: int,
+    neo4j_session: neo4j.Session,
+    crm_v2: Resource,
+    gcp_update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     """
@@ -286,7 +337,9 @@ def sync_gcp_folders(
 
 @timeit
 def sync_gcp_projects(
-    neo4j_session: neo4j.Session, projects: List[Dict], gcp_update_tag: int,
+    neo4j_session: neo4j.Session,
+    projects: List[Dict],
+    gcp_update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     """

@@ -10,7 +10,9 @@ TEST_UPDATE_TAG = 123456789
 
 
 def check_nodes_as_list(
-    neo4j_session: neo4j.Session, node_label: str, attrs: List[str],
+    neo4j_session: neo4j.Session,
+    node_label: str,
+    attrs: List[str],
 ):
     """
     Like tests.integration.util.check_nodes()` but returns a list instead of a set.

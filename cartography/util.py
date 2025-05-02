@@ -30,7 +30,6 @@ from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
 from cartography.stats import ScopedStatsClient
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -44,7 +43,7 @@ def run_analysis_job(
     filename: str,
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
-    package: str = 'cartography.data.jobs.analysis',
+    package: str = "cartography.data.jobs.analysis",
 ) -> None:
     """
     Enriches existing graph data with analysis jobs. This is designed for use with the sync stage
@@ -66,11 +65,11 @@ def run_analysis_job(
 
 
 def run_analysis_and_ensure_deps(
-        analysis_job_name: str,
-        resource_dependencies: Set[str],
-        requested_syncs: Set[str],
-        common_job_parameters: Dict[str, Any],
-        neo4j_session: neo4j.Session,
+    analysis_job_name: str,
+    resource_dependencies: Set[str],
+    requested_syncs: Set[str],
+    common_job_parameters: Dict[str, Any],
+    neo4j_session: neo4j.Session,
 ) -> None:
     """
     Runs analysis job only if the given set of resource dependencies was included in the requested_syncs.
@@ -100,7 +99,7 @@ def run_scoped_analysis_job(
     filename: str,
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
-    package: str = 'cartography.data.jobs.scoped_analysis',
+    package: str = "cartography.data.jobs.scoped_analysis",
 ) -> None:
     """
     Enriches existing graph data scoped to a given sub resource - e.g. the current AWS account.
@@ -116,8 +115,10 @@ def run_scoped_analysis_job(
 
 
 def run_cleanup_job(
-    filename: str, neo4j_session: neo4j.Session, common_job_parameters: Dict,
-    package: str = 'cartography.data.jobs.cleanup',
+    filename: str,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+    package: str = "cartography.data.jobs.cleanup",
 ) -> None:
     GraphJob.run_from_json(
         neo4j_session,
@@ -138,7 +139,7 @@ def merge_module_sync_metadata(
     update_tag: int,
     stat_handler: ScopedStatsClient,
 ) -> None:
-    '''
+    """
     This creates `ModuleSyncMetadata` nodes when called from each of the individual modules or sub-modules.
     The 'types' used here should be actual node labels. For example, if we did sync a particular AWSAccount's S3Buckets,
     the `grouptype` is 'AWSAccount', the `groupid` is the particular account's `id`, and the `syncedtype` is 'S3Bucket'.
@@ -148,8 +149,9 @@ def merge_module_sync_metadata(
     :param group_id: The parent module's id
     :param synced_type: The sub-module's type
     :param update_tag: Timestamp used to determine data freshness
-    '''
-    template = Template("""
+    """
+    template = Template(
+        """
         MERGE (n:ModuleSyncMetadata{id:'${group_type}_${group_id}_${synced_type}'})
         ON CREATE SET
             n:SyncMetadata, n.firstseen=timestamp()
@@ -157,20 +159,25 @@ def merge_module_sync_metadata(
             n.grouptype='${group_type}',
             n.groupid='${group_id}',
             n.lastupdated=$UPDATE_TAG
-    """)
+    """,
+    )
     neo4j_session.run(
-        template.safe_substitute(group_type=group_type, group_id=group_id, synced_type=synced_type),
+        template.safe_substitute(
+            group_type=group_type,
+            group_id=group_id,
+            synced_type=synced_type,
+        ),
         UPDATE_TAG=update_tag,
     )
-    stat_handler.incr(f'{group_type}_{group_id}_{synced_type}_lastupdated', update_tag)
+    stat_handler.incr(f"{group_type}_{group_id}_{synced_type}_lastupdated", update_tag)
 
 
 def load_resource_binary(package: str, resource_name: str) -> BinaryIO:
     return open_binary(package, resource_name)
 
 
-R = TypeVar('R')
-F = TypeVar('F', bound=Callable[..., Any])
+R = TypeVar("R")
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def timeit(method: F) -> F:
@@ -179,6 +186,7 @@ def timeit(method: F) -> F:
     This is only active if config.statsd_enabled is True.
     :param method: The function to measure execution
     """
+
     # Allow access via `inspect` to the wrapped function. This is used in integration tests to standardize param names.
     @wraps(method)
     def timed(*args, **kwargs):  # type: ignore
@@ -202,40 +210,44 @@ def aws_paginate(
     object_name: str,
     **kwargs: Any,
 ) -> List[Dict]:
-    '''
+    """
     Helper method for boilerplate boto3 pagination
     The **kwargs will be forwarded to the paginator
-    '''
+    """
     paginator = client.get_paginator(method_name)
     items = []
     i = 0
     for i, page in enumerate(paginator.paginate(**kwargs), start=1):
         if i % 100 == 0:
-            logger.info(f'fetching page number {i}')
+            logger.info(f"fetching page number {i}")
         if object_name in page:
             items.extend(page[object_name])
         else:
             logger.warning(
-                f'''aws_paginate: Key "{object_name}" is not present, check if this is a typo.
-If not, then the AWS datatype somehow does not have this key.''',
+                f"""aws_paginate: Key "{object_name}" is not present, check if this is a typo.
+If not, then the AWS datatype somehow does not have this key.""",
             )
     return items
 
 
-AWSGetFunc = TypeVar('AWSGetFunc', bound=Callable[..., Iterable])
+AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable])
 
 # fix for AWS TooManyRequestsException
-# https://github.com/lyft/cartography/issues/297
-# https://github.com/lyft/cartography/issues/243
-# https://github.com/lyft/cartography/issues/65
-# https://github.com/lyft/cartography/issues/25
+# https://github.com/cartography-cncf/cartography/issues/297
+# https://github.com/cartography-cncf/cartography/issues/243
+# https://github.com/cartography-cncf/cartography/issues/65
+# https://github.com/cartography-cncf/cartography/issues/25
 
 
 def backoff_handler(details: Dict) -> None:
     """
     Handler that will be executed on exception by backoff mechanism
     """
-    logger.warning("Backing off {wait:0.1f} seconds after {tries} tries. Calling function {target}".format(**details))
+    logger.warning(
+        "Backing off {wait:0.1f} seconds after {tries} tries. Calling function {target}".format(
+            **details,
+        ),
+    )
 
 
 # TODO Move this to cartography.intel.aws.util.common
@@ -250,21 +262,21 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
     This should be used on `get_` functions that normally return a list of items.
     """
     ERROR_CODES = [
-        'AccessDenied',
-        'AccessDeniedException',
-        'AuthFailure',
-        'InvalidClientTokenId',
-        'UnauthorizedOperation',
-        'UnrecognizedClientException',
-        'InternalServerErrorException',
+        "AccessDenied",
+        "AccessDeniedException",
+        "AuthFailure",
+        "InvalidClientTokenId",
+        "UnauthorizedOperation",
+        "UnrecognizedClientException",
+        "InternalServerErrorException",
     ]
 
     @wraps(func)
     # fix for AWS TooManyRequestsException
-    # https://github.com/lyft/cartography/issues/297
-    # https://github.com/lyft/cartography/issues/243
-    # https://github.com/lyft/cartography/issues/65
-    # https://github.com/lyft/cartography/issues/25
+    # https://github.com/cartography-cncf/cartography/issues/297
+    # https://github.com/cartography-cncf/cartography/issues/243
+    # https://github.com/cartography-cncf/cartography/issues/65
+    # https://github.com/cartography-cncf/cartography/issues/25
     @backoff.on_exception(
         backoff.expo,
         botocore.exceptions.ClientError,
@@ -277,23 +289,29 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         except botocore.exceptions.ClientError as e:
             # The account is not authorized to use this service in this region
             # so we can continue without raising an exception
-            if e.response['Error']['Code'] in ERROR_CODES:
-                logger.warning("{} in this region. Skipping...".format(e.response['Error']['Message']))
+            if e.response["Error"]["Code"] in ERROR_CODES:
+                logger.warning(
+                    "{} in this region. Skipping...".format(
+                        e.response["Error"]["Message"],
+                    ),
+                )
                 return []
             else:
                 raise
+
     return cast(AWSGetFunc, inner_function)
 
 
 def retries_with_backoff(
-        func: Callable,
-        exception_type: Type[Exception],
-        max_tries: int,
-        on_backoff: Callable,
+    func: Callable,
+    exception_type: Type[Exception],
+    max_tries: int,
+    on_backoff: Callable,
 ) -> Callable:
     """
     Adds retry with backoff to the given function.  (Could expand the possible input parameters as needed.)
     """
+
     @wraps(func)
     @backoff.on_exception(
         backoff.expo,
@@ -303,6 +321,7 @@ def retries_with_backoff(
     )
     def inner_function(*args, **kwargs):  # type: ignore
         return func(*args, **kwargs)
+
     return cast(Callable, inner_function)
 
 
@@ -331,32 +350,29 @@ def dict_date_to_epoch(obj: Dict, key: str) -> Optional[int]:
 
 
 def camel_to_snake(name: str) -> str:
-    return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
 def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> List[List]:
-    '''
+    """
     Takes an Iterable of items and returns a list of lists of the same items,
      batched into chunks of the provided `size`.
 
     Use:
     x = [1,2,3,4,5,6,7,8]
     batch(x, size=3) -> [[1, 2, 3], [4, 5, 6], [7, 8]]
-    '''
+    """
     items = list(items)
-    return [
-        items[i: i + size]
-        for i in range(0, len(items), size)
-    ]
+    return [items[i : i + size] for i in range(0, len(items), size)]
 
 
 def is_throttling_exception(exc: Exception) -> bool:
-    '''
+    """
     Returns True if the exception is caused by a client libraries throttling mechanism
-    '''
+    """
     # https://boto3.amazonaws.com/v1/documentation/api/1.19.9/guide/error-handling.html
     if isinstance(exc, botocore.exceptions.ClientError):
-        if exc.response['Error']['Code'] in ['LimitExceededException', 'Throttling']:
+        if exc.response["Error"]["Code"] in ["LimitExceededException", "Throttling"]:
             return True
     # add other exceptions here, if needed, like:
     # https://cloud.google.com/python/docs/reference/storage/1.39.0/retry_timeout#configuring-retries
@@ -366,7 +382,7 @@ def is_throttling_exception(exc: Exception) -> bool:
 
 
 def to_asynchronous(func: Callable[..., R], *args: Any, **kwargs: Any) -> Awaitable[R]:
-    '''
+    """
     Returns a Future that will run a function and its arguments in the default threadpool.
     Helper until we start using python 3.9's asyncio.to_thread
 
@@ -396,8 +412,12 @@ def to_asynchronous(func: Callable[..., R], *args: Any, **kwargs: Any) -> Awaita
     NOTE: to use this in a Jupyter notebook, you need to do:
     # import nest_asyncio
     # nest_asyncio.apply()
-    '''
-    CartographyThrottlingException = type('CartographyThrottlingException', (Exception,), {})
+    """
+    CartographyThrottlingException = type(
+        "CartographyThrottlingException",
+        (Exception,),
+        {},
+    )
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> R:
@@ -409,13 +429,15 @@ def to_asynchronous(func: Callable[..., R], *args: Any, **kwargs: Any) -> Awaita
             raise
 
     # don't use @backoff as decorator, to preserve typing
-    wrapped = backoff.on_exception(backoff.expo, CartographyThrottlingException)(wrapper)
+    wrapped = backoff.on_exception(backoff.expo, CartographyThrottlingException)(
+        wrapper,
+    )
     call = partial(wrapped, *args, **kwargs)
     return asyncio.get_event_loop().run_in_executor(None, call)
 
 
 def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
-    '''
+    """
     Synchronously waits for the Awaitable(s) to complete and returns their result(s).
     See https://docs.python.org/3.8/library/asyncio-task.html#asyncio-awaitables
 
@@ -437,5 +459,5 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
     future_2 = another_async_func(2)
 
     results = to_synchronous(future_1, future_2)
-    '''
+    """
     return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))

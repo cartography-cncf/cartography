@@ -9,17 +9,17 @@ running, testing, and linting your code there.
 
 ## The fast way
 
-To get started coding without reading this doc, just copy the structure of our [AWS EMR module](https://github.com/lyft/cartography/blob/master/cartography/intel/aws/emr.py) and use it as an example. For a longer written explanation of the "how" and "why", read on.
+To get started coding without reading this doc, just copy the structure of our [AWS EMR module](https://github.com/cartography-cncf/cartography/blob/master/cartography/intel/aws/emr.py) and use it as an example. For a longer written explanation of the "how" and "why", read on.
 
 ## Configuration and credential management
 
 ### Supplying credentials and arguments to your module
 
-If you need to supply an API key or other credential to your Cartography module, we recommend adding a CLI argument. An example of this can be seen [in our Okta module](https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/cli.py#L136) where we require the user to specify the name of an environment variable containing their Okta API key. This credential will then be bound to Cartography's [Config object](https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/config.py#L3) which is present in all modules. You can specify different arguments from the commandline for your module via the Config object.
+If you need to supply an API key or other credential to your Cartography module, we recommend adding a CLI argument. An example of this can be seen [in our Okta module](https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/cli.py#L136) where we require the user to specify the name of an environment variable containing their Okta API key. This credential will then be bound to Cartography's [Config object](https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/config.py#L3) which is present in all modules. You can specify different arguments from the commandline for your module via the Config object.
 
 ### An important note on validating your commandline args
 
-Note that it is your module's responsibility to validate arguments that you introduce. For example with the Okta module, we [validate](https://github.com/lyft/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/intel/okta/__init__.py#L37) that `config.okta_api_key` has been defined before attempting to continue.
+Note that it is your module's responsibility to validate arguments that you introduce. For example with the Okta module, we [validate](https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/intel/okta/__init__.py#L37) that `config.okta_api_key` has been defined before attempting to continue.
 
 ## Sync = Get, Transform, Load, Cleanup
 
@@ -27,7 +27,7 @@ A cartography intel module consists of one `sync` function. `sync` should call `
 
 ### Get
 
-The `get` function [returns data as a list of dicts](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L98)
+The `get` function [returns data as a list of dicts](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L98)
 from a resource provider API, which is GCP in this particular example.
 
 `get` should be "dumb" in the sense that it should not handle retry logic or data
@@ -35,7 +35,7 @@ manipulation. It should also raise an exception if it's not able to complete suc
 
 ### Transform
 
-The `transform` function [manipulates the list of dicts](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L193)
+The `transform` function [manipulates the list of dicts](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L193)
 to make it easier to ingest to the graph. `transform` functions are sometimes omitted when a module author decides that the output from the `get` is already in the shape that they need.
 
 We have some best practices on handling transforms:
@@ -58,7 +58,7 @@ For the sake of consistency, if a field does not exist, set it to `None` and not
 
 ### Load
 
-[As seen in our AWS EMR example](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L113-L132), the `load` function ingests a list of dicts to Neo4j by calling [cartography.client.core.tx.load()](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/client/core/tx.py#L191-L212):
+[As seen in our AWS EMR example](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L113-L132), the `load` function ingests a list of dicts to Neo4j by calling [cartography.client.core.tx.load()](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/client/core/tx.py#L191-L212):
 ```python
 def load_emr_clusters(
         neo4j_session: neo4j.Session,
@@ -82,7 +82,7 @@ def load_emr_clusters(
 
 #### Defining a node
 
-As an example of a `CartographyNodeSchema`, you can view our [EMRClusterSchema code](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110):
+As an example of a `CartographyNodeSchema`, you can view our [EMRClusterSchema code](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110):
 
 ```python
 @dataclass(frozen=True)
@@ -92,14 +92,14 @@ class EMRClusterSchema(CartographyNodeSchema):
     sub_resource_relationship: EMRClusterToAWSAccount = EMRClusterToAWSAccount()
 ```
 
-An `EMRClusterSchema` object inherits from the `CartographyNodeSchema` class and contains a node label, properties, and connection to its [sub-resource](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228): an `AWSAccount`.
+An `EMRClusterSchema` object inherits from the `CartographyNodeSchema` class and contains a node label, properties, and connection to its [sub-resource](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228): an `AWSAccount`.
 
 Note that the typehints are necessary for Python dataclasses to work properly.
 
 
 #### Defining node properties
 
-Here's our [EMRClusterNodeProperties code](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110):
+Here's our [EMRClusterNodeProperties code](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110):
 
 ```python
 @dataclass(frozen=True)
@@ -113,7 +113,7 @@ class EMRClusterNodeProperties(CartographyNodeProperties):
     security_configuration: PropertyRef = PropertyRef('SecurityConfiguration')
 ```
 
-A `CartographyNodeProperties` object consists of [PropertyRef](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L37) objects. `PropertyRefs` tell `querybuilder.build_ingestion_query()` where to find appropriate values for each field from the list of dicts.
+A `CartographyNodeProperties` object consists of [PropertyRef](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L37) objects. `PropertyRefs` tell `querybuilder.build_ingestion_query()` where to find appropriate values for each field from the list of dicts.
 
 For example, `id: PropertyRef = PropertyRef('Id')` above tells the querybuilder to set a field called `id` on the `EMRCluster` node using the value located at key `'id'` on each dict in the list.
 
@@ -140,9 +140,9 @@ See [below](#indexescypher) for more information on indexes.
 
 #### Defining relationships
 
-Relationships can be defined on `CartographyNodeSchema` on either their [sub_resource_relationship](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228) field or their [other_relationships](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237) field (you can find an example of `other_relationships` [here in our test data](https://github.com/lyft/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94)).
+Relationships can be defined on `CartographyNodeSchema` on either their [sub_resource_relationship](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228) field or their [other_relationships](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237) field (you can find an example of `other_relationships` [here in our test data](https://github.com/cartography-cncf/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94)).
 
-As seen above, an `EMRClusterSchema` only has a single relationship defined: an [EMRClusterToAWSAccount](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L94-L103):
+As seen above, an `EMRClusterSchema` only has a single relationship defined: an [EMRClusterToAWSAccount](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L94-L103):
 
 ```python
 @dataclass(frozen=True)
@@ -160,8 +160,8 @@ class EMRClusterToAWSAccount(CartographyRelSchema):
 This class is best described by explaining how it is processed: `build_ingestion_query()` will traverse the `EMRClusterSchema` to its `sub_resource_relationship` field and find the above `EMRClusterToAWSAccount` object. With this information, we know to
 - draw a relationship to an `AWSAccount` node (1) using the label "`RESOURCE`" (4)
 - by matching on the AWSAccount's "`id`" field" (2)
-- where the relationship [directionality](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L12-L34) is pointed _inward_ toward the EMRCluster (3)
-- making sure to define a set of properties for the relationship (5). The [full example RelProperties](https://github.com/lyft/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L89-L91) is very short:
+- where the relationship [directionality](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L12-L34) is pointed _inward_ toward the EMRCluster (3)
+- making sure to define a set of properties for the relationship (5). The [full example RelProperties](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L89-L91) is very short:
 
 ```python
 @dataclass(frozen=True)
@@ -195,7 +195,7 @@ UNWIND $DictList AS item
         }
 ```
 
-And that's basically all you need to know to understand how to define your own nodes and relationships using cartography's data objects. For more information, you can view the [object model API documentation](https://github.com/lyft/cartography/blob/master/cartography/graph/model.py) as a reference.
+And that's basically all you need to know to understand how to define your own nodes and relationships using cartography's data objects. For more information, you can view the [object model API documentation](https://github.com/cartography-cncf/cartography/blob/master/cartography/graph/model.py) as a reference.
 
 ### Additional concepts
 
@@ -203,9 +203,9 @@ This section explains cartography general patterns, conventions, and design deci
 
 #### cartography's `update_tag`:
 
-`cartography`'s global [config object carries around an update_tag property](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/cli.py#L91-L98)
+`cartography`'s global [config object carries around an update_tag property](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/cli.py#L91-L98)
 which is a tag/label associated with the current sync.
-Cartography's CLI code [sets this to a Unix timestamp of when the CLI was run](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134).
+Cartography's CLI code [sets this to a Unix timestamp of when the CLI was run](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134).
 
 All `cartography` intel modules set the `lastupdated` property on all nodes and all relationships to this `update_tag`.
 
@@ -217,11 +217,11 @@ All `cartography` intel modules set the `lastupdated` property on all nodes and 
 
     If possible, we should use API-provided fields for IDs and not create our own.
     In some cases though this is unavoidable -
-    see [GCPNetworkTag](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema/gcp.md#gcpnetworktag).
+    see [GCPNetworkTag](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema/gcp.md#gcpnetworktag).
 
     When setting an `id`, ensure that you also include the field name that it came from. For example, since we've
     decided to use `partial_uri`s as an id for a GCPVpc,  we should include both `partial_uri` _and_ `id` on the node.
-    This way, a user can tell what fields were used to derive the `id`. This is accomplished [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L455-L457)
+    This way, a user can tell what fields were used to derive the `id`. This is accomplished [here](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L455-L457)
 
 - `lastupdated` - See [below](#lastupdated-and-firstseen) on how this gets set automatically.
 - `firstseen` - See [below](#lastupdated-and-firstseen) on how this gets set automatically.
@@ -236,14 +236,14 @@ Cartography currently does not create indexes on relationships, so in most cases
 #### Run queries only on indexed fields for best performance
 
 In this older example of ingesting GCP VPCs, we connect VPCs with GCPProjects
-[based on their id fields](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L451).
-`id`s are indexed, as seen [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L45)
-and [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L42).
+[based on their id fields](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L451).
+`id`s are indexed, as seen [here](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L45)
+and [here](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L42).
 All of these queries use indexes for faster lookup.
 
 #### indexes.cypher
 
-Older intel modules define indexes in [indexes.cypher](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher).
+Older intel modules define indexes in [indexes.cypher](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher).
 By using CartographyNodeSchema and CartographyRelSchema objects, indexes are automatically created so you don't need to update this file!
 
 
@@ -345,7 +345,7 @@ We have just added new nodes and relationships to the graph, and we have also up
 by using `MERGE`. We now need to delete nodes and relationships that no longer exist, and we do this by removing
 all nodes and relationships that have `lastupdated` NOT set to the `update_tag` of this current run.
 
-By using Cartography schema objects, a cleanup function is [trivial to write](https://github.com/lyft/cartography/blob/82e1dd0e851475381ac8f2a9a08027d67ec1d772/cartography/intel/aws/emr.py#L77-L80):
+By using Cartography schema objects, a cleanup function is [trivial to write](https://github.com/cartography-cncf/cartography/blob/82e1dd0e851475381ac8f2a9a08027d67ec1d772/cartography/intel/aws/emr.py#L77-L80):
 
 ```python
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
@@ -358,19 +358,19 @@ Older intel modules still do this process with hand-written cleanup jobs that wo
 
 - Delete all old nodes
 
-    You can see this in our [GCP VPCs example](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L4).
+    You can see this in our [GCP VPCs example](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L4).
     We run `DETACH DELETE` to delete an old node and disconnect it from all other nodes.
 
 - Delete all old relationships
 
-   You can see this in the GCP VPC example [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L10)
-   and [here](https://github.com/lyft/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L16).
+   You can see this in the GCP VPC example [here](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L10)
+   and [here](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L16).
 
    - Q: We just `DETACH DELETE`'d the node. Why do we need to delete the relationships too?
 
    - A: There are cases where the node may continue to exist but the relationships between it and other nodes have changed.
        Explicitly deleting stale relationships accounts for this case.
-       See this [short discussion](https://github.com/lyft/cartography/pull/124/files#r312277725).
+       See this [short discussion](https://github.com/cartography-cncf/cartography/pull/124/files#r312277725).
 
 ## Error handling principles
 
@@ -382,7 +382,7 @@ Older intel modules still do this process with hand-written cleanup jobs that wo
 
 ## Schema
 
-- Update the [schema](https://github.com/lyft/cartography/tree/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema)
+- Update the [schema](https://github.com/cartography-cncf/cartography/tree/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema)
 with every change!
 
 ## Making tests
@@ -418,10 +418,10 @@ resources that exist in the graph don't change across syncs.
 - It is possible (and encouraged) for more than one intel module to modify the same node type.
 
     For example, when we [connect RDS instances to their associated EC2 security
-    groups](https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L188)
-    there are actually two different intel modules that retrieve EC2 security group data: the [RDS module](https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L13)
+    groups](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L188)
+    there are actually two different intel modules that retrieve EC2 security group data: the [RDS module](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L13)
     returns [partial group data](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSecurityGroupMembership.html),
-    and the EC2 module returns more complete data as it calls APIs specific for [retrieving and loading security groups](https://github.com/lyft/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/ec2.py#L166).
+    and the EC2 module returns more complete data as it calls APIs specific for [retrieving and loading security groups](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/ec2.py#L166).
     Because both the RDS and EC2 modules `MERGE` on a unique ID, we don't need to worry about
     creating duplicate nodes in the graph.
 

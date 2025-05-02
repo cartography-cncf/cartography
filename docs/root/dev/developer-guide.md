@@ -29,7 +29,7 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
 1. **Install test requirements**
 
-    `pip install -r test-requirements.txt`
+    `pip install .[dev]`
 
 1. **(OPTIONAL) Setup environment variables for integration tests**
 

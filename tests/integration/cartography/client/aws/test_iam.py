@@ -5,9 +5,9 @@ from cartography.intel.aws.iam import load_policy_statements
 from tests.data.aws.iam import INLINE_POLICY_STATEMENTS
 from tests.data.aws.iam import LIST_GROUPS
 
-TEST_ACCOUNT_ID = '1111'
+TEST_ACCOUNT_ID = "1111"
 TEST_UPDATE_TAG = 0000
-TEST_ACCOUNT_NAME = 'testaccount'
+TEST_ACCOUNT_NAME = "testaccount"
 
 
 def _ensure_test_data(neo4j_session):
@@ -23,7 +23,7 @@ def _ensure_test_data(neo4j_session):
 
     load_groups(
         neo4j_session,
-        LIST_GROUPS['Groups'],
+        LIST_GROUPS["Groups"],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
@@ -56,8 +56,8 @@ def test_get_aws_admin_like_principals(neo4j_session):
     # Assert
     assert len(admin_data) == 1
     assert admin_data[0] == {
-        'account_name': 'testaccount',
-        'account_id': '1111',
-        'principal_name': 'example-group-0',
-        'policy_name': 'group_inline_policy',
+        "account_name": "testaccount",
+        "account_id": "1111",
+        "principal_name": "example-group-0",
+        "policy_name": "group_inline_policy",
     }

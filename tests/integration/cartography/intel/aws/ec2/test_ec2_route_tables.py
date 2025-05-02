@@ -14,8 +14,8 @@ from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -31,20 +31,22 @@ def _create_fake_subnets(neo4j_session):
 
 @patch.object(
     cartography.intel.aws.ec2.vpc,
-    'get_ec2_vpcs',
+    "get_ec2_vpcs",
     return_value=TEST_VPCS,
 )
 @patch.object(
     cartography.intel.aws.ec2.internet_gateways,
-    'get_internet_gateways',
+    "get_internet_gateways",
     return_value=TEST_INTERNET_GATEWAYS,
 )
 @patch.object(
     cartography.intel.aws.ec2.route_tables,
-    'get_route_tables',
-    return_value=DESCRIBE_ROUTE_TABLES['RouteTables'],
+    "get_route_tables",
+    return_value=DESCRIBE_ROUTE_TABLES["RouteTables"],
 )
-def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tables, neo4j_session):
+def test_sync_route_tables(
+    mock_get_vpcs, mock_get_gateways, mock_get_route_tables, neo4j_session
+):
     """
     Ensure that route tables, routes, and associations get loaded and have their key fields
     """
@@ -59,7 +61,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
     # Add in fake internet gateway data
     sync_internet_gateways(
@@ -68,7 +70,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     # Act
@@ -78,17 +80,19 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     # Assert route tables exist
-    assert check_nodes(neo4j_session, 'EC2RouteTable', ['id', 'route_table_id']) == {
+    assert check_nodes(neo4j_session, "EC2RouteTable", ["id", "route_table_id"]) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "rtb-aaaaaaaaaaaaaaaaa"),
         ("rtb-bbbbbbbbbbbbbbbbb", "rtb-bbbbbbbbbbbbbbbbb"),
     }
 
     # Assert route table associations exist
-    assert check_nodes(neo4j_session, 'EC2RouteTableAssociation', ['id', 'route_table_association_id']) == {
+    assert check_nodes(
+        neo4j_session, "EC2RouteTableAssociation", ["id", "route_table_association_id"]
+    ) == {
         ("rtbassoc-aaaaaaaaaaaaaaaaa", "rtbassoc-aaaaaaaaaaaaaaaaa"),
         ("rtbassoc-bbbbbbbbbbbbbbbbb", "rtbassoc-bbbbbbbbbbbbbbbbb"),
         ("rtbassoc-ccccccccccccccccc", "rtbassoc-ccccccccccccccccc"),
@@ -96,7 +100,7 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     }
 
     # Assert routes exist
-    assert check_nodes(neo4j_session, 'EC2Route', ['id']) == {
+    assert check_nodes(neo4j_session, "EC2Route", ["id"]) == {
         ("rtb-aaaaaaaaaaaaaaaaa|172.31.0.0/16",),
         ("rtb-aaaaaaaaaaaaaaaaa|0.0.0.0/0",),
         ("rtb-bbbbbbbbbbbbbbbbb|10.1.0.0/16",),
@@ -106,11 +110,11 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     # Assert route table to route relationships
     assert check_rels(
         neo4j_session,
-        'EC2RouteTable',
-        'id',
-        'EC2Route',
-        'id',
-        'ROUTE',
+        "EC2RouteTable",
+        "id",
+        "EC2Route",
+        "id",
+        "ROUTE",
         rel_direction_right=True,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "rtb-aaaaaaaaaaaaaaaaa|172.31.0.0/16"),
@@ -122,11 +126,11 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     # Assert route table to association relationships
     assert check_rels(
         neo4j_session,
-        'EC2RouteTable',
-        'id',
-        'EC2RouteTableAssociation',
-        'id',
-        'ASSOCIATION',
+        "EC2RouteTable",
+        "id",
+        "EC2RouteTableAssociation",
+        "id",
+        "ASSOCIATION",
         rel_direction_right=True,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "rtbassoc-aaaaaaaaaaaaaaaaa"),
@@ -138,11 +142,11 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     # Assert route table to AWS account relationships
     assert check_rels(
         neo4j_session,
-        'EC2RouteTable',
-        'id',
-        'AWSAccount',
-        'id',
-        'RESOURCE',
+        "EC2RouteTable",
+        "id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
         rel_direction_right=False,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", TEST_ACCOUNT_ID),
@@ -152,11 +156,11 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     # Assert route to AWS account relationships
     assert check_rels(
         neo4j_session,
-        'EC2Route',
-        'id',
-        'AWSAccount',
-        'id',
-        'RESOURCE',
+        "EC2Route",
+        "id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
         rel_direction_right=False,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa|172.31.0.0/16", TEST_ACCOUNT_ID),
@@ -168,11 +172,11 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     # Assert route table association to AWS account relationships
     assert check_rels(
         neo4j_session,
-        'EC2RouteTableAssociation',
-        'id',
-        'AWSAccount',
-        'id',
-        'RESOURCE',
+        "EC2RouteTableAssociation",
+        "id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
         rel_direction_right=False,
     ) == {
         ("rtbassoc-aaaaaaaaaaaaaaaaa", TEST_ACCOUNT_ID),
@@ -184,11 +188,11 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     # Assert route table association to subnet relationships
     assert check_rels(
         neo4j_session,
-        'EC2RouteTableAssociation',
-        'id',
-        'EC2Subnet',
-        'subnetid',
-        'ASSOCIATED_SUBNET',
+        "EC2RouteTableAssociation",
+        "id",
+        "EC2Subnet",
+        "subnetid",
+        "ASSOCIATED_SUBNET",
         rel_direction_right=True,
     ) == {
         ("rtbassoc-bbbbbbbbbbbbbbbbb", "subnet-0773409557644dca4"),
@@ -197,11 +201,11 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     # Assert route table to VPC relationships
     assert check_rels(
         neo4j_session,
-        'EC2RouteTable',
-        'id',
-        'AWSVpc',
-        'id',
-        'MEMBER_OF_AWS_VPC',
+        "EC2RouteTable",
+        "id",
+        "AWSVpc",
+        "id",
+        "MEMBER_OF_AWS_VPC",
         rel_direction_right=True,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "vpc-038cf"),
@@ -211,11 +215,11 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     # Assert route table associations to internet gateway relationships
     assert check_rels(
         neo4j_session,
-        'EC2RouteTableAssociation',
-        'id',
-        'AWSInternetGateway',
-        'id',
-        'ASSOCIATED_IGW_FOR_INGRESS',
+        "EC2RouteTableAssociation",
+        "id",
+        "AWSInternetGateway",
+        "id",
+        "ASSOCIATED_IGW_FOR_INGRESS",
         rel_direction_right=True,
     ) == {
         ("rtbassoc-ddddddddddddddddd", "igw-013cb"),
@@ -224,11 +228,11 @@ def test_sync_route_tables(mock_get_vpcs, mock_get_gateways, mock_get_route_tabl
     # Assert route table to internet gateway relationships
     assert check_rels(
         neo4j_session,
-        'EC2Route',
-        'id',
-        'AWSInternetGateway',
-        'id',
-        'ROUTES_TO_GATEWAY',
+        "EC2Route",
+        "id",
+        "AWSInternetGateway",
+        "id",
+        "ROUTES_TO_GATEWAY",
         rel_direction_right=True,
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa|0.0.0.0/0", "igw-0387"),

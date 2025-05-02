@@ -20,7 +20,9 @@ DESCRIBE_SLEEP = 1
 
 
 @timeit
-def get_gcp_service_accounts(iam_client: Resource, project_id: str) -> List[Dict[str, Any]]:
+def get_gcp_service_accounts(
+    iam_client: Resource, project_id: str
+) -> List[Dict[str, Any]]:
     """
     Retrieve a list of GCP service accounts for a given project.
 
@@ -30,19 +32,29 @@ def get_gcp_service_accounts(iam_client: Resource, project_id: str) -> List[Dict
     """
     service_accounts: List[Dict[str, Any]] = []
     try:
-        request = iam_client.projects().serviceAccounts().list(
-            name=f'projects/{project_id}',
+        request = (
+            iam_client.projects()
+            .serviceAccounts()
+            .list(
+                name=f"projects/{project_id}",
+            )
         )
         while request is not None:
             response = request.execute()
-            if 'accounts' in response:
-                service_accounts.extend(response['accounts'])
-            request = iam_client.projects().serviceAccounts().list_next(
-                previous_request=request,
-                previous_response=response,
+            if "accounts" in response:
+                service_accounts.extend(response["accounts"])
+            request = (
+                iam_client.projects()
+                .serviceAccounts()
+                .list_next(
+                    previous_request=request,
+                    previous_response=response,
+                )
             )
     except Exception as e:
-        logger.warning(f"Error retrieving service accounts for project {project_id}: {e}")
+        logger.warning(
+            f"Error retrieving service accounts for project {project_id}: {e}"
+        )
     return service_accounts
 
 
@@ -59,17 +71,17 @@ def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict]:
         roles = []
 
         # Get custom roles
-        custom_req = iam_client.projects().roles().list(parent=f'projects/{project_id}')
+        custom_req = iam_client.projects().roles().list(parent=f"projects/{project_id}")
         while custom_req is not None:
             resp = custom_req.execute()
-            roles.extend(resp.get('roles', []))
+            roles.extend(resp.get("roles", []))
             custom_req = iam_client.projects().roles().list_next(custom_req, resp)
 
         # Get predefined roles
-        predefined_req = iam_client.roles().list(view='FULL')
+        predefined_req = iam_client.roles().list(view="FULL")
         while predefined_req is not None:
             resp = predefined_req.execute()
-            roles.extend(resp.get('roles', []))
+            roles.extend(resp.get("roles", []))
             predefined_req = iam_client.roles().list_next(predefined_req, resp)
 
         return roles
@@ -93,17 +105,19 @@ def load_gcp_service_accounts(
     :param project_id: The GCP Project ID associated with the service accounts.
     :param gcp_update_tag: The timestamp of the current sync run.
     """
-    logger.debug(f"Loading {len(service_accounts)} service accounts for project {project_id}")
+    logger.debug(
+        f"Loading {len(service_accounts)} service accounts for project {project_id}"
+    )
     transformed_service_accounts = []
     for sa in service_accounts:
         transformed_sa = {
-            'id': sa['uniqueId'],
-            'email': sa.get('email'),
-            'displayName': sa.get('displayName'),
-            'oauth2ClientId': sa.get('oauth2ClientId'),
-            'uniqueId': sa.get('uniqueId'),
-            'disabled': sa.get('disabled', False),
-            'projectId': project_id,
+            "id": sa["uniqueId"],
+            "email": sa.get("email"),
+            "displayName": sa.get("displayName"),
+            "oauth2ClientId": sa.get("oauth2ClientId"),
+            "uniqueId": sa.get("uniqueId"),
+            "disabled": sa.get("disabled", False),
+            "projectId": project_id,
         }
         transformed_service_accounts.append(transformed_sa)
 
@@ -113,7 +127,7 @@ def load_gcp_service_accounts(
         transformed_service_accounts,
         lastupdated=gcp_update_tag,
         projectId=project_id,
-        additional_labels=['GCPPrincipal'],
+        additional_labels=["GCPPrincipal"],
     )
 
 
@@ -135,25 +149,25 @@ def load_gcp_roles(
     logger.debug(f"Loading {len(roles)} roles for project {project_id}")
     transformed_roles = []
     for role in roles:
-        role_name = role['name']
-        if role_name.startswith('roles/'):
-            if role_name in ['roles/owner', 'roles/editor', 'roles/viewer']:
-                role_type = 'BASIC'
+        role_name = role["name"]
+        if role_name.startswith("roles/"):
+            if role_name in ["roles/owner", "roles/editor", "roles/viewer"]:
+                role_type = "BASIC"
             else:
-                role_type = 'PREDEFINED'
+                role_type = "PREDEFINED"
         else:
-            role_type = 'CUSTOM'
+            role_type = "CUSTOM"
 
         transformed_role = {
-            'id': role_name,
-            'name': role_name,
-            'title': role.get('title'),
-            'description': role.get('description'),
-            'deleted': role.get('deleted', False),
-            'etag': role.get('etag'),
-            'includedPermissions': role.get('includedPermissions', []),
-            'roleType': role_type,
-            'projectId': project_id,
+            "id": role_name,
+            "name": role_name,
+            "title": role.get("title"),
+            "description": role.get("description"),
+            "deleted": role.get("deleted", False),
+            "etag": role.get("etag"),
+            "includedPermissions": role.get("includedPermissions", []),
+            "roleType": role_type,
+            "projectId": project_id,
         }
         transformed_roles.append(transformed_role)
 
@@ -167,7 +181,9 @@ def load_gcp_roles(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+) -> None:
     """
     Run cleanup jobs for GCP IAM data in Neo4j.
 
@@ -177,7 +193,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any])
     logger.debug("Running GCP IAM cleanup job")
     job_params = {
         **common_job_parameters,
-        'projectId': common_job_parameters.get('PROJECT_ID'),
+        "projectId": common_job_parameters.get("PROJECT_ID"),
     }
 
     cleanup_jobs = [
@@ -210,8 +226,12 @@ def sync(
 
     # Get and load service accounts
     service_accounts = get_gcp_service_accounts(iam_client, project_id)
-    logger.info(f"Found {len(service_accounts)} service accounts in project {project_id}")
-    load_gcp_service_accounts(neo4j_session, service_accounts, project_id, gcp_update_tag)
+    logger.info(
+        f"Found {len(service_accounts)} service accounts in project {project_id}"
+    )
+    load_gcp_service_accounts(
+        neo4j_session, service_accounts, project_id, gcp_update_tag
+    )
 
     # Get and load roles
     roles = get_gcp_roles(iam_client, project_id)

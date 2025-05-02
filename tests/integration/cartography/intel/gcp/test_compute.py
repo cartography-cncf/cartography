@@ -1,7 +1,6 @@
 import cartography.intel.gcp.compute
 import tests.data.gcp.compute
 
-
 TEST_UPDATE_TAG = 123456789
 
 
@@ -43,18 +42,25 @@ def test_transform_and_load_vpcs(neo4j_session):
     """
     vpc_res = tests.data.gcp.compute.VPC_RESPONSE
     vpc_list = cartography.intel.gcp.compute.transform_gcp_vpcs(vpc_res)
-    cartography.intel.gcp.compute.load_gcp_vpcs(neo4j_session, vpc_list, TEST_UPDATE_TAG)
+    cartography.intel.gcp.compute.load_gcp_vpcs(
+        neo4j_session,
+        vpc_list,
+        TEST_UPDATE_TAG,
+    )
 
     query = """
     MATCH(vpc:GCPVpc{id:$VpcId})
     RETURN vpc.id, vpc.partial_uri, vpc.auto_create_subnetworks
     """
-    expected_vpc_id = 'projects/project-abc/global/networks/default'
+    expected_vpc_id = "projects/project-abc/global/networks/default"
     nodes = neo4j_session.run(
         query,
         VpcId=expected_vpc_id,
     )
-    actual_nodes = {(n['vpc.id'], n['vpc.partial_uri'], n['vpc.auto_create_subnetworks']) for n in nodes}
+    actual_nodes = {
+        (n["vpc.id"], n["vpc.partial_uri"], n["vpc.auto_create_subnetworks"])
+        for n in nodes
+    }
     expected_nodes = {
         (expected_vpc_id, expected_vpc_id, True),
     }
@@ -67,7 +73,11 @@ def test_transform_and_load_subnets(neo4j_session):
     """
     subnet_res = tests.data.gcp.compute.VPC_SUBNET_RESPONSE
     subnet_list = cartography.intel.gcp.compute.transform_gcp_subnets(subnet_res)
-    cartography.intel.gcp.compute.load_gcp_subnets(neo4j_session, subnet_list, TEST_UPDATE_TAG)
+    cartography.intel.gcp.compute.load_gcp_subnets(
+        neo4j_session,
+        subnet_list,
+        TEST_UPDATE_TAG,
+    )
 
     query = """
     MATCH(subnet:GCPSubnet)
@@ -77,23 +87,24 @@ def test_transform_and_load_subnets(neo4j_session):
     nodes = neo4j_session.run(query)
     actual_nodes = {
         (
-            n['subnet.id'],
-            n['subnet.region'],
-            n['subnet.gateway_address'],
-            n['subnet.ip_cidr_range'],
-            n['subnet.private_ip_google_access'],
-            n['subnet.vpc_partial_uri'],
-        ) for n in nodes
+            n["subnet.id"],
+            n["subnet.region"],
+            n["subnet.gateway_address"],
+            n["subnet.ip_cidr_range"],
+            n["subnet.private_ip_google_access"],
+            n["subnet.vpc_partial_uri"],
+        )
+        for n in nodes
     }
 
     expected_nodes = {
         (
-            'projects/project-abc/regions/europe-west2/subnetworks/default',
-            'europe-west2',
-            '10.0.0.1',
-            '10.0.0.0/20',
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+            "europe-west2",
+            "10.0.0.1",
+            "10.0.0.0/20",
             False,
-            'projects/project-abc/global/networks/default',
+            "projects/project-abc/global/networks/default",
         ),
     }
     assert actual_nodes == expected_nodes
@@ -105,7 +116,11 @@ def test_transform_and_load_gcp_forwarding_rules(neo4j_session):
     """
     fwd_res = tests.data.gcp.compute.LIST_FORWARDING_RULES_RESPONSE
     fwd_list = cartography.intel.gcp.compute.transform_gcp_forwarding_rules(fwd_res)
-    cartography.intel.gcp.compute.load_gcp_forwarding_rules(neo4j_session, fwd_list, TEST_UPDATE_TAG)
+    cartography.intel.gcp.compute.load_gcp_forwarding_rules(
+        neo4j_session,
+        fwd_list,
+        TEST_UPDATE_TAG,
+    )
 
     fwd_query = """
     MATCH(f:GCPForwardingRule)
@@ -115,55 +130,56 @@ def test_transform_and_load_gcp_forwarding_rules(neo4j_session):
     objects = neo4j_session.run(fwd_query)
     actual_nodes = {
         (
-            o['f.id'],
-            o['f.ip_address'],
-            o['f.ip_protocol'],
-            o['f.load_balancing_scheme'],
-            o['f.name'],
-            o.get('f.port_range', None),
-            ','.join(o.get('f.ports', None)) if o.get('f.ports', None) else None,
-            o['f.project_id'],
-            o['f.region'],
-            o['f.target'],
-        ) for o in objects
+            o["f.id"],
+            o["f.ip_address"],
+            o["f.ip_protocol"],
+            o["f.load_balancing_scheme"],
+            o["f.name"],
+            o.get("f.port_range", None),
+            ",".join(o.get("f.ports", None)) if o.get("f.ports", None) else None,
+            o["f.project_id"],
+            o["f.region"],
+            o["f.target"],
+        )
+        for o in objects
     }
 
     expected_nodes = {
         (
-            'projects/project-abc/regions/europe-west2/forwardingRules/internal-service-1111',
-            '10.0.0.10',
-            'TCP',
-            'INTERNAL',
-            'internal-service-1111',
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-service-1111",
+            "10.0.0.10",
+            "TCP",
+            "INTERNAL",
+            "internal-service-1111",
             None,
-            '80',
-            'project-abc',
-            'europe-west2',
-            'projects/project-abc/regions/europe-west2/targetPools/node-pool-12345',
+            "80",
+            "project-abc",
+            "europe-west2",
+            "projects/project-abc/regions/europe-west2/targetPools/node-pool-12345",
         ),
         (
-            'projects/project-abc/regions/europe-west2/forwardingRules/public-ingress-controller-1234567',
-            '1.2.3.11',
-            'TCP',
-            'EXTERNAL',
-            'public-ingress-controller-1234567',
-            '80-443',
+            "projects/project-abc/regions/europe-west2/forwardingRules/public-ingress-controller-1234567",
+            "1.2.3.11",
+            "TCP",
+            "EXTERNAL",
+            "public-ingress-controller-1234567",
+            "80-443",
             None,
-            'project-abc',
-            'europe-west2',
-            'projects/project-abc/regions/europe-west2/targetVpnGateways/vpn-12345',
+            "project-abc",
+            "europe-west2",
+            "projects/project-abc/regions/europe-west2/targetVpnGateways/vpn-12345",
         ),
         (
-            'projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222',
-            '10.0.0.20',
-            'TCP',
-            'INTERNAL',
-            'shard-server-22222',
+            "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+            "10.0.0.20",
+            "TCP",
+            "INTERNAL",
+            "shard-server-22222",
             None,
-            '10203',
-            'project-abc',
-            'europe-west2',
-            'projects/project-abc/regions/europe-west2/targetPools/node-pool-234567',
+            "10203",
+            "project-abc",
+            "europe-west2",
+            "projects/project-abc/regions/europe-west2/targetPools/node-pool-234567",
         ),
     }
 
@@ -175,11 +191,17 @@ def test_transform_and_load_gcp_instances_and_nics(neo4j_session):
     Ensure that we can correctly transform and load GCP instances.
     """
     instance_responses = [tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE]
-    instance_list = cartography.intel.gcp.compute.transform_gcp_instances(instance_responses)
-    cartography.intel.gcp.compute.load_gcp_instances(neo4j_session, instance_list, TEST_UPDATE_TAG)
+    instance_list = cartography.intel.gcp.compute.transform_gcp_instances(
+        instance_responses,
+    )
+    cartography.intel.gcp.compute.load_gcp_instances(
+        neo4j_session,
+        instance_list,
+        TEST_UPDATE_TAG,
+    )
 
-    instance_id1 = 'projects/project-abc/zones/europe-west2-b/instances/instance-1-test'
-    instance_id2 = 'projects/project-abc/zones/europe-west2-b/instances/instance-1'
+    instance_id1 = "projects/project-abc/zones/europe-west2-b/instances/instance-1-test"
+    instance_id2 = "projects/project-abc/zones/europe-west2-b/instances/instance-1"
 
     nic_query = """
     MATCH(i:GCPInstance)-[r:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)
@@ -189,33 +211,34 @@ def test_transform_and_load_gcp_instances_and_nics(neo4j_session):
     objects = neo4j_session.run(nic_query)
     actual_nodes = {
         (
-            o['i.id'],
-            o['i.zone_name'],
-            o['i.project_id'],
-            o['nic.nic_id'],
-            o['nic.private_ip'],
-            o['t.value'],
-            o['r.lastupdated'],
-        ) for o in objects
+            o["i.id"],
+            o["i.zone_name"],
+            o["i.project_id"],
+            o["nic.nic_id"],
+            o["nic.private_ip"],
+            o["t.value"],
+            o["r.lastupdated"],
+        )
+        for o in objects
     }
 
     expected_nodes = {
         (
             instance_id1,
-            'europe-west2-b',
-            'project-abc',
-            'projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0',
-            '10.0.0.3',
+            "europe-west2-b",
+            "project-abc",
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
+            "10.0.0.3",
             None,
             TEST_UPDATE_TAG,
         ),
         (
             instance_id2,
-            'europe-west2-b',
-            'project-abc',
-            'projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0',
-            '10.0.0.2',
-            'test',
+            "europe-west2-b",
+            "project-abc",
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0",
+            "10.0.0.2",
+            "test",
             TEST_UPDATE_TAG,
         ),
     }
@@ -228,8 +251,14 @@ def test_transform_and_load_firewalls(neo4j_session):
     :param neo4j_session:
     :return:
     """
-    fw_list = cartography.intel.gcp.compute.transform_gcp_firewall(tests.data.gcp.compute.LIST_FIREWALLS_RESPONSE)
-    cartography.intel.gcp.compute.load_gcp_ingress_firewalls(neo4j_session, fw_list, TEST_UPDATE_TAG)
+    fw_list = cartography.intel.gcp.compute.transform_gcp_firewall(
+        tests.data.gcp.compute.LIST_FIREWALLS_RESPONSE,
+    )
+    cartography.intel.gcp.compute.load_gcp_ingress_firewalls(
+        neo4j_session,
+        fw_list,
+        TEST_UPDATE_TAG,
+    )
 
     query = """
     MATCH (vpc:GCPVpc)-[r:RESOURCE]->(fw:GCPFirewall)
@@ -240,36 +269,37 @@ def test_transform_and_load_firewalls(neo4j_session):
     actual_nodes = {
         (
             (
-                n['vpc.id'],
-                n['fw.id'],
-                n['fw.has_target_service_accounts'],
+                n["vpc.id"],
+                n["fw.id"],
+                n["fw.has_target_service_accounts"],
             )
-        ) for n in nodes
+        )
+        for n in nodes
     }
     expected_nodes = {
         (
-            'projects/project-abc/global/networks/default',
-            'projects/project-abc/global/firewalls/default-allow-icmp',
+            "projects/project-abc/global/networks/default",
+            "projects/project-abc/global/firewalls/default-allow-icmp",
             False,
         ),
         (
-            'projects/project-abc/global/networks/default',
-            'projects/project-abc/global/firewalls/default-allow-internal',
+            "projects/project-abc/global/networks/default",
+            "projects/project-abc/global/firewalls/default-allow-internal",
             False,
         ),
         (
-            'projects/project-abc/global/networks/default',
-            'projects/project-abc/global/firewalls/default-allow-rdp',
+            "projects/project-abc/global/networks/default",
+            "projects/project-abc/global/firewalls/default-allow-rdp",
             False,
         ),
         (
-            'projects/project-abc/global/networks/default',
-            'projects/project-abc/global/firewalls/default-allow-ssh',
+            "projects/project-abc/global/networks/default",
+            "projects/project-abc/global/firewalls/default-allow-ssh",
             False,
         ),
         (
-            'projects/project-abc/global/networks/default',
-            'projects/project-abc/global/firewalls/custom-port-incoming',
+            "projects/project-abc/global/networks/default",
+            "projects/project-abc/global/firewalls/custom-port-incoming",
             False,
         ),
     }
@@ -287,29 +317,30 @@ def test_vpc_to_subnets(neo4j_session):
     RETURN vpc.id, subnet.id, subnet.region, subnet.gateway_address, subnet.ip_cidr_range,
     subnet.private_ip_google_access
     """
-    expected_vpc_id = 'projects/project-abc/global/networks/default'
+    expected_vpc_id = "projects/project-abc/global/networks/default"
     nodes = neo4j_session.run(
         query,
         VpcId=expected_vpc_id,
     )
     actual_nodes = {
         (
-            n['vpc.id'],
-            n['subnet.id'],
-            n['subnet.region'],
-            n['subnet.gateway_address'],
-            n['subnet.ip_cidr_range'],
-            n['subnet.private_ip_google_access'],
-        ) for n in nodes
+            n["vpc.id"],
+            n["subnet.id"],
+            n["subnet.region"],
+            n["subnet.gateway_address"],
+            n["subnet.ip_cidr_range"],
+            n["subnet.private_ip_google_access"],
+        )
+        for n in nodes
     }
 
     expected_nodes = {
         (
-            'projects/project-abc/global/networks/default',
-            'projects/project-abc/regions/europe-west2/subnetworks/default',
-            'europe-west2',
-            '10.0.0.1',
-            '10.0.0.0/20',
+            "projects/project-abc/global/networks/default",
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+            "europe-west2",
+            "10.0.0.1",
+            "10.0.0.0/20",
             False,
         ),
     }
@@ -327,15 +358,17 @@ def test_nics_to_access_configs(neo4j_session):
     """
     nodes = neo4j_session.run(ac_query)
 
-    nic_id1 = 'projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0'
+    nic_id1 = "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0"
     ac_id1 = f"{nic_id1}/accessconfigs/ONE_TO_ONE_NAT"
-    nic_id2 = 'projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0'
+    nic_id2 = "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0"
     ac_id2 = f"{nic_id2}/accessconfigs/ONE_TO_ONE_NAT"
 
-    actual_nodes = {(n['nic.nic_id'], n['ac.access_config_id'], n['ac.public_ip']) for n in nodes}
+    actual_nodes = {
+        (n["nic.nic_id"], n["ac.access_config_id"], n["ac.public_ip"]) for n in nodes
+    }
     expected_nodes = {
-        (nic_id1, ac_id1, '1.3.4.5'),
-        (nic_id2, ac_id2, '1.2.3.4'),
+        (nic_id1, ac_id1, "1.3.4.5"),
+        (nic_id2, ac_id2, "1.2.3.4"),
     }
     assert actual_nodes == expected_nodes
 
@@ -352,24 +385,27 @@ def test_nic_to_subnets(neo4j_session):
     """
     nodes = neo4j_session.run(
         subnet_query,
-        NicId='projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0',
+        NicId="projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
     )
     actual_nodes = {
         (
-            n['nic.nic_id'],
-            n['nic.private_ip'],
-            n['subnet.id'],
-            n['subnet.gateway_address'],
-            n['subnet.ip_cidr_range'],
-        ) for n in nodes
+            n["nic.nic_id"],
+            n["nic.private_ip"],
+            n["subnet.id"],
+            n["subnet.gateway_address"],
+            n["subnet.ip_cidr_range"],
+        )
+        for n in nodes
     }
-    expected_nodes = {(
-        'projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0',
-        '10.0.0.3',
-        'projects/project-abc/regions/europe-west2/subnetworks/default',
-        '10.0.0.1',
-        '10.0.0.0/20',
-    )}
+    expected_nodes = {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
+            "10.0.0.3",
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+            "10.0.0.1",
+            "10.0.0.0/20",
+        ),
+    }
     assert actual_nodes == expected_nodes
 
 
@@ -377,7 +413,7 @@ def test_instance_to_vpc(neo4j_session):
     _ensure_local_neo4j_has_test_vpc_data(neo4j_session)
     _ensure_local_neo4j_has_test_subnet_data(neo4j_session)
     _ensure_local_neo4j_has_test_instance_data(neo4j_session)
-    instance_id1 = 'projects/project-abc/zones/europe-west2-b/instances/instance-1-test'
+    instance_id1 = "projects/project-abc/zones/europe-west2-b/instances/instance-1-test"
     query = """
     MATCH (i:GCPInstance{id:$InstanceId})-[r:MEMBER_OF_GCP_VPC]->(v:GCPVpc)
     RETURN i.id, v.id
@@ -388,14 +424,17 @@ def test_instance_to_vpc(neo4j_session):
     )
     actual_nodes = {
         (
-            n['i.id'],
-            n['v.id'],
-        ) for n in nodes
+            n["i.id"],
+            n["v.id"],
+        )
+        for n in nodes
     }
-    expected_nodes = {(
-        instance_id1,
-        'projects/project-abc/global/networks/default',
-    )}
+    expected_nodes = {
+        (
+            instance_id1,
+            "projects/project-abc/global/networks/default",
+        ),
+    }
     assert actual_nodes == expected_nodes
 
 
@@ -410,16 +449,19 @@ def test_vpc_to_firewall_to_iprule_to_iprange(neo4j_session):
     nodes = neo4j_session.run(query)
     actual_nodes = {
         (
-            n['rng.id'],
-            n['rule.id'],
-            n['fw.id'],
-            n['vpc.id'],
-        ) for n in nodes
+            n["rng.id"],
+            n["rule.id"],
+            n["fw.id"],
+            n["vpc.id"],
+        )
+        for n in nodes
     }
-    expected_nodes = {(
-        '0.0.0.0/0',
-        'projects/project-abc/global/firewalls/default-allow-ssh/allow/22tcp',
-        'projects/project-abc/global/firewalls/default-allow-ssh',
-        'projects/project-abc/global/networks/default',
-    )}
+    expected_nodes = {
+        (
+            "0.0.0.0/0",
+            "projects/project-abc/global/firewalls/default-allow-ssh/allow/22tcp",
+            "projects/project-abc/global/firewalls/default-allow-ssh",
+            "projects/project-abc/global/networks/default",
+        ),
+    }
     assert actual_nodes == expected_nodes

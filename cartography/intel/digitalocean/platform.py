@@ -5,26 +5,25 @@ from digitalocean import Account
 
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 
 @timeit
 def sync(
-        neo4j_session: neo4j.Session,
-        account: Account,
-        digitalocean_update_tag: int,
-        common_job_parameters: dict,
+    neo4j_session: neo4j.Session,
+    account: Account,
+    digitalocean_update_tag: int,
+    common_job_parameters: dict,
 ) -> None:
     sync_account(neo4j_session, account, digitalocean_update_tag, common_job_parameters)
 
 
 @timeit
 def sync_account(
-        neo4j_session: neo4j.Session,
-        account: Account,
-        digitalocean_update_tag: int,
-        common_job_parameters: dict,
+    neo4j_session: neo4j.Session,
+    account: Account,
+    digitalocean_update_tag: int,
+    common_job_parameters: dict,
 ) -> None:
     logger.info("Syncing Account")
     account_transformed = transform_account(account)
@@ -35,17 +34,21 @@ def sync_account(
 @timeit
 def transform_account(account_res: Account) -> dict:
     account = {
-        'id': account_res.uuid,
-        'uuid': account_res.uuid,
-        'droplet_limit': account_res.droplet_limit,
-        'floating_ip_limit': account_res.floating_ip_limit,
-        'status': account_res.status,
+        "id": account_res.uuid,
+        "uuid": account_res.uuid,
+        "droplet_limit": account_res.droplet_limit,
+        "floating_ip_limit": account_res.floating_ip_limit,
+        "status": account_res.status,
     }
     return account
 
 
 @timeit
-def load_account(neo4j_session: neo4j.Session, account: dict, digitalocean_update_tag: int) -> None:
+def load_account(
+    neo4j_session: neo4j.Session,
+    account: dict,
+    digitalocean_update_tag: int,
+) -> None:
     query = """
             MERGE (a:DOAccount{id:$AccountId})
             ON CREATE SET a.firstseen = timestamp()
@@ -57,11 +60,11 @@ def load_account(neo4j_session: neo4j.Session, account: dict, digitalocean_updat
             """
     neo4j_session.run(
         query,
-        AccountId=account['id'],
-        Uuid=account['uuid'],
-        DropletLimit=account['droplet_limit'],
-        FloatingIpLimit=account['floating_ip_limit'],
-        Status=account['status'],
+        AccountId=account["id"],
+        Uuid=account["uuid"],
+        DropletLimit=account["droplet_limit"],
+        FloatingIpLimit=account["floating_ip_limit"],
+        Status=account["status"],
         digitalocean_update_tag=digitalocean_update_tag,
     )
     return

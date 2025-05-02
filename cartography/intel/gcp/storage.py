@@ -33,7 +33,7 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
         return res
     except HttpError as e:
         reason = compute._get_error_reason(e)
-        if reason == 'invalid':
+        if reason == "invalid":
             logger.warning(
                 (
                     "The project %s is invalid - returned a 400 invalid error."
@@ -43,12 +43,15 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
                 e,
             )
             return {}
-        elif reason == 'forbidden':
+        elif reason == "forbidden":
             logger.warning(
                 (
                     "You do not have storage.bucket.list access to the project %s. "
                     "Full details: %s"
-                ), project_id, e, )
+                ),
+                project_id,
+                e,
+            )
             return {}
         else:
             raise
@@ -56,7 +59,7 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
 
 @timeit
 def transform_gcp_buckets(bucket_res: Dict) -> List[Dict]:
-    '''
+    """
     Transform the GCP Storage Bucket response object for Neo4j ingestion
 
     :type bucket_res: The GCP storage resource object (https://cloud.google.com/storage/docs/json_api/v1/buckets)
@@ -64,40 +67,52 @@ def transform_gcp_buckets(bucket_res: Dict) -> List[Dict]:
 
     :rtype: list
     :return: List of buckets ready for ingestion to Neo4j
-    '''
+    """
 
     bucket_list = []
-    for b in bucket_res.get('items', []):
+    for b in bucket_res.get("items", []):
         bucket = {}
-        bucket['etag'] = b.get('etag')
-        bucket['iam_config_bucket_policy_only'] = \
-            b.get('iamConfiguration', {}).get('bucketPolicyOnly', {}).get('enabled', None)
-        bucket['id'] = b['id']
-        bucket['labels'] = [(key, val) for (key, val) in b.get('labels', {}).items()]
-        bucket['owner_entity'] = b.get('owner', {}).get('entity')
-        bucket['owner_entity_id'] = b.get('owner', {}).get('entityId')
-        bucket['kind'] = b.get('kind')
-        bucket['location'] = b.get('location')
-        bucket['location_type'] = b.get('locationType')
-        bucket['meta_generation'] = b.get('metageneration', None)
-        bucket['project_number'] = b['projectNumber']
-        bucket['self_link'] = b.get('selfLink')
-        bucket['storage_class'] = b.get('storageClass')
-        bucket['time_created'] = b.get('timeCreated')
-        bucket['updated'] = b.get('updated')
-        bucket['versioning_enabled'] = b.get('versioning', {}).get('enabled', None)
-        bucket['default_event_based_hold'] = b.get('defaultEventBasedHold', None)
-        bucket['retention_period'] = b.get('retentionPolicy', {}).get('retentionPeriod', None)
-        bucket['default_kms_key_name'] = b.get('encryption', {}).get('defaultKmsKeyName')
-        bucket['log_bucket'] = b.get('logging', {}).get('logBucket')
-        bucket['requester_pays'] = b.get('billing', {}).get('requesterPays', None)
+        bucket["etag"] = b.get("etag")
+        bucket["iam_config_bucket_policy_only"] = (
+            b.get("iamConfiguration", {})
+            .get("bucketPolicyOnly", {})
+            .get("enabled", None)
+        )
+        bucket["id"] = b["id"]
+        bucket["labels"] = [(key, val) for (key, val) in b.get("labels", {}).items()]
+        bucket["owner_entity"] = b.get("owner", {}).get("entity")
+        bucket["owner_entity_id"] = b.get("owner", {}).get("entityId")
+        bucket["kind"] = b.get("kind")
+        bucket["location"] = b.get("location")
+        bucket["location_type"] = b.get("locationType")
+        bucket["meta_generation"] = b.get("metageneration", None)
+        bucket["project_number"] = b["projectNumber"]
+        bucket["self_link"] = b.get("selfLink")
+        bucket["storage_class"] = b.get("storageClass")
+        bucket["time_created"] = b.get("timeCreated")
+        bucket["updated"] = b.get("updated")
+        bucket["versioning_enabled"] = b.get("versioning", {}).get("enabled", None)
+        bucket["default_event_based_hold"] = b.get("defaultEventBasedHold", None)
+        bucket["retention_period"] = b.get("retentionPolicy", {}).get(
+            "retentionPeriod",
+            None,
+        )
+        bucket["default_kms_key_name"] = b.get("encryption", {}).get(
+            "defaultKmsKeyName",
+        )
+        bucket["log_bucket"] = b.get("logging", {}).get("logBucket")
+        bucket["requester_pays"] = b.get("billing", {}).get("requesterPays", None)
         bucket_list.append(bucket)
     return bucket_list
 
 
 @timeit
-def load_gcp_buckets(neo4j_session: neo4j.Session, buckets: List[Dict], gcp_update_tag: int) -> None:
-    '''
+def load_gcp_buckets(
+    neo4j_session: neo4j.Session,
+    buckets: List[Dict],
+    gcp_update_tag: int,
+) -> None:
+    """
     Ingest GCP Storage Buckets to Neo4j
 
     :type neo4j_session: Neo4j session object
@@ -111,7 +126,7 @@ def load_gcp_buckets(neo4j_session: neo4j.Session, buckets: List[Dict], gcp_upda
 
     :rtype: NoneType
     :return: Nothing
-    '''
+    """
 
     query = """
     MERGE(p:GCPProject{projectnumber:$ProjectNumber})
@@ -146,30 +161,34 @@ def load_gcp_buckets(neo4j_session: neo4j.Session, buckets: List[Dict], gcp_upda
     for bucket in buckets:
         neo4j_session.run(
             query,
-            ProjectNumber=bucket['project_number'],
-            BucketId=bucket['id'],
-            SelfLink=bucket['self_link'],
-            Kind=bucket['kind'],
-            Location=bucket['location'],
-            LocationType=bucket['location_type'],
-            MetaGeneration=bucket['meta_generation'],
-            StorageClass=bucket['storage_class'],
-            TimeCreated=bucket['time_created'],
-            RetentionPeriod=bucket['retention_period'],
-            IamConfigBucketPolicyOnly=bucket['iam_config_bucket_policy_only'],
-            OwnerEntity=bucket['owner_entity'],
-            OwnerEntityId=bucket['owner_entity_id'],
-            VersioningEnabled=bucket['versioning_enabled'],
-            LogBucket=bucket['log_bucket'],
-            RequesterPays=bucket['requester_pays'],
-            DefaultKmsKeyName=bucket['default_kms_key_name'],
+            ProjectNumber=bucket["project_number"],
+            BucketId=bucket["id"],
+            SelfLink=bucket["self_link"],
+            Kind=bucket["kind"],
+            Location=bucket["location"],
+            LocationType=bucket["location_type"],
+            MetaGeneration=bucket["meta_generation"],
+            StorageClass=bucket["storage_class"],
+            TimeCreated=bucket["time_created"],
+            RetentionPeriod=bucket["retention_period"],
+            IamConfigBucketPolicyOnly=bucket["iam_config_bucket_policy_only"],
+            OwnerEntity=bucket["owner_entity"],
+            OwnerEntityId=bucket["owner_entity_id"],
+            VersioningEnabled=bucket["versioning_enabled"],
+            LogBucket=bucket["log_bucket"],
+            RequesterPays=bucket["requester_pays"],
+            DefaultKmsKeyName=bucket["default_kms_key_name"],
             gcp_update_tag=gcp_update_tag,
         )
         _attach_gcp_bucket_labels(neo4j_session, bucket, gcp_update_tag)
 
 
 @timeit
-def _attach_gcp_bucket_labels(neo4j_session: neo4j.Session, bucket: Resource, gcp_update_tag: int) -> None:
+def _attach_gcp_bucket_labels(
+    neo4j_session: neo4j.Session,
+    bucket: Resource,
+    gcp_update_tag: int,
+) -> None:
     """
     Attach GCP bucket labels to the bucket.
     :param neo4j_session: The neo4j session
@@ -189,19 +208,22 @@ def _attach_gcp_bucket_labels(neo4j_session: neo4j.Session, bucket: Resource, gc
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $gcp_update_tag
     """
-    for (key, val) in bucket.get('labels', []):
+    for key, val in bucket.get("labels", []):
         neo4j_session.run(
             query,
             BucketLabelId=f"GCPBucket_{key}",
             Key=key,
             Value=val,
-            BucketId=bucket['id'],
+            BucketId=bucket["id"],
             gcp_update_tag=gcp_update_tag,
         )
 
 
 @timeit
-def cleanup_gcp_buckets(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_gcp_buckets(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
     """
     Delete out-of-date GCP Storage Bucket nodes and relationships
 
@@ -214,12 +236,19 @@ def cleanup_gcp_buckets(neo4j_session: neo4j.Session, common_job_parameters: Dic
     :rtype: NoneType
     :return: Nothing
     """
-    run_cleanup_job('gcp_storage_bucket_cleanup.json', neo4j_session, common_job_parameters)
+    run_cleanup_job(
+        "gcp_storage_bucket_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync_gcp_buckets(
-    neo4j_session: neo4j.Session, storage: Resource, project_id: str, gcp_update_tag: int,
+    neo4j_session: neo4j.Session,
+    storage: Resource,
+    project_id: str,
+    gcp_update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     """
@@ -247,5 +276,5 @@ def sync_gcp_buckets(
     storage_res = get_gcp_buckets(storage, project_id)
     bucket_list = transform_gcp_buckets(storage_res)
     load_gcp_buckets(neo4j_session, bucket_list, gcp_update_tag)
-    # TODO scope the cleanup to the current project - https://github.com/lyft/cartography/issues/381
+    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
     cleanup_gcp_buckets(neo4j_session, common_job_parameters)

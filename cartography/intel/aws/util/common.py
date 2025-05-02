@@ -8,18 +8,18 @@ logger = logging.getLogger(__name__)
 
 def parse_and_validate_aws_requested_syncs(aws_requested_syncs: str) -> List[str]:
     validated_resources: List[str] = []
-    for resource in aws_requested_syncs.split(','):
+    for resource in aws_requested_syncs.split(","):
         resource = resource.strip()
 
         if resource in RESOURCE_FUNCTIONS:
             validated_resources.append(resource)
         else:
-            valid_syncs: str = ', '.join(RESOURCE_FUNCTIONS.keys())
+            valid_syncs: str = ", ".join(RESOURCE_FUNCTIONS.keys())
             raise ValueError(
                 f'Error parsing `aws-requested-syncs`. You specified "{aws_requested_syncs}". '
-                f'Please check that your string is formatted properly. '
+                f"Please check that your string is formatted properly. "
                 f'Example valid input looks like "s3,iam,rds" or "s3, ec2:instance, dynamodb". '
-                f'Our full list of valid values is: {valid_syncs}.',
+                f"Our full list of valid values is: {valid_syncs}.",
             )
     return validated_resources
 
@@ -31,7 +31,7 @@ def parse_and_validate_aws_regions(aws_regions: str) -> list[str]:
     :return: A validated list of AWS regions
     """
     validated_regions: List[str] = []
-    for region in aws_regions.split(','):
+    for region in aws_regions.split(","):
         region = region.strip()
         if region:
             validated_regions.append(region)

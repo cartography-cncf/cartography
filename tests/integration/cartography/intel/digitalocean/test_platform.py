@@ -11,7 +11,11 @@ def test_transform_and_load_account(neo4j_session):
     Test that we can correctly transform and load DOAccount nodes to Neo4j.
     """
     account = cartography.intel.digitalocean.platform.transform_account(account_res)
-    cartography.intel.digitalocean.platform.load_account(neo4j_session, account, TEST_UPDATE_TAG)
+    cartography.intel.digitalocean.platform.load_account(
+        neo4j_session,
+        account,
+        TEST_UPDATE_TAG,
+    )
 
     query = """
         MATCH(a:DOAccount{id:$AccountId})
@@ -23,13 +27,14 @@ def test_transform_and_load_account(neo4j_session):
     )
     actual_nodes = {
         (
-            n['a.id'],
-            n['a.uuid'],
-            n['a.droplet_limit'],
-            n['a.floating_ip_limit'],
-            n['a.status'],
-            n['a.lastupdated'],
-        ) for n in nodes
+            n["a.id"],
+            n["a.uuid"],
+            n["a.droplet_limit"],
+            n["a.floating_ip_limit"],
+            n["a.status"],
+            n["a.lastupdated"],
+        )
+        for n in nodes
     }
     expected_nodes = {
         (

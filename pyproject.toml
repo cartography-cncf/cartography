@@ -80,6 +80,7 @@ dev = [
     "pytest-rerunfailures",
     "pytest-asyncio",
     "types-PyYAML",
+    "black==25.1.0",
     "types-requests<2.32.0.20250329",
 ]
 
@@ -105,3 +106,10 @@ Documentation = "https://cartography-cncf.github.io/cartography"
 Repository = "https://github.com/cartography-cncf/cartography"
 Issues = "https://github.com/cartography-cncf/cartography/issues"
 Changelog = "https://github.com/cartography-cncf/cartography/releases"
+
+# Enable poetry
+[tool.poetry]
+package-mode = false # We do not use Poetry for the package management
+
+[tool.poetry.dependencies]
+python = "^3.10"

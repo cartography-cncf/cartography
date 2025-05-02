@@ -4,8 +4,8 @@ LIST_USERS = [
         "UserId": "aaaaaaaa-a0d1-aaac-5af0-59c813ec7671",
         "ExternalIds": [
             {
-                    "Issuer": "https://scim.aws.com/1223122",
-                    "Id": "00aaaaabbbbb",
+                "Issuer": "https://scim.aws.com/1223122",
+                "Id": "00aaaaabbbbb",
             },
         ],
         "Name": {
@@ -16,9 +16,9 @@ LIST_USERS = [
         "NickName": "Jonsey",
         "Emails": [
             {
-                    "Value": "mr.jones@mycompany.com",
-                    "Type": "work",
-                    "Primary": True,
+                "Value": "mr.jones@mycompany.com",
+                "Type": "work",
+                "Primary": True,
             },
         ],
         "Addresses": [

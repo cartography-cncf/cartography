@@ -11,16 +11,16 @@ from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
 def test_load_load_balancer_v2s(neo4j_session, *args):
     load_balancer_data = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA
-    ec2_instance_id = 'i-0f76fade'
-    sg_group_id = 'sg-123456'
-    sg_group_id_2 = 'sg-234567'
+    ec2_instance_id = "i-0f76fade"
+    sg_group_id = "sg-123456"
+    sg_group_id_2 = "sg-234567"
     load_balancer_id = "myawesomeloadbalancer.amazonaws.com"
 
     # an ec2instance and AWSAccount must exist
@@ -84,9 +84,9 @@ def test_load_load_balancer_v2s(neo4j_session, *args):
     }
     actual_nodes = {
         (
-            n['aa.id'],
-            n['elbv2.id'],
-            n['l.id'],
+            n["aa.id"],
+            n["elbv2.id"],
+            n["l.id"],
         )
         for n in nodes
     }
@@ -97,7 +97,7 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
     # elbv2 must exist
     # creates ELBV2Listener
     # creates (elbv2)-[r:ELBV2_LISTENER]->(l)
-    load_balancer_id = 'asadfmyloadbalancerid'
+    load_balancer_id = "asadfmyloadbalancerid"
     neo4j_session.run(
         """
         MERGE (elbv2:LoadBalancerV2{id: $ID})
@@ -134,8 +134,8 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
     }
     actual_nodes = {
         (
-            n['elbv2.id'],
-            n['l.id'],
+            n["elbv2.id"],
+            n["l.id"],
         )
         for n in nodes
     }
@@ -143,8 +143,8 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
 
 
 def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
-    load_balancer_id = 'asadfmyloadbalancerid'
-    ec2_instance_id = 'i-0f76fade'
+    load_balancer_id = "asadfmyloadbalancerid"
+    ec2_instance_id = "i-0f76fade"
 
     target_groups = tests.data.aws.ec2.load_balancers.TARGET_GROUPS
 
@@ -195,8 +195,8 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
     }
     actual_nodes = {
         (
-            n['elbv2.id'],
-            n['instance.instanceid'],
+            n["elbv2.id"],
+            n["instance.instanceid"],
         )
         for n in nodes
     }
@@ -205,7 +205,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
 def test_load_load_balancer_v2_subnets(neo4j_session, *args):
     # an elbv2 must exist or nothing will match.
-    load_balancer_id = 'asadfmyloadbalancerid'
+    load_balancer_id = "asadfmyloadbalancerid"
     neo4j_session.run(
         """
         MERGE (elbv2:LoadBalancerV2{id: $ID})
@@ -217,8 +217,8 @@ def test_load_load_balancer_v2_subnets(neo4j_session, *args):
     )
 
     az_data = [
-        {'SubnetId': 'mysubnetIdA'},
-        {'SubnetId': 'mysubnetIdB'},
+        {"SubnetId": "mysubnetIdA"},
+        {"SubnetId": "mysubnetIdB"},
     ]
     cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2_subnets(
         neo4j_session,
@@ -248,9 +248,9 @@ def test_load_load_balancer_v2_subnets(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['subnet.subnetid'],
-            n['subnet.region'],
-            n['subnet.lastupdated'],
+            n["subnet.subnetid"],
+            n["subnet.region"],
+            n["subnet.lastupdated"],
         )
         for n in nodes
     }
@@ -265,16 +265,20 @@ def _ensure_load_instances(neo4j_session):
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
 
 @patch.object(
     cartography.intel.aws.ec2.load_balancers,
-    'get_loadbalancer_data',
-    return_value=DESCRIBE_LOAD_BALANCERS['LoadBalancerDescriptions'],
+    "get_loadbalancer_data",
+    return_value=DESCRIBE_LOAD_BALANCERS["LoadBalancerDescriptions"],
 )
-@patch.object(cartography.intel.aws.ec2.instances, 'get_ec2_instances', return_value=DESCRIBE_INSTANCES['Reservations'])
+@patch.object(
+    cartography.intel.aws.ec2.instances,
+    "get_ec2_instances",
+    return_value=DESCRIBE_INSTANCES["Reservations"],
+)
 def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_session):
     """
     Ensure that load balancers and their listeners are loaded correctly
@@ -301,145 +305,147 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {'UPDATE_TAG': TEST_UPDATE_TAG, 'AWS_ID': TEST_ACCOUNT_ID},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     # Assert Load Balancers exist
-    assert check_nodes(neo4j_session, 'LoadBalancer', ['id', 'name', 'dnsname', 'scheme']) == {
+    assert check_nodes(
+        neo4j_session, "LoadBalancer", ["id", "name", "dnsname", "scheme"]
+    ) == {
         (
-            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
-            'test-lb-1',
-            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
-            'internet-facing',
+            "test-lb-1-1234567890.us-east-1.elb.amazonaws.com",
+            "test-lb-1",
+            "test-lb-1-1234567890.us-east-1.elb.amazonaws.com",
+            "internet-facing",
         ),
         (
-            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
-            'test-lb-2',
-            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
-            'internal',
+            "test-lb-2-1234567890.us-east-1.elb.amazonaws.com",
+            "test-lb-2",
+            "test-lb-2-1234567890.us-east-1.elb.amazonaws.com",
+            "internal",
         ),
     }
 
     # Assert Load Balancer Listeners exist
     assert check_nodes(
         neo4j_session,
-        'ELBListener',
-        ['id', 'port', 'protocol', 'instance_port', 'instance_protocol'],
+        "ELBListener",
+        ["id", "port", "protocol", "instance_port", "instance_protocol"],
     ) == {
         (
-            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP',
+            "test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP",
             80,
-            'HTTP',
+            "HTTP",
             8080,
-            'HTTP',
+            "HTTP",
         ),
         (
-            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS',
+            "test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS",
             443,
-            'HTTPS',
+            "HTTPS",
             8443,
-            'HTTPS',
+            "HTTPS",
         ),
         (
-            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP',
+            "test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP",
             8080,
-            'TCP',
+            "TCP",
             8080,
-            'TCP',
+            "TCP",
         ),
     }
 
     # Assert Load Balancer to Security Group relationships
     assert check_rels(
         neo4j_session,
-        'LoadBalancer',
-        'id',
-        'EC2SecurityGroup',
-        'id',
-        'MEMBER_OF_EC2_SECURITY_GROUP',
+        "LoadBalancer",
+        "id",
+        "EC2SecurityGroup",
+        "id",
+        "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,
     ) == {
-        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'THIS_IS_A_SG_ID'),
-        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'SOME_GROUP_ID_2'),
+        ("test-lb-1-1234567890.us-east-1.elb.amazonaws.com", "THIS_IS_A_SG_ID"),
+        ("test-lb-1-1234567890.us-east-1.elb.amazonaws.com", "SOME_GROUP_ID_2"),
     }
 
     # Assert Load Balancers are attached to their Source Security Group
     assert check_rels(
         neo4j_session,
-        'LoadBalancer',
-        'id',
-        'EC2SecurityGroup',
-        'name',
-        'SOURCE_SECURITY_GROUP',
+        "LoadBalancer",
+        "id",
+        "EC2SecurityGroup",
+        "name",
+        "SOURCE_SECURITY_GROUP",
         rel_direction_right=True,
     ) == {
-        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'default'),
+        ("test-lb-1-1234567890.us-east-1.elb.amazonaws.com", "default"),
     }
 
     # Assert Load Balancer to Instance relationships
     assert check_rels(
         neo4j_session,
-        'LoadBalancer',
-        'id',
-        'EC2Instance',
-        'id',
-        'EXPOSE',
+        "LoadBalancer",
+        "id",
+        "EC2Instance",
+        "id",
+        "EXPOSE",
         rel_direction_right=True,
     ) == {
-        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'i-01'),
-        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', 'i-02'),
-        ('test-lb-2-1234567890.us-east-1.elb.amazonaws.com', 'i-03'),
+        ("test-lb-1-1234567890.us-east-1.elb.amazonaws.com", "i-01"),
+        ("test-lb-1-1234567890.us-east-1.elb.amazonaws.com", "i-02"),
+        ("test-lb-2-1234567890.us-east-1.elb.amazonaws.com", "i-03"),
     }
 
     # Assert Load Balancer to Listener relationships
     assert check_rels(
         neo4j_session,
-        'LoadBalancer',
-        'id',
-        'ELBListener',
-        'id',
-        'ELB_LISTENER',
+        "LoadBalancer",
+        "id",
+        "ELBListener",
+        "id",
+        "ELB_LISTENER",
         rel_direction_right=True,
     ) == {
         (
-            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
-            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP',
+            "test-lb-1-1234567890.us-east-1.elb.amazonaws.com",
+            "test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP",
         ),
         (
-            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
-            'test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS',
+            "test-lb-1-1234567890.us-east-1.elb.amazonaws.com",
+            "test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS",
         ),
         (
-            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
-            'test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP',
+            "test-lb-2-1234567890.us-east-1.elb.amazonaws.com",
+            "test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP",
         ),
     }
 
     # Assert Load Balancer to AWS Account relationship
     assert check_rels(
         neo4j_session,
-        'LoadBalancer',
-        'id',
-        'AWSAccount',
-        'id',
-        'RESOURCE',
+        "LoadBalancer",
+        "id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com', '000000000000'),
-        ('test-lb-2-1234567890.us-east-1.elb.amazonaws.com', '000000000000'),
+        ("test-lb-1-1234567890.us-east-1.elb.amazonaws.com", "000000000000"),
+        ("test-lb-2-1234567890.us-east-1.elb.amazonaws.com", "000000000000"),
     }
 
     # Assert ELBListener to AWS Account relationship
     assert check_rels(
         neo4j_session,
-        'ELBListener',
-        'id',
-        'AWSAccount',
-        'id',
-        'RESOURCE',
+        "ELBListener",
+        "id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP', '000000000000'),
-        ('test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS', '000000000000'),
-        ('test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP', '000000000000'),
+        ("test-lb-1-1234567890.us-east-1.elb.amazonaws.com80HTTP", "000000000000"),
+        ("test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS", "000000000000"),
+        ("test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP", "000000000000"),
     }

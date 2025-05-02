@@ -20,8 +20,8 @@ def start_lastpass_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
 
     if not config.lastpass_cid or not config.lastpass_provhash:
         logger.info(
-            'Lastpass import is not configured - skipping this module. '
-            'See docs to configure.',
+            "Lastpass import is not configured - skipping this module. "
+            "See docs to configure.",
         )
         return
 

@@ -5,25 +5,36 @@ from typing import List
 import boto3
 import neo4j
 
-from .util import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
+from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
 @aws_handle_regions
-def get_vpc_peerings_data(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
-    return client.describe_vpc_peering_connections()['VpcPeeringConnections']
+def get_vpc_peerings_data(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict]:
+    client = boto3_session.client(
+        "ec2",
+        region_name=region,
+        config=get_botocore_config(),
+    )
+    return client.describe_vpc_peering_connections()["VpcPeeringConnections"]
 
 
 @timeit
 def load_vpc_peerings(
-    neo4j_session: neo4j.Session, data: List[Dict], region: str,
-    aws_account_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    aws_account_id: str,
+    update_tag: int,
 ) -> None:
     ingest_vpc_peerings = """
     UNWIND $vpc_peerings AS vpc_peering
@@ -77,15 +88,21 @@ def load_vpc_peerings(
     """
 
     neo4j_session.run(
-        ingest_vpc_peerings, vpc_peerings=data, update_tag=update_tag,
-        region=region, aws_account_id=aws_account_id,
+        ingest_vpc_peerings,
+        vpc_peerings=data,
+        update_tag=update_tag,
+        region=region,
+        aws_account_id=aws_account_id,
     )
 
 
 @timeit
 def load_accepter_cidrs(
-    neo4j_session: neo4j.Session, data: List[Dict], region: str,
-    aws_account_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    aws_account_id: str,
+    update_tag: int,
 ) -> None:
 
     ingest_accepter_cidr = """
@@ -110,15 +127,21 @@ def load_accepter_cidrs(
     """
 
     neo4j_session.run(
-        ingest_accepter_cidr, vpc_peerings=data, update_tag=update_tag,
-        region=region, aws_account_id=aws_account_id,
+        ingest_accepter_cidr,
+        vpc_peerings=data,
+        update_tag=update_tag,
+        region=region,
+        aws_account_id=aws_account_id,
     )
 
 
 @timeit
 def load_requester_cidrs(
-    neo4j_session: neo4j.Session, data: List[Dict], region: str,
-    aws_account_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    aws_account_id: str,
+    update_tag: int,
 ) -> None:
 
     ingest_requester_cidr = """
@@ -143,25 +166,61 @@ def load_requester_cidrs(
     """
 
     neo4j_session.run(
-        ingest_requester_cidr, vpc_peerings=data, update_tag=update_tag,
-        region=region, aws_account_id=aws_account_id,
+        ingest_requester_cidr,
+        vpc_peerings=data,
+        update_tag=update_tag,
+        region=region,
+        aws_account_id=aws_account_id,
     )
 
 
 @timeit
-def cleanup_vpc_peerings(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_vpc_peering_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_vpc_peerings(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "aws_import_vpc_peering_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync_vpc_peerings(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str],
-    current_aws_account_id: str, update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     for region in regions:
-        logger.debug("Syncing EC2 VPC peering for region '%s' in account '%s'.", region, current_aws_account_id)
+        logger.debug(
+            "Syncing EC2 VPC peering for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
+        )
         data = get_vpc_peerings_data(boto3_session, region)
-        load_vpc_peerings(neo4j_session, data, region, current_aws_account_id, update_tag)
-        load_accepter_cidrs(neo4j_session, data, region, current_aws_account_id, update_tag)
-        load_requester_cidrs(neo4j_session, data, region, current_aws_account_id, update_tag)
+        load_vpc_peerings(
+            neo4j_session,
+            data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+        load_accepter_cidrs(
+            neo4j_session,
+            data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+        load_requester_cidrs(
+            neo4j_session,
+            data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
     cleanup_vpc_peerings(neo4j_session, common_job_parameters)

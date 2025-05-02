@@ -153,9 +153,9 @@ def create_test_application():
         "name": "app_name_value",
         "label": "app_label_value",
         "created": "2019-01-01T00:00:01.000Z",
-        "lastUpdated": '2019-01-01T00:00:01.000Z',
+        "lastUpdated": "2019-01-01T00:00:01.000Z",
         "status": "app_status_value",
-        "activated": '2019-01-01T00:00:01.000Z',
+        "activated": "2019-01-01T00:00:01.000Z",
         "features": "app_features_value",
         "signOnMode": "app_signonmode_value",
     }
