@@ -1,7 +1,7 @@
 TARGET_GROUPS = [
     {
-        'TargetType': 'instance',
-        'Targets': ["i-0f76fade"],
+        "TargetType": "instance",
+        "Targets": ["i-0f76fade"],
     },
 ]
 
@@ -14,10 +14,10 @@ TARGET_GROUPS = [
 
 LOAD_BALANCER_LISTENERS = [
     {
-        'ListenerArn': "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/myawesomeloadb/LBId/ListId",
-        'Port': 443,
-        'Protocol': 'HTTPS',
-        'TargetGroupArn': 'arn:aws:ec2:us-east-1:012345678912:targetgroup',
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/myawesomeloadb/LBId/ListId",
+        "Port": 443,
+        "Protocol": "HTTPS",
+        "TargetGroupArn": "arn:aws:ec2:us-east-1:012345678912:targetgroup",
     },
 ]
 
@@ -88,26 +88,26 @@ LOAD_BALANCER_LISTENERS = [
 
 LOAD_BALANCER_DATA = [
     {
-        'DNSName': 'myawesomeloadbalancer.amazonaws.com',
-        'CreatedTime': '10-27-2019 12:35AM',
-        'LoadBalancerName': 'myawesomeloadbalancer',
-        'Type': 'application',
-        'Scheme': 'internet-facing',
-        'AvailabilityZones': [
+        "DNSName": "myawesomeloadbalancer.amazonaws.com",
+        "CreatedTime": "10-27-2019 12:35AM",
+        "LoadBalancerName": "myawesomeloadbalancer",
+        "Type": "application",
+        "Scheme": "internet-facing",
+        "AvailabilityZones": [
             {
-                'ZoneName': 'myAZ',
-                'SubnetId': 'mysubnetIdA',
-                'LoadBalancerAddresses': [
+                "ZoneName": "myAZ",
+                "SubnetId": "mysubnetIdA",
+                "LoadBalancerAddresses": [
                     {
-                        'IpAddress': '50.0.1.0',
-                        'AllocationId': 'someId',
+                        "IpAddress": "50.0.1.0",
+                        "AllocationId": "someId",
                     },
                 ],
             },
         ],
-        'SecurityGroups': ['sg-123456', 'sg-234567'],
-        'Listeners': LOAD_BALANCER_LISTENERS,
-        'TargetGroups': TARGET_GROUPS,
+        "SecurityGroups": ["sg-123456", "sg-234567"],
+        "Listeners": LOAD_BALANCER_LISTENERS,
+        "TargetGroups": TARGET_GROUPS,
     },
 ]
 
@@ -172,63 +172,63 @@ LOAD_BALANCER_DATA = [
 # ],
 
 DESCRIBE_LOAD_BALANCERS = {
-    'LoadBalancerDescriptions': [
+    "LoadBalancerDescriptions": [
         {
-            'LoadBalancerName': 'test-lb-1',
-            'DNSName': 'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
-            'CanonicalHostedZoneName': 'test-lb-1-1234567890.us-east-1.elb.amazonaws.com',
-            'CanonicalHostedZoneNameID': 'Z35SXDOTRQ7X7K',
-            'Scheme': 'internet-facing',
-            'CreatedTime': '2024-01-01T00:00:00.000Z',
-            'SecurityGroups': ['SOME_GROUP_ID_2', 'THIS_IS_A_SG_ID'],
-            'Instances': [
-                {'InstanceId': 'i-01'},
-                {'InstanceId': 'i-02'},
+            "LoadBalancerName": "test-lb-1",
+            "DNSName": "test-lb-1-1234567890.us-east-1.elb.amazonaws.com",
+            "CanonicalHostedZoneName": "test-lb-1-1234567890.us-east-1.elb.amazonaws.com",
+            "CanonicalHostedZoneNameID": "Z35SXDOTRQ7X7K",
+            "Scheme": "internet-facing",
+            "CreatedTime": "2024-01-01T00:00:00.000Z",
+            "SecurityGroups": ["SOME_GROUP_ID_2", "THIS_IS_A_SG_ID"],
+            "Instances": [
+                {"InstanceId": "i-01"},
+                {"InstanceId": "i-02"},
             ],
-            'SourceSecurityGroup': {
-                'GroupName': 'default',
-                'OwnerAlias': 'abcdef',
+            "SourceSecurityGroup": {
+                "GroupName": "default",
+                "OwnerAlias": "abcdef",
             },
-            'ListenerDescriptions': [
+            "ListenerDescriptions": [
                 {
-                    'Listener': {
-                        'LoadBalancerPort': 80,
-                        'Protocol': 'HTTP',
-                        'InstancePort': 8080,
-                        'InstanceProtocol': 'HTTP',
+                    "Listener": {
+                        "LoadBalancerPort": 80,
+                        "Protocol": "HTTP",
+                        "InstancePort": 8080,
+                        "InstanceProtocol": "HTTP",
                     },
-                    'PolicyNames': ['test-policy-1'],
+                    "PolicyNames": ["test-policy-1"],
                 },
                 {
-                    'Listener': {
-                        'LoadBalancerPort': 443,
-                        'Protocol': 'HTTPS',
-                        'InstancePort': 8443,
-                        'InstanceProtocol': 'HTTPS',
+                    "Listener": {
+                        "LoadBalancerPort": 443,
+                        "Protocol": "HTTPS",
+                        "InstancePort": 8443,
+                        "InstanceProtocol": "HTTPS",
                     },
-                    'PolicyNames': ['test-policy-2'],
+                    "PolicyNames": ["test-policy-2"],
                 },
             ],
         },
         {
-            'LoadBalancerName': 'test-lb-2',
-            'DNSName': 'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
-            'CanonicalHostedZoneName': 'test-lb-2-1234567890.us-east-1.elb.amazonaws.com',
-            'CanonicalHostedZoneNameID': 'Z35SXDOTRQ7X7K',
-            'Scheme': 'internal',
-            'CreatedTime': '2024-01-02T00:00:00.000Z',
-            'Instances': [
-                {'InstanceId': 'i-03'},
+            "LoadBalancerName": "test-lb-2",
+            "DNSName": "test-lb-2-1234567890.us-east-1.elb.amazonaws.com",
+            "CanonicalHostedZoneName": "test-lb-2-1234567890.us-east-1.elb.amazonaws.com",
+            "CanonicalHostedZoneNameID": "Z35SXDOTRQ7X7K",
+            "Scheme": "internal",
+            "CreatedTime": "2024-01-02T00:00:00.000Z",
+            "Instances": [
+                {"InstanceId": "i-03"},
             ],
-            'ListenerDescriptions': [
+            "ListenerDescriptions": [
                 {
-                    'Listener': {
-                        'LoadBalancerPort': 8080,
-                        'Protocol': 'TCP',
-                        'InstancePort': 8080,
-                        'InstanceProtocol': 'TCP',
+                    "Listener": {
+                        "LoadBalancerPort": 8080,
+                        "Protocol": "TCP",
+                        "InstancePort": 8080,
+                        "InstanceProtocol": "TCP",
                     },
-                    'PolicyNames': ['test-policy-3'],
+                    "PolicyNames": ["test-policy-3"],
                 },
             ],
         },

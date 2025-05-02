@@ -5,6 +5,9 @@ from typing import Optional
 
 import neo4j
 
+from cartography.config import Config
+from cartography.util import timeit
+
 from . import compute
 from . import cosmosdb
 from . import sql
@@ -13,24 +16,52 @@ from . import subscription
 from . import tenant
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
-from cartography.config import Config
-from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 def _sync_one_subscription(
-    neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    subscription_id: str,
+    update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
-    compute.sync(neo4j_session, credentials.arm_credentials, subscription_id, update_tag, common_job_parameters)
-    cosmosdb.sync(neo4j_session, credentials.arm_credentials, subscription_id, update_tag, common_job_parameters)
-    sql.sync(neo4j_session, credentials.arm_credentials, subscription_id, update_tag, common_job_parameters)
-    storage.sync(neo4j_session, credentials.arm_credentials, subscription_id, update_tag, common_job_parameters)
+    compute.sync(
+        neo4j_session,
+        credentials.arm_credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    cosmosdb.sync(
+        neo4j_session,
+        credentials.arm_credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    sql.sync(
+        neo4j_session,
+        credentials.arm_credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    storage.sync(
+        neo4j_session,
+        credentials.arm_credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
 
 
 def _sync_tenant(
-    neo4j_session: neo4j.Session, tenant_id: str, current_user: Optional[str], update_tag: int,
+    neo4j_session: neo4j.Session,
+    tenant_id: str,
+    current_user: Optional[str],
+    update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing Azure Tenant: %s", tenant_id)
@@ -38,18 +69,34 @@ def _sync_tenant(
 
 
 def _sync_multiple_subscriptions(
-    neo4j_session: neo4j.Session, credentials: Credentials, tenant_id: str, subscriptions: List[Dict],
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    tenant_id: str,
+    subscriptions: List[Dict],
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing Azure subscriptions")
 
-    subscription.sync(neo4j_session, tenant_id, subscriptions, update_tag, common_job_parameters)
+    subscription.sync(
+        neo4j_session,
+        tenant_id,
+        subscriptions,
+        update_tag,
+        common_job_parameters,
+    )
 
     for sub in subscriptions:
-        logger.info("Syncing Azure Subscription with ID '%s'", sub['subscriptionId'])
-        common_job_parameters['AZURE_SUBSCRIPTION_ID'] = sub['subscriptionId']
+        logger.info("Syncing Azure Subscription with ID '%s'", sub["subscriptionId"])
+        common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
 
-        _sync_one_subscription(neo4j_session, credentials, sub['subscriptionId'], update_tag, common_job_parameters)
+        _sync_one_subscription(
+            neo4j_session,
+            credentials,
+            sub["subscriptionId"],
+            update_tag,
+            common_job_parameters,
+        )
 
     del common_job_parameters["AZURE_SUBSCRIPTION_ID"]
 
@@ -64,7 +111,9 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     try:
         if config.azure_sp_auth:
             credentials = Authenticator().authenticate_sp(
-                config.azure_tenant_id, config.azure_client_id, config.azure_client_secret,
+                config.azure_tenant_id,
+                config.azure_client_id,
+                config.azure_client_secret,
             )
         else:
             credentials = Authenticator().authenticate_cli()
@@ -80,7 +129,10 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         return
 
     _sync_tenant(
-        neo4j_session, credentials.get_tenant_id(), credentials.get_current_user(), config.update_tag,
+        neo4j_session,
+        credentials.get_tenant_id(),
+        credentials.get_current_user(),
+        config.update_tag,
         common_job_parameters,
     )
 
@@ -88,7 +140,10 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         subscriptions = subscription.get_all_azure_subscriptions(credentials)
 
     else:
-        subscriptions = subscription.get_current_azure_subscription(credentials, credentials.subscription_id)
+        subscriptions = subscription.get_current_azure_subscription(
+            credentials,
+            credentials.subscription_id,
+        )
 
     if not subscriptions:
         logger.warning(
@@ -97,6 +152,10 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         return
 
     _sync_multiple_subscriptions(
-        neo4j_session, credentials, credentials.get_tenant_id(), subscriptions, config.update_tag,
+        neo4j_session,
+        credentials,
+        credentials.get_tenant_id(),
+        subscriptions,
+        config.update_tag,
         common_job_parameters,
     )

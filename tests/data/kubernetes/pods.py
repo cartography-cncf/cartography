@@ -3,7 +3,6 @@ from uuid import uuid4
 from tests.data.kubernetes.namespaces import GET_CLUSTER_DATA
 from tests.data.kubernetes.namespaces import GET_NAMESPACES_DATA
 
-
 RANDOM_ID = [uuid4().hex, uuid4().hex]
 GET_PODS_DATA = [
     {

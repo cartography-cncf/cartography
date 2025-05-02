@@ -13,31 +13,34 @@ from cartography.intel.duo.groups import sync_duo_groups
 from cartography.intel.duo.phones import sync as sync_duo_phones
 from cartography.intel.duo.tokens import sync as sync_duo_tokens
 from cartography.intel.duo.users import sync_duo_users
-from cartography.intel.duo.web_authn_credentials import sync as sync_duo_web_authn_credentials
+from cartography.intel.duo.web_authn_credentials import (
+    sync as sync_duo_web_authn_credentials,
+)
 from cartography.util import timeit
-
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
 def get_client(config: Config) -> duo_client.Admin:
-    '''
+    """
     Return a duo Admin client with the creds in the config object
-    '''
+    """
     client = duo_client.Admin(
         ikey=config.duo_api_key,
         skey=config.duo_api_secret,
         host=config.duo_api_hostname,
     )
     # Duo's library does not automatically respect the HTTP_PROXY env variable
-    proxy_url = os.environ.get('HTTP_PROXY')
+    proxy_url = os.environ.get("HTTP_PROXY")
     if proxy_url:
         proxy_config = urlparse(proxy_url)
         headers = {}
         if proxy_config.username:
-            proxy_auth_token = b64encode(f"{proxy_config.username}:{proxy_config.password}".encode()).decode('ascii')
-            headers['Proxy-Authorization'] = f'Basic {proxy_auth_token}'
+            proxy_auth_token = b64encode(
+                f"{proxy_config.username}:{proxy_config.password}".encode(),
+            ).decode("ascii")
+            headers["Proxy-Authorization"] = f"Basic {proxy_auth_token}"
         client.set_proxy(
             host=proxy_config.hostname,
             port=proxy_config.port,
@@ -48,20 +51,22 @@ def get_client(config: Config) -> duo_client.Admin:
 
 @timeit
 def start_duo_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-    '''
+    """
     If this module is configured, perform ingestion of duo data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
     :return: None
-    '''
-    if not all([
-        config.duo_api_key,
-        config.duo_api_secret,
-        config.duo_api_hostname,
-    ]):
+    """
+    if not all(
+        [
+            config.duo_api_key,
+            config.duo_api_secret,
+            config.duo_api_hostname,
+        ],
+    ):
         logger.info(
-            'Duo import is not configured - skipping this module. '
-            'See docs to configure.',
+            "Duo import is not configured - skipping this module. "
+            "See docs to configure.",
         )
         return
 

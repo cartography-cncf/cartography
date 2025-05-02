@@ -17,13 +17,15 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class MyNodeToBillingUnitRelProps(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class MyNodeToBillingUnitRel(CartographyRelSchema):
-    target_node_label: str = 'BillingUnit'
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({'id': PropertyRef('billing_unit_id')})
+    target_node_label: str = "BillingUnit"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("billing_unit_id")},
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "BILLING_UNIT"
     # This is intentionally missing "()" at the end. This will raise an exception!
@@ -32,13 +34,15 @@ class MyNodeToBillingUnitRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class MyNodeToOtherNodeRelProps(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class MyNodeToOtherNodeRel(CartographyRelSchema):
-    target_node_label: str = 'OtherNode'
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({'id': PropertyRef('other_node_id')})
+    target_node_label: str = "OtherNode"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("other_node_id")},
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REL_LABEL_GOES_HERE"
     # This is intentionally missing "()" at the end. This will raise an exception!
@@ -47,16 +51,18 @@ class MyNodeToOtherNodeRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class MyNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('Id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("Id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class MyNodeSchema(CartographyNodeSchema):
-    label: str = 'MyNode'
+    label: str = "MyNode"
     properties: MyNodeProperties = MyNodeProperties()
     sub_resource_relationship: CartographyRelSchema = MyNodeToBillingUnitRel()
-    other_relationships: OtherRelationships = OtherRelationships([MyNodeToOtherNodeRel()])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [MyNodeToOtherNodeRel()],
+    )
 
 
 def test_build_attach_addl_links_raises_typeerror():
@@ -76,4 +82,6 @@ def test_build_attach_sub_resource_stmt_raises_typeerror():
     Same test logic as test_build_attach_addl_links_raises_typeerror above but for _build_attach_sub_resource_statement.
     """
     with raises(TypeError):
-        _ = _build_attach_sub_resource_statement(MyNodeSchema().sub_resource_relationship)
+        _ = _build_attach_sub_resource_statement(
+            MyNodeSchema().sub_resource_relationship,
+        )

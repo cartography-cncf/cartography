@@ -12,33 +12,35 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class IdentityCenterInstanceProperties(CartographyNodeProperties):
-    identity_store_id: PropertyRef = PropertyRef('IdentityStoreId')
-    arn: PropertyRef = PropertyRef('InstanceArn')
-    created_date: PropertyRef = PropertyRef('CreatedDate')
-    id: PropertyRef = PropertyRef('InstanceArn')
-    status: PropertyRef = PropertyRef('Status')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
+    arn: PropertyRef = PropertyRef("InstanceArn")
+    created_date: PropertyRef = PropertyRef("CreatedDate")
+    id: PropertyRef = PropertyRef("InstanceArn")
+    status: PropertyRef = PropertyRef("Status")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class IdentityCenterToAwsAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:IdentityCenter)<-[:RESOURCE]-(:AWSAccount)
 class IdentityCenterToAWSAccount(CartographyRelSchema):
-    target_node_label: str = 'AWSAccount'
+    target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('AWS_ID', set_in_kwargs=True)},
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: IdentityCenterToAwsAccountRelProperties = IdentityCenterToAwsAccountRelProperties()
+    properties: IdentityCenterToAwsAccountRelProperties = (
+        IdentityCenterToAwsAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class AWSIdentityCenterInstanceSchema(CartographyNodeSchema):
-    label: str = 'AWSIdentityCenter'
+    label: str = "AWSIdentityCenter"
     properties: IdentityCenterInstanceProperties = IdentityCenterInstanceProperties()
     sub_resource_relationship: IdentityCenterToAWSAccount = IdentityCenterToAWSAccount()

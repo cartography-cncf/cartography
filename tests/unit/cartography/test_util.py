@@ -13,28 +13,35 @@ from cartography.util import run_analysis_and_ensure_deps
 
 
 def test_run_analysis_job_default_package(mocker):
-    mocker.patch('cartography.util.GraphJob')
-    read_text_mock = mocker.patch('cartography.util.read_text')
-    util.run_analysis_job('test.json', mocker.Mock(), mocker.Mock())
-    read_text_mock.assert_called_once_with('cartography.data.jobs.analysis', 'test.json')
+    mocker.patch("cartography.util.GraphJob")
+    read_text_mock = mocker.patch("cartography.util.read_text")
+    util.run_analysis_job("test.json", mocker.Mock(), mocker.Mock())
+    read_text_mock.assert_called_once_with(
+        "cartography.data.jobs.analysis",
+        "test.json",
+    )
 
 
 def test_run_analysis_job_custom_package(mocker):
-    mocker.patch('cartography.util.GraphJob')
-    read_text_mock = mocker.patch('cartography.util.read_text')
-    util.run_analysis_job('test.json', mocker.Mock(), mocker.Mock(), package='a.b.c')
-    read_text_mock.assert_called_once_with('a.b.c', 'test.json')
+    mocker.patch("cartography.util.GraphJob")
+    read_text_mock = mocker.patch("cartography.util.read_text")
+    util.run_analysis_job("test.json", mocker.Mock(), mocker.Mock(), package="a.b.c")
+    read_text_mock.assert_called_once_with("a.b.c", "test.json")
 
 
 def test_run_scoped_analysis_job_default_package(mocker):
-    mocker.patch('cartography.util.GraphJob')
-    read_text_mock = mocker.patch('cartography.util.read_text')
-    util.run_scoped_analysis_job('test.json', mocker.Mock(), mocker.Mock())
-    read_text_mock.assert_called_once_with('cartography.data.jobs.scoped_analysis', 'test.json')
+    mocker.patch("cartography.util.GraphJob")
+    read_text_mock = mocker.patch("cartography.util.read_text")
+    util.run_scoped_analysis_job("test.json", mocker.Mock(), mocker.Mock())
+    read_text_mock.assert_called_once_with(
+        "cartography.data.jobs.scoped_analysis",
+        "test.json",
+    )
 
 
 @patch(
-    'cartography.util.backoff', Mock(
+    "cartography.util.backoff",
+    Mock(
         on_exception=lambda *args, **kwargs: lambda func: func,
     ),
 )
@@ -51,12 +58,12 @@ def test_aws_handle_regions(mocker):
     def raises_supported_client_error(a, b):
         e = botocore.exceptions.ClientError(
             {
-                'Error': {
-                    'Code': 'AccessDenied',
-                    'Message': 'aws_handle_regions is not working',
+                "Error": {
+                    "Code": "AccessDenied",
+                    "Message": "aws_handle_regions is not working",
                 },
             },
-            'FakeOperation',
+            "FakeOperation",
         )
         raise e
 
@@ -67,12 +74,12 @@ def test_aws_handle_regions(mocker):
     def raises_unsupported_client_error(a, b):
         e = botocore.exceptions.ClientError(
             {
-                'Error': {
-                    'Code': '>9000',
-                    'Message': 'aws_handle_regions is not working',
+                "Error": {
+                    "Code": ">9000",
+                    "Message": "aws_handle_regions is not working",
                 },
             },
-            'FakeOperation',
+            "FakeOperation",
         )
         raise e
 
@@ -104,7 +111,7 @@ def test_batch(mocker):
     assert batch([], 3) == []
 
 
-@mock.patch.object(cartography.util, 'run_analysis_job', return_value=None)
+@mock.patch.object(cartography.util, "run_analysis_job", return_value=None)
 def test_run_analysis_and_ensure_deps(mock_run_analysis_job: mock.MagicMock):
     # Arrange
     neo4j_session = mock.MagicMock()
@@ -112,20 +119,20 @@ def test_run_analysis_and_ensure_deps(mock_run_analysis_job: mock.MagicMock):
 
     # This arg doesn't matter for this test
     requested_syncs = {
-        'ec2:instance',
-        'iam',
-        'resourcegroupstaggingapi',
+        "ec2:instance",
+        "iam",
+        "resourcegroupstaggingapi",
     }
 
     # Act
     ec2_asset_exposure_requirements = {
-        'ec2:instance',
-        'ec2:security_group',
-        'ec2:load_balancer',
-        'ec2:load_balancer_v2',
+        "ec2:instance",
+        "ec2:security_group",
+        "ec2:load_balancer",
+        "ec2:load_balancer_v2",
     }
     run_analysis_and_ensure_deps(
-        'aws_ec2_asset_exposure.json',
+        "aws_ec2_asset_exposure.json",
         ec2_asset_exposure_requirements,
         requested_syncs,
         common_job_parameters,
@@ -136,23 +143,25 @@ def test_run_analysis_and_ensure_deps(mock_run_analysis_job: mock.MagicMock):
     mock_run_analysis_job.assert_not_called()
 
 
-@mock.patch.object(cartography.util, 'run_analysis_job', return_value=None)
-def test_run_analysis_and_ensure_deps_no_requirements(mock_run_analysis_job: mock.MagicMock):
+@mock.patch.object(cartography.util, "run_analysis_job", return_value=None)
+def test_run_analysis_and_ensure_deps_no_requirements(
+    mock_run_analysis_job: mock.MagicMock,
+):
     # Arrange
     neo4j_session = mock.MagicMock()
     common_job_parameters = mock.MagicMock()
 
     # This arg doesn't matter for this test
     requested_syncs = {
-        'ec2:instance',
-        'iam',
-        'resourcegroupstaggingapi',
+        "ec2:instance",
+        "iam",
+        "resourcegroupstaggingapi",
     }
 
     # Act
     run_analysis_and_ensure_deps(
-        'aws_foreign_accounts.json',
-        {'iam'},
+        "aws_foreign_accounts.json",
+        {"iam"},
         requested_syncs,
         common_job_parameters,
         neo4j_session,
@@ -160,7 +169,7 @@ def test_run_analysis_and_ensure_deps_no_requirements(mock_run_analysis_job: moc
 
     # Assert
     mock_run_analysis_job.assert_called_once_with(
-        'aws_foreign_accounts.json',
+        "aws_foreign_accounts.json",
         neo4j_session,
         common_job_parameters,
     )

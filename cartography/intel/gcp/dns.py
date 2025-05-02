@@ -32,17 +32,26 @@ def get_dns_zones(dns: Resource, project_id: str) -> List[Resource]:
         request = dns.managedZones().list(project=project_id)
         while request is not None:
             response = request.execute()
-            for managed_zone in response['managedZones']:
+            for managed_zone in response["managedZones"]:
                 zones.append(managed_zone)
-            request = dns.managedZones().list_next(previous_request=request, previous_response=response)
+            request = dns.managedZones().list_next(
+                previous_request=request,
+                previous_response=response,
+            )
         return zones
     except HttpError as e:
-        err = json.loads(e.content.decode('utf-8'))['error']
-        if err.get('status', '') == 'PERMISSION_DENIED' or err.get('message', '') == 'Forbidden':
+        err = json.loads(e.content.decode("utf-8"))["error"]
+        if (
+            err.get("status", "") == "PERMISSION_DENIED"
+            or err.get("message", "") == "Forbidden"
+        ):
             logger.warning(
                 (
                     "Could not retrieve DNS zones on project %s due to permissions issues. Code: %s, Message: %s"
-                ), project_id, err['code'], err['message'],
+                ),
+                project_id,
+                err["code"],
+                err["message"],
             )
             return []
         else:
@@ -50,7 +59,11 @@ def get_dns_zones(dns: Resource, project_id: str) -> List[Resource]:
 
 
 @timeit
-def get_dns_rrs(dns: Resource, dns_zones: List[Dict], project_id: str) -> List[Resource]:
+def get_dns_rrs(
+    dns: Resource,
+    dns_zones: List[Dict],
+    project_id: str,
+) -> List[Resource]:
     """
     Returns a list of DNS Resource Record Sets within the given project.
 
@@ -69,21 +82,33 @@ def get_dns_rrs(dns: Resource, dns_zones: List[Dict], project_id: str) -> List[R
     try:
         rrs: List[Resource] = []
         for zone in dns_zones:
-            request = dns.resourceRecordSets().list(project=project_id, managedZone=zone['id'])
+            request = dns.resourceRecordSets().list(
+                project=project_id,
+                managedZone=zone["id"],
+            )
             while request is not None:
                 response = request.execute()
-                for resource_record_set in response['rrsets']:
-                    resource_record_set['zone'] = zone['id']
+                for resource_record_set in response["rrsets"]:
+                    resource_record_set["zone"] = zone["id"]
                     rrs.append(resource_record_set)
-                request = dns.resourceRecordSets().list_next(previous_request=request, previous_response=response)
+                request = dns.resourceRecordSets().list_next(
+                    previous_request=request,
+                    previous_response=response,
+                )
         return rrs
     except HttpError as e:
-        err = json.loads(e.content.decode('utf-8'))['error']
-        if err.get('status', '') == 'PERMISSION_DENIED' or err.get('message', '') == 'Forbidden':
+        err = json.loads(e.content.decode("utf-8"))["error"]
+        if (
+            err.get("status", "") == "PERMISSION_DENIED"
+            or err.get("message", "") == "Forbidden"
+        ):
             logger.warning(
                 (
                     "Could not retrieve DNS RRS on project %s due to permissions issues. Code: %s, Message: %s"
-                ), project_id, err['code'], err['message'],
+                ),
+                project_id,
+                err["code"],
+                err["message"],
             )
             return []
         else:
@@ -92,7 +117,12 @@ def get_dns_rrs(dns: Resource, dns_zones: List[Dict], project_id: str) -> List[R
 
 
 @timeit
-def load_dns_zones(neo4j_session: neo4j.Session, dns_zones: List[Dict], project_id: str, gcp_update_tag: int) -> None:
+def load_dns_zones(
+    neo4j_session: neo4j.Session,
+    dns_zones: List[Dict],
+    project_id: str,
+    gcp_update_tag: int,
+) -> None:
     """
     Ingest GCP DNS Zones into Neo4j
 
@@ -142,7 +172,12 @@ def load_dns_zones(neo4j_session: neo4j.Session, dns_zones: List[Dict], project_
 
 
 @timeit
-def load_rrs(neo4j_session: neo4j.Session, dns_rrs: List[Resource], project_id: str, gcp_update_tag: int) -> None:
+def load_rrs(
+    neo4j_session: neo4j.Session,
+    dns_rrs: List[Resource],
+    project_id: str,
+    gcp_update_tag: int,
+) -> None:
     """
     Ingest GCP RRS into Neo4j
 
@@ -188,7 +223,10 @@ def load_rrs(neo4j_session: neo4j.Session, dns_rrs: List[Resource], project_id: 
 
 
 @timeit
-def cleanup_dns_records(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_dns_records(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
     """
     Delete out-of-date GCP DNS Zones and RRS nodes and relationships
 
@@ -201,12 +239,15 @@ def cleanup_dns_records(neo4j_session: neo4j.Session, common_job_parameters: Dic
     :rtype: NoneType
     :return: Nothing
     """
-    run_cleanup_job('gcp_dns_cleanup.json', neo4j_session, common_job_parameters)
+    run_cleanup_job("gcp_dns_cleanup.json", neo4j_session, common_job_parameters)
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, dns: Resource, project_id: str, gcp_update_tag: int,
+    neo4j_session: neo4j.Session,
+    dns: Resource,
+    project_id: str,
+    gcp_update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     """
@@ -237,5 +278,5 @@ def sync(
     # RECORD SETS
     dns_rrs = get_dns_rrs(dns, dns_zones, project_id)
     load_rrs(neo4j_session, dns_rrs, project_id, gcp_update_tag)
-    # TODO scope the cleanup to the current project - https://github.com/lyft/cartography/issues/381
+    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
     cleanup_dns_records(neo4j_session, common_job_parameters)

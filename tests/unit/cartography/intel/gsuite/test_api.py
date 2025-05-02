@@ -9,23 +9,27 @@ def test_get_all_users():
     raw_request_1 = mock.MagicMock()
     raw_request_2 = mock.MagicMock()
 
-    user1 = {'primaryEmail': 'employee1@test.lyft.com'}
-    user2 = {'primaryEmail': 'employee2@test.lyft.com'}
-    user3 = {'primaryEmail': 'employee3@test.lyft.com'}
+    user1 = {"primaryEmail": "employee1@test.lyft.com"}
+    user2 = {"primaryEmail": "employee2@test.lyft.com"}
+    user3 = {"primaryEmail": "employee3@test.lyft.com"}
 
     client.users().list.return_value = raw_request_1
     client.users().list_next.side_effect = [raw_request_2, None]
 
-    raw_request_1.execute.return_value = {'users': [user1, user2]}
-    raw_request_2.execute.return_value = {'users': [user3]}
+    raw_request_1.execute.return_value = {"users": [user1, user2]}
+    raw_request_2.execute.return_value = {"users": [user3]}
 
     result = api.get_all_users(client)
-    emails = [user['primaryEmail'] for response_object in result for user in response_object['users']]
+    emails = [
+        user["primaryEmail"]
+        for response_object in result
+        for user in response_object["users"]
+    ]
 
     expected = [
-        'employee1@test.lyft.com',
-        'employee2@test.lyft.com',
-        'employee3@test.lyft.com',
+        "employee1@test.lyft.com",
+        "employee2@test.lyft.com",
+        "employee3@test.lyft.com",
     ]
     assert sorted(emails) == sorted(expected)
 
@@ -35,33 +39,48 @@ def test_get_all_groups():
     raw_request_1 = mock.MagicMock()
     raw_request_2 = mock.MagicMock()
 
-    group1 = {'email': 'group1@test.lyft.com'}
-    group2 = {'email': 'group2@test.lyft.com'}
-    group3 = {'email': 'group3@test.lyft.com'}
+    group1 = {"email": "group1@test.lyft.com"}
+    group2 = {"email": "group2@test.lyft.com"}
+    group3 = {"email": "group3@test.lyft.com"}
 
     client.groups().list.return_value = raw_request_1
     client.groups().list_next.side_effect = [raw_request_2, None]
 
-    raw_request_1.execute.return_value = {'groups': [group1, group2]}
-    raw_request_2.execute.return_value = {'groups': [group3]}
+    raw_request_1.execute.return_value = {"groups": [group1, group2]}
+    raw_request_2.execute.return_value = {"groups": [group3]}
 
     result = api.get_all_groups(client)
-    emails = [group['email'] for response_object in result for group in response_object['groups']]
+    emails = [
+        group["email"]
+        for response_object in result
+        for group in response_object["groups"]
+    ]
 
     expected = [
-        'group1@test.lyft.com',
-        'group2@test.lyft.com',
-        'group3@test.lyft.com',
+        "group1@test.lyft.com",
+        "group2@test.lyft.com",
+        "group3@test.lyft.com",
     ]
     assert sorted(emails) == sorted(expected)
 
 
-@patch('cartography.intel.gsuite.api.cleanup_gsuite_users')
-@patch('cartography.intel.gsuite.api.load_gsuite_users')
+@patch("cartography.intel.gsuite.api.cleanup_gsuite_users")
+@patch("cartography.intel.gsuite.api.load_gsuite_users")
 @patch(
-    'cartography.intel.gsuite.api.get_all_users', return_value=[
-        {'users': [{'primaryEmail': 'group1@test.lyft.com'}, {'primaryEmail': 'group2@test.lyft.com'}]},
-        {'users': [{'primaryEmail': 'group3@test.lyft.com'}, {'primaryEmail': 'group4@test.lyft.com'}]},
+    "cartography.intel.gsuite.api.get_all_users",
+    return_value=[
+        {
+            "users": [
+                {"primaryEmail": "group1@test.lyft.com"},
+                {"primaryEmail": "group2@test.lyft.com"},
+            ],
+        },
+        {
+            "users": [
+                {"primaryEmail": "group3@test.lyft.com"},
+                {"primaryEmail": "group4@test.lyft.com"},
+            ],
+        },
     ],
 )
 def test_sync_gsuite_users(get_all_users, load_gsuite_users, cleanup_gsuite_users):
@@ -74,21 +93,39 @@ def test_sync_gsuite_users(get_all_users, load_gsuite_users, cleanup_gsuite_user
     api.sync_gsuite_users(session, client, gsuite_update_tag, common_job_param)
     users = api.transform_users(get_all_users())
     load_gsuite_users.assert_called_with(
-        session, users, gsuite_update_tag,
+        session,
+        users,
+        gsuite_update_tag,
     )
     cleanup_gsuite_users.assert_called_once()
 
 
-@patch('cartography.intel.gsuite.api.sync_gsuite_members')
-@patch('cartography.intel.gsuite.api.cleanup_gsuite_groups')
-@patch('cartography.intel.gsuite.api.load_gsuite_groups')
+@patch("cartography.intel.gsuite.api.sync_gsuite_members")
+@patch("cartography.intel.gsuite.api.cleanup_gsuite_groups")
+@patch("cartography.intel.gsuite.api.load_gsuite_groups")
 @patch(
-    'cartography.intel.gsuite.api.get_all_groups', return_value=[
-        {'groups': [{'email': 'group1@test.lyft.com'}, {'email': 'group2@test.lyft.com'}]},
-        {'groups': [{'email': 'group3@test.lyft.com'}, {'email': 'group4@test.lyft.com'}]},
+    "cartography.intel.gsuite.api.get_all_groups",
+    return_value=[
+        {
+            "groups": [
+                {"email": "group1@test.lyft.com"},
+                {"email": "group2@test.lyft.com"},
+            ],
+        },
+        {
+            "groups": [
+                {"email": "group3@test.lyft.com"},
+                {"email": "group4@test.lyft.com"},
+            ],
+        },
     ],
 )
-def test_sync_gsuite_groups(all_groups, load_gsuite_groups, cleanup_gsuite_groups, sync_gsuite_members):
+def test_sync_gsuite_groups(
+    all_groups,
+    load_gsuite_groups,
+    cleanup_gsuite_groups,
+    sync_gsuite_members,
+):
     admin_client = mock.MagicMock()
     session = mock.MagicMock()
     gsuite_update_tag = 1
@@ -99,7 +136,12 @@ def test_sync_gsuite_groups(all_groups, load_gsuite_groups, cleanup_gsuite_group
     groups = api.transform_groups(all_groups())
     load_gsuite_groups.assert_called_with(session, groups, gsuite_update_tag)
     cleanup_gsuite_groups.assert_called_once()
-    sync_gsuite_members.assert_called_with(groups, session, admin_client, gsuite_update_tag)
+    sync_gsuite_members.assert_called_with(
+        groups,
+        session,
+        admin_client,
+        gsuite_update_tag,
+    )
 
 
 def test_load_gsuite_groups():
@@ -179,12 +221,24 @@ def test_load_gsuite_users():
 
 def test_transform_groups():
     param = [
-        {'groups': [{'email': 'group1@test.lyft.com'}, {'email': 'group2@test.lyft.com'}]},
-        {'groups': [{'email': 'group3@test.lyft.com'}, {'email': 'group4@test.lyft.com'}]},
+        {
+            "groups": [
+                {"email": "group1@test.lyft.com"},
+                {"email": "group2@test.lyft.com"},
+            ],
+        },
+        {
+            "groups": [
+                {"email": "group3@test.lyft.com"},
+                {"email": "group4@test.lyft.com"},
+            ],
+        },
     ]
     expected = [
-        {'email': 'group1@test.lyft.com'}, {'email': 'group2@test.lyft.com'},
-        {'email': 'group3@test.lyft.com'}, {'email': 'group4@test.lyft.com'},
+        {"email": "group1@test.lyft.com"},
+        {"email": "group2@test.lyft.com"},
+        {"email": "group3@test.lyft.com"},
+        {"email": "group4@test.lyft.com"},
     ]
     result = api.transform_groups(param)
     assert result == expected
@@ -192,12 +246,24 @@ def test_transform_groups():
 
 def test_transform_users():
     param = [
-        {'users': [{'primaryEmail': 'group1@test.lyft.com'}, {'primaryEmail': 'group2@test.lyft.com'}]},
-        {'users': [{'primaryEmail': 'group3@test.lyft.com'}, {'primaryEmail': 'group4@test.lyft.com'}]},
+        {
+            "users": [
+                {"primaryEmail": "group1@test.lyft.com"},
+                {"primaryEmail": "group2@test.lyft.com"},
+            ],
+        },
+        {
+            "users": [
+                {"primaryEmail": "group3@test.lyft.com"},
+                {"primaryEmail": "group4@test.lyft.com"},
+            ],
+        },
     ]
     expected = [
-        {'primaryEmail': 'group1@test.lyft.com'}, {'primaryEmail': 'group2@test.lyft.com'},
-        {'primaryEmail': 'group3@test.lyft.com'}, {'primaryEmail': 'group4@test.lyft.com'},
+        {"primaryEmail": "group1@test.lyft.com"},
+        {"primaryEmail": "group2@test.lyft.com"},
+        {"primaryEmail": "group3@test.lyft.com"},
+        {"primaryEmail": "group4@test.lyft.com"},
     ]
     result = api.transform_users(param)
     assert result == expected

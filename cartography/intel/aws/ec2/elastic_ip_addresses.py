@@ -6,20 +6,28 @@ import boto3
 import neo4j
 from botocore.exceptions import ClientError
 
-from .util import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
+from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
 @aws_handle_regions
-def get_elastic_ip_addresses(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
+def get_elastic_ip_addresses(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict]:
+    client = boto3_session.client(
+        "ec2",
+        region_name=region,
+        config=get_botocore_config(),
+    )
     try:
-        addresses = client.describe_addresses()['Addresses']
+        addresses = client.describe_addresses()["Addresses"]
     except ClientError as e:
         logger.warning(f"Failed retrieve address for region - {region}. Error - {e}")
         raise
@@ -28,8 +36,11 @@ def get_elastic_ip_addresses(boto3_session: boto3.session.Session, region: str) 
 
 @timeit
 def load_elastic_ip_addresses(
-    neo4j_session: neo4j.Session, elastic_ip_addresses: List[Dict], region: str,
-    current_aws_account_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    elastic_ip_addresses: List[Dict],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
 ) -> None:
     """
     Creates (:ElasticIpAddress)
@@ -37,7 +48,9 @@ def load_elastic_ip_addresses(
     (:EC2Instance)-[:ELASTIC_IP_ADDRESS]->(:ElasticIpAddress),
     (:NetworkInterface)-[:ELASTIC_IP_ADDRESS]->(:ElasticIpAddress),
     """
-    logger.info(f"Loading {len(elastic_ip_addresses)} Elastic IP Addresses in {region}.")
+    logger.info(
+        f"Loading {len(elastic_ip_addresses)} Elastic IP Addresses in {region}.",
+    )
     ingest_addresses = """
     UNWIND $elastic_ip_addresses as eia
         MERGE (address: ElasticIPAddress{id: eia.PublicIp})
@@ -80,9 +93,12 @@ def load_elastic_ip_addresses(
 
 
 @timeit
-def cleanup_elastic_ip_addresses(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_elastic_ip_addresses(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
     run_cleanup_job(
-        'aws_import_elastic_ip_addresses_cleanup.json',
+        "aws_import_elastic_ip_addresses_cleanup.json",
         neo4j_session,
         common_job_parameters,
     )
@@ -90,11 +106,23 @@ def cleanup_elastic_ip_addresses(neo4j_session: neo4j.Session, common_job_parame
 
 @timeit
 def sync_elastic_ip_addresses(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str],
-    current_aws_account_id: str, update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     for region in regions:
-        logger.info(f"Syncing Elastic IP Addresses for region {region} in account {current_aws_account_id}.")
+        logger.info(
+            f"Syncing Elastic IP Addresses for region {region} in account {current_aws_account_id}.",
+        )
         addresses = get_elastic_ip_addresses(boto3_session, region)
-        load_elastic_ip_addresses(neo4j_session, addresses, region, current_aws_account_id, update_tag)
+        load_elastic_ip_addresses(
+            neo4j_session,
+            addresses,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
     cleanup_elastic_ip_addresses(neo4j_session, common_job_parameters)

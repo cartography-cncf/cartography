@@ -9,13 +9,13 @@ class PropertyRef:
     """
 
     def __init__(
-            self,
-            name: str,
-            set_in_kwargs=False,
-            extra_index=False,
-            ignore_case=False,
-            fuzzy_and_ignore_case=False,
-            one_to_many=False,
+        self,
+        name: str,
+        set_in_kwargs=False,
+        extra_index=False,
+        ignore_case=False,
+        fuzzy_and_ignore_case=False,
+        one_to_many=False,
     ):
         """
         :param name: The name of the property
@@ -74,13 +74,13 @@ class PropertyRef:
         if self.fuzzy_and_ignore_case and self.ignore_case:
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": ignore_case cannot be used together with'
-                'fuzzy_and_ignore_case. Pick one or the other.',
+                "fuzzy_and_ignore_case. Pick one or the other.",
             )
 
         if self.one_to_many and (self.ignore_case or self.fuzzy_and_ignore_case):
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": one_to_many cannot be used together with '
-                '`ignore_case` or `fuzzy_and_ignore_case`.',
+                "`ignore_case` or `fuzzy_and_ignore_case`.",
             )
 
     def _parameterize_name(self) -> str:
@@ -103,4 +103,6 @@ class PropertyRef:
         querybuilder.build_ingestion_query(). This is used for things like applying the same update tag to all nodes of
         a given run.
         """
-        return f"item.{self.name}" if not self.set_in_kwargs else self._parameterize_name()
+        return (
+            f"item.{self.name}" if not self.set_in_kwargs else self._parameterize_name()
+        )

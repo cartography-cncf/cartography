@@ -13,31 +13,19 @@ repos:
     -   id: debug-statements
     -   id: end-of-file-fixer
     -   id: trailing-whitespace
+-   repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 25.1.0
+    hooks:
+      - id: black
 -   repo: https://github.com/pycqa/flake8
     rev: 7.2.0
     hooks:
     -   id: flake8
--   repo: https://github.com/hhatto/autopep8
-    rev: v2.3.2
-    hooks:
-    -   id: autopep8
-        # disable a few rewrites which will cause autopep8 to reflow
-        args: [--in-place, '--ignore=E265,E501,W504']
 -   repo: https://github.com/asottile/pyupgrade
     rev: v3.19.1
     hooks:
     -   id: pyupgrade
         args: [--py36-plus]
--   repo: https://github.com/asottile/add-trailing-comma
-    rev: v3.1.0
-    hooks:
-    -   id: add-trailing-comma
-        args: [--py36-plus]
--   repo: https://github.com/asottile/reorder_python_imports
-    rev: v3.14.0
-    hooks:
-    -   id: reorder-python-imports
-        args: [--py3-plus]
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
     hooks:

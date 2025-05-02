@@ -78,9 +78,11 @@ def test_get_devices_with_pagination(
         0: Mock(json=lambda: mock_device_data_page1, raise_for_status=lambda: None),
         300: Mock(json=lambda: mock_device_data_page2, raise_for_status=lambda: None),
     }
-    mock_session.return_value.get.side_effect = lambda *args, **kwargs: mock_responses.get(
-        kwargs.get('params', {}).get('offset', 0),
-        mock_empty_response,
+    mock_session.return_value.get.side_effect = (
+        lambda *args, **kwargs: mock_responses.get(
+            kwargs.get("params", {}).get("offset", 0),
+            mock_empty_response,
+        )
     )
     base_uri = "https://test.kandji.io"
     token = "test-token"

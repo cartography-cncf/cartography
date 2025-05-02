@@ -54,62 +54,78 @@ ZONE_RECORDS = [
     },
 ]
 
-GET_ZONES_SAMPLE_RESPONSE = [(
-    {
-        'CallerReference': '044a41db-b8e1-45f8-9962-91c95a123456',
-        'Config': {
-            'PrivateZone': False,
-        },
-        'Id': '/hostedzone/HOSTED_ZONE',
-        'Name': 'example.com.',
-        'ResourceRecordSetCount': 5,
-    }, [
+GET_ZONES_SAMPLE_RESPONSE = [
+    (
         {
-            'Name': 'example.com.',
-            'ResourceRecords': [{
-                'Value': '1.2.3.4',
-            }],
-            'TTL': 300,
-            'Type': 'A',
-        }, {
-            'Name': 'example.com.',
-            'ResourceRecords': [{
-                'Value': 'ec2-1-2-3-4.us-east-2.compute.amazonaws.com',
-            }],
-            'TTL': 60,
-            'Type': 'NS',
-        }, {
-            'Name': 'example.com.',
-            'ResourceRecords': [{
-                'Value': 'ns-1234.awsdns-21.co.uk. '
-                         'awsdns-hostmaster.amazon.com. 1 1234',
-            }],
-            'TTL': 900,
-            'Type': 'SOA',
-        }, {
-            'Name': '_b6e76e6a1b6853211abcdef123454.example.com.',
-            'ResourceRecords': [{
-                'Value': '_1f9ee9f5c4304947879ee77d0a995cc9.something.something.aws.',
-            }],
-            'TTL': 300,
-            'Type': 'CNAME',
-        }, {
-            'Name': 'elbv2.example.com.',
-            'AliasTarget': {
-                'HostedZoneId': 'HOSTED_ZONE_2',
-                'DNSName': 'myawesomeloadbalancer.amazonaws.com.',
-                'EvaluateTargetHealth': False,
+            "CallerReference": "044a41db-b8e1-45f8-9962-91c95a123456",
+            "Config": {
+                "PrivateZone": False,
             },
-            'TTL': 60,
-            'Type': 'A',
-        }, {
-            'AliasTarget': {
-                'DNSName': 'hello.what.example.com',
-                'EvaluateTargetHealth': False,
-                'HostedZoneId': 'HOSTED_ZONE_2',
-            },
-            'Name': 'www.example.com.',
-            'Type': 'CNAME',
+            "Id": "/hostedzone/HOSTED_ZONE",
+            "Name": "example.com.",
+            "ResourceRecordSetCount": 5,
         },
-    ],
-)]
+        [
+            {
+                "Name": "example.com.",
+                "ResourceRecords": [
+                    {
+                        "Value": "1.2.3.4",
+                    },
+                ],
+                "TTL": 300,
+                "Type": "A",
+            },
+            {
+                "Name": "example.com.",
+                "ResourceRecords": [
+                    {
+                        "Value": "ec2-1-2-3-4.us-east-2.compute.amazonaws.com",
+                    },
+                ],
+                "TTL": 60,
+                "Type": "NS",
+            },
+            {
+                "Name": "example.com.",
+                "ResourceRecords": [
+                    {
+                        "Value": "ns-1234.awsdns-21.co.uk. "
+                        "awsdns-hostmaster.amazon.com. 1 1234",
+                    },
+                ],
+                "TTL": 900,
+                "Type": "SOA",
+            },
+            {
+                "Name": "_b6e76e6a1b6853211abcdef123454.example.com.",
+                "ResourceRecords": [
+                    {
+                        "Value": "_1f9ee9f5c4304947879ee77d0a995cc9.something.something.aws.",
+                    },
+                ],
+                "TTL": 300,
+                "Type": "CNAME",
+            },
+            {
+                "Name": "elbv2.example.com.",
+                "AliasTarget": {
+                    "HostedZoneId": "HOSTED_ZONE_2",
+                    "DNSName": "myawesomeloadbalancer.amazonaws.com.",
+                    "EvaluateTargetHealth": False,
+                },
+                "TTL": 60,
+                "Type": "A",
+            },
+            {
+                "AliasTarget": {
+                    "DNSName": "hello.what.example.com",
+                    "EvaluateTargetHealth": False,
+                    "HostedZoneId": "HOSTED_ZONE_2",
+                },
+                "Name": "www.example.com.",
+                "Type": "CNAME",
+            },
+        ],
+    ),
+]

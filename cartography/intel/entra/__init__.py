@@ -20,10 +20,14 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :return: None
     """
 
-    if not config.entra_tenant_id or not config.entra_client_id or not config.entra_client_secret:
+    if (
+        not config.entra_tenant_id
+        or not config.entra_client_id
+        or not config.entra_client_secret
+    ):
         logger.info(
-            'Entra import is not configured - skipping this module. '
-            'See docs to configure.',
+            "Entra import is not configured - skipping this module. "
+            "See docs to configure.",
         )
         return
 
