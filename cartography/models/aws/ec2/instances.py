@@ -77,18 +77,20 @@ class EC2InstanceToEC2Reservation(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class EC2InstanceToInstanceProfileRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class EC2InstanceToInstanceProfile(CartographyRelSchema):
-    target_node_label: str = 'AWSInstanceProfile'
+    target_node_label: str = "AWSInstanceProfile"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'arn': PropertyRef('IamInstanceProfile')},
+        {"arn": PropertyRef("IamInstanceProfile")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "INSTANCE_PROFILE"
-    properties: EC2InstanceToInstanceProfileRelProperties = EC2InstanceToInstanceProfileRelProperties()
+    properties: EC2InstanceToInstanceProfileRelProperties = (
+        EC2InstanceToInstanceProfileRelProperties()
+    )
 
 
 @dataclass(frozen=True)

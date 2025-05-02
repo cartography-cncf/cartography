@@ -31,7 +31,7 @@ def parse_and_validate_aws_regions(aws_regions: str) -> list[str]:
     :return: A validated list of AWS regions
     """
     validated_regions: List[str] = []
-    for region in aws_regions.split(','):
+    for region in aws_regions.split(","):
         region = region.strip()
         if region:
             validated_regions.append(region)

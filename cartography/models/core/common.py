@@ -9,13 +9,13 @@ class PropertyRef:
     """
 
     def __init__(
-            self,
-            name: str,
-            set_in_kwargs=False,
-            extra_index=False,
-            ignore_case=False,
-            fuzzy_and_ignore_case=False,
-            one_to_many=False,
+        self,
+        name: str,
+        set_in_kwargs=False,
+        extra_index=False,
+        ignore_case=False,
+        fuzzy_and_ignore_case=False,
+        one_to_many=False,
     ):
         """
         :param name: The name of the property
@@ -80,7 +80,7 @@ class PropertyRef:
         if self.one_to_many and (self.ignore_case or self.fuzzy_and_ignore_case):
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": one_to_many cannot be used together with '
-                '`ignore_case` or `fuzzy_and_ignore_case`.',
+                "`ignore_case` or `fuzzy_and_ignore_case`.",
             )
 
     def _parameterize_name(self) -> str:

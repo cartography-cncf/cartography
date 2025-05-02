@@ -32,15 +32,25 @@ def test_parse_and_validate_requested_syncs():
 def test_parse_and_validate_aws_regions():
     # Test basic comma-separated input
     basic_input = "us-east-1,us-west-2,eu-west-1"
-    assert parse_and_validate_aws_regions(basic_input) == ["us-east-1", "us-west-2", "eu-west-1"]
+    assert parse_and_validate_aws_regions(basic_input) == [
+        "us-east-1",
+        "us-west-2",
+        "eu-west-1",
+    ]
 
     # Test input with spaces
     spaced_input = "us-east-1, us-west-2, eu-west-1"
-    assert parse_and_validate_aws_regions(spaced_input) == ["us-east-1", "us-west-2", "eu-west-1"]
+    assert parse_and_validate_aws_regions(spaced_input) == [
+        "us-east-1",
+        "us-west-2",
+        "eu-west-1",
+    ]
 
     # Test empty input
     empty_input = ""
-    with pytest.raises(ValueError, match='`aws-regions` was set but no regions were specified'):
+    with pytest.raises(
+        ValueError, match="`aws-regions` was set but no regions were specified"
+    ):
         parse_and_validate_aws_regions(empty_input)
 
     # Test input with empty elements
@@ -53,5 +63,7 @@ def test_parse_and_validate_aws_regions():
 
     # Test input with only empty elements
     only_empty = ",,"
-    with pytest.raises(ValueError, match='`aws-regions` was set but no regions were specified'):
+    with pytest.raises(
+        ValueError, match="`aws-regions` was set but no regions were specified"
+    ):
         parse_and_validate_aws_regions(only_empty)

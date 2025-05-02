@@ -16,8 +16,8 @@ TEST_UPDATE_TAG = 123456789
 
 @patch.object(
     cartography.intel.aws.ec2.instances,
-    'get_ec2_instances',
-    return_value=DESCRIBE_INSTANCES['Reservations'],
+    "get_ec2_instances",
+    return_value=DESCRIBE_INSTANCES["Reservations"],
 )
 def test_sync_ec2_instances(mock_get_instances, neo4j_session):
     """

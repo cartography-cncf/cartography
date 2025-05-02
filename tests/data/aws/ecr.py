@@ -27,8 +27,7 @@ DESCRIBE_REPOSITORIES = {
     ],
 }
 DESCRIBE_IMAGES = {
-    'imageDetails':
-    {
+    "imageDetails": {
         "registryId": "000000000000",
         "imageSizeInBytes": 1024,
         "imagePushedAt": "2025-01-01T00:00:00.000000-00:00",
@@ -56,58 +55,58 @@ DESCRIBE_IMAGES = {
 LIST_REPOSITORY_IMAGES = {
     "000000000000.dkr.ecr.us-east-1/example-repository": [
         {
-            'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
-            'imageTag': '1',
-            'repositoryName': 'example-repository',
-            **DESCRIBE_IMAGES['imageDetails'],
+            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "imageTag": "1",
+            "repositoryName": "example-repository",
+            **DESCRIBE_IMAGES["imageDetails"],
         },
         {
-            'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000001',
-            'imageTag': '2',
-            'repositoryName': 'example-repository',
-            **DESCRIBE_IMAGES['imageDetails'],
+            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+            "imageTag": "2",
+            "repositoryName": "example-repository",
+            **DESCRIBE_IMAGES["imageDetails"],
         },
     ],
     "000000000000.dkr.ecr.us-east-1/sample-repository": [
         {
             # NOTE same digest and tag as image in example-repository
-            'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
-            'imageTag': '1',
-            'repositoryName': 'sample-repository',
-            **DESCRIBE_IMAGES['imageDetails'],
+            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "imageTag": "1",
+            "repositoryName": "sample-repository",
+            **DESCRIBE_IMAGES["imageDetails"],
         },
         {
-            'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000011',
-            'imageTag': '2',
-            'repositoryName': 'sample-repository',
-            **DESCRIBE_IMAGES['imageDetails'],
+            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000011",
+            "imageTag": "2",
+            "repositoryName": "sample-repository",
+            **DESCRIBE_IMAGES["imageDetails"],
         },
     ],
     "000000000000.dkr.ecr.us-east-1/test-repository": [
         {
             # NOTE same digest but different tag from image in example-repository
-            'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
-            'imageTag': '1234567890',
-            'repositoryName': 'test-repository',
-            **DESCRIBE_IMAGES['imageDetails'],
+            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "imageTag": "1234567890",
+            "repositoryName": "test-repository",
+            **DESCRIBE_IMAGES["imageDetails"],
         },
         {
-            'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000021',
-            'imageTag': '1',
-            'repositoryName': 'test-repository',
-            **DESCRIBE_IMAGES['imageDetails'],
+            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000021",
+            "imageTag": "1",
+            "repositoryName": "test-repository",
+            **DESCRIBE_IMAGES["imageDetails"],
         },
         # Item without an imageDigest: will get filtered out and not ingested.
         {
-            'imageTag': '1',
-            'repositoryName': 'test-repository',
-            **DESCRIBE_IMAGES['imageDetails'],
+            "imageTag": "1",
+            "repositoryName": "test-repository",
+            **DESCRIBE_IMAGES["imageDetails"],
         },
         # Item without an imageTag
         {
-            'imageDigest': 'sha256:0000000000000000000000000000000000000000000000000000000000000031',
-            'repositoryName': 'test-repository',
-            **DESCRIBE_IMAGES['imageDetails'],
+            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000031",
+            "repositoryName": "test-repository",
+            **DESCRIBE_IMAGES["imageDetails"],
         },
     ],
 }

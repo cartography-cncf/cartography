@@ -41,8 +41,10 @@ def get_images_in_use(
     RETURN DISTINCT image;
     """
     result = read_list_of_values_tx(
-        neo4j_session, get_images_query,
-        AWS_ACCOUNT_ID=current_aws_account_id, Region=region,
+        neo4j_session,
+        get_images_query,
+        AWS_ACCOUNT_ID=current_aws_account_id,
+        Region=region,
     )
     images = [str(image) for image in result]
     return images
@@ -63,21 +65,25 @@ def get_images(
     images = []
     self_images = []
     try:
-        self_images = client.describe_images(Owners=['self'])['Images']
+        self_images = client.describe_images(Owners=["self"])["Images"]
     except ClientError as e:
-        logger.warning(f"Failed retrieve self owned images for region - {region}. Error - {e}")
+        logger.warning(
+            f"Failed retrieve self owned images for region - {region}. Error - {e}"
+        )
     images.extend(self_images)
     if image_ids:
-        self_image_ids = {image['ImageId'] for image in images}
+        self_image_ids = {image["ImageId"] for image in images}
         # Go one by one to avoid losing all images if one fails
         for image in image_ids:
             if image in self_image_ids:
                 continue
             try:
-                public_images = client.describe_images(ImageIds=[image])['Images']
+                public_images = client.describe_images(ImageIds=[image])["Images"]
                 images.extend(public_images)
             except ClientError as e:
-                logger.warning(f"Failed retrieve image id {image} for region - {region}. Error - {e}")
+                logger.warning(
+                    f"Failed retrieve image id {image} for region - {region}. Error - {e}"
+                )
     return images
 
 

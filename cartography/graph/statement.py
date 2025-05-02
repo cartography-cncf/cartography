@@ -77,7 +77,9 @@ class GraphStatement:
         else:
             session.write_transaction(self._run_noniterative)
 
-        logger.info(f"Completed {self.parent_job_name} statement #{self.parent_job_sequence_num}")
+        logger.info(
+            f"Completed {self.parent_job_name} statement #{self.parent_job_sequence_num}"
+        )
 
     def as_dict(self) -> Dict[str, Any]:
         """
@@ -101,17 +103,21 @@ class GraphStatement:
         summary: neo4j.ResultSummary = result.consume()
 
         # Handle stats
-        stat_handler.incr('constraints_added', summary.counters.constraints_added)
-        stat_handler.incr('constraints_removed', summary.counters.constraints_removed)
-        stat_handler.incr('indexes_added', summary.counters.indexes_added)
-        stat_handler.incr('indexes_removed', summary.counters.indexes_removed)
-        stat_handler.incr('labels_added', summary.counters.labels_added)
-        stat_handler.incr('labels_removed', summary.counters.labels_removed)
-        stat_handler.incr('nodes_created', summary.counters.nodes_created)
-        stat_handler.incr('nodes_deleted', summary.counters.nodes_deleted)
-        stat_handler.incr('properties_set', summary.counters.properties_set)
-        stat_handler.incr('relationships_created', summary.counters.relationships_created)
-        stat_handler.incr('relationships_deleted', summary.counters.relationships_deleted)
+        stat_handler.incr("constraints_added", summary.counters.constraints_added)
+        stat_handler.incr("constraints_removed", summary.counters.constraints_removed)
+        stat_handler.incr("indexes_added", summary.counters.indexes_added)
+        stat_handler.incr("indexes_removed", summary.counters.indexes_removed)
+        stat_handler.incr("labels_added", summary.counters.labels_added)
+        stat_handler.incr("labels_removed", summary.counters.labels_removed)
+        stat_handler.incr("nodes_created", summary.counters.nodes_created)
+        stat_handler.incr("nodes_deleted", summary.counters.nodes_deleted)
+        stat_handler.incr("properties_set", summary.counters.properties_set)
+        stat_handler.incr(
+            "relationships_created", summary.counters.relationships_created
+        )
+        stat_handler.incr(
+            "relationships_deleted", summary.counters.relationships_deleted
+        )
 
         return summary
 
@@ -124,7 +130,9 @@ class GraphStatement:
         self.parameters["LIMIT_SIZE"] = self.iterationsize
 
         while True:
-            summary: neo4j.ResultSummary = session.write_transaction(self._run_noniterative)
+            summary: neo4j.ResultSummary = session.write_transaction(
+                self._run_noniterative
+            )
 
             if not summary.counters.contains_updates:
                 break

@@ -40,13 +40,16 @@ def get_all_groups(admin: Resource) -> List[Dict]:
             response_objects.append(resp)
             request = admin.groups().list_next(request, resp)
         except HttpError as e:
-            if e.resp.status == 403 and "Request had insufficient authentication scopes" in str(e):
+            if (
+                e.resp.status == 403
+                and "Request had insufficient authentication scopes" in str(e)
+            ):
                 logger.error(
                     "Missing required GSuite scopes. If using the gcloud CLI, ",
                     "run: gcloud auth application-default login --scopes="
                     '"https://www.googleapis.com/auth/admin.directory.user.readonly,'
-                    'https://www.googleapis.com/auth/admin.directory.group.readonly,'
-                    'https://www.googleapis.com/auth/admin.directory.group.member.readonly,'
+                    "https://www.googleapis.com/auth/admin.directory.group.readonly,"
+                    "https://www.googleapis.com/auth/admin.directory.group.member.readonly,"
                     'https://www.googleapis.com/auth/cloud-platform"',
                 )
             raise

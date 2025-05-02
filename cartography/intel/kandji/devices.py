@@ -39,7 +39,9 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
         logger.debug("Kandji device offset: %s", offset)
 
         params["offset"] = offset
-        response = session.get(api_endpoint, headers=headers, timeout=_TIMEOUT, params=params)
+        response = session.get(
+            api_endpoint, headers=headers, timeout=_TIMEOUT, params=params
+        )
         response.raise_for_status()
 
         result = response.json()

@@ -127,13 +127,13 @@ html_theme = "shibuya"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'globaltoc_depth': 0,
-    'globaltoc_collapse': True,
-    'github_url': 'https://github.com/cartography-cncf/cartography',
-    'repo_name': 'cartography',
-    'repo_type': 'github',
-    'page_layout': 'default',
-    'accent_color': 'cyan',
+    "globaltoc_depth": 0,
+    "globaltoc_collapse": True,
+    "github_url": "https://github.com/cartography-cncf/cartography",
+    "repo_name": "cartography",
+    "repo_type": "github",
+    "page_layout": "default",
+    "accent_color": "cyan",
     "slack_url": "https://communityinviter.com/apps/cloud-native/cncf",
 }
 
@@ -165,7 +165,7 @@ html_favicon = "images/logo-vertical.svg"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = ['custom.css']
+html_css_files = ["custom.css"]
 
 # html_style = 'css/cartography.css'
 

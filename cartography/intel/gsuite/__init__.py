@@ -20,9 +20,9 @@ from cartography.intel.gsuite import api
 from cartography.util import timeit
 
 OAUTH_SCOPES = [
-    'https://www.googleapis.com/auth/admin.directory.user.readonly',
-    'https://www.googleapis.com/auth/admin.directory.group.readonly',
-    'https://www.googleapis.com/auth/admin.directory.group.member',
+    "https://www.googleapis.com/auth/admin.directory.user.readonly",
+    "https://www.googleapis.com/auth/admin.directory.group.readonly",
+    "https://www.googleapis.com/auth/admin.directory.group.member",
 ]
 
 logger = logging.getLogger(__name__)
@@ -75,7 +75,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     }
 
     creds: OAuth2Credentials | ServiceAccountCredentials
-    if config.gsuite_auth_method == 'delegated':  # Legacy delegated method
+    if config.gsuite_auth_method == "delegated":  # Legacy delegated method
         if config.gsuite_config is None or not os.path.isfile(config.gsuite_config):
             logger.warning(
                 (
@@ -84,7 +84,9 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 ),
             )
             return
-        logger.info('Attempting to authenticate to GSuite using legacy delegated method')
+        logger.info(
+            "Attempting to authenticate to GSuite using legacy delegated method"
+        )
         try:
             creds = service_account.Credentials.from_service_account_file(
                 config.gsuite_config,
@@ -113,7 +115,7 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 client_secret=auth_tokens["client_secret"],
                 refresh_token=auth_tokens["refresh_token"],
                 expiry=None,
-                token_uri=auth_tokens['token_uri'],
+                token_uri=auth_tokens["token_uri"],
                 scopes=OAUTH_SCOPES,
             )
             creds.refresh(Request())
@@ -129,8 +131,8 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 e,
             )
             return
-    elif config.gsuite_auth_method == 'default':
-        logger.info('Attempting to authenticate to GSuite using default credentials')
+    elif config.gsuite_auth_method == "default":
+        logger.info("Attempting to authenticate to GSuite using default credentials")
         try:
             creds, _ = default(scopes=OAUTH_SCOPES)
         except DefaultCredentialsError as e:

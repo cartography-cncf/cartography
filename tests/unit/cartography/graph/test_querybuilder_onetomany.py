@@ -1,6 +1,8 @@
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.models.aws.iam.instanceprofile import InstanceProfileSchema
-from tests.unit.cartography.graph.helpers import remove_leading_whitespace_and_empty_lines
+from tests.unit.cartography.graph.helpers import (
+    remove_leading_whitespace_and_empty_lines,
+)
 
 
 def test_build_ingestion_query_onetomany():

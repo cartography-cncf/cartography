@@ -74,10 +74,12 @@ def test_load_images_relationships(neo4j_session):
 @mock_aws
 def test_get_images():
     boto3_session = boto3.session.Session()
-    ec2 = boto3_session.client('ec2', region_name=TEST_REGION)
-    image_id = ec2.register_image(Name='test-image')['ImageId']
+    ec2 = boto3_session.client("ec2", region_name=TEST_REGION)
+    image_id = ec2.register_image(Name="test-image")["ImageId"]
     image_ids = [image_id, "ami-invalid"]
-    images = cartography.intel.aws.ec2.images.get_images(boto3_session, TEST_REGION, image_ids)
+    images = cartography.intel.aws.ec2.images.get_images(
+        boto3_session, TEST_REGION, image_ids
+    )
     assert isinstance(images, list)
     assert len(images) == 1
-    assert images[0]['ImageId'] == image_id
+    assert images[0]["ImageId"] == image_id

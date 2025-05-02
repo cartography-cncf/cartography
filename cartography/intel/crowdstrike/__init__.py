@@ -67,9 +67,13 @@ def start_crowdstrike_ingestion(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
     logger.info("Running Crowdstrike cleanup")
-    GraphJob.from_node_schema(CrowdstrikeHostSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(CrowdstrikeHostSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
     # Cleanup other crowdstrike assets not handled by the data model
     run_cleanup_job(
