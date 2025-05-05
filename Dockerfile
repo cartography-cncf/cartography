@@ -1,6 +1,6 @@
 # This is a thin distribution of the cartography software.
 # It is published at ghcr.io.
-FROM python:3.10-slim@sha256:65c843653048a3ba22c8d5083a022f44aef774974f0f7f70cbf8cee4e931ac96
+FROM python:3.10-slim@sha256:57038683f4a259e17fcff1ccef7ba30b1065f4b3317dabb5bd7c82640a5ed64f
 
 # Default to ''. Overridden with a specific version specifier e.g. '==0.98.0' by build args or from GitHub actions.
 ARG VERSION_SPECIFIER
