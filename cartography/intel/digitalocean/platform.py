@@ -1,9 +1,13 @@
 import logging
+from typing import Dict, Any, List
 
 import neo4j
-from digitalocean import Account
+from digitalocean import Account, Manager
 
 from cartography.util import timeit
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.digitalocean.account import DOAccountSchema
 
 logger = logging.getLogger(__name__)
 
@@ -11,60 +15,55 @@ logger = logging.getLogger(__name__)
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    account: Account,
-    digitalocean_update_tag: int,
+    manager: Manager,
+    update_tag: int,
     common_job_parameters: dict,
-) -> None:
-    sync_account(neo4j_session, account, digitalocean_update_tag, common_job_parameters)
+) -> str:
+    logger.info("Syncing Account")
+    account = get_account(manager)
+    account_transformed = transform_account(account)
+    load_account(
+        neo4j_session,
+        [
+            account_transformed,
+        ],
+        update_tag,
+    )
+    cleanup(neo4j_session, common_job_parameters)
+
+    return account_transformed["id"]
 
 
 @timeit
-def sync_account(
-    neo4j_session: neo4j.Session,
-    account: Account,
-    digitalocean_update_tag: int,
-    common_job_parameters: dict,
-) -> None:
-    logger.info("Syncing Account")
-    account_transformed = transform_account(account)
-    load_account(neo4j_session, account_transformed, digitalocean_update_tag)
-    return
+def get_account(manager: Manager) -> Account:
+    return manager.get_account()
 
 
 @timeit
 def transform_account(account_res: Account) -> dict:
-    account = {
+    return {
         "id": account_res.uuid,
         "uuid": account_res.uuid,
         "droplet_limit": account_res.droplet_limit,
         "floating_ip_limit": account_res.floating_ip_limit,
         "status": account_res.status,
     }
-    return account
 
 
 @timeit
 def load_account(
     neo4j_session: neo4j.Session,
-    account: dict,
-    digitalocean_update_tag: int,
+    data: List[Dict[str, Any]],
+    update_tag: int,
 ) -> None:
-    query = """
-            MERGE (a:DOAccount{id:$AccountId})
-            ON CREATE SET a.firstseen = timestamp()
-            SET a.uuid = $Uuid,
-            a.droplet_limit = $DropletLimit,
-            a.floating_ip_limit = $FloatingIpLimit,
-            a.status = $Status,
-            a.lastupdated = $digitalocean_update_tag
-            """
-    neo4j_session.run(
-        query,
-        AccountId=account["id"],
-        Uuid=account["uuid"],
-        DropletLimit=account["droplet_limit"],
-        FloatingIpLimit=account["floating_ip_limit"],
-        Status=account["status"],
-        digitalocean_update_tag=digitalocean_update_tag,
+    load(neo4j_session, DOAccountSchema(), data, lastupdated=update_tag)
+
+
+@timeit
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    GraphJob.from_node_schema(DOAccountSchema(), common_job_parameters).run(
+        neo4j_session,
     )
-    return

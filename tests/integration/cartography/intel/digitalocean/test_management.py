@@ -1,61 +1,80 @@
+from unittest.mock import patch
+
+import digitalocean
+
 import cartography.intel.digitalocean.management
 import tests.data.digitalocean.management
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
+from tests.integration.cartography.intel.digitalocean.test_platform import (
+    _ensure_local_neo4j_has_account_data,
+)
 
 TEST_UPDATE_TAG = 123456789
 
 
-def test_transform_and_load_projects(neo4j_session):
-    projects_res = tests.data.digitalocean.management.PROJECTS_RESPONSE
-    test_project = projects_res[0]
-    account_id = 1
-
-    """
-    Test that we can correctly transform and load DOProject nodes to Neo4j.
-    """
-    projects_list = cartography.intel.digitalocean.management.transform_projects(
-        projects_res,
-        account_id,
+def _ensure_local_neo4j_has_project_data(neo4j_session):
+    data = cartography.intel.digitalocean.management.transform_projects(
+        tests.data.digitalocean.management.PROJECTS_RESPONSE
     )
     cartography.intel.digitalocean.management.load_projects(
-        neo4j_session,
-        projects_list,
-        TEST_UPDATE_TAG,
+        neo4j_session, data, "123-4567-8789", TEST_UPDATE_TAG
     )
 
-    query = """
-        MATCH(p:DOProject{id:$ProjectId})
-        RETURN p.id, p.name, p.owner_uuid, p.description, p.is_default, p.created_at, p.updated_at, p.account_id,
-        p.lastupdated
-        """
-    nodes = neo4j_session.run(
-        query,
-        ProjectId=test_project.id,
+
+@patch.object(
+    cartography.intel.digitalocean.management,
+    "get_projects",
+    return_value=tests.data.digitalocean.management.PROJECTS_RESPONSE,
+)
+@patch.object(
+    digitalocean.Project,
+    "get_all_resources",
+    return_value=tests.data.digitalocean.management.PROJECT_RESOURCES_RESPONSE,
+)
+@patch("digitalocean.Manager")
+def test_transform_and_load_projects(
+    mock_do_manager, mock_do_project, mock_api, neo4j_session
+):
+    _ensure_local_neo4j_has_account_data(neo4j_session)
+
+    projects_res = tests.data.digitalocean.management.PROJECTS_RESPONSE
+    test_project = projects_res[0]
+    account_id = "123-4567-8789"
+
+    cartography.intel.digitalocean.management.sync(
+        neo4j_session,
+        mock_do_manager,
+        account_id,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "ACCOUNT_ID": account_id},
     )
-    actual_nodes = {
-        (
-            n["p.id"],
-            n["p.name"],
-            n["p.owner_uuid"],
-            n["p.description"],
-            n["p.is_default"],
-            n["p.created_at"],
-            n["p.updated_at"],
-            n["p.account_id"],
-            n["p.lastupdated"],
-        )
-        for n in nodes
-    }
-    expected_nodes = {
+
+    # Check the projects nodes
+    assert check_nodes(
+        neo4j_session,
+        "DOProject",
+        ["id", "name", "owner_uuid"],
+    ) == {
         (
             test_project.id,
             test_project.name,
             test_project.owner_uuid,
-            test_project.description,
-            test_project.is_default,
-            test_project.created_at,
-            test_project.updated_at,
-            account_id,
-            TEST_UPDATE_TAG,
         ),
     }
-    assert actual_nodes == expected_nodes
+
+    # Check the projects relationships
+    assert check_rels(
+        neo4j_session,
+        "DOProject",
+        "id",
+        "DOAccount",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            test_project.id,
+            account_id,
+        ),
+    }
