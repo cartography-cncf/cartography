@@ -53,4 +53,3 @@ def start_digitalocean_ingestion(neo4j_session: neo4j.Session, config: Config) -
         config.update_tag,
         common_job_parameters,
     )
-    return
