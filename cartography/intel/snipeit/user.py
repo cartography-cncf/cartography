@@ -10,6 +10,7 @@ from cartography.graph.job import GraphJob
 from cartography.models.snipeit.tenant import SnipeitTenantSchema
 from cartography.models.snipeit.user import SnipeitUserSchema
 from cartography.util import timeit
+from cartography.models.common.helpers import load_human_from_users
 
 from .util import call_snipeit_api
 
@@ -41,6 +42,11 @@ def load_users(
     data: List[Dict[str, Any]],
 ) -> None:
     logger.debug(data[0])
+    load_human_from_users(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        data,
+    )
 
     # Create the SnipeIT Tenant
     load(

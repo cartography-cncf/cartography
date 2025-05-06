@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.core.relationships import OtherRelationships
 
 
 @dataclass(frozen=True)
@@ -93,7 +94,27 @@ class EntraUserToTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class EntraUserToHumanRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:EntraUser)<-[:IDENTITY_ENTRA]-(:Human)
+class EntraUserToHumanRel(CartographyRelSchema):
+    target_node_label: str = "Human"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("mail")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "IDENTITY_ENTRA"
+    properties: EntraUserToHumanRelProperties = EntraUserToHumanRelProperties()
+
+
+@dataclass(frozen=True)
 class EntraUserSchema(CartographyNodeSchema):
     label: str = "EntraUser"
     properties: EntraUserNodeProperties = EntraUserNodeProperties()
     sub_resource_relationship: EntraUserToTenantRel = EntraUserToTenantRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[EntraUserToHumanRel()],
+    )

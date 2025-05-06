@@ -12,6 +12,7 @@ from cartography.graph.job import GraphJob
 from cartography.models.entra.tenant import EntraTenantSchema
 from cartography.models.entra.user import EntraUserSchema
 from cartography.util import timeit
+from cartography.models.common.helpers import load_human_from_users
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,8 @@ def load_users(
     tenant_id: str,
     update_tag: int,
 ) -> None:
+    load_human_from_users(neo4j_session, update_tag, users, email_field="mail")
+
     logger.info(f"Loading {len(users)} Entra users")
     load(
         neo4j_session,

@@ -16,6 +16,7 @@ from cartography.models.github.users import GitHubUnaffiliatedUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
+from cartography.models.common.helpers import load_human_from_users
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -192,6 +193,8 @@ def load_users(
     org_data: Dict,
     update_tag: int,
 ) -> None:
+    load_human_from_users(neo4j_session, update_tag, user_data)
+
     logger.info(f"Loading {len(user_data)} GitHub users to the graph")
     load(
         neo4j_session,
