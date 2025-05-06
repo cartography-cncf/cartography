@@ -1,10 +1,13 @@
 from typing import Any, Dict, List, Type
+import logging
 
 import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.common.human import HumanSchema
 from cartography.models.core.nodes import CartographyNodeSchema
+
+logger = logging.getLogger(__name__)
 
 
 def _load_abstracted_nodes(
@@ -13,6 +16,7 @@ def _load_abstracted_nodes(
     update_tag: int,
     data: List[Dict[str, Any]],
     mapping: Dict[str, str],
+    id_field: str = "id",
 ):
     # Because the schema can be different for each node, we need to reformat the data
     # to match the abstract node schema.
@@ -23,6 +27,15 @@ def _load_abstracted_nodes(
             if k == v:
                 continue
             formated_entity[k] = entity.get(v)
+        # We need to check if the id_field is in the mapping
+        # For some intel, that field could be missing and lead to errors
+        # e.g. Service account in Entra does not have mail
+        # e.g. GitHub User could have a private email resulting in a None value
+        if formated_entity.get(id_field) is None:
+            logger.debug(
+                f"Skipping {schema.__name__} node because {id_field} is None: {formated_entity}"
+            )
+            continue
         formated_data.append(formated_entity)
 
     load(
@@ -54,4 +67,5 @@ def load_human_from_users(
         update_tag,
         data,
         {"email": email_field},
+        id_field="email",
     )

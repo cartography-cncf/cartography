@@ -152,9 +152,8 @@ def load_users(
     tenant_id: str,
     update_tag: int,
 ) -> None:
-    load_human_from_users(neo4j_session, update_tag, users, email_field="mail")
-
     logger.info(f"Loading {len(users)} Entra users")
+    load_human_from_users(neo4j_session, update_tag, users, email_field="mail")
     load(
         neo4j_session,
         EntraUserSchema(),
