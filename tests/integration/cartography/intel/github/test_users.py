@@ -75,13 +75,16 @@ def test_sync(mock_owners, mock_users, neo4j_session):
         ("hjsimpson@example.com", "hjsimpson@example.com"),
         ("kbroflovski@example.com", "kbroflovski@example.com"),
         ("lmsimpson@example.com", "lmsimpson@example.com"),
-        ("mbsimpson@example.com", "mbsimpson@example.com")
+        ("mbsimpson@example.com", "mbsimpson@example.com"),
     }
-    assert check_nodes(
-        neo4j_session,
-        "Human",
-        ["id", "email"],
-    ) == expected_nodes
+    assert (
+        check_nodes(
+            neo4j_session,
+            "Human",
+            ["id", "email"],
+        )
+        == expected_nodes
+    )
 
     # Ensure users are connected to the expected organization
     assert check_rels(

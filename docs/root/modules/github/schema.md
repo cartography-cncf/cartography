@@ -17,6 +17,7 @@ T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTENER --> T
+H(Human) -- IDENTITY_GITHUB --> U
 ```
 
 ### GitHubRepository
@@ -239,6 +240,21 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 
     ```
     (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    ```
+
+### Human
+
+GitHub use Human node as pivot with other Identity Providers (GSuite, Okta ...)
+
+:::{hint}
+Refer to Common Schema for more information on Human nodes.
+:::
+
+#### Relationships
+
+- Human as an access to GitHub
+    ```
+    (Human)-[IDENTITY_GITHUB]->(GitHubUser)
     ```
 
 

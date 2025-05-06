@@ -23,7 +23,10 @@
 - In these docs, more specific nodes will be decorated with `GenericNode::SpecificNode` notation. For example, if we have a `Car` node and a `RaceCar` node, we will refer to the `RaceCar` as `Car::RaceCar`.
 
 
-```{include} ../modules/_cartography-metadata/schema.md
+```{include} ../schema/_cartography-metadata/schema.md
+```
+
+```{include} ../schema/_cartography-common/schema.md
 ```
 
 ```{include} ../modules/aws/schema.md

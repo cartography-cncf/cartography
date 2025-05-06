@@ -8,3 +8,6 @@ test_unit:
 
 test_integration:
 	pytest -vvv --cov-report term-missing --cov=cartography tests/integration
+
+build-docs:
+	./docs/build.sh

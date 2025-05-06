@@ -57,11 +57,7 @@ def test_sync_duo_users(neo4j_session):
         ("userid3", "userid3", "username3", "email3@example.com"),
         ("userid4", "userid4", "username4", "email4@example.com"),
     }
-    assert check_nodes(
-        neo4j_session,
-        "Human",
-        ["id", "email"]
-    ) == {
+    assert check_nodes(neo4j_session, "Human", ["id", "email"]) == {
         ("email1@example.com", "email1@example.com"),
         ("email2@example.com", "email2@example.com"),
         ("email3@example.com", "email3@example.com"),

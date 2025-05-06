@@ -19,6 +19,21 @@ Representation of a SnipeIT User.
 |username | Username of the user |
 |email | Email of the user |
 
+### Human
+
+SnipeIT use Human node as pivot with other Identity Providers (GSuite, GitHub ...)
+
+:::{hint}
+Refer to Common Schema for more information on Human nodes.
+:::
+
+#### Relationships
+
+- Human as an access to SnipeIT
+    ```
+    (Human)-[IDENTITY_SNIPEIT]->(SnipeitUser)
+    ```
+
 ### SnipeitAsset
 
 Representation of a SnipeIT asset.
