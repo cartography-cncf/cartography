@@ -1,11 +1,14 @@
 import logging
 from typing import Optional
+from typing import Dict, Any, List
 
 import neo4j
 from digitalocean import Manager
 
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.digitalocean.droplet import DODropletSchema
 
 logger = logging.getLogger(__name__)
 
@@ -14,33 +17,18 @@ logger = logging.getLogger(__name__)
 def sync(
     neo4j_session: neo4j.Session,
     manager: Manager,
+    account_id: str,
     projects_resources: dict,
-    digitalocean_update_tag: int,
-    common_job_parameters: dict,
-) -> None:
-    sync_droplets(
-        neo4j_session,
-        manager,
-        projects_resources,
-        digitalocean_update_tag,
-        common_job_parameters,
-    )
-
-
-@timeit
-def sync_droplets(
-    neo4j_session: neo4j.Session,
-    manager: Manager,
-    projects_resources: dict,
-    digitalocean_update_tag: int,
+    update_tag: int,
     common_job_parameters: dict,
 ) -> None:
     logger.info("Syncing Droplets")
-    account_id = common_job_parameters["DO_ACCOUNT_ID"]
     droplets_res = get_droplets(manager)
-    droplets = transform_droplets(droplets_res, account_id, projects_resources)
-    load_droplets(neo4j_session, droplets, digitalocean_update_tag)
-    cleanup_droplets(neo4j_session, common_job_parameters)
+    droplets_by_project = transform_droplets(
+        droplets_res, account_id, projects_resources
+    )
+    load_droplets(neo4j_session, account_id, droplets_by_project, update_tag)
+    cleanup(neo4j_session, list(droplets_by_project.keys()), common_job_parameters)
 
 
 @timeit
@@ -53,9 +41,12 @@ def transform_droplets(
     droplets_res: list,
     account_id: str,
     projects_resources: dict,
-) -> list:
-    droplets = list()
+) -> Dict[str, List[Dict[str, Any]]]:
+    droplets_by_project: Dict[str, List[Dict[str, Any]]] = {}
     for d in droplets_res:
+        project_id = str(_get_project_id_for_droplet(d.id, projects_resources))
+        if project_id not in droplets_by_project:
+            droplets_by_project[project_id] = []
         droplet = {
             "id": d.id,
             "name": d.name,
@@ -76,8 +67,8 @@ def transform_droplets(
             "account_id": account_id,
             "project_id": _get_project_id_for_droplet(d.id, projects_resources),
         }
-        droplets.append(droplet)
-    return droplets
+        droplets_by_project[project_id].append(droplet)
+    return droplets_by_project
 
 
 @timeit
@@ -95,77 +86,30 @@ def _get_project_id_for_droplet(
 @timeit
 def load_droplets(
     neo4j_session: neo4j.Session,
-    data: list,
-    digitalocean_update_tag: int,
+    account_id: str,
+    data: Dict[str, List[Dict[str, Any]]],
+    update_tag: int,
 ) -> None:
-    query = """
-        MERGE (p:DOProject{id:$ProjectId})
-        ON CREATE SET p.firstseen = timestamp()
-        SET p.lastupdated = $digitalocean_update_tag
-
-        MERGE (d:DODroplet{id:$DropletId})
-        ON CREATE SET d.firstseen = timestamp()
-        SET d.account_id = $AccountId,
-        d.name = $Name,
-        d.locked = $Locked,
-        d.status = $Status,
-        d.features = $Features,
-        d.region = $RegionSlug,
-        d.created_at = $CreatedAt,
-        d.image = $ImageSlug,
-        d.size = $SizeSlug,
-        d.kernel = $Kernel,
-        d.ip_address = $IpAddress,
-        d.private_ip_address = $PrivateIpAddress,
-        d.project_id = $ProjectId,
-        d.ip_v6_address = $IpV6Address,
-        d.tags = $Tags,
-        d.volumes = $Volumes,
-        d.vpc_uuid = $VpcUuid,
-        d.lastupdated = $digitalocean_update_tag
-        WITH d, p
-
-        MERGE (p)-[r:RESOURCE]->(d)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $digitalocean_update_tag
-        """
-    for droplet in data:
-        neo4j_session.run(
-            query,
-            AccountId=droplet["account_id"],
-            DropletId=droplet["id"],
-            Name=droplet["name"],
-            Locked=droplet["locked"],
-            Status=droplet["status"],
-            Features=droplet["features"],
-            RegionSlug=droplet["region"],
-            CreatedAt=droplet["created_at"],
-            ImageSlug=droplet["image"],
-            SizeSlug=droplet["size"],
-            IpAddress=droplet["ip_address"],
-            PrivateIpAddress=droplet["private_ip_address"],
-            ProjectId=droplet["project_id"],
-            IpV6Address=droplet["ip_v6_address"],
-            Kernel=droplet["kernel"],
-            Tags=droplet["tags"],
-            Volumes=droplet["volumes"],
-            VpcUuid=droplet["vpc_uuid"],
-            digitalocean_update_tag=digitalocean_update_tag,
+    for project_id, droplets in data.items():
+        load(
+            neo4j_session,
+            DODropletSchema(),
+            droplets,
+            lastupdated=update_tag,
+            PROJECT_ID=str(project_id),
+            ACCOUNT_ID=str(account_id),
         )
-    return
 
 
 @timeit
-def cleanup_droplets(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
-    """
-    Delete out-of-date DigitalOcean droplets and relationships
-    :param neo4j_session: The Neo4j session
-    :param common_job_parameters: dict of other job parameters to pass to Neo4j
-    :return: Nothing
-    """
-    run_cleanup_job(
-        "digitalocean_droplet_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
-    return
+def cleanup(
+    neo4j_session: neo4j.Session,
+    projects_ids: List[str],
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    for project_id in projects_ids:
+        parameters = common_job_parameters.copy()
+        parameters["PROJECT_ID"] = str(project_id)
+        GraphJob.from_node_schema(DODropletSchema(), parameters).run(
+            neo4j_session,
+        )
