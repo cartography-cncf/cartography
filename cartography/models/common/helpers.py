@@ -18,9 +18,11 @@ def _load_abstracted_nodes(
     # to match the abstract node schema.
     formated_data: List[Dict[str, Any]] = []
     for entity in data:
-        formated_entity = {}
-        for k, v in entity.items():
-            formated_entity[mapping.get(k, k)] = v
+        formated_entity = entity.copy()
+        for k, v in mapping.items():
+            if k == v:
+                continue
+            formated_entity[k] = entity.get(v)
         formated_data.append(formated_entity)
 
     load(

@@ -19,27 +19,6 @@ def test_load_lastpass_users(mock_api, neo4j_session):
     Ensure that users actually get loaded
     """
 
-    # Arrange
-    # LastPass intel only link users to existing Humans (created by other module like Gsuite)
-    # We have to create mock humans to tests rels are well created by Lastpass module
-    query = """
-    UNWIND $UserData as user
-
-    MERGE (h:Human{id: user})
-    ON CREATE SET h.firstseen = timestamp()
-    SET h.email = user,
-    h.email = user,
-    h.lastupdated = $UpdateTag
-    """
-    data = []
-    for v in tests.data.lastpass.users.LASTPASS_USERS["Users"].values():
-        data.append(v["username"])
-    neo4j_session.run(
-        query,
-        UserData=data,
-        UpdateTag=TEST_UPDATE_TAG,
-    )
-
     # Act
     cartography.intel.lastpass.users.sync(
         neo4j_session,
