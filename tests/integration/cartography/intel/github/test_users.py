@@ -65,7 +65,7 @@ def test_sync(mock_owners, mock_users, neo4j_session):
         ("https://example.com/mbsimpson",),
         ("https://example.com/kbroflovski",),
     }
-    check_nodes(
+    assert check_nodes(
         neo4j_session,
         "GitHubUser",
         ["id"],

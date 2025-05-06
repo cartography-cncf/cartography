@@ -28,43 +28,35 @@ def test_load_snipeit_user_relationship(neo4j_session):
 
     # Assert
     # Make sure the expected Tenant is created
-    expected_nodes = {
-        ("Company A",),
-    }
-    check_nodes(
+    assert check_nodes(
         neo4j_session,
         "SnipeitTenant",
         ["id"],
-    ) == expected_nodes
+    ) == {
+        ("Company A",),
+    }
 
     # Make sure the expected Users are created
-    expected_nodes = {
-        (1, "mcarter@example.net"),
-        (2, "snipe@snipe.net"),
-    }
-    assert (
-        check_nodes(
+    expected_nodes = 
+    assert check_nodes(
             neo4j_session,
             "SnipeitUser",
             ["id", "email"],
-        )
-        == expected_nodes
-    )
+    ) == {
+        (1, "mcarter@example.net"),
+        (2, "snipe@snipe.net"),
+    }
 
     # Make sure Human nodes are created
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session, "Human", ["id", "email"]
+    ) == {
         ("mcarter@example.net", "mcarter@example.net"),
         ("snipe@snipe.net", "snipe@snipe.net"),
     }
-    assert check_nodes(neo4j_session, "Human", ["id", "email"]) == expected_nodes
 
     # Make sure Users are connected with Tenant
-    expected_nodes_relationships = {
-        ("Company A", 1),
-        ("Company A", 2),
-    }
-    assert (
-        check_rels(
+    assert check_rels(
             neo4j_session,
             "SnipeitTenant",
             "id",
@@ -72,17 +64,14 @@ def test_load_snipeit_user_relationship(neo4j_session):
             "id",
             "HAS_USER",
             rel_direction_right=True,
-        )
-        == expected_nodes_relationships
-    )
+    ) == {
+        ("Company A", 1),
+        ("Company A", 2),
+    }
 
     # Make sure Users are connected with Humans
-    expected_nodes_relationships = {
-        (1, "mcarter@example.net"),
-        (2, "snipe@snipe.net"),
-    }
-    assert (
-        check_rels(
+    expected_nodes_relationships = 
+    assert check_rels(
             neo4j_session,
             "SnipeitUser",
             "id",
@@ -90,9 +79,10 @@ def test_load_snipeit_user_relationship(neo4j_session):
             "email",
             "IDENTITY_SNIPEIT",
             rel_direction_right=False,
-        )
-        == expected_nodes_relationships
-    )
+    ) == {
+        (1, "mcarter@example.net"),
+        (2, "snipe@snipe.net"),
+    }
 
     # Cleanup test data
     common_job_parameters = {
