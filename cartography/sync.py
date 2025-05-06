@@ -1,7 +1,9 @@
 import argparse
 import logging
+import re
 import time
 from collections import OrderedDict
+from pkgutil import iter_modules
 from typing import Callable
 from typing import List
 from typing import Tuple
@@ -131,6 +133,68 @@ class Sync:
                 logger.info("Finishing sync stage '%s'", stage_name)
         logger.info("Finishing sync with update tag '%d'", config.update_tag)
         return STATUS_SUCCESS
+
+    @classmethod
+    def list_intel_modules(cls) -> OrderedDict:
+        """
+        List all available intel modules.
+
+        This method will load all modules in the cartography.intel package and return a dictionary of their names and
+        their callable functions. The keys of the dictionary are the module names, and the values are the callable
+        functions (with `start_{module}_ingestion` pattern) that should be executed during the sync process.
+        analysis and create_indexes are loaded separately to ensure they are always available and run first
+        (for create-index) and last (for analysis).
+
+        :rtype: OrderedDict
+        :return: A dictionary of available intel modules.
+        """
+        available_modules = OrderedDict({})
+        available_modules["create-indexes"] = cartography.intel.create_indexes.run
+        callable_regex = re.compile(r"^start_(.+)_ingestion$")
+        # Load built-in modules
+        for intel_module_info in iter_modules(cartography.intel.__path__):
+            if intel_module_info.name in ("analysis", "create_indexes"):
+                continue
+            try:
+                logger.debug("Loading module: %s", intel_module_info.name)
+                intel_module = __import__(
+                    f"cartography.intel.{intel_module_info.name}",
+                    fromlist=[""],
+                )
+            except ImportError as e:
+                logger.error(
+                    "Failed to import module '%s'. Error: %s",
+                    intel_module_info.name,
+                    e,
+                )
+                continue
+            logger.debug("Loading module: %s", intel_module_info.name)
+            intel_module = __import__(
+                f"cartography.intel.{intel_module_info.name}",
+                fromlist=[""],
+            )
+            for k, v in intel_module.__dict__.items():
+                if not callable(v):
+                    continue
+                match_callable_name = callable_regex.match(k)
+                if not match_callable_name:
+                    continue
+                callable_module_name = (
+                    match_callable_name.group(1) if match_callable_name else None
+                )
+                if callable_module_name != intel_module_info.name:
+                    logger.debug(
+                        "Module name '%s' does not match intel module name '%s'.",
+                        callable_module_name,
+                        intel_module_info.name,
+                    )
+                available_modules[intel_module_info.name] = v
+        available_modules["analysis"] = cartography.intel.analysis.run
+        return available_modules
+
+
+# Used to avoid repeatedly calling Sync.list_intel_modules()
+TOP_LEVEL_MODULES = Sync.list_intel_modules()
 
 
 def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:

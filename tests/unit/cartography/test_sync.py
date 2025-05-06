@@ -3,7 +3,13 @@ import pytest
 from cartography.sync import build_default_sync
 from cartography.sync import build_sync
 from cartography.sync import parse_and_validate_selected_modules
+from cartography.sync import Sync
 from cartography.sync import TOP_LEVEL_MODULES
+
+
+def test_available_modules_import():
+    # Check if all available modules are defined in the TOP_LEVEL_MODULES list
+    assert TOP_LEVEL_MODULES == Sync.list_intel_modules()
 
 
 def test_build_default_sync():
