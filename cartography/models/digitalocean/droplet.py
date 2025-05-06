@@ -28,8 +28,8 @@ class DODropletNodeProperties(CartographyNodeProperties):
     ip_address: PropertyRef = PropertyRef("ip_address")
     private_ip_address: PropertyRef = PropertyRef("private_ip_address")
     ip_v6_address: PropertyRef = PropertyRef("ip_v6_address")
-    account_id: PropertyRef = PropertyRef("account_id")
-    project_id: PropertyRef = PropertyRef("project_id")
+    account_id: PropertyRef = PropertyRef("ACCOUNT_ID", set_in_kwargs=True)
+    project_id: PropertyRef = PropertyRef("PROJECT_ID", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -42,7 +42,7 @@ class DODropletToAccountRelProperties(CartographyRelProperties):
 class DODropletToAccountRel(CartographyRelSchema):
     target_node_label: str = "DOProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_id")},
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
@@ -51,6 +51,6 @@ class DODropletToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class DODropletSchema(CartographyNodeSchema):
-    label: str = "LastpassUser"
+    label: str = "DODroplet"
     properties: DODropletNodeProperties = DODropletNodeProperties()
     sub_resource_relationship: DODropletToAccountRel = DODropletToAccountRel()

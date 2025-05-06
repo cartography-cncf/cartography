@@ -17,16 +17,18 @@ logger = logging.getLogger(__name__)
 def sync(
     neo4j_session: neo4j.Session,
     manager: Manager,
+    account_id: str,
     projects_resources: dict,
-    digitalocean_update_tag: int,
+    update_tag: int,
     common_job_parameters: dict,
 ) -> None:
     logger.info("Syncing Droplets")
-    account_id = common_job_parameters["DO_ACCOUNT_ID"]
     droplets_res = get_droplets(manager)
-    droplets = transform_droplets(droplets_res, account_id, projects_resources)
-    load_droplets(neo4j_session, droplets, digitalocean_update_tag)
-    cleanup(neo4j_session, common_job_parameters)
+    droplets_by_project = transform_droplets(
+        droplets_res, account_id, projects_resources
+    )
+    load_droplets(neo4j_session, account_id, droplets_by_project, update_tag)
+    cleanup(neo4j_session, list(droplets_by_project.keys()), common_job_parameters)
 
 
 @timeit
@@ -39,9 +41,12 @@ def transform_droplets(
     droplets_res: list,
     account_id: str,
     projects_resources: dict,
-) -> list:
-    droplets = list()
+) -> Dict[str, List[Dict[str, Any]]]:
+    droplets_by_project: Dict[str, List[Dict[str, Any]]] = {}
     for d in droplets_res:
+        project_id = str(_get_project_id_for_droplet(d.id, projects_resources))
+        if project_id not in droplets_by_project:
+            droplets_by_project[project_id] = []
         droplet = {
             "id": d.id,
             "name": d.name,
@@ -62,8 +67,8 @@ def transform_droplets(
             "account_id": account_id,
             "project_id": _get_project_id_for_droplet(d.id, projects_resources),
         }
-        droplets.append(droplet)
-    return droplets
+        droplets_by_project[project_id].append(droplet)
+    return droplets_by_project
 
 
 @timeit
@@ -81,17 +86,30 @@ def _get_project_id_for_droplet(
 @timeit
 def load_droplets(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    account_id: str,
+    data: Dict[str, List[Dict[str, Any]]],
     update_tag: int,
 ) -> None:
-    load(neo4j_session, DODropletSchema(), data, lastupdated=update_tag)
+    for project_id, droplets in data.items():
+        load(
+            neo4j_session,
+            DODropletSchema(),
+            droplets,
+            lastupdated=update_tag,
+            PROJECT_ID=str(project_id),
+            ACCOUNT_ID=str(account_id),
+        )
 
 
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
+    projects_ids: List[str],
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(DODropletSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
+    for project_id in projects_ids:
+        parameters = common_job_parameters.copy()
+        parameters["PROJECT_ID"] = str(project_id)
+        GraphJob.from_node_schema(DODropletSchema(), parameters).run(
+            neo4j_session,
+        )

@@ -1,65 +1,72 @@
+from unittest.mock import patch
+
 import cartography.intel.digitalocean.compute
 import tests.data.digitalocean.compute
+
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
+from tests.integration.cartography.intel.digitalocean.test_management import (
+    _ensure_local_neo4j_has_project_data,
+)
+
 
 TEST_UPDATE_TAG = 123456789
 
 
-def test_transform_and_load_droplets(neo4j_session):
+@patch.object(
+    cartography.intel.digitalocean.compute,
+    "get_droplets",
+    return_value=tests.data.digitalocean.compute.DROPLETS_RESPONSE,
+)
+@patch("digitalocean.Manager")
+def test_transform_and_load_droplets(mock_do_manager, mock_api, neo4j_session):
     droplet_res = tests.data.digitalocean.compute.DROPLETS_RESPONSE
     test_droplet = droplet_res[0]
-    account_id = 1
+    account_id = "123-4567-8789"
     project_id = "project_1"
-    project_resources = {
-        str(project_id): [
-            "do:droplet:" + test_droplet.id,
-        ],
-    }
 
-    """
-    Test that we can correctly transform and load DODroplet nodes to Neo4j.
-    """
-    droplet_list = cartography.intel.digitalocean.compute.transform_droplets(
-        droplet_res,
-        account_id,
-        project_resources,
-    )
-    cartography.intel.digitalocean.compute.load_droplets(
+    _ensure_local_neo4j_has_project_data(neo4j_session)
+
+    cartography.intel.digitalocean.compute.sync(
         neo4j_session,
-        droplet_list,
+        mock_do_manager,
+        account_id,
+        {
+            str(project_id): [
+                "do:droplet:" + test_droplet.id,
+            ],
+        },
         TEST_UPDATE_TAG,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "ACCOUNT_ID": account_id,
+        },
     )
 
-    query = """
-        MATCH(d:DODroplet{id:$DropletId})
-        RETURN d.id, d.name, d.ip_address, d.image, d.region, d.project_id, d.account_id, d.lastupdated
-        """
-    nodes = neo4j_session.run(
-        query,
-        DropletId=test_droplet.id,
-    )
-    actual_nodes = {
-        (
-            n["d.id"],
-            n["d.name"],
-            n["d.ip_address"],
-            n["d.image"],
-            n["d.region"],
-            n["d.project_id"],
-            n["d.account_id"],
-            n["d.lastupdated"],
-        )
-        for n in nodes
+    # Check the droplets nodes
+    assert check_nodes(
+        neo4j_session,
+        "DODroplet",
+        [
+            "id",
+            "name",
+            "ip_address",
+        ],
+    ) == {
+        (test_droplet.id, test_droplet.name, test_droplet.ip_address),
     }
-    expected_nodes = {
+    # Check the projects relationships
+    assert check_rels(
+        neo4j_session,
+        "DODroplet",
+        "id",
+        "DOProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
         (
             test_droplet.id,
-            test_droplet.name,
-            test_droplet.ip_address,
-            test_droplet.image["slug"],
-            test_droplet.region["slug"],
             project_id,
-            account_id,
-            TEST_UPDATE_TAG,
         ),
     }
-    assert actual_nodes == expected_nodes

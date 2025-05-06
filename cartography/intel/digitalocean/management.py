@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 def sync(
     neo4j_session: neo4j.Session,
     manager: Manager,
+    account_id: str,
     update_tag: int,
     common_job_parameters: dict,
 ) -> dict:
     logger.info("Syncing Projects")
-    account_id = common_job_parameters["DO_ACCOUNT_ID"]
     projects_res = get_projects(manager)
-    projects = transform_projects(projects_res, account_id)
-    load_projects(neo4j_session, projects, update_tag)
+    projects = transform_projects(projects_res)
+    load_projects(neo4j_session, projects, account_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
     return get_projects_resources(projects_res)
@@ -45,7 +45,7 @@ def get_projects_resources(projects_res: list) -> dict:
 
 
 @timeit
-def transform_projects(project_res: list, account_id: str) -> list:
+def transform_projects(project_res: list) -> list:
     result = list()
     for p in project_res:
         project = {
@@ -57,7 +57,6 @@ def transform_projects(project_res: list, account_id: str) -> list:
             "is_default": p.is_default,
             "created_at": p.created_at,
             "updated_at": p.updated_at,
-            "account_id": account_id,
         }
         result.append(project)
     return result
@@ -67,9 +66,16 @@ def transform_projects(project_res: list, account_id: str) -> list:
 def load_projects(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
+    account_id: str,
     update_tag: int,
 ) -> None:
-    load(neo4j_session, DOProjectSchema(), data, lastupdated=update_tag)
+    load(
+        neo4j_session,
+        DOProjectSchema(),
+        data,
+        lastupdated=update_tag,
+        ACCOUNT_ID=str(account_id),
+    )
 
 
 @timeit

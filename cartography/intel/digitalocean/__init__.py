@@ -35,17 +35,19 @@ def start_digitalocean_ingestion(neo4j_session: neo4j.Session, config: Config) -
     account_id = platform.sync(
         neo4j_session, manager, config.update_tag, common_job_parameters
     )
-    common_job_parameters["DO_ACCOUNT_ID"] = account_id
-    project_resources = management.sync(
+    common_job_parameters["ACCOUNT_ID"] = str(account_id)
+    projects_resources = management.sync(
         neo4j_session,
         manager,
+        account_id,
         config.update_tag,
         common_job_parameters,
     )
     compute.sync(
         neo4j_session,
         manager,
-        project_resources,
+        account_id,
+        projects_resources,
         config.update_tag,
         common_job_parameters,
     )

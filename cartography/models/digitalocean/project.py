@@ -14,7 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class DOProjectNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    account_id: PropertyRef = PropertyRef("account_id")
+    account_id: PropertyRef = PropertyRef("ACCOUNT_ID", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
     owner_uuid: PropertyRef = PropertyRef("owner_uuid")
     description: PropertyRef = PropertyRef("description")
@@ -34,7 +34,7 @@ class DOProjectToAccountRelProperties(CartographyRelProperties):
 class DOProjectToAccountRel(CartographyRelSchema):
     target_node_label: str = "DOAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("account_id", set_in_kwargs=True)},
+        {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
