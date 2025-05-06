@@ -27,7 +27,6 @@ def test_load_snipeit_user_relationship(neo4j_session):
     )
 
     # Assert
-
     # Make sure the expected Tenant is created
     expected_nodes = {
         ("Company A",),
@@ -36,9 +35,9 @@ def test_load_snipeit_user_relationship(neo4j_session):
         neo4j_session,
         "SnipeitTenant",
         ["id"],
-    )
+    ) == expected_nodes
 
-    # Make sure the expected Devices are created
+    # Make sure the expected Users are created
     expected_nodes = {
         (1, "mcarter@example.net"),
         (2, "snipe@snipe.net"),
@@ -52,7 +51,14 @@ def test_load_snipeit_user_relationship(neo4j_session):
         == expected_nodes
     )
 
-    # Make sure the expected relationships are created
+    # Make sure Human nodes are created
+    expected_nodes = {
+        ("mcarter@example.net", "mcarter@example.net"),
+        ("snipe@snipe.net", "snipe@snipe.net"),
+    }
+    assert check_nodes(neo4j_session, "Human", ["id", "email"]) == expected_nodes
+
+    # Make sure Users are connected with Tenant
     expected_nodes_relationships = {
         ("Company A", 1),
         ("Company A", 2),
@@ -66,6 +72,24 @@ def test_load_snipeit_user_relationship(neo4j_session):
             "id",
             "HAS_USER",
             rel_direction_right=True,
+        )
+        == expected_nodes_relationships
+    )
+
+    # Make sure Users are connected with Humans
+    expected_nodes_relationships = {
+        (1, "mcarter@example.net"),
+        (2, "snipe@snipe.net"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "SnipeitUser",
+            "id",
+            "Human",
+            "email",
+            "IDENTITY_SNIPEIT",
+            rel_direction_right=False,
         )
         == expected_nodes_relationships
     )

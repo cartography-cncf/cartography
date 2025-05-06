@@ -63,6 +63,15 @@ async def test_sync_entra_users(mock_get_users, mock_get_tenant, neo4j_session):
         == expected_nodes
     )
 
+    # Assert Human nodes exist
+    expected_nodes = {
+        ("homer@example.com", "homer@example.com"),
+        ("entra-test-user-1@mycompany.onmicrosoft.com","entra-test-user-1@mycompany.onmicrosoft.com"),
+    }
+    assert check_nodes(
+        neo4j_session, "Human", ["id", "email"]
+    ) == expected_nodes
+
     # Assert Users are connected with Tenant
     expected_rels = {
         ("ae4ac864-4433-4ba6-96a6-20f8cffdadcb", TEST_TENANT_ID),
@@ -76,6 +85,24 @@ async def test_sync_entra_users(mock_get_users, mock_get_tenant, neo4j_session):
             "EntraTenant",
             "id",
             "RESOURCE",
+            rel_direction_right=False,
+        )
+        == expected_rels
+    )
+
+    # Assert Users are connected with Human
+    expected_rels = {
+        ("ae4ac864-4433-4ba6-96a6-20f8cffdadcb", "homer@example.com"),
+        ("11dca63b-cb03-4e53-bb75-fa8060285550", "entra-test-user-1@mycompany.onmicrosoft.com"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "EntraUser",
+            "id",
+            "Human",
+            "email",
+            "IDENTITY_ENTRA",
             rel_direction_right=False,
         )
         == expected_rels

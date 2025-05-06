@@ -44,10 +44,6 @@ def test_sync_duo_users(neo4j_session):
     sync_duo_tokens(mock_client, neo4j_session, COMMON_JOB_PARAMETERS)
     sync_duo_web_authn_credentials(mock_client, neo4j_session, COMMON_JOB_PARAMETERS)
     sync_duo_groups(mock_client, neo4j_session, COMMON_JOB_PARAMETERS)
-    neo4j_session.run(
-        "UNWIND $data as item MERGE (h:Human{email: item.email})",
-        data=GET_USERS_RESPONSE,
-    )
     sync_duo_users(mock_client, neo4j_session, COMMON_JOB_PARAMETERS)
 
     # Assert
@@ -60,6 +56,16 @@ def test_sync_duo_users(neo4j_session):
         ("userid2", "userid2", "username2", "email2@example.com"),
         ("userid3", "userid3", "username3", "email3@example.com"),
         ("userid4", "userid4", "username4", "email4@example.com"),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "Human",
+        ["id", "email"]
+    ) == {
+        ("email1@example.com", "email1@example.com"),
+        ("email2@example.com", "email2@example.com"),
+        ("email3@example.com", "email3@example.com"),
+        ("email4@example.com", "email4@example.com"),
     }
 
     assert check_rels(
