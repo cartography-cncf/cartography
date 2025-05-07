@@ -3,8 +3,11 @@ from typing import Dict
 
 import neo4j
 
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.azure.tenant import AzureTenantSchema
+from cartography.models.azure.principal import AzurePrincipalSchema
 
 from .util.credentials import Credentials
 
@@ -21,29 +24,28 @@ def load_azure_tenant(
     current_user: str,
     update_tag: int,
 ) -> None:
-    query = """
-    MERGE (at:AzureTenant{id: $TENANT_ID})
-    ON CREATE SET at.firstseen = timestamp()
-    SET at.lastupdated = $update_tag
-    WITH at
-    MERGE (ap:AzurePrincipal{id: $CURRENT_USER})
-    ON CREATE SET ap.email = $CURRENT_USER, ap.firstseen = timestamp()
-    SET ap.lastupdated = $update_tag
-    WITH at, ap
-    MERGE (at)-[r:RESOURCE]->(ap)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag;
-    """
-    neo4j_session.run(
-        query,
-        TENANT_ID=tenant_id,
-        CURRENT_USER=current_user,
-        update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureTenantSchema(),
+        [{"id": tenant_id}],
+        lastupdated=update_tag,
+    )
+    load(
+        neo4j_session,
+        AzurePrincipalSchema(),
+        [{"current_user": current_user}],
+        lastupdated=update_tag,
+        AZURE_TENANT_ID=tenant_id,
     )
 
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job("azure_tenant_cleanup.json", neo4j_session, common_job_parameters)
+    GraphJob.from_node_schema(AzurePrincipalSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(AzureTenantSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
 
 
 @timeit

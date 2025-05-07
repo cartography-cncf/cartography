@@ -103,11 +103,6 @@ def _sync_multiple_subscriptions(
 
 @timeit
 def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-    common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-        "permission_relationships_file": config.permission_relationships_file,
-    }
-
     try:
         if config.azure_sp_auth:
             credentials = Authenticator().authenticate_sp(
@@ -127,6 +122,12 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             e,
         )
         return
+
+    common_job_parameters = {
+        "UPDATE_TAG": config.update_tag,
+        "AZURE_TENANT_ID": credentials.get_tenant_id(),
+        "permission_relationships_file": config.permission_relationships_file,
+    }
 
     _sync_tenant(
         neo4j_session,
