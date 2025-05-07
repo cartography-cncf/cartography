@@ -87,6 +87,7 @@ def load_pods(
     session: neo4j.Session,
     pods_data: List[Dict[str, Any]],
     update_tag: int,
+    cluster_id: str,
     cluster_name: str,
 ) -> None:
     logger.info(f"Loading {len(pods_data)} kubernetes pods.")
@@ -95,6 +96,7 @@ def load_pods(
         KubernetesPodSchema(),
         pods_data,
         lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
     )
 
@@ -111,6 +113,7 @@ def load_containers(
     session: neo4j.Session,
     containers_data: List[Dict[str, Any]],
     update_tag: int,
+    cluster_id: str,
     cluster_name: str,
 ) -> None:
     logger.info(f"Loading {len(containers_data)} kubernetes containers.")
@@ -119,6 +122,7 @@ def load_containers(
         KubernetesContainerSchema(),
         containers_data,
         lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
     )
 
@@ -148,10 +152,22 @@ def sync_pods(
     pods = get_pods(client)
 
     transformed_pods = transform_pods(pods)
-    load_pods(session, transformed_pods, update_tag, client.name)
+    load_pods(
+        session=session,
+        pods_data=transformed_pods,
+        update_tag=update_tag,
+        cluster_id=common_job_parameters["CLUSTER_ID"],
+        cluster_name=client.name,
+    )
 
     transformed_containers = transform_containers(transformed_pods)
-    load_containers(session, transformed_containers, update_tag, client.name)
+    load_containers(
+        session=session,
+        containers_data=transformed_containers,
+        update_tag=update_tag,
+        cluster_id=common_job_parameters["CLUSTER_ID"],
+        cluster_name=client.name,
+    )
 
     cleanup(session, common_job_parameters)
     return transformed_pods

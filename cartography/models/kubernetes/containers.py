@@ -74,10 +74,31 @@ class KubernetesContainerToKubernetesPod(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToKubernetesClusterProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesContainer)<-[:RESOURCE]-(:KubernetesCluster)
+class KubernetesContainerToKubernetesCluster(CartographyRelSchema):
+    target_node_label: str = "KubernetesCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: KubernetesContainerToKubernetesClusterProperties = (
+        KubernetesContainerToKubernetesClusterProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
     properties: KubernetesContainerNodeProperties = KubernetesContainerNodeProperties()
-    # sub_resource_relationship: KubernetesContainerToKubernetesNamespace = KubernetesContainerToKubernetesNamespace()
+    sub_resource_relationship: KubernetesContainerToKubernetesCluster = (
+        KubernetesContainerToKubernetesCluster()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KubernetesContainerToKubernetesNamespace(),
