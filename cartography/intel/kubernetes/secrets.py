@@ -69,6 +69,7 @@ def load_secrets(
     session: neo4j.Session,
     secrets_data: List[Dict[str, Any]],
     update_tag: int,
+    cluster_id: str,
     cluster_name: str,
 ) -> None:
     logger.info(f"Loading {len(secrets_data)} KubernetesSecrets")
@@ -77,6 +78,7 @@ def load_secrets(
         KubernetesSecretSchema(),
         secrets_data,
         lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
     )
 
@@ -100,5 +102,11 @@ def sync_secrets(
 ) -> None:
     secrets = get_secrets(client)
     transformed_secrets = transform_secrets(secrets)
-    load_secrets(session, transformed_secrets, update_tag, client.name)
+    load_secrets(
+        session=session,
+        secrets_data=transformed_secrets,
+        update_tag=update_tag,
+        cluster_id=common_job_parameters["CLUSTER_ID"],
+        cluster_name=client.name,
+    )
     cleanup(session, common_job_parameters)

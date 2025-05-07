@@ -47,10 +47,31 @@ class KubernetesSecretToKubernetesNamespace(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesSecretToKubernetesClusterProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesSecret)<-[:RESOURCE]-(:KubernetesCluster)
+class KubernetesSecretToKubernetesCluster(CartographyRelSchema):
+    target_node_label: str = "KubernetesCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: KubernetesSecretToKubernetesClusterProperties = (
+        KubernetesSecretToKubernetesClusterProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesSecretSchema(CartographyNodeSchema):
     label: str = "KubernetesSecret"
     properties: KubernetesSecretNodeProperties = KubernetesSecretNodeProperties()
-    # sub_resource_relationship: KubernetesSecretToKubernetesNamespace = KubernetesSecretToKubernetesNamespace()
+    sub_resource_relationship: KubernetesSecretToKubernetesCluster = (
+        KubernetesSecretToKubernetesCluster()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [KubernetesSecretToKubernetesNamespace()]
     )
