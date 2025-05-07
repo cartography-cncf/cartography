@@ -7,8 +7,10 @@ import neo4j
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.resource import SubscriptionClient
 
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.azure.subscription import AzureSubscriptionSchema
 
 from .util.credentials import Credentials
 
@@ -82,36 +84,18 @@ def load_azure_subscriptions(
     subscriptions: List[Dict],
     update_tag: int,
 ) -> None:
-    query = """
-    MERGE (at:AzureTenant{id: $TENANT_ID})
-    ON CREATE SET at.firstseen = timestamp()
-    SET at.lastupdated = $update_tag
-    WITH at
-    MERGE (as:AzureSubscription{id: $SUBSCRIPTION_ID})
-    ON CREATE SET as.firstseen = timestamp(), as.path = $SUBSCRIPTION_PATH
-    SET as.lastupdated = $update_tag, as.name = $SUBSCRIPTION_NAME, as.state = $SUBSCRIPTION_STATE
-    WITH as, at
-    MERGE (at)-[r:RESOURCE]->(as)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag;
-    """
-    for sub in subscriptions:
-        neo4j_session.run(
-            query,
-            TENANT_ID=tenant_id,
-            SUBSCRIPTION_ID=sub["subscriptionId"],
-            SUBSCRIPTION_PATH=sub["id"],
-            SUBSCRIPTION_NAME=sub["displayName"],
-            SUBSCRIPTION_STATE=sub["state"],
-            update_tag=update_tag,
-        )
+    load(
+        neo4j_session,
+        AzureSubscriptionSchema(),
+        subscriptions,
+        lastupdated=update_tag,
+        AZURE_TENANT_ID=tenant_id,
+    )
 
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job(
-        "azure_subscriptions_cleanup.json",
+    GraphJob.from_node_schema(AzureSubscriptionSchema(), common_job_parameters).run(
         neo4j_session,
-        common_job_parameters,
     )
 
 
