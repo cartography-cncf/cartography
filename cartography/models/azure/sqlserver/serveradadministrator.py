@@ -12,67 +12,63 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBVirtualNetworkRuleProperties(CartographyNodeProperties):
+class AzureServerADAdministratorProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    ignoremissingvnetserviceendpoint: PropertyRef = PropertyRef(
-        "ignore_missing_v_net_service_endpoint"
-    )
+    name: PropertyRef = PropertyRef("name")
+    login: PropertyRef = PropertyRef("login")
+    administratortype: PropertyRef = PropertyRef("administrator_type")
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties(
-    CartographyRelProperties
-):
+class AzureServerADAdministratorToSQLServerProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureCosmosDBAccount)-[:CONTAINS]->(:AzureCosmosDBVirtualNetworkRule)
-class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(CartographyRelSchema):
-    target_node_label: str = "AzureCosmosDBAccount"
+# (:AzureSQLServer)-[:ADMINISTERED_BY]->(:AzureServerADAdministrator)
+class AzureServerADAdministratorToSQLServerRel(CartographyRelSchema):
+    target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("DatabaseAccountId", set_in_kwargs=True)},
+        {"id": PropertyRef("server_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
-    properties: AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties = (
-        AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties()
+    rel_label: str = "ADMINISTERED_BY"
+    properties: AzureServerADAdministratorToSQLServerProperties = (
+        AzureServerADAdministratorToSQLServerProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties(
-    CartographyRelProperties
-):
+class AzureServerADAdministratorToSubscriptionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSubscription)-[:RESOURCE]->(:AzureCosmosDBVirtualNetworkRule)
-class AzureCosmosDBVirtualNetworkRuleToSubscriptionRel(CartographyRelSchema):
+# (:AzureSubscription)-[:RESOURCE]->(:AzureServerADAdministrator)
+class AzureServerADAdministratorToSubscriptionRel(CartographyRelSchema):
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties = (
-        AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties()
+    properties: AzureServerADAdministratorToSubscriptionRelProperties = (
+        AzureServerADAdministratorToSubscriptionRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBVirtualNetworkRuleSchema(CartographyNodeSchema):
-    label: str = "AzureCosmosDBVirtualNetworkRule"
-    properties: AzureCosmosDBVirtualNetworkRuleProperties = (
-        AzureCosmosDBVirtualNetworkRuleProperties()
+class AzureServerADAdministratorSchema(CartographyNodeSchema):
+    label: str = "AzureServerADAdministrator"
+    properties: AzureServerADAdministratorProperties = (
+        AzureServerADAdministratorProperties()
     )
-    sub_resource_relationship: AzureCosmosDBVirtualNetworkRuleToSubscriptionRel = (
-        AzureCosmosDBVirtualNetworkRuleToSubscriptionRel()
+    sub_resource_relationship: AzureServerADAdministratorToSubscriptionRel = (
+        AzureServerADAdministratorToSubscriptionRel()
     )
     other_relationsips: OtherRelationships = OtherRelationships(
         [
-            AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(),
+            AzureServerADAdministratorToSQLServerRel(),
         ]
     )

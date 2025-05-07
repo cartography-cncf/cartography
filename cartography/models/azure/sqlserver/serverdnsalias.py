@@ -12,67 +12,60 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBVirtualNetworkRuleProperties(CartographyNodeProperties):
+class AzureServerDNSAliasProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    ignoremissingvnetserviceendpoint: PropertyRef = PropertyRef(
-        "ignore_missing_v_net_service_endpoint"
-    )
+    name: PropertyRef = PropertyRef("name")
+    dnsrecord: PropertyRef = PropertyRef("azure_dns_record")
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties(
-    CartographyRelProperties
-):
+class AzureServerDNSAliasToSQLServerProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureCosmosDBAccount)-[:CONTAINS]->(:AzureCosmosDBVirtualNetworkRule)
-class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(CartographyRelSchema):
-    target_node_label: str = "AzureCosmosDBAccount"
+# (:AzureSQLServer)-[:USED_BY]->(:AzureServerDNSAlias)
+class AzureServerDNSAliasToSQLServerRel(CartographyRelSchema):
+    target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("DatabaseAccountId", set_in_kwargs=True)},
+        {"id": PropertyRef("server_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
-    properties: AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties = (
-        AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties()
+    rel_label: str = "USED_BY"
+    properties: AzureServerDNSAliasToSQLServerProperties = (
+        AzureServerDNSAliasToSQLServerProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties(
-    CartographyRelProperties
-):
+class AzureServerDNSAliasToSubscriptionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSubscription)-[:RESOURCE]->(:AzureCosmosDBVirtualNetworkRule)
-class AzureCosmosDBVirtualNetworkRuleToSubscriptionRel(CartographyRelSchema):
+# (:AzureSubscription)-[:RESOURCE]->(:AzureServerDNSAlias)
+class AzureServerDNSAliasToSubscriptionRel(CartographyRelSchema):
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties = (
-        AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties()
+    properties: AzureServerDNSAliasToSubscriptionRelProperties = (
+        AzureServerDNSAliasToSubscriptionRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBVirtualNetworkRuleSchema(CartographyNodeSchema):
-    label: str = "AzureCosmosDBVirtualNetworkRule"
-    properties: AzureCosmosDBVirtualNetworkRuleProperties = (
-        AzureCosmosDBVirtualNetworkRuleProperties()
-    )
-    sub_resource_relationship: AzureCosmosDBVirtualNetworkRuleToSubscriptionRel = (
-        AzureCosmosDBVirtualNetworkRuleToSubscriptionRel()
+class AzureServerDNSAliasSchema(CartographyNodeSchema):
+    label: str = "AzureServerDNSAlias"
+    properties: AzureServerDNSAliasProperties = AzureServerDNSAliasProperties()
+    sub_resource_relationship: AzureServerDNSAliasToSubscriptionRel = (
+        AzureServerDNSAliasToSubscriptionRel()
     )
     other_relationsips: OtherRelationships = OtherRelationships(
         [
-            AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(),
+            AzureServerDNSAliasToSQLServerRel(),
         ]
     )

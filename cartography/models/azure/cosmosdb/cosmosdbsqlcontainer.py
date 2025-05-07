@@ -39,9 +39,7 @@ class AzureCosmosDBSqlContainerToCosmosDBSqlDatabaseProperties(
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-dataclass(frozen=True)
-
-
+@dataclass(frozen=True)
 # (:AzureCosmosDBSqlDatabase)-[:CONTAINS]->(:AzureCosmosDBSqlContainer)
 class AzureCosmosDBSqlContainerToCosmosDBSqlDatabaseRel(CartographyRelSchema):
     target_node_label: str = "AzureCosmosDBSqlDatabase"
@@ -61,13 +59,13 @@ class AzureCosmosDBSqlContainerToSubscriptionRelProperties(CartographyRelPropert
 
 
 @dataclass(frozen=True)
-# (:AzureSubscription)<-[:RESOURCE]-(:AzureCosmosDBSqlContainer)
+# (:AzureSubscription)-[:RESOURCE]->(:AzureCosmosDBSqlContainer)
 class AzureCosmosDBSqlContainerToSubscriptionRel(CartographyRelSchema):
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: AzureCosmosDBSqlContainerToSubscriptionRelProperties = (
         AzureCosmosDBSqlContainerToSubscriptionRelProperties()
