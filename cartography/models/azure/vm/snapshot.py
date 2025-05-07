@@ -51,9 +51,7 @@ class AzureSnapshotToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureSnapshotSchema(CartographyNodeSchema):
     label: str = "AzureSnapshot"
-    properties: AzureSnapshotProperties = (
-        AzureSnapshotProperties()
-    )
+    properties: AzureSnapshotProperties = AzureSnapshotProperties()
     sub_resource_relationship: AzureSnapshotToSubscriptionRel = (
         AzureSnapshotToSubscriptionRel()
     )
