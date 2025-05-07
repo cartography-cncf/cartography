@@ -25,14 +25,14 @@ class AzureStorageTableServiceToStorageAccountProperties(CartographyRelPropertie
 
 
 @dataclass(frozen=True)
-# (:AzureStorageAccount)-[:CONTAINS]->(:AzureStorageTableService)
+# (:AzureStorageAccount)-[:USES]->(:AzureStorageTableService)
 class AzureStorageTableServiceToStorageAccountRel(CartographyRelSchema):
     target_node_label: str = "AzureStorageAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("storage_account_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "USES"
     properties: AzureStorageTableServiceToStorageAccountProperties = (
         AzureStorageTableServiceToStorageAccountProperties()
     )

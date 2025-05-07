@@ -85,6 +85,7 @@ def test_load_queue_services(neo4j_session):
     storage._load_queue_services(
         neo4j_session,
         DESCRIBE_QUEUE_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -116,6 +117,7 @@ def test_load_queue_services_relationships(neo4j_session):
     storage._load_queue_services(
         neo4j_session,
         DESCRIBE_QUEUE_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -146,6 +148,7 @@ def test_load_table_services(neo4j_session):
     storage._load_table_services(
         neo4j_session,
         DESCRIBE_TABLE_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -177,6 +180,7 @@ def test_load_table_services_relationships(neo4j_session):
     storage._load_table_services(
         neo4j_session,
         DESCRIBE_TABLE_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -207,6 +211,7 @@ def test_load_file_services(neo4j_session):
     storage._load_file_services(
         neo4j_session,
         DESCRIBE_FILE_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -238,6 +243,7 @@ def test_load_file_services_relationships(neo4j_session):
     storage._load_file_services(
         neo4j_session,
         DESCRIBE_FILE_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -268,6 +274,7 @@ def test_load_blob_services(neo4j_session):
     storage._load_blob_services(
         neo4j_session,
         DESCRIBE_BLOB_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -299,6 +306,7 @@ def test_load_blob_services_relationships(neo4j_session):
     storage._load_blob_services(
         neo4j_session,
         DESCRIBE_BLOB_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -329,6 +337,7 @@ def test_load_queues(neo4j_session):
     storage._load_queues(
         neo4j_session,
         DESCRIBE_QUEUE,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -353,12 +362,14 @@ def test_load_queues_relationships(neo4j_session):
     storage._load_queue_services(
         neo4j_session,
         DESCRIBE_QUEUE_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
     storage._load_queues(
         neo4j_session,
         DESCRIBE_QUEUE,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -389,6 +400,7 @@ def test_load_tables(neo4j_session):
     storage._load_tables(
         neo4j_session,
         DESCRIBE_TABLES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -413,12 +425,14 @@ def test_load_tables_relationships(neo4j_session):
     storage._load_table_services(
         neo4j_session,
         DESCRIBE_TABLE_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
     storage._load_tables(
         neo4j_session,
         DESCRIBE_TABLES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -449,6 +463,7 @@ def test_load_shares(neo4j_session):
     storage._load_shares(
         neo4j_session,
         DESCRIBE_FILE_SHARES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -473,12 +488,14 @@ def test_load_shares_relationships(neo4j_session):
     storage._load_file_services(
         neo4j_session,
         DESCRIBE_FILE_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
     storage._load_shares(
         neo4j_session,
         DESCRIBE_FILE_SHARES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -509,6 +526,7 @@ def test_load_blob_containers(neo4j_session):
     storage._load_blob_containers(
         neo4j_session,
         DESCRIBE_BLOB_CONTAINERS,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -533,12 +551,14 @@ def test_load_blob_containers_relationships(neo4j_session):
     storage._load_blob_services(
         neo4j_session,
         DESCRIBE_BLOB_SERVICES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
     storage._load_blob_containers(
         neo4j_session,
         DESCRIBE_BLOB_CONTAINERS,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 

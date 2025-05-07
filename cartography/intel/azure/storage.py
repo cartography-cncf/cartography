@@ -11,8 +11,30 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.storage import StorageManagementClient
 
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.azure.storage.storageaccount import AzureStorageAccountSchema
+from cartography.models.azure.storage.storageblobservice import (
+    AzureStorageBlobServiceSchema,
+)
+from cartography.models.azure.storage.storagefileservice import (
+    AzureStorageFileServiceSchema,
+)
+from cartography.models.azure.storage.storagequeueservice import (
+    AzureStorageQueueServiceSchema,
+)
+from cartography.models.azure.storage.storagetableservice import (
+    AzureStorageTableServiceSchema,
+)
+from cartography.models.azure.storage.storagefileshare import (
+    AzureStorageFileShareSchema,
+)
+from cartography.models.azure.storage.storagequeue import AzureStorageQueueSchema
+from cartography.models.azure.storage.storagetable import AzureStorageTableSchema
+from cartography.models.azure.storage.storageblobcontainer import (
+    AzureStorageBlobContainerSchema,
+)
 
 from .util.credentials import Credentials
 
@@ -72,38 +94,12 @@ def load_storage_account_data(
     storage_account_list: List[Dict],
     azure_update_tag: int,
 ) -> None:
-    """
-    Ingest Storage Account details into neo4j.
-    """
-    ingest_storage_account = """
-    UNWIND $storage_accounts_list as account
-    MERGE (s:AzureStorageAccount{id: account.id})
-    ON CREATE SET s.firstseen = timestamp(),
-    s.type = account.type, s.resourcegroup = account.resourceGroup,
-    s.location = account.location
-    SET s.lastupdated = $azure_update_tag,
-    s.kind = account.kind,
-    s.name = account.name,
-    s.creationtime = account.creation_time,
-    s.hnsenabled = account.is_hns_enabled,
-    s.primarylocation = account.primary_location,
-    s.secondarylocation = account.secondary_location,
-    s.provisioningstate = account.provisioning_state,
-    s.statusofprimary = account.status_of_primary,
-    s.statusofsecondary = account.status_of_secondary,
-    s.supportshttpstrafficonly = account.enable_https_traffic_only
-    WITH s
-    MATCH (owner:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})
-    MERGE (owner)-[r:RESOURCE]->(s)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_storage_account,
-        storage_accounts_list=storage_account_list,
+    load(
+        neo4j_session,
+        AzureStorageAccountSchema(),
+        storage_account_list,
+        lastupdated=azure_update_tag,
         AZURE_SUBSCRIPTION_ID=subscription_id,
-        azure_update_tag=azure_update_tag,
     )
 
 
@@ -115,16 +111,50 @@ def sync_storage_account_details(
     storage_account_list: List[Dict],
     sync_tag: int,
 ) -> None:
+    # Get details
     details = get_storage_account_details(
         credentials,
         subscription_id,
         storage_account_list,
     )
-    load_storage_account_details(
+    # Transform details
+    queue_services, table_services, file_services, blob_services = (
+        transform_storage_account_details(
+            details,
+        )
+    )
+    # Load details
+    _load_queue_services(neo4j_session, queue_services, subscription_id, sync_tag)
+    _load_table_services(neo4j_session, table_services, subscription_id, sync_tag)
+    _load_file_services(neo4j_session, file_services, subscription_id, sync_tag)
+    _load_blob_services(neo4j_session, blob_services, subscription_id, sync_tag)
+
+    sync_queue_services_details(
         neo4j_session,
         credentials,
         subscription_id,
-        details,
+        queue_services,
+        sync_tag,
+    )
+    sync_table_services_details(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        table_services,
+        sync_tag,
+    )
+    sync_file_services_details(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        file_services,
+        sync_tag,
+    )
+    sync_blob_services_details(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        blob_services,
         sync_tag,
     )
 
@@ -286,16 +316,9 @@ def get_blob_services(
 
 
 @timeit
-def load_storage_account_details(
-    neo4j_session: neo4j.Session,
-    credentials: Credentials,
-    subscription_id: str,
-    details: List[Tuple[Any, Any, Any, Any, Any, Any, Any]],
-    update_tag: int,
-) -> None:
-    """
-    Create dictionaries for every Azure storage service so we can import them in a single query
-    """
+def transform_storage_account_details(
+    storage_account_details: List[Tuple[Any, Any, Any, Any, Any, Any, Any]],
+) -> Tuple[List[Dict], List[Dict], List[Dict], List[Dict]]:
     queue_services: List[Dict] = []
     table_services: List[Dict] = []
     file_services: List[Dict] = []
@@ -309,7 +332,7 @@ def load_storage_account_details(
         table_service,
         file_service,
         blob_service,
-    ) in details:
+    ) in storage_account_details:
         if len(queue_service) > 0:
             for service in queue_service:
                 service["storage_account_name"] = name
@@ -337,68 +360,22 @@ def load_storage_account_details(
                 service["storage_account_id"] = account_id
                 service["resource_group_name"] = resourceGroup
             blob_services.extend(blob_service)
-
-    _load_queue_services(neo4j_session, queue_services, update_tag)
-    _load_table_services(neo4j_session, table_services, update_tag)
-    _load_file_services(neo4j_session, file_services, update_tag)
-    _load_blob_services(neo4j_session, blob_services, update_tag)
-
-    sync_queue_services_details(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        queue_services,
-        update_tag,
-    )
-    sync_table_services_details(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        table_services,
-        update_tag,
-    )
-    sync_file_services_details(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        file_services,
-        update_tag,
-    )
-    sync_blob_services_details(
-        neo4j_session,
-        credentials,
-        subscription_id,
-        blob_services,
-        update_tag,
-    )
+    return queue_services, table_services, file_services, blob_services
 
 
 @timeit
 def _load_queue_services(
     neo4j_session: neo4j.Session,
     queue_services: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Ingest Queue Service details into neo4j.
-    """
-    ingest_queue_services = """
-    UNWIND $queue_services_list as qservice
-    MERGE (qs:AzureStorageQueueService{id: qservice.id})
-    ON CREATE SET qs.firstseen = timestamp(), qs.type = qservice.type
-    SET qs.name = qservice.name,
-    qs.lastupdated = $azure_update_tag
-    WITH qs, qservice
-    MATCH (s:AzureStorageAccount{id: qservice.storage_account_id})
-    MERGE (s)-[r:USES]->(qs)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_queue_services,
-        queue_services_list=queue_services,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureStorageQueueServiceSchema(),
+        queue_services,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -406,28 +383,15 @@ def _load_queue_services(
 def _load_table_services(
     neo4j_session: neo4j.Session,
     table_services: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Ingest Table Service details into neo4j.
-    """
-    ingest_table_services = """
-    UNWIND $table_services_list as tservice
-    MERGE (ts:AzureStorageTableService{id: tservice.id})
-    ON CREATE SET ts.firstseen = timestamp(), ts.type = tservice.type
-    SET ts.name = tservice.name,
-    ts.lastupdated = $azure_update_tag
-    WITH ts, tservice
-    MATCH (s:AzureStorageAccount{id: tservice.storage_account_id})
-    MERGE (s)-[r:USES]->(ts)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_table_services,
-        table_services_list=table_services,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureStorageTableServiceSchema(),
+        table_services,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -435,28 +399,15 @@ def _load_table_services(
 def _load_file_services(
     neo4j_session: neo4j.Session,
     file_services: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Ingest File Service details into neo4j.
-    """
-    ingest_file_services = """
-    UNWIND $file_services_list as fservice
-    MERGE (fs:AzureStorageFileService{id: fservice.id})
-    ON CREATE SET fs.firstseen = timestamp(), fs.type = fservice.type
-    SET fs.name = fservice.name,
-    fs.lastupdated = $azure_update_tag
-    WITH fs, fservice
-    MATCH (s:AzureStorageAccount{id: fservice.storage_account_id})
-    MERGE (s)-[r:USES]->(fs)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_file_services,
-        file_services_list=file_services,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureStorageFileServiceSchema(),
+        file_services,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -464,28 +415,15 @@ def _load_file_services(
 def _load_blob_services(
     neo4j_session: neo4j.Session,
     blob_services: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
-    """
-    Ingest Blob Service details into neo4j.
-    """
-    ingest_blob_services = """
-    UNWIND $blob_services_list as bservice
-    MERGE (bs:AzureStorageBlobService{id: bservice.id})
-    ON CREATE SET bs.firstseen = timestamp(), bs.type = bservice.type
-    SET bs.name = bservice.name,
-    bs.lastupdated = $azure_update_tag
-    WITH bs, bservice
-    MATCH (s:AzureStorageAccount{id: bservice.storage_account_id})
-    MERGE (s)-[r:USES]->(bs)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_blob_services,
-        blob_services_list=blob_services,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureStorageBlobServiceSchema(),
+        blob_services,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -502,7 +440,9 @@ def sync_queue_services_details(
         subscription_id,
         queue_services,
     )
-    load_queue_services_details(neo4j_session, queue_services_details, update_tag)
+    load_queue_services_details(
+        neo4j_session, queue_services_details, subscription_id, update_tag
+    )
 
 
 @timeit
@@ -557,6 +497,7 @@ def get_queues(
 def load_queue_services_details(
     neo4j_session: neo4j.Session,
     details: List[Tuple[Any, Any]],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -570,35 +511,25 @@ def load_queue_services_details(
                 q["service_id"] = queue_service_id
             queues.extend(queue)
 
-    _load_queues(neo4j_session, queues, update_tag)
+    _load_queues(neo4j_session, queues, subscription_id, update_tag)
 
 
 @timeit
 def _load_queues(
     neo4j_session: neo4j.Session,
     queues: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest Queue details into neo4j.
     """
-    ingest_queues = """
-    UNWIND $queues_list as queue
-    MERGE (q:AzureStorageQueue{id: queue.id})
-    ON CREATE SET q.firstseen = timestamp(), q.type = queue.type
-    SET q.name = queue.name,
-    q.lastupdated = $azure_update_tag
-    WITH q, queue
-    MATCH (qs:AzureStorageQueueService{id: queue.service_id})
-    MERGE (qs)-[r:CONTAINS]->(q)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_queues,
-        queues_list=queues,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureStorageQueueSchema(),
+        queues,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -615,7 +546,9 @@ def sync_table_services_details(
         subscription_id,
         table_services,
     )
-    load_table_services_details(neo4j_session, table_services_details, update_tag)
+    load_table_services_details(
+        neo4j_session, table_services_details, subscription_id, update_tag
+    )
 
 
 @timeit
@@ -670,6 +603,7 @@ def get_tables(
 def load_table_services_details(
     neo4j_session: neo4j.Session,
     details: List[Tuple[Any, Any]],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -683,36 +617,25 @@ def load_table_services_details(
                 t["service_id"] = table_service_id
             tables.extend(table)
 
-    _load_tables(neo4j_session, tables, update_tag)
+    _load_tables(neo4j_session, tables, subscription_id, update_tag)
 
 
 @timeit
 def _load_tables(
     neo4j_session: neo4j.Session,
     tables: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest Table details into neo4j.
     """
-    ingest_tables = """
-    UNWIND $tables_list as table
-    MERGE (t:AzureStorageTable{id: table.id})
-    ON CREATE SET t.firstseen = timestamp(), t.type = table.type
-    SET t.name = table.name,
-    t.tablename = table.table_name,
-    t.lastupdated = $azure_update_tag
-    WITH t, table
-    MATCH (ts:AzureStorageTableService{id: table.service_id})
-    MERGE (ts)-[r:CONTAINS]->(t)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_tables,
-        tables_list=tables,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureStorageTableSchema(),
+        tables,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -729,7 +652,9 @@ def sync_file_services_details(
         subscription_id,
         file_services,
     )
-    load_file_services_details(neo4j_session, file_services_details, update_tag)
+    load_file_services_details(
+        neo4j_session, file_services_details, subscription_id, update_tag
+    )
 
 
 @timeit
@@ -784,6 +709,7 @@ def get_shares(
 def load_file_services_details(
     neo4j_session: neo4j.Session,
     details: List[Tuple[Any, Any]],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -797,46 +723,25 @@ def load_file_services_details(
                 s["service_id"] = file_service_id
             shares.extend(share)
 
-    _load_shares(neo4j_session, shares, update_tag)
+    _load_shares(neo4j_session, shares, subscription_id, update_tag)
 
 
 @timeit
 def _load_shares(
     neo4j_session: neo4j.Session,
     shares: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest Share details into neo4j.
     """
-    ingest_shares = """
-    UNWIND $shares_list as s
-    MERGE (share:AzureStorageFileShare{id: s.id})
-    ON CREATE SET share.firstseen = timestamp(), share.type = s.type
-    SET share.name = s.name,
-    share.lastupdated = $azure_update_tag,
-    share.lastmodifiedtime = s.last_modified_time,
-    share.sharequota = s.share_quota,
-    share.accesstier = s.access_tier,
-    share.deleted = s.deleted,
-    share.accesstierchangetime = s.access_tier_change_time,
-    share.accesstierstatus = s.access_tier_status,
-    share.deletedtime = s.deleted_time,
-    share.enabledprotocols = s.enabled_protocols,
-    share.remainingretentiondays = s.remaining_retention_days,
-    share.shareusagebytes = s.share_usage_bytes,
-    share.version = s.version
-    WITH share, s
-    MATCH (fs:AzureStorageFileService{id: s.service_id})
-    MERGE (fs)-[r:CONTAINS]->(share)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_shares,
-        shares_list=shares,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureStorageFileShareSchema(),
+        shares,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -853,7 +758,9 @@ def sync_blob_services_details(
         subscription_id,
         blob_services,
     )
-    load_blob_services_details(neo4j_session, blob_services_details, update_tag)
+    load_blob_services_details(
+        neo4j_session, blob_services_details, subscription_id, update_tag
+    )
 
 
 @timeit
@@ -914,6 +821,7 @@ def get_blob_containers(
 def load_blob_services_details(
     neo4j_session: neo4j.Session,
     details: List[Tuple[Any, Any]],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -927,47 +835,25 @@ def load_blob_services_details(
                 c["service_id"] = blob_service_id
             blob_containers.extend(container)
 
-    _load_blob_containers(neo4j_session, blob_containers, update_tag)
+    _load_blob_containers(neo4j_session, blob_containers, subscription_id, update_tag)
 
 
 @timeit
 def _load_blob_containers(
     neo4j_session: neo4j.Session,
     blob_containers: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest Blob Container details into neo4j.
     """
-    ingest_blob_containers = """
-    UNWIND $blob_containers_list as blob
-    MERGE (bc:AzureStorageBlobContainer{id: blob.id})
-    ON CREATE SET bc.firstseen = timestamp(), bc.type = blob.type
-    SET bc.name = blob.name,
-    bc.lastupdated = $azure_update_tag,
-    bc.deleted = blob.deleted,
-    bc.deletedtime = blob.deleted_time,
-    bc.defaultencryptionscope = blob.default_encryption_scope,
-    bc.publicaccess = blob.public_access,
-    bc.leasestatus = blob.lease_status,
-    bc.leasestate = blob.lease_state,
-    bc.lastmodifiedtime = blob.last_modified_time,
-    bc.remainingretentiondays = blob.remaining_retention_days,
-    bc.version = blob.version,
-    bc.hasimmutabilitypolicy = blob.has_immutability_policy,
-    bc.haslegalhold = blob.has_legal_hold,
-    bc.leaseduration = blob.leaseDuration
-    WITH bc, blob
-    MATCH (bs:AzureStorageBlobService{id: blob.service_id})
-    MERGE (bs)-[r:CONTAINS]->(bc)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_blob_containers,
-        blob_containers_list=blob_containers,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureStorageBlobContainerSchema(),
+        blob_containers,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -976,11 +862,20 @@ def cleanup_azure_storage_accounts(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "azure_storage_account_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
+    for node in (
+        AzureStorageAccountSchema,
+        AzureStorageBlobServiceSchema,
+        AzureStorageFileServiceSchema,
+        AzureStorageQueueServiceSchema,
+        AzureStorageTableServiceSchema,
+        AzureStorageFileShareSchema,
+        AzureStorageQueueSchema,
+        AzureStorageTableSchema,
+        AzureStorageBlobContainerSchema,
+    ):
+        GraphJob.from_node_schema(node(), common_job_parameters).run(
+            neo4j_session,
+        )
 
 
 @timeit
