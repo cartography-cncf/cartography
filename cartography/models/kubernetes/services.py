@@ -27,6 +27,25 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class KubernetesServiceToKubernetesClusterProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesService)<-[:RESOURCE]-(:KubernetesCluster)
+class KubernetesServiceToKubernetesCluster(CartographyRelSchema):
+    target_node_label: str = "KubernetesCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: KubernetesServiceToKubernetesClusterProperties = (
+        KubernetesServiceToKubernetesClusterProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesServiceToKubernetesNamespaceProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -75,7 +94,9 @@ class KubernetesServiceToKubernetesPod(CartographyRelSchema):
 class KubernetesServiceSchema(CartographyNodeSchema):
     label: str = "KubernetesService"
     properties: KubernetesServiceNodeProperties = KubernetesServiceNodeProperties()
-    # sub_resource_relationship: KubernetesServiceToKubernetesNamespace = KubernetesServiceToKubernetesNamespace()
+    sub_resource_relationship: KubernetesServiceToKubernetesCluster = (
+        KubernetesServiceToKubernetesCluster()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KubernetesServiceToKubernetesNamespace(),

@@ -73,6 +73,7 @@ def load_services(
     session: neo4j.Session,
     services: List[Dict],
     update_tag: int,
+    cluster_id: str,
     cluster_name: str,
 ) -> None:
     logger.info(f"Loading {len(services)} KubernetesServices")
@@ -81,6 +82,7 @@ def load_services(
         KubernetesServiceSchema(),
         services,
         lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
     )
 
@@ -103,5 +105,11 @@ def sync_services(
 ) -> None:
     services = get_services(client)
     transformed_services = transform_services(services, all_pods)
-    load_services(session, transformed_services, update_tag, client.name)
+    load_services(
+        session=session,
+        services=transformed_services,
+        update_tag=update_tag,
+        cluster_id=common_job_parameters["CLUSTER_ID"],
+        cluster_name=client.name,
+    )
     cleanup(session, common_job_parameters)

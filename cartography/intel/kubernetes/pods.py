@@ -85,16 +85,16 @@ def transform_pods(pods: List[V1Pod]) -> List[Dict[str, Any]]:
 @timeit
 def load_pods(
     session: neo4j.Session,
-    pods_data: List[Dict[str, Any]],
+    pods: List[Dict[str, Any]],
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(pods_data)} kubernetes pods.")
+    logger.info(f"Loading {len(pods)} kubernetes pods.")
     load(
         session,
         KubernetesPodSchema(),
-        pods_data,
+        pods,
         lastupdated=update_tag,
         CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
@@ -111,16 +111,16 @@ def transform_containers(pods: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 @timeit
 def load_containers(
     session: neo4j.Session,
-    containers_data: List[Dict[str, Any]],
+    containers: List[Dict[str, Any]],
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(containers_data)} kubernetes containers.")
+    logger.info(f"Loading {len(containers)} kubernetes containers.")
     load(
         session,
         KubernetesContainerSchema(),
-        containers_data,
+        containers,
         lastupdated=update_tag,
         CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
@@ -154,7 +154,7 @@ def sync_pods(
     transformed_pods = transform_pods(pods)
     load_pods(
         session=session,
-        pods_data=transformed_pods,
+        pods=transformed_pods,
         update_tag=update_tag,
         cluster_id=common_job_parameters["CLUSTER_ID"],
         cluster_name=client.name,
@@ -163,7 +163,7 @@ def sync_pods(
     transformed_containers = transform_containers(transformed_pods)
     load_containers(
         session=session,
-        containers_data=transformed_containers,
+        containers=transformed_containers,
         update_tag=update_tag,
         cluster_id=common_job_parameters["CLUSTER_ID"],
         cluster_name=client.name,
