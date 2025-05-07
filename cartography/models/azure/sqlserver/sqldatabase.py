@@ -41,7 +41,7 @@ class AzureSQLDatabaseToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         # WIP: repace az_database.server_id with kwargs
-        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("SERVER_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

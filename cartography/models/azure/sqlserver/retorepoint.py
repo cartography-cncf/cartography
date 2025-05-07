@@ -12,70 +12,63 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AzureReplicationLinkProperties(CartographyNodeProperties):
+class AzureRestorePointProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
     location: PropertyRef = PropertyRef("location")
-    partnerdatabase: PropertyRef = PropertyRef("partner_database")
-    partnerlocation: PropertyRef = PropertyRef("partner_location")
-    partnerrole: PropertyRef = PropertyRef("partner_role")
-    partnerserver: PropertyRef = PropertyRef("partner_server")
-    mode: PropertyRef = PropertyRef("replication_mode")
-    state: PropertyRef = PropertyRef("replication_state")
-    percentcomplete: PropertyRef = PropertyRef("percent_complete")
-    role: PropertyRef = PropertyRef("role")
-    starttime: PropertyRef = PropertyRef("start_time")
-    terminationallowed: PropertyRef = PropertyRef("is_termination_allowed")
+    restoredate: PropertyRef = PropertyRef("earliest_restore_date")
+    restorepointtype: PropertyRef = PropertyRef("restore_point_type")
+    creationdate: PropertyRef = PropertyRef("restore_point_creation_date")
 
 
 @dataclass(frozen=True)
-class AzureReplicationLinkToSQLDatabaseProperties(CartographyRelProperties):
+class AzureRestorePointToSQLDatabaseProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSQLDatabase)-[:CONTAINS]->(:AzureReplicationLink)
-class AzureReplicationLinkToSQLDatabaseRel(CartographyRelSchema):
+# (:AzureSQLDatabase)-[:CONTAINS]->(:AzureRestorePoint)
+class AzureRestorePointToSQLDatabaseRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLDatabase"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("database_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureReplicationLinkToSQLDatabaseProperties = (
-        AzureReplicationLinkToSQLDatabaseProperties()
+    properties: AzureRestorePointToSQLDatabaseProperties = (
+        AzureRestorePointToSQLDatabaseProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureReplicationLinkToSubscriptionRelProperties(CartographyRelProperties):
+class AzureRestorePointToSubscriptionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSubscription)-[:RESOURCE]->(:AzureReplicationLink)
-class AzureReplicationLinkToSubscriptionRel(CartographyRelSchema):
+# (:AzureSubscription)-[:RESOURCE]->(:AzureRestorePoint)
+class AzureRestorePointToSubscriptionRel(CartographyRelSchema):
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureReplicationLinkToSubscriptionRelProperties = (
-        AzureReplicationLinkToSubscriptionRelProperties()
+    properties: AzureRestorePointToSubscriptionRelProperties = (
+        AzureRestorePointToSubscriptionRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureReplicationLinkSchema(CartographyNodeSchema):
-    label: str = "AzureReplicationLink"
-    properties: AzureReplicationLinkProperties = AzureReplicationLinkProperties()
-    sub_resource_relationship: AzureReplicationLinkToSubscriptionRel = (
-        AzureReplicationLinkToSubscriptionRel()
+class AzureRestorePointSchema(CartographyNodeSchema):
+    label: str = "AzureRestorePoint"
+    properties: AzureRestorePointProperties = AzureRestorePointProperties()
+    sub_resource_relationship: AzureRestorePointToSubscriptionRel = (
+        AzureRestorePointToSubscriptionRel()
     )
     other_relationsips: OtherRelationships = OtherRelationships(
         [
-            AzureReplicationLinkToSQLDatabaseRel(),
+            AzureRestorePointToSQLDatabaseRel(),
         ]
     )

@@ -12,65 +12,69 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AzureTransparentDataEncryptionProperties(CartographyNodeProperties):
+class AzureDataDiskProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    status: PropertyRef = PropertyRef("status")
+    lun: PropertyRef = PropertyRef("lun")
+    vhd: PropertyRef = PropertyRef("vhd.uri")
+    image: PropertyRef = PropertyRef("image.uri")
+    size: PropertyRef = PropertyRef("disk_size_gb")
+    caching: PropertyRef = PropertyRef("caching")
+    createoption: PropertyRef = PropertyRef("create_option")
+    write_accelerator_enabled: PropertyRef = PropertyRef("write_accelerator_enabled")
+    managed_disk_storage_type: PropertyRef = PropertyRef(
+        "managed_disk.storage_account_type"
+    )
 
 
 @dataclass(frozen=True)
-class AzureTransparentDataEncryptionToSQLDatabaseProperties(CartographyRelProperties):
+class AzureDataDiskToVirtualMachineProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSQLDatabase)-[:CONTAINS]->(:AzureTransparentDataEncryption)
-class AzureTransparentDataEncryptionToSQLDatabaseRel(CartographyRelSchema):
-    target_node_label: str = "AzureSQLDatabase"
+# (:AzureVirtualMachine)-[:ATTACHED_TO]->(:AzureDataDisk)
+class AzureDataDiskToVirtualMachineRel(CartographyRelSchema):
+    target_node_label: str = "AzureVirtualMachine"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("database_id")},
+        {"id": PropertyRef("VM_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
-    properties: AzureTransparentDataEncryptionToSQLDatabaseProperties = (
-        AzureTransparentDataEncryptionToSQLDatabaseProperties()
+    rel_label: str = "ATTACHED_TO"
+    properties: AzureDataDiskToVirtualMachineProperties = (
+        AzureDataDiskToVirtualMachineProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureTransparentDataEncryptionToSubscriptionRelProperties(
-    CartographyRelProperties
-):
+class AzureDataDiskToSubscriptionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSubscription)-[:RESOURCE]->(:AzureTransparentDataEncryption)
-class AzureTransparentDataEncryptionToSubscriptionRel(CartographyRelSchema):
+# (:AzureSubscription)-[:RESOURCE]->(:AzureDataDisk)
+class AzureDataDiskToSubscriptionRel(CartographyRelSchema):
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureTransparentDataEncryptionToSubscriptionRelProperties = (
-        AzureTransparentDataEncryptionToSubscriptionRelProperties()
+    properties: AzureDataDiskToSubscriptionRelProperties = (
+        AzureDataDiskToSubscriptionRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureTransparentDataEncryptionSchema(CartographyNodeSchema):
-    label: str = "AzureTransparentDataEncryption"
-    properties: AzureTransparentDataEncryptionProperties = (
-        AzureTransparentDataEncryptionProperties()
-    )
-    sub_resource_relationship: AzureTransparentDataEncryptionToSubscriptionRel = (
-        AzureTransparentDataEncryptionToSubscriptionRel()
+class AzureDataDiskSchema(CartographyNodeSchema):
+    label: str = "AzureDataDisk"
+    properties: AzureDataDiskProperties = AzureDataDiskProperties()
+    sub_resource_relationship: AzureDataDiskToSubscriptionRel = (
+        AzureDataDiskToSubscriptionRel()
     )
     other_relationsips: OtherRelationships = OtherRelationships(
         [
-            AzureTransparentDataEncryptionToSQLDatabaseRel(),
+            AzureDataDiskToVirtualMachineRel(),
         ]
     )

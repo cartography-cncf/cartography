@@ -31,7 +31,7 @@ class AzureFailoverGroupToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         # WIP: Migrate from fg.server_id to kwargs
-        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("SERVER_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
