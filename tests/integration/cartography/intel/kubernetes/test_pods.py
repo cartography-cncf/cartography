@@ -4,6 +4,7 @@ from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
+from cartography.intel.kubernetes.pods import cleanup
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
@@ -64,6 +65,7 @@ def test_load_pods(neo4j_session, _create_test_cluster):
         neo4j_session,
         KUBERNETES_PODS_DATA,
         update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
         cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
@@ -78,6 +80,7 @@ def test_load_pod_relationships(neo4j_session, _create_test_cluster):
         neo4j_session,
         KUBERNETES_PODS_DATA,
         update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
         cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
@@ -121,16 +124,18 @@ def test_load_pod_containers(neo4j_session, _create_test_cluster):
     load_pods(
         neo4j_session,
         KUBERNETES_PODS_DATA,
-        TEST_UPDATE_TAG,
-        KUBERNETES_CLUSTER_NAMES[0],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
     # Act
     load_containers(
         neo4j_session,
         KUBERNETES_CONTAINER_DATA,
-        TEST_UPDATE_TAG,
-        KUBERNETES_CLUSTER_NAMES[0],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
     # Assert
@@ -143,16 +148,18 @@ def test_load_pod_containers_relationships(neo4j_session, _create_test_cluster):
     load_pods(
         neo4j_session,
         KUBERNETES_PODS_DATA,
-        TEST_UPDATE_TAG,
-        KUBERNETES_CLUSTER_NAMES[0],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
     # Act
     load_containers(
         neo4j_session,
         KUBERNETES_CONTAINER_DATA,
-        TEST_UPDATE_TAG,
-        KUBERNETES_CLUSTER_NAMES[0],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
     # Assert: Expect containers to be in the correct pod
@@ -188,3 +195,33 @@ def test_load_pod_containers_relationships(neo4j_session, _create_test_cluster):
         )
         == expected_rels
     )
+
+
+def test_pod_cleanup(neo4j_session, _create_test_cluster):
+    # Arrange
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    load_containers(
+        neo4j_session,
+        KUBERNETES_CONTAINER_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Act
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG + 1,
+        "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
+    }
+    cleanup(neo4j_session, common_job_parameters)
+
+    # Assert: Expect that the pods were deleted
+    assert check_nodes(neo4j_session, "KubernetesPod", ["name"]) == set()
+    assert check_nodes(neo4j_session, "KubernetesContainer", ["name"]) == set()

@@ -13,6 +13,7 @@ from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
 from tests.data.kubernetes.services import KUBERNETES_SERVICES_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
+from cartography.intel.kubernetes.services import cleanup
 
 TEST_UPDATE_TAG = 123456789
 
@@ -27,22 +28,23 @@ def _create_test_cluster(neo4j_session):
     load_namespaces(
         neo4j_session,
         KUBERNETES_CLUSTER_1_NAMESPACES_DATA,
-        TEST_UPDATE_TAG,
-        KUBERNETES_CLUSTER_NAMES[0],
-        KUBERNETES_CLUSTER_IDS[0],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
     load_namespaces(
         neo4j_session,
         KUBERNETES_CLUSTER_2_NAMESPACES_DATA,
-        TEST_UPDATE_TAG,
-        KUBERNETES_CLUSTER_NAMES[1],
-        KUBERNETES_CLUSTER_IDS[1],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[1],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[1],
     )
     load_pods(
         neo4j_session,
         KUBERNETES_PODS_DATA,
-        TEST_UPDATE_TAG,
-        KUBERNETES_CLUSTER_NAMES[0],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
     yield
@@ -53,8 +55,9 @@ def test_load_services(neo4j_session, _create_test_cluster):
     load_services(
         neo4j_session,
         KUBERNETES_SERVICES_DATA,
-        TEST_UPDATE_TAG,
-        KUBERNETES_CLUSTER_NAMES[0],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
     # Assert: Expect that the services were loaded
@@ -67,8 +70,9 @@ def test_load_services_relationships(neo4j_session, _create_test_cluster):
     load_services(
         neo4j_session,
         KUBERNETES_SERVICES_DATA,
-        TEST_UPDATE_TAG,
-        KUBERNETES_CLUSTER_NAMES[0],
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
     # Assert: Expect services to be in the correct namespace
@@ -102,3 +106,24 @@ def test_load_services_relationships(neo4j_session, _create_test_cluster):
         )
         == expected_rels
     )
+
+
+def test_service_cleanup(neo4j_session, _create_test_cluster):
+    # Arrange
+    load_services(
+        neo4j_session,
+        KUBERNETES_SERVICES_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Act
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG + 1,
+        "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
+    }
+    cleanup(neo4j_session, common_job_parameters)
+
+    # Assert: Expect that the services were deleted
+    assert check_nodes(neo4j_session, "KubernetesService", ["name"]) == set()
