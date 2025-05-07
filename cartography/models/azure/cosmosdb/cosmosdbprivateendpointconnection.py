@@ -74,7 +74,7 @@ class AzureCDBPrivateEndpointConnectionSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureCDBPrivateEndpointConnectionToSubscriptionRel = (
         AzureCDBPrivateEndpointConnectionToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureCDBPrivateEndpointConnectionToCosmosDBAccountRel(),
         ]

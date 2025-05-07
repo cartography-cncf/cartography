@@ -66,7 +66,7 @@ class AzureStorageTableServiceSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureStorageTableServiceToSubscriptionRel = (
         AzureStorageTableServiceToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureStorageTableServiceToStorageAccountRel(),
         ]

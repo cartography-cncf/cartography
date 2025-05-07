@@ -78,7 +78,7 @@ class AzureDatabaseThreatDetectionPolicySchema(CartographyNodeSchema):
     sub_resource_relationship: AzureDatabaseThreatDetectionPolicyToSubscriptionRel = (
         AzureDatabaseThreatDetectionPolicyToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureDatabaseThreatDetectionPolicyToSQLDatabaseRel(),
         ]

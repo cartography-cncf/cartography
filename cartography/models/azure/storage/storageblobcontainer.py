@@ -78,7 +78,7 @@ class AzureStorageBlobContainerSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureStorageBlobContainerToSubscriptionRel = (
         AzureStorageBlobContainerToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureStorageBlobContainerToStorageBlobServiceRel(),
         ]

@@ -71,7 +71,7 @@ class AzureCosmosDBVirtualNetworkRuleSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureCosmosDBVirtualNetworkRuleToSubscriptionRel = (
         AzureCosmosDBVirtualNetworkRuleToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(),
         ]

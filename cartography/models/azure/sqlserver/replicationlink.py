@@ -74,7 +74,7 @@ class AzureReplicationLinkSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureReplicationLinkToSubscriptionRel = (
         AzureReplicationLinkToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureReplicationLinkToSQLDatabaseRel(),
         ]

@@ -69,7 +69,7 @@ class AzureCosmosDBMongoDBDatabaseSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureCosmosDBMongoDBDatabaseToSubscriptionRel = (
         AzureCosmosDBMongoDBDatabaseToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureCosmosDBMongoDBDatabaseToCosmosDBAccountRel(),
         ]

@@ -66,7 +66,7 @@ class AzureStorageQueueServiceSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureStorageQueueServiceToSubscriptionRel = (
         AzureStorageQueueServiceToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureStorageQueueServiceToStorageAccountRel(),
         ]

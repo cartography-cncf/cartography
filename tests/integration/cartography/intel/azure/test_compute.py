@@ -75,9 +75,10 @@ def test_load_vms_relationships(neo4j_session):
 
 
 def test_load_vm_data_disks(neo4j_session):
+
     compute.load_vm_data_disks(
         neo4j_session,
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
+        TEST_SUBSCRIPTION_ID,
         DESCRIBE_VM_DATA_DISKS,
         TEST_UPDATE_TAG,
     )
@@ -103,13 +104,13 @@ def test_load_vm_data_disk_relationships(neo4j_session):
     compute.load_vms(
         neo4j_session,
         TEST_SUBSCRIPTION_ID,
-        [DESCRIBE_VMS[0]],
+        DESCRIBE_VMS,
         TEST_UPDATE_TAG,
     )
 
     compute.load_vm_data_disks(
         neo4j_session,
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
+        TEST_SUBSCRIPTION_ID,
         DESCRIBE_VM_DATA_DISKS,
         TEST_UPDATE_TAG,
     )

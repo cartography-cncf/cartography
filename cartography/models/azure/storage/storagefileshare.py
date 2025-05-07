@@ -75,7 +75,7 @@ class AzureStorageFileShareSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureStorageFileShareToSubscriptionRel = (
         AzureStorageFileShareToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureStorageFileShareToStorageFileServiceRel(),
         ]

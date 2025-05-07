@@ -75,7 +75,7 @@ class AzureCosmosDBCassandraTableSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureCosmosDBCassandraTableToSubscriptionRel = (
         AzureCosmosDBCassandraTableToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRel(),
         ]

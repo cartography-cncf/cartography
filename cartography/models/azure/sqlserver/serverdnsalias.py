@@ -64,7 +64,7 @@ class AzureServerDNSAliasSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureServerDNSAliasToSubscriptionRel = (
         AzureServerDNSAliasToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureServerDNSAliasToSQLServerRel(),
         ]

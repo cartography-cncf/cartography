@@ -67,7 +67,7 @@ class AzureRestorePointSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureRestorePointToSubscriptionRel = (
         AzureRestorePointToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureRestorePointToSQLDatabaseRel(),
         ]

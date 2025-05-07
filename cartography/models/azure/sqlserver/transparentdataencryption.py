@@ -69,7 +69,7 @@ class AzureTransparentDataEncryptionSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureTransparentDataEncryptionToSubscriptionRel = (
         AzureTransparentDataEncryptionToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureTransparentDataEncryptionToSQLDatabaseRel(),
         ]

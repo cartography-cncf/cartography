@@ -67,7 +67,7 @@ class AzureServerADAdministratorSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureServerADAdministratorToSubscriptionRel = (
         AzureServerADAdministratorToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureServerADAdministratorToSQLServerRel(),
         ]

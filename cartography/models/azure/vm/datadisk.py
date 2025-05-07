@@ -13,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzureDataDiskProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("managed_disk.id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
     lun: PropertyRef = PropertyRef("lun")
@@ -38,7 +38,7 @@ class AzureDataDiskToVirtualMachineProperties(CartographyRelProperties):
 class AzureDataDiskToVirtualMachineRel(CartographyRelSchema):
     target_node_label: str = "AzureVirtualMachine"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("VM_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("vm_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ATTACHED_TO"
@@ -73,7 +73,7 @@ class AzureDataDiskSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureDataDiskToSubscriptionRel = (
         AzureDataDiskToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureDataDiskToVirtualMachineRel(),
         ]

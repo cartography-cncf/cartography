@@ -67,7 +67,7 @@ class AzureCosmosDBCorsPolicySchema(CartographyNodeSchema):
     sub_resource_relationship: AzureCosmosDBCorsPolicyToSubscriptionRel = (
         AzureCosmosDBCorsPolicyToSubscriptionRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureCosmosDBCorsPolicyToCosmosDBAccountRel(),
         ]
