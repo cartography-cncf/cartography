@@ -11,39 +11,36 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AzureFailoverGroupProperties(CartographyNodeProperties):
+class AzureRecoverableDatabaseProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    location: PropertyRef = PropertyRef("location")
-    replicationrole: PropertyRef = PropertyRef("replication_role")
-    replicationstate: PropertyRef = PropertyRef("replication_state")
 
 
 @dataclass(frozen=True)
-class AzureFailoverGroupToSQLServerProperties(CartographyRelProperties):
+class AzureRecoverableDatabaseToSQLServerProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:RESOURCE]->(:AzureFailoverGroup)
-class AzureFailoverGroupToSQLServerRel(CartographyRelSchema):
+# (:AzureSQLServer)-[:RESOURCE]->(:AzureRecoverableDatabase)
+class AzureRecoverableDatabaseToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        # WIP: Migrate from fg.server_id to kwargs
         {"id": PropertyRef("SERVER_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureFailoverGroupToSQLServerProperties = (
-        AzureFailoverGroupToSQLServerProperties()
+    properties: AzureRecoverableDatabaseToSQLServerProperties = (
+        AzureRecoverableDatabaseToSQLServerProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureFailoverGroupSchema(CartographyNodeSchema):
-    label: str = "AzureFailoverGroup"
-    properties: AzureFailoverGroupProperties = AzureFailoverGroupProperties()
-    sub_resource_relationship: AzureFailoverGroupToSQLServerRel = (
-        AzureFailoverGroupToSQLServerRel()
+class AzureRecoverableDatabaseSchema(CartographyNodeSchema):
+    label: str = "AzureRecoverableDatabase"
+    properties: AzureRecoverableDatabaseProperties = (
+        AzureRecoverableDatabaseProperties()
+    )
+    sub_resource_relationship: AzureRecoverableDatabaseToSQLServerRel = (
+        AzureRecoverableDatabaseToSQLServerRel()
     )

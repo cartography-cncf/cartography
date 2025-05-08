@@ -35,7 +35,6 @@ class AzureRestorableDroppedDatabaseToSQLServerProperties(CartographyRelProperti
 class AzureRestorableDroppedDatabaseToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        # WIP: Migrate from res_dropped_db.server_id to kwargs
         {"id": PropertyRef("SERVER_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
