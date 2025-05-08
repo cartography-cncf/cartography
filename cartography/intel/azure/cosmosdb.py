@@ -46,6 +46,8 @@ from cartography.models.azure.cosmosdb.mongodbcollection import (
 from cartography.models.azure.cosmosdb.tableresource import (
     AzureCosmosDBTableResourceSchema,
 )
+from cartography.models.azure.cosmosdb.dblocation import AzureCosmosDBLocationSchema
+
 
 from .util.credentials import Credentials
 
@@ -167,20 +169,22 @@ def sync_database_account_data_resources(
             database_account,
             azure_update_tag,
         )
-        # WIP: Load all in one request
         _load_database_account_write_locations(
             neo4j_session,
             database_account,
+            subscription_id,
             azure_update_tag,
         )
         _load_database_account_read_locations(
             neo4j_session,
             database_account,
+            subscription_id,
             azure_update_tag,
         )
         _load_database_account_associated_locations(
             neo4j_session,
             database_account,
+            subscription_id,
             azure_update_tag,
         )
 
@@ -189,6 +193,7 @@ def sync_database_account_data_resources(
 def _load_database_account_write_locations(
     neo4j_session: neo4j.Session,
     database_account: Dict,
+    subscription_id: str,
     azure_update_tag: int,
 ) -> None:
     """
@@ -198,31 +203,19 @@ def _load_database_account_write_locations(
         "write_locations" in database_account
         and len(database_account["write_locations"]) > 0
     ):
-        database_account_id = database_account["id"]
         write_locations = database_account["write_locations"]
+        for wl in write_locations:
+            wl["db_write_account_id"] = database_account["id"]
 
-        ingest_write_location = """
-        UNWIND $write_locations_list as wl
-        MERGE (loc:AzureCosmosDBLocation{id: wl.id})
-        ON CREATE SET loc.firstseen = timestamp()
-        SET loc.lastupdated = $azure_update_tag,
-        loc.locationname = wl.location_name,
-        loc.documentendpoint = wl.document_endpoint,
-        loc.provisioningstate = wl.provisioning_state,
-        loc.failoverpriority = wl.failover_priority,
-        loc.iszoneredundant = wl.is_zone_redundant
-        WITH loc
-        MATCH (d:AzureCosmosDBAccount{id: $DatabaseAccountId})
-        MERGE (d)-[r:CAN_WRITE_FROM]->(loc)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $azure_update_tag
-        """
+        for wl in write_locations:
+            print(wl)
 
-        neo4j_session.run(
-            ingest_write_location,
-            write_locations_list=write_locations,
-            DatabaseAccountId=database_account_id,
-            azure_update_tag=azure_update_tag,
+        load(
+            neo4j_session,
+            AzureCosmosDBLocationSchema(),
+            write_locations,
+            lastupdated=azure_update_tag,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
         )
 
 
@@ -230,6 +223,7 @@ def _load_database_account_write_locations(
 def _load_database_account_read_locations(
     neo4j_session: neo4j.Session,
     database_account: Dict,
+    subscription_id: str,
     azure_update_tag: int,
 ) -> None:
     """
@@ -239,31 +233,16 @@ def _load_database_account_read_locations(
         "read_locations" in database_account
         and len(database_account["read_locations"]) > 0
     ):
-        database_account_id = database_account["id"]
         read_locations = database_account["read_locations"]
+        for rl in read_locations:
+            rl["db_read_account_id"] = database_account["id"]
 
-        ingest_read_location = """
-        UNWIND $read_locations_list as rl
-        MERGE (loc:AzureCosmosDBLocation{id: rl.id})
-        ON CREATE SET loc.firstseen = timestamp()
-        SET loc.lastupdated = $azure_update_tag,
-        loc.locationname = rl.location_name,
-        loc.documentendpoint = rl.document_endpoint,
-        loc.provisioningstate = rl.provisioning_state,
-        loc.failoverpriority = rl.failover_priority,
-        loc.iszoneredundant = rl.is_zone_redundant
-        WITH loc
-        MATCH (d:AzureCosmosDBAccount{id: $DatabaseAccountId})
-        MERGE (d)-[r:CAN_READ_FROM]->(loc)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $azure_update_tag
-        """
-
-        neo4j_session.run(
-            ingest_read_location,
-            read_locations_list=read_locations,
-            DatabaseAccountId=database_account_id,
-            azure_update_tag=azure_update_tag,
+        load(
+            neo4j_session,
+            AzureCosmosDBLocationSchema(),
+            read_locations,
+            lastupdated=azure_update_tag,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
         )
 
 
@@ -271,37 +250,23 @@ def _load_database_account_read_locations(
 def _load_database_account_associated_locations(
     neo4j_session: neo4j.Session,
     database_account: Dict,
+    subscription_id: str,
     azure_update_tag: int,
 ) -> None:
     """
     Ingest the details of enabled location for the database account.
     """
     if "locations" in database_account and len(database_account["locations"]) > 0:
-        database_account_id = database_account["id"]
         associated_locations = database_account["locations"]
+        for al in associated_locations:
+            al["db_associated_account_id"] = database_account["id"]
 
-        ingest_associated_location = """
-        UNWIND $associated_locations_list as al
-        MERGE (loc:AzureCosmosDBLocation{id: al.id})
-        ON CREATE SET loc.firstseen = timestamp()
-        SET loc.lastupdated = $azure_update_tag,
-        loc.locationname = al.location_name,
-        loc.documentendpoint = al.document_endpoint,
-        loc.provisioningstate = al.provisioning_state,
-        loc.failoverpriority = al.failover_priority,
-        loc.iszoneredundant = al.is_zone_redundant
-        WITH loc
-        MATCH (d:AzureCosmosDBAccount{id: $DatabaseAccountId})
-        MERGE (d)-[r:ASSOCIATED_WITH]->(loc)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $azure_update_tag
-        """
-
-        neo4j_session.run(
-            ingest_associated_location,
-            associated_locations_list=associated_locations,
-            DatabaseAccountId=database_account_id,
-            azure_update_tag=azure_update_tag,
+        load(
+            neo4j_session,
+            AzureCosmosDBLocationSchema(),
+            associated_locations,
+            lastupdated=azure_update_tag,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
         )
 
 

@@ -88,6 +88,7 @@ def test_load_database_account_write_locations(neo4j_session):
         cosmosdb._load_database_account_write_locations(
             neo4j_session,
             database_account,
+            TEST_SUBSCRIPTION_ID,
             TEST_UPDATE_TAG,
         )
 
@@ -120,6 +121,7 @@ def test_load_database_account_write_locations_relationships(neo4j_session):
         cosmosdb._load_database_account_write_locations(
             neo4j_session,
             database_account,
+            TEST_SUBSCRIPTION_ID,
             TEST_UPDATE_TAG,
         )
 
@@ -151,6 +153,7 @@ def test_load_database_account_read_locations(neo4j_session):
         cosmosdb._load_database_account_read_locations(
             neo4j_session,
             database_account,
+            TEST_SUBSCRIPTION_ID,
             TEST_UPDATE_TAG,
         )
 
@@ -183,6 +186,7 @@ def test_load_database_account_read_locations_relationships(neo4j_session):
         cosmosdb._load_database_account_read_locations(
             neo4j_session,
             database_account,
+            TEST_SUBSCRIPTION_ID,
             TEST_UPDATE_TAG,
         )
 
@@ -214,6 +218,7 @@ def test_load_database_account_associated_locations(neo4j_session):
         cosmosdb._load_database_account_associated_locations(
             neo4j_session,
             database_account,
+            TEST_SUBSCRIPTION_ID,
             TEST_UPDATE_TAG,
         )
 
@@ -247,6 +252,7 @@ def test_load_database_account_associated_locations_relationships(neo4j_session)
         cosmosdb._load_database_account_associated_locations(
             neo4j_session,
             database_account,
+            TEST_SUBSCRIPTION_ID,
             TEST_UPDATE_TAG,
         )
 
