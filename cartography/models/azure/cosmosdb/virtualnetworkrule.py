@@ -12,63 +12,67 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBCorsPolicyProperties(CartographyNodeProperties):
+class AzureCosmosDBVirtualNetworkRuleProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    allowedorigins: PropertyRef = PropertyRef("allowed_origins")
-    allowedmethods: PropertyRef = PropertyRef("allowed_methods")
-    allowedheaders: PropertyRef = PropertyRef("allowed_headers")
-    exposedheaders: PropertyRef = PropertyRef("exposed_headers")
-    maxageinseconds: PropertyRef = PropertyRef("max_age_in_seconds")
+    ignoremissingvnetserviceendpoint: PropertyRef = PropertyRef(
+        "ignore_missing_v_net_service_endpoint"
+    )
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBCorsPolicyToCosmosDBAccountProperties(CartographyRelProperties):
+class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureCosmosDBAccount)-[:CONTAINS]->(:AzureCosmosDBCorsPolicy)
-class AzureCosmosDBCorsPolicyToCosmosDBAccountRel(CartographyRelSchema):
+# (:AzureCosmosDBAccount)-[:CONFIGURED_WITH]->(:AzureCosmosDBVirtualNetworkRule)
+class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(CartographyRelSchema):
     target_node_label: str = "AzureCosmosDBAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DatabaseAccountId", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
-    properties: AzureCosmosDBCorsPolicyToCosmosDBAccountProperties = (
-        AzureCosmosDBCorsPolicyToCosmosDBAccountProperties()
+    rel_label: str = "CONFIGURED_WITH"
+    properties: AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties = (
+        AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBCorsPolicyToSubscriptionRelProperties(CartographyRelProperties):
+class AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSubscription)-[:RESOURCE]->(:AzureCosmosDBCorsPolicy)
-class AzureCosmosDBCorsPolicyToSubscriptionRel(CartographyRelSchema):
+# (:AzureSubscription)-[:RESOURCE]->(:AzureCosmosDBVirtualNetworkRule)
+class AzureCosmosDBVirtualNetworkRuleToSubscriptionRel(CartographyRelSchema):
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureCosmosDBCorsPolicyToSubscriptionRelProperties = (
-        AzureCosmosDBCorsPolicyToSubscriptionRelProperties()
+    properties: AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties = (
+        AzureCosmosDBVirtualNetworkRuleToSubscriptionRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBCorsPolicySchema(CartographyNodeSchema):
-    label: str = "AzureCosmosDBCorsPolicy"
-    properties: AzureCosmosDBCorsPolicyProperties = AzureCosmosDBCorsPolicyProperties()
-    sub_resource_relationship: AzureCosmosDBCorsPolicyToSubscriptionRel = (
-        AzureCosmosDBCorsPolicyToSubscriptionRel()
+class AzureCosmosDBVirtualNetworkRuleSchema(CartographyNodeSchema):
+    label: str = "AzureCosmosDBVirtualNetworkRule"
+    properties: AzureCosmosDBVirtualNetworkRuleProperties = (
+        AzureCosmosDBVirtualNetworkRuleProperties()
+    )
+    sub_resource_relationship: AzureCosmosDBVirtualNetworkRuleToSubscriptionRel = (
+        AzureCosmosDBVirtualNetworkRuleToSubscriptionRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AzureCosmosDBCorsPolicyToCosmosDBAccountRel(),
+            AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(),
         ]
     )

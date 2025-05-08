@@ -36,7 +36,7 @@ class AzureCosmosDBCassandraKeyspaceToCosmosDBAccountRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("database_account_id")},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
     properties: AzureCosmosDBCassandraKeyspaceToCosmoDBAccountRelProperties = (
         AzureCosmosDBCassandraKeyspaceToCosmoDBAccountRelProperties()

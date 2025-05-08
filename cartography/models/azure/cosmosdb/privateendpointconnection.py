@@ -31,14 +31,14 @@ class AzureCDBPrivateEndpointConnectionToCosmosDBAccountProperties(
 
 
 @dataclass(frozen=True)
-# (:AzureCosmosDBAccount)-[:CONTAINS]->(:AzureCDBPrivateEndpointConnection)
+# (:AzureCosmosDBAccount)-[::CONFIGURED_WITH]->(:AzureCDBPrivateEndpointConnection)
 class AzureCDBPrivateEndpointConnectionToCosmosDBAccountRel(CartographyRelSchema):
     target_node_label: str = "AzureCosmosDBAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DatabaseAccountId", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "CONFIGURED_WITH"
     properties: AzureCDBPrivateEndpointConnectionToCosmosDBAccountProperties = (
         AzureCDBPrivateEndpointConnectionToCosmosDBAccountProperties()
     )

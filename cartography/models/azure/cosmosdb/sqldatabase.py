@@ -31,9 +31,8 @@ class AzureCosmosDBSqlDatabaseToCosmosDBAccountProperties(CartographyRelProperti
 # (:AzureCosmosDBAccount)-[:CONTAINS]->(:AzureCosmosDBSqlDatabase)
 class AzureCosmosDBSqlDatabaseToCosmosDBAccountRel(CartographyRelSchema):
     target_node_label: str = "AzureCosmosDBAccount"
-    # WIP: Check and update the target_node_matcher
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("database_account_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"

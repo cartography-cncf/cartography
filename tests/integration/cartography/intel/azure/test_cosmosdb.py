@@ -533,6 +533,7 @@ def test_load_sql_databases(neo4j_session):
     cosmosdb._load_sql_databases(
         neo4j_session,
         DESCRIBE_SQL_DATABASES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -563,6 +564,7 @@ def test_load_sql_databases_relationships(neo4j_session):
     cosmosdb._load_sql_databases(
         neo4j_session,
         DESCRIBE_SQL_DATABASES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -593,6 +595,7 @@ def test_load_cassandra_keyspaces(neo4j_session):
     cosmosdb._load_cassandra_keyspaces(
         neo4j_session,
         DESCRIBE_CASSANDRA_KEYSPACES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -623,6 +626,7 @@ def test_load_cassandra_keyspaces_relationships(neo4j_session):
     cosmosdb._load_cassandra_keyspaces(
         neo4j_session,
         DESCRIBE_CASSANDRA_KEYSPACES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -653,6 +657,7 @@ def test_load_mongodb_databases(neo4j_session):
     cosmosdb._load_mongodb_databases(
         neo4j_session,
         DESCRIBE_MONGODB_DATABASES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -683,6 +688,7 @@ def test_load_mongodb_databases_relationships(neo4j_session):
     cosmosdb._load_mongodb_databases(
         neo4j_session,
         DESCRIBE_MONGODB_DATABASES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -713,6 +719,7 @@ def test_load_table_resources(neo4j_session):
     cosmosdb._load_table_resources(
         neo4j_session,
         DESCRIBE_TABLE_RESOURCES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -743,6 +750,7 @@ def test_load_table_resources_relationships(neo4j_session):
     cosmosdb._load_table_resources(
         neo4j_session,
         DESCRIBE_TABLE_RESOURCES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -773,6 +781,7 @@ def test_load_sql_containers(neo4j_session):
     cosmosdb._load_sql_containers(
         neo4j_session,
         DESCRIBE_SQL_CONTAINERS,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -796,12 +805,14 @@ def test_load_sql_containers_relationships(neo4j_session):
     cosmosdb._load_sql_databases(
         neo4j_session,
         DESCRIBE_SQL_DATABASES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
     cosmosdb._load_sql_containers(
         neo4j_session,
         DESCRIBE_SQL_DATABASES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -832,6 +843,7 @@ def test_load_cassandra_tables(neo4j_session):
     cosmosdb._load_cassandra_tables(
         neo4j_session,
         DESCRIBE_CASSANDRA_TABLES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -855,12 +867,14 @@ def test_load_cassandra_tables_relationships(neo4j_session):
     cosmosdb._load_cassandra_keyspaces(
         neo4j_session,
         DESCRIBE_CASSANDRA_KEYSPACES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
     cosmosdb._load_cassandra_tables(
         neo4j_session,
         DESCRIBE_CASSANDRA_TABLES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -891,6 +905,7 @@ def test_load_collections(neo4j_session):
     cosmosdb._load_collections(
         neo4j_session,
         DESCRIBE_MONGODB_COLLECTIONS,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -914,12 +929,14 @@ def test_load_collections_relationships(neo4j_session):
     cosmosdb._load_mongodb_databases(
         neo4j_session,
         DESCRIBE_MONGODB_DATABASES,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 
     cosmosdb._load_collections(
         neo4j_session,
         DESCRIBE_MONGODB_COLLECTIONS,
+        TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
     )
 

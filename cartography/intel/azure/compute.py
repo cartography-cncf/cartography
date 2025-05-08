@@ -15,7 +15,6 @@ from cartography.models.azure.vm.disk import AzureDiskSchema
 from cartography.models.azure.vm.snapshot import AzureSnapshotSchema
 from cartography.models.azure.vm.datadisk import AzureDataDiskSchema
 
-
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
