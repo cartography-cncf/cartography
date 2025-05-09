@@ -115,7 +115,7 @@ def load_accounts(
 
 
 @timeit
-def sync_account(
+def sync_accounts(
     neo4j_session: neo4j.Session,
     api_url: str,
     api_token: str,
