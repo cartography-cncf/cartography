@@ -1,5 +1,4 @@
 import logging
-import re
 from typing import TypedDict
 
 import neo4j
@@ -21,24 +20,37 @@ class S1Account(TypedDict):
     state: str
 
 
-def _camel_to_snake(name: str) -> str:
+def _transform_accounts(accounts_data: list[dict]) -> list[S1Account]:
     """
-    Convert a camelCase string to snake_case
-    :param name: The camelCase string
-    :return: The snake_case string
+    Transform raw account data into standardized S1Account format
+    :param accounts_data: Raw account data from API
+    :return: List of transformed S1Account objects
     """
-    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+    transformed_accounts_data: list[S1Account] = []
+    for account in accounts_data:
+        transformed_account: S1Account = {
+            'id': account.get('id', ''),
+            'account_type': account.get('accountType', ''),
+            'active_agents': account.get('activeAgents'),
+            'created_at': account.get('createdAt', ''),
+            'expiration': account.get('expiration', ''),
+            'name': account.get('name', ''),
+            'number_of_sites': account.get('numberOfSites'),
+            'state': account.get('state', ''),
+        }
+        transformed_accounts_data.append(transformed_account)
+
+    return transformed_accounts_data
 
 
 @timeit
-def fetch_accounts(api_url: str, api_token: str, account_ids: list[str] | None = None) -> list[S1Account]:
+def _fetch_accounts(api_url: str, api_token: str, account_ids: list[str] | None = None) -> list[dict]:
     """
     Get account data from SentinelOne API
     :param api_url: The SentinelOne API URL
     :param api_token: The SentinelOne API token
     :param account_ids: Optional list of account IDs to filter for
-    :return: Account data
+    :return: Raw account data from API
     """
     logger.info("Retrieving SentinelOne account data")
 
@@ -56,55 +68,50 @@ def fetch_accounts(api_url: str, api_token: str, account_ids: list[str] | None =
         accounts_data = [account for account in accounts_data if account.get('id') in account_ids]
         logger.info(f"Filtered accounts data to {len(accounts_data)} matching accounts")
 
-    # Transform camelCase keys to snake_case
-    transformed_accounts_data: list[S1Account] = []
-    for account in accounts_data:
-        snake_case_account = {_camel_to_snake(key): value for key, value in account.items()}
-        transformed_account: S1Account = {
-            'id': snake_case_account.get('id', ''),
-            'account_type': snake_case_account.get('account_type', ''),
-            'active_agents': snake_case_account.get('active_agents'),
-            'created_at': snake_case_account.get('created_at', ''),
-            'expiration': snake_case_account.get('expiration', ''),
-            'name': snake_case_account.get('name', ''),
-            'number_of_sites': snake_case_account.get('number_of_sites'),
-            'state': snake_case_account.get('state', ''),
-        }
-        transformed_accounts_data.append(transformed_account)
-
-    if transformed_accounts_data:
-        logger.info(f"Retrieved SentinelOne account data: {len(transformed_accounts_data)} accounts")
+    if accounts_data:
+        logger.info(f"Retrieved SentinelOne account data: {len(accounts_data)} accounts")
     else:
         logger.warning("No SentinelOne accounts retrieved")
 
-    return transformed_accounts_data
+    return accounts_data
 
 
 @timeit
-def ensure_account_node(
+def load_accounts(
     neo4j_session: neo4j.Session,
-    account_data: S1Account,
+    accounts_data: list[S1Account],
     update_tag: int,
 ) -> None:
+    """
+    Create or update S1Account nodes in Neo4j for multiple accounts
+    :param neo4j_session: Neo4j session
+    :param accounts_data: List of account data to process
+    :param update_tag: Update tag
+    """
+    if not accounts_data:
+        logger.warning("No account data provided to ensure_account_nodes")
+        return
+
     query = """
-    MERGE (account:S1Account {id: $id})
-    ON CREATE SET account.firstseen = timestamp()
-    SET account.name = $name,
-        account.account_type = $account_type,
-        account.active_agents = $active_agents,
-        account.created_at = $created_at,
-        account.expiration = $expiration,
-        account.number_of_sites = $number_of_sites,
-        account.state = $state,
-        account.lastupdated = $update_tag
+    UNWIND $accounts as account
+    MERGE (a:S1Account {id: account.id})
+    ON CREATE SET a.firstseen = timestamp()
+    SET a.name = account.name,
+        a.account_type = account.account_type,
+        a.active_agents = account.active_agents,
+        a.created_at = account.created_at,
+        a.expiration = account.expiration,
+        a.number_of_sites = account.number_of_sites,
+        a.state = account.state,
+        a.lastupdated = $update_tag
     """
     neo4j_session.run(
         query,
+        accounts=accounts_data,
         update_tag=update_tag,
-        **account_data,
     )
 
-    logger.info(f"Created or updated SentinelOne account node with ID: {account_data.get('id')}")
+    logger.info(f"Created or updated {len(accounts_data)} SentinelOne account nodes")
 
 
 @timeit
@@ -124,20 +131,9 @@ def sync_account(
     :param account_ids: Optional list of account IDs to filter for
     :return: List of synced account IDs
     """
-    s1_accounts = fetch_accounts(api_url, api_token, account_ids)
-    synced_account_ids = []
-    for account in s1_accounts:
-        account_id = account.get('id')
-        if not account_id:
-            logger.warning("Encountered account without ID, skipping")
-            continue
-
-        ensure_account_node(neo4j_session, account, update_tag)
-        synced_account_ids.append(account_id)
-
-    if not synced_account_ids:
-        logger.warning("No accounts were synced from SentinelOne API")
-    else:
-        logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
-
+    accounts_raw_data = _fetch_accounts(api_url, api_token, account_ids)
+    s1_accounts = _transform_accounts(accounts_raw_data)
+    load_accounts(neo4j_session, s1_accounts, update_tag)
+    synced_account_ids = [account['id'] for account in s1_accounts]
+    logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
     return synced_account_ids
