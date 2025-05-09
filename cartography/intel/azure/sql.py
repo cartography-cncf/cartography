@@ -4,6 +4,7 @@ from typing import Dict
 from typing import Generator
 from typing import List
 from typing import Tuple
+from typing import Iterable
 
 import neo4j
 from azure.core.exceptions import ClientAuthenticationError
@@ -14,7 +15,6 @@ from azure.mgmt.sql.models import SecurityAlertPolicyName
 from azure.mgmt.sql.models import TransparentDataEncryptionName
 from msrestazure.azure_exceptions import CloudError
 
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -99,86 +99,6 @@ def load_server_data(
 
 
 @timeit
-def transform_server_details(
-    details: Generator[Any, Any, Any],
-) -> Dict[str, Dict[str, Any]]:
-    """
-    Transform the server details into a dictionary.
-    """
-    details_per_server: Dict[str, Dict[str, Any]] = {}
-    for (
-        server_id,
-        name,
-        rg,
-        dns_alias,
-        ad_admin,
-        r_database,
-        rd_database,
-        fg,
-        elastic_pool,
-        database,
-    ) in details:
-        if server_id not in details_per_server:
-            details_per_server[server_id] = {
-                "server_id": server_id,
-                "server_name": name,
-                "dns_aliases": [],
-                "ad_admins": [],
-                "recoverable_databases": [],
-                "restorable_dropped_databases": [],
-                "failover_groups": [],
-                "elastic_pools": [],
-                "databases": [],
-            }
-        if len(dns_alias) > 0:
-            for alias in dns_alias:
-                alias["server_name"] = name
-                alias["server_id"] = server_id
-                details_per_server[server_id]["dns_aliases"].append(alias)
-
-        if len(ad_admin) > 0:
-            for admin in ad_admin:
-                admin["server_name"] = name
-                admin["server_id"] = server_id
-                details_per_server[server_id]["ad_admins"].append(admin)
-
-        if len(r_database) > 0:
-            for rdb in r_database:
-                rdb["server_name"] = name
-                rdb["server_id"] = server_id
-                details_per_server[server_id]["recoverable_databases"].append(rdb)
-
-        if len(rd_database) > 0:
-            for rddb in rd_database:
-                rddb["server_name"] = name
-                rddb["server_id"] = server_id
-                details_per_server[server_id]["restorable_dropped_databases"].append(
-                    rddb
-                )
-
-        if len(fg) > 0:
-            for group in fg:
-                group["server_name"] = name
-                group["server_id"] = server_id
-                details_per_server[server_id]["failover_groups"].append(group)
-
-        if len(elastic_pool) > 0:
-            for pool in elastic_pool:
-                pool["server_name"] = name
-                pool["server_id"] = server_id
-                details_per_server[server_id]["elastic_pools"].append(pool)
-
-        if len(database) > 0:
-            for db in database:
-                db["server_name"] = name
-                db["server_id"] = server_id
-                db["resource_group_name"] = rg
-                details_per_server[server_id]["databases"].append(db)
-
-    return details_per_server
-
-
-@timeit
 def sync_server_details(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -187,12 +107,7 @@ def sync_server_details(
     sync_tag: int,
 ) -> None:
     details = get_server_details(credentials, subscription_id, server_list)
-    details_per_server: Dict[str, Dict[str, Any]] = transform_server_details(
-        details,
-    )
-    load_server_details(
-        neo4j_session, credentials, subscription_id, details_per_server, sync_tag
-    )
+    load_server_details(neo4j_session, credentials, subscription_id, details, sync_tag)
 
 
 @timeit
@@ -481,48 +396,84 @@ def load_server_details(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
     subscription_id: str,
-    details: Dict[str, Dict[str, Any]],
+    details: Iterable[Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any]],
     update_tag: int,
 ) -> None:
     dns_aliases = []
     ad_admins = []
+    recoverable_databases = []
+    restorable_dropped_databases = []
+    failover_groups = []
+    elastic_pools = []
     databases = []
 
-    for server_id, resources in details.items():
-        # Some resources need to have a query per server due to the sub_resource relationship
-        # query builder requires the server_id to be passed as a kwarg
-        # We build a full list of resources for further requests (details) that does not require the server_id
-        dns_aliases.extend(resources["dns_aliases"])
-        ad_admins.extend(resources["ad_admins"])
-        databases.extend(resources["databases"])
+    for (
+        server_id,
+        name,
+        rg,
+        dns_alias,
+        ad_admin,
+        r_database,
+        rd_database,
+        fg,
+        elastic_pool,
+        database,
+    ) in details:
+        if len(dns_alias) > 0:
+            for alias in dns_alias:
+                alias["server_name"] = name
+                alias["server_id"] = server_id
+                dns_aliases.append(alias)
 
-        if len(resources["elastic_pools"]) > 0:
-            _load_elastic_pools(
-                neo4j_session, resources["elastic_pools"], server_id, update_tag
-            )
-        if len(resources["failover_groups"]) > 0:
-            _load_failover_groups(
-                neo4j_session, resources["failover_groups"], server_id, update_tag
-            )
-        if len(resources["databases"]) > 0:
-            _load_databases(
-                neo4j_session, resources["databases"], server_id, update_tag
-            )
-        if len(resources["recoverable_databases"]) > 0:
-            _load_recoverable_databases(
-                neo4j_session,
-                resources["recoverable_databases"],
-                server_id,
-                update_tag,
-            )
-        if len(resources["restorable_dropped_databases"]) > 0:
-            _load_restorable_dropped_databases(
-                neo4j_session,
-                resources["restorable_dropped_databases"],
-                server_id,
-                update_tag,
-            )
+        if len(ad_admin) > 0:
+            for admin in ad_admin:
+                admin["server_name"] = name
+                admin["server_id"] = server_id
+                ad_admins.append(admin)
 
+        if len(r_database) > 0:
+            for rdb in r_database:
+                rdb["server_name"] = name
+                rdb["server_id"] = server_id
+                recoverable_databases.append(rdb)
+
+        if len(rd_database) > 0:
+            for rddb in rd_database:
+                rddb["server_name"] = name
+                rddb["server_id"] = server_id
+                restorable_dropped_databases.append(rddb)
+
+        if len(fg) > 0:
+            for group in fg:
+                group["server_name"] = name
+                group["server_id"] = server_id
+                failover_groups.append(group)
+
+        if len(elastic_pool) > 0:
+            for pool in elastic_pool:
+                pool["server_name"] = name
+                pool["server_id"] = server_id
+                elastic_pools.append(pool)
+
+        if len(database) > 0:
+            for db in database:
+                db["server_name"] = name
+                db["server_id"] = server_id
+                db["resource_group_name"] = rg
+                databases.append(db)
+
+    _load_elastic_pools(neo4j_session, elastic_pools, subscription_id, update_tag)
+    _load_failover_groups(neo4j_session, failover_groups, subscription_id, update_tag)
+    _load_databases(neo4j_session, databases, subscription_id, update_tag)
+    _load_recoverable_databases(
+        neo4j_session, recoverable_databases, subscription_id, update_tag
+    )
+    _load_restorable_dropped_databases(
+        neo4j_session,
+        restorable_dropped_databases,
+        subscription_id,
+        update_tag,
+    )
     _load_server_dns_aliases(neo4j_session, dns_aliases, subscription_id, update_tag)
     _load_server_ad_admins(neo4j_session, ad_admins, subscription_id, update_tag)
 
@@ -577,7 +528,7 @@ def _load_server_ad_admins(
 def _load_recoverable_databases(
     neo4j_session: neo4j.Session,
     recoverable_databases: List[Dict],
-    server_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -588,7 +539,7 @@ def _load_recoverable_databases(
         AzureRecoverableDatabaseSchema(),
         recoverable_databases,
         lastupdated=update_tag,
-        SERVER_ID=server_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -596,7 +547,7 @@ def _load_recoverable_databases(
 def _load_restorable_dropped_databases(
     neo4j_session: neo4j.Session,
     restorable_dropped_databases: List[Dict],
-    server_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -607,7 +558,7 @@ def _load_restorable_dropped_databases(
         AzureRestorableDroppedDatabaseSchema(),
         restorable_dropped_databases,
         lastupdated=update_tag,
-        SERVER_ID=server_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -615,7 +566,7 @@ def _load_restorable_dropped_databases(
 def _load_failover_groups(
     neo4j_session: neo4j.Session,
     failover_groups: List[Dict],
-    server_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -626,7 +577,7 @@ def _load_failover_groups(
         AzureFailoverGroupSchema(),
         failover_groups,
         lastupdated=update_tag,
-        SERVER_ID=server_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -634,7 +585,7 @@ def _load_failover_groups(
 def _load_elastic_pools(
     neo4j_session: neo4j.Session,
     elastic_pools: List[Dict],
-    server_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -645,7 +596,7 @@ def _load_elastic_pools(
         AzureElasticPoolSchema(),
         elastic_pools,
         lastupdated=update_tag,
-        SERVER_ID=server_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -653,7 +604,7 @@ def _load_elastic_pools(
 def _load_databases(
     neo4j_session: neo4j.Session,
     databases: List[Dict],
-    server_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -664,7 +615,7 @@ def _load_databases(
         AzureSQLDatabaseSchema(),
         databases,
         lastupdated=update_tag,
-        SERVER_ID=server_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -988,38 +939,19 @@ def cleanup_azure_sql_servers(
     server_list: List[Dict],
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "azure_sql_server_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
-    GraphJob.from_node_schema(AzureSQLServerSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
-    # For resources linked to SQL servers, we need to run the cleanup job for each of them
-    # to remove the relationships to the SQL server
-    for server in server_list:
-        server_id = server["id"]
-        for node in [
-            AzureSQLDatabaseSchema,
-            AzureElasticPoolSchema,
-            AzureFailoverGroupSchema,
-            AzureRecoverableDatabaseSchema,
-            AzureRestorableDroppedDatabaseSchema,
-        ]:
-            scopped_job_parameters = common_job_parameters.copy()
-            scopped_job_parameters["SERVER_ID"] = server_id
-            GraphJob.from_node_schema(node(), scopped_job_parameters).run(
-                neo4j_session,
-            )
-
     for node in [
+        AzureSQLServerSchema,
         AzureServerDNSAliasSchema,
         AzureServerADAdministratorSchema,
         AzureReplicationLinkSchema,
         AzureRestorePointSchema,
         AzureTransparentDataEncryptionSchema,
         AzureDatabaseThreatDetectionPolicySchema,
+        AzureSQLDatabaseSchema,
+        AzureElasticPoolSchema,
+        AzureFailoverGroupSchema,
+        AzureRecoverableDatabaseSchema,
+        AzureRestorableDroppedDatabaseSchema,
     ]:
         GraphJob.from_node_schema(node(), common_job_parameters).run(
             neo4j_session,

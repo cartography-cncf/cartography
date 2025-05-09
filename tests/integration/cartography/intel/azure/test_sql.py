@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 from cartography.intel.azure import sql
 from tests.data.azure.sql import DESCRIBE_AD_ADMINS
 from tests.data.azure.sql import DESCRIBE_DATABASES
@@ -19,19 +17,6 @@ TEST_RESOURCE_GROUP = "TestRG"
 TEST_UPDATE_TAG = 123456789
 server1 = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Sql/servers/testSQL1"
 server2 = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Sql/servers/testSQL2"
-
-
-# This helper function is a ugly workaround to split the resources by server_id
-# This is needed since the migration to the new schema
-# sub_resource_relationship need to have the target field set in the kwargs
-def _split_by_server_id(resources: List[Dict]) -> Dict[str, List[Dict]]:
-    results: Dict[str, List[Dict]] = {}
-    for resource in resources:
-        server_id = resource["server_id"]
-        if server_id not in results:
-            results[server_id] = []
-        results[server_id].append(resource)
-    return results
 
 
 def test_load_servers(neo4j_session):
@@ -226,15 +211,12 @@ def test_load_server_ad_admins_relationships(neo4j_session):
 
 
 def test_load_recoverable_databases(neo4j_session):
-    for server_id, resources in _split_by_server_id(
+    sql._load_recoverable_databases(
+        neo4j_session,
         DESCRIBE_RECOVERABLE_DATABASES,
-    ).items():
-        sql._load_recoverable_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected_nodes = {
         server1 + "/recoverabledatabases/RD1",
@@ -261,15 +243,12 @@ def test_load_recoverable_databases_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    for server_id, resources in _split_by_server_id(
+    sql._load_recoverable_databases(
+        neo4j_session,
         DESCRIBE_RECOVERABLE_DATABASES,
-    ).items():
-        sql._load_recoverable_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected = {
         (
@@ -285,7 +264,7 @@ def test_load_recoverable_databases_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:AzureSQLServer)-[:RESOURCE]->(n2:AzureRecoverableDatabase) RETURN n1.id, n2.id;
+        MATCH (n1:AzureSQLServer)-[:CONTAINS]->(n2:AzureRecoverableDatabase) RETURN n1.id, n2.id;
         """,
     )
 
@@ -295,15 +274,12 @@ def test_load_recoverable_databases_relationships(neo4j_session):
 
 
 def test_load_restorable_dropped_databases(neo4j_session):
-    for server_id, resources in _split_by_server_id(
+    sql._load_restorable_dropped_databases(
+        neo4j_session,
         DESCRIBE_RESTORABLE_DROPPED_DATABASES,
-    ).items():
-        sql._load_restorable_dropped_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
     expected_nodes = {
         server1 + "/restorableDroppedDatabases/RDD1,001",
         server2 + "/restorableDroppedDatabases/RDD2,002",
@@ -329,15 +305,12 @@ def test_load_restorable_dropped_databases_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    for server_id, resources in _split_by_server_id(
+    sql._load_restorable_dropped_databases(
+        neo4j_session,
         DESCRIBE_RESTORABLE_DROPPED_DATABASES,
-    ).items():
-        sql._load_restorable_dropped_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected = {
         (
@@ -353,7 +326,7 @@ def test_load_restorable_dropped_databases_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:AzureSQLServer)-[:RESOURCE]->(n2:AzureRestorableDroppedDatabase) RETURN n1.id, n2.id;
+        MATCH (n1:AzureSQLServer)-[:CONTAINS]->(n2:AzureRestorableDroppedDatabase) RETURN n1.id, n2.id;
         """,
     )
 
@@ -363,15 +336,12 @@ def test_load_restorable_dropped_databases_relationships(neo4j_session):
 
 
 def test_load_failover_groups(neo4j_session):
-    for server_id, resources in _split_by_server_id(
+    sql._load_failover_groups(
+        neo4j_session,
         DESCRIBE_FAILOVER_GROUPS,
-    ).items():
-        sql._load_failover_groups(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected_nodes = {
         server1 + "/failoverGroups/FG1",
@@ -398,15 +368,12 @@ def test_load_failover_groups_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    for server_id, resources in _split_by_server_id(
+    sql._load_failover_groups(
+        neo4j_session,
         DESCRIBE_FAILOVER_GROUPS,
-    ).items():
-        sql._load_failover_groups(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
     expected = {
         (
             server1,
@@ -421,7 +388,7 @@ def test_load_failover_groups_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:AzureSQLServer)-[:RESOURCE]->(n2:AzureFailoverGroup) RETURN n1.id, n2.id;
+        MATCH (n1:AzureSQLServer)-[:CONTAINS]->(n2:AzureFailoverGroup) RETURN n1.id, n2.id;
         """,
     )
 
@@ -431,15 +398,12 @@ def test_load_failover_groups_relationships(neo4j_session):
 
 
 def test_load_elastic_pools(neo4j_session):
-    for server_id, resources in _split_by_server_id(
+    sql._load_elastic_pools(
+        neo4j_session,
         DESCRIBE_ELASTIC_POOLS,
-    ).items():
-        sql._load_elastic_pools(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected_nodes = {
         server1 + "/elasticPools/EP1",
@@ -466,15 +430,12 @@ def test_load_elastic_pools_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    for server_id, resources in _split_by_server_id(
+    sql._load_elastic_pools(
+        neo4j_session,
         DESCRIBE_ELASTIC_POOLS,
-    ).items():
-        sql._load_elastic_pools(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected = {
         (
@@ -490,7 +451,7 @@ def test_load_elastic_pools_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:AzureSQLServer)-[:RESOURCE]->(n2:AzureElasticPool) RETURN n1.id, n2.id;
+        MATCH (n1:AzureSQLServer)-[:CONTAINS]->(n2:AzureElasticPool) RETURN n1.id, n2.id;
         """,
     )
 
@@ -500,15 +461,12 @@ def test_load_elastic_pools_relationships(neo4j_session):
 
 
 def test_load_databases(neo4j_session):
-    for server_id, resources in _split_by_server_id(
+    sql._load_databases(
+        neo4j_session,
         DESCRIBE_DATABASES,
-    ).items():
-        sql._load_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected_nodes = {
         server1 + "/databases/testdb1",
@@ -534,15 +492,12 @@ def test_load_databases_relationships(neo4j_session):
         DESCRIBE_SERVERS,
         TEST_UPDATE_TAG,
     )
-    for server_id, resources in _split_by_server_id(
+    sql._load_databases(
+        neo4j_session,
         DESCRIBE_DATABASES,
-    ).items():
-        sql._load_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected = {
         (
@@ -558,7 +513,7 @@ def test_load_databases_relationships(neo4j_session):
     # Fetch relationships
     result = neo4j_session.run(
         """
-        MATCH (n1:AzureSQLServer)-[:RESOURCE]->(n2:AzureSQLDatabase) RETURN n1.id, n2.id;
+        MATCH (n1:AzureSQLServer)-[:CONTAINS]->(n2:AzureSQLDatabase) RETURN n1.id, n2.id;
         """,
     )
 
@@ -593,15 +548,12 @@ def test_load_replication_links(neo4j_session):
 
 def test_load_replication_links_relationships(neo4j_session):
     # Create Test Azure Database
-    for server_id, resources in _split_by_server_id(
+    sql._load_databases(
+        neo4j_session,
         DESCRIBE_DATABASES,
-    ).items():
-        sql._load_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     sql._load_replication_links(
         neo4j_session,
@@ -659,15 +611,12 @@ def test_load_db_threat_detection_policies(neo4j_session):
 
 def test_load_db_threat_detection_policies_relationships(neo4j_session):
     # Create Test Azure Database
-    for server_id, resources in _split_by_server_id(
+    sql._load_databases(
+        neo4j_session,
         DESCRIBE_DATABASES,
-    ).items():
-        sql._load_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
     sql._load_db_threat_detection_policies(
         neo4j_session,
         DESCRIBE_THREAT_DETECTION_POLICY,
@@ -724,15 +673,12 @@ def test_load_restore_points(neo4j_session):
 
 def test_load_restore_points_relationships(neo4j_session):
     # Create Test Azure Database
-    for server_id, resources in _split_by_server_id(
+    sql._load_databases(
+        neo4j_session,
         DESCRIBE_DATABASES,
-    ).items():
-        sql._load_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     sql._load_restore_points(
         neo4j_session,
@@ -790,15 +736,12 @@ def test_load_transparent_data_encryptions(neo4j_session):
 
 def test_load_transparent_data_encryptions_relationships(neo4j_session):
     # Create Test Azure Database
-    for server_id, resources in _split_by_server_id(
+    sql._load_databases(
+        neo4j_session,
         DESCRIBE_DATABASES,
-    ).items():
-        sql._load_databases(
-            neo4j_session,
-            resources,
-            server_id,
-            TEST_UPDATE_TAG,
-        )
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
 
     sql._load_transparent_data_encryptions(
         neo4j_session,

@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.core.relationships import OtherRelationships
 
 
 @dataclass(frozen=True)
@@ -30,16 +31,35 @@ class AzureElasticPoolToSQLServerProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:RESOURCE]->(:AzureElasticPool)
+# (:AzureSQLServer)-[:CONTAINS]->(:AzureElasticPool)
 class AzureElasticPoolToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("SERVER_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("server_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CONTAINS"
+    properties: AzureElasticPoolToSQLServerProperties = (
+        AzureElasticPoolToSQLServerProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzureElasticPoolToSubscriptionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:AzureSubscription)-[:RESOURCE]->(:AzureElasticPool)
+class AzureElasticPoolToSubscriptionRel(CartographyRelSchema):
+    target_node_label: str = "AzureSubscription"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureElasticPoolToSQLServerProperties = (
-        AzureElasticPoolToSQLServerProperties()
+    properties: AzureElasticPoolToSubscriptionRelProperties = (
+        AzureElasticPoolToSubscriptionRelProperties()
     )
 
 
@@ -47,6 +67,11 @@ class AzureElasticPoolToSQLServerRel(CartographyRelSchema):
 class AzureElasticPoolSchema(CartographyNodeSchema):
     label: str = "AzureElasticPool"
     properties: AzureElasticPoolProperties = AzureElasticPoolProperties()
-    sub_resource_relationship: AzureElasticPoolToSQLServerRel = (
-        AzureElasticPoolToSQLServerRel()
+    sub_resource_relationship: AzureElasticPoolToSubscriptionRel = (
+        AzureElasticPoolToSubscriptionRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AzureElasticPoolToSQLServerRel(),
+        ]
     )

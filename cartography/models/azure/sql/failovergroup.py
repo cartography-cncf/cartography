@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.core.relationships import OtherRelationships
 
 
 @dataclass(frozen=True)
@@ -26,16 +27,35 @@ class AzureFailoverGroupToSQLServerProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:RESOURCE]->(:AzureFailoverGroup)
+# (:AzureSQLServer)-[:CONTAINS]->(:AzureFailoverGroup)
 class AzureFailoverGroupToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("SERVER_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("server_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CONTAINS"
+    properties: AzureFailoverGroupToSQLServerProperties = (
+        AzureFailoverGroupToSQLServerProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzureFailoverGroupToSubscriptionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:AzureSubscription)-[:RESOURCE]->(:AzureFailoverGroup)
+class AzureFailoverGroupToSubscriptionRel(CartographyRelSchema):
+    target_node_label: str = "AzureSubscription"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureFailoverGroupToSQLServerProperties = (
-        AzureFailoverGroupToSQLServerProperties()
+    properties: AzureFailoverGroupToSubscriptionRelProperties = (
+        AzureFailoverGroupToSubscriptionRelProperties()
     )
 
 
@@ -43,6 +63,11 @@ class AzureFailoverGroupToSQLServerRel(CartographyRelSchema):
 class AzureFailoverGroupSchema(CartographyNodeSchema):
     label: str = "AzureFailoverGroup"
     properties: AzureFailoverGroupProperties = AzureFailoverGroupProperties()
-    sub_resource_relationship: AzureFailoverGroupToSQLServerRel = (
-        AzureFailoverGroupToSQLServerRel()
+    sub_resource_relationship: AzureFailoverGroupToSubscriptionRel = (
+        AzureFailoverGroupToSubscriptionRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AzureFailoverGroupToSQLServerRel(),
+        ]
     )

@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.core.relationships import OtherRelationships
 
 
 @dataclass(frozen=True)
@@ -36,16 +37,35 @@ class AzureSQLDatabaseToSQLServerProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:RESOURCE]->(:AzureSQLDatabase)
+# (:AzureSQLServer)-[:CONTAINS]->(:AzureSQLDatabase)
 class AzureSQLDatabaseToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("SERVER_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("server_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CONTAINS"
+    properties: AzureSQLDatabaseToSQLServerProperties = (
+        AzureSQLDatabaseToSQLServerProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzureSQLDatabaseToSubscriptionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:AzureSubscription)-[:RESOURCE]->(:AzureSQLDatabase)
+class AzureSQLDatabaseToSubscriptionRel(CartographyRelSchema):
+    target_node_label: str = "AzureSubscription"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureSQLDatabaseToSQLServerProperties = (
-        AzureSQLDatabaseToSQLServerProperties()
+    properties: AzureSQLDatabaseToSubscriptionRelProperties = (
+        AzureSQLDatabaseToSubscriptionRelProperties()
     )
 
 
@@ -53,6 +73,11 @@ class AzureSQLDatabaseToSQLServerRel(CartographyRelSchema):
 class AzureSQLDatabaseSchema(CartographyNodeSchema):
     label: str = "AzureSQLDatabase"
     properties: AzureSQLDatabaseProperties = AzureSQLDatabaseProperties()
-    sub_resource_relationship: AzureSQLDatabaseToSQLServerRel = (
-        AzureSQLDatabaseToSQLServerRel()
+    sub_resource_relationship: AzureSQLDatabaseToSubscriptionRel = (
+        AzureSQLDatabaseToSubscriptionRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AzureSQLDatabaseToSQLServerRel(),
+        ]
     )
