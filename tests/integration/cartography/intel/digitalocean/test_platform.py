@@ -4,7 +4,6 @@ import cartography.intel.digitalocean.platform
 import tests.data.digitalocean.platform
 from tests.integration.util import check_nodes
 
-
 TEST_UPDATE_TAG = 123456789
 
 
