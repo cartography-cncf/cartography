@@ -12,7 +12,6 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -1134,10 +1133,26 @@ def cleanup_azure_database_accounts(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "azure_database_account_cleanup.json",
+    GraphJob.from_node_schema(AzureCosmosDBAccountSchema(), common_job_parameters).run(
         neo4j_session,
-        common_job_parameters,
+    )
+    GraphJob.from_node_schema(AzureCosmosDBLocationSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(
+        AzureCosmosDBCorsPolicySchema(), common_job_parameters
+    ).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(
+        AzureCosmosDBVirtualNetworkRuleSchema(), common_job_parameters
+    ).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(
+        AzureCDBPrivateEndpointConnectionSchema(), common_job_parameters
+    ).run(
+        neo4j_session,
     )
 
 
@@ -1146,10 +1161,15 @@ def cleanup_sql_database_details(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "azure_cosmosdb_sql_database_cleanup.json",
+    GraphJob.from_node_schema(
+        AzureCosmosDBSqlContainerSchema(), common_job_parameters
+    ).run(
         neo4j_session,
-        common_job_parameters,
+    )
+    GraphJob.from_node_schema(
+        AzureCosmosDBSqlDatabaseSchema(), common_job_parameters
+    ).run(
+        neo4j_session,
     )
 
 
@@ -1158,10 +1178,15 @@ def cleanup_cassandra_keyspace_details(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "azure_cosmosdb_cassandra_keyspace_cleanup.json",
+    GraphJob.from_node_schema(
+        AzureCosmosDBCassandraTableSchema(), common_job_parameters
+    ).run(
         neo4j_session,
-        common_job_parameters,
+    )
+    GraphJob.from_node_schema(
+        AzureCosmosDBCassandraKeyspaceSchema(), common_job_parameters
+    ).run(
+        neo4j_session,
     )
 
 
@@ -1170,10 +1195,15 @@ def cleanup_mongodb_database_details(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "azure_cosmosdb_mongodb_database_cleanup.json",
+    GraphJob.from_node_schema(
+        AzureCosmosDBMongoDBCollectionSchema(), common_job_parameters
+    ).run(
         neo4j_session,
-        common_job_parameters,
+    )
+    GraphJob.from_node_schema(
+        AzureCosmosDBMongoDBDatabaseSchema(), common_job_parameters
+    ).run(
+        neo4j_session,
     )
 
 
@@ -1182,10 +1212,10 @@ def cleanup_table_resources(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "azure_cosmosdb_table_resources_cleanup.json",
+    GraphJob.from_node_schema(
+        AzureCosmosDBTableResourceSchema(), common_job_parameters
+    ).run(
         neo4j_session,
-        common_job_parameters,
     )
 
 
