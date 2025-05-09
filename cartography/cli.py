@@ -709,6 +709,15 @@ class CLI:
                 "Required if you are using the Scaleway intel module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--sentinelone-account-ids",
+            type=str,
+            default=None,
+            help=(
+                "Comma-separated list of SentinelOne account IDs to sync. "
+                "If not specified, all accessible accounts will be synced."
+            ),
+        )
 
         return parser
 
@@ -1055,6 +1064,17 @@ class CLI:
             )
         else:
             config.scaleway_secret_key = None
+
+        # Parse SentinelOne account IDs if provided
+        if config.sentinelone_account_ids:
+            config.sentinelone_account_ids = [
+                id.strip() for id in config.sentinelone_account_ids.split(",")
+            ]
+            logger.debug(
+                f"Parsed {len(config.sentinelone_account_ids)} SentinelOne account IDs to sync"
+            )
+        else:
+            config.sentinelone_account_ids = None
 
         # Run cartography
         try:
