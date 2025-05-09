@@ -3,7 +3,7 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.sentinelone.account import sync_account
+from cartography.intel.sentinelone.account import sync_accounts
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
@@ -29,7 +29,7 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
     }
 
     # Sync SentinelOne account data (needs to be done first to establish the account node)
-    account_id = sync_account(
+    account_id = sync_accounts(
         neo4j_session,
         config.sentinelone_api_url,
         config.sentinelone_api_token,

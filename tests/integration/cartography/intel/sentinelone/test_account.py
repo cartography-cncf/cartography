@@ -1,4 +1,4 @@
-from cartography.intel.sentinelone.account import sync_account
+from cartography.intel.sentinelone.account import sync_accounts
 from tests.data.sentinelone.account import ACCOUNT_ID
 from tests.data.sentinelone.account import ACCOUNT_ID_2
 from tests.data.sentinelone.account import ACCOUNTS_DATA
@@ -19,7 +19,7 @@ def test_sync_account(neo4j_session, mocker):
         },
     )
     account_ids = [ACCOUNT_ID, ACCOUNT_ID_2]
-    synced_account_ids = sync_account(
+    synced_account_ids = sync_accounts(
         neo4j_session,
         'https://test-api.sentinelone.net',
         'test-api-token',
