@@ -50,9 +50,9 @@ jobs:
         timeout-minutes: 1
         run: (docker logs -f neo4j-4 & ) | grep -q Started
       - name: make test_unit
-        run: make test_unit
+        run: uv run make test_unit
       - name: make test_integration
-        run: make test_integration
+        run: uv run make test_integration
 
   unit-and-integration-tests-neo4j5:
     runs-on: ubuntu-latest
@@ -82,9 +82,9 @@ jobs:
         timeout-minutes: 1
         run: (docker logs -f neo4j-5 & ) | grep -q Started
       - name: make test_unit
-        run: make test_unit
+        run: uv run make test_unit
       - name: make test_integration
-        run: make test_integration
+        run: uv run make test_integration
 
   # Test that the docker image builds successfully on each commit
   build-docker-image:
