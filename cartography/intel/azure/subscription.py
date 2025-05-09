@@ -7,10 +7,10 @@ import neo4j
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.resource import SubscriptionClient
 
-from cartography.util import timeit
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.azure.subscription import AzureSubscriptionSchema
+from cartography.util import timeit
 
 from .util.credentials import Credentials
 

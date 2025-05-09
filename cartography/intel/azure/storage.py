@@ -11,30 +11,20 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.storage import StorageManagementClient
 
-from cartography.util import timeit
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.azure.storage.account import AzureStorageAccountSchema
-from cartography.models.azure.storage.blobservice import (
-    AzureStorageBlobServiceSchema,
-)
-from cartography.models.azure.storage.fileservice import (
-    AzureStorageFileServiceSchema,
-)
-from cartography.models.azure.storage.queueservice import (
-    AzureStorageQueueServiceSchema,
-)
-from cartography.models.azure.storage.tableservice import (
-    AzureStorageTableServiceSchema,
-)
-from cartography.models.azure.storage.fileshare import (
-    AzureStorageFileShareSchema,
-)
-from cartography.models.azure.storage.queue import AzureStorageQueueSchema
-from cartography.models.azure.storage.table import AzureStorageTableSchema
 from cartography.models.azure.storage.blobcontainer import (
     AzureStorageBlobContainerSchema,
 )
+from cartography.models.azure.storage.blobservice import AzureStorageBlobServiceSchema
+from cartography.models.azure.storage.fileservice import AzureStorageFileServiceSchema
+from cartography.models.azure.storage.fileshare import AzureStorageFileShareSchema
+from cartography.models.azure.storage.queue import AzureStorageQueueSchema
+from cartography.models.azure.storage.queueservice import AzureStorageQueueServiceSchema
+from cartography.models.azure.storage.table import AzureStorageTableSchema
+from cartography.models.azure.storage.tableservice import AzureStorageTableServiceSchema
+from cartography.util import timeit
 
 from .util.credentials import Credentials
 

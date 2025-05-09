@@ -3,11 +3,11 @@ from typing import Dict
 
 import neo4j
 
-from cartography.util import timeit
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.azure.tenant import AzureTenantSchema
 from cartography.models.azure.principal import AzurePrincipalSchema
+from cartography.models.azure.tenant import AzureTenantSchema
+from cartography.util import timeit
 
 from .util.credentials import Credentials
 

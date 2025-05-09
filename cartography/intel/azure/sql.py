@@ -2,9 +2,9 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import Generator
+from typing import Iterable
 from typing import List
 from typing import Tuple
-from typing import Iterable
 
 import neo4j
 from azure.core.exceptions import ClientAuthenticationError
@@ -15,31 +15,31 @@ from azure.mgmt.sql.models import SecurityAlertPolicyName
 from azure.mgmt.sql.models import TransparentDataEncryptionName
 from msrestazure.azure_exceptions import CloudError
 
-from cartography.util import timeit
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.azure.sql.sqlserver import AzureSQLServerSchema
 from cartography.models.azure.sql.databasethreatdetectionpolicy import (
     AzureDatabaseThreatDetectionPolicySchema,
 )
+from cartography.models.azure.sql.elasticpool import AzureElasticPoolSchema
+from cartography.models.azure.sql.failovergroup import AzureFailoverGroupSchema
 from cartography.models.azure.sql.recoverabledatabase import (
     AzureRecoverableDatabaseSchema,
 )
+from cartography.models.azure.sql.replicationlink import AzureReplicationLinkSchema
 from cartography.models.azure.sql.restorabledroppeddatabase import (
     AzureRestorableDroppedDatabaseSchema,
 )
-from cartography.models.azure.sql.elasticpool import AzureElasticPoolSchema
-from cartography.models.azure.sql.sqldatabase import AzureSQLDatabaseSchema
-from cartography.models.azure.sql.failovergroup import AzureFailoverGroupSchema
-from cartography.models.azure.sql.serverdnsalias import AzureServerDNSAliasSchema
+from cartography.models.azure.sql.restorepoint import AzureRestorePointSchema
 from cartography.models.azure.sql.serveradadministrator import (
     AzureServerADAdministratorSchema,
 )
-from cartography.models.azure.sql.replicationlink import AzureReplicationLinkSchema
-from cartography.models.azure.sql.restorepoint import AzureRestorePointSchema
+from cartography.models.azure.sql.serverdnsalias import AzureServerDNSAliasSchema
+from cartography.models.azure.sql.sqldatabase import AzureSQLDatabaseSchema
+from cartography.models.azure.sql.sqlserver import AzureSQLServerSchema
 from cartography.models.azure.sql.transparentdataencryption import (
     AzureTransparentDataEncryptionSchema,
 )
+from cartography.util import timeit
 
 from .util.credentials import Credentials
 

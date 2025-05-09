@@ -12,41 +12,40 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
-from cartography.util import timeit
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.azure.cosmosdb.account import AzureCosmosDBAccountSchema
-from cartography.models.azure.cosmosdb.corspolicy import AzureCosmosDBCorsPolicySchema
 from cartography.models.azure.cosmosdb.accountfailoverpolicy import (
     AzureCosmosDBAccountFailoverPolicySchema,
-)
-from cartography.models.azure.cosmosdb.privateendpointconnection import (
-    AzureCDBPrivateEndpointConnectionSchema,
-)
-from cartography.models.azure.cosmosdb.virtualnetworkrule import (
-    AzureCosmosDBVirtualNetworkRuleSchema,
-)
-from cartography.models.azure.cosmosdb.sqlcontainer import (
-    AzureCosmosDBSqlContainerSchema,
-)
-from cartography.models.azure.cosmosdb.cassandratable import (
-    AzureCosmosDBCassandraTableSchema,
 )
 from cartography.models.azure.cosmosdb.cassandrakeyspace import (
     AzureCosmosDBCassandraKeyspaceSchema,
 )
-from cartography.models.azure.cosmosdb.sqldatabase import AzureCosmosDBSqlDatabaseSchema
-from cartography.models.azure.cosmosdb.mongodbdatabase import (
-    AzureCosmosDBMongoDBDatabaseSchema,
+from cartography.models.azure.cosmosdb.cassandratable import (
+    AzureCosmosDBCassandraTableSchema,
 )
+from cartography.models.azure.cosmosdb.corspolicy import AzureCosmosDBCorsPolicySchema
+from cartography.models.azure.cosmosdb.dblocation import AzureCosmosDBLocationSchema
 from cartography.models.azure.cosmosdb.mongodbcollection import (
     AzureCosmosDBMongoDBCollectionSchema,
 )
+from cartography.models.azure.cosmosdb.mongodbdatabase import (
+    AzureCosmosDBMongoDBDatabaseSchema,
+)
+from cartography.models.azure.cosmosdb.privateendpointconnection import (
+    AzureCDBPrivateEndpointConnectionSchema,
+)
+from cartography.models.azure.cosmosdb.sqlcontainer import (
+    AzureCosmosDBSqlContainerSchema,
+)
+from cartography.models.azure.cosmosdb.sqldatabase import AzureCosmosDBSqlDatabaseSchema
 from cartography.models.azure.cosmosdb.tableresource import (
     AzureCosmosDBTableResourceSchema,
 )
-from cartography.models.azure.cosmosdb.dblocation import AzureCosmosDBLocationSchema
-
+from cartography.models.azure.cosmosdb.virtualnetworkrule import (
+    AzureCosmosDBVirtualNetworkRuleSchema,
+)
+from cartography.util import timeit
 
 from .util.credentials import Credentials
 
