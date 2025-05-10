@@ -4,6 +4,7 @@ import logging
 import neo4j
 
 from cartography.config import Config
+from cartography.intel.entra.ou import sync_entra_ous
 from cartography.intel.entra.users import sync_entra_users
 from cartography.util import timeit
 
@@ -19,10 +20,14 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     :return: None
     """
 
-    if not config.entra_tenant_id or not config.entra_client_id or not config.entra_client_secret:
+    if (
+        not config.entra_tenant_id
+        or not config.entra_client_id
+        or not config.entra_client_secret
+    ):
         logger.info(
-            'Entra import is not configured - skipping this module. '
-            'See docs to configure.',
+            "Entra import is not configured - skipping this module. "
+            "See docs to configure.",
         )
         return
 
@@ -31,13 +36,26 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "TENANT_ID": config.entra_tenant_id,
     }
 
-    asyncio.run(
-        sync_entra_users(
+    async def main() -> None:
+        # Run user sync
+        await sync_entra_users(
             neo4j_session,
             config.entra_tenant_id,
             config.entra_client_id,
             config.entra_client_secret,
             config.update_tag,
             common_job_parameters,
-        ),
-    )
+        )
+
+        # Run OU sync
+        await sync_entra_ous(
+            neo4j_session,
+            config.entra_tenant_id,
+            config.entra_client_id,
+            config.entra_client_secret,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+    # Execute both syncs in sequence
+    asyncio.run(main())

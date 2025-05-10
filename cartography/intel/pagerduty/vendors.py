@@ -30,7 +30,9 @@ def get_vendors(pd_session: APISession) -> List[Dict[str, Any]]:
 
 
 def load_vendor_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load vendor information

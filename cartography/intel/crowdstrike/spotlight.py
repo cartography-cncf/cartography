@@ -25,7 +25,9 @@ def sync_vulnerabilities(
 
 
 def load_vulnerability_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load scan information
@@ -111,7 +113,9 @@ def _load_cves(neo4j_session: neo4j.Session, data: List[Dict], update_tag: int) 
     )
 
 
-def get_spotlight_vulnerability_ids(client: Spotlight_Vulnerabilities) -> List[List[str]]:
+def get_spotlight_vulnerability_ids(
+    client: Spotlight_Vulnerabilities,
+) -> List[List[str]]:
     ids = []
     parameters = {"filter": 'status:!"closed"', "limit": 400}
     response = client.queryVulnerabilities(parameters=parameters)
@@ -135,7 +139,8 @@ def get_spotlight_vulnerability_ids(client: Spotlight_Vulnerabilities) -> List[L
 
 
 def get_spotlight_vulnerabilities(
-    client: Spotlight_Vulnerabilities, ids: List[str],
+    client: Spotlight_Vulnerabilities,
+    ids: List[str],
 ) -> List[Dict]:
     response = client.getVulnerabilities(ids=",".join(ids))
     body = response.get("body", {})

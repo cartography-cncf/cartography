@@ -1,9 +1,8 @@
 import cartography.intel.aws.sqs
 import tests.data.aws.sqs
 
-
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -12,7 +11,13 @@ def test_load_sqs_queues(neo4j_session, *args):
     Ensure that expected queues get loaded with their key fields.
     """
     data = tests.data.aws.sqs.GET_SQS_QUEUE_ATTRIBUTES
-    cartography.intel.aws.sqs.load_sqs_queues(neo4j_session, data, TEST_REGION, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.sqs.load_sqs_queues(
+        neo4j_session,
+        data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected_nodes = {
         (
@@ -47,14 +52,14 @@ def test_load_sqs_queues(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['q.name'],
-            n['q.id'],
-            n['q.arn'],
-            n['q.created_timestamp'],
-            n['q.last_modified_timestamp'],
-            n['q.redrive_policy_dead_letter_target_arn'],
-            n['q.redrive_policy_max_receive_count'],
-            n['q.visibility_timeout'],
+            n["q.name"],
+            n["q.id"],
+            n["q.arn"],
+            n["q.created_timestamp"],
+            n["q.last_modified_timestamp"],
+            n["q.redrive_policy_dead_letter_target_arn"],
+            n["q.redrive_policy_max_receive_count"],
+            n["q.visibility_timeout"],
         )
         for n in nodes
     }
@@ -74,8 +79,8 @@ def test_load_sqs_queues(neo4j_session, *args):
     )
     actual_relationship = {
         (
-            r['q1.name'],
-            r['q2.name'],
+            r["q1.name"],
+            r["q2.name"],
         )
         for r in relation
     }

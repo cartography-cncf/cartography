@@ -1,16 +1,21 @@
 import cartography.intel.aws.ecs
 import tests.data.aws.ecs
 
-
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
-CLUSTER_ARN = 'arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster'
+CLUSTER_ARN = "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster"
 
 
 def test_load_ecs_clusters(neo4j_session, *args):
     data = tests.data.aws.ecs.GET_ECS_CLUSTERS
-    cartography.intel.aws.ecs.load_ecs_clusters(neo4j_session, data, TEST_REGION, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ecs.load_ecs_clusters(
+        neo4j_session,
+        data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
 
     expected_nodes = {
         (
@@ -28,9 +33,9 @@ def test_load_ecs_clusters(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.status'],
+            n["n.id"],
+            n["n.name"],
+            n["n.status"],
         )
         for n in nodes
     }
@@ -72,10 +77,10 @@ def test_load_ecs_container_instances(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.ec2_instance_id'],
-            n['n.status'],
-            n['n.version'],
+            n["n.id"],
+            n["n.ec2_instance_id"],
+            n["n.status"],
+            n["n.version"],
         )
         for n in nodes
     }
@@ -127,11 +132,11 @@ def test_load_ecs_services(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.cluster_arn'],
-            n['n.status'],
-            n['n.created_at'],
+            n["n.id"],
+            n["n.name"],
+            n["n.cluster_arn"],
+            n["n.status"],
+            n["n.created_at"],
         )
         for n in nodes
     }
@@ -176,11 +181,11 @@ def test_load_ecs_tasks(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.task_definition_arn'],
-            n['n.cluster_arn'],
-            n['n.group'],
-            n['n.created_at'],
+            n["n.id"],
+            n["n.task_definition_arn"],
+            n["n.cluster_arn"],
+            n["n.group"],
+            n["n.created_at"],
         )
         for n in nodes
     }
@@ -203,10 +208,10 @@ def test_load_ecs_tasks(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.image'],
-            n['n.image_digest'],
+            n["n.id"],
+            n["n.name"],
+            n["n.image"],
+            n["n.image_digest"],
         )
         for n in nodes
     }
@@ -250,11 +255,11 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.family'],
-            n['n.status'],
-            n['n.revision'],
-            n['n.registered_at'],
+            n["n.id"],
+            n["n.family"],
+            n["n.status"],
+            n["n.revision"],
+            n["n.registered_at"],
         )
         for n in nodes
     }
@@ -276,9 +281,9 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.image'],
+            n["n.id"],
+            n["n.name"],
+            n["n.image"],
         )
         for n in nodes
     }

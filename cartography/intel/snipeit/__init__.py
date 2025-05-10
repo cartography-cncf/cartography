@@ -14,7 +14,11 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 def start_snipeit_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
-    if config.snipeit_base_uri is None or config.snipeit_token is None or config.snipeit_tenant_id is None:
+    if (
+        config.snipeit_base_uri is None
+        or config.snipeit_token is None
+        or config.snipeit_tenant_id is None
+    ):
         logger.warning(
             "Required parameter(s) missing. Skipping sync.",
         )
@@ -26,5 +30,15 @@ def start_snipeit_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
     }
 
     # Ingest SnipeIT users and assets
-    user.sync(neo4j_session, common_job_parameters, config.snipeit_base_uri, config.snipeit_token)
-    asset.sync(neo4j_session, common_job_parameters, config.snipeit_base_uri, config.snipeit_token)
+    user.sync(
+        neo4j_session,
+        common_job_parameters,
+        config.snipeit_base_uri,
+        config.snipeit_token,
+    )
+    asset.sync(
+        neo4j_session,
+        common_job_parameters,
+        config.snipeit_base_uri,
+        config.snipeit_token,
+    )

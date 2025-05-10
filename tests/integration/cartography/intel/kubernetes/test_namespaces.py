@@ -2,7 +2,6 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from tests.data.kubernetes.namespaces import GET_CLUSTER_DATA
 from tests.data.kubernetes.namespaces import GET_NAMESPACES_DATA
 
-
 TEST_UPDATE_TAG = 123456789
 
 

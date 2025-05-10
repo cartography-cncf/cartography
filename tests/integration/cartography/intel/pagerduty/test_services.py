@@ -20,7 +20,7 @@ def test_load_service_data(neo4j_session):
         MATCH (n:PagerDutyService) RETURN n.id;
         """,
     )
-    actual_nodes = {n['n.id'] for n in nodes}
+    actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == expected_nodes
 
 
@@ -40,5 +40,5 @@ def test_load_integration_data(neo4j_session):
         MATCH (n:PagerDutyIntegration) RETURN n.id;
         """,
     )
-    actual_nodes = {n['n.id'] for n in nodes}
+    actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == expected_nodes

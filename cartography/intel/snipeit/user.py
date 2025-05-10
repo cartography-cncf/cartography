@@ -5,12 +5,13 @@ from typing import List
 
 import neo4j
 
-from .util import call_snipeit_api
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.snipeit.tenant import SnipeitTenantSchema
 from cartography.models.snipeit.user import SnipeitUserSchema
 from cartography.util import timeit
+
+from .util import call_snipeit_api
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +24,9 @@ def get(base_uri: str, token: str) -> List[Dict]:
         offset = len(results)
         api_endpoint = f"{api_endpoint}?order='asc'&offset={offset}"
         response = call_snipeit_api(api_endpoint, base_uri, token)
-        results.extend(response['rows'])
+        results.extend(response["rows"])
 
-        total = response['total']
+        total = response["total"]
         results_count = len(results)
         if results_count >= total:
             break
@@ -45,7 +46,7 @@ def load_users(
     load(
         neo4j_session,
         SnipeitTenantSchema(),
-        [{'id': common_job_parameters["TENANT_ID"]}],
+        [{"id": common_job_parameters["TENANT_ID"]}],
         lastupdated=common_job_parameters["UPDATE_TAG"],
     )
 
@@ -60,7 +61,9 @@ def load_users(
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    GraphJob.from_node_schema(SnipeitUserSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(SnipeitUserSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
 
 
 @timeit

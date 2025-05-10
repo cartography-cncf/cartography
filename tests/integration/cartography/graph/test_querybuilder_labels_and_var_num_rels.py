@@ -1,12 +1,26 @@
 from cartography.client.core.tx import load_graph_data
 from cartography.graph.querybuilder import build_ingestion_query
-from tests.data.graph.querybuilder.sample_data.helloworld_relationships import INTERESTING_NODE_WITH_ALL_RELS
-from tests.data.graph.querybuilder.sample_data.helloworld_relationships import MERGE_HELLO_ASSET_QUERY
-from tests.data.graph.querybuilder.sample_data.helloworld_relationships import MERGE_SUB_RESOURCE_QUERY
-from tests.data.graph.querybuilder.sample_data.helloworld_relationships import MERGE_WORLD_ASSET_QUERY
-from tests.data.graph.querybuilder.sample_models.interesting_asset import InterestingAssetSchema
-from tests.data.graph.querybuilder.sample_models.interesting_asset import InterestingAssetToSubResourceRel
-from tests.data.graph.querybuilder.sample_models.interesting_asset import InterestingAssetToWorldAssetRel
+from tests.data.graph.querybuilder.sample_data.helloworld_relationships import (
+    INTERESTING_NODE_WITH_ALL_RELS,
+)
+from tests.data.graph.querybuilder.sample_data.helloworld_relationships import (
+    MERGE_HELLO_ASSET_QUERY,
+)
+from tests.data.graph.querybuilder.sample_data.helloworld_relationships import (
+    MERGE_SUB_RESOURCE_QUERY,
+)
+from tests.data.graph.querybuilder.sample_data.helloworld_relationships import (
+    MERGE_WORLD_ASSET_QUERY,
+)
+from tests.data.graph.querybuilder.sample_models.interesting_asset import (
+    InterestingAssetSchema,
+)
+from tests.data.graph.querybuilder.sample_models.interesting_asset import (
+    InterestingAssetToSubResourceRel,
+)
+from tests.data.graph.querybuilder.sample_models.interesting_asset import (
+    InterestingAssetToWorldAssetRel,
+)
 
 
 def test_load_graph_data_extra_node_labels_and_no_relationships(neo4j_session):
@@ -17,7 +31,10 @@ def test_load_graph_data_extra_node_labels_and_no_relationships(neo4j_session):
       `selected_relationships` parameter.
     """
     # Act: specify the empty set as selected_relationships to build_ingestion_query().
-    query = build_ingestion_query(InterestingAssetSchema(), selected_relationships=set())
+    query = build_ingestion_query(
+        InterestingAssetSchema(),
+        selected_relationships=set(),
+    )
 
     # Act: call `load_graph_data()` without specifying `sub_resource` or any other kwargs that were present on
     # InterestingAsset's attached RelSchema.
@@ -29,13 +46,13 @@ def test_load_graph_data_extra_node_labels_and_no_relationships(neo4j_session):
     )
 
     # Assert that the labels exist
-    expected = {'AnotherNodeLabel', 'InterestingAsset', 'YetAnotherNodeLabel'}
+    expected = {"AnotherNodeLabel", "InterestingAsset", "YetAnotherNodeLabel"}
     result = neo4j_session.run(
         """
         MATCH (n1:InterestingAsset) RETURN labels(n1) AS labels;
         """,
     )
-    actual = {label for label in result.data()[0]['labels']}
+    actual = {label for label in result.data()[0]["labels"]}
     assert actual == expected
 
 
@@ -61,17 +78,17 @@ def test_load_graph_data_with_sub_rel_selected(neo4j_session):
         query,
         INTERESTING_NODE_WITH_ALL_RELS,
         lastupdated=1,
-        sub_resource_id='sub-resource-id',
+        sub_resource_id="sub-resource-id",
     )
 
     # Assert that the InterestingAsset to SubResource relationship exists.
-    expected = {('interesting-node-id', 'sub-resource-id')}
+    expected = {("interesting-node-id", "sub-resource-id")}
     result = neo4j_session.run(
         """
         MATCH (n1:InterestingAsset)<-[:RELATIONSHIP_LABEL]-(n2:SubResource) RETURN n1.id, n2.id;
         """,
     )
-    actual = {(r['n1.id'], r['n2.id']) for r in result}
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
     assert actual == expected
 
 
@@ -100,13 +117,13 @@ def test_load_graph_data_with_worldasset_rel_selected(neo4j_session):
     )
 
     # Assert that the InterestingAsset to WorldAsset relationship exists
-    expected = {('interesting-node-id', 'the-worldasset-id-1')}
+    expected = {("interesting-node-id", "the-worldasset-id-1")}
     result = neo4j_session.run(
         """
         MATCH (n1:InterestingAsset)<-[:CONNECTED]-(n2:WorldAsset) RETURN n1.id, n2.id;
         """,
     )
-    actual = {(r['n1.id'], r['n2.id']) for r in result}
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
     assert actual == expected
 
 
@@ -134,27 +151,27 @@ def test_load_graph_data_with_sub_resource_and_worldasset_rel_selected(neo4j_ses
         query,
         INTERESTING_NODE_WITH_ALL_RELS,
         lastupdated=1,
-        sub_resource_id='sub-resource-id',
+        sub_resource_id="sub-resource-id",
     )
 
     # Assert that the InterestingAsset to WorldAsset relationship exists
-    expected = {('interesting-node-id', 'the-worldasset-id-1')}
+    expected = {("interesting-node-id", "the-worldasset-id-1")}
     result = neo4j_session.run(
         """
         MATCH (n1:InterestingAsset)<-[:CONNECTED]-(n2:WorldAsset) RETURN n1.id, n2.id;
         """,
     )
-    actual = {(r['n1.id'], r['n2.id']) for r in result}
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
     assert actual == expected
 
     # Assert that the InterestingAsset to SubResource relationship exists.
-    expected = {('interesting-node-id', 'sub-resource-id')}
+    expected = {("interesting-node-id", "sub-resource-id")}
     result = neo4j_session.run(
         """
         MATCH (n1:InterestingAsset)<-[:RELATIONSHIP_LABEL]-(n2:SubResource) RETURN n1.id, n2.id;
         """,
     )
-    actual = {(r['n1.id'], r['n2.id']) for r in result}
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
     assert actual == expected
 
     # Assert that the InterestingAsset to Hello relationships does NOT exist.
@@ -164,5 +181,5 @@ def test_load_graph_data_with_sub_resource_and_worldasset_rel_selected(neo4j_ses
         MATCH (n1:InterestingAsset)-[:ASSOCIATED_WITH]->(n2:HelloAsset) RETURN n1.id, n2.id;
         """,
     )
-    actual = {(r['n1.id'], r['n2.id']) for r in result}
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
     assert actual == expected

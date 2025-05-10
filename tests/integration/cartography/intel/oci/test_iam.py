@@ -3,14 +3,15 @@ import tests.data.oci.iam
 from cartography.intel.oci import iam
 from cartography.intel.oci import utils
 
-
-TEST_TENANCY_ID = "ocid1.user.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0"
-TEST_REGION = 'us-phoenix-1'
+TEST_TENANCY_ID = (
+    "ocid1.user.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0"
+)
+TEST_REGION = "us-phoenix-1"
 TEST_UPDATE_TAG = 123456789
 
 
 def test_load_users(neo4j_session):
-    data = tests.data.oci.iam.LIST_USERS['Users']
+    data = tests.data.oci.iam.LIST_USERS["Users"]
 
     iam.load_users(
         neo4j_session,
@@ -21,7 +22,7 @@ def test_load_users(neo4j_session):
 
 
 def test_load_groups(neo4j_session):
-    data = tests.data.oci.iam.LIST_GROUPS['Groups']
+    data = tests.data.oci.iam.LIST_GROUPS["Groups"]
 
     iam.load_groups(
         neo4j_session,
@@ -32,7 +33,7 @@ def test_load_groups(neo4j_session):
 
 
 def test_load_policies(neo4j_session):
-    data = tests.data.oci.iam.LIST_POLICIES['Policies']
+    data = tests.data.oci.iam.LIST_POLICIES["Policies"]
 
     iam.load_policies(
         neo4j_session,
@@ -43,7 +44,7 @@ def test_load_policies(neo4j_session):
 
 
 def test_load_compartments(neo4j_session):
-    data = tests.data.oci.iam.LIST_COMPARTMENTS['Compartments']
+    data = tests.data.oci.iam.LIST_COMPARTMENTS["Compartments"]
 
     iam.load_compartments(
         neo4j_session,

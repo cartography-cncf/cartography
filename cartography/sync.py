@@ -1,7 +1,9 @@
 import argparse
 import logging
+import re
 import time
 from collections import OrderedDict
+from pkgutil import iter_modules
 from typing import Callable
 from typing import List
 from typing import Tuple
@@ -39,28 +41,30 @@ from cartography.util import STATUS_SUCCESS
 logger = logging.getLogger(__name__)
 
 
-TOP_LEVEL_MODULES = OrderedDict({  # preserve order so that the default sync always runs `analysis` at the very end
-    'create-indexes': cartography.intel.create_indexes.run,
-    'aws': cartography.intel.aws.start_aws_ingestion,
-    'azure': cartography.intel.azure.start_azure_ingestion,
-    'entra': cartography.intel.entra.start_entra_ingestion,
-    'crowdstrike': cartography.intel.crowdstrike.start_crowdstrike_ingestion,
-    'gcp': cartography.intel.gcp.start_gcp_ingestion,
-    'gsuite': cartography.intel.gsuite.start_gsuite_ingestion,
-    'cve': cartography.intel.cve.start_cve_ingestion,
-    'oci': cartography.intel.oci.start_oci_ingestion,
-    'okta': cartography.intel.okta.start_okta_ingestion,
-    'github': cartography.intel.github.start_github_ingestion,
-    'digitalocean': cartography.intel.digitalocean.start_digitalocean_ingestion,
-    'kandji': cartography.intel.kandji.start_kandji_ingestion,
-    'kubernetes': cartography.intel.kubernetes.start_k8s_ingestion,
-    'lastpass': cartography.intel.lastpass.start_lastpass_ingestion,
-    'bigfix': cartography.intel.bigfix.start_bigfix_ingestion,
-    'duo': cartography.intel.duo.start_duo_ingestion,
-    'semgrep': cartography.intel.semgrep.start_semgrep_ingestion,
-    'snipeit': cartography.intel.snipeit.start_snipeit_ingestion,
-    'analysis': cartography.intel.analysis.run,
-})
+TOP_LEVEL_MODULES = OrderedDict(
+    {  # preserve order so that the default sync always runs `analysis` at the very end
+        "create-indexes": cartography.intel.create_indexes.run,
+        "aws": cartography.intel.aws.start_aws_ingestion,
+        "azure": cartography.intel.azure.start_azure_ingestion,
+        "entra": cartography.intel.entra.start_entra_ingestion,
+        "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
+        "gcp": cartography.intel.gcp.start_gcp_ingestion,
+        "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
+        "cve": cartography.intel.cve.start_cve_ingestion,
+        "oci": cartography.intel.oci.start_oci_ingestion,
+        "okta": cartography.intel.okta.start_okta_ingestion,
+        "github": cartography.intel.github.start_github_ingestion,
+        "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
+        "kandji": cartography.intel.kandji.start_kandji_ingestion,
+        "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
+        "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
+        "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
+        "duo": cartography.intel.duo.start_duo_ingestion,
+        "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
+        "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
+        "analysis": cartography.intel.analysis.run,
+    }
+)
 
 
 class Sync:
@@ -98,7 +102,11 @@ class Sync:
         for name, func in stages:
             self.add_stage(name, func)
 
-    def run(self, neo4j_driver: neo4j.Driver, config: Union[Config, argparse.Namespace]) -> int:
+    def run(
+        self,
+        neo4j_driver: neo4j.Driver,
+        config: Union[Config, argparse.Namespace],
+    ) -> int:
         """
         Execute all stages in the sync task in sequence.
 
@@ -117,11 +125,76 @@ class Sync:
                     logger.warning("Sync interrupted during stage '%s'.", stage_name)
                     raise
                 except Exception:
-                    logger.exception("Unhandled exception during sync stage '%s'", stage_name)
+                    logger.exception(
+                        "Unhandled exception during sync stage '%s'",
+                        stage_name,
+                    )
                     raise  # TODO this should be configurable
                 logger.info("Finishing sync stage '%s'", stage_name)
         logger.info("Finishing sync with update tag '%d'", config.update_tag)
         return STATUS_SUCCESS
+
+    @classmethod
+    def list_intel_modules(cls) -> OrderedDict:
+        """
+        List all available intel modules.
+
+        This method will load all modules in the cartography.intel package and return a dictionary of their names and
+        their callable functions. The keys of the dictionary are the module names, and the values are the callable
+        functions (with `start_{module}_ingestion` pattern) that should be executed during the sync process.
+        analysis and create_indexes are loaded separately to ensure they are always available and run first
+        (for create-index) and last (for analysis).
+
+        :rtype: OrderedDict
+        :return: A dictionary of available intel modules.
+        """
+        available_modules = OrderedDict({})
+        available_modules["create-indexes"] = cartography.intel.create_indexes.run
+        callable_regex = re.compile(r"^start_(.+)_ingestion$")
+        # Load built-in modules
+        for intel_module_info in iter_modules(cartography.intel.__path__):
+            if intel_module_info.name in ("analysis", "create_indexes"):
+                continue
+            try:
+                logger.debug("Loading module: %s", intel_module_info.name)
+                intel_module = __import__(
+                    f"cartography.intel.{intel_module_info.name}",
+                    fromlist=[""],
+                )
+            except ImportError as e:
+                logger.error(
+                    "Failed to import module '%s'. Error: %s",
+                    intel_module_info.name,
+                    e,
+                )
+                continue
+            logger.debug("Loading module: %s", intel_module_info.name)
+            intel_module = __import__(
+                f"cartography.intel.{intel_module_info.name}",
+                fromlist=[""],
+            )
+            for k, v in intel_module.__dict__.items():
+                if not callable(v):
+                    continue
+                match_callable_name = callable_regex.match(k)
+                if not match_callable_name:
+                    continue
+                callable_module_name = (
+                    match_callable_name.group(1) if match_callable_name else None
+                )
+                if callable_module_name != intel_module_info.name:
+                    logger.debug(
+                        "Module name '%s' does not match intel module name '%s'.",
+                        callable_module_name,
+                        intel_module_info.name,
+                    )
+                available_modules[intel_module_info.name] = v
+        available_modules["analysis"] = cartography.intel.analysis.run
+        return available_modules
+
+
+# Used to avoid repeatedly calling Sync.list_intel_modules()
+TOP_LEVEL_MODULES = Sync.list_intel_modules()
 
 
 def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:
@@ -201,9 +274,12 @@ def build_default_sync() -> Sync:
     :return: The default cartography sync object.
     """
     sync = Sync()
-    sync.add_stages([
-        (stage_name, stage_func) for stage_name, stage_func in TOP_LEVEL_MODULES.items()
-    ])
+    sync.add_stages(
+        [
+            (stage_name, stage_func)
+            for stage_name, stage_func in TOP_LEVEL_MODULES.items()
+        ],
+    )
     return sync
 
 
@@ -214,18 +290,18 @@ def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
     :return: A validated list of module names that we will run
     """
     validated_modules: List[str] = []
-    for module in selected_modules.split(','):
+    for module in selected_modules.split(","):
         module = module.strip()
 
         if module in TOP_LEVEL_MODULES.keys():
             validated_modules.append(module)
         else:
-            valid_modules = ', '.join(TOP_LEVEL_MODULES.keys())
+            valid_modules = ", ".join(TOP_LEVEL_MODULES.keys())
             raise ValueError(
                 f'Error parsing `selected_modules`. You specified "{selected_modules}". '
-                f'Please check that your string is formatted properly. '
+                f"Please check that your string is formatted properly. "
                 f'Example valid input looks like "aws,gcp,analysis" or "azure, oci, crowdstrike". '
-                f'Our full list of valid values is: {valid_modules}.',
+                f"Our full list of valid values is: {valid_modules}.",
             )
     return validated_modules
 

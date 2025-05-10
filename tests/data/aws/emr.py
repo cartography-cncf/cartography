@@ -23,7 +23,8 @@ DESCRIBE_CLUSTERS = [
         },
         "Name": "I am the walrus",
         "Id": clusterId1,
-        "ClusterArn": "arn:aws:elasticmapreduce:us-east-1:190000000000:cluster/" + clusterId1,
+        "ClusterArn": "arn:aws:elasticmapreduce:us-east-1:190000000000:cluster/"
+        + clusterId1,
         "ServiceRole": "EMR_DefaultRole",
         "Tags": [],
         "TerminationProtected": True,
@@ -115,7 +116,8 @@ DESCRIBE_CLUSTERS = [
         },
         "Name": "You're out of your element!",
         "Id": clusterId2,
-        "ClusterArn": "arn:aws:elasticmapreduce:us-east-1:190000000000:cluster/" + clusterId2,
+        "ClusterArn": "arn:aws:elasticmapreduce:us-east-1:190000000000:cluster/"
+        + clusterId2,
         "ServiceRole": "EMR_DefaultRole",
         "Tags": [],
         "TerminationProtected": True,

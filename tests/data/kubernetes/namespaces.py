@@ -1,6 +1,5 @@
 from uuid import uuid4
 
-
 GET_NAMESPACES_DATA = [
     {
         "uid": uuid4().hex,

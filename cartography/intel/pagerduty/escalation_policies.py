@@ -31,7 +31,9 @@ def get_escalation_policies(pd_session: APISession) -> List[Dict[str, Any]]:
 
 
 def load_escalation_policy_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load escalation_policy information
@@ -82,7 +84,9 @@ def load_escalation_policy_data(
 
 
 def _attach_rules(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add escalation policy rules, and attach them to targets.
@@ -122,7 +126,9 @@ def _attach_rules(
 
 
 def _attach_user_targets(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between escalation policy and services.
@@ -142,7 +148,9 @@ def _attach_user_targets(
 
 
 def _attach_schedule_targets(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between escalation policy and services.
@@ -162,7 +170,9 @@ def _attach_schedule_targets(
 
 
 def _attach_services(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between escalation policy and services.
@@ -182,7 +192,9 @@ def _attach_services(
 
 
 def _attach_teams(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between escalation policy and teams.

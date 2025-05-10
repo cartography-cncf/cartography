@@ -82,7 +82,7 @@ GET_CVE_API_DATA = {
                     },
                     {
                         "lang": "es",
-                        "value": "El complemento The Depicter Slider – Responsive Image Slider, Video Slider &amp; Post Slider para WordPress es vulnerable a Cross-Site Request Forgery en todas las versiones hasta la 2.0.6 incluida. Esto se debe a una validación nonce faltante o incorrecta en la función \"save\". Esto hace posible que atacantes no autenticados modifiquen la configuración del complemento mediante una solicitud falsificada, siempre que puedan engañar al administrador del sitio para que realice una acción como hacer clic en un enlace. CVE-2023-51491 parece ser un duplicado de este problema.",
+                        "value": 'El complemento The Depicter Slider – Responsive Image Slider, Video Slider &amp; Post Slider para WordPress es vulnerable a Cross-Site Request Forgery en todas las versiones hasta la 2.0.6 incluida. Esto se debe a una validación nonce faltante o incorrecta en la función "save". Esto hace posible que atacantes no autenticados modifiquen la configuración del complemento mediante una solicitud falsificada, siempre que puedan engañar al administrador del sitio para que realice una acción como hacer clic en un enlace. CVE-2023-51491 parece ser un duplicado de este problema.',
                     },
                 ],
                 "metrics": {

@@ -8,12 +8,12 @@ def test_factor_transform_with_all_values():
     result = transform_okta_user_factor(factor)
 
     expected = {
-        'id': factor.id,
-        'factor_type': factor.factorType,
-        'provider': factor.provider,
-        'status': factor.status,
-        'created': '01/01/2019, 00:00:01',
-        'okta_last_updated': '01/01/2019, 00:00:01',
+        "id": factor.id,
+        "factor_type": factor.factorType,
+        "provider": factor.provider,
+        "status": factor.status,
+        "created": "01/01/2019, 00:00:01",
+        "okta_last_updated": "01/01/2019, 00:00:01",
     }
 
     assert result == expected
@@ -26,12 +26,12 @@ def test_factor_transform_with_created_none():
     result = transform_okta_user_factor(factor)
 
     expected = {
-        'id': factor.id,
-        'factor_type': factor.factorType,
-        'provider': factor.provider,
-        'status': factor.status,
-        'created': None,
-        'okta_last_updated': '01/01/2019, 00:00:01',
+        "id": factor.id,
+        "factor_type": factor.factorType,
+        "provider": factor.provider,
+        "status": factor.status,
+        "created": None,
+        "okta_last_updated": "01/01/2019, 00:00:01",
     }
 
     assert result == expected
@@ -44,12 +44,12 @@ def test_factor_transform_with_lastupdated_none():
     result = transform_okta_user_factor(factor)
 
     expected = {
-        'id': factor.id,
-        'factor_type': factor.factorType,
-        'provider': factor.provider,
-        'status': factor.status,
-        'created': '01/01/2019, 00:00:01',
-        'okta_last_updated': None,
+        "id": factor.id,
+        "factor_type": factor.factorType,
+        "provider": factor.provider,
+        "status": factor.status,
+        "created": "01/01/2019, 00:00:01",
+        "okta_last_updated": None,
     }
 
     assert result == expected

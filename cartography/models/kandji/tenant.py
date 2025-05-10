@@ -7,11 +7,13 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 @dataclass(frozen=True)
 class KandjiTenantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class KandjiTenantSchema(CartographyNodeSchema):
-    label: str = 'KandjiTenant'  # The label of the node
-    properties: KandjiTenantNodeProperties = KandjiTenantNodeProperties()  # An object representing all properties
+    label: str = "KandjiTenant"  # The label of the node
+    properties: KandjiTenantNodeProperties = (
+        KandjiTenantNodeProperties()
+    )  # An object representing all properties
