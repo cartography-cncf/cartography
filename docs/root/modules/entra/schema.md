@@ -72,6 +72,21 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 |on_premises_sync_enabled | Whether on-premises directory sync is enabled|
 |on_premises_user_principal_name | User Principal Name in on-premises directory|
 
+### Human
+
+Entra use Human node as pivot with other Identity Providers (GSuite, GitHub ...)
+
+:::{hint}
+Refer to Common Schema for more information on Human nodes.
+:::
+
+#### Relationships
+
+- Human as an access to Entra
+    ```
+    (Human)-[IDENTITY_ENTRA]->(EntraUser)
+    ```
+
 ### EntraOU
 Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/administrativeunit-get?view=graph-rest-1.0&tabs=http).
 

@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.core.relationships import OtherRelationships
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,23 @@ class SnipeitTenantToSnipeitUserRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SnipeitUserToHumanRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SnipeitUser)<-[:IDENTITY_SNIPEIT]-(:Human)
+class SnipeitUserToHumanRel(CartographyRelSchema):
+    target_node_label: str = "Human"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("email")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "IDENTITY_SNIPEIT"
+    properties: SnipeitUserToHumanRelProperties = SnipeitUserToHumanRelProperties()
+
+
+@dataclass(frozen=True)
 class SnipeitUserSchema(CartographyNodeSchema):
     label: str = "SnipeitUser"  # The label of the node
     properties: SnipeitUserNodeProperties = (
@@ -53,4 +71,7 @@ class SnipeitUserSchema(CartographyNodeSchema):
     )  # An object representing all properties
     sub_resource_relationship: SnipeitTenantToSnipeitUserRel = (
         SnipeitTenantToSnipeitUserRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[SnipeitUserToHumanRel()],
     )
