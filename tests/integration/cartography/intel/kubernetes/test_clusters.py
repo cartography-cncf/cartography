@@ -4,7 +4,6 @@ from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.integration.util import check_nodes
 
-
 TEST_UPDATE_TAG = 123456789
 
 

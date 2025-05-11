@@ -1,6 +1,5 @@
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
 
-
 KUBERNETES_CLUSTER_1_NAMESPACE_IDS = [
     "6071ed5a-9143-49b2-9a13-5daa89b28f79",
     "facef6c5-5766-41c9-bed0-d8d5261b0b94",

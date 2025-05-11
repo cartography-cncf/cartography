@@ -2,9 +2,9 @@ import pytest
 
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.namespaces import load_namespaces
+from cartography.intel.kubernetes.pods import cleanup
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
-from cartography.intel.kubernetes.pods import cleanup
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
@@ -14,7 +14,6 @@ from tests.data.kubernetes.pods import KUBERNETES_CONTAINER_DATA
 from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
-
 
 TEST_UPDATE_TAG = 123456789
 

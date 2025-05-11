@@ -1,10 +1,9 @@
+import logging
 from datetime import datetime
 from typing import Any
 from typing import Callable
 from typing import List
 from typing import Optional
-
-import logging
 
 from kubernetes import config
 from kubernetes.client import ApiClient

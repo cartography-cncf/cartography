@@ -2,7 +2,6 @@ from uuid import uuid4
 
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 
-
 KUBERNETES_SECRETS_DATA = [
     {
         "uid": uuid4().hex,

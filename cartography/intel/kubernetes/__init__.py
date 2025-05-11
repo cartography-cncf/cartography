@@ -11,7 +11,6 @@ from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.util import get_k8s_clients
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

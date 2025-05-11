@@ -12,11 +12,10 @@ from kubernetes.client.models import V1Secret
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
-from cartography.intel.kubernetes.util import K8sClient
 from cartography.intel.kubernetes.util import k8s_paginate
+from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.secrets import KubernetesSecretSchema
 from cartography.util import timeit
-
 
 logger = logging.getLogger(__name__)
 

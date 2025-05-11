@@ -2,6 +2,7 @@ import pytest
 
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.namespaces import load_namespaces
+from cartography.intel.kubernetes.secrets import cleanup
 from cartography.intel.kubernetes.secrets import load_secrets
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
@@ -11,9 +12,6 @@ from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_2_NAMESPACES_DAT
 from tests.data.kubernetes.secrets import KUBERNETES_SECRETS_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
-
-from cartography.intel.kubernetes.secrets import cleanup
-
 
 TEST_UPDATE_TAG = 123456789
 
