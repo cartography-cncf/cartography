@@ -1,5 +1,3 @@
-import pytest
-
 from cartography.intel.trivy.scanner import _build_image_subcommand
 
 
@@ -83,3 +81,40 @@ def test_build_image_subcommand_all_options():
     assert "--list-all-pkgs" in result
     assert "--security-checks" in result
     assert security_checks in result
+
+
+def test_build_complete_trivy_command():
+    """Test building a complete, runnable Trivy command."""
+    # Example configuration
+    trivy_path = "/usr/local/bin/trivy"
+    image_uri = "amazon/aws-cli:latest"
+    policy_path = "/path/to/policy.yaml"
+
+    # Build the subcommand arguments
+    subcmd_args = _build_image_subcommand(
+        skip_update=True,
+        ignore_unfixed=True,
+        triage_filter_policy_file_path=policy_path,
+        os_findings_only=False,
+        list_all_pkgs=True,
+        security_checks="vuln",
+    )
+
+    # Construct the complete command
+    command = [trivy_path, "--quiet", "image"] + subcmd_args + [image_uri]
+    command_str = " ".join(command)
+
+    # Expected command format - hardcoded for clarity
+    expected = (
+        "/usr/local/bin/trivy --quiet image "
+        "--format json "
+        "--timeout 15m "
+        "--skip-update "
+        "--ignore-unfixed "
+        "--ignore-policy /path/to/policy.yaml "
+        "--list-all-pkgs "
+        "--security-checks vuln "
+        "amazon/aws-cli:latest"
+    )
+
+    assert command_str == expected
