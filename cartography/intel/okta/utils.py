@@ -43,9 +43,9 @@ def check_rate_limit(response: Response) -> None:
     """
     rate_limit_threshold = 0.1
 
-    remaining = response.headers.get('x-rate-limit-remaining')
-    limit = response.headers.get('x-rate-limit-limit')
-    reset_time = response.headers.get('x-rate-limit-reset')
+    remaining = response.headers.get("x-rate-limit-remaining")
+    limit = response.headers.get("x-rate-limit-limit")
+    reset_time = response.headers.get("x-rate-limit-reset")
 
     if remaining and limit and reset_time:
         if (int(remaining) / int(limit)) < rate_limit_threshold:
@@ -58,5 +58,7 @@ def check_rate_limit(response: Response) -> None:
                     f"Okta API limit exceeded. Sleep time of {sleep_time_seconds} would exceed one minute. Crashing "
                     f"Okta sync to avoid blocking.",
                 )
-            logger.warning(f"Okta rate limit threshold reached. Waiting {sleep_time_seconds} seconds.")
+            logger.warning(
+                f"Okta rate limit threshold reached. Waiting {sleep_time_seconds} seconds.",
+            )
             time.sleep(sleep_time_seconds)

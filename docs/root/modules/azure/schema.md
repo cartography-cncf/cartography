@@ -1,7 +1,5 @@
 ## Azure Schema
 
-.. _azure_schema:
-
 ### AzureTenant
 
 Representation of an [Azure Tenant](https://docs.microsoft.com/en-us/rest/api/resources/Tenants/List).

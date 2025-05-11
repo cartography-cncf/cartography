@@ -1,9 +1,8 @@
 import cartography.intel.aws.config
 import tests.data.aws.config
 
-
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -39,11 +38,11 @@ def test_load_configuration_recorders(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.recording_group_all_supported'],
-            n['n.recording_group_include_global_resource_types'],
-            n['n.region'],
+            n["n.id"],
+            n["n.name"],
+            n["n.recording_group_all_supported"],
+            n["n.recording_group_include_global_resource_types"],
+            n["n.region"],
         )
         for n in nodes
     }
@@ -80,10 +79,10 @@ def test_load_delivery_channels(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.s3_bucket_name'],
-            n['n.region'],
+            n["n.id"],
+            n["n.name"],
+            n["n.s3_bucket_name"],
+            n["n.region"],
         )
         for n in nodes
     }
@@ -111,7 +110,11 @@ def test_load_config_rules(neo4j_session, *args):
             "Test description",
             "AWS",
             "ALB_HTTP_DROP_INVALID_HEADER_ENABLED",
-            tuple(["{'EventSource': 'aws.config', 'MessageType': 'ConfigurationItemChangeNotification'}"]),
+            tuple(
+                [
+                    "{'EventSource': 'aws.config', 'MessageType': 'ConfigurationItemChangeNotification'}",
+                ],
+            ),
             "securityhub.amazonaws.com",
             "us-east-1",
         ),
@@ -126,15 +129,15 @@ def test_load_config_rules(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.arn'],
-            n['n.name'],
-            n['n.description'],
-            n['n.source_owner'],
-            n['n.source_identifier'],
-            tuple(n['n.source_details']),
-            n['n.created_by'],
-            n['n.region'],
+            n["n.id"],
+            n["n.arn"],
+            n["n.name"],
+            n["n.description"],
+            n["n.source_owner"],
+            n["n.source_identifier"],
+            tuple(n["n.source_details"]),
+            n["n.created_by"],
+            n["n.region"],
         )
         for n in nodes
     }

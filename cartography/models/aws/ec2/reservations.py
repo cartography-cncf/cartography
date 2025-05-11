@@ -12,32 +12,34 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class EC2ReservationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('ReservationId')
-    reservationid: PropertyRef = PropertyRef('ReservationId')
-    ownerid: PropertyRef = PropertyRef('OwnerId')
-    requesterid: PropertyRef = PropertyRef('RequesterId')
-    region: PropertyRef = PropertyRef('Region', set_in_kwargs=True)
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("ReservationId")
+    reservationid: PropertyRef = PropertyRef("ReservationId")
+    ownerid: PropertyRef = PropertyRef("OwnerId")
+    requesterid: PropertyRef = PropertyRef("RequesterId")
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class EC2ReservationToAwsAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class EC2ReservationToAWSAccount(CartographyRelSchema):
-    target_node_label: str = 'AWSAccount'
+    target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('AWS_ID', set_in_kwargs=True)},
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2ReservationToAwsAccountRelProperties = EC2ReservationToAwsAccountRelProperties()
+    properties: EC2ReservationToAwsAccountRelProperties = (
+        EC2ReservationToAwsAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class EC2ReservationSchema(CartographyNodeSchema):
-    label: str = 'EC2Reservation'
+    label: str = "EC2Reservation"
     properties: EC2ReservationNodeProperties = EC2ReservationNodeProperties()
     sub_resource_relationship: EC2ReservationToAWSAccount = EC2ReservationToAWSAccount()

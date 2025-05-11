@@ -1,0 +1,5 @@
+# This .gitignore is a placeholder so that we can store .cache/ in github.
+# We are including a pre-created .cache in Github so that when
+# we run docker-compose in WSL2 during dev linting, WSL2 does not attempt
+# to create .cache/ with root as the owner. The contents of .cache
+# should never be pushed back upstream to the main cartography repo.

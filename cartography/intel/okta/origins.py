@@ -61,7 +61,9 @@ def transform_trusted_origins(data: str) -> List[Dict]:
 
 @timeit
 def _load_trusted_origins(
-    neo4j_session: neo4j.Session, okta_org_id: str, trusted_list: List[Dict],
+    neo4j_session: neo4j.Session,
+    okta_org_id: str,
+    trusted_list: List[Dict],
     okta_update_tag: int,
 ) -> None:
     """
@@ -104,7 +106,9 @@ def _load_trusted_origins(
 
 @timeit
 def sync_trusted_origins(
-    neo4j_session: neo4j.Session, okta_org_id: str, okta_update_tag: int,
+    neo4j_session: neo4j.Session,
+    okta_org_id: str,
+    okta_update_tag: int,
     okta_api_key: str,
 ) -> None:
     """

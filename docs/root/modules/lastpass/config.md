@@ -1,7 +1,5 @@
 ## Lastpass Configuration
 
-.. _lastpass_config:
-
 Follow these steps to analyze Lastpass objects with Cartography.
 
 1. Prepare your Lastpass CID & ProvHash key.

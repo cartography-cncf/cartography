@@ -1,7 +1,5 @@
 ## Okta Schema
 
-.. _okta_schema:
-
 ### OktaOrganization
 
 Representation of an [Okta Organization](https://developer.okta.com/docs/concepts/okta-organizations/).
@@ -129,6 +127,10 @@ Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/
  - An OktaGroup can be a member of an OktaAdministrationRole
      ```
     (OktaGroup)-[MEMBER_OF_OKTA_ROLE]->(OktaAdministrationRole)
+    ```
+- Members of an Okta group can assume associated AWS roles if Okta SAML is configured with AWS.
+    ```
+    (AWSRole)-[ALLOWED_BY]->(OktaGroup)
     ```
 
 ### OktaApplication

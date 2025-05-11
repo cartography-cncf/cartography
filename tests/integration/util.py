@@ -8,14 +8,20 @@ from typing import Tuple
 import neo4j
 
 
-def check_nodes(neo4j_session: neo4j.Session, node_label: str, attrs: List[str]) -> Optional[Set[Tuple[Any, ...]]]:
+def check_nodes(
+    neo4j_session: neo4j.Session,
+    node_label: str,
+    attrs: List[str],
+) -> Optional[Set[Tuple[Any, ...]]]:
     """
     Helper function for checking nodes in cartography integration tests.
     Returns the result of a neo4j match query on the given node label and the given list of attributes as a set of
     tuples.
     """
     if not attrs:
-        raise ValueError("`attrs` passed to check_nodes() must have at least one element.")
+        raise ValueError(
+            "`attrs` passed to check_nodes() must have at least one element.",
+        )
 
     attrs = ", ".join(f"n.{attr}" for attr in attrs)
     query_template = Template("MATCH (n:$NodeLabel) RETURN $Attrs")
@@ -26,13 +32,13 @@ def check_nodes(neo4j_session: neo4j.Session, node_label: str, attrs: List[str])
 
 
 def check_rels(
-        neo4j_session: neo4j.Session,
-        node_1_label: str,
-        node_1_attr: str,
-        node_2_label: str,
-        node_2_attr: str,
-        rel_label: str,
-        rel_direction_right: Optional[bool] = True,
+    neo4j_session: neo4j.Session,
+    node_1_label: str,
+    node_1_attr: str,
+    node_2_label: str,
+    node_2_attr: str,
+    rel_label: str,
+    rel_direction_right: Optional[bool] = True,
 ) -> Set[Tuple]:
     """
     Helper function to test a given relationship between node 1 and node 2.
@@ -47,9 +53,13 @@ def check_rels(
     :param rel_direction_right: The direction of the node is to the right (default=True). Else it is to the left.
     :return: A set of tuples with the shape {(n1.node_1_attr, n2.node_2_attr), ...}
     """
-    relationship = f"-[r:{rel_label}]->" if rel_direction_right else f"<-[r:{rel_label}]-"
+    relationship = (
+        f"-[r:{rel_label}]->" if rel_direction_right else f"<-[r:{rel_label}]-"
+    )
 
-    query_template = Template('MATCH (n1:$Node1Label)$Rel(n2:$Node2Label) RETURN n1.$Node1Attr, n2.$Node2Attr;')
+    query_template = Template(
+        "MATCH (n1:$Node1Label)$Rel(n2:$Node2Label) RETURN n1.$Node1Attr, n2.$Node2Attr;",
+    )
     query = query_template.safe_substitute(
         Node1Label=node_1_label,
         Rel=relationship,
@@ -58,4 +68,4 @@ def check_rels(
         Node2Attr=node_2_attr,
     )
     result = neo4j_session.run(query)
-    return {(r[f'n1.{node_1_attr}'], r[f'n2.{node_2_attr}']) for r in result}
+    return {(r[f"n1.{node_1_attr}"], r[f"n2.{node_2_attr}"]) for r in result}

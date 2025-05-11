@@ -1,7 +1,5 @@
 ## Configuration
 
-.. _digitalocean_config:
-
 Follow these steps to analyze GitHub repos and other objects with Cartography.
 
 1. Prepare your DigitalOcean credentials. Visit [official docs](https://cloud.digitalocean.com/account/api/tokens) for

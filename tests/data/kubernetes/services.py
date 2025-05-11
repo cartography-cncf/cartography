@@ -4,7 +4,6 @@ from tests.data.kubernetes.namespaces import GET_CLUSTER_DATA
 from tests.data.kubernetes.namespaces import GET_NAMESPACES_DATA
 from tests.data.kubernetes.pods import GET_PODS_DATA
 
-
 GET_SERVICES_DATA = [
     {
         "uid": uuid4().hex,

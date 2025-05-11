@@ -9,7 +9,7 @@ from tests.data.okta.utils import create_response
 from tests.data.okta.utils import create_throttled_response
 
 
-@mock.patch.object(time, 'sleep', return_value=None)
+@mock.patch.object(time, "sleep", return_value=None)
 def test_utils_rate_limit_not_reached(mock_sleep: mock.MagicMock):
     response = create_response()
 
@@ -18,7 +18,7 @@ def test_utils_rate_limit_not_reached(mock_sleep: mock.MagicMock):
     mock_sleep.assert_not_called()
 
 
-@mock.patch.object(time, 'sleep', return_value=None)
+@mock.patch.object(time, "sleep", return_value=None)
 def test_utils_rate_limit_reached(mock_sleep: mock.MagicMock):
     response = create_throttled_response()
     check_rate_limit(response)

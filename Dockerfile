@@ -1,21 +1,25 @@
-FROM ubuntu:bionic
+# This is a thin distribution of the cartography software.
+# It is published at ghcr.io.
+FROM python:3.10-slim@sha256:57038683f4a259e17fcff1ccef7ba30b1065f4b3317dabb5bd7c82640a5ed64f
 
-WORKDIR /srv/cartography
+# Default to ''. Overridden with a specific version specifier e.g. '==0.98.0' by build args or from GitHub actions.
+ARG VERSION_SPECIFIER
 
-ENV PATH=/venv/bin:$PATH
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3.8-dev python3-pip python3-setuptools openssl libssl-dev gcc pkg-config libffi-dev libxml2-dev libxmlsec1-dev curl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-COPY . /srv/cartography
+# the UID and GID to run cartography as
+# (https://github.com/hexops/dockerfile#do-not-use-a-uid-below-10000).
+ARG uid=10001
+ARG gid=10001
 
-# Installs pip supported by python3.8
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python3.8 get-pip.py
+WORKDIR /var/cartography
+ENV HOME=/var/cartography
 
-RUN pip install -e . && \
-    pip install -r test-requirements.txt
+# Install cartography at the given version specifier. Can be ''.
+RUN pip install --no-cache-dir cartography${VERSION_SPECIFIER}
 
-RUN groupadd cartography && \
-    useradd -s /bin/bash -d /home/cartography -m -g cartography cartography
+USER ${uid}:${gid}
 
-USER cartography
+# verify that the binary at least runs
+RUN cartography -h
+
+ENTRYPOINT ["cartography"]
+CMD ["-h"]

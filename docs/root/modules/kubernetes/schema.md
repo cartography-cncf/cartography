@@ -1,7 +1,5 @@
 ## Kubernetes Schema
 
-.. _kubernetes_schema:
-
 ### KubernetesCluster
 Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/overview/what-is-kubernetes/)
 

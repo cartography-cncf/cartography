@@ -9,8 +9,8 @@ from tests.data.azure.storage import DESCRIBE_STORAGE_ACCOUNTS
 from tests.data.azure.storage import DESCRIBE_TABLE_SERVICES
 from tests.data.azure.storage import DESCRIBE_TABLES
 
-TEST_SUBSCRIPTION_ID = '00-00-00-00'
-TEST_RESOURCE_GROUP = 'TestRG'
+TEST_SUBSCRIPTION_ID = "00-00-00-00"
+TEST_RESOURCE_GROUP = "TestRG"
 TEST_UPDATE_TAG = 123456789
 sa1 = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Storage/storageAccounts/testSG1"
 sa2 = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Storage/storageAccounts/testSG2"
@@ -25,7 +25,8 @@ def test_load_storage_account_data(neo4j_session):
     )
 
     expected_nodes = {
-        sa1, sa2,
+        sa1,
+        sa2,
     }
 
     nodes = neo4j_session.run(
@@ -33,7 +34,7 @@ def test_load_storage_account_data(neo4j_session):
         MATCH (r:AzureStorageAccount) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -59,10 +60,12 @@ def test_load_storage_account_data_relationships(neo4j_session):
 
     expected = {
         (
-            TEST_SUBSCRIPTION_ID, sa1,
+            TEST_SUBSCRIPTION_ID,
+            sa1,
         ),
         (
-            TEST_SUBSCRIPTION_ID, sa2,
+            TEST_SUBSCRIPTION_ID,
+            sa2,
         ),
     }
 
@@ -73,9 +76,7 @@ def test_load_storage_account_data_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -98,7 +99,7 @@ def test_load_queue_services(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -120,10 +121,12 @@ def test_load_queue_services_relationships(neo4j_session):
 
     expected = {
         (
-            sa1, sa1 + "/queueServices/QS1",
+            sa1,
+            sa1 + "/queueServices/QS1",
         ),
         (
-            sa2, sa2 + "/queueServices/QS2",
+            sa2,
+            sa2 + "/queueServices/QS2",
         ),
     }
 
@@ -134,9 +137,7 @@ def test_load_queue_services_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -159,7 +160,7 @@ def test_load_table_services(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -181,10 +182,12 @@ def test_load_table_services_relationships(neo4j_session):
 
     expected = {
         (
-            sa1, sa1 + "/tableServices/TS1",
+            sa1,
+            sa1 + "/tableServices/TS1",
         ),
         (
-            sa2, sa2 + "/tableServices/TS2",
+            sa2,
+            sa2 + "/tableServices/TS2",
         ),
     }
 
@@ -195,9 +198,7 @@ def test_load_table_services_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -220,7 +221,7 @@ def test_load_file_services(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -242,10 +243,12 @@ def test_load_file_services_relationships(neo4j_session):
 
     expected = {
         (
-            sa1, sa1 + "/fileServices/FS1",
+            sa1,
+            sa1 + "/fileServices/FS1",
         ),
         (
-            sa2, sa2 + "/fileServices/FS2",
+            sa2,
+            sa2 + "/fileServices/FS2",
         ),
     }
 
@@ -256,9 +259,7 @@ def test_load_file_services_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -281,7 +282,7 @@ def test_load_blob_services(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -303,10 +304,12 @@ def test_load_blob_services_relationships(neo4j_session):
 
     expected = {
         (
-            sa1, sa1 + "/blobServices/BS1",
+            sa1,
+            sa1 + "/blobServices/BS1",
         ),
         (
-            sa2, sa2 + "/blobServices/BS2",
+            sa2,
+            sa2 + "/blobServices/BS2",
         ),
     }
 
@@ -317,9 +320,7 @@ def test_load_blob_services_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -342,7 +343,7 @@ def test_load_queues(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -379,9 +380,7 @@ def test_load_queues_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -404,7 +403,7 @@ def test_load_tables(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -441,9 +440,7 @@ def test_load_tables_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -466,7 +463,7 @@ def test_load_shares(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -503,9 +500,7 @@ def test_load_shares_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -528,7 +523,7 @@ def test_load_blob_containers(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -565,8 +560,6 @@ def test_load_blob_containers_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected

@@ -55,7 +55,11 @@ def link_aws_resources(neo4j_session: neo4j.Session, update_tag: int) -> None:
 
 
 @timeit
-def load_a_records(neo4j_session: neo4j.Session, records: List[Dict], update_tag: int) -> None:
+def load_a_records(
+    neo4j_session: neo4j.Session,
+    records: List[Dict],
+    update_tag: int,
+) -> None:
     ingest_records = """
     UNWIND $records as record
         MERGE (a:DNSRecord:AWSDNSRecord{id: record.id})
@@ -80,7 +84,11 @@ def load_a_records(neo4j_session: neo4j.Session, records: List[Dict], update_tag
 
 
 @timeit
-def load_alias_records(neo4j_session: neo4j.Session, records: List[Dict], update_tag: int) -> None:
+def load_alias_records(
+    neo4j_session: neo4j.Session,
+    records: List[Dict],
+    update_tag: int,
+) -> None:
     # create the DNSRecord nodes and link them to matching DNSZone and S3Bucket nodes
     ingest_records = """
     UNWIND $records as record
@@ -106,7 +114,11 @@ def load_alias_records(neo4j_session: neo4j.Session, records: List[Dict], update
 
 
 @timeit
-def load_cname_records(neo4j_session: neo4j.Session, records: List[Dict], update_tag: int) -> None:
+def load_cname_records(
+    neo4j_session: neo4j.Session,
+    records: List[Dict],
+    update_tag: int,
+) -> None:
     ingest_records = """
     UNWIND $records as record
         MERGE (a:DNSRecord:AWSDNSRecord{id: record.id})
@@ -131,7 +143,12 @@ def load_cname_records(neo4j_session: neo4j.Session, records: List[Dict], update
 
 
 @timeit
-def load_zone(neo4j_session: neo4j.Session, zone: Dict, current_aws_id: str, update_tag: int) -> None:
+def load_zone(
+    neo4j_session: neo4j.Session,
+    zone: Dict,
+    current_aws_id: str,
+    update_tag: int,
+) -> None:
     ingest_z = """
     MERGE (zone:DNSZone:AWSDNSZone{zoneid:$ZoneId})
     ON CREATE SET
@@ -149,17 +166,22 @@ def load_zone(neo4j_session: neo4j.Session, zone: Dict, current_aws_id: str, upd
     """
     neo4j_session.run(
         ingest_z,
-        ZoneName=zone['name'][:-1],
-        ZoneId=zone['zoneid'],
-        Comment=zone['comment'],
-        PrivateZone=zone['privatezone'],
+        ZoneName=zone["name"][:-1],
+        ZoneId=zone["zoneid"],
+        Comment=zone["comment"],
+        PrivateZone=zone["privatezone"],
         AWS_ACCOUNT_ID=current_aws_id,
         update_tag=update_tag,
     )
 
 
 @timeit
-def load_ns_records(neo4j_session: neo4j.Session, records: List[Dict], zone_name: str, update_tag: int) -> None:
+def load_ns_records(
+    neo4j_session: neo4j.Session,
+    records: List[Dict],
+    zone_name: str,
+    update_tag: int,
+) -> None:
     ingest_records = """
     UNWIND $records as record
         MERGE (a:DNSRecord:AWSDNSRecord{id: record.id})
@@ -233,58 +255,58 @@ def link_sub_zones(neo4j_session: neo4j.Session, update_tag: int) -> None:
 @timeit
 def transform_record_set(record_set: Dict, zone_id: str, name: str) -> Optional[Dict]:
     # process CNAME, ALIAS and A records
-    if record_set['Type'] == 'CNAME':
-        if 'AliasTarget' in record_set:
+    if record_set["Type"] == "CNAME":
+        if "AliasTarget" in record_set:
             # this is a weighted CNAME record
-            value = record_set['AliasTarget']['DNSName']
-            if value.endswith('.'):
+            value = record_set["AliasTarget"]["DNSName"]
+            if value.endswith("."):
                 value = value[:-1]
             return {
                 "name": name,
-                "type": 'CNAME',
+                "type": "CNAME",
                 "zoneid": zone_id,
                 "value": value,
-                "id": _create_dns_record_id(zone_id, name, 'WEIGHTED_CNAME'),
+                "id": _create_dns_record_id(zone_id, name, "WEIGHTED_CNAME"),
             }
         else:
             # This is a normal CNAME record
-            value = record_set['ResourceRecords'][0]['Value']
-            if value.endswith('.'):
+            value = record_set["ResourceRecords"][0]["Value"]
+            if value.endswith("."):
                 value = value[:-1]
             return {
                 "name": name,
-                "type": 'CNAME',
+                "type": "CNAME",
                 "zoneid": zone_id,
                 "value": value,
-                "id": _create_dns_record_id(zone_id, name, 'CNAME'),
+                "id": _create_dns_record_id(zone_id, name, "CNAME"),
             }
 
-    elif record_set['Type'] == 'A':
-        if 'AliasTarget' in record_set:
+    elif record_set["Type"] == "A":
+        if "AliasTarget" in record_set:
             # this is an ALIAS record
             # ALIAS records are a special AWS-only type of A record
             return {
                 "name": name,
-                "type": 'ALIAS',
+                "type": "ALIAS",
                 "zoneid": zone_id,
-                "value": record_set['AliasTarget']['DNSName'][:-1],
-                "id": _create_dns_record_id(zone_id, name, 'ALIAS'),
+                "value": record_set["AliasTarget"]["DNSName"][:-1],
+                "id": _create_dns_record_id(zone_id, name, "ALIAS"),
             }
         else:
             # this is a real A record
             # loop and add each value (IP address) to a comma separated string
             # don't forget to trim that trailing comma!
             # TODO can this be replaced with a string join?
-            value = ''
-            for a_value in record_set['ResourceRecords']:
-                value = value + a_value['Value'] + ','
+            value = ""
+            for a_value in record_set["ResourceRecords"]:
+                value = value + a_value["Value"] + ","
 
             return {
                 "name": name,
-                "type": 'A',
+                "type": "A",
                 "zoneid": zone_id,
                 "value": value[:-1],
-                "id": _create_dns_record_id(zone_id, name, 'A'),
+                "id": _create_dns_record_id(zone_id, name, "A"),
             }
 
     else:
@@ -296,14 +318,17 @@ def transform_ns_record_set(record_set: Dict, zone_id: str) -> Optional[Dict]:
 
     if "ResourceRecords" in record_set:
         # Sometimes the value records have a trailing period, sometimes they dont.
-        servers = [_normalize_dns_address(record["Value"]) for record in record_set["ResourceRecords"]]
+        servers = [
+            _normalize_dns_address(record["Value"])
+            for record in record_set["ResourceRecords"]
+        ]
         return {
             "zoneid": zone_id,
             "type": "NS",
             # looks like "name.some.fqdn.net.", so this removes the trailing comma.
             "name": _normalize_dns_address(record_set["Name"]),
             "servers": servers,
-            "id": _create_dns_record_id(zone_id, record_set['Name'][:-1], 'NS'),
+            "id": _create_dns_record_id(zone_id, record_set["Name"][:-1], "NS"),
         }
     else:
         return None
@@ -312,23 +337,25 @@ def transform_ns_record_set(record_set: Dict, zone_id: str) -> Optional[Dict]:
 @timeit
 def transform_zone(zone: Dict) -> Dict:
     # TODO simplify this
-    if 'Comment' in zone['Config']:
-        comment = zone['Config']['Comment']
+    if "Comment" in zone["Config"]:
+        comment = zone["Config"]["Comment"]
     else:
-        comment = ''
+        comment = ""
 
     return {
-        "zoneid": zone['Id'],
-        "name": zone['Name'],
-        "privatezone": zone['Config']['PrivateZone'],
+        "zoneid": zone["Id"],
+        "name": zone["Name"],
+        "privatezone": zone["Config"]["PrivateZone"],
         "comment": comment,
-        "count": zone['ResourceRecordSetCount'],
+        "count": zone["ResourceRecordSetCount"],
     }
 
 
 @timeit
 def load_dns_details(
-    neo4j_session: neo4j.Session, dns_details: List[Tuple[Dict, List[Dict]]], current_aws_id: str,
+    neo4j_session: neo4j.Session,
+    dns_details: List[Tuple[Dict, List[Dict]]],
+    current_aws_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -348,18 +375,22 @@ def load_dns_details(
         load_zone(neo4j_session, parsed_zone, current_aws_id, update_tag)
 
         for record_set in zone_record_sets:
-            if record_set['Type'] == 'A' or record_set['Type'] == 'CNAME':
-                record = transform_record_set(record_set, zone['Id'], record_set['Name'][:-1])
+            if record_set["Type"] == "A" or record_set["Type"] == "CNAME":
+                record = transform_record_set(
+                    record_set,
+                    zone["Id"],
+                    record_set["Name"][:-1],
+                )
 
-                if record['type'] == 'A':
+                if record["type"] == "A":
                     zone_a_records.append(record)
-                elif record['type'] == 'ALIAS':
+                elif record["type"] == "ALIAS":
                     zone_alias_records.append(record)
-                elif record['type'] == 'CNAME':
+                elif record["type"] == "CNAME":
                     zone_cname_records.append(record)
 
-            if record_set['Type'] == 'NS':
-                record = transform_ns_record_set(record_set, zone['Id'])
+            if record_set["Type"] == "NS":
+                record = transform_ns_record_set(record_set, zone["Id"])
                 zone_ns_records.append(record)
         if zone_a_records:
             load_a_records(neo4j_session, zone_a_records, update_tag)
@@ -370,30 +401,38 @@ def load_dns_details(
         if zone_cname_records:
             load_cname_records(neo4j_session, zone_cname_records, update_tag)
         if zone_ns_records:
-            load_ns_records(neo4j_session, zone_ns_records, parsed_zone['name'][:-1], update_tag)
+            load_ns_records(
+                neo4j_session,
+                zone_ns_records,
+                parsed_zone["name"][:-1],
+                update_tag,
+            )
     link_aws_resources(neo4j_session, update_tag)
 
 
 @timeit
-def get_zone_record_sets(client: botocore.client.BaseClient, zone_id: str) -> List[Dict]:
+def get_zone_record_sets(
+    client: botocore.client.BaseClient,
+    zone_id: str,
+) -> List[Dict]:
     resource_record_sets: List[Dict] = []
-    paginator = client.get_paginator('list_resource_record_sets')
+    paginator = client.get_paginator("list_resource_record_sets")
     pages = paginator.paginate(HostedZoneId=zone_id)
     for page in pages:
-        resource_record_sets.extend(page['ResourceRecordSets'])
+        resource_record_sets.extend(page["ResourceRecordSets"])
     return resource_record_sets
 
 
 @timeit
 def get_zones(client: botocore.client.BaseClient) -> List[Tuple[Dict, List[Dict]]]:
-    paginator = client.get_paginator('list_hosted_zones')
+    paginator = client.get_paginator("list_hosted_zones")
     hosted_zones: List[Dict] = []
     for page in paginator.paginate():
-        hosted_zones.extend(page['HostedZones'])
+        hosted_zones.extend(page["HostedZones"])
 
     results: List[Tuple[Dict, List[Dict]]] = []
     for hosted_zone in hosted_zones:
-        record_sets = get_zone_record_sets(client, hosted_zone['Id'])
+        record_sets = get_zone_record_sets(client, hosted_zone["Id"])
         results.append((hosted_zone, record_sets))
     return results
 
@@ -403,25 +442,33 @@ def _create_dns_record_id(zoneid: str, name: str, record_type: str) -> str:
 
 
 def _normalize_dns_address(address: str) -> str:
-    return address.rstrip('.')
+    return address.rstrip(".")
 
 
 @timeit
-def cleanup_route53(neo4j_session: neo4j.Session, current_aws_id: str, update_tag: int) -> None:
+def cleanup_route53(
+    neo4j_session: neo4j.Session,
+    current_aws_id: str,
+    update_tag: int,
+) -> None:
     run_cleanup_job(
-        'aws_dns_cleanup.json',
+        "aws_dns_cleanup.json",
         neo4j_session,
-        {'UPDATE_TAG': update_tag, 'AWS_ID': current_aws_id},
+        {"UPDATE_TAG": update_tag, "AWS_ID": current_aws_id},
     )
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing Route53 for account '%s'.", current_aws_account_id)
-    client = boto3_session.client('route53')
+    client = boto3_session.client("route53")
     zones = get_zones(client)
     load_dns_details(neo4j_session, zones, current_aws_account_id, update_tag)
     link_sub_zones(neo4j_session, update_tag)

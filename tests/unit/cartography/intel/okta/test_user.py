@@ -8,18 +8,18 @@ def test_user_transform_with_all_values():
     result = transform_okta_user(user)
 
     expected = {
-        'id': user.id,
-        'activated': '01/01/2019, 00:00:01',
-        'created': '01/01/2019, 00:00:01',
-        'status_changed': '01/01/2019, 00:00:01',
-        'last_login': '01/01/2019, 00:00:01',
-        'okta_last_updated': '01/01/2019, 00:00:01',
-        'password_changed': '01/01/2019, 00:00:01',
-        'transition_to_status': user.transitioningToStatus,
-        'login': user.profile.login,
-        'email': user.profile.email,
-        'last_name': user.profile.lastName,
-        'first_name': user.profile.firstName,
+        "id": user.id,
+        "activated": "01/01/2019, 00:00:01",
+        "created": "01/01/2019, 00:00:01",
+        "status_changed": "01/01/2019, 00:00:01",
+        "last_login": "01/01/2019, 00:00:01",
+        "okta_last_updated": "01/01/2019, 00:00:01",
+        "password_changed": "01/01/2019, 00:00:01",
+        "transition_to_status": user.transitioningToStatus,
+        "login": user.profile.login,
+        "email": user.profile.email,
+        "last_name": user.profile.lastName,
+        "first_name": user.profile.firstName,
     }
 
     assert result == expected
@@ -32,18 +32,18 @@ def test_userprofile_transform_with_no_activated():
     result = transform_okta_user(user)
 
     expected = {
-        'id': user.id,
-        'activated': None,
-        'created': '01/01/2019, 00:00:01',
-        'status_changed': '01/01/2019, 00:00:01',
-        'last_login': '01/01/2019, 00:00:01',
-        'okta_last_updated': '01/01/2019, 00:00:01',
-        'password_changed': '01/01/2019, 00:00:01',
-        'transition_to_status': user.transitioningToStatus,
-        'login': user.profile.login,
-        'email': user.profile.email,
-        'last_name': user.profile.lastName,
-        'first_name': user.profile.firstName,
+        "id": user.id,
+        "activated": None,
+        "created": "01/01/2019, 00:00:01",
+        "status_changed": "01/01/2019, 00:00:01",
+        "last_login": "01/01/2019, 00:00:01",
+        "okta_last_updated": "01/01/2019, 00:00:01",
+        "password_changed": "01/01/2019, 00:00:01",
+        "transition_to_status": user.transitioningToStatus,
+        "login": user.profile.login,
+        "email": user.profile.email,
+        "last_name": user.profile.lastName,
+        "first_name": user.profile.firstName,
     }
 
     assert result == expected
@@ -56,18 +56,18 @@ def test_userprofile_transform_with_no_status_changed():
     result = transform_okta_user(user)
 
     expected = {
-        'id': user.id,
-        'activated': '01/01/2019, 00:00:01',
-        'created': '01/01/2019, 00:00:01',
-        'status_changed': None,
-        'last_login': '01/01/2019, 00:00:01',
-        'okta_last_updated': '01/01/2019, 00:00:01',
-        'password_changed': '01/01/2019, 00:00:01',
-        'transition_to_status': user.transitioningToStatus,
-        'login': user.profile.login,
-        'email': user.profile.email,
-        'last_name': user.profile.lastName,
-        'first_name': user.profile.firstName,
+        "id": user.id,
+        "activated": "01/01/2019, 00:00:01",
+        "created": "01/01/2019, 00:00:01",
+        "status_changed": None,
+        "last_login": "01/01/2019, 00:00:01",
+        "okta_last_updated": "01/01/2019, 00:00:01",
+        "password_changed": "01/01/2019, 00:00:01",
+        "transition_to_status": user.transitioningToStatus,
+        "login": user.profile.login,
+        "email": user.profile.email,
+        "last_name": user.profile.lastName,
+        "first_name": user.profile.firstName,
     }
 
     assert result == expected
@@ -80,18 +80,18 @@ def test_userprofile_transform_with_no_last_login():
     result = transform_okta_user(user)
 
     expected = {
-        'id': user.id,
-        'activated': '01/01/2019, 00:00:01',
-        'created': '01/01/2019, 00:00:01',
-        'status_changed': '01/01/2019, 00:00:01',
-        'last_login': None,
-        'okta_last_updated': '01/01/2019, 00:00:01',
-        'password_changed': '01/01/2019, 00:00:01',
-        'transition_to_status': user.transitioningToStatus,
-        'login': user.profile.login,
-        'email': user.profile.email,
-        'last_name': user.profile.lastName,
-        'first_name': user.profile.firstName,
+        "id": user.id,
+        "activated": "01/01/2019, 00:00:01",
+        "created": "01/01/2019, 00:00:01",
+        "status_changed": "01/01/2019, 00:00:01",
+        "last_login": None,
+        "okta_last_updated": "01/01/2019, 00:00:01",
+        "password_changed": "01/01/2019, 00:00:01",
+        "transition_to_status": user.transitioningToStatus,
+        "login": user.profile.login,
+        "email": user.profile.email,
+        "last_name": user.profile.lastName,
+        "first_name": user.profile.firstName,
     }
 
     assert result == expected
@@ -104,18 +104,18 @@ def test_userprofile_transform_with_no_last_updated():
     result = transform_okta_user(user)
 
     expected = {
-        'id': user.id,
-        'activated': '01/01/2019, 00:00:01',
-        'created': '01/01/2019, 00:00:01',
-        'status_changed': '01/01/2019, 00:00:01',
-        'last_login': '01/01/2019, 00:00:01',
-        'okta_last_updated': None,
-        'password_changed': '01/01/2019, 00:00:01',
-        'transition_to_status': user.transitioningToStatus,
-        'login': user.profile.login,
-        'email': user.profile.email,
-        'last_name': user.profile.lastName,
-        'first_name': user.profile.firstName,
+        "id": user.id,
+        "activated": "01/01/2019, 00:00:01",
+        "created": "01/01/2019, 00:00:01",
+        "status_changed": "01/01/2019, 00:00:01",
+        "last_login": "01/01/2019, 00:00:01",
+        "okta_last_updated": None,
+        "password_changed": "01/01/2019, 00:00:01",
+        "transition_to_status": user.transitioningToStatus,
+        "login": user.profile.login,
+        "email": user.profile.email,
+        "last_name": user.profile.lastName,
+        "first_name": user.profile.firstName,
     }
 
     assert result == expected
@@ -128,18 +128,18 @@ def test_userprofile_transform_with_no_password_changed():
     result = transform_okta_user(user)
 
     expected = {
-        'id': user.id,
-        'activated': '01/01/2019, 00:00:01',
-        'created': '01/01/2019, 00:00:01',
-        'status_changed': '01/01/2019, 00:00:01',
-        'last_login': '01/01/2019, 00:00:01',
-        'okta_last_updated': '01/01/2019, 00:00:01',
-        'password_changed': None,
-        'transition_to_status': user.transitioningToStatus,
-        'login': user.profile.login,
-        'email': user.profile.email,
-        'last_name': user.profile.lastName,
-        'first_name': user.profile.firstName,
+        "id": user.id,
+        "activated": "01/01/2019, 00:00:01",
+        "created": "01/01/2019, 00:00:01",
+        "status_changed": "01/01/2019, 00:00:01",
+        "last_login": "01/01/2019, 00:00:01",
+        "okta_last_updated": "01/01/2019, 00:00:01",
+        "password_changed": None,
+        "transition_to_status": user.transitioningToStatus,
+        "login": user.profile.login,
+        "email": user.profile.email,
+        "last_name": user.profile.lastName,
+        "first_name": user.profile.firstName,
     }
 
     assert result == expected
@@ -152,18 +152,18 @@ def test_userprofile_transform_with_no_transition_status():
     result = transform_okta_user(user)
 
     expected = {
-        'id': user.id,
-        'activated': '01/01/2019, 00:00:01',
-        'created': '01/01/2019, 00:00:01',
-        'status_changed': '01/01/2019, 00:00:01',
-        'last_login': '01/01/2019, 00:00:01',
-        'okta_last_updated': '01/01/2019, 00:00:01',
-        'password_changed': '01/01/2019, 00:00:01',
-        'transition_to_status': None,
-        'login': user.profile.login,
-        'email': user.profile.email,
-        'last_name': user.profile.lastName,
-        'first_name': user.profile.firstName,
+        "id": user.id,
+        "activated": "01/01/2019, 00:00:01",
+        "created": "01/01/2019, 00:00:01",
+        "status_changed": "01/01/2019, 00:00:01",
+        "last_login": "01/01/2019, 00:00:01",
+        "okta_last_updated": "01/01/2019, 00:00:01",
+        "password_changed": "01/01/2019, 00:00:01",
+        "transition_to_status": None,
+        "login": user.profile.login,
+        "email": user.profile.email,
+        "last_name": user.profile.lastName,
+        "first_name": user.profile.firstName,
     }
 
     assert result == expected

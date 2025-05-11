@@ -26,6 +26,8 @@ class Config:
     :type aws_sync_all_profiles: bool
     :param aws_sync_all_profiles: If True, AWS sync will run for all non-default profiles in the AWS_CONFIG_FILE. If
         False (default), AWS sync will run using the default credentials only. Optional.
+    :type aws_regions: str
+    :param aws_regions: Comma-separated list of AWS regions to sync. Optional.
     :type aws_best_effort_mode: bool
     :param aws_best_effort_mode: If True, AWS sync will not raise any exceptions, just log. If False (default),
         exceptions will be raised.
@@ -41,12 +43,14 @@ class Config:
     :param azure_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
     :type azure_client_secret: str
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
+    :type entra_tenant_id: str
+    :param entra_tenant_id: Tenant Id for connecting in a Service Principal Authentication approach. Optional.
+    :type entra_client_id: str
+    :param entra_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
+    :type entra_client_secret: str
+    :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
-    :type crxcavator_api_base_uri: str
-    :param crxcavator_api_base_uri: URI for CRXcavator API. Optional.
-    :type crxcavator_api_key: str
-    :param crxcavator_api_key: Auth key for CRXcavator API. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -69,6 +73,12 @@ class Config:
     :param jamf_user: User name used to authenticate to the Jamf data provider. Optional.
     :type jamf_password: string
     :param jamf_password: Password used to authenticate to the Jamf data provider. Optional.
+    :type kandji_base_uri: string
+    :param kandji_base_uri: Kandji data provider base URI, e.g. https://company.api.kandji.io. Optional.
+    :type kandji_tenant_id: string
+    :param kandji_tenant_id: Kandji tenant id. e.g. company Optional.
+    :type kandji_token: string
+    :param kandji_token: Token used to authenticate to the Kandji data provider. Optional.
     :type statsd_enabled: bool
     :param statsd_enabled: Whether to collect statsd metrics such as sync execution times. Optional.
     :type statsd_host: str
@@ -97,6 +107,22 @@ class Config:
     :param bigfix_password: The password to authenticate to BigFix. Optional.
     :type bigfix_root_url: str
     :param bigfix_root_url: The API URL to use for BigFix, e.g. "https://example.com:52311". Optional.
+    :type duo_api_key: str
+    :param duo_api_key: The Duo api key. Optional.
+    :type duo_api_key: str
+    :param duo_api_key: The Duo api secret. Optional.
+    :type duo_api_hostname: str
+    :param duo_api_hostname: The Duo api hostname, e.g. "api-abc123.duosecurity.com". Optional.
+    :param semgrep_app_token: The Semgrep api token. Optional.
+    :type semgrep_app_token: str
+    :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
+    :type semgrep_dependency_ecosystems: str
+    :type snipeit_base_uri: string
+    :param snipeit_base_uri: SnipeIT data provider base URI. Optional.
+    :type snipeit_token: string
+    :param snipeit_token: Token used to authenticate to the SnipeIT data provider. Optional.
+    :type snipeit_tenant_id: string
+    :param snipeit_tenant_id: Token used to authenticate to the SnipeIT data provider. Optional.
     :type trivy_path: str
     :param trivy_path: The path the to the Trivy file binary.
     :type trivy_opa_policy_file_path: str
@@ -115,16 +141,18 @@ class Config:
         selected_modules=None,
         update_tag=None,
         aws_sync_all_profiles=False,
+        aws_regions=None,
         aws_best_effort_mode=False,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
         azure_client_id=None,
         azure_client_secret=None,
+        entra_tenant_id=None,
+        entra_client_id=None,
+        entra_client_secret=None,
         aws_requested_syncs=None,
         analysis_job_directory=None,
-        crxcavator_api_base_uri=None,
-        crxcavator_api_key=None,
         oci_sync_all_profiles=None,
         okta_org_id=None,
         okta_api_key=None,
@@ -135,6 +163,9 @@ class Config:
         jamf_base_uri=None,
         jamf_user=None,
         jamf_password=None,
+        kandji_base_uri=None,
+        kandji_tenant_id=None,
+        kandji_token=None,
         k8s_kubeconfig=None,
         statsd_enabled=False,
         statsd_prefix=None,
@@ -144,6 +175,7 @@ class Config:
         pagerduty_request_timeout=None,
         nist_cve_url=None,
         cve_enabled=False,
+        cve_api_key: str | None = None,
         crowdstrike_client_id=None,
         crowdstrike_client_secret=None,
         crowdstrike_api_url=None,
@@ -154,6 +186,14 @@ class Config:
         bigfix_username=None,
         bigfix_password=None,
         bigfix_root_url=None,
+        duo_api_key=None,
+        duo_api_secret=None,
+        duo_api_hostname=None,
+        semgrep_app_token=None,
+        semgrep_dependency_ecosystems=None,
+        snipeit_base_uri=None,
+        snipeit_token=None,
+        snipeit_tenant_id=None,
         trivy_path=None,
         trivy_opa_policy_file_path=None,
         trivy_resource_type=None,
@@ -166,16 +206,18 @@ class Config:
         self.selected_modules = selected_modules
         self.update_tag = update_tag
         self.aws_sync_all_profiles = aws_sync_all_profiles
+        self.aws_regions = aws_regions
         self.aws_best_effort_mode = aws_best_effort_mode
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id
         self.azure_client_id = azure_client_id
         self.azure_client_secret = azure_client_secret
+        self.entra_tenant_id = entra_tenant_id
+        self.entra_client_id = entra_client_id
+        self.entra_client_secret = entra_client_secret
         self.aws_requested_syncs = aws_requested_syncs
         self.analysis_job_directory = analysis_job_directory
-        self.crxcavator_api_base_uri = crxcavator_api_base_uri
-        self.crxcavator_api_key = crxcavator_api_key
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
         self.okta_api_key = okta_api_key
@@ -186,6 +228,9 @@ class Config:
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password
+        self.kandji_base_uri = kandji_base_uri
+        self.kandji_tenant_id = kandji_tenant_id
+        self.kandji_token = kandji_token
         self.k8s_kubeconfig = k8s_kubeconfig
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
@@ -195,6 +240,7 @@ class Config:
         self.pagerduty_request_timeout = pagerduty_request_timeout
         self.nist_cve_url = nist_cve_url
         self.cve_enabled = cve_enabled
+        self.cve_api_key: str | None = cve_api_key
         self.crowdstrike_client_id = crowdstrike_client_id
         self.crowdstrike_client_secret = crowdstrike_client_secret
         self.crowdstrike_api_url = crowdstrike_api_url
@@ -205,6 +251,14 @@ class Config:
         self.bigfix_username = bigfix_username
         self.bigfix_password = bigfix_password
         self.bigfix_root_url = bigfix_root_url
+        self.duo_api_key = duo_api_key
+        self.duo_api_secret = duo_api_secret
+        self.duo_api_hostname = duo_api_hostname
+        self.semgrep_app_token = semgrep_app_token
+        self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
+        self.snipeit_base_uri = snipeit_base_uri
+        self.snipeit_token = snipeit_token
+        self.snipeit_tenant_id = snipeit_tenant_id
         self.trivy_path = trivy_path
         self.trivy_opa_policy_file_path = trivy_opa_policy_file_path
         self.trivy_resource_type = trivy_resource_type

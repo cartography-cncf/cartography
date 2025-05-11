@@ -1,6 +1,5 @@
 import datetime
 
-
 LIST_DYNAMODB_TABLES = {
     "Tables": [
         {

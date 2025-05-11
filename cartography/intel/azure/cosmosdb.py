@@ -12,15 +12,19 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
-from .util.credentials import Credentials
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
+from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_client(credentials: Credentials, subscription_id: str) -> CosmosDBManagementClient:
+def get_client(
+    credentials: Credentials,
+    subscription_id: str,
+) -> CosmosDBManagementClient:
     """
     Getting the CosmosDB client
     """
@@ -29,28 +33,36 @@ def get_client(credentials: Credentials, subscription_id: str) -> CosmosDBManage
 
 
 @timeit
-def get_database_account_list(credentials: Credentials, subscription_id: str) -> List[Dict]:
+def get_database_account_list(
+    credentials: Credentials,
+    subscription_id: str,
+) -> List[Dict]:
     """
     Get a list of all database accounts.
     """
     try:
         client = get_client(credentials, subscription_id)
-        database_account_list = list(map(lambda x: x.as_dict(), client.database_accounts.list()))
+        database_account_list = list(
+            map(lambda x: x.as_dict(), client.database_accounts.list()),
+        )
 
     # ClientAuthenticationError and ResourceNotFoundError are subclasses under HttpResponseError
     except ClientAuthenticationError:
-        logger.warning('Client Authentication Error while retrieving database accounts', exc_info=True)
+        logger.warning(
+            "Client Authentication Error while retrieving database accounts",
+            exc_info=True,
+        )
         return []
     except ResourceNotFoundError:
-        logger.warning('Database Account not found error', exc_info=True)
+        logger.warning("Database Account not found error", exc_info=True)
         return []
     except HttpResponseError:
-        logger.warning('Error while retrieving database accounts', exc_info=True)
+        logger.warning("Error while retrieving database accounts", exc_info=True)
         return []
 
     for database_account in database_account_list:
-        x = database_account['id'].split('/')
-        database_account['resourceGroup'] = x[x.index('resourceGroups') + 1]
+        x = database_account["id"].split("/")
+        database_account["resourceGroup"] = x[x.index("resourceGroups") + 1]
 
     return database_account_list
 
@@ -63,19 +75,25 @@ def transform_database_account_data(database_account_list: List[Dict]) -> List[D
     for database_account in database_account_list:
         capabilities: List[str] = []
         iprules: List[str] = []
-        if 'capabilities' in database_account and len(database_account['capabilities']) > 0:
-            capabilities = [x['name'] for x in database_account['capabilities']]
-        if 'ip_rules' in database_account and len(database_account['ip_rules']) > 0:
-            iprules = [x['ip_address_or_range'] for x in database_account['ip_rules']]
-        database_account['ipruleslist'] = iprules
-        database_account['list_of_capabilities'] = capabilities
+        if (
+            "capabilities" in database_account
+            and len(database_account["capabilities"]) > 0
+        ):
+            capabilities = [x["name"] for x in database_account["capabilities"]]
+        if "ip_rules" in database_account and len(database_account["ip_rules"]) > 0:
+            iprules = [x["ip_address_or_range"] for x in database_account["ip_rules"]]
+        database_account["ipruleslist"] = iprules
+        database_account["list_of_capabilities"] = capabilities
 
     return database_account_list
 
 
 @timeit
 def load_database_account_data(
-        neo4j_session: neo4j.Session, subscription_id: str, database_account_list: List[Dict], azure_update_tag: int,
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    database_account_list: List[Dict],
+    azure_update_tag: int,
 ) -> None:
     """
     Ingest data of all database accounts into neo4j.
@@ -124,7 +142,10 @@ def load_database_account_data(
 
 @timeit
 def sync_database_account_data_resources(
-        neo4j_session: neo4j.Session, subscription_id: str, database_account_list: List[Dict], azure_update_tag: int,
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    database_account_list: List[Dict],
+    azure_update_tag: int,
 ) -> None:
     """
     This function calls the load functions for the resources that are present as a part of the database account
@@ -132,24 +153,53 @@ def sync_database_account_data_resources(
     """
     for database_account in database_account_list:
         _load_cosmosdb_cors_policy(neo4j_session, database_account, azure_update_tag)
-        _load_cosmosdb_failover_policies(neo4j_session, database_account, azure_update_tag)
-        _load_cosmosdb_private_endpoint_connections(neo4j_session, database_account, azure_update_tag)
-        _load_cosmosdb_virtual_network_rules(neo4j_session, database_account, azure_update_tag)
-        _load_database_account_write_locations(neo4j_session, database_account, azure_update_tag)
-        _load_database_account_read_locations(neo4j_session, database_account, azure_update_tag)
-        _load_database_account_associated_locations(neo4j_session, database_account, azure_update_tag)
+        _load_cosmosdb_failover_policies(
+            neo4j_session,
+            database_account,
+            azure_update_tag,
+        )
+        _load_cosmosdb_private_endpoint_connections(
+            neo4j_session,
+            database_account,
+            azure_update_tag,
+        )
+        _load_cosmosdb_virtual_network_rules(
+            neo4j_session,
+            database_account,
+            azure_update_tag,
+        )
+        _load_database_account_write_locations(
+            neo4j_session,
+            database_account,
+            azure_update_tag,
+        )
+        _load_database_account_read_locations(
+            neo4j_session,
+            database_account,
+            azure_update_tag,
+        )
+        _load_database_account_associated_locations(
+            neo4j_session,
+            database_account,
+            azure_update_tag,
+        )
 
 
 @timeit
 def _load_database_account_write_locations(
-        neo4j_session: neo4j.Session, database_account: Dict, azure_update_tag: int,
+    neo4j_session: neo4j.Session,
+    database_account: Dict,
+    azure_update_tag: int,
 ) -> None:
     """
     Ingest the details of location with write permission enabled.
     """
-    if 'write_locations' in database_account and len(database_account['write_locations']) > 0:
-        database_account_id = database_account['id']
-        write_locations = database_account['write_locations']
+    if (
+        "write_locations" in database_account
+        and len(database_account["write_locations"]) > 0
+    ):
+        database_account_id = database_account["id"]
+        write_locations = database_account["write_locations"]
 
         ingest_write_location = """
         UNWIND $write_locations_list as wl
@@ -178,14 +228,19 @@ def _load_database_account_write_locations(
 
 @timeit
 def _load_database_account_read_locations(
-        neo4j_session: neo4j.Session, database_account: Dict, azure_update_tag: int,
+    neo4j_session: neo4j.Session,
+    database_account: Dict,
+    azure_update_tag: int,
 ) -> None:
     """
     Ingest the details of location with read permission enabled.
     """
-    if 'read_locations' in database_account and len(database_account['read_locations']) > 0:
-        database_account_id = database_account['id']
-        read_locations = database_account['read_locations']
+    if (
+        "read_locations" in database_account
+        and len(database_account["read_locations"]) > 0
+    ):
+        database_account_id = database_account["id"]
+        read_locations = database_account["read_locations"]
 
         ingest_read_location = """
         UNWIND $read_locations_list as rl
@@ -214,14 +269,16 @@ def _load_database_account_read_locations(
 
 @timeit
 def _load_database_account_associated_locations(
-        neo4j_session: neo4j.Session, database_account: Dict, azure_update_tag: int,
+    neo4j_session: neo4j.Session,
+    database_account: Dict,
+    azure_update_tag: int,
 ) -> None:
     """
     Ingest the details of enabled location for the database account.
     """
-    if 'locations' in database_account and len(database_account['locations']) > 0:
-        database_account_id = database_account['id']
-        associated_locations = database_account['locations']
+    if "locations" in database_account and len(database_account["locations"]) > 0:
+        database_account_id = database_account["id"]
+        associated_locations = database_account["locations"]
 
         ingest_associated_location = """
         UNWIND $associated_locations_list as al
@@ -253,24 +310,26 @@ def transform_cosmosdb_cors_policy(database_account: Dict) -> Dict:
     """
     Transform CosmosDB Cors Policy response for neo4j ingestion.
     """
-    for policy in database_account['cors']:
-        if 'cors_policy_unique_id' not in policy:
-            policy['cors_policy_unique_id'] = str(uuid.uuid4())
+    for policy in database_account["cors"]:
+        if "cors_policy_unique_id" not in policy:
+            policy["cors_policy_unique_id"] = str(uuid.uuid4())
 
     return database_account
 
 
 @timeit
 def _load_cosmosdb_cors_policy(
-        neo4j_session: neo4j.Session, database_account: Dict, azure_update_tag: int,
+    neo4j_session: neo4j.Session,
+    database_account: Dict,
+    azure_update_tag: int,
 ) -> None:
     """
     Ingest the details of the Cors Policy of the database account.
     """
-    if 'cors' in database_account and len(database_account['cors']) > 0:
+    if "cors" in database_account and len(database_account["cors"]) > 0:
         database_account = transform_cosmosdb_cors_policy(database_account)
-        database_account_id = database_account['id']
-        cors_policies = database_account['cors']
+        database_account_id = database_account["id"]
+        cors_policies = database_account["cors"]
 
         ingest_cors_policy = """
         UNWIND $cors_policies_list AS cp
@@ -299,14 +358,19 @@ def _load_cosmosdb_cors_policy(
 
 @timeit
 def _load_cosmosdb_failover_policies(
-        neo4j_session: neo4j.Session, database_account: Dict, azure_update_tag: int,
+    neo4j_session: neo4j.Session,
+    database_account: Dict,
+    azure_update_tag: int,
 ) -> None:
     """
     Ingest the details of the Failover Policies of the database account.
     """
-    if 'failover_policies' in database_account and len(database_account['failover_policies']) > 0:
-        database_account_id = database_account['id']
-        failover_policies = database_account['failover_policies']
+    if (
+        "failover_policies" in database_account
+        and len(database_account["failover_policies"]) > 0
+    ):
+        database_account_id = database_account["id"]
+        failover_policies = database_account["failover_policies"]
 
         ingest_failover_policies = """
         UNWIND $failover_policies_list AS fp
@@ -332,16 +396,22 @@ def _load_cosmosdb_failover_policies(
 
 @timeit
 def _load_cosmosdb_private_endpoint_connections(
-        neo4j_session: neo4j.Session, database_account: Dict, azure_update_tag: int,
+    neo4j_session: neo4j.Session,
+    database_account: Dict,
+    azure_update_tag: int,
 ) -> None:
     """
     Ingest the details of the Private Endpoint Connections of the database account.
     """
-    if 'private_endpoint_connections' in database_account and len(
-            database_account['private_endpoint_connections'],
-    ) > 0:
-        database_account_id = database_account['id']
-        private_endpoint_connections = database_account['private_endpoint_connections']
+    if (
+        "private_endpoint_connections" in database_account
+        and len(
+            database_account["private_endpoint_connections"],
+        )
+        > 0
+    ):
+        database_account_id = database_account["id"]
+        private_endpoint_connections = database_account["private_endpoint_connections"]
 
         ingest_private_endpoint_connections = """
         UNWIND $private_endpoint_connections_list AS connection
@@ -369,14 +439,19 @@ def _load_cosmosdb_private_endpoint_connections(
 
 @timeit
 def _load_cosmosdb_virtual_network_rules(
-        neo4j_session: neo4j.Session, database_account: Dict, azure_update_tag: int,
+    neo4j_session: neo4j.Session,
+    database_account: Dict,
+    azure_update_tag: int,
 ) -> None:
     """
     Ingest the details of the Virtual Network Rules of the database account.
     """
-    if 'virtual_network_rules' in database_account and len(database_account['virtual_network_rules']) > 0:
-        database_account_id = database_account['id']
-        virtual_network_rules = database_account['virtual_network_rules']
+    if (
+        "virtual_network_rules" in database_account
+        and len(database_account["virtual_network_rules"]) > 0
+    ):
+        database_account_id = database_account["id"]
+        virtual_network_rules = database_account["virtual_network_rules"]
 
         ingest_virtual_network_rules = """
         UNWIND $virtual_network_rules_list AS vnr
@@ -401,33 +476,70 @@ def _load_cosmosdb_virtual_network_rules(
 
 @timeit
 def sync_database_account_details(
-        neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str,
-        database_account_list: List[Dict], sync_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    subscription_id: str,
+    database_account_list: List[Dict],
+    sync_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
-    details = get_database_account_details(credentials, subscription_id, database_account_list)
-    load_database_account_details(neo4j_session, credentials, subscription_id, details, sync_tag, common_job_parameters)
+    details = get_database_account_details(
+        credentials,
+        subscription_id,
+        database_account_list,
+    )
+    load_database_account_details(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        details,
+        sync_tag,
+        common_job_parameters,
+    )
 
 
 @timeit
 def get_database_account_details(
-        credentials: Credentials, subscription_id: str, database_account_list: List[Dict],
+    credentials: Credentials,
+    subscription_id: str,
+    database_account_list: List[Dict],
 ) -> Generator[Any, Any, Any]:
     """
     Iterate over the database accounts and return the list of SQL and MongoDB databases, Cassandra keyspaces and
     table resources associated with each database account.
     """
     for database_account in database_account_list:
-        sql_databases = get_sql_databases(credentials, subscription_id, database_account)
-        cassandra_keyspaces = get_cassandra_keyspaces(credentials, subscription_id, database_account)
-        mongodb_databases = get_mongodb_databases(credentials, subscription_id, database_account)
-        table_resources = get_table_resources(credentials, subscription_id, database_account)
-        yield database_account['id'], database_account['name'], database_account[
-            'resourceGroup'
+        sql_databases = get_sql_databases(
+            credentials,
+            subscription_id,
+            database_account,
+        )
+        cassandra_keyspaces = get_cassandra_keyspaces(
+            credentials,
+            subscription_id,
+            database_account,
+        )
+        mongodb_databases = get_mongodb_databases(
+            credentials,
+            subscription_id,
+            database_account,
+        )
+        table_resources = get_table_resources(
+            credentials,
+            subscription_id,
+            database_account,
+        )
+        yield database_account["id"], database_account["name"], database_account[
+            "resourceGroup"
         ], sql_databases, cassandra_keyspaces, mongodb_databases, table_resources
 
 
 @timeit
-def get_sql_databases(credentials: Credentials, subscription_id: str, database_account: Dict) -> List[Dict]:
+def get_sql_databases(
+    credentials: Credentials,
+    subscription_id: str,
+    database_account: Dict,
+) -> List[Dict]:
     """
     Return the list of SQL Databases in a database account.
     """
@@ -437,27 +549,34 @@ def get_sql_databases(credentials: Credentials, subscription_id: str, database_a
             map(
                 lambda x: x.as_dict(),
                 client.sql_resources.list_sql_databases(
-                    database_account['resourceGroup'],
-                    database_account['name'],
+                    database_account["resourceGroup"],
+                    database_account["name"],
                 ),
             ),
         )
 
     except ClientAuthenticationError:
-        logger.warning('Client Authentication Error while retrieving SQL databases', exc_info=True)
+        logger.warning(
+            "Client Authentication Error while retrieving SQL databases",
+            exc_info=True,
+        )
         return []
     except ResourceNotFoundError:
-        logger.warning('SQL databases resource not found error', exc_info=True)
+        logger.warning("SQL databases resource not found error", exc_info=True)
         return []
     except HttpResponseError:
-        logger.warning('Error while retrieving SQL Database list', exc_info=True)
+        logger.warning("Error while retrieving SQL Database list", exc_info=True)
         return []
 
     return sql_database_list
 
 
 @timeit
-def get_cassandra_keyspaces(credentials: Credentials, subscription_id: str, database_account: Dict) -> List[Dict]:
+def get_cassandra_keyspaces(
+    credentials: Credentials,
+    subscription_id: str,
+    database_account: Dict,
+) -> List[Dict]:
     """
     Return the list of Cassandra Keyspaces in a database account.
     """
@@ -467,27 +586,34 @@ def get_cassandra_keyspaces(credentials: Credentials, subscription_id: str, data
             map(
                 lambda x: x.as_dict(),
                 client.cassandra_resources.list_cassandra_keyspaces(
-                    database_account['resourceGroup'],
-                    database_account['name'],
+                    database_account["resourceGroup"],
+                    database_account["name"],
                 ),
             ),
         )
 
     except ClientAuthenticationError:
-        logger.warning('Client Authentication Error while retrieving Cassandra keyspaces', exc_info=True)
+        logger.warning(
+            "Client Authentication Error while retrieving Cassandra keyspaces",
+            exc_info=True,
+        )
         return []
     except ResourceNotFoundError:
-        logger.warning('Cassandra keyspaces resource not found error', exc_info=True)
+        logger.warning("Cassandra keyspaces resource not found error", exc_info=True)
         return []
     except HttpResponseError:
-        logger.warning('Error while retrieving Cassandra keyspaces list', exc_info=True)
+        logger.warning("Error while retrieving Cassandra keyspaces list", exc_info=True)
         return []
 
     return cassandra_keyspace_list
 
 
 @timeit
-def get_mongodb_databases(credentials: Credentials, subscription_id: str, database_account: Dict) -> List[Dict]:
+def get_mongodb_databases(
+    credentials: Credentials,
+    subscription_id: str,
+    database_account: Dict,
+) -> List[Dict]:
     """
     Return the list of MongoDB Databases in a database account.
     """
@@ -497,27 +623,34 @@ def get_mongodb_databases(credentials: Credentials, subscription_id: str, databa
             map(
                 lambda x: x.as_dict(),
                 client.mongo_db_resources.list_mongo_db_databases(
-                    database_account['resourceGroup'],
-                    database_account['name'],
+                    database_account["resourceGroup"],
+                    database_account["name"],
                 ),
             ),
         )
 
     except ClientAuthenticationError:
-        logger.warning('Client Authentication Error while retrieving MongoDB Databases', exc_info=True)
+        logger.warning(
+            "Client Authentication Error while retrieving MongoDB Databases",
+            exc_info=True,
+        )
         return []
     except ResourceNotFoundError:
-        logger.warning('MongoDB Databases resource not found error', exc_info=True)
+        logger.warning("MongoDB Databases resource not found error", exc_info=True)
         return []
     except HttpResponseError:
-        logger.warning('Error while retrieving MongoDB Databases list', exc_info=True)
+        logger.warning("Error while retrieving MongoDB Databases list", exc_info=True)
         return []
 
     return mongodb_database_list
 
 
 @timeit
-def get_table_resources(credentials: Credentials, subscription_id: str, database_account: Dict) -> List[Dict]:
+def get_table_resources(
+    credentials: Credentials,
+    subscription_id: str,
+    database_account: Dict,
+) -> List[Dict]:
     """
     Return the list of Table Resources in a database account.
     """
@@ -527,20 +660,23 @@ def get_table_resources(credentials: Credentials, subscription_id: str, database
             map(
                 lambda x: x.as_dict(),
                 client.table_resources.list_tables(
-                    database_account['resourceGroup'],
-                    database_account['name'],
+                    database_account["resourceGroup"],
+                    database_account["name"],
                 ),
             ),
         )
 
     except ClientAuthenticationError:
-        logger.warning('Client Authentication Error while retrieving Table resources', exc_info=True)
+        logger.warning(
+            "Client Authentication Error while retrieving Table resources",
+            exc_info=True,
+        )
         return []
     except ResourceNotFoundError:
-        logger.warning('Table resource not found error', exc_info=True)
+        logger.warning("Table resource not found error", exc_info=True)
         return []
     except HttpResponseError:
-        logger.warning('Error while retrieving Table resources list', exc_info=True)
+        logger.warning("Error while retrieving Table resources list", exc_info=True)
         return []
 
     return table_resources_list
@@ -548,22 +684,29 @@ def get_table_resources(credentials: Credentials, subscription_id: str, database
 
 @timeit
 def transform_database_account_resources(
-        account_id: Any, name: Any, resource_group: Any, resources: List[Dict],
+    account_id: Any,
+    name: Any,
+    resource_group: Any,
+    resources: List[Dict],
 ) -> List[Dict]:
     """
     Transform the SQL Database/Cassandra Keyspace/MongoDB Database/Table Resource response for neo4j ingestion.
     """
     for resource in resources:
-        resource['database_account_name'] = name
-        resource['database_account_id'] = account_id
-        resource['resource_group_name'] = resource_group
+        resource["database_account_name"] = name
+        resource["database_account_id"] = account_id
+        resource["resource_group_name"] = resource_group
     return resources
 
 
 @timeit
 def load_database_account_details(
-        neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str,
-        details: List[Tuple[Any, Any, Any, Any, Any, Any, Any]], update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    subscription_id: str,
+    details: List[Tuple[Any, Any, Any, Any, Any, Any, Any]],
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     """
     Create dictionaries for SQL Databases, Cassandra Keyspaces, MongoDB Databases and table resources.
@@ -573,21 +716,49 @@ def load_database_account_details(
     mongodb_databases: List[Dict] = []
     table_resources: List[Dict] = []
 
-    for account_id, name, resourceGroup, sql_database, cassandra_keyspace, mongodb_database, table in details:
+    for (
+        account_id,
+        name,
+        resourceGroup,
+        sql_database,
+        cassandra_keyspace,
+        mongodb_database,
+        table,
+    ) in details:
         if len(sql_database) > 0:
-            dbs = transform_database_account_resources(account_id, name, resourceGroup, sql_database)
+            dbs = transform_database_account_resources(
+                account_id,
+                name,
+                resourceGroup,
+                sql_database,
+            )
             sql_databases.extend(dbs)
 
         if len(cassandra_keyspace) > 0:
-            keyspaces = transform_database_account_resources(account_id, name, resourceGroup, cassandra_keyspace)
+            keyspaces = transform_database_account_resources(
+                account_id,
+                name,
+                resourceGroup,
+                cassandra_keyspace,
+            )
             cassandra_keyspaces.extend(keyspaces)
 
         if len(mongodb_database) > 0:
-            mongo_dbs = transform_database_account_resources(account_id, name, resourceGroup, mongodb_database)
+            mongo_dbs = transform_database_account_resources(
+                account_id,
+                name,
+                resourceGroup,
+                mongodb_database,
+            )
             mongodb_databases.extend(mongo_dbs)
 
         if len(table) > 0:
-            t = transform_database_account_resources(account_id, name, resourceGroup, table)
+            t = transform_database_account_resources(
+                account_id,
+                name,
+                resourceGroup,
+                table,
+            )
             table_resources.extend(t)
 
     # Loading the table resources
@@ -601,21 +772,37 @@ def load_database_account_details(
     _load_mongodb_databases(neo4j_session, mongodb_databases, update_tag)
 
     sync_sql_database_details(
-        neo4j_session, credentials, subscription_id, sql_databases, update_tag,
+        neo4j_session,
+        credentials,
+        subscription_id,
+        sql_databases,
+        update_tag,
         common_job_parameters,
     )
     sync_cassandra_keyspace_details(
-        neo4j_session, credentials, subscription_id, cassandra_keyspaces, update_tag,
+        neo4j_session,
+        credentials,
+        subscription_id,
+        cassandra_keyspaces,
+        update_tag,
         common_job_parameters,
     )
     sync_mongodb_database_details(
-        neo4j_session, credentials, subscription_id, mongodb_databases, update_tag,
+        neo4j_session,
+        credentials,
+        subscription_id,
+        mongodb_databases,
+        update_tag,
         common_job_parameters,
     )
 
 
 @timeit
-def _load_sql_databases(neo4j_session: neo4j.Session, sql_databases: List[Dict], update_tag: int) -> None:
+def _load_sql_databases(
+    neo4j_session: neo4j.Session,
+    sql_databases: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest SQL Databases into neo4j.
     """
@@ -643,7 +830,11 @@ def _load_sql_databases(neo4j_session: neo4j.Session, sql_databases: List[Dict],
 
 
 @timeit
-def _load_cassandra_keyspaces(neo4j_session: neo4j.Session, cassandra_keyspaces: List[Dict], update_tag: int) -> None:
+def _load_cassandra_keyspaces(
+    neo4j_session: neo4j.Session,
+    cassandra_keyspaces: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest Cassandra keyspaces into neo4j.
     """
@@ -671,7 +862,11 @@ def _load_cassandra_keyspaces(neo4j_session: neo4j.Session, cassandra_keyspaces:
 
 
 @timeit
-def _load_mongodb_databases(neo4j_session: neo4j.Session, mongodb_databases: List[Dict], update_tag: int) -> None:
+def _load_mongodb_databases(
+    neo4j_session: neo4j.Session,
+    mongodb_databases: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest MongoDB databases into neo4j.
     """
@@ -699,7 +894,11 @@ def _load_mongodb_databases(neo4j_session: neo4j.Session, mongodb_databases: Lis
 
 
 @timeit
-def _load_table_resources(neo4j_session: neo4j.Session, table_resources: List[Dict], update_tag: int) -> None:
+def _load_table_resources(
+    neo4j_session: neo4j.Session,
+    table_resources: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest Table resources into neo4j.
     """
@@ -728,28 +927,42 @@ def _load_table_resources(neo4j_session: neo4j.Session, table_resources: List[Di
 
 @timeit
 def sync_sql_database_details(
-        neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, sql_databases: List[Dict],
-        update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    subscription_id: str,
+    sql_databases: List[Dict],
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
-    sql_database_details = get_sql_database_details(credentials, subscription_id, sql_databases)
+    sql_database_details = get_sql_database_details(
+        credentials,
+        subscription_id,
+        sql_databases,
+    )
     load_sql_database_details(neo4j_session, sql_database_details, update_tag)
     cleanup_sql_database_details(neo4j_session, common_job_parameters)
 
 
 @timeit
 def get_sql_database_details(
-        credentials: Credentials, subscription_id: str, sql_databases: List[Dict],
+    credentials: Credentials,
+    subscription_id: str,
+    sql_databases: List[Dict],
 ) -> Generator[Any, Any, Any]:
     """
     Iterate over the SQL databases to retrieve the SQL containers in them.
     """
     for database in sql_databases:
         containers = get_sql_containers(credentials, subscription_id, database)
-        yield database['id'], containers
+        yield database["id"], containers
 
 
 @timeit
-def get_sql_containers(credentials: Credentials, subscription_id: str, database: Dict) -> List[Dict]:
+def get_sql_containers(
+    credentials: Credentials,
+    subscription_id: str,
+    database: Dict,
+) -> List[Dict]:
     """
     Returns the list of SQL containers in a database.
     """
@@ -759,28 +972,35 @@ def get_sql_containers(credentials: Credentials, subscription_id: str, database:
             map(
                 lambda x: x.as_dict(),
                 client.sql_resources.list_sql_containers(
-                    database['resource_group_name'],
-                    database['database_account_name'],
-                    database['name'],
+                    database["resource_group_name"],
+                    database["database_account_name"],
+                    database["name"],
                 ),
             ),
         )
 
     except ClientAuthenticationError:
-        logger.warning('Client Authentication Error while retrieving SQL containers', exc_info=True)
+        logger.warning(
+            "Client Authentication Error while retrieving SQL containers",
+            exc_info=True,
+        )
         return []
     except ResourceNotFoundError:
-        logger.warning('SQL containers not found error', exc_info=True)
+        logger.warning("SQL containers not found error", exc_info=True)
         return []
     except HttpResponseError:
-        logger.warning('Error while retrieving SQL containers list', exc_info=True)
+        logger.warning("Error while retrieving SQL containers list", exc_info=True)
         return []
 
     return containers
 
 
 @timeit
-def load_sql_database_details(neo4j_session: neo4j.Session, details: List[Tuple[Any, Any]], update_tag: int) -> None:
+def load_sql_database_details(
+    neo4j_session: neo4j.Session,
+    details: List[Tuple[Any, Any]],
+    update_tag: int,
+) -> None:
     """
     Create dictionary for SQL Containers
     """
@@ -789,14 +1009,18 @@ def load_sql_database_details(neo4j_session: neo4j.Session, details: List[Tuple[
     for database_id, container in details:
         if len(container) > 0:
             for c in container:
-                c['database_id'] = database_id
+                c["database_id"] = database_id
             containers.extend(container)
 
     _load_sql_containers(neo4j_session, containers, update_tag)
 
 
 @timeit
-def _load_sql_containers(neo4j_session: neo4j.Session, containers: List[Dict], update_tag: int) -> None:
+def _load_sql_containers(
+    neo4j_session: neo4j.Session,
+    containers: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest SQL Container details into neo4j.
     """
@@ -831,28 +1055,46 @@ def _load_sql_containers(neo4j_session: neo4j.Session, containers: List[Dict], u
 
 @timeit
 def sync_cassandra_keyspace_details(
-        neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, cassandra_keyspaces: List[Dict],
-        update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    subscription_id: str,
+    cassandra_keyspaces: List[Dict],
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
-    cassandra_keyspace_details = get_cassandra_keyspace_details(credentials, subscription_id, cassandra_keyspaces)
-    load_cassandra_keyspace_details(neo4j_session, cassandra_keyspace_details, update_tag)
+    cassandra_keyspace_details = get_cassandra_keyspace_details(
+        credentials,
+        subscription_id,
+        cassandra_keyspaces,
+    )
+    load_cassandra_keyspace_details(
+        neo4j_session,
+        cassandra_keyspace_details,
+        update_tag,
+    )
     cleanup_cassandra_keyspace_details(neo4j_session, common_job_parameters)
 
 
 @timeit
 def get_cassandra_keyspace_details(
-        credentials: Credentials, subscription_id: str, cassandra_keyspaces: List[Dict],
+    credentials: Credentials,
+    subscription_id: str,
+    cassandra_keyspaces: List[Dict],
 ) -> Generator[Any, Any, Any]:
     """
     Iterate through the Cassandra keyspaces to get the list of tables in each keyspace.
     """
     for keyspace in cassandra_keyspaces:
         cassandra_tables = get_cassandra_tables(credentials, subscription_id, keyspace)
-        yield keyspace['id'], cassandra_tables
+        yield keyspace["id"], cassandra_tables
 
 
 @timeit
-def get_cassandra_tables(credentials: Credentials, subscription_id: str, keyspace: Dict) -> List[Dict]:
+def get_cassandra_tables(
+    credentials: Credentials,
+    subscription_id: str,
+    keyspace: Dict,
+) -> List[Dict]:
     """
     Returns the list of tables in a Cassandra Keyspace.
     """
@@ -862,21 +1104,24 @@ def get_cassandra_tables(credentials: Credentials, subscription_id: str, keyspac
             map(
                 lambda x: x.as_dict(),
                 client.cassandra_resources.list_cassandra_tables(
-                    keyspace['resource_group_name'],
-                    keyspace['database_account_name'],
-                    keyspace['name'],
+                    keyspace["resource_group_name"],
+                    keyspace["database_account_name"],
+                    keyspace["name"],
                 ),
             ),
         )
 
     except ClientAuthenticationError:
-        logger.warning('Client Authentication Error while retrieving Cassandra tables', exc_info=True)
+        logger.warning(
+            "Client Authentication Error while retrieving Cassandra tables",
+            exc_info=True,
+        )
         return []
     except ResourceNotFoundError:
-        logger.warning('Cassandra tables not found error', exc_info=True)
+        logger.warning("Cassandra tables not found error", exc_info=True)
         return []
     except HttpResponseError:
-        logger.warning('Error while retrieving Cassandra tables list', exc_info=True)
+        logger.warning("Error while retrieving Cassandra tables list", exc_info=True)
         return []
 
     return cassandra_tables
@@ -884,7 +1129,9 @@ def get_cassandra_tables(credentials: Credentials, subscription_id: str, keyspac
 
 @timeit
 def load_cassandra_keyspace_details(
-        neo4j_session: neo4j.Session, details: List[Tuple[Any, Any]], update_tag: int,
+    neo4j_session: neo4j.Session,
+    details: List[Tuple[Any, Any]],
+    update_tag: int,
 ) -> None:
     """
     Create a dictionary for Cassandra tables.
@@ -894,14 +1141,18 @@ def load_cassandra_keyspace_details(
     for keyspace_id, cassandra_table in details:
         if len(cassandra_table) > 0:
             for t in cassandra_table:
-                t['keyspace_id'] = keyspace_id
+                t["keyspace_id"] = keyspace_id
             cassandra_tables.extend(cassandra_table)
 
     _load_cassandra_tables(neo4j_session, cassandra_tables, update_tag)
 
 
 @timeit
-def _load_cassandra_tables(neo4j_session: neo4j.Session, cassandra_tables: List[Dict], update_tag: int) -> None:
+def _load_cassandra_tables(
+    neo4j_session: neo4j.Session,
+    cassandra_tables: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest Cassandra Tables into neo4j.
     """
@@ -933,28 +1184,42 @@ def _load_cassandra_tables(neo4j_session: neo4j.Session, cassandra_tables: List[
 
 @timeit
 def sync_mongodb_database_details(
-        neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str, mongodb_databases: List[Dict],
-        update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    subscription_id: str,
+    mongodb_databases: List[Dict],
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
-    mongodb_databases_details = get_mongodb_databases_details(credentials, subscription_id, mongodb_databases)
+    mongodb_databases_details = get_mongodb_databases_details(
+        credentials,
+        subscription_id,
+        mongodb_databases,
+    )
     load_mongodb_databases_details(neo4j_session, mongodb_databases_details, update_tag)
     cleanup_mongodb_database_details(neo4j_session, common_job_parameters)
 
 
 @timeit
 def get_mongodb_databases_details(
-        credentials: Credentials, subscription_id: str, mongodb_databases: List[Dict],
+    credentials: Credentials,
+    subscription_id: str,
+    mongodb_databases: List[Dict],
 ) -> Generator[Any, Any, Any]:
     """
     Iterate through the MongoDB Databases to get the list of collections in each mongoDB database.
     """
     for database in mongodb_databases:
         collections = get_mongodb_collections(credentials, subscription_id, database)
-        yield database['id'], collections
+        yield database["id"], collections
 
 
 @timeit
-def get_mongodb_collections(credentials: Credentials, subscription_id: str, database: Dict) -> List[Dict]:
+def get_mongodb_collections(
+    credentials: Credentials,
+    subscription_id: str,
+    database: Dict,
+) -> List[Dict]:
     """
     Returns the list of collections in a MongoDB Database.
     """
@@ -964,21 +1229,24 @@ def get_mongodb_collections(credentials: Credentials, subscription_id: str, data
             map(
                 lambda x: x.as_dict(),
                 client.mongo_db_resources.list_mongo_db_collections(
-                    database['resource_group_name'],
-                    database['database_account_name'],
-                    database['name'],
+                    database["resource_group_name"],
+                    database["database_account_name"],
+                    database["name"],
                 ),
             ),
         )
 
     except ClientAuthenticationError:
-        logger.warning('Client Authentication Error while retrieving MongoDB collections', exc_info=True)
+        logger.warning(
+            "Client Authentication Error while retrieving MongoDB collections",
+            exc_info=True,
+        )
         return []
     except ResourceNotFoundError:
-        logger.warning('MongoDB collections not found error', exc_info=True)
+        logger.warning("MongoDB collections not found error", exc_info=True)
         return []
     except HttpResponseError:
-        logger.warning('Error while retrieving MongoDB collections list', exc_info=True)
+        logger.warning("Error while retrieving MongoDB collections list", exc_info=True)
         return []
 
     return collections
@@ -986,7 +1254,9 @@ def get_mongodb_collections(credentials: Credentials, subscription_id: str, data
 
 @timeit
 def load_mongodb_databases_details(
-        neo4j_session: neo4j.Session, details: List[Tuple[Any, Any]], update_tag: int,
+    neo4j_session: neo4j.Session,
+    details: List[Tuple[Any, Any]],
+    update_tag: int,
 ) -> None:
     """
     Create a dictionary for MongoDB tables.
@@ -996,14 +1266,18 @@ def load_mongodb_databases_details(
     for database_id, collection in details:
         if len(collection) > 0:
             for c in collection:
-                c['database_id'] = database_id
+                c["database_id"] = database_id
             collections.extend(collection)
 
     _load_collections(neo4j_session, collections, update_tag)
 
 
 @timeit
-def _load_collections(neo4j_session: neo4j.Session, collections: List[Dict], update_tag: int) -> None:
+def _load_collections(
+    neo4j_session: neo4j.Session,
+    collections: List[Dict],
+    update_tag: int,
+) -> None:
     """
     Ingest MongoDB Collections into neo4j.
     """
@@ -1033,42 +1307,94 @@ def _load_collections(neo4j_session: neo4j.Session, collections: List[Dict], upd
 
 
 @timeit
-def cleanup_azure_database_accounts(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('azure_database_account_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_azure_database_accounts(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "azure_database_account_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
-def cleanup_sql_database_details(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('azure_cosmosdb_sql_database_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_sql_database_details(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "azure_cosmosdb_sql_database_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
-def cleanup_cassandra_keyspace_details(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('azure_cosmosdb_cassandra_keyspace_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_cassandra_keyspace_details(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "azure_cosmosdb_cassandra_keyspace_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
-def cleanup_mongodb_database_details(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('azure_cosmosdb_mongodb_database_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_mongodb_database_details(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "azure_cosmosdb_mongodb_database_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
-def cleanup_table_resources(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('azure_cosmosdb_table_resources_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_table_resources(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "azure_cosmosdb_table_resources_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync(
-        neo4j_session: neo4j.Session, credentials: Credentials, subscription_id: str,
-        sync_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    credentials: Credentials,
+    subscription_id: str,
+    sync_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing Azure CosmosDB for subscription '%s'.", subscription_id)
     database_account_list = get_database_account_list(credentials, subscription_id)
     database_account_list = transform_database_account_data(database_account_list)
-    load_database_account_data(neo4j_session, subscription_id, database_account_list, sync_tag)
-    sync_database_account_data_resources(neo4j_session, subscription_id, database_account_list, sync_tag)
+    load_database_account_data(
+        neo4j_session,
+        subscription_id,
+        database_account_list,
+        sync_tag,
+    )
+    sync_database_account_data_resources(
+        neo4j_session,
+        subscription_id,
+        database_account_list,
+        sync_tag,
+    )
     sync_database_account_details(
-        neo4j_session, credentials, subscription_id, database_account_list, sync_tag,
+        neo4j_session,
+        credentials,
+        subscription_id,
+        database_account_list,
+        sync_tag,
         common_job_parameters,
     )
     cleanup_azure_database_accounts(neo4j_session, common_job_parameters)

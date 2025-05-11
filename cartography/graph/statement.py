@@ -11,7 +11,6 @@ import neo4j
 
 from cartography.stats import get_stats_client
 
-
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
@@ -41,13 +40,13 @@ class GraphStatement:
     """
 
     def __init__(
-            self,
-            query: str,
-            parameters: Optional[Dict[Any, Any]] = None,
-            iterative: bool = False,
-            iterationsize: int = 0,
-            parent_job_name: Optional[str] = None,
-            parent_job_sequence_num: Optional[int] = None,
+        self,
+        query: str,
+        parameters: Optional[Dict[Any, Any]] = None,
+        iterative: bool = False,
+        iterationsize: int = 0,
+        parent_job_name: Optional[str] = None,
+        parent_job_sequence_num: Optional[int] = None,
     ):
         self.query = query
         self.parameters = parameters or {}
@@ -56,7 +55,9 @@ class GraphStatement:
         self.parameters["LIMIT_SIZE"] = self.iterationsize
 
         self.parent_job_name = parent_job_name if parent_job_name else None
-        self.parent_job_sequence_num = parent_job_sequence_num if parent_job_sequence_num else None
+        self.parent_job_sequence_num = (
+            parent_job_sequence_num if parent_job_sequence_num else None
+        )
 
     def merge_parameters(self, parameters: Dict) -> None:
         """
@@ -73,8 +74,11 @@ class GraphStatement:
         if self.iterative:
             self._run_iterative(session)
         else:
-            session.write_transaction(self._run_noniterative).consume()
-        logger.info(f"Completed {self.parent_job_name} statement #{self.parent_job_sequence_num}")
+            session.write_transaction(self._run_noniterative)
+
+        logger.info(
+            f"Completed {self.parent_job_name} statement #{self.parent_job_sequence_num}"
+        )
 
     def as_dict(self) -> Dict[str, Any]:
         """
@@ -87,27 +91,34 @@ class GraphStatement:
             "iterationsize": self.iterationsize,
         }
 
-    def _run_noniterative(self, tx: neo4j.Transaction) -> neo4j.Result:
+    def _run_noniterative(self, tx: neo4j.Transaction) -> neo4j.ResultSummary:
         """
         Non-iterative statement execution.
+        Returns a ResultSummary instead of Result to avoid ResultConsumedError.
         """
         result: neo4j.Result = tx.run(self.query, self.parameters)
 
-        # Handle stats
+        # Ensure we consume the result inside the transaction
         summary: neo4j.ResultSummary = result.consume()
-        stat_handler.incr('constraints_added', summary.counters.constraints_added)
-        stat_handler.incr('constraints_removed', summary.counters.constraints_removed)
-        stat_handler.incr('indexes_added', summary.counters.indexes_added)
-        stat_handler.incr('indexes_removed', summary.counters.indexes_removed)
-        stat_handler.incr('labels_added', summary.counters.labels_added)
-        stat_handler.incr('labels_removed', summary.counters.labels_removed)
-        stat_handler.incr('nodes_created', summary.counters.nodes_created)
-        stat_handler.incr('nodes_deleted', summary.counters.nodes_deleted)
-        stat_handler.incr('properties_set', summary.counters.properties_set)
-        stat_handler.incr('relationships_created', summary.counters.relationships_created)
-        stat_handler.incr('relationships_deleted', summary.counters.relationships_deleted)
 
-        return result
+        # Handle stats
+        stat_handler.incr("constraints_added", summary.counters.constraints_added)
+        stat_handler.incr("constraints_removed", summary.counters.constraints_removed)
+        stat_handler.incr("indexes_added", summary.counters.indexes_added)
+        stat_handler.incr("indexes_removed", summary.counters.indexes_removed)
+        stat_handler.incr("labels_added", summary.counters.labels_added)
+        stat_handler.incr("labels_removed", summary.counters.labels_removed)
+        stat_handler.incr("nodes_created", summary.counters.nodes_created)
+        stat_handler.incr("nodes_deleted", summary.counters.nodes_deleted)
+        stat_handler.incr("properties_set", summary.counters.properties_set)
+        stat_handler.incr(
+            "relationships_created", summary.counters.relationships_created
+        )
+        stat_handler.incr(
+            "relationships_deleted", summary.counters.relationships_deleted
+        )
+
+        return summary
 
     def _run_iterative(self, session: neo4j.Session) -> None:
         """
@@ -118,21 +129,19 @@ class GraphStatement:
         self.parameters["LIMIT_SIZE"] = self.iterationsize
 
         while True:
-            result: neo4j.Result = session.write_transaction(self._run_noniterative)
+            summary: neo4j.ResultSummary = session.write_transaction(
+                self._run_noniterative
+            )
 
-            # Exit if we have finished processing all items
-            if not result.consume().counters.contains_updates:
-                # Ensure network buffers are cleared
-                result.consume()
+            if not summary.counters.contains_updates:
                 break
-            result.consume()
 
     @classmethod
     def create_from_json(
-            cls,
-            json_obj: Dict[str, Any],
-            short_job_name: Optional[str] = None,
-            job_sequence_num: Optional[int] = None,
+        cls,
+        json_obj: Dict[str, Any],
+        short_job_name: Optional[str] = None,
+        job_sequence_num: Optional[int] = None,
     ):
         """
         Create a statement from a JSON blob.

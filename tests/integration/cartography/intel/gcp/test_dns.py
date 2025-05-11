@@ -1,7 +1,7 @@
 import cartography.intel.gcp.dns
 import tests.data.gcp.dns
 
-TEST_PROJECT_NUMBER = '000000000000'
+TEST_PROJECT_NUMBER = "000000000000"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -26,7 +26,7 @@ def test_load_dns_zones(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -53,7 +53,7 @@ def test_load_rrs(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -91,9 +91,7 @@ def test_zones_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -130,8 +128,6 @@ def test_rrs_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected

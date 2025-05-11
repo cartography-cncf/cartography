@@ -1,7 +1,6 @@
 # Copyright (c) 2020, Oracle and/or its affiliates.
 import datetime
 
-
 LIST_USERS = {
     "Users": [
         {
@@ -147,24 +146,24 @@ LIST_COMPARTMENTS = {
 }
 
 LIST_GROUP_MEMBERSHIPS = {
-    'GroupMemberships': [
+    "GroupMemberships": [
         {
-            'compartment-id': "ocid1.tenancy.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0",
-            'group-id': "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
-            'id': 'ocid1.groupmembership.oc1..t6gnmlcjgeim8q47nqilyrb1l5vccnklev8k2ud9skn78eapu116oyv9wcr0',
-            'inactive-status': None,
-            'lifecycle-state': 'ACTIVE',
-            'time-created': datetime.datetime(2019, 1, 1, 0, 0, 1),
-            'user-id': 'ocid1.user.oc1..m5oaceraqeiq47zqstzy6ickbbfkw7vg4srozp4sskn78eapu116oyv9wcr0',
+            "compartment-id": "ocid1.tenancy.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0",
+            "group-id": "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
+            "id": "ocid1.groupmembership.oc1..t6gnmlcjgeim8q47nqilyrb1l5vccnklev8k2ud9skn78eapu116oyv9wcr0",
+            "inactive-status": None,
+            "lifecycle-state": "ACTIVE",
+            "time-created": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "user-id": "ocid1.user.oc1..m5oaceraqeiq47zqstzy6ickbbfkw7vg4srozp4sskn78eapu116oyv9wcr0",
         },
         {
-            'compartment-id': "ocid1.tenancy.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0",
-            'group-id': "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
-            'id': 'ocid1.groupmembership.oc1..ud9skn78et6gnmlcjgeim8q47nqilyrb1l5vccnklev8k2apu116oyv9wcr0',
-            'inactive-status': None,
-            'lifecycle-state': 'ACTIVE',
-            'time-created': datetime.datetime(2019, 1, 1, 0, 0, 1),
-            'user-id': 'ocid1.user.oc1..srozp4sskn78eapu116oyv9wcr06ickbbfkw7vg4m5oaceraqeiq47zqstzy',
+            "compartment-id": "ocid1.tenancy.oc1..nqilyrb1l5t6gnmlcjgeim8q47vccnklev8k2ud9skn78eapu116oyv9wcr0",
+            "group-id": "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
+            "id": "ocid1.groupmembership.oc1..ud9skn78et6gnmlcjgeim8q47nqilyrb1l5vccnklev8k2apu116oyv9wcr0",
+            "inactive-status": None,
+            "lifecycle-state": "ACTIVE",
+            "time-created": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "user-id": "ocid1.user.oc1..srozp4sskn78eapu116oyv9wcr06ickbbfkw7vg4m5oaceraqeiq47zqstzy",
         },
     ],
 }

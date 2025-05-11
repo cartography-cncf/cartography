@@ -3,7 +3,6 @@ from unittest import mock
 import cartography.util
 from cartography.util import run_cleanup_job
 
-
 UPDATE_TAG_T1 = 111111
 UPDATE_TAG_T2 = 222222
 UPDATE_TAG_T3 = 333333
@@ -30,11 +29,14 @@ SAMPLE_CLEANUP_JOB = """
 }
 """
 
-SAMPLE_JOB_FILENAME = '/path/to/this/cleanupjob/mycleanupjob.json'
+SAMPLE_JOB_FILENAME = "/path/to/this/cleanupjob/mycleanupjob.json"
 
 
-@mock.patch.object(cartography.util, 'read_text', return_value=SAMPLE_CLEANUP_JOB)
-def test_run_cleanup_job_on_relationships(mock_read_text: mock.MagicMock, neo4j_session):
+@mock.patch.object(cartography.util, "read_text", return_value=SAMPLE_CLEANUP_JOB)
+def test_run_cleanup_job_on_relationships(
+    mock_read_text: mock.MagicMock,
+    neo4j_session,
+):
     # Arrange: nodes id1 and id2 are connected to each other at time T2 via stale RELship r
     neo4j_session.run(
         """
@@ -46,7 +48,7 @@ def test_run_cleanup_job_on_relationships(mock_read_text: mock.MagicMock, neo4j_
     )
 
     # Act: delete all nodes and rels where `lastupdated` != UPDATE_TAG_T2
-    job_parameters = {'UPDATE_TAG': UPDATE_TAG_T2}
+    job_parameters = {"UPDATE_TAG": UPDATE_TAG_T2}
     run_cleanup_job(SAMPLE_JOB_FILENAME, neo4j_session, job_parameters)
 
     # Assert 1: Node id1 is no longer attached to Node id2
@@ -57,9 +59,9 @@ def test_run_cleanup_job_on_relationships(mock_read_text: mock.MagicMock, neo4j_
         RETURN a.id, r.lastupdated, b.id
         """,
     )
-    actual_nodes = {(n['a.id'], n['r.lastupdated'], n['b.id']) for n in nodes}
+    actual_nodes = {(n["a.id"], n["r.lastupdated"], n["b.id"]) for n in nodes}
     expected_nodes = {
-        ('id1', None, None),
+        ("id1", None, None),
     }
     assert actual_nodes == expected_nodes
 
@@ -69,15 +71,15 @@ def test_run_cleanup_job_on_relationships(mock_read_text: mock.MagicMock, neo4j_
         MATCH (b:TypeB) RETURN b.id, b.lastupdated
         """,
     )
-    actual_nodes = {(n['b.id'], n['b.lastupdated']) for n in nodes}
+    actual_nodes = {(n["b.id"], n["b.lastupdated"]) for n in nodes}
     expected_nodes = {
-        ('id2', UPDATE_TAG_T2),
+        ("id2", UPDATE_TAG_T2),
     }
     assert actual_nodes == expected_nodes
     mock_read_text.assert_called_once()
 
 
-@mock.patch.object(cartography.util, 'read_text', return_value=SAMPLE_CLEANUP_JOB)
+@mock.patch.object(cartography.util, "read_text", return_value=SAMPLE_CLEANUP_JOB)
 def test_run_cleanup_job_on_nodes(mock_read_text: mock.MagicMock, neo4j_session):
     # Arrange: we are now at time T3, and node id1 exists but node id2 no longer exists
     neo4j_session.run(
@@ -88,7 +90,7 @@ def test_run_cleanup_job_on_nodes(mock_read_text: mock.MagicMock, neo4j_session)
     )
 
     # Act: delete all nodes and rels where `lastupdated` != UPDATE_TAG_T3
-    job_parameters = {'UPDATE_TAG': UPDATE_TAG_T3}
+    job_parameters = {"UPDATE_TAG": UPDATE_TAG_T3}
     run_cleanup_job(SAMPLE_JOB_FILENAME, neo4j_session, job_parameters)
 
     # Assert: Node id1 is the only node that still exists
@@ -97,16 +99,19 @@ def test_run_cleanup_job_on_nodes(mock_read_text: mock.MagicMock, neo4j_session)
         MATCH (n) RETURN n.id, n.lastupdated
         """,
     )
-    actual_nodes = {(n['n.id'], n['n.lastupdated']) for n in nodes}
+    actual_nodes = {(n["n.id"], n["n.lastupdated"]) for n in nodes}
     expected_nodes = {
-        ('id1', UPDATE_TAG_T3),
+        ("id1", UPDATE_TAG_T3),
     }
     assert actual_nodes == expected_nodes
     mock_read_text.assert_called_once()
 
 
-@mock.patch.object(cartography.util, 'read_text', return_value=SAMPLE_CLEANUP_JOB)
-def test_run_cleanup_job_iterative_multiple_batches(mock_read_text: mock.MagicMock, neo4j_session):
+@mock.patch.object(cartography.util, "read_text", return_value=SAMPLE_CLEANUP_JOB)
+def test_run_cleanup_job_iterative_multiple_batches(
+    mock_read_text: mock.MagicMock,
+    neo4j_session,
+):
     # Arrange: load 300 nodes to the graph
     for i in range(300):
         neo4j_session.run(
@@ -118,7 +123,7 @@ def test_run_cleanup_job_iterative_multiple_batches(mock_read_text: mock.MagicMo
         )
 
     # Act: delete all nodes and rels where `lastupdated` != UPDATE_TAG_T4.
-    job_parameters = {'UPDATE_TAG': UPDATE_TAG_T4}
+    job_parameters = {"UPDATE_TAG": UPDATE_TAG_T4}
     run_cleanup_job(SAMPLE_JOB_FILENAME, neo4j_session, job_parameters)
 
     # Assert: There are no nodes of label :TypeA in the graph, as the job iteratively removed them.
@@ -127,6 +132,6 @@ def test_run_cleanup_job_iterative_multiple_batches(mock_read_text: mock.MagicMo
         MATCH (n:TypeA) RETURN n.id
         """,
     )
-    actual_nodes = {n['n.id'] for n in nodes}
+    actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == set()
     mock_read_text.assert_called_once()

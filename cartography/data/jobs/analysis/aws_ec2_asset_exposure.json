@@ -1,12 +1,27 @@
 {
   "statements": [
   {
-    "query": "MATCH (n) where n.exposed_internet IS NOT NULL AND labels(n) IN ['AutoScalingGroup', 'EC2Instance', 'LoadBalancer', 'LoadBalancerV2'] WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type return COUNT(*) as TotalCompleted",
+    "query": "MATCH (n:AutoScalingGroup) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
     "iterative": true,
     "iterationsize": 1000
   },
   {
-    "query": "MATCH (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)\nWITH instance\nWHERE (instance.publicipaddress IS NOT NULL) AND (instance.exposed_internet_type IS NULL) OR (NOT 'direct' IN instance.exposed_internet_type)\nSET instance.exposed_internet = true, instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + 'direct';",
+    "query": "MATCH (n:EC2Instance) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
+    "iterative": true,
+    "iterationsize": 1000
+  },
+  {
+    "query": "MATCH (n:LoadBalancer) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
+    "iterative": true,
+    "iterationsize": 1000
+  },
+  {
+    "query": "MATCH (n:LoadBalancerV2) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
+    "iterative": true,
+    "iterationsize": 1000
+  },
+  {
+    "query": "MATCH (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance) WITH instance WHERE (instance.publicipaddress IS NOT NULL) AND (instance.exposed_internet_type IS NULL OR NOT 'direct' IN instance.exposed_internet_type) SET instance.exposed_internet = true, instance.exposed_internet_type = CASE WHEN instance.exposed_internet_type IS NULL THEN ['direct'] WHEN NOT 'direct' IN instance.exposed_internet_type THEN instance.exposed_internet_type + ['direct'] ELSE instance.exposed_internet_type END;",
     "iterative": false
   },
   {

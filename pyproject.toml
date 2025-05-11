@@ -1,0 +1,115 @@
+[build-system]
+requires = [
+  "setuptools",
+  "setuptools-scm",
+  "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+# See configuration details in https://github.com/pypa/setuptools_scm
+write_to = "cartography/_version.py"
+
+[project]
+name = "cartography"
+description = "Explore assets and their relationships across your technical infrastructure."
+readme = "README.md"
+license = {text = "apache2"}
+maintainers = [
+    { name = "Cartography Contributors" }
+]
+classifiers = [
+  'Development Status :: 4 - Beta',
+  'Intended Audience :: Developers',
+  'License :: OSI Approved :: Apache Software License',
+  'Natural Language :: English',
+  'Programming Language :: Python',
+  'Programming Language :: Python :: 3',
+  'Programming Language :: Python :: 3.10',
+  'Topic :: Security',
+  'Topic :: Software Development :: Libraries',
+  'Topic :: Software Development :: Libraries :: Python Modules',
+]
+requires-python = ">=3.10"
+dependencies = [
+    "backoff>=2.1.2",
+    "boto3>=1.15.1",
+    "botocore>=1.18.1",
+    "dnspython>=1.15.0",
+    "neo4j>=4.4.4",
+    "policyuniverse>=1.1.0.0",
+    "google-api-python-client>=1.7.8",
+    "google-auth>=2.37.0",
+    "marshmallow>=3.0.0rc7",
+    "oci>=2.71.0",
+    "okta<1.0.0",
+    "pyyaml>=5.3.1",
+    "requests>=2.22.0",
+    "statsd",
+    "packaging",
+    "python-digitalocean>=1.16.0",
+    "adal>=1.2.4",
+    "azure-cli-core>=2.26.0",
+    "azure-mgmt-compute>=5.0.0",
+    "azure-mgmt-resource>=10.2.0",
+    "azure-mgmt-cosmosdb>=6.0.0",
+    "msrestazure >= 0.6.4",
+    "azure-mgmt-storage>=16.0.0",
+    "azure-mgmt-sql<=1.0.0",
+    "azure-identity>=1.5.0",
+    "msgraph-sdk",
+    "kubernetes>=22.6.0",
+    "pdpyras>=4.3.0",
+    "crowdstrike-falconpy>=0.5.1",
+    "python-dateutil",
+    "xmltodict",
+    "duo-client",
+]
+# Comes from Git tag
+dynamic = [ "version" ]
+
+# TODO when moving to uv or something other than pip, move this to [dependency-groups].dev.
+[project.optional-dependencies]
+dev = [
+    "backoff>=2.1.2",
+    "moto",
+    "pre-commit",
+    "pytest>=6.2.4",
+    "pytest-mock",
+    "pytest-cov==6.1.1",
+    "pytest-rerunfailures",
+    "pytest-asyncio",
+    "types-PyYAML",
+    "black==25.1.0",
+    "types-requests<2.32.0.20250329",
+]
+
+# Makes sure to look inside cartography/cartography/ for cli command
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cartography*"]
+
+[project.scripts]
+cartography = "cartography.cli:main"
+cartography-detectdrift = "cartography.driftdetect.cli:main"
+
+[tool.setuptools.package-data]
+"cartography" = ["py.typed"]
+"cartography.data" = ["*.cypher", "*.yaml"]
+"cartography.data.jobs.analysis" = ["*.json"]
+"cartography.data.jobs.scoped_analysis" = ["*.json"]
+"cartography.data.jobs.cleanup" = ["*.json"]
+
+[project.urls]
+Homepage = "https://cartography-cncf.github.io/cartography"
+Documentation = "https://cartography-cncf.github.io/cartography"
+Repository = "https://github.com/cartography-cncf/cartography"
+Issues = "https://github.com/cartography-cncf/cartography/issues"
+Changelog = "https://github.com/cartography-cncf/cartography/releases"
+
+# Enable poetry
+[tool.poetry]
+package-mode = false # We do not use Poetry for the package management
+
+[tool.poetry.dependencies]
+python = "^3.10"

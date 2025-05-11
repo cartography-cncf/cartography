@@ -1,9 +1,8 @@
 import cartography.intel.aws.secretsmanager
 import tests.data.aws.secretsmanager
 
-
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -52,14 +51,14 @@ def test_load_load_secrets(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['s.name'],
-            n['s.rotation_enabled'],
-            n['s.rotation_rules_automatically_after_days'],
-            n['s.rotation_lambda_arn'],
-            n['s.kms_key_id'],
-            n['s.primary_region'],
-            n['s.region'],
-            n['s.last_changed_date'],
+            n["s.name"],
+            n["s.rotation_enabled"],
+            n["s.rotation_rules_automatically_after_days"],
+            n["s.rotation_lambda_arn"],
+            n["s.kms_key_id"],
+            n["s.primary_region"],
+            n["s.region"],
+            n["s.last_changed_date"],
         )
         for n in nodes
     }

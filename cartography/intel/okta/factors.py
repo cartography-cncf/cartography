@@ -79,12 +79,16 @@ def transform_okta_user_factor(okta_factor_info: Factor) -> Dict:
     factor_props["provider"] = okta_factor_info.provider
     factor_props["status"] = okta_factor_info.status
     if okta_factor_info.created:
-        factor_props["created"] = okta_factor_info.created.strftime("%m/%d/%Y, %H:%M:%S")
+        factor_props["created"] = okta_factor_info.created.strftime(
+            "%m/%d/%Y, %H:%M:%S",
+        )
     else:
         factor_props["created"] = None
 
     if okta_factor_info.lastUpdated:
-        factor_props["okta_last_updated"] = okta_factor_info.lastUpdated.strftime("%m/%d/%Y, %H:%M:%S")
+        factor_props["okta_last_updated"] = okta_factor_info.lastUpdated.strftime(
+            "%m/%d/%Y, %H:%M:%S",
+        )
     else:
         factor_props["okta_last_updated"] = None
 
@@ -93,7 +97,12 @@ def transform_okta_user_factor(okta_factor_info: Factor) -> Dict:
 
 
 @timeit
-def _load_user_factors(neo4j_session: neo4j.Session, user_id: str, factors: List[Dict], okta_update_tag: int) -> None:
+def _load_user_factors(
+    neo4j_session: neo4j.Session,
+    user_id: str,
+    factors: List[Dict],
+    okta_update_tag: int,
+) -> None:
     """
     Add user factors into the graph
     :param neo4j_session: session with the Neo4j server
@@ -131,7 +140,10 @@ def _load_user_factors(neo4j_session: neo4j.Session, user_id: str, factors: List
 
 @timeit
 def sync_users_factors(
-    neo4j_session: neo4j.Session, okta_org_id: str, okta_update_tag: int, okta_api_key: str,
+    neo4j_session: neo4j.Session,
+    okta_org_id: str,
+    okta_update_tag: int,
+    okta_api_key: str,
     sync_state: OktaSyncState,
 ) -> None:
     """

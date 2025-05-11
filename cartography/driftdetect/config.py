@@ -1,3 +1,6 @@
+from typing import Optional
+
+
 class UpdateConfig:
     """
     A common interface for the drift-detection update configuration.
@@ -18,10 +21,10 @@ class UpdateConfig:
 
     def __init__(
         self,
-        drift_detection_directory,
-        neo4j_uri,
-        neo4j_user=None,
-        neo4j_password=None,
+        drift_detection_directory: str,
+        neo4j_uri: str,
+        neo4j_user: Optional[str] = None,
+        neo4j_password: Optional[str] = None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -46,13 +49,13 @@ class GetDriftConfig:
 
     def __init__(
         self,
-        query_directory,
-        start_state,
-        end_state,
+        query_directory: str,
+        start_state: str,
+        end_state: str,
     ):
-        self.query_directory = query_directory
-        self.start_state = start_state
-        self.end_state = end_state
+        self.query_directory: str = query_directory
+        self.start_state: str = start_state
+        self.end_state: str = end_state
 
 
 class AddShortcutConfig:
@@ -72,10 +75,10 @@ class AddShortcutConfig:
 
     def __init__(
         self,
-        query_directory,
-        shortcut,
-        filename,
+        query_directory: str,
+        shortcut: str,
+        filename: str,
     ):
-        self.query_directory = query_directory
-        self.shortcut = shortcut
-        self.filename = filename
+        self.query_directory: str = query_directory
+        self.shortcut: str = shortcut
+        self.filename: str = filename

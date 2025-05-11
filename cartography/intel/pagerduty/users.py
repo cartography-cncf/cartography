@@ -30,7 +30,9 @@ def get_users(pd_session: APISession) -> List[Dict[str, Any]]:
 
 
 def load_user_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load user information

@@ -39,7 +39,7 @@ would be used.
 
 *Please complete the following information:*:
 >  - Cartography release version or commit hash [e.g. 0.12.0 or 95e8e11913e2a44a4d4682506d8364a638ceac69]
->  - Python version: [e.g. 3.7.4]
+>  - Python version: [e.g. 3.10.0]
 >  - OS (feel free to omit this if you don't think it's relevant to your issue): [e.g. Ubuntu bla bla, OSX bla bla]
 
 

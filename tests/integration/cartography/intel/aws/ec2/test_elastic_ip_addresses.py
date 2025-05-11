@@ -1,9 +1,8 @@
 import cartography.intel.aws.ec2.elastic_ip_addresses
 import tests.data.aws.ec2.elastic_ip_addresses
 
-
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -42,13 +41,13 @@ def test_load_elastic_ip_addresses(neo4j_session, *args):
     )
     actual_nodes = {
         (
-            n['n.id'],
-            n['n.association_id'],
-            n['n.public_ip'],
-            n['n.private_ip_address'],
-            n['n.network_interface_id'],
-            n['n.network_interface_owner_id'],
-            n['n.region'],
+            n["n.id"],
+            n["n.association_id"],
+            n["n.public_ip"],
+            n["n.private_ip_address"],
+            n["n.network_interface_id"],
+            n["n.network_interface_owner_id"],
+            n["n.region"],
         )
         for n in nodes
     }

@@ -1,7 +1,5 @@
 ## Kubernetes Configuration
 
-.. _kubernetes_config:
-
 Follow these steps to analyze Kubernetes objects in Cartography.
 
 1. Configure a [kubeconfig file](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) specifying access to one or mulitple clusters.

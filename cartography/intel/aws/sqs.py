@@ -19,36 +19,41 @@ logger = logging.getLogger(__name__)
 @timeit
 @aws_handle_regions
 def get_sqs_queue_list(boto3_session: boto3.session.Session, region: str) -> List[str]:
-    client = boto3_session.client('sqs', region_name=region)
-    paginator = client.get_paginator('list_queues')
+    client = boto3_session.client("sqs", region_name=region)
+    paginator = client.get_paginator("list_queues")
     queues: List[Any] = []
     for page in paginator.paginate():
-        queues.extend(page.get('QueueUrls', []))
+        queues.extend(page.get("QueueUrls", []))
     return queues
 
 
 @timeit
 @aws_handle_regions
 def get_sqs_queue_attributes(
-        boto3_session: boto3.session.Session,
-        queue_urls: List[str],
+    boto3_session: boto3.session.Session,
+    queue_urls: List[str],
 ) -> List[Tuple[str, Any]]:
     """
     Iterates over all SQS queues. Returns a dict with url as key, and attributes as value.
     """
-    client = boto3_session.client('sqs')
+    client = boto3_session.client("sqs")
 
     queue_attributes = []
     for queue_url in queue_urls:
         try:
-            response = client.get_queue_attributes(QueueUrl=queue_url, AttributeNames=['All'])
+            response = client.get_queue_attributes(
+                QueueUrl=queue_url,
+                AttributeNames=["All"],
+            )
         except ClientError as e:
-            if e.response['Error']['Code'] == 'AWS.SimpleQueueService.NonExistentQueue':
-                logger.warning(f"Failed to retrieve SQS queue {queue_url} - Queue does not exist error")
+            if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
+                logger.warning(
+                    f"Failed to retrieve SQS queue {queue_url} - Queue does not exist error",
+                )
                 continue
             else:
                 raise
-        queue_attributes.append((queue_url, response['Attributes']))
+        queue_attributes.append((queue_url, response["Attributes"]))
 
     return queue_attributes
 
@@ -91,23 +96,25 @@ def load_sqs_queues(
     dead_letter_queues: List[Dict] = []
     queues: List[Dict] = []
     for url, queue in data:
-        queue['url'] = url
-        queue['name'] = queue['QueueArn'].split(':')[-1]
-        queue['CreatedTimestamp'] = int(queue['CreatedTimestamp'])
-        queue['LastModifiedTimestamp'] = int(queue['LastModifiedTimestamp'])
-        redrive_policy = queue.get('RedrivePolicy')
+        queue["url"] = url
+        queue["name"] = queue["QueueArn"].split(":")[-1]
+        queue["CreatedTimestamp"] = int(queue["CreatedTimestamp"])
+        queue["LastModifiedTimestamp"] = int(queue["LastModifiedTimestamp"])
+        redrive_policy = queue.get("RedrivePolicy")
         if redrive_policy:
             try:
                 rp = json.loads(redrive_policy)
             except TypeError:
                 rp = {}
-            queue['RedrivePolicy'] = rp
-            dead_letter_arn = rp.get('deadLetterTargetArn')
+            queue["RedrivePolicy"] = rp
+            dead_letter_arn = rp.get("deadLetterTargetArn")
             if dead_letter_arn:
-                dead_letter_queues.append({
-                    'arn': queue['QueueArn'],
-                    'dead_letter_arn': dead_letter_arn,
-                })
+                dead_letter_queues.append(
+                    {
+                        "arn": queue["QueueArn"],
+                        "dead_letter_arn": dead_letter_arn,
+                    },
+                )
         queues.append(queue)
 
     neo4j_session.run(
@@ -122,7 +129,11 @@ def load_sqs_queues(
 
 
 @timeit
-def _attach_dead_letter_queues(neo4j_session: neo4j.Session, data: List[Dict[str, str]], aws_update_tag: int) -> None:
+def _attach_dead_letter_queues(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, str]],
+    aws_update_tag: int,
+) -> None:
     """
     Attach deadletter queues to their queues.
     """
@@ -141,20 +152,41 @@ def _attach_dead_letter_queues(neo4j_session: neo4j.Session, data: List[Dict[str
 
 
 @timeit
-def cleanup_sqs_queues(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_sqs_queues_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_sqs_queues(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "aws_import_sqs_queues_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     for region in regions:
-        logger.info("Syncing SQS for region '%s' in account '%s'.", region, current_aws_account_id)
+        logger.info(
+            "Syncing SQS for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
+        )
         queue_urls = get_sqs_queue_list(boto3_session, region)
         if len(queue_urls) == 0:
             continue
         queue_attributes = get_sqs_queue_attributes(boto3_session, queue_urls)
-        load_sqs_queues(neo4j_session, queue_attributes, region, current_aws_account_id, update_tag)
+        load_sqs_queues(
+            neo4j_session,
+            queue_attributes,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
     cleanup_sqs_queues(neo4j_session, common_job_parameters)

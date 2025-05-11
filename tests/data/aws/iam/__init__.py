@@ -1,6 +1,5 @@
 import datetime
 
-
 LIST_USERS = {
     "Users": [
         {
@@ -42,16 +41,18 @@ LIST_GROUPS = {
     ],
 }
 
-INLINE_POLICY_STATEMENTS = [{
-    "id": "allow_all_policy",
-    "Action": [
-        "*",
-    ],
-    "Resource": [
-        "*",
-    ],
-    "Effect": "Allow",
-}]
+INLINE_POLICY_STATEMENTS = [
+    {
+        "id": "allow_all_policy",
+        "Action": [
+            "*",
+        ],
+        "Resource": [
+            "*",
+        ],
+        "Effect": "Allow",
+    },
+]
 
 LIST_ROLES = {
     "Roles": [
@@ -144,7 +145,7 @@ LIST_ROLES = {
 }
 
 INSTACE = {
-    'Roles': [
+    "Roles": [
         {
             "AssumeRolePolicyDocument": {
                 "Version": "2012-10-17",

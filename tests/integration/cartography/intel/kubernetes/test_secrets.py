@@ -1,7 +1,8 @@
 from cartography.intel.kubernetes.secrets import load_secrets
 from tests.data.kubernetes.secrets import GET_SECRETS_DATA
-from tests.integration.cartography.intel.kubernetes.test_namespaces import test_load_namespaces
-
+from tests.integration.cartography.intel.kubernetes.test_namespaces import (
+    test_load_namespaces,
+)
 
 TEST_UPDATE_TAG = 123456789
 

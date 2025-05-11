@@ -20,8 +20,8 @@ def start_bigfix_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     if not config.bigfix_username or not config.bigfix_password:
         logger.info(
-            'BigFix import is not configured - skipping this module. '
-            'See docs to configure.',
+            "BigFix import is not configured - skipping this module. "
+            "See docs to configure.",
         )
         return
 

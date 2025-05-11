@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +19,14 @@ class State:
     """
 
     def __init__(
-            self,
-            name,
-            validation_query,
-            properties,
-            results,
+        self,
+        name: str,
+        validation_query: str,
+        properties: List[str],
+        results: List[List[str]],
     ):
 
-        self.name = name
-        self.validation_query = validation_query
-        self.properties = properties
-        self.results = results
+        self.name: str = name
+        self.validation_query: str = validation_query
+        self.properties: List[str] = properties
+        self.results: List[List[str]] = results

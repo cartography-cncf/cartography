@@ -9,7 +9,11 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def create_okta_organization(neo4j_session: neo4j.Session, organization: str, okta_update_tag: int) -> None:
+def create_okta_organization(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    okta_update_tag: int,
+) -> None:
     """
     Create Okta organization in the graph
     :param neo4_session: session with the Neo4j server

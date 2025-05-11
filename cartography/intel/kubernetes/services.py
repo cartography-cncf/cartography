@@ -13,7 +13,11 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def sync_services(
-    session: Session, client: K8sClient, update_tag: int, cluster: Dict, pods: List[Dict],
+    session: Session,
+    client: K8sClient,
+    update_tag: int,
+    cluster: Dict,
+    pods: List[Dict],
 ) -> None:
     services = get_services(client, cluster, pods)
     load_services(session, services, update_tag)
@@ -44,9 +48,9 @@ def get_services(client: K8sClient, cluster: Dict, pods: List[Dict]) -> List[Dic
             is_service_pod = True if service.spec.selector else False
             for selector in service.spec.selector or dict():
                 if (
-                    not pod.get("labels") or
-                    selector not in pod["labels"] or
-                    service.spec.selector[selector] != pod["labels"][selector]
+                    not pod.get("labels")
+                    or selector not in pod["labels"]
+                    or service.spec.selector[selector] != pod["labels"][selector]
                 ):
                     is_service_pod = False
                     break

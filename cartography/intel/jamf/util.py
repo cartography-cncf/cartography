@@ -12,14 +12,19 @@ _TIMEOUT = (60, 60)
 
 
 @timeit
-def call_jamf_api(api_and_parameters: str, jamf_base_uri: str, jamf_user: str, jamf_password: str) -> List[Dict]:
+def call_jamf_api(
+    api_and_parameters: str,
+    jamf_base_uri: str,
+    jamf_user: str,
+    jamf_password: str,
+) -> List[Dict]:
     uri = jamf_base_uri + api_and_parameters
     jamf_auth = requests.auth.HTTPBasicAuth(jamf_user, jamf_password)
     try:
         response = requests.get(
             uri,
             auth=jamf_auth,
-            headers={'Accept': 'application/json'},
+            headers={"Accept": "application/json"},
             timeout=_TIMEOUT,
         )
     except requests.exceptions.Timeout:

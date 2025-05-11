@@ -14,7 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class TestComputerToPersonRelProps(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -22,11 +22,12 @@ class TestComputerToPersonRel(CartographyRelSchema):
     """
     (:TestComputer)<-[:OWNS]-(:Person)
     """
-    target_node_label: str = 'Person'
+
+    target_node_label: str = "Person"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            'first_name': PropertyRef('FirstName'),
-            'last_name': PropertyRef('LastName'),
+            "first_name": PropertyRef("FirstName"),
+            "last_name": PropertyRef("LastName"),
         },
     )
     direction: LinkDirection = LinkDirection.INWARD
@@ -37,15 +38,17 @@ class TestComputerToPersonRel(CartographyRelSchema):
 # Test defining a simple node with no relationships.
 @dataclass(frozen=True)
 class TestComputerProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('Id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
-    ram_gb: PropertyRef = PropertyRef('RAM_GB')
-    num_cores: PropertyRef = PropertyRef('NumCores')
-    name: PropertyRef = PropertyRef('name')
+    id: PropertyRef = PropertyRef("Id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    ram_gb: PropertyRef = PropertyRef("RAM_GB")
+    num_cores: PropertyRef = PropertyRef("NumCores")
+    name: PropertyRef = PropertyRef("name")
 
 
 @dataclass(frozen=True)
 class TestComputer(CartographyNodeSchema):
-    label: str = 'TestComputer'
+    label: str = "TestComputer"
     properties: TestComputerProperties = TestComputerProperties()
-    other_relationships: Optional[OtherRelationships] = OtherRelationships([TestComputerToPersonRel()])
+    other_relationships: Optional[OtherRelationships] = OtherRelationships(
+        [TestComputerToPersonRel()],
+    )

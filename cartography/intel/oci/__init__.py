@@ -11,17 +11,19 @@ from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
 from oci.exceptions import ProfileNotFound
 
+from cartography.config import Config
+
 from . import iam
 from . import organizations
 from . import utils
-from cartography.config import Config
+
 # from cartography.util import run_analysis_job
 # from cartography.util import run_cleanup_job
 # from . import network
 # from . import compute
 
 logger = logging.getLogger(__name__)
-Resources = namedtuple('Resources', 'compute iam network')
+Resources = namedtuple("Resources", "compute iam network")
 
 
 def _sync_one_account(
@@ -32,11 +34,21 @@ def _sync_one_account(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     logger.info("Syncing OCI IAM client for OCI Tenancy with ID '%s'.", tenancy_id)
-    iam.sync(neo4j_session, resources.iam, tenancy_id, oci_sync_tag, common_job_parameters)
+    iam.sync(
+        neo4j_session,
+        resources.iam,
+        tenancy_id,
+        oci_sync_tag,
+        common_job_parameters,
+    )
 
     regions = utils.get_regions_in_tenancy(neo4j_session, tenancy_id)
     for region in regions:
-        logger.info("Syncing OCI region '%s' for OCI Tenancy with ID '%s'.", region["name"], tenancy_id)
+        logger.info(
+            "Syncing OCI region '%s' for OCI Tenancy with ID '%s'.",
+            region["name"],
+            tenancy_id,
+        )
         _change_resources_region(resources, region["name"])
         # compute.sync(neo4j_session, resources.compute,
         #   tenancy_id, region["name"], oci_sync_tag, common_job_parameters
@@ -56,15 +68,25 @@ def _sync_multiple_accounts(
     sync_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    logger.debug("Syncing OCI accounts: %s", ', '.join(accounts.keys()))
+    logger.debug("Syncing OCI accounts: %s", ", ".join(accounts.keys()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
 
     for name in accounts:
-        logger.info("Syncing OCI Tenancy with ID '%s' using configured profile '%s'.", accounts[name]["tenancy"], name)
+        logger.info(
+            "Syncing OCI Tenancy with ID '%s' using configured profile '%s'.",
+            accounts[name]["tenancy"],
+            name,
+        )
         resources = _initialize_resources(accounts[name])
         tenancy_id = accounts[name]["tenancy"]
         common_job_parameters["OCI_TENANCY_ID"] = tenancy_id
-        _sync_one_account(neo4j_session, resources, tenancy_id, sync_tag, common_job_parameters)
+        _sync_one_account(
+            neo4j_session,
+            resources,
+            tenancy_id,
+            sync_tag,
+            common_job_parameters,
+        )
 
     del common_job_parameters["OCI_TENANCY_ID"]
 
@@ -82,7 +104,9 @@ def _change_resources_region(resources: NamedTuple, region: str) -> None:
         resource.base_client.set_region(region)
 
 
-def _get_network_resource(credentials: Dict[str, Any]) -> oci.core.virtual_network_client.VirtualNetworkClient:
+def _get_network_resource(
+    credentials: Dict[str, Any],
+) -> oci.core.virtual_network_client.VirtualNetworkClient:
     """
     Instantiates a OCI VirtualNetworkClient resource object to call the Network API.
      See https://docs.cloud.oracle.com/en-us/iaas/Content/Network/Concepts/overview.htm.
@@ -92,7 +116,9 @@ def _get_network_resource(credentials: Dict[str, Any]) -> oci.core.virtual_netwo
     return oci.core.VirtualNetworkClient(credentials)
 
 
-def _get_iam_resource(credentials: Dict[str, Any]) -> oci.identity.identity_client.IdentityClient:
+def _get_iam_resource(
+    credentials: Dict[str, Any],
+) -> oci.identity.identity_client.IdentityClient:
     """
     Instantiates a OCI IdentityCleint resource object to call the Identity API. This is used to users,
      ..., ... and ... data. See https://docs.cloud.oracle.com/iaas/Content/Compute/Concepts/computeoverview.htm.
@@ -102,7 +128,9 @@ def _get_iam_resource(credentials: Dict[str, Any]) -> oci.identity.identity_clie
     return oci.identity.IdentityClient(credentials)
 
 
-def _get_compute_resource(credentials: Dict[str, Any]) -> oci.core.compute_client.ComputeClient:
+def _get_compute_resource(
+    credentials: Dict[str, Any],
+) -> oci.core.compute_client.ComputeClient:
     """
     Instantiates a OCI ComputeClient resource object to call the Compute API. This is used to pull zone, instance, and
     networking data. https://docs.cloud.oracle.com/iaas/Content/Compute/Concepts/computeoverview.htm.
@@ -180,7 +208,12 @@ def start_oci_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
-    _sync_multiple_accounts(neo4j_session, oci_accounts, config.update_tag, common_job_parameters)
+    _sync_multiple_accounts(
+        neo4j_session,
+        oci_accounts,
+        config.update_tag,
+        common_job_parameters,
+    )
 
     # Look into adding analysis job once compute is implemented.
     # run_analysis_job(

@@ -1,14 +1,12 @@
 ## GCP Configuration
 
-.. _gcp_config:
-
 Follow these steps to analyze GCP projects with Cartography.
 
 1. Prepare your GCP credential(s).
 
     1. Create an identity - either a User Account or a Service Account - for Cartography to run as
     1. Ensure that this identity has the following roles (https://cloud.google.com/iam/docs/understanding-roles) attached to it:
-        - `roles/iam.securityReviewer`
+        - `roles/iam.securityReviewer`: needed to list/get GCP IAM roles and service accounts
         - `roles/resourcemanager.organizationViewer`: needed to list/get GCP Organizations
         - `roles/resourcemanager.folderViewer`: needed to list/get GCP Folders
     1. Ensure that the machine you are running Cartography on can authenticate to this identity.

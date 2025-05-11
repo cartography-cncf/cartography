@@ -1,0 +1,66 @@
+{
+    "name": "Semgrep SCA findings reachability risk analysis based on likelihood and impact. Impact = Severity, Likelihood = reachability + reachability_check",
+    "statements": [
+        {
+            "__comment__": "ARCHIVED -> Risk = Info",
+            "query": "MATCH (g:GitHubRepository{archived:true})<-[:FOUND_IN]-(s:SemgrepSCAFinding{lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) SET s.reachability_risk = 'INFO' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "reachability = UNREACHABLE -> Risk = Info",
+            "query": "MATCH (s:SemgrepSCAFinding{reachability:'UNREACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) SET s.reachability_risk = 'INFO' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "not possible to identify if reachable && version specifier is the only flag of the vulnerability (likelihood = rare) && severity in [low, medium, high] -> Risk = Info",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'UNREACHABLE', reachability_check:'NO REACHABILITY ANALYSIS', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity IN ['LOW', 'MEDIUM', 'HIGH'] SET s.reachability_risk = 'INFO' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "not possible to identify if reachable && version specifier is the only flag of the vulnerability (likelihood = rare) && severity = critical -> Risk = Low",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'UNREACHABLE', reachability_check:'NO REACHABILITY ANALYSIS', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'CRITICAL' SET s.reachability_risk = 'LOW' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "manual review required to confirm exploitation when conditions met && identified version is vulnerable (likelihood = possible) && severity in [low, medium] -> Risk = Low",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'CONDITIONALLY REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity IN ['LOW', 'MEDIUM'] SET s.reachability_risk = 'LOW' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "manual review required to confirm exploitation when conditions met && identified version is vulnerable (likelihood = possible) && severity = high -> Risk = Medium",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'CONDITIONALLY REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'HIGH' SET s.reachability_risk = 'MEDIUM' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "manual review required to confirm exploitation when conditions met && identified version is vulnerable (likelihood = possible) &&  severity = critical -> Risk = High",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'CONDITIONALLY REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'CRITICAL' SET s.reachability_risk = 'HIGH' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "adding the vulnerable version flags it reachable (likelihood = likely) && severity in [low, medium] -> Risk = Low",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'ALWAYS REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity IN ['LOW','MEDIUM'] SET s.reachability_risk = 'LOW' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "adding the vulnerable version flags it reachable (likelihood = likely) && severity = high -> Risk = Medium",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'ALWAYS REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'HIGH' SET s.reachability_risk = 'MEDIUM' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "adding the vulnerable version flags it reachable (special case for critical, if something is so critical that needs to be fixed, likelihood = likely)) && severity = critical -> Risk = Critical",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'ALWAYS REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.severity = 'CRITICAL' SET s.reachability_risk = 'CRITICAL' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "if reachability analysis confirmed that is rechable (likelihood = certain) -> Risk = Severity",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSCAFinding{reachability:'REACHABLE', reachability_check:'REACHABLE', lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) SET s.reachability_risk = s.severity return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "delete SemgrepSCAFinding.reachability_risk property if not updated by the previous statements",
+            "query": "MATCH (s:SemgrepSCAFinding)<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.reachability_risk IS NOT NULL AND s.lastupdated <> $UPDATE_TAG REMOVE s.reachability_risk return COUNT(*) as TotalCompleted",
+            "iterative": false
+        }
+
+    ]
+}
