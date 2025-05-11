@@ -27,6 +27,7 @@ from . import secretsmanager
 from . import securityhub
 from . import sqs
 from . import ssm
+from . import cloudtrail
 from .ec2.auto_scaling_groups import sync_ec2_auto_scaling_groups
 from .ec2.elastic_ip_addresses import sync_elastic_ip_addresses
 from .ec2.images import sync_ec2_images
@@ -96,4 +97,5 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "inspector": inspector.sync,
     "config": config.sync,
     "identitycenter": identitycenter.sync_identity_center_instances,
+    "cloudtrail": cloudtrail.sync,
 }
