@@ -22,44 +22,51 @@ def _call_trivy_binary(
     ecr_image_uri: str, trivy_path: str, image_cmd_args: Optional[List[str]] = None
 ) -> bytes:
     """
-    Calls `trivy --quiet image $image_cmd_args $ecr_image_uri` and returns text output as raw string.
+    Calls Trivy to scan an image and returns the output.
+
+    Args:
+        ecr_image_uri: The URI of the image to scan
+        trivy_path: Path to the Trivy binary
+        image_cmd_args: Optional list of command arguments
+
+    Returns:
+        bytes: The command output
+
+    Raises:
+        subprocess.CalledProcessError: If the command fails
     """
-    if image_cmd_args is None:
-        image_cmd_args = []
-
-    # Build the command with global args
-    command: List[str] = [trivy_path, "--quiet"]
-
-    # Add the image subcommand with its own args
-    command.append("image")
-    command.extend(image_cmd_args)
+    command = [trivy_path, "--quiet", "image"]
+    if image_cmd_args:
+        command.extend(image_cmd_args)
     command.append(ecr_image_uri)
 
     try:
-        trivy_output_as_str: bytes = subprocess.check_output(
-            command, stderr=subprocess.STDOUT
-        )
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT)
+        stat_handler.incr("image_scan_success_count")
+        return output
     except subprocess.CalledProcessError:
         stat_handler.incr("image_scan_fatal_count")
         raise
-    stat_handler.incr("image_scan_success_count")
-    return trivy_output_as_str
 
 
 @timeit
 def _call_trivy_update_db(trivy_path: str) -> None:
     """
-    Calls `trivy --quiet --download-db-only`.
-    """
-    command: List[str] = [trivy_path, "--quiet", "image", "--download-db-only"]
+    Updates the Trivy vulnerability database.
 
-    # Run the command but discard the output. We expect none anyway since --quiet mode is on.
+    Args:
+        trivy_path: Path to the Trivy binary
+
+    Raises:
+        subprocess.CalledProcessError: If the update fails
+    """
+    command = [trivy_path, "--quiet", "image", "--download-db-only"]
+
     try:
         subprocess.check_output(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as exc:
         logger.error(
-            f"`trivy image --download-db-only` failed. Error msg: "
-            f"{exc.output.decode('utf-8') if type(exc.output) is bytes else exc.output}",
+            f"Trivy database update failed: {exc.output.decode('utf-8') if isinstance(exc.output, bytes) else exc.output}"
         )
         raise
 
@@ -72,45 +79,46 @@ def _build_image_subcommand(
     list_all_pkgs: bool = False,
     security_checks: Optional[str] = None,
 ) -> List[str]:
-    image_subcmd_args: List[str] = [
+    """
+    Builds the subcommand arguments for Trivy image scanning.
+
+    Args:
+        skip_update: Whether to skip database update
+        ignore_unfixed: Whether to ignore unfixed vulnerabilities
+        triage_filter_policy_file_path: Path to policy file for filtering
+        os_findings_only: Whether to only scan OS vulnerabilities
+        list_all_pkgs: Whether to list all packages
+        security_checks: Comma-separated list of security checks to run
+
+    Returns:
+        List[str]: List of command arguments
+    """
+    args = [
         "--format",
         "json",
-        # Default = 5 minutes. Some images are humongous and need 15 mins.
         "--timeout",
-        "15m",
+        "15m",  # Default = 5 minutes. Some images need 15 mins.
     ]
 
     if skip_update:
-        image_subcmd_args.append("--skip-update")
+        args.append("--skip-update")
 
     if ignore_unfixed:
-        image_subcmd_args.append("--ignore-unfixed")
+        args.append("--ignore-unfixed")
 
     if triage_filter_policy_file_path:
-        image_subcmd_args.extend(
-            [
-                "--ignore-policy",
-                triage_filter_policy_file_path,
-            ],
-        )
+        args.extend(["--ignore-policy", triage_filter_policy_file_path])
 
-    # Trivy default = '--vuln-type=os,library' - https://aquasecurity.github.io/trivy/v0.19.2/getting-started/cli/image/
     if os_findings_only:
-        image_subcmd_args.extend(
-            ["--vuln-type", "os"],
-        )
+        args.extend(["--vuln-type", "os"])
 
     if list_all_pkgs:
-        image_subcmd_args.extend(
-            ["--list-all-pkgs"],
-        )
+        args.append("--list-all-pkgs")
 
     if security_checks:
-        image_subcmd_args.extend(
-            ["--security-checks", security_checks],
-        )
+        args.extend(["--security-checks", security_checks])
 
-    return image_subcmd_args
+    return args
 
 
 @timeit
@@ -433,18 +441,25 @@ def sync_single_image(
     trivy_path: str,
     trivy_opa_policy_file_path: str,
 ) -> None:
-    image_subcmd_args: List[str] = _build_image_subcommand(
-        skip_db_update,
+    # Default scan configuration
+    # - ignore_unfixed=True: Skip vulnerabilities without fixes
+    # - os_findings_only=False: Scan both OS and library vulnerabilities
+    # - list_all_pkgs=True: Include all packages in results
+    # - security_checks="vuln": Focus on vulnerability scanning for better performance
+    image_subcmd_args = _build_image_subcommand(
+        skip_update=skip_db_update,
         ignore_unfixed=True,
         triage_filter_policy_file_path=trivy_opa_policy_file_path,
-        os_findings_only=False,  # scan for both os and library vuln classes.
+        os_findings_only=False,
         list_all_pkgs=True,
-        security_checks="vuln",  # trivy 0.30.1 says "If your scanning is slow, please try '--security-checks vuln'"
+        security_checks="vuln",
     )
-    results: List[Dict] = get_scan_results_for_single_image(
+
+    results = get_scan_results_for_single_image(
         image_uri, image_subcmd_args, trivy_path
     )
-    parsed_results: List[Dict] = transform_scan_results(results)
+    parsed_results = transform_scan_results(results)
+
     load_scan_vulns(
         neo4j_session, parsed_results, image_digest, image_tag, repo_name, update_tag
     )
