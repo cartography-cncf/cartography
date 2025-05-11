@@ -16,12 +16,16 @@ class CloudTrailTrailNodeProperties(CartographyNodeProperties):
     arn: PropertyRef = PropertyRef("TrailARN")
     name: PropertyRef = PropertyRef("Name")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    cloudwatch_logs_log_group_arn: PropertyRef = PropertyRef("CloudWatchLogsLogGroupArn")
+    cloudwatch_logs_log_group_arn: PropertyRef = PropertyRef(
+        "CloudWatchLogsLogGroupArn"
+    )
     cloudwatch_logs_role_arn: PropertyRef = PropertyRef("CloudWatchLogsRoleArn")
     has_custom_event_selectors: PropertyRef = PropertyRef("HasCustomEventSelectors")
     has_insight_selectors: PropertyRef = PropertyRef("HasInsightSelectors")
     home_region: PropertyRef = PropertyRef("HomeRegion")
-    include_global_service_events: PropertyRef = PropertyRef("IncludeGlobalServiceEvents")
+    include_global_service_events: PropertyRef = PropertyRef(
+        "IncludeGlobalServiceEvents"
+    )
     is_multi_region_trail: PropertyRef = PropertyRef("IsMultiRegionTrail")
     is_organization_trail: PropertyRef = PropertyRef("IsOrganizationTrail")
     kms_key_id: PropertyRef = PropertyRef("KmsKeyId")
@@ -30,6 +34,7 @@ class CloudTrailTrailNodeProperties(CartographyNodeProperties):
     s3_key_prefix: PropertyRef = PropertyRef("S3KeyPrefix")
     sns_topic_arn: PropertyRef = PropertyRef("SnsTopicARN")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class CloudTrailTrailToAwsAccountRelProperties(CartographyRelProperties):
@@ -47,6 +52,7 @@ class CloudTrailToAWSAccount(CartographyRelSchema):
     properties: CloudTrailTrailToAwsAccountRelProperties = (
         CloudTrailTrailToAwsAccountRelProperties()
     )
+
 
 @dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
