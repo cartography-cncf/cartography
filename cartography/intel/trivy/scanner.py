@@ -59,7 +59,7 @@ def _call_trivy_update_db(trivy_path: str) -> None:
     except subprocess.CalledProcessError as exc:
         logger.error(
             f"`trivy image --download-db-only` failed. Error msg: "
-            f"{exc.output.decode('utf-8') if type(exc.output) == bytes else exc.output}",
+            f"{exc.output.decode('utf-8') if type(exc.output) is bytes else exc.output}",
         )
         raise
 
