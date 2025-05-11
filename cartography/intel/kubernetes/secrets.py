@@ -13,6 +13,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.models.kubernetes.secrets import KubernetesSecretSchema
 from cartography.util import timeit
 
@@ -22,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_secrets(client: K8sClient) -> List[V1Secret]:
-    return client.core.list_secret_for_all_namespaces().items
+    items = k8s_paginate(client.core.list_secret_for_all_namespaces, limit=1)
+    return items
 
 
 def _get_owner_references(

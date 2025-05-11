@@ -127,4 +127,4 @@ def test_secret_cleanup(neo4j_session, _create_test_cluster):
     )
 
     # Assert: Expect that the secrets were deleted
-    assert check_nodes(neo4j_session, 'KubernetesSecret', ['name']) == set()
+    assert check_nodes(neo4j_session, "KubernetesSecret", ["name"]) == set()

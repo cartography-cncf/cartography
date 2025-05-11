@@ -12,6 +12,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.models.kubernetes.containers import KubernetesContainerSchema
 from cartography.models.kubernetes.pods import KubernetesPodSchema
 from cartography.util import timeit
@@ -54,7 +55,8 @@ def _extract_pod_containers(pod: V1Pod) -> Dict[str, Any]:
 
 @timeit
 def get_pods(client: K8sClient) -> List[Dict[str, Any]]:
-    return client.core.list_pod_for_all_namespaces().items
+    items = k8s_paginate(client.core.list_pod_for_all_namespaces)
+    return items
 
 
 def _format_pod_labels(labels: Dict[str, str]) -> str:

@@ -11,6 +11,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.models.kubernetes.services import KubernetesServiceSchema
 from cartography.util import timeit
 
@@ -20,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_services(client: K8sClient) -> List[Dict]:
-    return client.core.list_service_for_all_namespaces().items
+    items = k8s_paginate(client.core.list_service_for_all_namespaces, limit=1)
+    return items
 
 
 def _format_service_selector(selector: Dict[str, str]) -> str:
