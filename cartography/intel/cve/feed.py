@@ -260,7 +260,7 @@ def transform_cves(cve_json: Dict[Any, Any]) -> List[Dict[Any, Any]]:
                 cve["exploitabilityScore"] = cvss31.get("exploitabilityScore")
                 cve["impactScore"] = cvss31.get("impactScore")
         except Exception:
-            logger.error("Failed to transform CVE data {data}")
+            logger.error(f"Failed to transform CVE data {data}")
             raise
         cves.append(cve)
     return cves

@@ -11,3 +11,7 @@ PROJECTS_RESPONSE = [
         updated_at="2021-03-04T21:29:35Z",
     ),
 ]
+
+PROJECT_RESOURCES_RESPONSE = [
+    "do:droplet:12345678",
+]
