@@ -35,7 +35,7 @@ jobs:
       - name: Build a binary wheel and a source tarball
         run: >-
           python -m
-          build[uv]
+          build
           --installer=uv
           --sdist
           --wheel
@@ -47,7 +47,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
-          skip_existing: true
+          skip-existing: true
       # 2. Publish to GHCR
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Extract metadata (tags, labels) for Docker
