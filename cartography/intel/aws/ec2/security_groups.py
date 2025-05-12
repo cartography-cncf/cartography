@@ -6,30 +6,46 @@ from typing import List
 import boto3
 import neo4j
 
-from .util import get_botocore_config
 from cartography.graph.job import GraphJob
-from cartography.models.aws.ec2.securitygroup_instance import EC2SecurityGroupInstanceSchema
+from cartography.models.aws.ec2.securitygroup_instance import (
+    EC2SecurityGroupInstanceSchema,
+)
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
+from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
 @aws_handle_regions
-def get_ec2_security_group_data(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client('ec2', region_name=region, config=get_botocore_config())
-    paginator = client.get_paginator('describe_security_groups')
+def get_ec2_security_group_data(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict]:
+    client = boto3_session.client(
+        "ec2",
+        region_name=region,
+        config=get_botocore_config(),
+    )
+    paginator = client.get_paginator("describe_security_groups")
     security_groups: List[Dict] = []
     for page in paginator.paginate():
-        security_groups.extend(page['SecurityGroups'])
+        security_groups.extend(page["SecurityGroups"])
     return security_groups
 
 
 @timeit
-def load_ec2_security_group_rule(neo4j_session: neo4j.Session, group: Dict, rule_type: str, update_tag: int) -> None:
-    INGEST_RULE_TEMPLATE = Template("""
+def load_ec2_security_group_rule(
+    neo4j_session: neo4j.Session,
+    group: Dict,
+    rule_type: str,
+    update_tag: int,
+) -> None:
+    INGEST_RULE_TEMPLATE = Template(
+        """
     MERGE (rule:$rule_label{ruleid: $RuleId})
     ON CREATE SET rule :IpRule, rule.firstseen = timestamp(), rule.fromport = $FromPort, rule.toport = $ToPort,
     rule.protocol = $Protocol
@@ -39,7 +55,8 @@ def load_ec2_security_group_rule(neo4j_session: neo4j.Session, group: Dict, rule
     MERGE (group)<-[r:MEMBER_OF_EC2_SECURITY_GROUP]-(rule)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $update_tag;
-    """)
+    """,
+    )
 
     ingest_rule_group_pair = """
     MERGE (group:EC2SecurityGroup{id: $GroupId})
@@ -64,7 +81,10 @@ def load_ec2_security_group_rule(neo4j_session: neo4j.Session, group: Dict, rule
     """
 
     group_id = group["GroupId"]
-    rule_type_map = {"IpPermissions": "IpPermissionInbound", "IpPermissionsEgress": "IpPermissionEgress"}
+    rule_type_map = {
+        "IpPermissions": "IpPermissionInbound",
+        "IpPermissionsEgress": "IpPermissionEgress",
+    }
 
     if group.get(rule_type):
         for rule in group[rule_type]:
@@ -76,7 +96,9 @@ def load_ec2_security_group_rule(neo4j_session: neo4j.Session, group: Dict, rule
             # NOTE Cypher query syntax is incompatible with Python string formatting, so we have to do this awkward
             # NOTE manual formatting instead.
             neo4j_session.run(
-                INGEST_RULE_TEMPLATE.safe_substitute(rule_label=rule_type_map[rule_type]),
+                INGEST_RULE_TEMPLATE.safe_substitute(
+                    rule_label=rule_type_map[rule_type],
+                ),
                 RuleId=ruleid,
                 FromPort=from_port,
                 ToPort=to_port,
@@ -104,8 +126,11 @@ def load_ec2_security_group_rule(neo4j_session: neo4j.Session, group: Dict, rule
 
 @timeit
 def load_ec2_security_groupinfo(
-    neo4j_session: neo4j.Session, data: List[Dict], region: str,
-    current_aws_account_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
 ) -> None:
     ingest_security_group = """
     MERGE (group:EC2SecurityGroup{id: $GroupId})
@@ -138,26 +163,51 @@ def load_ec2_security_groupinfo(
         )
 
         load_ec2_security_group_rule(neo4j_session, group, "IpPermissions", update_tag)
-        load_ec2_security_group_rule(neo4j_session, group, "IpPermissionsEgress", update_tag)
+        load_ec2_security_group_rule(
+            neo4j_session,
+            group,
+            "IpPermissionsEgress",
+            update_tag,
+        )
 
 
 @timeit
-def cleanup_ec2_security_groupinfo(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_ec2_security_groupinfo(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
     run_cleanup_job(
-        'aws_import_ec2_security_groupinfo_cleanup.json',
+        "aws_import_ec2_security_groupinfo_cleanup.json",
         neo4j_session,
         common_job_parameters,
     )
-    GraphJob.from_node_schema(EC2SecurityGroupInstanceSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(
+        EC2SecurityGroupInstanceSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
 
 
 @timeit
 def sync_ec2_security_groupinfo(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     for region in regions:
-        logger.info("Syncing EC2 security groups for region '%s' in account '%s'.", region, current_aws_account_id)
+        logger.info(
+            "Syncing EC2 security groups for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
+        )
         data = get_ec2_security_group_data(boto3_session, region)
-        load_ec2_security_groupinfo(neo4j_session, data, region, current_aws_account_id, update_tag)
+        load_ec2_security_groupinfo(
+            neo4j_session,
+            data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
     cleanup_ec2_security_groupinfo(neo4j_session, common_job_parameters)

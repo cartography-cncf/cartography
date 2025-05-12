@@ -41,7 +41,9 @@ def _sync_year_archives(
 ) -> None:
     existing_years = feed.get_cve_sync_metadata(neo4j_session)
     current_year = datetime.now().year
-    logger.info(f"Syncing CVE data for year archives. Existing years: {existing_years}. Current year: {current_year}")
+    logger.info(
+        f"Syncing CVE data for year archives. Existing years: {existing_years}. Current year: {current_year}",
+    )
     for year in range(1999, current_year + 1):
         if year in existing_years:
             continue
@@ -53,7 +55,7 @@ def _sync_year_archives(
         feed.load_cves(neo4j_session, published_cves, feed_metadata['FEED_ID'], settings.common.update_tag)
         merge_module_sync_metadata(
             neo4j_session,
-            group_type='CVE',
+            group_type="CVE",
             group_id=year,
             synced_type='year',
             update_tag=settings.common.update_tag,

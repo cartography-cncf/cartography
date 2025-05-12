@@ -12,7 +12,6 @@ from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -56,7 +55,9 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
 
 
 @timeit
-def transform_okta_user_list(okta_user_list: List[User]) -> Tuple[List[Dict], List[str]]:
+def transform_okta_user_list(
+    okta_user_list: List[User],
+) -> Tuple[List[Dict], List[str]]:
     users: List[Dict] = []
     user_ids: List[str] = []
 
@@ -91,7 +92,9 @@ def transform_okta_user(okta_user: User) -> Dict:
         user_props["activated"] = None
 
     if okta_user.statusChanged:
-        user_props["status_changed"] = okta_user.statusChanged.strftime("%m/%d/%Y, %H:%M:%S")
+        user_props["status_changed"] = okta_user.statusChanged.strftime(
+            "%m/%d/%Y, %H:%M:%S",
+        )
     else:
         user_props["status_changed"] = None
 
@@ -101,12 +104,16 @@ def transform_okta_user(okta_user: User) -> Dict:
         user_props["last_login"] = None
 
     if okta_user.lastUpdated:
-        user_props["okta_last_updated"] = okta_user.lastUpdated.strftime("%m/%d/%Y, %H:%M:%S")
+        user_props["okta_last_updated"] = okta_user.lastUpdated.strftime(
+            "%m/%d/%Y, %H:%M:%S",
+        )
     else:
         user_props["okta_last_updated"] = None
 
     if okta_user.passwordChanged:
-        user_props["password_changed"] = okta_user.passwordChanged.strftime("%m/%d/%Y, %H:%M:%S")
+        user_props["password_changed"] = okta_user.passwordChanged.strftime(
+            "%m/%d/%Y, %H:%M:%S",
+        )
     else:
         user_props["password_changed"] = None
 
@@ -120,7 +127,9 @@ def transform_okta_user(okta_user: User) -> Dict:
 
 @timeit
 def _load_okta_users(
-    neo4j_session: neo4j.Session, okta_org_id: str, user_list: List[Dict],
+    neo4j_session: neo4j.Session,
+    okta_org_id: str,
+    user_list: List[Dict],
     okta_update_tag: int,
 ) -> None:
     """
@@ -175,8 +184,11 @@ def _load_okta_users(
 
 @timeit
 def sync_okta_users(
-    neo4j_session: neo4j.Session, okta_org_id: str, okta_update_tag: int,
-    okta_api_key: str, sync_state: OktaSyncState,
+    neo4j_session: neo4j.Session,
+    okta_org_id: str,
+    okta_update_tag: int,
+    okta_api_key: str,
+    sync_state: OktaSyncState,
 ) -> None:
     """
     Sync okta users

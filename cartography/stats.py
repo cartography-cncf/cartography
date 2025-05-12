@@ -17,11 +17,11 @@ class ScopedStatsClient:
 
     _client: StatsClient = None
 
-    def __init__(self, prefix: Optional[str], root: 'ScopedStatsClient'):
+    def __init__(self, prefix: Optional[str], root: "ScopedStatsClient"):
         self._scope_prefix = prefix
         self._root = root
 
-    def get_stats_client(self, scope: str) -> 'ScopedStatsClient':
+    def get_stats_client(self, scope: str) -> "ScopedStatsClient":
         """
         This method returns a new proxy to the same client
         which will prefix all calls to underlying methods with the scoped prefix
@@ -35,7 +35,7 @@ class ScopedStatsClient:
         return scoped_stats_client
 
     @staticmethod
-    def get_root_client() -> 'ScopedStatsClient':
+    def get_root_client() -> "ScopedStatsClient":
         client = ScopedStatsClient(prefix=None, root=None)  # type: ignore
         client._root = client
         return client

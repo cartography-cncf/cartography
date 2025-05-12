@@ -63,7 +63,7 @@ def start_crowdstrike_ingestion(neo4j_session: neo4j.Session, config: Optional[C
         group_id = settings.crowdstrike.api_url
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='crowdstrike',
+        group_type="crowdstrike",
         group_id=group_id,
         synced_type='crowdstrike',
         update_tag=settings.common.update_tag,
@@ -72,9 +72,13 @@ def start_crowdstrike_ingestion(neo4j_session: neo4j.Session, config: Optional[C
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
     logger.info("Running Crowdstrike cleanup")
-    GraphJob.from_node_schema(CrowdstrikeHostSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(CrowdstrikeHostSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
     # Cleanup other crowdstrike assets not handled by the data model
     run_cleanup_job(

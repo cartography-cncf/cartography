@@ -53,7 +53,10 @@ def get_last_modified_cve_date(neo4j_session: neo4j.Session) -> str:
     ORDER BY last_modified DESC
     LIMIT 1
     """
-    result = cast(neo4j.time.DateTime, read_single_value_tx(neo4j_session, query)).to_native()
+    result = cast(
+        neo4j.time.DateTime,
+        read_single_value_tx(neo4j_session, query),
+    ).to_native()
     return result.strftime("%Y-%m-%dT%H:%M:%S")
 
 
@@ -63,13 +66,19 @@ def _map_cve_dict(cve_dict: Dict[Any, Any], data: Dict[Any, Any]) -> None:
     cve_dict["timestamp"] = data["timestamp"]
     cve_dict["totalResults"] = data["totalResults"]
     cve_dict["vulnerabilities"] = cve_dict.get("vulnerabilities", []) + data.get(
-        "vulnerabilities", [],
+        "vulnerabilities",
+        [],
     )
     cve_dict["resultsPerPage"] = data["resultsPerPage"]
     cve_dict["startIndex"] = data["startIndex"]
 
 
-def _call_cves_api(http_session: Session, url: str, api_key: str | None, params: Dict[str, Any]) -> Dict[Any, Any]:
+def _call_cves_api(
+    http_session: Session,
+    url: str,
+    api_key: str | None,
+    params: Dict[str, Any],
+) -> Dict[Any, Any]:
     total_results = 0
     params["startIndex"] = 0
     params["resultsPerPage"] = RESULTS_PER_PAGE
@@ -142,7 +151,10 @@ def get_cves_in_batches(
 
 
 def get_modified_cves(
-    http_session: Session, nist_cve_url: str, last_modified_date: str, api_key: str | None,
+    http_session: Session,
+    nist_cve_url: str,
+    last_modified_date: str,
+    api_key: str | None,
 ) -> Dict[Any, Any]:
     end_date = datetime.now(tz=timezone.utc)
     start_date = datetime.strptime(last_modified_date, "%Y-%m-%dT%H:%M:%S").replace(
@@ -153,13 +165,21 @@ def get_modified_cves(
         "end": "lastModEndDate",
     }
     cves = get_cves_in_batches(
-        http_session, nist_cve_url, start_date, end_date, date_param_names, api_key,
+        http_session,
+        nist_cve_url,
+        start_date,
+        end_date,
+        date_param_names,
+        api_key,
     )
     return cves
 
 
 def get_published_cves_per_year(
-    http_session: Session, nist_cve_url: str, year: str, api_key: str | None,
+    http_session: Session,
+    nist_cve_url: str,
+    year: str,
+    api_key: str | None,
 ) -> Dict[Any, Any]:
     start_of_year = datetime.strptime(f"{year}-01-01", "%Y-%m-%d")
     next_year = int(year) + 1
@@ -169,7 +189,12 @@ def get_published_cves_per_year(
         "end": "pubEndDate",
     }
     cves = get_cves_in_batches(
-        http_session, nist_cve_url, start_of_year, end_of_next_year, date_param_names, api_key,
+        http_session,
+        nist_cve_url,
+        start_of_year,
+        end_of_next_year,
+        date_param_names,
+        api_key,
     )
     return cves
 
@@ -200,9 +225,13 @@ def transform_cves(cve_json: Dict[Any, Any]) -> List[Dict[Any, Any]]:
             ]
             cve["references_urls"] = [url["url"] for url in cve["references"]]
             if cve.get("weaknesses"):
-                weakness_descriptions = [weakness["description"] for weakness in cve["weaknesses"]]
+                weakness_descriptions = [
+                    weakness["description"] for weakness in cve["weaknesses"]
+                ]
                 weakness_descriptions = reduce(
-                    lambda x, y: x + y, weakness_descriptions, [],
+                    lambda x, y: x + y,
+                    weakness_descriptions,
+                    [],
                 )
                 cve["weaknesses"] = [
                     description["value"]
@@ -228,7 +257,7 @@ def transform_cves(cve_json: Dict[Any, Any]) -> List[Dict[Any, Any]]:
                 cve["exploitabilityScore"] = cvss31.get("exploitabilityScore")
                 cve["impactScore"] = cvss31.get("impactScore")
         except Exception:
-            logger.error("Failed to transform CVE data {data}")
+            logger.error(f"Failed to transform CVE data {data}")
             raise
         cves.append(cve)
     return cves
@@ -267,7 +296,9 @@ def load_cves(
 
 
 def load_cve_feed(
-    neo4j_session: neo4j.Session, data: List[Dict[str, Any]], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    update_tag: int,
 ) -> None:
     """
     Load CVE feed information

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_hub(boto3_session: boto3.session.Session) -> Dict:
-    client = boto3_session.client('securityhub')
+    client = boto3_session.client("securityhub")
     try:
         return client.describe_hub()
     except client.exceptions.ResourceNotFoundException:
@@ -24,11 +24,11 @@ def get_hub(boto3_session: boto3.session.Session) -> Dict:
 
 
 def transform_hub(hub_data: Dict) -> None:
-    if 'SubscribedAt' in hub_data and hub_data['SubscribedAt']:
-        subbed_at = parser.parse(hub_data['SubscribedAt'])
-        hub_data['SubscribedAt'] = int(subbed_at.timestamp())
+    if "SubscribedAt" in hub_data and hub_data["SubscribedAt"]:
+        subbed_at = parser.parse(hub_data["SubscribedAt"])
+        hub_data["SubscribedAt"] = int(subbed_at.timestamp())
     else:
-        hub_data['SubscribedAt'] = None
+        hub_data["SubscribedAt"] = None
 
 
 @timeit
@@ -59,14 +59,25 @@ def load_hub(
 
 
 @timeit
-def cleanup_securityhub(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_securityhub_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_securityhub(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job(
+        "aws_import_securityhub_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing Security Hub in account '%s'.", current_aws_account_id)
     hub = get_hub(boto3_session)

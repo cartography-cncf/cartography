@@ -146,6 +146,10 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config('aws_requested_syncs', 'CARTOGRAPHY_AWS__REQUESTED_SYNCS')
         settings.update({'aws': {'requested_syncs': config.aws_requested_syncs}})
+    if config.aws_regions:
+        if show_deprecation_warning:
+            deprecated_config('aws_regions', 'CARTOGRAPHY_AWS__REGION')
+        settings.update({'aws': {'regions': config.aws_region}})
     if config.aws_sync_all_profiles:
         if show_deprecation_warning:
             deprecated_config('aws_sync_all_profiles', 'CARTOGRAPHY_AWS__SYNC_ALL_PROFILES')

@@ -1,5 +1,5 @@
 LASTPASS_USERS = {
-    'Users': {
+    "Users": {
         123456: {
             "username": "john.doe@domain.tld",
             "fullname": "John Doe",

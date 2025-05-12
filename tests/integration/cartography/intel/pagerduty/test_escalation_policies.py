@@ -5,7 +5,9 @@ TEST_UPDATE_TAG = 123456789
 
 
 def test_load_escalation_policy_data(neo4j_session):
-    escalation_policy_data = tests.data.pagerduty.escalation_policies.GET_ESCALATION_POLICY_DATA
+    escalation_policy_data = (
+        tests.data.pagerduty.escalation_policies.GET_ESCALATION_POLICY_DATA
+    )
     cartography.intel.pagerduty.escalation_policies.load_escalation_policy_data(
         neo4j_session,
         escalation_policy_data,
@@ -20,7 +22,7 @@ def test_load_escalation_policy_data(neo4j_session):
         MATCH (n:PagerDutyEscalationPolicy) RETURN n.id;
         """,
     )
-    actual_nodes = {n['n.id'] for n in nodes}
+    actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == expected_nodes
 
     expected_rules = {
@@ -32,5 +34,5 @@ def test_load_escalation_policy_data(neo4j_session):
         RETURN n.id;
         """,
     )
-    actual_rules = {n['n.id'] for n in rules}
+    actual_rules = {n["n.id"] for n in rules}
     assert actual_rules == expected_rules

@@ -1,7 +1,8 @@
 from cartography.intel.kubernetes.pods import load_pods
 from tests.data.kubernetes.pods import GET_PODS_DATA
-from tests.integration.cartography.intel.kubernetes.test_namespaces import test_load_namespaces
-
+from tests.integration.cartography.intel.kubernetes.test_namespaces import (
+    test_load_namespaces,
+)
 
 TEST_UPDATE_TAG = 123456789
 

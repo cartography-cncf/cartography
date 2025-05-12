@@ -28,19 +28,25 @@ stat_handler = get_stats_client(__name__)
 
 
 @timeit
-def _cleanup_okta_organizations(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def _cleanup_okta_organizations(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
     """
     Remove stale Okta organization
     :param neo4j_session: The Neo4j session
     :param common_job_parameters: Parameters to carry to the cleanup job
     :return: Nothing
     """
-    run_cleanup_job('okta_import_cleanup.json', neo4j_session, common_job_parameters)
+    run_cleanup_job("okta_import_cleanup.json", neo4j_session, common_job_parameters)
     cleanup_okta_groups(neo4j_session, common_job_parameters)
 
 
-def cleanup_okta_groups(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('okta_groups_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup_okta_groups(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    run_cleanup_job("okta_groups_cleanup.json", neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -104,7 +110,9 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] 
 
         # Getting roles requires super admin which most won't be able to get easily
         if okta_error.error_code == "E0000006":
-            logger.warning("Unable to sync admin roles - api token needs admin rights to pull admin roles data")
+            logger.warning(
+                "Unable to sync admin roles - api token needs admin rights to pull admin roles data",
+            )
 
     _cleanup_okta_organizations(neo4j_session, common_job_parameters)
 

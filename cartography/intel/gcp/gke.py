@@ -8,6 +8,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,16 +27,21 @@ def get_gke_clusters(container: Resource, project_id: str) -> Dict:
     :return: Cluster response object
     """
     try:
-        req = container.projects().zones().clusters().list(projectId=project_id, zone='-')
+        req = (
+            container.projects().zones().clusters().list(projectId=project_id, zone="-")
+        )
         res = req.execute()
         return res
     except HttpError as e:
-        err = json.loads(e.content.decode('utf-8'))['error']
-        if err['status'] == 'PERMISSION_DENIED':
+        err = json.loads(e.content.decode("utf-8"))["error"]
+        if err["status"] == "PERMISSION_DENIED":
             logger.warning(
                 (
                     "Could not retrieve GKE clusters on project %s due to permissions issue. Code: %s, Message: %s"
-                ), project_id, err['code'], err['message'],
+                ),
+                project_id,
+                err["code"],
+                err["message"],
             )
             return {}
         else:
@@ -43,7 +49,12 @@ def get_gke_clusters(container: Resource, project_id: str) -> Dict:
 
 
 @timeit
-def load_gke_clusters(neo4j_session: neo4j.Session, cluster_resp: Dict, project_id: str, gcp_update_tag: int) -> None:
+def load_gke_clusters(
+    neo4j_session: neo4j.Session,
+    cluster_resp: Dict,
+    project_id: str,
+    gcp_update_tag: int,
+) -> None:
     """
     Ingest GCP GKE Clusters to Neo4j
 
@@ -98,37 +109,50 @@ def load_gke_clusters(neo4j_session: neo4j.Session, cluster_resp: Dict, project_
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $gcp_update_tag
     """
-    for cluster in cluster_resp.get('clusters', []):
+    for cluster in cluster_resp.get("clusters", []):
         neo4j_session.run(
             query,
             ProjectId=project_id,
-            ClusterSelfLink=cluster['selfLink'],
-            ClusterCreateTime=cluster['createTime'],
-            ClusterName=cluster['name'],
-            ClusterDescription=cluster.get('description'),
-            ClusterLoggingService=cluster.get('loggingService'),
-            ClusterMonitoringService=cluster.get('monitoringService'),
-            ClusterNetwork=cluster.get('network'),
-            ClusterSubnetwork=cluster.get('subnetwork'),
-            ClusterIPv4Cidr=cluster.get('clusterIpv4Cidr'),
-            ClusterZone=cluster.get('zone'),
-            ClusterLocation=cluster.get('location'),
-            ClusterEndpoint=cluster.get('endpoint'),
-            ClusterInitialVersion=cluster.get('initialClusterVersion'),
-            ClusterMasterVersion=cluster.get('currentMasterVersion'),
-            ClusterStatus=cluster.get('status'),
-            ClusterServicesIPv4Cidr=cluster.get('servicesIpv4Cidr'),
-            ClusterDatabaseEncryption=cluster.get('databaseEncryption', {}).get('state'),
+            ClusterSelfLink=cluster["selfLink"],
+            ClusterCreateTime=cluster["createTime"],
+            ClusterName=cluster["name"],
+            ClusterDescription=cluster.get("description"),
+            ClusterLoggingService=cluster.get("loggingService"),
+            ClusterMonitoringService=cluster.get("monitoringService"),
+            ClusterNetwork=cluster.get("network"),
+            ClusterSubnetwork=cluster.get("subnetwork"),
+            ClusterIPv4Cidr=cluster.get("clusterIpv4Cidr"),
+            ClusterZone=cluster.get("zone"),
+            ClusterLocation=cluster.get("location"),
+            ClusterEndpoint=cluster.get("endpoint"),
+            ClusterInitialVersion=cluster.get("initialClusterVersion"),
+            ClusterMasterVersion=cluster.get("currentMasterVersion"),
+            ClusterStatus=cluster.get("status"),
+            ClusterServicesIPv4Cidr=cluster.get("servicesIpv4Cidr"),
+            ClusterDatabaseEncryption=cluster.get("databaseEncryption", {}).get(
+                "state",
+            ),
             ClusterNetworkPolicy=_process_network_policy(cluster),
-            ClusterMasterAuthorizedNetworks=cluster.get('masterAuthorizedNetworksConfig', {}).get('enabled'),
-            ClusterAbac=cluster.get('legacyAbac', {}).get('enabled'),
-            ClusterShieldedNodes=cluster.get('shieldedNodes', {}).get('enabled'),
-            ClusterPrivateNodes=cluster.get('privateClusterConfig', {}).get('enablePrivateNodes'),
-            ClusterPrivateEndpointEnabled=cluster.get('privateClusterConfig', {}).get('enablePrivateEndpoint'),
-            ClusterPrivateEndpoint=cluster.get('privateClusterConfig', {}).get('privateEndpoint'),
-            ClusterPublicEndpoint=cluster.get('privateClusterConfig', {}).get('publicEndpoint'),
-            ClusterMasterUsername=cluster.get('masterAuth', {}).get('username'),
-            ClusterMasterPassword=cluster.get('masterAuth', {}).get('password'),
+            ClusterMasterAuthorizedNetworks=cluster.get(
+                "masterAuthorizedNetworksConfig",
+                {},
+            ).get("enabled"),
+            ClusterAbac=cluster.get("legacyAbac", {}).get("enabled"),
+            ClusterShieldedNodes=cluster.get("shieldedNodes", {}).get("enabled"),
+            ClusterPrivateNodes=cluster.get("privateClusterConfig", {}).get(
+                "enablePrivateNodes",
+            ),
+            ClusterPrivateEndpointEnabled=cluster.get("privateClusterConfig", {}).get(
+                "enablePrivateEndpoint",
+            ),
+            ClusterPrivateEndpoint=cluster.get("privateClusterConfig", {}).get(
+                "privateEndpoint",
+            ),
+            ClusterPublicEndpoint=cluster.get("privateClusterConfig", {}).get(
+                "publicEndpoint",
+            ),
+            ClusterMasterUsername=cluster.get("masterAuth", {}).get("username"),
+            ClusterMasterPassword=cluster.get("masterAuth", {}).get("password"),
             gcp_update_tag=gcp_update_tag,
         )
 
@@ -138,15 +162,18 @@ def _process_network_policy(cluster: Dict) -> bool:
     Parse cluster.networkPolicy to verify if
     the provider has been enabled.
     """
-    provider = cluster.get('networkPolicy', {}).get('provider')
-    enabled = cluster.get('networkPolicy', {}).get('enabled')
+    provider = cluster.get("networkPolicy", {}).get("provider")
+    enabled = cluster.get("networkPolicy", {}).get("enabled")
     if provider and enabled is True:
         return provider
     return False
 
 
 @timeit
-def cleanup_gke_clusters(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_gke_clusters(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
     """
     Delete out-of-date GCP GKE Clusters nodes and relationships
 
@@ -159,12 +186,19 @@ def cleanup_gke_clusters(neo4j_session: neo4j.Session, common_job_parameters: Di
     :rtype: NoneType
     :return: Nothing
     """
-    run_cleanup_job('gcp_gke_cluster_cleanup.json', neo4j_session, common_job_parameters)
+    run_cleanup_job(
+        "gcp_gke_cluster_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync_gke_clusters(
-    neo4j_session: neo4j.Session, container: Resource, project_id: str, gcp_update_tag: int,
+    neo4j_session: neo4j.Session,
+    container: Resource,
+    project_id: str,
+    gcp_update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     """
@@ -191,5 +225,5 @@ def sync_gke_clusters(
     logger.info("Syncing Compute objects for project %s.", project_id)
     gke_res = get_gke_clusters(container, project_id)
     load_gke_clusters(neo4j_session, gke_res, project_id, gcp_update_tag)
-    # TODO scope the cleanup to the current project - https://github.com/lyft/cartography/issues/381
+    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
     cleanup_gke_clusters(neo4j_session, common_job_parameters)

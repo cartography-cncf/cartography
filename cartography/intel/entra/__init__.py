@@ -5,6 +5,7 @@ from typing import Optional
 import neo4j
 
 from cartography.config import Config
+from cartography.intel.entra.ou import sync_entra_ous
 from cartography.intel.entra.users import sync_entra_users
 from cartography.settings import check_module_settings
 from cartography.settings import populate_settings_from_config
@@ -35,13 +36,26 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]
         "TENANT_ID": settings.entra.tenant_id,
     }
 
-    asyncio.run(
-        sync_entra_users(
+    async def main() -> None:
+        # Run user sync
+        await sync_entra_users(
             neo4j_session,
             settings.entra.tenant_id,
             settings.entra.client_id,
             settings.entra.client_secret,
             settings.common.update_tag,
             common_job_parameters,
-        ),
-    )
+        )
+
+        # Run OU sync
+        await sync_entra_ous(
+            neo4j_session,
+            config.entra_tenant_id,
+            config.entra_client_id,
+            config.entra_client_secret,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+    # Execute both syncs in sequence
+    asyncio.run(main())

@@ -16,52 +16,61 @@ class InstanceProfileNodeProperties(CartographyNodeProperties):
     """
     Schema describing a InstanceProfile.
     """
-    arn: PropertyRef = PropertyRef('Arn')
-    createdate: PropertyRef = PropertyRef('CreateDate')
-    id: PropertyRef = PropertyRef('Arn')
-    instance_profile_id: PropertyRef = PropertyRef('InstanceProfileId')
-    instance_profile_name: PropertyRef = PropertyRef('InstanceProfileName')
-    path: PropertyRef = PropertyRef('Path')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+
+    arn: PropertyRef = PropertyRef("Arn")
+    createdate: PropertyRef = PropertyRef("CreateDate")
+    id: PropertyRef = PropertyRef("Arn")
+    instance_profile_id: PropertyRef = PropertyRef("InstanceProfileId")
+    instance_profile_name: PropertyRef = PropertyRef("InstanceProfileName")
+    path: PropertyRef = PropertyRef("Path")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class InstanceProfileToAwsAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class InstanceProfileToAWSAccount(CartographyRelSchema):
-    target_node_label: str = 'AWSAccount'
+    target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('AWS_ID', set_in_kwargs=True)},
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: InstanceProfileToAwsAccountRelProperties = InstanceProfileToAwsAccountRelProperties()
+    properties: InstanceProfileToAwsAccountRelProperties = (
+        InstanceProfileToAwsAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class InstanceProfileToAWSRoleRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class InstanceProfileToAWSRole(CartographyRelSchema):
-    target_node_label: str = 'AWSRole'
+    target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'arn': PropertyRef('Roles', one_to_many=True)},
+        {"arn": PropertyRef("Roles", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATED_WITH"
-    properties: InstanceProfileToAWSRoleRelProperties = InstanceProfileToAWSRoleRelProperties()
+    properties: InstanceProfileToAWSRoleRelProperties = (
+        InstanceProfileToAWSRoleRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class InstanceProfileSchema(CartographyNodeSchema):
-    label: str = 'AWSInstanceProfile'
+    label: str = "AWSInstanceProfile"
     properties: InstanceProfileNodeProperties = InstanceProfileNodeProperties()
-    sub_resource_relationship: InstanceProfileToAWSAccount = InstanceProfileToAWSAccount()
-    other_relationships: OtherRelationships = OtherRelationships([
-        InstanceProfileToAWSRole(),
-    ])
+    sub_resource_relationship: InstanceProfileToAWSAccount = (
+        InstanceProfileToAWSAccount()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            InstanceProfileToAWSRole(),
+        ]
+    )

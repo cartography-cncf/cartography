@@ -13,7 +13,6 @@ from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -48,4 +47,3 @@ def start_digitalocean_ingestion(neo4j_session: neo4j.Session, config: Optional[
     platform.sync(neo4j_session, account, settings.common.update_tag, common_job_parameters)
     project_resources = management.sync(neo4j_session, manager, settings.common.update_tag, common_job_parameters)
     compute.sync(neo4j_session, manager, project_resources, settings.common.update_tag, common_job_parameters)
-    return

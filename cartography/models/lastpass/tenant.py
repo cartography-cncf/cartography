@@ -7,11 +7,11 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 @dataclass(frozen=True)
 class LastpassTenantNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class LastpassTenantSchema(CartographyNodeSchema):
-    label: str = 'LastpassTenant'
+    label: str = "LastpassTenant"
     properties: LastpassTenantNodeProperties = LastpassTenantNodeProperties()

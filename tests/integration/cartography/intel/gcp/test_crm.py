@@ -1,7 +1,6 @@
 import cartography.intel.gcp.crm
 import tests.data.gcp.crm
 
-
 TEST_UPDATE_TAG = 123456789
 
 
@@ -34,7 +33,7 @@ def test_load_gcp_projects(neo4j_session):
         MATCH (d:GCPProject) return d.id
         """,
     )
-    actual_nodes = {(n['d.id']) for n in nodes}
+    actual_nodes = {(n["d.id"]) for n in nodes}
     assert actual_nodes == expected_nodes
 
     # Expect (GCPProject{project-232323})<-[:RESOURCE]-(GCPFolder{1414})
@@ -45,20 +44,21 @@ def test_load_gcp_projects(neo4j_session):
     """
     nodes = neo4j_session.run(
         query,
-        ProjectId='this-project-has-a-parent-232323',
+        ProjectId="this-project-has-a-parent-232323",
     )
     actual_nodes = {
         (
-            n['p.id'],
-            n['f.id'],
-            n['o.id'],
-        ) for n in nodes
+            n["p.id"],
+            n["f.id"],
+            n["o.id"],
+        )
+        for n in nodes
     }
     expected_nodes = {
         (
-            'this-project-has-a-parent-232323',
-            'folders/1414',
-            'organizations/1337',
+            "this-project-has-a-parent-232323",
+            "folders/1414",
+            "organizations/1337",
         ),
     }
     assert actual_nodes == expected_nodes
@@ -82,5 +82,5 @@ def test_load_gcp_projects_without_parent(neo4j_session):
         MATCH (d:GCPProject) WHERE NOT (d)<-[:RESOURCE]-() RETURN d.id
         """,
     )
-    actual_nodes = {(n['d.id']) for n in nodes}
+    actual_nodes = {(n["d.id"]) for n in nodes}
     assert actual_nodes == expected_nodes

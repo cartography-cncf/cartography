@@ -14,8 +14,8 @@ def test_basic_drift_detection():
     data = FileSystem.load("tests/data/test_cli_detectors/detector/2.json")
     end_state = StateSchema().load(data)
     new_results, missing_results = perform_drift_detection(start_state, end_state)
-    assert ['36', '37', ['38', '39', '40']] in new_results
-    assert ['7', '14', ['21', '28', '35']] in missing_results
+    assert ["36", "37", ["38", "39", "40"]] in new_results
+    assert ["7", "14", ["21", "28", "35"]] in missing_results
 
 
 def test_drift_detection_errors():

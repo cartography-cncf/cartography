@@ -8,7 +8,6 @@ from cartography.driftdetect.add_shortcut import run_add_shortcut
 from cartography.driftdetect.detect_deviations import run_drift_detection
 from cartography.driftdetect.get_states import run_get_states
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,138 +25,130 @@ class CLI:
         parser = argparse.ArgumentParser(
             prog=self.prog,
             description=(
-                'drift-detection takes database queries along with their expected states in the cartography-generated '
-                'graph database and reports the deviations.'
+                "drift-detection takes database queries along with their expected states in the cartography-generated "
+                "graph database and reports the deviations."
             ),
-            epilog='For more documentation please visit: '
-                   'https://cartography-cncf.github.io/cartography/usage/drift-detect.html',
+            epilog="For more documentation please visit: "
+            "https://cartography-cncf.github.io/cartography/usage/drift-detect.html",
         )
         parser.add_argument(
-            '-v',
-            '--verbose',
-            action='store_true',
-            help='Enable verbose logging for drift-detection.',
+            "-v",
+            "--verbose",
+            action="store_true",
+            help="Enable verbose logging for drift-detection.",
         )
         parser.add_argument(
-            '-q',
-            '--quiet',
-            action='store_true',
-            help='Restrict drift-detection logging to warnings and errors only.',
+            "-q",
+            "--quiet",
+            action="store_true",
+            help="Restrict drift-detection logging to warnings and errors only.",
         )
         subparsers = parser.add_subparsers(
-            dest='command',
-            help='To get the current drift state, use the command `cartography-detectdrift get-state --neo4j_uri <your '
-                 'neo4j_uri> --drift-detection-directory <your drift detection directory>` \n'
-                 'To get drift between two state files, use the command `cartography-detectdrift get-drift'
-                 '--query-directory <path to query directory> --start-state <beginning drift state file> --end-state '
-                 '<final drift state file>'
-                 'To add a shortcut between two state files, use the command `cartography-detectdrift add-shortcut'
-                 '--query-directory <path to query directory> --shortcut <shortcut name> --file <driftstate filename>',
+            dest="command",
+            help="To get the current drift state, use the command `cartography-detectdrift get-state --neo4j_uri <your "
+            "neo4j_uri> --drift-detection-directory <your drift detection directory>` \n"
+            "To get drift between two state files, use the command `cartography-detectdrift get-drift"
+            "--query-directory <path to query directory> --start-state <beginning drift state file> --end-state "
+            "<final drift state file>"
+            "To add a shortcut between two state files, use the command `cartography-detectdrift add-shortcut"
+            "--query-directory <path to query directory> --shortcut <shortcut name> --file <driftstate filename>",
         )
         parser_get_state = subparsers.add_parser(
-            name='get-state',
-            help='generates new drift state for each query with the current status of the neo4j database',
+            name="get-state",
+            help="generates new drift state for each query with the current status of the neo4j database",
         )
         parser_get_state.add_argument(
-            '--neo4j-uri',
+            "--neo4j-uri",
             type=str,
-            default='bolt://localhost:7687',
+            default="bolt://localhost:7687",
             help=(
-                'A valid Neo4j URI to sync against. See '
-                'https://neo4j.com/docs/api/python-driver/current/driver.html#uri for complete documentation on the '
-                'structure of a Neo4j URI.'
+                "A valid Neo4j URI to sync against. See "
+                "https://neo4j.com/docs/api/python-driver/current/driver.html#uri for complete documentation on the "
+                "structure of a Neo4j URI."
             ),
         )
         parser_get_state.add_argument(
-            '--neo4j-user',
+            "--neo4j-user",
             type=str,
             default=None,
-            help='A username with which to authenticate to Neo4j.',
+            help="A username with which to authenticate to Neo4j.",
         )
         parser_get_state.add_argument(
-            '--neo4j-password-env-var',
+            "--neo4j-password-env-var",
             type=str,
             default=None,
-            help='The name of an environment variable containing a password with which to authenticate to Neo4j.',
+            help="The name of an environment variable containing a password with which to authenticate to Neo4j.",
         )
         parser_get_state.add_argument(
-            '--neo4j-password-prompt',
-            action='store_true',
+            "--neo4j-password-prompt",
+            action="store_true",
             help=(
-                'Present an interactive prompt for a password with which to authenticate to Neo4j. This parameter '
-                'supersedes other methods of supplying a Neo4j password.'
+                "Present an interactive prompt for a password with which to authenticate to Neo4j. This parameter "
+                "supersedes other methods of supplying a Neo4j password."
             ),
         )
         parser_get_state.add_argument(
-            '--drift-detection-directory',
+            "--drift-detection-directory",
             type=str,
             default=None,
             help=(
-                'A path to a directory containing drift-states to build. Drift-detection will discover all JSON'
-                'files in the given directory (and its subdirectories) and construct detectors from'
-                'them. Drift-detection does not guarantee the order in which the detector jobs are executed.'
+                "A path to a directory containing drift-states to build. Drift-detection will discover all JSON"
+                "files in the given directory (and its subdirectories) and construct detectors from"
+                "them. Drift-detection does not guarantee the order in which the detector jobs are executed."
             ),
         )
         parser_get_drift = subparsers.add_parser(
-            name='get-drift',
+            name="get-drift",
             help=(
-                'gets drift between two drift states. Must be between the same detection directory'
+                "gets drift between two drift states. Must be between the same detection directory"
             ),
         )
         parser_get_drift.add_argument(
-            '--query-directory',
+            "--query-directory",
             type=str,
             default=None,
             help=(
-                'A path to a directory containing drift-states for a specific query. Drift-detection will read in the'
-                'report_info file and specified drift-states from the directory to report the differences between files'
+                "A path to a directory containing drift-states for a specific query. Drift-detection will read in the"
+                "report_info file and specified drift-states from the directory to report the differences between files"
             ),
         )
         parser_get_drift.add_argument(
-            '--start-state',
+            "--start-state",
             type=str,
             default=None,
             help=(
-                'The filename of the earlier state chronologically to be compared to.'
+                "The filename of the earlier state chronologically to be compared to."
             ),
         )
         parser_get_drift.add_argument(
-            '--end-state',
+            "--end-state",
             type=str,
             default=None,
-            help=(
-                'The filename of the later state chronologically to be compared to.'
-            ),
+            help=("The filename of the later state chronologically to be compared to."),
         )
         parser_add_shortcut = subparsers.add_parser(
-            name='add-shortcut',
-            help=(
-                'Adds a shortcut to a specific file in a query directory.'
-            ),
+            name="add-shortcut",
+            help=("Adds a shortcut to a specific file in a query directory."),
         )
         parser_add_shortcut.add_argument(
-            '--query-directory',
+            "--query-directory",
             type=str,
             default=None,
             help=(
-                'A path to a directory containing drift-states for a specific query.'
+                "A path to a directory containing drift-states for a specific query."
             ),
         )
         parser_add_shortcut.add_argument(
-            '--shortcut',
+            "--shortcut",
             type=str,
             default=None,
-            help=(
-                'The desired alias for the filename.'
-            ),
+            help=("The desired alias for the filename."),
         )
         parser_add_shortcut.add_argument(
-            '--filename',
+            "--filename",
             type=str,
             default=None,
-            help=(
-                'The desired name of the file to be replaced.'
-            ),
+            help=("The desired name of the file to be replaced."),
         )
         return parser
 
@@ -171,13 +162,13 @@ class CLI:
         # TODO support parameter lookup in environment variables if not present on command line
         config = self.parser.parse_args(argv)
         if config.verbose:
-            logging.getLogger('driftdetect').setLevel(logging.DEBUG)
+            logging.getLogger("driftdetect").setLevel(logging.DEBUG)
         elif config.quiet:
-            logging.getLogger('driftdetect').setLevel(logging.WARNING)
+            logging.getLogger("driftdetect").setLevel(logging.WARNING)
         else:
-            logging.getLogger('driftdetect').setLevel(logging.INFO)
+            logging.getLogger("driftdetect").setLevel(logging.INFO)
         logger.debug("Launching driftdetect with CLI configuration: %r", vars(config))
-        if config.command == 'get-state':
+        if config.command == "get-state":
             config = configure_get_state_neo4j(config)
         return config
 
@@ -190,11 +181,11 @@ class CLI:
         """
         config = self.configure(argv)
         try:
-            if config.command == 'get-state':
+            if config.command == "get-state":
                 run_get_states(config)
-            elif config.command == 'get-drift':
+            elif config.command == "get-drift":
                 run_drift_detection(config)
-            elif config.command == 'add-shortcut':
+            elif config.command == "add-shortcut":
                 run_add_shortcut(config)
             else:
                 msg = "No command detected. Try --help."
@@ -215,7 +206,10 @@ def configure_get_state_neo4j(config):
     if config.neo4j_user:
         config.neo4j_password = None
         if config.neo4j_password_prompt:
-            logger.info("Reading password for Neo4j user '%s' interactively.", config.neo4j_user)
+            logger.info(
+                "Reading password for Neo4j user '%s' interactively.",
+                config.neo4j_user,
+            )
             config.neo4j_password = getpass.getpass()
         elif config.neo4j_password_env_var:
             logger.debug(
@@ -225,7 +219,9 @@ def configure_get_state_neo4j(config):
             )
             config.neo4j_password = os.environ.get(config.neo4j_password_env_var)
         if not config.neo4j_password:
-            logger.warning("Neo4j username was provided but a password could not be found.")
+            logger.warning(
+                "Neo4j username was provided but a password could not be found.",
+            )
     else:
         config.neo4j_password = None
     return config
@@ -239,6 +235,6 @@ def main(argv=None):
     :return: The return code.
     """
     logging.basicConfig(level=logging.INFO)
-    logging.getLogger('neo4j').setLevel(logging.WARNING)
+    logging.getLogger("neo4j").setLevel(logging.WARNING)
     argv = argv if argv is not None else sys.argv[1:]
     return CLI(prog="cartography-detectdrift").main(argv)

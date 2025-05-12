@@ -1,13 +1,15 @@
 from cartography.intel.aws.ec2.launch_templates import load_launch_template_versions
 from cartography.intel.aws.ec2.launch_templates import load_launch_templates
-from cartography.intel.aws.ec2.launch_templates import transform_launch_template_versions
+from cartography.intel.aws.ec2.launch_templates import (
+    transform_launch_template_versions,
+)
 from cartography.intel.aws.ec2.launch_templates import transform_launch_templates
 from tests.data.aws.ec2.launch_templates import GET_LAUNCH_TEMPLATE_VERSIONS
 from tests.data.aws.ec2.launch_templates import GET_LAUNCH_TEMPLATES
 from tests.integration.util import check_rels
 
-TEST_ACCOUNT_ID = '000000000000'
-TEST_REGION = 'us-east-1'
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -23,7 +25,9 @@ def test_load_launch_templates(neo4j_session, *args):
         aws_update_tag=TEST_UPDATE_TAG,
     )
     # Act: transform and load the launch templates
-    templates = transform_launch_templates(GET_LAUNCH_TEMPLATES, GET_LAUNCH_TEMPLATE_VERSIONS)
+    templates = transform_launch_templates(
+        GET_LAUNCH_TEMPLATES, GET_LAUNCH_TEMPLATE_VERSIONS
+    )
     load_launch_templates(
         neo4j_session,
         templates,
@@ -48,10 +52,10 @@ def test_load_launch_templates(neo4j_session, *args):
     )
     actual_templates = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.create_time'],
-            n['n.latest_version_number'],
+            n["n.id"],
+            n["n.name"],
+            n["n.create_time"],
+            n["n.latest_version_number"],
         )
         for n in templates
     }
@@ -84,11 +88,11 @@ def test_load_launch_templates(neo4j_session, *args):
     )
     actual_versions = {
         (
-            n['n.id'],
-            n['n.name'],
-            n['n.version_number'],
-            n['n.create_time'],
-            n['n.image_id'],
+            n["n.id"],
+            n["n.name"],
+            n["n.version_number"],
+            n["n.create_time"],
+            n["n.image_id"],
         )
         for n in versions
     }
@@ -97,12 +101,12 @@ def test_load_launch_templates(neo4j_session, *args):
     # Assert that the Launch Template version is attached to the AWS account
     assert check_rels(
         neo4j_session,
-        'LaunchTemplateVersion',
-        'id',
-        'AWSAccount',
-        'id',
-        'RESOURCE',
+        "LaunchTemplateVersion",
+        "id",
+        "AWSAccount",
+        "id",
+        "RESOURCE",
         rel_direction_right=False,
     ) == {
-        ('lt-00000000000000000-1', TEST_ACCOUNT_ID),
+        ("lt-00000000000000000-1", TEST_ACCOUNT_ID),
     }

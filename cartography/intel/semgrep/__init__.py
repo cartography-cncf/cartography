@@ -12,7 +12,6 @@ from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 

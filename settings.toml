@@ -21,6 +21,7 @@ database="neo4j"
 #sync_all_profiles=True
 #best_effort_mode=True
 #requested_syncs=ec2,iam,lambda,rds,s3,sqs,sts
+#regions=us-east-1,us-west-2
 [azure]
 #sync_all_subscriptions=True
 #sp_auth=True

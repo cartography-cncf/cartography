@@ -7,6 +7,7 @@ from typing import Optional
 
 import cartography.sync
 import cartography.util
+from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
 from cartography.settings import populate_settings_from_config
@@ -174,6 +175,24 @@ class CLI:
                 'account you want to sync and use the AWS_CONFIG_FILE environment variable to point to that config '
                 'file (see https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html). cartography '
                 'respects the AWS CLI/SDK environment variables and does not override them.'
+            ),
+        )
+        parser.add_argument(
+            "--aws-regions",
+            type=str,
+            default=None,
+            help=(
+                'DEPRECATED: Use settings.toml or CARTOGRAPHY_AWS__REGIONS instead.'
+                '[EXPERIMENTAL!] Comma-separated list of AWS regions to sync. Example: specify "us-east-1,us-east-2" '
+                "to sync US East 1 and 2. Note that this syncs the same regions in ALL accounts and it is currently "
+                "not possible to specify different regions per account. "
+                "CAUTION: if you previously synced assets from regions that are _not_ included in your current list, "
+                "those assets will be _deleted_ during this sync. "
+                'This is because cartography\'s cleanup process uses "lastupdated" and "account id" to determine data '
+                "freshness and not regions. So, if a previously synced region is missing in the current sync, "
+                "Cartography assumes the associated assets are stale and removes them. "
+                "Default behavior: If `--aws-regions` is not specified, cartography will _autodiscover_ the "
+                "regions supported by each account being synced."
             ),
         )
         parser.add_argument(
@@ -831,6 +850,8 @@ class CLI:
             parse_and_validate_semgrep_ecosystems(settings.semgrep.dependency_ecosystems)
         if settings.get('aws', {}).get('requested_syncs'):
             parse_and_validate_aws_requested_syncs(settings.aws.requested_syncs)
+        if settings.get('aws', {}).get('regions'):
+            parse_and_validate_aws_regions(settings.aws.regions)
 
         # Run cartography
         try:

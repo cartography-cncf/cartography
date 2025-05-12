@@ -20,7 +20,6 @@ from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.util import timeit
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -35,13 +34,15 @@ def get_client() -> duo_client.Admin:
         host=settings.duo.api_hostname,
     )
     # Duo's library does not automatically respect the HTTP_PROXY env variable
-    proxy_url = os.environ.get('HTTP_PROXY')
+    proxy_url = os.environ.get("HTTP_PROXY")
     if proxy_url:
         proxy_config = urlparse(proxy_url)
         headers = {}
         if proxy_config.username:
-            proxy_auth_token = b64encode(f"{proxy_config.username}:{proxy_config.password}".encode()).decode('ascii')
-            headers['Proxy-Authorization'] = f'Basic {proxy_auth_token}'
+            proxy_auth_token = b64encode(
+                f"{proxy_config.username}:{proxy_config.password}".encode(),
+            ).decode("ascii")
+            headers["Proxy-Authorization"] = f"Basic {proxy_auth_token}"
         client.set_proxy(
             host=proxy_config.hostname,
             port=proxy_config.port,

@@ -10,8 +10,8 @@ from tests.data.azure.cosmosdb import DESCRIBE_SQL_CONTAINERS
 from tests.data.azure.cosmosdb import DESCRIBE_SQL_DATABASES
 from tests.data.azure.cosmosdb import DESCRIBE_TABLE_RESOURCES
 
-TEST_SUBSCRIPTION_ID = '00-00-00-00'
-TEST_RESOURCE_GROUP = 'RG'
+TEST_SUBSCRIPTION_ID = "00-00-00-00"
+TEST_RESOURCE_GROUP = "RG"
 TEST_UPDATE_TAG = 123456789
 da1 = "/subscriptions/00-00-00-00/resourceGroups/RG/providers/Microsoft.DocumentDB/databaseAccounts/DA1"
 da2 = "/subscriptions/00-00-00-00/resourceGroups/RG/providers/Microsoft.DocumentDB/databaseAccounts/DA2"
@@ -36,7 +36,7 @@ def test_load_database_account_data(neo4j_session):
         MATCH (r:AzureCosmosDBAccount) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -78,9 +78,7 @@ def test_load_database_account_data_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -104,7 +102,7 @@ def test_load_database_account_write_locations(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -127,10 +125,12 @@ def test_load_database_account_write_locations_relationships(neo4j_session):
 
     expected = {
         (
-            da1, "DA1-eastus",
+            da1,
+            "DA1-eastus",
         ),
         (
-            da1, "DA1-centralindia",
+            da1,
+            "DA1-centralindia",
         ),
     }
 
@@ -141,9 +141,7 @@ def test_load_database_account_write_locations_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -167,7 +165,7 @@ def test_load_database_account_read_locations(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -190,10 +188,12 @@ def test_load_database_account_read_locations_relationships(neo4j_session):
 
     expected = {
         (
-            da1, "DA1-eastus",
+            da1,
+            "DA1-eastus",
         ),
         (
-            da1, "DA1-centralindia",
+            da1,
+            "DA1-centralindia",
         ),
     }
 
@@ -204,9 +204,7 @@ def test_load_database_account_read_locations_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -231,7 +229,7 @@ def test_load_database_account_associated_locations(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -254,13 +252,16 @@ def test_load_database_account_associated_locations_relationships(neo4j_session)
 
     expected = {
         (
-            da1, "DA1-eastus",
+            da1,
+            "DA1-eastus",
         ),
         (
-            da1, "DA1-centralindia",
+            da1,
+            "DA1-centralindia",
         ),
         (
-            da1, "DA1-japaneast",
+            da1,
+            "DA1-japaneast",
         ),
     }
 
@@ -271,9 +272,7 @@ def test_load_database_account_associated_locations_relationships(neo4j_session)
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -287,7 +286,8 @@ def test_load_cosmosdb_cors_policy(neo4j_session):
         )
 
     expected_nodes = {
-        cors1_id, cors2_id,
+        cors1_id,
+        cors2_id,
     }
 
     nodes = neo4j_session.run(
@@ -296,7 +296,7 @@ def test_load_cosmosdb_cors_policy(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -319,10 +319,12 @@ def test_load_cosmosdb_cors_policy_relationships(neo4j_session):
 
     expected = {
         (
-            da1, cors1_id,
+            da1,
+            cors1_id,
         ),
         (
-            da2, cors2_id,
+            da2,
+            cors2_id,
         ),
     }
 
@@ -333,9 +335,7 @@ def test_load_cosmosdb_cors_policy_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -349,7 +349,8 @@ def test_load_cosmosdb_failover_policies(neo4j_session):
         )
 
     expected_nodes = {
-        "DA1-eastus", "DA2-eastus",
+        "DA1-eastus",
+        "DA2-eastus",
     }
 
     nodes = neo4j_session.run(
@@ -358,7 +359,7 @@ def test_load_cosmosdb_failover_policies(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -381,10 +382,12 @@ def test_load_cosmosdb_failover_policies_relationships(neo4j_session):
 
     expected = {
         (
-            da1, "DA1-eastus",
+            da1,
+            "DA1-eastus",
         ),
         (
-            da2, "DA2-eastus",
+            da2,
+            "DA2-eastus",
         ),
     }
 
@@ -395,9 +398,7 @@ def test_load_cosmosdb_failover_policies_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -421,7 +422,7 @@ def test_load_cosmosdb_private_endpoint_connections(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -444,10 +445,12 @@ def test_load_cosmosdb_private_endpoint_connections_relationships(neo4j_session)
 
     expected = {
         (
-            da1, da1 + "/privateEndpointConnections/pe1",
+            da1,
+            da1 + "/privateEndpointConnections/pe1",
         ),
         (
-            da2, da2 + "/privateEndpointConnections/pe2",
+            da2,
+            da2 + "/privateEndpointConnections/pe2",
         ),
     }
 
@@ -458,9 +461,7 @@ def test_load_cosmosdb_private_endpoint_connections_relationships(neo4j_session)
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -484,7 +485,7 @@ def test_load_cosmosdb_virtual_network_rules(neo4j_session):
         """,
     )
 
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -507,10 +508,12 @@ def test_load_cosmosdb_virtual_network_rules_relationships(neo4j_session):
 
     expected = {
         (
-            da1, rg + "/providers/Microsoft.Network/virtualNetworks/vn1",
+            da1,
+            rg + "/providers/Microsoft.Network/virtualNetworks/vn1",
         ),
         (
-            da2, rg + "/providers/Microsoft.Network/virtualNetworks/vn2",
+            da2,
+            rg + "/providers/Microsoft.Network/virtualNetworks/vn2",
         ),
     }
 
@@ -521,9 +524,7 @@ def test_load_cosmosdb_virtual_network_rules_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -545,7 +546,7 @@ def test_load_sql_databases(neo4j_session):
         MATCH (r:AzureCosmosDBSqlDatabase) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -567,10 +568,12 @@ def test_load_sql_databases_relationships(neo4j_session):
 
     expected = {
         (
-            da1, da1 + "/sqlDatabases/sql_db1",
+            da1,
+            da1 + "/sqlDatabases/sql_db1",
         ),
         (
-            da2, da2 + "/sqlDatabases/sql_db2",
+            da2,
+            da2 + "/sqlDatabases/sql_db2",
         ),
     }
 
@@ -581,9 +584,7 @@ def test_load_sql_databases_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -605,7 +606,7 @@ def test_load_cassandra_keyspaces(neo4j_session):
         MATCH (r:AzureCosmosDBCassandraKeyspace) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -627,10 +628,12 @@ def test_load_cassandra_keyspaces_relationships(neo4j_session):
 
     expected = {
         (
-            da1, da1 + "/cassandraKeyspaces/cass_ks1",
+            da1,
+            da1 + "/cassandraKeyspaces/cass_ks1",
         ),
         (
-            da2, da2 + "/cassandraKeyspaces/cass_ks2",
+            da2,
+            da2 + "/cassandraKeyspaces/cass_ks2",
         ),
     }
 
@@ -641,9 +644,7 @@ def test_load_cassandra_keyspaces_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -665,7 +666,7 @@ def test_load_mongodb_databases(neo4j_session):
         MATCH (r:AzureCosmosDBMongoDBDatabase) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -687,10 +688,12 @@ def test_load_mongodb_databases_relationships(neo4j_session):
 
     expected = {
         (
-            da1, da1 + "/mongodbDatabases/mongo_db1",
+            da1,
+            da1 + "/mongodbDatabases/mongo_db1",
         ),
         (
-            da2, da2 + "/mongodbDatabases/mongo_db2",
+            da2,
+            da2 + "/mongodbDatabases/mongo_db2",
         ),
     }
 
@@ -701,9 +704,7 @@ def test_load_mongodb_databases_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -725,7 +726,7 @@ def test_load_table_resources(neo4j_session):
         MATCH (r:AzureCosmosDBTableResource) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -747,10 +748,12 @@ def test_load_table_resources_relationships(neo4j_session):
 
     expected = {
         (
-            da1, da1 + "/tables/table1",
+            da1,
+            da1 + "/tables/table1",
         ),
         (
-            da2, da2 + "/tables/table2",
+            da2,
+            da2 + "/tables/table2",
         ),
     }
 
@@ -761,9 +764,7 @@ def test_load_table_resources_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -785,7 +786,7 @@ def test_load_sql_containers(neo4j_session):
         MATCH (r:AzureCosmosDBSqlContainer) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -806,10 +807,12 @@ def test_load_sql_containers_relationships(neo4j_session):
 
     expected = {
         (
-            da1 + "/sqlDatabases/sql_db1", da1 + "/sqlDatabases/sql_db1/sqlContainers/con1",
+            da1 + "/sqlDatabases/sql_db1",
+            da1 + "/sqlDatabases/sql_db1/sqlContainers/con1",
         ),
         (
-            da2 + "/sqlDatabases/sql_db2", da2 + "/sqlDatabases/sql_db2/sqlContainers/con2",
+            da2 + "/sqlDatabases/sql_db2",
+            da2 + "/sqlDatabases/sql_db2/sqlContainers/con2",
         ),
     }
 
@@ -820,9 +823,7 @@ def test_load_sql_containers_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -844,7 +845,7 @@ def test_load_cassandra_tables(neo4j_session):
         MATCH (r:AzureCosmosDBCassandraTable) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -865,10 +866,12 @@ def test_load_cassandra_tables_relationships(neo4j_session):
 
     expected = {
         (
-            da1 + "/cassandraKeyspaces/cass_ks1", da1 + "/cassandraKeyspaces/cass_ks1/cassandraTables/table1",
+            da1 + "/cassandraKeyspaces/cass_ks1",
+            da1 + "/cassandraKeyspaces/cass_ks1/cassandraTables/table1",
         ),
         (
-            da2 + "/cassandraKeyspaces/cass_ks2", da2 + "/cassandraKeyspaces/cass_ks2/cassandraTables/table2",
+            da2 + "/cassandraKeyspaces/cass_ks2",
+            da2 + "/cassandraKeyspaces/cass_ks2/cassandraTables/table2",
         ),
     }
 
@@ -879,9 +882,7 @@ def test_load_cassandra_tables_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
 
@@ -903,7 +904,7 @@ def test_load_collections(neo4j_session):
         MATCH (r:AzureCosmosDBMongoDBCollection) RETURN r.id;
         """,
     )
-    actual_nodes = {n['r.id'] for n in nodes}
+    actual_nodes = {n["r.id"] for n in nodes}
 
     assert actual_nodes == expected_nodes
 
@@ -924,10 +925,12 @@ def test_load_collections_relationships(neo4j_session):
 
     expected = {
         (
-            da1 + "/mongodbDatabases/mongo_db1", da1 + "/mongodbDatabases/mongo_db1/mongodbCollections/col1",
+            da1 + "/mongodbDatabases/mongo_db1",
+            da1 + "/mongodbDatabases/mongo_db1/mongodbCollections/col1",
         ),
         (
-            da2 + "/mongodbDatabases/mongo_db2", da2 + "/mongodbDatabases/mongo_db2/mongodbCollections/col2",
+            da2 + "/mongodbDatabases/mongo_db2",
+            da2 + "/mongodbDatabases/mongo_db2/mongodbCollections/col2",
         ),
     }
 
@@ -938,8 +941,6 @@ def test_load_collections_relationships(neo4j_session):
         """,
     )
 
-    actual = {
-        (r['n1.id'], r['n2.id']) for r in result
-    }
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected

@@ -5,9 +5,7 @@ import neo4j
 from pdpyras import APISession
 
 from cartography.config import Config
-from cartography.intel.pagerduty.escalation_policies import (
-    sync_escalation_policies,
-)
+from cartography.intel.pagerduty.escalation_policies import sync_escalation_policies
 from cartography.intel.pagerduty.schedules import sync_schedules
 from cartography.intel.pagerduty.services import sync_services
 from cartography.intel.pagerduty.teams import sync_teams
@@ -61,8 +59,8 @@ def start_pagerduty_ingestion(neo4j_session: neo4j.Session, config: Optional[Con
 
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='pagerduty',
-        group_id='module',
+        group_type="pagerduty",
+        group_id="module",
         synced_type="pagerduty",
         update_tag=settings.common.update_tag,
         stat_handler=stat_handler,

@@ -35,18 +35,28 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
     :param node_schema: The given CartographyNodeSchema
     :return: A list of Neo4j queries to clean up nodes and relationships.
     """
-    if not node_schema.sub_resource_relationship and not node_schema.other_relationships:
+    if (
+        not node_schema.sub_resource_relationship
+        and not node_schema.other_relationships
+    ):
         return []
 
     if not node_schema.sub_resource_relationship:
         queries = []
-        other_rels = node_schema.other_relationships.rels if node_schema.other_relationships else []
+        other_rels = (
+            node_schema.other_relationships.rels
+            if node_schema.other_relationships
+            else []
+        )
         for rel in other_rels:
             query = _build_cleanup_rel_query_no_sub_resource(node_schema, rel)
             queries.append(query)
         return queries
 
-    result = _build_cleanup_node_and_rel_queries(node_schema, node_schema.sub_resource_relationship)
+    result = _build_cleanup_node_and_rel_queries(
+        node_schema,
+        node_schema.sub_resource_relationship,
+    )
     if node_schema.other_relationships:
         for rel in node_schema.other_relationships.rels:
             # [0] is the delete node query, [1] is the delete relationship query. We only want the latter.
@@ -57,16 +67,16 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
 
 
 def _build_cleanup_rel_query_no_sub_resource(
-        node_schema: CartographyNodeSchema,
-        selected_relationship: CartographyRelSchema,
+    node_schema: CartographyNodeSchema,
+    selected_relationship: CartographyRelSchema,
 ) -> str:
     """
     Helper function to delete stale relationships for node_schemas that have no sub resource relationship defined.
     """
     if node_schema.sub_resource_relationship:
         raise ValueError(
-            f'Expected {node_schema.label} to not exist. '
-            'This function is intended for node_schemas without sub_resource_relationships.',
+            f"Expected {node_schema.label} to not exist. "
+            "This function is intended for node_schemas without sub_resource_relationships.",
         )
     # Ensure the node is attached to the sub resource and delete the node
     query_template = Template(
@@ -85,8 +95,8 @@ def _build_cleanup_rel_query_no_sub_resource(
 
 
 def _build_cleanup_node_and_rel_queries(
-        node_schema: CartographyNodeSchema,
-        selected_relationship: CartographyRelSchema,
+    node_schema: CartographyNodeSchema,
+    selected_relationship: CartographyRelSchema,
 ) -> List[str]:
     """
     Private function that performs the main string template logic for generating cleanup node and relationship queries.
@@ -129,7 +139,9 @@ def _build_cleanup_node_and_rel_queries(
     ]
     # Now clean up the relationships
     if selected_relationship == node_schema.sub_resource_relationship:
-        _validate_target_node_matcher_for_cleanup_job(node_schema.sub_resource_relationship.target_node_matcher)
+        _validate_target_node_matcher_for_cleanup_job(
+            node_schema.sub_resource_relationship.target_node_matcher,
+        )
         delete_action_clauses.append(
             """
             WHERE s.lastupdated <> $UPDATE_TAG
@@ -159,13 +171,17 @@ def _build_cleanup_node_and_rel_queries(
             node_label=node_schema.label,
             sub_resource_link=sub_resource_link,
             sub_resource_label=node_schema.sub_resource_relationship.target_node_label,
-            match_sub_res_clause=_build_match_clause(node_schema.sub_resource_relationship.target_node_matcher),
+            match_sub_res_clause=_build_match_clause(
+                node_schema.sub_resource_relationship.target_node_matcher,
+            ),
             selected_rel_clause=(
-                "" if selected_relationship == node_schema.sub_resource_relationship
+                ""
+                if selected_relationship == node_schema.sub_resource_relationship
                 else _build_selected_rel_clause(selected_relationship)
             ),
             delete_action_clause=delete_action_clause,
-        ) for delete_action_clause in delete_action_clauses
+        )
+        for delete_action_clause in delete_action_clauses
     ]
 
 
@@ -179,8 +195,12 @@ def _build_selected_rel_clause(selected_relationship: CartographyRelSchema) -> s
         selected_rel_template = Template("<-[r:$SelectedRelLabel]-")
     else:
         selected_rel_template = Template("-[r:$SelectedRelLabel]->")
-    selected_rel = selected_rel_template.safe_substitute(SelectedRelLabel=selected_relationship.rel_label)
-    selected_rel_clause_template = Template("""MATCH (n)$selected_rel(:$other_node_label)""")
+    selected_rel = selected_rel_template.safe_substitute(
+        SelectedRelLabel=selected_relationship.rel_label,
+    )
+    selected_rel_clause_template = Template(
+        """MATCH (n)$selected_rel(:$other_node_label)""",
+    )
     selected_rel_clause = selected_rel_clause_template.safe_substitute(
         selected_rel=selected_rel,
         other_node_label=selected_relationship.target_node_label,

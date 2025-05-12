@@ -9,8 +9,16 @@ def test_transform_user_roles():
     result = transform_user_roles_data(LIST_ASSIGNED_USER_ROLE_RESPONSE, org_id)
 
     expected = [
-        {'id': 'example_org-APP_ADMIN', 'label': 'Application Administrator', 'type': 'APP_ADMIN'},
-        {'id': 'example_org-HELP_DESK_ADMIN', 'label': 'Help Desk Administrator', 'type': 'HELP_DESK_ADMIN'},
+        {
+            "id": "example_org-APP_ADMIN",
+            "label": "Application Administrator",
+            "type": "APP_ADMIN",
+        },
+        {
+            "id": "example_org-HELP_DESK_ADMIN",
+            "label": "Help Desk Administrator",
+            "type": "HELP_DESK_ADMIN",
+        },
     ]
 
     assert result == expected
@@ -21,8 +29,16 @@ def test_transform_group_roles():
     result = transform_group_roles_data(LIST_ASSIGNED_GROUP_ROLE_RESPONSE, org_id)
 
     expected = [
-        {'id': 'example_org-APP_ADMIN', 'label': 'Application Administrator', 'type': 'APP_ADMIN'},
-        {'id': 'example_org-HELP_DESK_ADMIN', 'label': 'Help Desk Administrator', 'type': 'HELP_DESK_ADMIN'},
+        {
+            "id": "example_org-APP_ADMIN",
+            "label": "Application Administrator",
+            "type": "APP_ADMIN",
+        },
+        {
+            "id": "example_org-HELP_DESK_ADMIN",
+            "label": "Help Desk Administrator",
+            "type": "HELP_DESK_ADMIN",
+        },
     ]
 
     assert result == expected

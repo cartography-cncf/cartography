@@ -9,6 +9,8 @@ from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
 from cartography.util import timeit
 
+logger = logging.getLogger(__name__)
+
 
 @timeit
 def start_jamf_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:

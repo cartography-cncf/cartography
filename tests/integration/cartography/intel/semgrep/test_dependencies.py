@@ -17,10 +17,10 @@ from tests.integration.util import check_rels
 
 def test_parse_and_validate_semgrep_ecosystems():
     expected_format = "gomod,npm"
-    assert parse_and_validate_semgrep_ecosystems(expected_format) == ['gomod', 'npm']
+    assert parse_and_validate_semgrep_ecosystems(expected_format) == ["gomod", "npm"]
 
     acceptable_format = "Gomod, NPM"
-    assert parse_and_validate_semgrep_ecosystems(acceptable_format) == ['gomod', 'npm']
+    assert parse_and_validate_semgrep_ecosystems(acceptable_format) == ["gomod", "npm"]
 
     bad_delimiter = "gomod;npm"
     with pytest.raises(ValueError):
@@ -30,7 +30,7 @@ def test_parse_and_validate_semgrep_ecosystems():
     with pytest.raises(ValueError):
         parse_and_validate_semgrep_ecosystems(ecosystem_that_does_not_exist)
 
-    absolute_garbage = '#@$@#RDFFHKjsdfkjsd,KDFJHW#@,'
+    absolute_garbage = "#@$@#RDFFHKjsdfkjsd,KDFJHW#@,"
     with pytest.raises(ValueError):
         parse_and_validate_semgrep_ecosystems(absolute_garbage)
 
@@ -64,8 +64,19 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
     }
 
     # Act
-    sync_deployment(neo4j_session, semgrep_app_token, TEST_UPDATE_TAG, common_job_parameters)
-    sync_dependencies(neo4j_session, semgrep_app_token, ecosystems, TEST_UPDATE_TAG, common_job_parameters)
+    sync_deployment(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    sync_dependencies(
+        neo4j_session,
+        semgrep_app_token,
+        ecosystems,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
 
     # Assert
     assert check_nodes(

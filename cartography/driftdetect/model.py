@@ -19,11 +19,11 @@ class State:
     """
 
     def __init__(
-            self,
-            name: str,
-            validation_query: str,
-            properties: List[str],
-            results: List[List[str]],
+        self,
+        name: str,
+        validation_query: str,
+        properties: List[str],
+        results: List[List[str]],
     ):
 
         self.name: str = name

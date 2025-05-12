@@ -22,17 +22,19 @@ from cartography.settings import settings
 from cartography.util import timeit
 
 OAUTH_SCOPES = [
-    'https://www.googleapis.com/auth/admin.directory.user.readonly',
-    'https://www.googleapis.com/auth/admin.directory.group.readonly',
-    'https://www.googleapis.com/auth/admin.directory.group.member',
+    "https://www.googleapis.com/auth/admin.directory.user.readonly",
+    "https://www.googleapis.com/auth/admin.directory.group.readonly",
+    "https://www.googleapis.com/auth/admin.directory.group.member",
 ]
 
 logger = logging.getLogger(__name__)
 
-Resources = namedtuple('Resources', 'admin')
+Resources = namedtuple("Resources", "admin")
 
 
-def _get_admin_resource(credentials: OAuth2Credentials | ServiceAccountCredentials) -> Resource:
+def _get_admin_resource(
+    credentials: OAuth2Credentials | ServiceAccountCredentials,
+) -> Resource:
     """
     Instantiates a Google API resource object to call the Google API.
     Used to pull users and groups.  See https://developers.google.com/admin-sdk/directory/v1/guides/manage-users
@@ -40,10 +42,17 @@ def _get_admin_resource(credentials: OAuth2Credentials | ServiceAccountCredentia
     :param credentials: The credentials object
     :return: An admin api resource object
     """
-    return googleapiclient.discovery.build('admin', 'directory_v1', credentials=credentials, cache_discovery=False)
+    return googleapiclient.discovery.build(
+        "admin",
+        "directory_v1",
+        credentials=credentials,
+        cache_discovery=False,
+    )
 
 
-def _initialize_resources(credentials: OAuth2Credentials | ServiceAccountCredentials) -> Resources:
+def _initialize_resources(
+    credentials: OAuth2Credentials | ServiceAccountCredentials,
+) -> Resources:
     """
     Create namedtuple of all resource objects necessary for Google API data gathering.
     :param credentials: The credentials object
@@ -99,9 +108,9 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Optional[Config
             logger.error(
                 (
                     "Unable to initialize GSuite creds. If you don't have GSuite data or don't want to load "
-                    'Gsuite data then you can ignore this message. Otherwise, the error code is: %s '
-                    'Make sure your GSuite credentials file (if any) is valid. '
-                    'For more details see README'
+                    "Gsuite data then you can ignore this message. Otherwise, the error code is: %s "
+                    "Make sure your GSuite credentials file (if any) is valid. "
+                    "For more details see README"
                 ),
                 e,
             )
@@ -126,9 +135,9 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Optional[Config
             logger.error(
                 (
                     "Unable to initialize GSuite creds. If you don't have GSuite data or don't want to load "
-                    'Gsuite data then you can ignore this message. Otherwise, the error code is: %s '
-                    'Make sure your GSuite credentials are configured correctly, your credentials are valid. '
-                    'For more details see README'
+                    "Gsuite data then you can ignore this message. Otherwise, the error code is: %s "
+                    "Make sure your GSuite credentials are configured correctly, your credentials are valid. "
+                    "For more details see README"
                 ),
                 e,
             )
