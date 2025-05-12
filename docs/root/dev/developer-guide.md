@@ -29,10 +29,11 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
 1. **Install test requirements**
 
-    `uv sync --dev`
+    `uv sync --frozen --dev`
 
 :::{hint}
---dev is not mandatory, dev packages are installed by default.
+--dev is optional; development dependencies are installed by default.
+--frozen ensures that only the pinned dependencies from the lockfile are used, rather than resolving to the latest available versions.
 :::
 
 1. **(OPTIONAL) Setup environment variables for integration tests**
