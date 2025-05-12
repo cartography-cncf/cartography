@@ -310,7 +310,9 @@ def _perform_aws_analysis(
 
 
 @timeit
-def start_aws_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_aws_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     if not check_module_settings("AWS", []):
         return
 
@@ -338,7 +340,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] =
         )
         return
 
-    if config.aws_sync_all_profiles:
+    if settings.aws.get("sync_all_profiles"):
         aws_accounts = organizations.get_aws_accounts_from_botocore_config(
             boto3_session,
         )
@@ -360,10 +362,12 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] =
         )
 
     requested_syncs: List[str] = list(RESOURCE_FUNCTIONS.keys())
-    if settings.aws.get('aws_requested_syncs') is not None:
-        requested_syncs = parse_and_validate_aws_requested_syncs(settings.aws.get('requested_syncs'))
-    if settings.aws.get('aws_regions') is not None:
-        regions = parse_and_validate_aws_regions(settings.aws.get('regions'))
+    if settings.aws.get("requested_syncs") is not None:
+        requested_syncs = parse_and_validate_aws_requested_syncs(
+            settings.aws.get("requested_syncs")
+        )
+    if settings.aws.get("regions") is not None:
+        regions = parse_and_validate_aws_regions(settings.aws.get("regions"))
     else:
         regions = None
 
@@ -372,7 +376,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] =
         aws_accounts,
         settings.common.update_tag,
         common_job_parameters,
-        settings.aws.get('best_effort_mode', False),
+        settings.aws.get("best_effort_mode", False),
         requested_syncs,
         regions=regions,
     )

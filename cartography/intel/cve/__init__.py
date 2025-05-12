@@ -48,16 +48,23 @@ def _sync_year_archives(
         if year in existing_years:
             continue
         logger.info(f"Syncing CVE data for year {year}")
-        cves = feed.get_published_cves_per_year(http_session, settings.cve.url, str(year), cve_api_key)
+        cves = feed.get_published_cves_per_year(
+            http_session, settings.cve.url, str(year), cve_api_key
+        )
         feed_metadata = feed.transform_cve_feed(cves)
         feed.load_cve_feed(neo4j_session, [feed_metadata], settings.common.update_tag)
         published_cves = feed.transform_cves(cves)
-        feed.load_cves(neo4j_session, published_cves, feed_metadata['FEED_ID'], settings.common.update_tag)
+        feed.load_cves(
+            neo4j_session,
+            published_cves,
+            feed_metadata["FEED_ID"],
+            settings.common.update_tag,
+        )
         merge_module_sync_metadata(
             neo4j_session,
             group_type="CVE",
             group_id=year,
-            synced_type='year',
+            synced_type="year",
             update_tag=settings.common.update_tag,
             stat_handler=stat_handler,
         )
@@ -70,23 +77,32 @@ def _sync_modified_data(
 ) -> None:
     logger.info("Syncing CVE data for modified data")
     last_modified_date = feed.get_last_modified_cve_date(neo4j_session)
-    cves = feed.get_modified_cves(http_session, settings.cve.url, last_modified_date, cve_api_key)
+    cves = feed.get_modified_cves(
+        http_session, settings.cve.url, last_modified_date, cve_api_key
+    )
     feed_metadata = feed.transform_cve_feed(cves)
     feed.load_cve_feed(neo4j_session, [feed_metadata], settings.common.update_tag)
     modified_cves = feed.transform_cves(cves)
-    feed.load_cves(neo4j_session, modified_cves, feed_metadata['FEED_ID'], settings.common.update_tag)
+    feed.load_cves(
+        neo4j_session,
+        modified_cves,
+        feed_metadata["FEED_ID"],
+        settings.common.update_tag,
+    )
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='CVE',
-        group_id=feed_metadata['timestamp'][:4],
-        synced_type='modified',
+        group_type="CVE",
+        group_id=feed_metadata["timestamp"][:4],
+        synced_type="modified",
         update_tag=settings.common.update_tag,
         stat_handler=stat_handler,
     )
 
 
 @timeit
-def start_cve_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_cve_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     Perform ingestion of CVE data from NIST APIs.
     :param neo4j_session: Neo4J session for database interface
@@ -98,16 +114,22 @@ def start_cve_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] =
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('CVE', ['enabled']):
+    if not check_module_settings("CVE", ["enabled"]):
         return
 
     if not settings.cve.enabled:
         logger.debug("CVE ingestion is disabled. Skipping.")
         return
-    if settings.cve.get('url') is None:
-        settings.cve.update({'url': 'https://services.nvd.nist.gov/rest/json/cves/2.0/'})
-    cve_api_key: str | None = settings.cve.get('api_key')
+    if settings.cve.get("url") is None:
+        settings.cve.update(
+            {"url": "https://services.nvd.nist.gov/rest/json/cves/2.0/"}
+        )
+    cve_api_key: str | None = settings.cve.get("api_key")
     with _retryable_session() as http_session:
-        _sync_year_archives(http_session, neo4j_session=neo4j_session, cve_api_key=cve_api_key)
-        _sync_modified_data(http_session, neo4j_session=neo4j_session, cve_api_key=cve_api_key)
+        _sync_year_archives(
+            http_session, neo4j_session=neo4j_session, cve_api_key=cve_api_key
+        )
+        _sync_modified_data(
+            http_session, neo4j_session=neo4j_session, cve_api_key=cve_api_key
+        )
         # CVEs are never deleted, so we don't need to run a cleanup job

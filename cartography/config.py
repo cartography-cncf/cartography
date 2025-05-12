@@ -3,6 +3,7 @@
 # See https://www.dynaconf.com/ for more information on how to use Dynaconf.
 # See ./docs/roots/configuration.md for more information on how to migrate to Dynaconf.
 
+
 class Config:
     """
     A common interface for cartography configuration.

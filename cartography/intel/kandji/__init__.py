@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_kandji_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_kandji_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     If this module is configured, perform ingestion of Kandji devices. Otherwise warn and exit
 
@@ -28,7 +30,7 @@ def start_kandji_ingestion(neo4j_session: neo4j.Session, config: Optional[Config
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('Kandji', ['base_uri', 'token', 'tenant_id']):
+    if not check_module_settings("Kandji", ["base_uri", "token", "tenant_id"]):
         return
 
     common_job_parameters = {

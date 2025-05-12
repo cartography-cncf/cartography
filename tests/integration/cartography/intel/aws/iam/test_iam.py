@@ -18,15 +18,17 @@ def test_permission_relationships_file_arguments():
     Test that we correctly read arguments for --permission-relationships-file
     """
     # Test the correct field is set in the Cartography config object
-    fname = '/some/test/file.yaml'
-    settings.update({
-        'neo4j': {
-            'uri': 'bolt://thisdoesnotmatter:1234',
-        },
-        'common': {
-            'permission_relationships_file': fname,
-        },
-    })
+    fname = "/some/test/file.yaml"
+    settings.update(
+        {
+            "neo4j": {
+                "uri": "bolt://thisdoesnotmatter:1234",
+            },
+            "common": {
+                "permission_relationships_file": fname,
+            },
+        }
+    )
     assert settings.common.permission_relationships_file == fname
 
     # Test the correct field is set in the Cartography CLI object

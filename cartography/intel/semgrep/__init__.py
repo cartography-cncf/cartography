@@ -16,13 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_semgrep_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_semgrep_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     # DEPRECATED: This is a temporary measure to support the old config format
     # and the new config format. The old config format is deprecated and will be removed in a future release.
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('Semgrep', ['token', 'dependency_ecosystems']):
+    if not check_module_settings("Semgrep", ["token", "dependency_ecosystems"]):
         return
 
     common_job_parameters = {
@@ -31,6 +33,22 @@ def start_semgrep_ingestion(neo4j_session: neo4j.Session, config: Optional[Confi
 
     # sync_deployment must be called first since it populates common_job_parameters
     # with the deployment ID and slug, which are required by the other sync functions
-    sync_deployment(neo4j_session, settings.semgrep.token, settings.common.update_tag, common_job_parameters)
-    sync_dependencies(neo4j_session, settings.semgrep.token, settings.semgrep.dependency_ecosystems, settings.common.update_tag, common_job_parameters)  # noqa: E501
-    sync_findings(neo4j_session, settings.semgrep.token, settings.common.update_tag, common_job_parameters)
+    sync_deployment(
+        neo4j_session,
+        settings.semgrep.token,
+        settings.common.update_tag,
+        common_job_parameters,
+    )
+    sync_dependencies(
+        neo4j_session,
+        settings.semgrep.token,
+        settings.semgrep.dependency_ecosystems,
+        settings.common.update_tag,
+        common_job_parameters,
+    )  # noqa: E501
+    sync_findings(
+        neo4j_session,
+        settings.semgrep.token,
+        settings.common.update_tag,
+        common_job_parameters,
+    )

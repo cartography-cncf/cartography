@@ -113,7 +113,9 @@ class Sync:
         :param neo4j_driver: Neo4j driver object.
         """
         logger.info("Starting sync with update tag '%d'", settings.common.update_tag)
-        with neo4j_driver.session(database=settings.get('neo4j', {}).get('database')) as neo4j_session:
+        with neo4j_driver.session(
+            database=settings.get("neo4j", {}).get("database")
+        ) as neo4j_session:
             for stage_name, stage_func in self._stages.items():
                 logger.info("Starting sync stage '%s'", stage_name)
                 try:
@@ -198,12 +200,12 @@ def run(sync: Sync) -> int:
     # DOC
 
     # StatsD
-    if settings.get('statsd', {}).get('enabled', False):
-        statsd_host = settings.get('statsd', {}).get('host', '127.0.0.1')
-        statsd_port = settings.get('statsd', {}).get('port', 8125)
-        statsd_prefix = settings.get('statsd', {}).get('prefix', '')
+    if settings.get("statsd", {}).get("enabled", False):
+        statsd_host = settings.get("statsd", {}).get("host", "127.0.0.1")
+        statsd_port = settings.get("statsd", {}).get("port", 8125)
+        statsd_prefix = settings.get("statsd", {}).get("prefix", "")
         logger.debug(
-            f'statsd enabled. Sending metrics to server {statsd_host}:{statsd_port}. '
+            f"statsd enabled. Sending metrics to server {statsd_host}:{statsd_port}. "
             f'Metrics have prefix "{statsd_prefix}".',
         )
         set_stats_client(
@@ -215,42 +217,50 @@ def run(sync: Sync) -> int:
         )
 
     # Commons
-    if settings.get('common', {}).get('update_tag') is None:
-        settings.update({
-            'common': {
-                'update_tag': int(time.time()),
-            },
-        })
-    if settings.get('common', {}).get('http_timeout') is None:
-        settings.update({
-            'common': {
-                'http_timeout': 60,
-            },
-        })
+    if settings.get("common", {}).get("update_tag") is None:
+        settings.update(
+            {
+                "common": {
+                    "update_tag": int(time.time()),
+                },
+            }
+        )
+    if settings.get("common", {}).get("http_timeout") is None:
+        settings.update(
+            {
+                "common": {
+                    "http_timeout": 60,
+                },
+            }
+        )
 
     # Neo4j
     neo4j_auth = None
-    if settings.get('neo4j', {}).get('user'):
-        if settings.get('neo4j', {}).get('password_prompt', False):
+    if settings.get("neo4j", {}).get("user"):
+        if settings.get("neo4j", {}).get("password_prompt", False):
             logger.info(
                 "Reading password for Neo4j user '%s' interactively.",
-                settings.get('neo4j', {}).get('user'),
+                settings.get("neo4j", {}).get("user"),
             )
-            settings.update({
-                'neo4j': {
-                    'password': getpass.getpass(),
-                },
-            })
+            settings.update(
+                {
+                    "neo4j": {
+                        "password": getpass.getpass(),
+                    },
+                }
+            )
 
         neo4j_auth = (
-            settings.get('neo4j', {}).get('user'),
-            settings.get('neo4j', {}).get('password'),
+            settings.get("neo4j", {}).get("user"),
+            settings.get("neo4j", {}).get("password"),
         )
     try:
         neo4j_driver = GraphDatabase.driver(
-            settings.get('neo4j', {}).get('uri', 'bolt://localhost:7687'),
+            settings.get("neo4j", {}).get("uri", "bolt://localhost:7687"),
             auth=neo4j_auth,
-            max_connection_lifetime=settings.get('neo4j', {}).get('max_connection_lifetime', 3600),
+            max_connection_lifetime=settings.get("neo4j", {}).get(
+                "max_connection_lifetime", 3600
+            ),
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)
@@ -259,7 +269,7 @@ def run(sync: Sync) -> int:
                 "Unable to connect to Neo4j using the provided URI '%s', an error occurred: '%s'. Make sure the Neo4j "
                 "server is running and accessible from your network."
             ),
-            settings.get('neo4j', {}).get('uri', 'bolt://localhost:7687'),
+            settings.get("neo4j", {}).get("uri", "bolt://localhost:7687"),
             e,
         )
         return STATUS_FAILURE

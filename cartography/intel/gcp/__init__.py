@@ -477,7 +477,9 @@ def get_gcp_credentials() -> Optional[GoogleCredentials]:
 
 
 @timeit
-def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_gcp_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     Starts the GCP ingestion process by initializing Google Application Default Credentials, creating the necessary
     resource objects, listing all GCP organizations and projects available to the GCP identity, and supplying that
@@ -503,12 +505,28 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] =
     resources = _initialize_resources(credentials)
 
     # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
-    crm.sync_gcp_organizations(neo4j_session, resources.crm_v1, settings.common.update_tag, common_job_parameters)
-    crm.sync_gcp_folders(neo4j_session, resources.crm_v2, settings.common.update_tag, common_job_parameters)
+    crm.sync_gcp_organizations(
+        neo4j_session,
+        resources.crm_v1,
+        settings.common.update_tag,
+        common_job_parameters,
+    )
+    crm.sync_gcp_folders(
+        neo4j_session,
+        resources.crm_v2,
+        settings.common.update_tag,
+        common_job_parameters,
+    )
 
     projects = crm.get_gcp_projects(resources.crm_v1)
 
-    _sync_multiple_projects(neo4j_session, resources, projects, settings.common.update_tag, common_job_parameters)
+    _sync_multiple_projects(
+        neo4j_session,
+        resources,
+        projects,
+        settings.common.update_tag,
+        common_job_parameters,
+    )
 
     run_analysis_job(
         "gcp_compute_asset_inet_exposure.json",

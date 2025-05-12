@@ -14,7 +14,9 @@ from cartography.intel.duo.groups import sync_duo_groups
 from cartography.intel.duo.phones import sync as sync_duo_phones
 from cartography.intel.duo.tokens import sync as sync_duo_tokens
 from cartography.intel.duo.users import sync_duo_users
-from cartography.intel.duo.web_authn_credentials import sync as sync_duo_web_authn_credentials
+from cartography.intel.duo.web_authn_credentials import (
+    sync as sync_duo_web_authn_credentials,
+)
 from cartography.settings import check_module_settings
 from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
@@ -25,9 +27,9 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_client() -> duo_client.Admin:
-    '''
+    """
     Return a duo Admin client with the creds in settings
-    '''
+    """
     client = duo_client.Admin(
         ikey=settings.duo.api_key,
         skey=settings.duo.api_secret,
@@ -52,19 +54,21 @@ def get_client() -> duo_client.Admin:
 
 
 @timeit
-def start_duo_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
-    '''
+def start_duo_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
+    """
     If this module is configured, perform ingestion of duo data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
     :param config: Configuration object for Cartography (DEPRECATED: use settings instead)
     :return: None
-    '''
+    """
     # DEPRECATED: This is a temporary measure to support the old config format
     # and the new config format. The old config format is deprecated and will be removed in a future release.
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('Duo', ['api_key', 'api_secret', 'api_hostname']):
+    if not check_module_settings("Duo", ["api_key", "api_secret", "api_hostname"]):
         return
 
     client = get_client()

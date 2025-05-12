@@ -24,7 +24,9 @@ stat_handler = get_stats_client(__name__)
 
 
 @timeit
-def start_pagerduty_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_pagerduty_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     Perform ingestion of pagerduty data.
     :param neo4j_session: Neo4J session for database interface
@@ -36,7 +38,7 @@ def start_pagerduty_ingestion(neo4j_session: neo4j.Session, config: Optional[Con
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('PagerDuty', ['api_key']):
+    if not check_module_settings("PagerDuty", ["api_key"]):
         return
 
     common_job_parameters = {

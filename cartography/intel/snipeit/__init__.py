@@ -17,13 +17,15 @@ stat_handler = get_stats_client(__name__)
 
 
 @timeit
-def start_snipeit_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_snipeit_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     # DEPRECATED: This is a temporary measure to support the old config format
     # and the new config format. The old config format is deprecated and will be removed in a future release.
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('SnipeIT', ['base_url', 'token', 'tenant_id']):
+    if not check_module_settings("SnipeIT", ["base_url", "token", "tenant_id"]):
         return
 
     common_job_parameters = {
@@ -32,5 +34,15 @@ def start_snipeit_ingestion(neo4j_session: neo4j.Session, config: Optional[Confi
     }
 
     # Ingest SnipeIT users and assets
-    user.sync(neo4j_session, common_job_parameters, settings.snipeit.base_url, settings.snipeit.token)
-    asset.sync(neo4j_session, common_job_parameters, settings.snipeit.base_url, settings.snipeit.token)
+    user.sync(
+        neo4j_session,
+        common_job_parameters,
+        settings.snipeit.base_url,
+        settings.snipeit.token,
+    )
+    asset.sync(
+        neo4j_session,
+        common_job_parameters,
+        settings.snipeit.base_url,
+        settings.snipeit.token,
+    )

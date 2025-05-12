@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_bigfix_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_bigfix_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     If this module is configured, perform ingestion of BigFix data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
@@ -26,7 +28,7 @@ def start_bigfix_ingestion(neo4j_session: neo4j.Session, config: Optional[Config
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('BigFix', ['username', 'password', 'root_url']):
+    if not check_module_settings("BigFix", ["username", "password", "root_url"]):
         return
 
     common_job_parameters = {

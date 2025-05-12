@@ -50,7 +50,9 @@ def cleanup_okta_groups(
 
 
 @timeit
-def start_okta_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_okta_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     Starts the OKTA ingestion process
     :param neo4j_session: The Neo4j session
@@ -62,11 +64,13 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] 
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('Okta', ['okta_org_id', 'okta_api_key']):
+    if not check_module_settings("Okta", ["okta_org_id", "okta_api_key"]):
         return
 
-    if settings.okta.get('saml_role_regex') is None:
-        settings.okta.update({'saml_role_regex': r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"})
+    if settings.okta.get("saml_role_regex") is None:
+        settings.okta.update(
+            {"saml_role_regex": r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"}
+        )
 
     logger.debug(f"Starting Okta sync on {settings.okta.org_id}")
 
@@ -78,25 +82,48 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] 
     state = OktaSyncState()
 
     organization.create_okta_organization(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag,
+        neo4j_session,
+        settings.okta.org_id,
+        settings.common.update_tag,
     )
     users.sync_okta_users(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state,
+        neo4j_session,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
+        state,
     )
     groups.sync_okta_groups(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state,
+        neo4j_session,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
+        state,
     )
     applications.sync_okta_applications(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key,
+        neo4j_session,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
     )
     factors.sync_users_factors(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state,
+        neo4j_session,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
+        state,
     )
     origins.sync_trusted_origins(
-        neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key,
+        neo4j_session,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
     )
     awssaml.sync_okta_aws_saml(
-        neo4j_session, settings.okta.saml_role_regex, settings.common.update_tag, settings.okta.org_id,
+        neo4j_session,
+        settings.okta.saml_role_regex,
+        settings.common.update_tag,
+        settings.okta.org_id,
     )
 
     # need creds with permission
@@ -104,7 +131,13 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] 
     # when we get the E0000006 error
     # see https://developer.okta.com/docs/reference/error-codes/
     try:
-        roles.sync_roles(neo4j_session, settings.okta.org_id, settings.common.update_tag, settings.okta.api_key, state)
+        roles.sync_roles(
+            neo4j_session,
+            settings.okta.org_id,
+            settings.common.update_tag,
+            settings.okta.api_key,
+            state,
+        )
     except OktaError as okta_error:
         logger.warning(f"Unable to pull admin roles got {okta_error}")
 
@@ -118,9 +151,9 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] 
 
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='OktaOrganization',
+        group_type="OktaOrganization",
         group_id=settings.okta.org_id,
-        synced_type='OktaOrganization',
+        synced_type="OktaOrganization",
         update_tag=settings.common.update_tag,
         stat_handler=stat_handler,
     )

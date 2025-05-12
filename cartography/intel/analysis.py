@@ -19,7 +19,7 @@ def run(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('Analysis', ['job_directory']):
+    if not check_module_settings("Analysis", ["job_directory"]):
         return
 
     analysis_job_directory = pathlib.Path(settings.analysis.job_directory)

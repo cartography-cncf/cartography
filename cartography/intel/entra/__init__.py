@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_entra_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_entra_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     If this module is configured, perform ingestion of Entra data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
@@ -28,7 +30,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('Entra', ['tenant_id', 'client_id', 'client_secret']):
+    if not check_module_settings("Entra", ["tenant_id", "client_id", "client_secret"]):
         return
 
     common_job_parameters = {
@@ -50,10 +52,10 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]
         # Run OU sync
         await sync_entra_ous(
             neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
-            config.update_tag,
+            settings.entra.tenant_id,
+            settings.entra.client_id,
+            settings.entra.client_secret,
+            settings.common.update_tag,
             common_job_parameters,
         )
 

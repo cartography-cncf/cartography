@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_github_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_github_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     If this module is configured, perform ingestion of Github  data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
@@ -29,7 +31,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Optional[Config
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('GitHub', ['token', 'url', 'name'], multi_tenant=True):
+    if not check_module_settings("GitHub", ["token", "url", "name"], multi_tenant=True):
         return
 
     common_job_parameters = {

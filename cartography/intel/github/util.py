@@ -15,7 +15,6 @@ import requests
 
 from cartography.settings import settings
 
-
 logger = logging.getLogger(__name__)
 # Connect and read timeouts as defined in settings;
 # see https://requests.readthedocs.io/en/master/user/advanced/#timeouts

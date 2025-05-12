@@ -6,6 +6,9 @@ from typing import Optional
 import neo4j
 
 from cartography.config import Config
+from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 from cartography.util import timeit
 
 from . import compute
@@ -16,11 +19,6 @@ from . import subscription
 from . import tenant
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
-from cartography.config import Config
-from cartography.settings import check_module_settings
-from cartography.settings import populate_settings_from_config
-from cartography.settings import settings
-from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
@@ -107,15 +105,17 @@ def _sync_multiple_subscriptions(
 
 
 @timeit
-def start_azure_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_azure_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     # DEPRECATED: This is a temporary measure to support the old config format
     # and the new config format. The old config format is deprecated and will be removed in a future release.
     if config is not None:
         populate_settings_from_config(config)
 
     # Check config
-    if settings.get('azure', {}).get('sp_auth', False):
-        required_settings = ['tenant_id', 'client_id', 'client_secret']
+    if settings.get("azure", {}).get("sp_auth", False):
+        required_settings = ["tenant_id", "client_id", "client_secret"]
     else:
         required_settings = []
 
@@ -128,9 +128,11 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]
     }
 
     try:
-        if settings.azure.get('sp_auth', False):
+        if settings.azure.get("sp_auth", False):
             credentials = Authenticator().authenticate_sp(
-                settings.azure.tenant_id, settings.azure.client_id, settings.azure.client_secret,
+                settings.azure.tenant_id,
+                settings.azure.client_id,
+                settings.azure.client_secret,
             )
         else:
             credentials = Authenticator().authenticate_cli()
@@ -146,11 +148,14 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]
         return
 
     _sync_tenant(
-        neo4j_session, credentials.get_tenant_id(), credentials.get_current_user(), settings.common.update_tag,
+        neo4j_session,
+        credentials.get_tenant_id(),
+        credentials.get_current_user(),
+        settings.common.update_tag,
         common_job_parameters,
     )
 
-    if settings.azure.get('sync_all_subscriptions', False):
+    if settings.azure.get("sync_all_subscriptions", False):
         subscriptions = subscription.get_all_azure_subscriptions(credentials)
 
     else:
@@ -166,6 +171,10 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Optional[Config]
         return
 
     _sync_multiple_subscriptions(
-        neo4j_session, credentials, credentials.get_tenant_id(), subscriptions, settings.common.update_tag,
+        neo4j_session,
+        credentials,
+        credentials.get_tenant_id(),
+        subscriptions,
+        settings.common.update_tag,
         common_job_parameters,
     )

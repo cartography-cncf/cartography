@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_lastpass_ingestion(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+def start_lastpass_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     If this module is configured, perform ingestion of Lastpass data. Otherwise warn and exit
     :param neo4j_session: Neo4J session for database interface
@@ -26,7 +28,7 @@ def start_lastpass_ingestion(neo4j_session: neo4j.Session, config: Optional[Conf
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('Lastpass', ['cid', 'provhash']):
+    if not check_module_settings("Lastpass", ["cid", "provhash"]):
         return
 
     common_job_parameters = {

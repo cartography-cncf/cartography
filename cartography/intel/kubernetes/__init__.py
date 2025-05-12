@@ -25,7 +25,7 @@ def start_k8s_ingestion(session: Session, config: Optional[Config] = None) -> No
     if config is not None:
         populate_settings_from_config(config)
 
-    if not check_module_settings('k8s', ['kubeconfig']):
+    if not check_module_settings("k8s", ["kubeconfig"]):
         return
 
     common_job_parameters = {"UPDATE_TAG": settings.common.update_tag}

@@ -12,6 +12,7 @@ import cartography.intel.aws
 import cartography.util
 from cartography.intel.aws.resources import RESOURCE_FUNCTIONS
 from cartography.settings import settings
+
 # These unit tests are a sanity check for start*() and sync*() functions.
 
 TEST_ACCOUNTS = {
@@ -62,14 +63,21 @@ def test_sync_multiple_accounts(
     mock_sync_orgs,
     neo4j_session,
 ):
-    settings.update({
-        'neo4j': {
-            'uri': 'bolt://localhost:7687',
-        },
-    })
+    settings.update(
+        {
+            "neo4j": {
+                "uri": "bolt://localhost:7687",
+            },
+        }
+    )
 
     cartography.intel.aws._sync_multiple_accounts(
-        neo4j_session, TEST_ACCOUNTS, TEST_UPDATE_TAG, GRAPH_JOB_PARAMETERS, False, [],
+        neo4j_session,
+        TEST_ACCOUNTS,
+        TEST_UPDATE_TAG,
+        GRAPH_JOB_PARAMETERS,
+        False,
+        [],
     )
 
     # Ensure we call _sync_one_account on all accounts in our list.
@@ -121,18 +129,20 @@ def test_start_aws_ingestion(
     neo4j_session,
 ):
     # Arrange
-    settings.update({
-        'neo4j': {
-            'uri': 'bolt://localhost:7687',
-        },
-        'aws': {
-            'sync_all_profiles': True,
-        },
-        'common': {
-            'update_tag': TEST_UPDATE_TAG,
-            'permission_relationships_file': 'cartography/data/permission_relationships.yaml',
-        },
-    })
+    settings.update(
+        {
+            "neo4j": {
+                "uri": "bolt://localhost:7687",
+            },
+            "aws": {
+                "sync_all_profiles": True,
+            },
+            "common": {
+                "update_tag": TEST_UPDATE_TAG,
+                "permission_relationships_file": "cartography/data/permission_relationships.yaml",
+            },
+        }
+    )
 
     # Act
     cartography.intel.aws.start_aws_ingestion(neo4j_session)
@@ -163,21 +173,26 @@ def test_start_aws_ingestion_raises_aggregated_exceptions_with_aws_best_effort_m
     neo4j_session,
 ):
     # Arrange
-    settings.update({
-        'neo4j': {
-            'uri': 'bolt://localhost:7687',
-        },
-        'aws': {
-            'sync_all_profiles': True,
-            'best_effort_mode': True,
-        },
-        'common': {
-            'update_tag': TEST_UPDATE_TAG,
-            'permission_relationships_file': 'cartography/data/permission_relationships.yaml',
-        },
-    })
-    mock_sync_one.side_effect = KeyError('foo')
-    mock_get_aws_account.return_value = {'test_profile': 'test_account', 'test_profile2': 'test_account2'}
+    settings.update(
+        {
+            "neo4j": {
+                "uri": "bolt://localhost:7687",
+            },
+            "aws": {
+                "sync_all_profiles": True,
+                "best_effort_mode": True,
+            },
+            "common": {
+                "update_tag": TEST_UPDATE_TAG,
+                "permission_relationships_file": "cartography/data/permission_relationships.yaml",
+            },
+        }
+    )
+    mock_sync_one.side_effect = KeyError("foo")
+    mock_get_aws_account.return_value = {
+        "test_profile": "test_account",
+        "test_profile2": "test_account2",
+    }
 
     # Act
     with raises(Exception) as e:
@@ -207,22 +222,27 @@ def test_start_aws_ingestion_raises_one_exception_without_aws_best_effort_mode(
     neo4j_session,
 ):
     # Arrange
-    settings.update({
-        'neo4j': {
-            'uri': 'bolt://localhost:7687',
-        },
-        'aws': {
-            'sync_all_profiles': True,
-            'best_effort_mode': False,
-        },
-        'common': {
-            'update_tag': TEST_UPDATE_TAG,
-            'permission_relationships_file': 'cartography/data/permission_relationships.yaml',
-        },
-    })
+    settings.update(
+        {
+            "neo4j": {
+                "uri": "bolt://localhost:7687",
+            },
+            "aws": {
+                "sync_all_profiles": True,
+                "best_effort_mode": False,
+            },
+            "common": {
+                "update_tag": TEST_UPDATE_TAG,
+                "permission_relationships_file": "cartography/data/permission_relationships.yaml",
+            },
+        }
+    )
 
-    mock_sync_one.side_effect = KeyError('foo')
-    mock_get_aws_account.return_value = {'test_profile': 'test_account', 'test_profile2': 'test_account2'}
+    mock_sync_one.side_effect = KeyError("foo")
+    mock_get_aws_account.return_value = {
+        "test_profile": "test_account",
+        "test_profile2": "test_account2",
+    }
 
     # Act
     with raises(Exception) as e:
@@ -250,20 +270,25 @@ def test_start_aws_ingestion_does_cleanup(
     neo4j_session,
 ):
     # Arrange
-    settings.update({
-        'neo4j': {
-            'uri': 'bolt://localhost:7687',
-        },
-        'aws': {
-            'sync_all_profiles': True,
-            'best_effort_mode': False,
-        },
-        'common': {
-            'update_tag': TEST_UPDATE_TAG,
-            'permission_relationships_file': 'cartography/data/permission_relationships.yaml',
-        },
-    })
-    mock_get_aws_account.return_value = {'test_profile': 'test_account', 'test_profile2': 'test_account2'}
+    settings.update(
+        {
+            "neo4j": {
+                "uri": "bolt://localhost:7687",
+            },
+            "aws": {
+                "sync_all_profiles": True,
+                "best_effort_mode": False,
+            },
+            "common": {
+                "update_tag": TEST_UPDATE_TAG,
+                "permission_relationships_file": "cartography/data/permission_relationships.yaml",
+            },
+        }
+    )
+    mock_get_aws_account.return_value = {
+        "test_profile": "test_account",
+        "test_profile2": "test_account2",
+    }
 
     # Act
     cartography.intel.aws.start_aws_ingestion(neo4j_session)
