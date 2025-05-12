@@ -1,13 +1,16 @@
 import logging
-from typing import Dict, Any, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 import neo4j
-from digitalocean import Account, Manager
+from digitalocean import Account
+from digitalocean import Manager
 
-from cartography.util import timeit
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.digitalocean.account import DOAccountSchema
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
