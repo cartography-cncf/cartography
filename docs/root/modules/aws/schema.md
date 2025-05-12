@@ -749,6 +749,27 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
     (AWSUser, AWSPrincipal)-[AWS_ACCESS_KEY]->(AccountAccessKey)
     ```
 
+### CloudTrailTrail
+
+Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloudtrail/latest/APIReference/API_Trail.html).
+
+| Field | Description |
+|-------|-------------|
+| cloudwatch_logs_log_group_arn | The ARN identifier representing the log group where the CloudTrailTrail delivers logs. |
+| cloudwatch_logs_role_arn | The role ARN that the CloudTrailTrail's CloudWatch Logs endpoint assumes. |
+| has_custom_event_selectors | Indicates if the CloudTrailTrail has custom event selectors. |
+| has_insight_selectors | Indicates if the CloudTrailTrail has insight types specified. |
+| home_region | The Region where the CloudTrailTrail was created. |
+| include_global_service_events | Indicates if the CloudTrailTrail includes AWS API calls from global services. |
+| is_multi_region_trail | Indicates if the CloudTrailTrail exists in one or all Regions. |
+| is_organization_trail | Indicates if the CloudTrailTrail is an organization trail. |
+| kms_key_id | The AWS KMS key ID that encrypts the CloudTrailTrail's delivered logs. |
+| log_file_validation_enabled | Indicates if log file validation is enabled for the CloudTrailTrail. |
+| name | The name of the CloudTrailTrail. |
+| s3_bucket_name | The Amazon S3 bucket name where the CloudTrailTrail delivers files. |
+| s3_key_prefix | The S3 key prefix used after the bucket name for the CloudTrailTrail's log files. |
+| sns_topic_arn | The ARN of the SNS topic used by the CloudTrailTrail for delivery notifications. |
+
 
 ### DBSubnetGroup
 

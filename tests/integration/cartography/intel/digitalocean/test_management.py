@@ -4,11 +4,11 @@ import digitalocean
 
 import cartography.intel.digitalocean.management
 import tests.data.digitalocean.management
-from tests.integration.util import check_nodes
-from tests.integration.util import check_rels
 from tests.integration.cartography.intel.digitalocean.test_platform import (
     _ensure_local_neo4j_has_account_data,
 )
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 
