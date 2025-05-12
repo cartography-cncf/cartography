@@ -9,10 +9,9 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.common.helpers import load_human_from_users
 from cartography.models.duo.user import DuoUserSchema
 from cartography.util import timeit
-from cartography.models.common.helpers import load_human_from_users
-
 
 logger = logging.getLogger(__name__)
 

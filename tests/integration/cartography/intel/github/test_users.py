@@ -6,8 +6,8 @@ from tests.data.github.users import GITHUB_ENTERPRISE_OWNER_DATA
 from tests.data.github.users import GITHUB_ORG_DATA
 from tests.data.github.users import GITHUB_USER_DATA
 from tests.data.github.users import GITHUB_USER_DATA_AT_TIMESTAMP_2
-from tests.integration.util import check_rels
 from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}

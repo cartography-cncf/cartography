@@ -10,13 +10,13 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
+from cartography.models.common.helpers import load_human_from_users
 from cartography.models.github.orgs import GitHubOrganizationSchema
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from cartography.models.github.users import GitHubUnaffiliatedUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
-from cartography.models.common.helpers import load_human_from_users
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

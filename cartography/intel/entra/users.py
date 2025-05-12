@@ -9,10 +9,10 @@ from msgraph.generated.models.user import User
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.common.helpers import load_human_from_users
 from cartography.models.entra.tenant import EntraTenantSchema
 from cartography.models.entra.user import EntraUserSchema
 from cartography.util import timeit
-from cartography.models.common.helpers import load_human_from_users
 
 logger = logging.getLogger(__name__)
 

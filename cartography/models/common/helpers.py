@@ -1,5 +1,8 @@
-from typing import Any, Dict, List, Type
 import logging
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Type
 
 import neo4j
 
