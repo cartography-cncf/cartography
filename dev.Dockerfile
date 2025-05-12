@@ -17,12 +17,13 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN pip install uv
+
 # Install dependencies.
 WORKDIR /var/cartography
 COPY . /var/cartography
-RUN pip install .[dev] && \
-    pip install -U -e . && \
-    chmod -R a+w /var/cartography
+RUN uv sync --dev && uv venv
+RUN chmod -R a+w /var/cartography
 
 # Now copy the entire source tree.
 ENV HOME=/var/cartography
