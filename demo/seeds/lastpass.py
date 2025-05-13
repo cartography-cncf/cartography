@@ -1,6 +1,7 @@
-import neo4j
-from unittest.mock import patch
 from unittest import TestCase
+from unittest.mock import patch
+
+import neo4j
 
 import cartography.intel.lastpass.users
 import tests.data.lastpass.users
