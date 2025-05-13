@@ -64,6 +64,7 @@ dependencies = [
     "python-dateutil",
     "xmltodict",
     "duo-client",
+    "cloudflare (>=4.1.0,<5.0.0)",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]

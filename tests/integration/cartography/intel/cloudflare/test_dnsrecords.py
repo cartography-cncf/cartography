@@ -10,7 +10,11 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 
 
-@patch.object(cartography.cloudflare.dnsrecords, 'get', return_value=tests.data.cloudflare.dnsrecords.CLOUDFLARE_CLOUDFLARES)
+@patch.object(
+    cartography.cloudflare.dnsrecords,
+    "get",
+    return_value=tests.data.cloudflare.dnsrecords.CLOUDFLARE_CLOUDFLARES,
+)
 def test_load_cloudflare_dnsrecords(mock_api, neo4j_session):
     """
     Ensure that dnsrecords actually get loaded
@@ -22,7 +26,7 @@ def test_load_cloudflare_dnsrecords(mock_api, neo4j_session):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "BASE_URL": "https://fake.cloudflare.com",
     }
-    zone_id = 'CHANGEME'  # CHANGEME: Add here expected parent id node
+    zone_id = "CHANGEME"  # CHANGEME: Add here expected parent id node
 
     # Act
     cartography.intel.cloudflare.dnsrecords.sync(
@@ -37,20 +41,24 @@ def test_load_cloudflare_dnsrecords(mock_api, neo4j_session):
         # CHANGEME: Add here expected node from data
         # (123456, 'john.doe@domain.tld'),
     }
-    assert check_nodes(
-        neo4j_session,
-        'CloudflareDNSRecord',
-        ['id', 'email']
-    ) == expected_nodes
+    assert (
+        check_nodes(neo4j_session, "CloudflareDNSRecord", ["id", "email"])
+        == expected_nodes
+    )
 
     # Assert DNSRecords are connected with Zone
     expected_rels = {
-        ('CHANGE_ME', zone_id),  # CHANGEME: Add here one of DNSRecords id
+        ("CHANGE_ME", zone_id),  # CHANGEME: Add here one of DNSRecords id
     }
-    assert check_rels(
-        neo4j_session,
-        'CloudflareDNSRecord', 'id',
-        'CloudflareZone', 'id',
-        'RESOURCE',
-        rel_direction_right=True,
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "CloudflareDNSRecord",
+            "id",
+            "CloudflareZone",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )

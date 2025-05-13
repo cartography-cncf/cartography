@@ -12,34 +12,34 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CloudflareRoleNodeProperties(CartographyNodeProperties):
-    description: PropertyRef = PropertyRef('description')
-    name: PropertyRef = PropertyRef('name')
-    permissions: PropertyRef = PropertyRef('permissions')
-    id: PropertyRef = PropertyRef('id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    description: PropertyRef = PropertyRef("description")
+    name: PropertyRef = PropertyRef("name")
+    permissions: PropertyRef = PropertyRef("permissions")
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class CloudflareRoleToAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:CloudflareRole)<-[:RESOURCE]-(:CloudflareAccount)
 class CloudflareRoleToAccountRel(CartographyRelSchema):
-    target_node_label: str = 'CloudflareAccount'
+    target_node_label: str = "CloudflareAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('account_id', set_in_kwargs=True)},
+        {"id": PropertyRef("account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: CloudflareRoleToAccountRelProperties = CloudflareRoleToAccountRelProperties()
-
-
+    properties: CloudflareRoleToAccountRelProperties = (
+        CloudflareRoleToAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class CloudflareRoleSchema(CartographyNodeSchema):
-    label: str = 'CloudflareRole'
+    label: str = "CloudflareRole"
     properties: CloudflareRoleNodeProperties = CloudflareRoleNodeProperties()
     sub_resource_relationship: CloudflareRoleToAccountRel = CloudflareRoleToAccountRel()

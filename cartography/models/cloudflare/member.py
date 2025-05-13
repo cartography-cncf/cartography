@@ -13,32 +13,36 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CloudflareMemberNodeProperties(CartographyNodeProperties):
-    status: PropertyRef = PropertyRef('status')
-    user_email: PropertyRef = PropertyRef('user.email')
-    user_first_name: PropertyRef = PropertyRef('user.first_name')
-    user_id: PropertyRef = PropertyRef('user.id')
-    user_last_name: PropertyRef = PropertyRef('user.last_name')
-    user_two_factor_authentication_enabled: PropertyRef = PropertyRef('user.two_factor_authentication_enabled')
-    id: PropertyRef = PropertyRef('id')
-    policies_id: PropertyRef = PropertyRef('policies.id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    status: PropertyRef = PropertyRef("status")
+    user_email: PropertyRef = PropertyRef("user.email")
+    user_first_name: PropertyRef = PropertyRef("user.first_name")
+    user_id: PropertyRef = PropertyRef("user.id")
+    user_last_name: PropertyRef = PropertyRef("user.last_name")
+    user_two_factor_authentication_enabled: PropertyRef = PropertyRef(
+        "user.two_factor_authentication_enabled"
+    )
+    id: PropertyRef = PropertyRef("id")
+    policies_id: PropertyRef = PropertyRef("policies.id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class CloudflareMemberToAccountRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:CloudflareMember)<-[:RESOURCE]-(:CloudflareAccount)
 class CloudflareMemberToAccountRel(CartographyRelSchema):
-    target_node_label: str = 'CloudflareAccount'
+    target_node_label: str = "CloudflareAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('account_id', set_in_kwargs=True)},
+        {"id": PropertyRef("account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: CloudflareMemberToAccountRelProperties = CloudflareMemberToAccountRelProperties()
+    properties: CloudflareMemberToAccountRelProperties = (
+        CloudflareMemberToAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -47,18 +51,19 @@ class CloudflareMemberToCloudflareRoleProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# CHANGEME: Change `LINKED_TO` relation name
-# (:CloudflareRole)-[:LINKED_TO]->(:CloudflareMember)
+# (:CloudflareRole)<-[:HAS_ROLE]-(:CloudflareMember)
 class CloudflareMemberToCloudflareRoleRel(CartographyRelSchema):
     target_node_label: str = "CloudflareRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef(
-            "roles.id",
-            one_to_many=True,
-        )},
+        {
+            "id": PropertyRef(
+                "roles.id",
+                one_to_many=True,
+            )
+        },
     )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "LINKED_TO"
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ROLE"
     properties: CloudflareMemberToCloudflareRoleProperties = (
         CloudflareMemberToCloudflareRoleProperties()
     )
@@ -66,9 +71,11 @@ class CloudflareMemberToCloudflareRoleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudflareMemberSchema(CartographyNodeSchema):
-    label: str = 'CloudflareMember'
+    label: str = "CloudflareMember"
     properties: CloudflareMemberNodeProperties = CloudflareMemberNodeProperties()
-    sub_resource_relationship: CloudflareMemberToAccountRel = CloudflareMemberToAccountRel()
+    sub_resource_relationship: CloudflareMemberToAccountRel = (
+        CloudflareMemberToAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudflareMemberToCloudflareRoleRel(),

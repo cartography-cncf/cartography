@@ -2,9 +2,9 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
-import requests
 
 import neo4j
+import requests
 from dateutil import parser as dt_parse
 from requests import Session
 
@@ -12,7 +12,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.cloudflare.role import CloudflareRoleSchema
 from cartography.util import timeit
-
 
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
@@ -28,7 +27,7 @@ def sync(
 ) -> List[Dict]:
     roles = get(
         api_session,
-        common_job_parameters['BASE_URL'],
+        common_job_parameters["BASE_URL"],
         account_id,
     )
     # CHANGEME: You can configure here a transform operation
@@ -37,7 +36,8 @@ def sync(
         neo4j_session,
         roles,  # CHANGEME: replace with `formated_roles` if your added a transform step
         account_id,
-        common_job_parameters['UPDATE_TAG'])
+        common_job_parameters["UPDATE_TAG"],
+    )
     cleanup(neo4j_session, common_job_parameters)
 
 
@@ -54,7 +54,7 @@ def get(
             base_url=base_url,
             account_id=account_id,
         ),
-        timeout=_TIMEOUT
+        timeout=_TIMEOUT,
     )
     req.raise_for_status()
     results = req.json()["result"]
@@ -76,8 +76,9 @@ def load_roles(
     )
 
 
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    GraphJob.from_node_schema(
-        CloudflareRoleSchema(),
-        common_job_parameters
-    ).run(neo4j_session)
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(CloudflareRoleSchema(), common_job_parameters).run(
+        neo4j_session
+    )

@@ -10,7 +10,11 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 
 
-@patch.object(cartography.cloudflare.zones, 'get', return_value=tests.data.cloudflare.zones.CLOUDFLARE_CLOUDFLARES)
+@patch.object(
+    cartography.cloudflare.zones,
+    "get",
+    return_value=tests.data.cloudflare.zones.CLOUDFLARE_CLOUDFLARES,
+)
 def test_load_cloudflare_zones(mock_api, neo4j_session):
     """
     Ensure that zones actually get loaded
@@ -35,9 +39,6 @@ def test_load_cloudflare_zones(mock_api, neo4j_session):
         # CHANGEME: Add here expected node from data
         # (123456, 'john.doe@domain.tld'),
     }
-    assert check_nodes(
-        neo4j_session,
-        'CloudflareZone',
-        ['id', 'email']
-    ) == expected_nodes
-
+    assert (
+        check_nodes(neo4j_session, "CloudflareZone", ["id", "email"]) == expected_nodes
+    )

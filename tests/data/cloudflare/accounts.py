@@ -10,6 +10,6 @@ CLOUDFLARE_ACCOUNTS = [
         "settings.enforce_twofactor": "CHANGEME",
         # CHANGEME: Insert valid data
         "settings.use_account_custom_ns_by_default": "CHANGEME",
-        "id": "023e105f4ecef8ad9ca31a8372d0c353",
+        "id": "37418d7e-710b-4aa0-a4c0-79ee660690bf",
     }
 ]

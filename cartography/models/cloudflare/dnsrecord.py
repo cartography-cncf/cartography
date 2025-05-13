@@ -12,36 +12,38 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CloudflareDNSRecordNodeProperties(CartographyNodeProperties):
-    comment_modified_on: PropertyRef = PropertyRef('comment_modified_on')
-    created_on: PropertyRef = PropertyRef('created_on')
-    modified_on: PropertyRef = PropertyRef('modified_on')
-    proxiable: PropertyRef = PropertyRef('proxiable')
-    tags_modified_on: PropertyRef = PropertyRef('tags_modified_on')
-    id: PropertyRef = PropertyRef('id')
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    comment_modified_on: PropertyRef = PropertyRef("comment_modified_on")
+    created_on: PropertyRef = PropertyRef("created_on")
+    modified_on: PropertyRef = PropertyRef("modified_on")
+    proxiable: PropertyRef = PropertyRef("proxiable")
+    tags_modified_on: PropertyRef = PropertyRef("tags_modified_on")
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class CloudflareDNSRecordToZoneRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:CloudflareDNSRecord)<-[:RESOURCE]-(:CloudflareZone)
 class CloudflareDNSRecordToZoneRel(CartographyRelSchema):
-    target_node_label: str = 'CloudflareZone'
+    target_node_label: str = "CloudflareZone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('zone_id', set_in_kwargs=True)},
+        {"id": PropertyRef("zone_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: CloudflareDNSRecordToZoneRelProperties = CloudflareDNSRecordToZoneRelProperties()
-
-
+    properties: CloudflareDNSRecordToZoneRelProperties = (
+        CloudflareDNSRecordToZoneRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class CloudflareDNSRecordSchema(CartographyNodeSchema):
-    label: str = 'CloudflareDNSRecord'
+    label: str = "CloudflareDNSRecord"
     properties: CloudflareDNSRecordNodeProperties = CloudflareDNSRecordNodeProperties()
-    sub_resource_relationship: CloudflareDNSRecordToZoneRel = CloudflareDNSRecordToZoneRel()
+    sub_resource_relationship: CloudflareDNSRecordToZoneRel = (
+        CloudflareDNSRecordToZoneRel()
+    )

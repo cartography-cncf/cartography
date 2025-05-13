@@ -1,17 +1,24 @@
 CLOUDFLARE_MEMBERS = [
     {
         "status": "accepted",
-        # CHANGEME: Insert valid data
-        "user.email": "CHANGEME",
-        # CHANGEME: Insert valid data
-        "user.first_name": "CHANGEME",
-        # CHANGEME: Insert valid data
-        "user.id": "CHANGEME",
-        # CHANGEME: Insert valid data
-        "user.last_name": "CHANGEME",
-        # CHANGEME: Insert valid data
-        "user.two_factor_authentication_enabled": "CHANGEME",
-        "id": "4536bcfad5faccb111b47003c79917fa",
-        "policies.id": "",
-    }
+        "user": {
+            "email": "mbsimpson@simpson.corp",
+            "first_name": "Marge",
+            "id": "3df21b85-503b-4c99-9dd9-ca99edabd29a",
+            "last_name": "Simpson",
+            "two_factor_authentication_enabled": False,
+        },
+        "id": "888a46f2-4465-4efa-89f5-0281db1a3fcd",
+    },
+    {
+        "status": "accepted",
+        "user": {
+            "email": "hjsimpson@simpson.corp",
+            "first_name": "Homer",
+            "id": "2cac3c7d-beb8-4dc4-a54e-5088e79f20a2",
+            "last_name": "Simpson",
+            "two_factor_authentication_enabled": True,
+        },
+        "id": "1ddb5796-70f4-4325-9448-3da69737912d",
+    },
 ]
