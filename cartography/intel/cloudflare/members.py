@@ -4,9 +4,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
-import requests
-from dateutil import parser as dt_parse
-from requests import Session
+from cloudflare import Cloudflare
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -21,20 +19,14 @@ _TIMEOUT = (60, 60)
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    api_session: requests.Session,
+    client: Cloudflare,
     common_job_parameters: Dict[str, Any],
-    account_id,
-) -> List[Dict]:
-    members = get(
-        api_session,
-        common_job_parameters["BASE_URL"],
-        account_id,
-    )
-    # CHANGEME: You can configure here a transform operation
-    # formated_members = transform(members)
+    account_id: str,
+) -> None:
+    members = get(client, account_id)
     load_members(
         neo4j_session,
-        members,  # CHANGEME: replace with `formated_members` if your added a transform step
+        members,
         account_id,
         common_job_parameters["UPDATE_TAG"],
     )
@@ -42,29 +34,14 @@ def sync(
 
 
 @timeit
-def get(
-    api_session: requests.Session,
-    base_url: str,
-    account_id,
-) -> Dict[str, Any]:
-    results: List[Dict[str, Any]] = []
-    # CHANGEME: You have to handle pagination if needed
-    req = api_session.get(
-        "{base_url}/accounts/{account_id}/members".format(
-            base_url=base_url,
-            account_id=account_id,
-        ),
-        timeout=_TIMEOUT,
-    )
-    req.raise_for_status()
-    results = req.json()["result"]
-    return results
+def get(client: Cloudflare, account_id: str) -> List[Dict[str, Any]]:
+    return [member for member in client.accounts.members.list(account_id=account_id)]
 
 
 def load_members(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
-    account_id,
+    account_id: str,
     update_tag: int,
 ) -> None:
     load(
