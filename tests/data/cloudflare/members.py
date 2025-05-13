@@ -9,6 +9,11 @@ CLOUDFLARE_MEMBERS = [
             "two_factor_authentication_enabled": False,
         },
         "id": "888a46f2-4465-4efa-89f5-0281db1a3fcd",
+        "roles": [
+            {
+                "id": "590e57f0-d803-4d87-b89b-9a2928f112b5",
+            },
+        ],
     },
     {
         "status": "accepted",
@@ -20,5 +25,10 @@ CLOUDFLARE_MEMBERS = [
             "two_factor_authentication_enabled": True,
         },
         "id": "1ddb5796-70f4-4325-9448-3da69737912d",
+        "roles": [
+            {
+                "id": "590e57f0-d803-4d87-b89b-9a2928f112b5",
+            },
+        ],
     },
 ]

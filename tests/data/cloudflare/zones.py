@@ -1,8 +1,9 @@
 CLOUDFLARE_ZONES = [
     {
-        # CHANGEME: Insert valid data
-        "account.id": "CHANGEME",
-        "account.name": "Example Account Name",
+        "account": {
+            "id": "37418d7e-710b-4aa0-a4c0-79ee660690bf",
+            "name": "Simpson Org",
+        },
         "activated_on": "2014-01-02T00:01:00.12345Z",
         "created_on": "2014-01-01T05:20:00.12345Z",
         "development_mode": "7200",
@@ -14,18 +15,13 @@ CLOUDFLARE_ZONES = [
         "meta.phishing_detected": "False",
         "meta.step": "2",
         "modified_on": "2014-01-01T05:20:00.12345Z",
-        "name": "example.com",
+        "name": "simpson.corp",
         "original_dnshost": "NameCheap",
         "original_registrar": "GoDaddy",
-        # CHANGEME: Insert valid data
-        "owner.id": "CHANGEME",
-        "owner.name": "Example Org",
-        "owner.type": "organization",
         "status": "active",
         "verification_key": "284344499-1084221259",
-        "id": "023e105f4ecef8ad9ca31a8372d0c353",
-        # CHANGEME: Insert valid data
-        "paused": "CHANGEME",
+        "id": "be68b067-5b2b-49f7-ad89-943d501dc900",
+        "paused": False,
         "type": "full",
     }
 ]

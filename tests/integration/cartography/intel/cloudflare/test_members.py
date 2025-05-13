@@ -3,12 +3,21 @@ from unittest.mock import patch
 import requests
 
 import cartography.intel.cloudflare.members
+import tests.data.cloudflare.accounts
 import tests.data.cloudflare.members
+import tests.data.cloudflare.roles
+from tests.integration.cartography.intel.cloudflare.test_accounts import (
+    _ensure_local_neo4j_has_test_accounts,
+)
+from tests.integration.cartography.intel.cloudflare.test_roles import (
+    _ensure_local_neo4j_has_test_roles,
+)
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-ACCOUNT_ID = "37418d7e-710b-4aa0-a4c0-79ee660690bf"
+ACCOUNT_ID = tests.data.cloudflare.accounts.CLOUDFLARE_ACCOUNTS[0]["id"]
+ROLE_ID = tests.data.cloudflare.roles.CLOUDFLARE_ROLES[0]["id"]
 
 
 @patch.object(
@@ -25,8 +34,10 @@ def test_load_cloudflare_members(mock_api, neo4j_session):
     api_session = requests.Session()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "BASE_URL": "https://fake.cloudflare.com",
+        "account_id": ACCOUNT_ID,
     }
+    _ensure_local_neo4j_has_test_accounts(neo4j_session)
+    _ensure_local_neo4j_has_test_roles(neo4j_session)
 
     # Act
     cartography.intel.cloudflare.members.sync(
@@ -38,8 +49,8 @@ def test_load_cloudflare_members(mock_api, neo4j_session):
 
     # Assert Members exist
     expected_nodes = {
-        ("888a46f2-4465-4efa-89f5-0281db1a3fcd", "mbsimpson@simpson.corp"),
         ("1ddb5796-70f4-4325-9448-3da69737912d", "hjsimpson@simpson.corp"),
+        ("888a46f2-4465-4efa-89f5-0281db1a3fcd", "mbsimpson@simpson.corp"),
     }
 
     assert (
@@ -60,6 +71,24 @@ def test_load_cloudflare_members(mock_api, neo4j_session):
             "CloudflareAccount",
             "id",
             "RESOURCE",
+            rel_direction_right=False,
+        )
+        == expected_rels
+    )
+
+    # Assert Members are connected with Role
+    expected_rels = {
+        ("888a46f2-4465-4efa-89f5-0281db1a3fcd", ROLE_ID),
+        ("1ddb5796-70f4-4325-9448-3da69737912d", ROLE_ID),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "CloudflareMember",
+            "id",
+            "CloudflareRole",
+            "id",
+            "HAS_ROLE",
             rel_direction_right=True,
         )
         == expected_rels

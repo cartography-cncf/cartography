@@ -14,12 +14,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class CloudflareMemberNodeProperties(CartographyNodeProperties):
     status: PropertyRef = PropertyRef("status")
-    user_email: PropertyRef = PropertyRef("user.email")
-    user_first_name: PropertyRef = PropertyRef("user.first_name")
+    email: PropertyRef = PropertyRef("user.email")
+    firstname: PropertyRef = PropertyRef("user.first_name")
     user_id: PropertyRef = PropertyRef("user.id")
-    user_last_name: PropertyRef = PropertyRef("user.last_name")
-    user_two_factor_authentication_enabled: PropertyRef = PropertyRef(
-        "user.two_factor_authentication_enabled"
+    lastname: PropertyRef = PropertyRef("user.last_name")
+    two_factor_authentication_enabled: PropertyRef = PropertyRef(
+        "two_factor_authentication_enabled"
     )
     id: PropertyRef = PropertyRef("id")
     policies: PropertyRef = PropertyRef("policies_ids")

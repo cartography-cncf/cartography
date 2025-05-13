@@ -20,7 +20,7 @@ def sync(
     client: Cloudflare,
     common_job_parameters: Dict[str, Any],
     account_id: str,
-) -> List[Dict]:
+) -> None:
     roles = get(client, account_id)
     load_roles(
         neo4j_session,
@@ -36,7 +36,9 @@ def get(
     client: Cloudflare,
     account_id: str,
 ) -> List[Dict[str, Any]]:
-    return [role.to_dict() for role in client.accounts.roles.list(account_id=account_id)]
+    return [
+        role.to_dict() for role in client.accounts.roles.list(account_id=account_id)
+    ]
 
 
 def load_roles(

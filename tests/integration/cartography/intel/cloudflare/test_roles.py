@@ -3,17 +3,31 @@ from unittest.mock import patch
 import requests
 
 import cartography.intel.cloudflare.roles
+import tests.data.cloudflare.accounts
 import tests.data.cloudflare.roles
+from tests.integration.cartography.intel.cloudflare.test_accounts import (
+    _ensure_local_neo4j_has_test_accounts,
+)
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
+ACCOUNT_ID = tests.data.cloudflare.accounts.CLOUDFLARE_ACCOUNTS[0]["id"]
+
+
+def _ensure_local_neo4j_has_test_roles(neo4j_session):
+    cartography.intel.cloudflare.roles.load_roles(
+        neo4j_session,
+        tests.data.cloudflare.roles.CLOUDFLARE_ROLES,
+        ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(
-    cartography.cloudflare.roles,
+    cartography.intel.cloudflare.roles,
     "get",
-    return_value=tests.data.cloudflare.roles.CLOUDFLARE_CLOUDFLARES,
+    return_value=tests.data.cloudflare.roles.CLOUDFLARE_ROLES,
 )
 def test_load_cloudflare_roles(mock_api, neo4j_session):
     """
@@ -22,32 +36,28 @@ def test_load_cloudflare_roles(mock_api, neo4j_session):
 
     # Arrange
     api_session = requests.Session()
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-        "BASE_URL": "https://fake.cloudflare.com",
-    }
-    account_id = "CHANGEME"  # CHANGEME: Add here expected parent id node
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "account_id": ACCOUNT_ID}
+    _ensure_local_neo4j_has_test_accounts(neo4j_session)
 
     # Act
     cartography.intel.cloudflare.roles.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
-        account_id,
+        account_id=ACCOUNT_ID,
     )
 
     # Assert Roles exist
     expected_nodes = {
-        # CHANGEME: Add here expected node from data
-        # (123456, 'john.doe@domain.tld'),
+        ("590e57f0-d803-4d87-b89b-9a2928f112b5", "Account Administrator"),
     }
     assert (
-        check_nodes(neo4j_session, "CloudflareRole", ["id", "email"]) == expected_nodes
+        check_nodes(neo4j_session, "CloudflareRole", ["id", "name"]) == expected_nodes
     )
 
     # Assert Roles are connected with Account
     expected_rels = {
-        ("CHANGE_ME", account_id),  # CHANGEME: Add here one of Roles id
+        ("590e57f0-d803-4d87-b89b-9a2928f112b5", ACCOUNT_ID),
     }
     assert (
         check_rels(
@@ -57,7 +67,7 @@ def test_load_cloudflare_roles(mock_api, neo4j_session):
             "CloudflareAccount",
             "id",
             "RESOURCE",
-            rel_direction_right=True,
+            rel_direction_right=False,
         )
         == expected_rels
     )

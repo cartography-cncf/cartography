@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -12,12 +13,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class CloudflareDNSRecordNodeProperties(CartographyNodeProperties):
-    comment_modified_on: PropertyRef = PropertyRef("comment_modified_on")
+    id: PropertyRef = PropertyRef("id")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    value: PropertyRef = PropertyRef("content")
+    type: PropertyRef = PropertyRef("type")
+    comment: PropertyRef = PropertyRef("comment")
+    proxied: PropertyRef = PropertyRef("proxied")
+    ttl: PropertyRef = PropertyRef("ttl")
     created_on: PropertyRef = PropertyRef("created_on")
     modified_on: PropertyRef = PropertyRef("modified_on")
     proxiable: PropertyRef = PropertyRef("proxiable")
-    tags_modified_on: PropertyRef = PropertyRef("tags_modified_on")
-    id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -44,6 +49,7 @@ class CloudflareDNSRecordToZoneRel(CartographyRelSchema):
 class CloudflareDNSRecordSchema(CartographyNodeSchema):
     label: str = "CloudflareDNSRecord"
     properties: CloudflareDNSRecordNodeProperties = CloudflareDNSRecordNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSRecord"])
     sub_resource_relationship: CloudflareDNSRecordToZoneRel = (
         CloudflareDNSRecordToZoneRel()
     )

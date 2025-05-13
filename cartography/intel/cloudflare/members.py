@@ -36,7 +36,10 @@ def sync(
 
 @timeit
 def get(client: Cloudflare, account_id: str) -> List[Dict[str, Any]]:
-    return [member.to_dict() for member in client.accounts.members.list(account_id=account_id)]
+    return [
+        member.to_dict()
+        for member in client.accounts.members.list(account_id=account_id)
+    ]
 
 
 def load_members(
@@ -53,17 +56,15 @@ def load_members(
         account_id=account_id,
     )
 
+
 def transform_members(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     for member in data:
-        member["roles_ids"] = [
-            role["id"] for role in member.get("roles", [])
-        ]
-        member["policies_ids"] = [
-            policy["id"] for policy in member.get("policies", [])
-        ]
+        member["roles_ids"] = [role["id"] for role in member.get("roles", [])]
+        member["policies_ids"] = [policy["id"] for policy in member.get("policies", [])]
         result.append(member)
     return result
+
 
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
