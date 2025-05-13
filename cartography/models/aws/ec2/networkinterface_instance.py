@@ -29,7 +29,7 @@ class EC2NetworkInterfaceInstanceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2NetworkInterfaceToAWSAccountRelRelProperties(CartographyRelProperties):
+class EC2NetworkInterfaceToAWSAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -41,8 +41,8 @@ class EC2NetworkInterfaceToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2NetworkInterfaceToAWSAccountRelRelProperties = (
-        EC2NetworkInterfaceToAWSAccountRelRelProperties()
+    properties: EC2NetworkInterfaceToAWSAccountRelProperties = (
+        EC2NetworkInterfaceToAWSAccountRelProperties()
     )
 
 
