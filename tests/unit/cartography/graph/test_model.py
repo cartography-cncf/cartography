@@ -60,61 +60,41 @@ def load_models(module, module_name: str | None = None) -> Generator[
             yield from load_models(sub_module, sub_module_name)
 
 
-def test_naming_convention():
+def test_model_objects_naming_convention():
     # DOC
     for module_name, element in load_models(cartography.models):
         if issubclass(element, CartographyNodeSchema):
             if not element.__name__.endswith("Schema"):
-                logger.warning(
-                    f"Node {element.__name__} does not comply with naming convention. "
-                    f"Node names should end with 'Schema'."
-                    f" Please rename the class to {element.__name__}Schema."
-                )
                 warnings.warn(
                     f"Node {element.__name__} does not comply with naming convention. "
-                    f"Node names should end with 'Schema'."
+                    "Node names should end with 'Schema'."
                     f" Please rename the class to {element.__name__}Schema.",
                     UserWarning,
                 )
             # TODO assert element.__name__.endswith("Schema")
         elif issubclass(element, CartographyRelSchema):
             if not element.__name__.endswith("Rel"):
-                logger.warning(
-                    f"Relationship {element.__name__} does not comply with naming convention. "
-                    f"Relationship names should end with 'Rel'."
-                    f" Please rename the class to {element.__name__}Rel."
-                )
                 warnings.warn(
                     f"Relationship {element.__name__} does not comply with naming convention. "
-                    f"Relationship names should end with 'Rel'."
+                    "Relationship names should end with 'Rel'."
                     f" Please rename the class to {element.__name__}Rel.",
                     UserWarning,
                 )
             # TODO assert element.__name__.endswith("Rel")
         elif issubclass(element, CartographyNodeProperties):
             if not element.__name__.endswith("Properties"):
-                logger.warning(
-                    f"Node properties {element.__name__} does not comply with naming convention. "
-                    f"Node properties names should end with 'Properties'."
-                    f" Please rename the class to {element.__name__}Properties."
-                )
                 warnings.warn(
                     f"Node properties {element.__name__} does not comply with naming convention. "
-                    f"Node properties names should end with 'Properties'."
+                    "Node properties names should end with 'Properties'."
                     f" Please rename the class to {element.__name__}Properties.",
                     UserWarning,
                 )
             # TODO assert element.__name__.endswith("Properties")
         elif issubclass(element, CartographyRelProperties):
             if not element.__name__.endswith("RelProperties"):
-                logger.warning(
-                    f"Relationship properties {element.__name__} does not comply with naming convention. "
-                    f"Relationship properties names should end with 'RelProperties'."
-                    f" Please rename the class to {element.__name__}RelProperties."
-                )
                 warnings.warn(
                     f"Relationship properties {element.__name__} does not comply with naming convention. "
-                    f"Relationship properties names should end with 'RelProperties'."
+                    "Relationship properties names should end with 'RelProperties'."
                     f" Please rename the class to {element.__name__}RelProperties.",
                     UserWarning,
                 )
@@ -139,27 +119,31 @@ def test_sub_resource_relationship():
             continue
         # Check that the rel_label is 'RESOURCE'
         if sub_resource_relationship.rel_label != "RESOURCE":
-            logger.warning(
+            warnings.warn(
                 f"Node {node.label} has a sub_resource_relationship with rel_label {sub_resource_relationship.rel_label}. "
-                f"Expected 'RESOURCE'."
+                "Expected 'RESOURCE'.",
+                UserWarning,
             )
             # TODO assert sub_resource_relationship.rel_label == "RESOURCE"
         # Check that the direction is INWARD
         if sub_resource_relationship.direction != LinkDirection.INWARD:
-            logger.warning(
+            warnings.warn(
                 f"Node {node.label} has a sub_resource_relationship with direction {sub_resource_relationship.direction}. "
-                f"Expected 'INWARD'."
+                "Expected 'INWARD'.",
+                UserWarning,
             )
             # TODO assert sub_resource_relationship.direction == "INWARD"
 
     for module_name, nodes in root_node_per_modules.items():
         if len(nodes) == 0:
-            logger.warning(
-                f"Module {module_name} has no root nodes (e.g. Tenant, Subscription ...). "
+            warnings.warn(
+                f"Module {module_name} has no root nodes (e.g. Tenant, Subscription ...). ",
+                UserWarning,
             )
         if len(nodes) > 1:
-            logger.warning(
+            warnings.warn(
                 f"Module {module_name} has multiple root nodes: {', '.join([node.label for node in nodes])}. "
-                f"Please check the module."
+                "Please check the module.",
+                UserWarning,
             )
         # TODO: assert len(nodes) == 1
