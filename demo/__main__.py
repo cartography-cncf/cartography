@@ -1,7 +1,8 @@
-import neo4j
-import os
 import logging
+import os
 import time
+
+import neo4j
 
 from cartography.intel import create_indexes
 from demo.seeds.github import GithubSeed
@@ -37,12 +38,12 @@ def main():
     # TODO: Duo
     # TODO: Entra
     # TODO: GCP
-    logger.info('    GitHub')
+    logger.info("    GitHub")
     GithubSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: Jamf
     # TODO: Kandji
     # TODO: Kubernetes
-    logger.info('    LastPass')
+    logger.info("    LastPass")
     LastpassSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: OCI
     # TODO: Okta

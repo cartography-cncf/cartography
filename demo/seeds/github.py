@@ -1,10 +1,11 @@
-import neo4j
-from unittest.mock import patch
 from unittest import TestCase
+from unittest.mock import patch
 
-import cartography.intel.github.users
+import neo4j
+
 import cartography.intel.github.repos
 import cartography.intel.github.teams
+import cartography.intel.github.users
 import tests.data.github.repos
 import tests.data.github.teams
 import tests.data.github.users
@@ -45,15 +46,20 @@ class GithubSeed(TestCase):
         "_get_team_repos",
         return_value=tests.data.github.teams.GH_TEAM_REPOS,
     )
-    @patch.object(cartography.intel.github.teams, "get_teams", return_value=tests.data.github.teams.GH_TEAM_DATA)
-    def seed(self, 
+    @patch.object(
+        cartography.intel.github.teams,
+        "get_teams",
+        return_value=tests.data.github.teams.GH_TEAM_DATA,
+    )
+    def seed(
+        self,
         mock_teams,
         mock_team_repos,
         mock_team_users,
         mock_team_child,
         mock_owners,
-        mock_users
-        ) -> None:
+        mock_users,
+    ) -> None:
         # DOC
         self._seed_users()
         self._seed_repos()
