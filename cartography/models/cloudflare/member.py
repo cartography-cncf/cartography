@@ -22,7 +22,7 @@ class CloudflareMemberNodeProperties(CartographyNodeProperties):
         "user.two_factor_authentication_enabled"
     )
     id: PropertyRef = PropertyRef("id")
-    policies_id: PropertyRef = PropertyRef("policies.id")
+    policies: PropertyRef = PropertyRef("policies_ids")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -57,7 +57,7 @@ class CloudflareMemberToCloudflareRoleRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "id": PropertyRef(
-                "roles.id",
+                "roles_ids",
                 one_to_many=True,
             )
         },

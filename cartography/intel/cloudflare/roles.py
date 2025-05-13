@@ -36,7 +36,7 @@ def get(
     client: Cloudflare,
     account_id: str,
 ) -> List[Dict[str, Any]]:
-    return [role for role in client.accounts.roles.list(account_id=account_id)]
+    return [role.to_dict() for role in client.accounts.roles.list(account_id=account_id)]
 
 
 def load_roles(

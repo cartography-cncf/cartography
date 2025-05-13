@@ -2,8 +2,7 @@
 
 Follow these steps to analyze Cloudflare objects with Cartography.
 
-# CHANGEME: Please provide how to configure (eg. generate API Key, CLI arguments etc ...)
-1. Step 1
-    1. Step 1.1
-    1. Step 1.2
-1. Step 2
+1. Create an ApiToken in Cloudflare
+    1. Go to `Manage Account > Account API Token` and create a new API Token (you can also use a personnal ApiToken in `Profile > API Tokens`)
+    1. You can either use the `Read all resouces` template or configure each scope
+    1. Populate an environment variable with the ApiToken. You can pass the environment variable name via CLI with the `--cloudflare-token-env-var` parameter

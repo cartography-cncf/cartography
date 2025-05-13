@@ -23,7 +23,7 @@ def start_cloudflare_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     :return: None
     """
 
-    if not config.cloudflare_apikey:
+    if not config.cloudflare_token:
         logger.info(
             "Cloudflare import is not configured - skipping this module. "
             "See docs to configure.",
@@ -31,7 +31,7 @@ def start_cloudflare_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
         return
 
     # Create client
-    client = Cloudflare(token=config.cloudflare_apikey)
+    client = Cloudflare(api_token=config.cloudflare_token)
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,

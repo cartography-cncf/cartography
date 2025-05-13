@@ -32,7 +32,7 @@ def sync(
 
 @timeit
 def get(client: Cloudflare) -> List[Dict[str, Any]]:
-    return [account for account in client.accounts.list()]
+    return [account.to_dict() for account in client.accounts.list()]
 
 
 def load_accounts(

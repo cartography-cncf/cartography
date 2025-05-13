@@ -14,7 +14,6 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class CloudflareRoleNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     name: PropertyRef = PropertyRef("name")
-    permissions: PropertyRef = PropertyRef("permissions")
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

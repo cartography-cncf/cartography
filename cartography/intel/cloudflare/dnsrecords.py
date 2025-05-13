@@ -35,7 +35,7 @@ def sync(
 
 @timeit
 def get(client: Cloudflare, zone_id: str) -> List[Dict[str, Any]]:
-    return [dnsrecord for dnsrecord in client.zones.dns_records.list(zone_id=zone_id)]
+    return [dnsrecord.to_dict() for dnsrecord in client.dns.records.list(zone_id=zone_id)]
 
 
 def load_dnsrecords(
