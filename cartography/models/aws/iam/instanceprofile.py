@@ -27,38 +27,38 @@ class InstanceProfileNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class InstanceProfileToAwsAccountRelProperties(CartographyRelProperties):
+class InstanceProfileToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class InstanceProfileToAWSAccount(CartographyRelSchema):
+class InstanceProfileToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: InstanceProfileToAwsAccountRelProperties = (
-        InstanceProfileToAwsAccountRelProperties()
+    properties: InstanceProfileToAWSAccountRelRelProperties = (
+        InstanceProfileToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class InstanceProfileToAWSRoleRelProperties(CartographyRelProperties):
+class InstanceProfileToAWSRoleRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class InstanceProfileToAWSRole(CartographyRelSchema):
+class InstanceProfileToAWSRoleRel(CartographyRelSchema):
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("Roles", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATED_WITH"
-    properties: InstanceProfileToAWSRoleRelProperties = (
-        InstanceProfileToAWSRoleRelProperties()
+    properties: InstanceProfileToAWSRoleRelRelProperties = (
+        InstanceProfileToAWSRoleRelRelProperties()
     )
 
 
@@ -66,11 +66,11 @@ class InstanceProfileToAWSRole(CartographyRelSchema):
 class InstanceProfileSchema(CartographyNodeSchema):
     label: str = "AWSInstanceProfile"
     properties: InstanceProfileNodeProperties = InstanceProfileNodeProperties()
-    sub_resource_relationship: InstanceProfileToAWSAccount = (
-        InstanceProfileToAWSAccount()
+    sub_resource_relationship: InstanceProfileToAWSAccountRel = (
+        InstanceProfileToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            InstanceProfileToAWSRole(),
+            InstanceProfileToAWSRoleRel(),
         ]
     )
