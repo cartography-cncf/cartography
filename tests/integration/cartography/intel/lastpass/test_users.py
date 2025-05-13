@@ -51,8 +51,8 @@ def test_load_lastpass_users(mock_api, neo4j_session):
 
     # Assert Human exists
     expected_nodes = {
-        ("john.doe@domain.tld", "john.doe@domain.tld"),
-        ("jane.smith@domain.tld", "jane.smith@domain.tld"),
+        ("mbsimpson@simpson.corp", "mbsimpson@simpson.corp"),
+        ("hjsimpson@simpson.corp", "hjsimpson@simpson.corp"),
     }
     assert check_nodes(neo4j_session, "Human", ["id", "email"]) == expected_nodes
 
@@ -64,8 +64,8 @@ def test_load_lastpass_users(mock_api, neo4j_session):
 
     # Assert Users exists
     expected_nodes = {
-        (123456, "john.doe@domain.tld"),
-        (234567, "jane.smith@domain.tld"),
+        (123456, "mbsimpson@simpson.corp"),
+        (234567, "hjsimpson@simpson.corp"),
     }
     assert check_nodes(neo4j_session, "LastpassUser", ["id", "email"]) == expected_nodes
 
@@ -89,8 +89,8 @@ def test_load_lastpass_users(mock_api, neo4j_session):
 
     # Assert Users are connected with Humans
     expected_rels = {
-        (123456, "john.doe@domain.tld"),
-        (234567, "jane.smith@domain.tld"),
+        (123456, "mbsimpson@simpson.corp"),
+        (234567, "hjsimpson@simpson.corp"),
     }
     assert (
         check_rels(
