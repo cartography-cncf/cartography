@@ -9,14 +9,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 class CloudflareAccountNodeProperties(CartographyNodeProperties):
     created_on: PropertyRef = PropertyRef("created_on")
     name: PropertyRef = PropertyRef("name")
-    settings_abuse_contact_email: PropertyRef = PropertyRef(
-        "settings.abuse_contact_email"
-    )
-    settings_default_nameservers: PropertyRef = PropertyRef(
-        "settings.default_nameservers"
-    )
-    settings_enforce_twofactor: PropertyRef = PropertyRef("settings.enforce_twofactor")
-    settings_use_account_custom_ns_by_default: PropertyRef = PropertyRef(
+    abuse_contact_email: PropertyRef = PropertyRef("settings.abuse_contact_email")
+    default_nameservers: PropertyRef = PropertyRef("settings.default_nameservers")
+    enforce_twofactor: PropertyRef = PropertyRef("settings.enforce_twofactor")
+    use_account_custom_ns_by_default: PropertyRef = PropertyRef(
         "settings.use_account_custom_ns_by_default"
     )
     id: PropertyRef = PropertyRef("id")
