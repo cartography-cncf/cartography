@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from cartography.models.aws.ec2.subnet_instance import EC2SubnetToAWSAccount
-from cartography.models.aws.ec2.subnet_instance import EC2SubnetToEC2Instance
+from cartography.models.aws.ec2.subnet_instance import EC2SubnetToAWSAccountRel
+from cartography.models.aws.ec2.subnet_instance import EC2SubnetToEC2InstanceRel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -22,56 +22,56 @@ class EC2SubnetNetworkInterfaceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2SubnetToNetworkInterfaceRelProperties(CartographyRelProperties):
+class EC2SubnetToNetworkInterfaceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2SubnetToNetworkInterface(CartographyRelSchema):
+class EC2SubnetToNetworkInterfaceRel(CartographyRelSchema):
     target_node_label: str = "NetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "PART_OF_SUBNET"
-    properties: EC2SubnetToNetworkInterfaceRelProperties = (
-        EC2SubnetToNetworkInterfaceRelProperties()
+    properties: EC2SubnetToNetworkInterfaceRelRelProperties = (
+        EC2SubnetToNetworkInterfaceRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class EC2SubnetToLoadBalancerRelProperties(CartographyRelProperties):
+class EC2SubnetToLoadBalancerRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2SubnetToLoadBalancer(CartographyRelSchema):
+class EC2SubnetToLoadBalancerRel(CartographyRelSchema):
     target_node_label: str = "LoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ElbV1Id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "PART_OF_SUBNET"
-    properties: EC2SubnetToLoadBalancerRelProperties = (
-        EC2SubnetToLoadBalancerRelProperties()
+    properties: EC2SubnetToLoadBalancerRelRelProperties = (
+        EC2SubnetToLoadBalancerRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class EC2SubnetToLoadBalancerV2RelProperties(CartographyRelProperties):
+class EC2SubnetToLoadBalancerV2RelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2SubnetToLoadBalancerV2(CartographyRelSchema):
+class EC2SubnetToLoadBalancerV2Rel(CartographyRelSchema):
     target_node_label: str = "LoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ElbV2Id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "PART_OF_SUBNET"
-    properties: EC2SubnetToLoadBalancerV2RelProperties = (
-        EC2SubnetToLoadBalancerV2RelProperties()
+    properties: EC2SubnetToLoadBalancerV2RelRelProperties = (
+        EC2SubnetToLoadBalancerV2RelRelProperties()
     )
 
 
@@ -85,12 +85,12 @@ class EC2SubnetNetworkInterfaceSchema(CartographyNodeSchema):
     properties: EC2SubnetNetworkInterfaceNodeProperties = (
         EC2SubnetNetworkInterfaceNodeProperties()
     )
-    sub_resource_relationship: EC2SubnetToAWSAccount = EC2SubnetToAWSAccount()
+    sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2SubnetToNetworkInterface(),
-            EC2SubnetToEC2Instance(),
-            EC2SubnetToLoadBalancer(),
-            EC2SubnetToLoadBalancerV2(),
+            EC2SubnetToNetworkInterfaceRel(),
+            EC2SubnetToEC2InstanceRel(),
+            EC2SubnetToLoadBalancerRel(),
+            EC2SubnetToLoadBalancerV2Rel(),
         ],
     )

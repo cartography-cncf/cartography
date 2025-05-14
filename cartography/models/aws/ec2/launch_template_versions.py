@@ -40,38 +40,38 @@ class LaunchTemplateVersionNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LaunchTemplateVersionToAwsAccountRelProperties(CartographyRelProperties):
+class LaunchTemplateVersionToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class LaunchTemplateVersionToAWSAccount(CartographyRelSchema):
+class LaunchTemplateVersionToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: LaunchTemplateVersionToAwsAccountRelProperties = (
-        LaunchTemplateVersionToAwsAccountRelProperties()
+    properties: LaunchTemplateVersionToAWSAccountRelRelProperties = (
+        LaunchTemplateVersionToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class LaunchTemplateVersionToLTRelProperties(CartographyRelProperties):
+class LaunchTemplateVersionToLTRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class LaunchTemplateVersionToLT(CartographyRelSchema):
+class LaunchTemplateVersionToLTRel(CartographyRelSchema):
     target_node_label: str = "LaunchTemplate"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LaunchTemplateId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "VERSION"
-    properties: LaunchTemplateVersionToLTRelProperties = (
-        LaunchTemplateVersionToLTRelProperties()
+    properties: LaunchTemplateVersionToLTRelRelProperties = (
+        LaunchTemplateVersionToLTRelRelProperties()
     )
 
 
@@ -81,11 +81,11 @@ class LaunchTemplateVersionSchema(CartographyNodeSchema):
     properties: LaunchTemplateVersionNodeProperties = (
         LaunchTemplateVersionNodeProperties()
     )
-    sub_resource_relationship: LaunchTemplateVersionToAWSAccount = (
-        LaunchTemplateVersionToAWSAccount()
+    sub_resource_relationship: LaunchTemplateVersionToAWSAccountRel = (
+        LaunchTemplateVersionToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            LaunchTemplateVersionToLT(),
+            LaunchTemplateVersionToLTRel(),
         ],
     )
