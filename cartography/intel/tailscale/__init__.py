@@ -55,7 +55,7 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         org=config.tailscale_org,
     )
 
-    devices = cartography.intel.tailscale.devices.sync(
+    cartography.intel.tailscale.devices.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
@@ -76,6 +76,3 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         org=config.tailscale_org,
         users=users,
     )
-    # TODO: Builtin groups
-    # TODO: Tags (with tags owners)
-    # TODO: Grants

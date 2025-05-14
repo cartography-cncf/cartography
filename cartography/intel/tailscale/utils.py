@@ -37,10 +37,12 @@ class ACLParser:
             sub_groups = []
             domain_members = []
             for member in members:
-                if member.startswith("group:"):
+                if member.startswith("group:") or member.startswith("autogroup:"):
                     sub_groups.append(member)
-                elif member.startswith("*@"):
-                    domain_members.append(member[2:])
+                elif member.startswith("user:*@"):
+                    domain_members.append(member[7:])
+                elif member.startswith("user:"):
+                    users_members.append(member[5:])
                 else:
                     users_members.append(member)
             result.append(
@@ -53,3 +55,58 @@ class ACLParser:
                 }
             )
         return result
+
+    def get_tags(self) -> List[Dict[str, Any]]:
+        """
+        Get all tags from the ACL
+
+        :return: list of tags
+        """
+        result: List[Dict[str, Any]] = []
+        for tag, owners in self.data.get("tagOwners", {}).items():
+            tag_name = tag.split(":")[-1]
+            user_owners = []
+            group_owners = []
+            domain_owners = []
+            for owner in owners:
+                if owner.startswith("group:") or owner.startswith("autogroup:"):
+                    group_owners.append(owner)
+                elif owner.startswith("user:*@"):
+                    domain_owners.append(owner[7:])
+                elif owner.startswith("user:"):
+                    user_owners.append(owner[5:])
+                else:
+                    user_owners.append(owner)
+            result.append(
+                {
+                    "id": tag,
+                    "name": tag_name,
+                    "owners": user_owners,
+                    "group_owners": group_owners,
+                    "domain_owners": domain_owners,
+                }
+            )
+        return result
+
+
+def role_to_group(role:str) -> list[str]:
+    """ Convert Tailscale role to group
+
+    This function is used to convert Tailscale role to autogroup
+    group. The autogroup is used to manage the access control
+    in Tailscale. 
+
+    Args:
+        role (str): The role of the user in Tailscale. (eg: owner, admin, member, etc)
+
+    Returns:
+        list[str]: The list of autogroup that the user belongs to. (eg: autogroup:admin, autogroup:member, etc)
+    """
+    result: list[str] = []
+    result.append(f"autogroup:{role}")
+    if role == "owner":
+        result.append("autogroup:admin")
+        result.append("autogroup:member")
+    elif role in ("admin", "auditor", "billing-admin", "it-admin", "network-admin"):
+        result.append("autogroup:member")
+    return result
