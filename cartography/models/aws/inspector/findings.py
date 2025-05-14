@@ -46,92 +46,92 @@ class AWSInspectorNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class InspectorFindingToAwsAccountRelProperties(CartographyRelProperties):
+class InspectorFindingToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class InspectorFindingToAWSAccount(CartographyRelSchema):
+class InspectorFindingToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: InspectorFindingToAwsAccountRelProperties = (
-        InspectorFindingToAwsAccountRelProperties()
+    properties: InspectorFindingToAWSAccountRelRelProperties = (
+        InspectorFindingToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class InspectorFindingToAwsAccountDelegateRelProperties(CartographyRelProperties):
+class InspectorFindingToAWSAccountRelDelegateRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class InspectorFindingToAWSAccountDelegate(CartographyRelSchema):
+class InspectorFindingToAWSAccountRelDelegateRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("awsaccount")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER"
-    properties: InspectorFindingToAwsAccountDelegateRelProperties = (
-        InspectorFindingToAwsAccountDelegateRelProperties()
+    properties: InspectorFindingToAWSAccountRelDelegateRelRelProperties = (
+        InspectorFindingToAWSAccountRelDelegateRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class InspectorFindingToEC2InstanceRelProperties(CartographyRelProperties):
+class InspectorFindingToEC2InstanceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class InspectorFindingToEC2Instance(CartographyRelSchema):
+class InspectorFindingToEC2InstanceRel(CartographyRelSchema):
     target_node_label: str = "EC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("instanceid")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
-    properties: InspectorFindingToEC2InstanceRelProperties = (
-        InspectorFindingToEC2InstanceRelProperties()
+    properties: InspectorFindingToEC2InstanceRelRelProperties = (
+        InspectorFindingToEC2InstanceRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class InspectorFindingToECRRepositoryRelProperties(CartographyRelProperties):
+class InspectorFindingToECRRepositoryRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class InspectorFindingToECRRepository(CartographyRelSchema):
+class InspectorFindingToECRRepositoryRel(CartographyRelSchema):
     target_node_label: str = "ECRRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ecrrepositoryid")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
-    properties: InspectorFindingToECRRepositoryRelProperties = (
-        InspectorFindingToECRRepositoryRelProperties()
+    properties: InspectorFindingToECRRepositoryRelRelProperties = (
+        InspectorFindingToECRRepositoryRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class InspectorFindingToECRImageRelProperties(CartographyRelProperties):
+class InspectorFindingToECRImageRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class InspectorFindingToECRImage(CartographyRelSchema):
+class InspectorFindingToECRImageRel(CartographyRelSchema):
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ecrimageid")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
-    properties: InspectorFindingToECRImageRelProperties = (
-        InspectorFindingToECRImageRelProperties()
+    properties: InspectorFindingToECRImageRelRelProperties = (
+        InspectorFindingToECRImageRelRelProperties()
     )
 
 
@@ -140,14 +140,14 @@ class AWSInspectorFindingSchema(CartographyNodeSchema):
     label: str = "AWSInspectorFinding"
     properties: AWSInspectorNodeProperties = AWSInspectorNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk"])
-    sub_resource_relationship: InspectorFindingToAWSAccount = (
-        InspectorFindingToAWSAccount()
+    sub_resource_relationship: InspectorFindingToAWSAccountRel = (
+        InspectorFindingToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            InspectorFindingToEC2Instance(),
-            InspectorFindingToECRRepository(),
-            InspectorFindingToECRImage(),
-            InspectorFindingToAWSAccountDelegate(),
+            InspectorFindingToEC2InstanceRel(),
+            InspectorFindingToECRRepositoryRel(),
+            InspectorFindingToECRImageRel(),
+            InspectorFindingToAWSAccountRelDelegateRel(),
         ],
     )
