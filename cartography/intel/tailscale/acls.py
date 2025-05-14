@@ -27,7 +27,7 @@ def sync(
     common_job_parameters: Dict[str, Any],
     org: str,
     users: List[Dict[str, Any]],
-) -> List[Dict]:
+) -> None:
     raw_acl = get(
         api_session,
         common_job_parameters["BASE_URL"],
@@ -93,16 +93,16 @@ def transform(
 
     # Add autogroups based on user roles
     for user in users:
-        for group in role_to_group(user["role"]):
-            if group not in transformed_groups:
-                transformed_groups[group] = {
-                    "id": group,
-                    "name": group.split(":")[-1],
+        for g in role_to_group(user["role"]):
+            if g not in transformed_groups:
+                transformed_groups[g] = {
+                    "id": g,
+                    "name": g.split(":")[-1],
                     "members": [],
                     "sub_groups": [],
                     "domain_members": [],
                 }
-            transformed_groups[group]["members"].append(user["loginName"])
+            transformed_groups[g]["members"].append(user["loginName"])
 
     return list(transformed_groups.values()), list(transformed_tags.values())
 

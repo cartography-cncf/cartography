@@ -22,7 +22,7 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: Dict[str, Any],
     org: str,
-) -> List[Dict]:
+) -> None:
     tailnet = get(
         api_session,
         common_job_parameters["BASE_URL"],
