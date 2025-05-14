@@ -27,20 +27,20 @@ class EC2PrivateIpNetworkInterfaceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2PrivateIpToAwsAccountRelProperties(CartographyRelProperties):
+class EC2PrivateIpToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2PrivateIpToAWSAccount(CartographyRelSchema):
+class EC2PrivateIpToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2PrivateIpToAwsAccountRelProperties = (
-        EC2PrivateIpToAwsAccountRelProperties()
+    properties: EC2PrivateIpToAWSAccountRelRelProperties = (
+        EC2PrivateIpToAWSAccountRelRelProperties()
     )
 
 
@@ -50,7 +50,7 @@ class EC2NetworkInterfaceToPrivateIpRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class EC2PrivateIpToNetworkInterface(CartographyRelSchema):
+class EC2PrivateIpToNetworkInterfaceRel(CartographyRelSchema):
     target_node_label: str = "NetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
@@ -72,9 +72,11 @@ class EC2PrivateIpNetworkInterfaceSchema(CartographyNodeSchema):
     properties: EC2PrivateIpNetworkInterfaceNodeProperties = (
         EC2PrivateIpNetworkInterfaceNodeProperties()
     )
-    sub_resource_relationship: EC2PrivateIpToAWSAccount = EC2PrivateIpToAWSAccount()
+    sub_resource_relationship: EC2PrivateIpToAWSAccountRel = (
+        EC2PrivateIpToAWSAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2PrivateIpToNetworkInterface(),
+            EC2PrivateIpToNetworkInterfaceRel(),
         ],
     )

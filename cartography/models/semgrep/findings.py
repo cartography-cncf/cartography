@@ -51,7 +51,7 @@ class SemgrepSCAFindingToSemgrepDeploymentRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 # (:SemgrepSCAFinding)<-[:RESOURCE]-(:SemgrepDeployment)
-class SemgrepSCAFindingToSemgrepDeploymentSchema(CartographyRelSchema):
+class SemgrepSCAFindingToSemgrepDeploymentRel(CartographyRelSchema):
     target_node_label: str = "SemgrepDeployment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DEPLOYMENT_ID", set_in_kwargs=True)},
@@ -124,8 +124,8 @@ class SemgrepSCAFindingToCVERel(CartographyRelSchema):
 class SemgrepSCAFindingSchema(CartographyNodeSchema):
     label: str = "SemgrepSCAFinding"
     properties: SemgrepSCAFindingNodeProperties = SemgrepSCAFindingNodeProperties()
-    sub_resource_relationship: SemgrepSCAFindingToSemgrepDeploymentSchema = (
-        SemgrepSCAFindingToSemgrepDeploymentSchema()
+    sub_resource_relationship: SemgrepSCAFindingToSemgrepDeploymentRel = (
+        SemgrepSCAFindingToSemgrepDeploymentRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
