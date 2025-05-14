@@ -43,7 +43,6 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     posture_identity_disabled: PropertyRef = PropertyRef("postureIdentity.disabled")
 
 
-
 @dataclass(frozen=True)
 class TailscaleDeviceToTailnetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

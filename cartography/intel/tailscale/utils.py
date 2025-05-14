@@ -89,12 +89,12 @@ class ACLParser:
         return result
 
 
-def role_to_group(role:str) -> list[str]:
-    """ Convert Tailscale role to group
+def role_to_group(role: str) -> list[str]:
+    """Convert Tailscale role to group
 
     This function is used to convert Tailscale role to autogroup
     group. The autogroup is used to manage the access control
-    in Tailscale. 
+    in Tailscale.
 
     Args:
         role (str): The role of the user in Tailscale. (eg: owner, admin, member, etc)

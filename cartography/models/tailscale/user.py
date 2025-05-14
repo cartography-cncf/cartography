@@ -17,7 +17,6 @@ class TailscaleUserNodeProperties(CartographyNodeProperties):
     display_name: PropertyRef = PropertyRef("displayName")
     login_name: PropertyRef = PropertyRef("loginName", extra_index=True)
     profile_pic_url: PropertyRef = PropertyRef("profilePicUrl")
-    tailnet_id: PropertyRef = PropertyRef("tailnetId")
     created: PropertyRef = PropertyRef("created")
     type: PropertyRef = PropertyRef("type")
     role: PropertyRef = PropertyRef("role")

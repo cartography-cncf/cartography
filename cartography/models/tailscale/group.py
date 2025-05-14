@@ -18,7 +18,6 @@ class TailscaleGroupNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
 
 
-
 @dataclass(frozen=True)
 class TailscaleGroupToTailnetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

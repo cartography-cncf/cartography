@@ -9,7 +9,8 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.tailscale.utils import ACLParser, role_to_group
+from cartography.intel.tailscale.utils import ACLParser
+from cartography.intel.tailscale.utils import role_to_group
 from cartography.models.tailscale.group import TailscaleGroupSchema
 from cartography.models.tailscale.tag import TailscaleTagSchema
 from cartography.util import timeit
@@ -102,7 +103,6 @@ def transform(
                     "domain_members": [],
                 }
             transformed_groups[group]["members"].append(user["loginName"])
-
 
     return list(transformed_groups.values()), list(transformed_tags.values())
 

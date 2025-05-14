@@ -4,11 +4,14 @@ import requests
 
 import cartography.intel.tailscale.postureintegrations
 import tests.data.tailscale.postureintegrations
+from tests.integration.cartography.intel.tailscale.test_tailnets import (
+    _ensure_local_neo4j_has_test_tailnets,
+)
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-TEST_TAILNET = "CHANGEME"
+TEST_ORG = "simpson.corp"
 
 
 @patch.object(
@@ -26,23 +29,40 @@ def test_load_tailscale_postureintegrations(mock_api, neo4j_session):
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "BASE_URL": "https://fake.tailscale.com",
-        "tailnet": TEST_TAILNET,
+        "org": TEST_ORG,
     }
+    _ensure_local_neo4j_has_test_tailnets(neo4j_session)
 
     # Act
     cartography.intel.tailscale.postureintegrations.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
-        tailnet,
+        TEST_ORG,
     )
 
     # Assert PostureIntegrations exist
     expected_nodes = {
-        # CHANGEME: Add here expected node from data
-        # (123456, 'john.doe@domain.tld'),
+        ("pcBEPQVMpki7DEVEL", "falcon"),
     }
     assert (
-        check_nodes(neo4j_session, "TailscalePostureIntegration", ["id", "email"])
+        check_nodes(neo4j_session, "TailscalePostureIntegration", ["id", "provider"])
         == expected_nodes
+    )
+
+    # Assert Devices are connected with Tailnet
+    expected_rels = {
+        ("pcBEPQVMpki7DEVEL", TEST_ORG),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "TailscalePostureIntegration",
+            "id",
+            "TailscaleTailnet",
+            "id",
+            "RESOURCE",
+            rel_direction_right=False,
+        )
+        == expected_rels
     )

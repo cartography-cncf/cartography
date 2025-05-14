@@ -23,7 +23,6 @@ class TailscaleTailnetNodeProperties(CartographyNodeProperties):
     )
 
 
-
 @dataclass(frozen=True)
 class TailscaleTailnetSchema(CartographyNodeSchema):
     label: str = "TailscaleTailnet"

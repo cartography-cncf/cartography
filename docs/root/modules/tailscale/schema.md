@@ -57,7 +57,6 @@ Representation of a user within a tailnet.
 | display_name | The name of the user. |
 | login_name | The emailish login name of the user. |
 | profile_pic_url | The profile pic URL for the user. |
-| tailnet_id | The tailnet that owns the user. |
 | created | The time the user joined their tailnet. |
 | type | The type of relation this user has to the tailnet associated with the request. |
 | role | The role of the user. Learn more about [user roles](https://tailscale.com/kb/1138/user-roles). |

@@ -61,11 +61,12 @@ def get(
     results = req.json()["devices"]
     return results
 
+
 @timeit
 def transform(
     raw_data: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    """ Extracts tags from the raw data and returns a list of dictionaries"""
+    """Extracts tags from the raw data and returns a list of dictionaries"""
     transformed_tags: Dict[str, [Dict[str, Any]]] = {}
     # Transform the raw data into the format expected by the load function
     for device in raw_data:
@@ -125,4 +126,3 @@ def cleanup(
     GraphJob.from_node_schema(TailscaleTagSchema(), common_job_parameters).run(
         neo4j_session
     )
-

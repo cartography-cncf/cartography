@@ -5,16 +5,24 @@ import requests
 import cartography.intel.tailscale.tailnets
 import tests.data.tailscale.tailnets
 from tests.integration.util import check_nodes
-from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-TEST_TAILNET = "CHANGEME"
+TEST_ORG = "simpson.corp"
+
+
+def _ensure_local_neo4j_has_test_tailnets(neo4j_session):
+    cartography.intel.tailscale.tailnets.load_tailnets(
+        neo4j_session,
+        [tests.data.tailscale.tailnets.TAILSCALE_TAILNET],
+        TEST_ORG,
+        TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(
     cartography.intel.tailscale.tailnets,
     "get",
-    return_value=tests.data.tailscale.tailnets.TAILSCALE_TAILNETS,
+    return_value=tests.data.tailscale.tailnets.TAILSCALE_TAILNET,
 )
 def test_load_tailscale_tailnets(mock_api, neo4j_session):
     """
@@ -26,7 +34,7 @@ def test_load_tailscale_tailnets(mock_api, neo4j_session):
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "BASE_URL": "https://fake.tailscale.com",
-        "tailnet": TEST_TAILNET,
+        "org": TEST_ORG,
     }
 
     # Act
@@ -34,15 +42,20 @@ def test_load_tailscale_tailnets(mock_api, neo4j_session):
         neo4j_session,
         api_session,
         common_job_parameters,
-        tailnet,
+        TEST_ORG,
     )
 
     # Assert Tailnets exist
     expected_nodes = {
-        # CHANGEME: Add here expected node from data
-        # (123456, 'john.doe@domain.tld'),
+        ("simpson.corp",),
     }
     assert (
-        check_nodes(neo4j_session, "TailscaleTailnet", ["id", "email"])
+        check_nodes(
+            neo4j_session,
+            "TailscaleTailnet",
+            [
+                "id",
+            ],
+        )
         == expected_nodes
     )
