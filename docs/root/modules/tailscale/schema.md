@@ -1,6 +1,8 @@
 ## Tailscale Schema
 
+# CHANGEME: mermaid
 
+# CHANGEME: add Group
 
 ### Tailnet
 

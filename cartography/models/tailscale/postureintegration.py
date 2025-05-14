@@ -30,8 +30,30 @@ class TailscalePostureIntegrationNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class TailscalePostureIntegrationToTailnetRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:TailscaleTailnet)-[:RESOURCE]->(:TailscalePostureIntegration)
+class TailscalePostureIntegrationToTailnetRel(CartographyRelSchema):
+    target_node_label: str = "TailscaleTailnet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("org", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: TailscalePostureIntegrationToTailnetRelProperties = (
+        TailscalePostureIntegrationToTailnetRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class TailscalePostureIntegrationSchema(CartographyNodeSchema):
     label: str = "TailscalePostureIntegration"
     properties: TailscalePostureIntegrationNodeProperties = (
         TailscalePostureIntegrationNodeProperties()
+    )
+    sub_resource_relationship: TailscalePostureIntegrationToTailnetRel = (
+        TailscalePostureIntegrationToTailnetRel()
     )

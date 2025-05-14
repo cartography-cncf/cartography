@@ -14,7 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TailscaleUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     display_name: PropertyRef = PropertyRef("displayName")
-    login_name: PropertyRef = PropertyRef("loginName")
+    login_name: PropertyRef = PropertyRef("loginName", extra_index=True)
     profile_pic_url: PropertyRef = PropertyRef("profilePicUrl")
     tailnet_id: PropertyRef = PropertyRef("tailnetId")
     created: PropertyRef = PropertyRef("created")
@@ -28,6 +28,26 @@ class TailscaleUserNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class TailscaleUserToTailnetRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleUser)
+class TailscaleUserToTailnetRel(CartographyRelSchema):
+    target_node_label: str = "TailscaleTailnet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("org", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: TailscaleUserToTailnetRelProperties = (
+        TailscaleUserToTailnetRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class TailscaleUserSchema(CartographyNodeSchema):
     label: str = "TailscaleUser"
     properties: TailscaleUserNodeProperties = TailscaleUserNodeProperties()
+    sub_resource_relationship: TailscaleUserToTailnetRel = TailscaleUserToTailnetRel()

@@ -21,19 +21,17 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
     common_job_parameters: Dict[str, Any],
-    tailnet: str,
+    org: str,
 ) -> List[Dict]:
-    tailnets = get(
+    tailnet = get(
         api_session,
         common_job_parameters["BASE_URL"],
-        tailnet,
+        org,
     )
-    # CHANGEME: You can configure here a transform operation
-    # formated_tailnets = transform(tailnets)
     load_tailnets(
         neo4j_session,
-        tailnets,  # CHANGEME: replace with `formated_tailnets` if your added a transform step
-        tailnet,
+        [tailnet],
+        org,
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
@@ -43,26 +41,20 @@ def sync(
 def get(
     api_session: requests.Session,
     base_url: str,
-    tailnet: str,
-) -> List[Dict[str, Any]]:
-    results: List[Dict[str, Any]] = []
-    # CHANGEME: You have to handle pagination if needed
+    org: str,
+) -> Dict[str, Any]:
     req = api_session.get(
-        "{base_url}".format(
-            base_url=base_url,
-            tailnet=tailnet,
-        ),
+        f"{base_url}/tailnet/{org}/settings",
         timeout=_TIMEOUT,
     )
     req.raise_for_status()
-    results = req.json()
-    return results
+    return req.json()
 
 
 def load_tailnets(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
-    tailnet: str,
+    org: str,
     update_tag: int,
 ) -> None:
     load(
@@ -70,7 +62,7 @@ def load_tailnets(
         TailscaleTailnetSchema(),
         data,
         lastupdated=update_tag,
-        tailnet=tailnet,
+        org=org,
     )
 
 

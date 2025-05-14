@@ -23,19 +23,17 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
     common_job_parameters: Dict[str, Any],
-    tailnet: str,
-) -> List[Dict]:
+    org: str,
+) -> None:
     postureintegrations = get(
         api_session,
         common_job_parameters["BASE_URL"],
-        tailnet,
+        org,
     )
-    # CHANGEME: You can configure here a transform operation
-    # formated_postureintegrations = transform(postureintegrations)
     load_postureintegrations(
         neo4j_session,
-        postureintegrations,  # CHANGEME: replace with `formated_postureintegrations` if your added a transform step
-        tailnet,
+        postureintegrations,
+        org,
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
@@ -50,10 +48,7 @@ def get(
     results: List[Dict[str, Any]] = []
     # CHANGEME: You have to handle pagination if needed
     req = api_session.get(
-        "{base_url}/tailnet/{tailnet}/posture/integrations".format(
-            base_url=base_url,
-            tailnet=tailnet,
-        ),
+        f"{base_url}/tailnet/{tailnet}/posture/integrations",
         timeout=_TIMEOUT,
     )
     req.raise_for_status()
@@ -67,6 +62,7 @@ def load_postureintegrations(
     tailnet: str,
     update_tag: int,
 ) -> None:
+    logger.info(f"Loading {len(data)} Tailscale PostureIntegrations to the graph")
     load(
         neo4j_session,
         TailscalePostureIntegrationSchema(),

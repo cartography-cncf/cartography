@@ -7,14 +7,14 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
 class TailscaleDeviceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    node_id: PropertyRef = PropertyRef("nodeId")
-    user: PropertyRef = PropertyRef("user")
+    # We use nodeId because the old property `id` is deprecated
+    id: PropertyRef = PropertyRef("nodeId")
     name: PropertyRef = PropertyRef("name")
     hostname: PropertyRef = PropertyRef("hostname")
     client_version: PropertyRef = PropertyRef("clientVersion")
@@ -26,7 +26,6 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     expires: PropertyRef = PropertyRef("expires")
     authorized: PropertyRef = PropertyRef("authorized")
     is_external: PropertyRef = PropertyRef("isExternal")
-    machine_key: PropertyRef = PropertyRef("machineKey")
     node_key: PropertyRef = PropertyRef("nodeKey")
     blocks_incoming_connections: PropertyRef = PropertyRef("blocksIncomingConnections")
     clientConnectivity_endpoints: PropertyRef = PropertyRef(
@@ -45,6 +44,52 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class TailscaleDeviceToTailnetRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleDevice)
+class TailscaleDeviceToTailnetRel(CartographyRelSchema):
+    target_node_label: str = "TailscaleTailnet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("org", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: TailscaleDeviceToTailnetRelProperties = (
+        TailscaleDeviceToTailnetRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class TailscaleDeviceToUserRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:TailscaleUser)-[:OWNS]->(:TailscaleDevice)
+class TailscaleDeviceToUserRel(CartographyRelSchema):
+    target_node_label: str = "TailscaleUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"login_name": PropertyRef("user")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "OWNS"
+    properties: TailscaleDeviceToUserRelProperties = (
+        TailscaleDeviceToUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class TailscaleDeviceSchema(CartographyNodeSchema):
     label: str = "TailscaleDevice"
     properties: TailscaleDeviceNodeProperties = TailscaleDeviceNodeProperties()
+    sub_resource_relationship: TailscaleDeviceToTailnetRel = (
+        TailscaleDeviceToTailnetRel()
+    )
+    other_relationships = OtherRelationships(
+        [
+            TailscaleDeviceToUserRel(),
+        ]
+    )
