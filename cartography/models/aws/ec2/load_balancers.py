@@ -25,20 +25,20 @@ class LoadBalancerNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LoadBalancerToAWSAccountRelProperties(CartographyRelProperties):
+class LoadBalancerToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class LoadBalancerToAWSAccount(CartographyRelSchema):
+class LoadBalancerToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: LoadBalancerToAWSAccountRelProperties = (
-        LoadBalancerToAWSAccountRelProperties()
+    properties: LoadBalancerToAWSAccountRelRelProperties = (
+        LoadBalancerToAWSAccountRelRelProperties()
     )
 
 
@@ -48,7 +48,7 @@ class LoadBalancerToSecurityGroupRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class LoadBalancerToSourceSecurityGroup(CartographyRelSchema):
+class LoadBalancerToSourceSecurityGroupRel(CartographyRelSchema):
     target_node_label: str = "EC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("GROUP_NAME")},
@@ -61,38 +61,38 @@ class LoadBalancerToSourceSecurityGroup(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class LoadBalancerToEC2SecurityGroupRelProperties(CartographyRelProperties):
+class LoadBalancerToEC2SecurityGroupRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class LoadBalancerToEC2SecurityGroup(CartographyRelSchema):
+class LoadBalancerToEC2SecurityGroupRel(CartographyRelSchema):
     target_node_label: str = "EC2SecurityGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"groupid": PropertyRef("GROUP_IDS", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
-    properties: LoadBalancerToEC2SecurityGroupRelProperties = (
-        LoadBalancerToEC2SecurityGroupRelProperties()
+    properties: LoadBalancerToEC2SecurityGroupRelRelProperties = (
+        LoadBalancerToEC2SecurityGroupRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class LoadBalancerToEC2InstanceRelProperties(CartographyRelProperties):
+class LoadBalancerToEC2InstanceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class LoadBalancerToEC2Instance(CartographyRelSchema):
+class LoadBalancerToEC2InstanceRel(CartographyRelSchema):
     target_node_label: str = "EC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"instanceid": PropertyRef("INSTANCE_IDS", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "EXPOSE"
-    properties: LoadBalancerToEC2InstanceRelProperties = (
-        LoadBalancerToEC2InstanceRelProperties()
+    properties: LoadBalancerToEC2InstanceRelRelProperties = (
+        LoadBalancerToEC2InstanceRelRelProperties()
     )
 
 
@@ -100,11 +100,13 @@ class LoadBalancerToEC2Instance(CartographyRelSchema):
 class LoadBalancerSchema(CartographyNodeSchema):
     label: str = "LoadBalancer"
     properties: LoadBalancerNodeProperties = LoadBalancerNodeProperties()
-    sub_resource_relationship: LoadBalancerToAWSAccount = LoadBalancerToAWSAccount()
+    sub_resource_relationship: LoadBalancerToAWSAccountRel = (
+        LoadBalancerToAWSAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            LoadBalancerToSourceSecurityGroup(),
-            LoadBalancerToEC2SecurityGroup(),
-            LoadBalancerToEC2Instance(),
+            LoadBalancerToSourceSecurityGroupRel(),
+            LoadBalancerToEC2SecurityGroupRel(),
+            LoadBalancerToEC2InstanceRel(),
         ],
     )

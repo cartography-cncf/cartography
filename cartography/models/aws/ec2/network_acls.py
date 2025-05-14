@@ -23,54 +23,56 @@ class EC2NetworkAclNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2NetworkAclToVpcRelProperties(CartographyRelProperties):
+class EC2NetworkAclToVpcRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2NetworkAclToVpc(CartographyRelSchema):
+class EC2NetworkAclToVpcRel(CartographyRelSchema):
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"vpcid": PropertyRef("VpcId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF_AWS_VPC"
-    properties: EC2NetworkAclToVpcRelProperties = EC2NetworkAclToVpcRelProperties()
+    properties: EC2NetworkAclToVpcRelRelProperties = (
+        EC2NetworkAclToVpcRelRelProperties()
+    )
 
 
 @dataclass(frozen=True)
-class EC2NetworkAclToSubnetRelProperties(CartographyRelProperties):
+class EC2NetworkAclToSubnetRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2NetworkAclToSubnet(CartographyRelSchema):
+class EC2NetworkAclToSubnetRel(CartographyRelSchema):
     target_node_label: str = "EC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("SubnetId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "PART_OF_SUBNET"
-    properties: EC2NetworkAclToSubnetRelProperties = (
-        EC2NetworkAclToSubnetRelProperties()
+    properties: EC2NetworkAclToSubnetRelRelProperties = (
+        EC2NetworkAclToSubnetRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class EC2NetworkAclToAwsAccountRelProperties(CartographyRelProperties):
+class EC2NetworkAclToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2NetworkAclToAWSAccount(CartographyRelSchema):
+class EC2NetworkAclToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2NetworkAclToAwsAccountRelProperties = (
-        EC2NetworkAclToAwsAccountRelProperties()
+    properties: EC2NetworkAclToAWSAccountRelRelProperties = (
+        EC2NetworkAclToAWSAccountRelRelProperties()
     )
 
 
@@ -82,10 +84,12 @@ class EC2NetworkAclSchema(CartographyNodeSchema):
 
     label: str = "EC2NetworkAcl"
     properties: EC2NetworkAclNodeProperties = EC2NetworkAclNodeProperties()
-    sub_resource_relationship: EC2NetworkAclToAWSAccount = EC2NetworkAclToAWSAccount()
+    sub_resource_relationship: EC2NetworkAclToAWSAccountRel = (
+        EC2NetworkAclToAWSAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2NetworkAclToVpc(),
-            EC2NetworkAclToSubnet(),
+            EC2NetworkAclToVpcRel(),
+            EC2NetworkAclToSubnetRel(),
         ],
     )

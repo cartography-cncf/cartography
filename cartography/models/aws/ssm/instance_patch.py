@@ -27,38 +27,38 @@ class SSMInstancePatchNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class SSMInstancePatchToAWSAccountRelProperties(CartographyRelProperties):
+class SSMInstancePatchToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class SSMInstancePatchToAWSAccount(CartographyRelSchema):
+class SSMInstancePatchToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SSMInstancePatchToAWSAccountRelProperties = (
-        SSMInstancePatchToAWSAccountRelProperties()
+    properties: SSMInstancePatchToAWSAccountRelRelProperties = (
+        SSMInstancePatchToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class SSMInstancePatchToEC2InstanceRelProperties(CartographyRelProperties):
+class SSMInstancePatchToEC2InstanceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class SSMInstancePatchToEC2Instance(CartographyRelSchema):
+class SSMInstancePatchToEC2InstanceRel(CartographyRelSchema):
     target_node_label: str = "EC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_instance_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_PATCH"
-    properties: SSMInstancePatchToEC2InstanceRelProperties = (
-        SSMInstancePatchToEC2InstanceRelProperties()
+    properties: SSMInstancePatchToEC2InstanceRelRelProperties = (
+        SSMInstancePatchToEC2InstanceRelRelProperties()
     )
 
 
@@ -66,11 +66,11 @@ class SSMInstancePatchToEC2Instance(CartographyRelSchema):
 class SSMInstancePatchSchema(CartographyNodeSchema):
     label: str = "SSMInstancePatch"
     properties: SSMInstancePatchNodeProperties = SSMInstancePatchNodeProperties()
-    sub_resource_relationship: SSMInstancePatchToAWSAccount = (
-        SSMInstancePatchToAWSAccount()
+    sub_resource_relationship: SSMInstancePatchToAWSAccountRel = (
+        SSMInstancePatchToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            SSMInstancePatchToEC2Instance(),
+            SSMInstancePatchToEC2InstanceRel(),
         ],
     )
