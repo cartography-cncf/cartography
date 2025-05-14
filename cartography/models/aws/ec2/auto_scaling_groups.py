@@ -39,38 +39,38 @@ class AutoScalingGroupNodeProperties(CartographyNodeProperties):
 
 # EC2 to AutoScalingGroup
 @dataclass(frozen=True)
-class EC2InstanceToAwsAccountRelProperties(CartographyRelProperties):
+class EC2InstanceToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2InstanceToAWSAccount(CartographyRelSchema):
+class EC2InstanceToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2InstanceToAwsAccountRelProperties = (
-        EC2InstanceToAwsAccountRelProperties()
+    properties: EC2InstanceToAWSAccountRelRelProperties = (
+        EC2InstanceToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class EC2InstanceToAutoScalingGroupRelProperties(CartographyRelProperties):
+class EC2InstanceToAutoScalingGroupRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2InstanceToAutoScalingGroup(CartographyRelSchema):
+class EC2InstanceToAutoScalingGroupRel(CartographyRelSchema):
     target_node_label: str = "AutoScalingGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AutoScalingGroupARN")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_AUTO_SCALE_GROUP"
-    properties: EC2InstanceToAutoScalingGroupRelProperties = (
-        EC2InstanceToAutoScalingGroupRelProperties()
+    properties: EC2InstanceToAutoScalingGroupRelRelProperties = (
+        EC2InstanceToAutoScalingGroupRelRelProperties()
     )
 
 
@@ -88,48 +88,48 @@ class EC2InstanceAutoScalingGroupSchema(CartographyNodeSchema):
     properties: EC2InstanceAutoScalingGroupProperties = (
         EC2InstanceAutoScalingGroupProperties()
     )
-    sub_resource_relationship: EC2InstanceToAWSAccount = EC2InstanceToAWSAccount()
+    sub_resource_relationship: EC2InstanceToAWSAccountRel = EC2InstanceToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2InstanceToAutoScalingGroup(),
+            EC2InstanceToAutoScalingGroupRel(),
         ],
     )
 
 
 # EC2Subnet to AutoScalingGroup
 @dataclass(frozen=True)
-class EC2SubnetToAwsAccountRelProperties(CartographyRelProperties):
+class EC2SubnetToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2SubnetToAWSAccount(CartographyRelSchema):
+class EC2SubnetToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2SubnetToAwsAccountRelProperties = (
-        EC2SubnetToAwsAccountRelProperties()
+    properties: EC2SubnetToAWSAccountRelRelProperties = (
+        EC2SubnetToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class EC2SubnetToAutoScalingGroupRelProperties(CartographyRelProperties):
+class EC2SubnetToAutoScalingGroupRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2SubnetToAutoScalingGroup(CartographyRelSchema):
+class EC2SubnetToAutoScalingGroupRel(CartographyRelSchema):
     target_node_label: str = "AutoScalingGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AutoScalingGroupARN")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "VPC_IDENTIFIER"
-    properties: EC2SubnetToAutoScalingGroupRelProperties = (
-        EC2SubnetToAutoScalingGroupRelProperties()
+    properties: EC2SubnetToAutoScalingGroupRelRelProperties = (
+        EC2SubnetToAutoScalingGroupRelRelProperties()
     )
 
 
@@ -146,66 +146,66 @@ class EC2SubnetAutoScalingGroupSchema(CartographyNodeSchema):
     properties: EC2SubnetAutoScalingGroupNodeProperties = (
         EC2SubnetAutoScalingGroupNodeProperties()
     )
-    sub_resource_relationship: EC2SubnetToAWSAccount = EC2SubnetToAWSAccount()
+    sub_resource_relationship: EC2SubnetToAWSAccountRel = EC2SubnetToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2SubnetToAutoScalingGroup(),
+            EC2SubnetToAutoScalingGroupRel(),
         ],
     )
 
 
 # AutoScalingGroup
 @dataclass(frozen=True)
-class AutoScalingGroupToAwsAccountRelProperties(CartographyRelProperties):
+class AutoScalingGroupToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AutoScalingGroupToAWSAccount(CartographyRelSchema):
+class AutoScalingGroupToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AutoScalingGroupToAwsAccountRelProperties = (
-        AutoScalingGroupToAwsAccountRelProperties()
+    properties: AutoScalingGroupToAWSAccountRelRelProperties = (
+        AutoScalingGroupToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AutoScalingGroupToLaunchTemplateRelProperties(CartographyRelProperties):
+class AutoScalingGroupToLaunchTemplateRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AutoScalingGroupToLaunchTemplate(CartographyRelSchema):
+class AutoScalingGroupToLaunchTemplateRel(CartographyRelSchema):
     target_node_label: str = "LaunchTemplate"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LaunchTemplateId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_LAUNCH_TEMPLATE"
-    properties: AutoScalingGroupToLaunchTemplateRelProperties = (
-        AutoScalingGroupToLaunchTemplateRelProperties()
+    properties: AutoScalingGroupToLaunchTemplateRelRelProperties = (
+        AutoScalingGroupToLaunchTemplateRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AutoScalingGroupToLaunchConfigurationRelProperties(CartographyRelProperties):
+class AutoScalingGroupToLaunchConfigurationRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AutoScalingGroupToLaunchConfiguration(CartographyRelSchema):
+class AutoScalingGroupToLaunchConfigurationRel(CartographyRelSchema):
     target_node_label: str = "LaunchConfiguration"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("LaunchConfigurationName")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_LAUNCH_CONFIG"
-    properties: AutoScalingGroupToLaunchConfigurationRelProperties = (
-        AutoScalingGroupToLaunchConfigurationRelProperties()
+    properties: AutoScalingGroupToLaunchConfigurationRelRelProperties = (
+        AutoScalingGroupToLaunchConfigurationRelRelProperties()
     )
 
 
@@ -213,12 +213,12 @@ class AutoScalingGroupToLaunchConfiguration(CartographyRelSchema):
 class AutoScalingGroupSchema(CartographyNodeSchema):
     label: str = "AutoScalingGroup"
     properties: AutoScalingGroupNodeProperties = AutoScalingGroupNodeProperties()
-    sub_resource_relationship: AutoScalingGroupToAWSAccount = (
-        AutoScalingGroupToAWSAccount()
+    sub_resource_relationship: AutoScalingGroupToAWSAccountRel = (
+        AutoScalingGroupToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AutoScalingGroupToLaunchTemplate(),
-            AutoScalingGroupToLaunchConfiguration(),
+            AutoScalingGroupToLaunchTemplateRel(),
+            AutoScalingGroupToLaunchConfigurationRel(),
         ],
     )

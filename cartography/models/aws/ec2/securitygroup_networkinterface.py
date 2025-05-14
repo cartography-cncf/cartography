@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from cartography.models.aws.ec2.securitygroup_instance import (
-    EC2SecurityGroupToAWSAccount,
+    EC2SecurityGroupToAWSAccountRel,
 )
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
@@ -24,20 +24,20 @@ class EC2SecurityGroupNetworkInterfaceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2SubnetToNetworkInterfaceRelProperties(CartographyRelProperties):
+class EC2SubnetToNetworkInterfaceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2SecurityGroupToNetworkInterface(CartographyRelSchema):
+class EC2SecurityGroupToNetworkInterfaceRel(CartographyRelSchema):
     target_node_label: str = "NetworkInterface"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("NetworkInterfaceId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
-    properties: EC2SubnetToNetworkInterfaceRelProperties = (
-        EC2SubnetToNetworkInterfaceRelProperties()
+    properties: EC2SubnetToNetworkInterfaceRelRelProperties = (
+        EC2SubnetToNetworkInterfaceRelRelProperties()
     )
 
 
@@ -51,11 +51,11 @@ class EC2SecurityGroupNetworkInterfaceSchema(CartographyNodeSchema):
     properties: EC2SecurityGroupNetworkInterfaceNodeProperties = (
         EC2SecurityGroupNetworkInterfaceNodeProperties()
     )
-    sub_resource_relationship: EC2SecurityGroupToAWSAccount = (
-        EC2SecurityGroupToAWSAccount()
+    sub_resource_relationship: EC2SecurityGroupToAWSAccountRel = (
+        EC2SecurityGroupToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2SecurityGroupToNetworkInterface(),
+            EC2SecurityGroupToNetworkInterfaceRel(),
         ],
     )

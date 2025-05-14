@@ -42,7 +42,7 @@ class CloudTrailTrailToAwsAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class CloudTrailToAWSAccount(CartographyRelSchema):
+class CloudTrailToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -58,4 +58,4 @@ class CloudTrailToAWSAccount(CartographyRelSchema):
 class CloudTrailTrailSchema(CartographyNodeSchema):
     label: str = "CloudTrailTrail"
     properties: CloudTrailTrailNodeProperties = CloudTrailTrailNodeProperties()
-    sub_resource_relationship: CloudTrailToAWSAccount = CloudTrailToAWSAccount()
+    sub_resource_relationship: CloudTrailToAWSAccountRel = CloudTrailToAWSAccountRel()
