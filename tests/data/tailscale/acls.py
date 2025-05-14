@@ -4,12 +4,14 @@ TAILSCALE_ACL_FILE = """
     // Declare static groups of users. Use autogroups for all users or users with a specific role.
     "groups": {
         "group:example": ["hjsimpson@simpson.corp"],
-        "group:corp":   ["*@simpson.corp"],
+        "group:corp":   ["user:*@simpson.corp"],
+        "group:employees": ["group:corp", "user:*@ext.simpson.corp"],
     },
 
     // Define the tags which can be applied to devices and by which users.
     "tagOwners": {
         "tag:byod": ["autogroup:admin"],
+        "tag:compromized": ["hjsimpson@simpson.corp"],
     },
 
     // Define access control lists for users, groups, autogroups, tags,
