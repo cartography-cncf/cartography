@@ -23,57 +23,57 @@ class PermissionSetProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class PermissionSetToInstanceRelProperties(CartographyRelProperties):
+class PermissionSetToInstanceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class PermissionSetToInstance(CartographyRelSchema):
+class PermissionSetToInstanceRel(CartographyRelSchema):
     target_node_label: str = "AWSIdentityCenter"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("InstanceArn", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_PERMISSION_SET"
-    properties: PermissionSetToInstanceRelProperties = (
-        PermissionSetToInstanceRelProperties()
+    properties: PermissionSetToInstanceRelRelProperties = (
+        PermissionSetToInstanceRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class PermissionSetToAWSRoleRelProperties(CartographyRelProperties):
+class PermissionSetToAWSRoleRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class PermissionSetToAWSRole(CartographyRelSchema):
+class PermissionSetToAWSRoleRel(CartographyRelSchema):
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("RoleHint", fuzzy_and_ignore_case=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSIGNED_TO_ROLE"
-    properties: PermissionSetToAWSRoleRelProperties = (
-        PermissionSetToAWSRoleRelProperties()
+    properties: PermissionSetToAWSRoleRelRelProperties = (
+        PermissionSetToAWSRoleRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AWSPermissionSetToAwsAccountRelProperties(CartographyRelProperties):
+class AWSPermissionSetToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:IdentityCenter)<-[:RESOURCE]-(:AWSAccount)
-class AWSPermissionSetToAWSAccount(CartographyRelSchema):
+class AWSPermissionSetToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSPermissionSetToAwsAccountRelProperties = (
-        AWSPermissionSetToAwsAccountRelProperties()
+    properties: AWSPermissionSetToAWSAccountRelRelProperties = (
+        AWSPermissionSetToAWSAccountRelRelProperties()
     )
 
 
@@ -81,12 +81,12 @@ class AWSPermissionSetToAWSAccount(CartographyRelSchema):
 class AWSPermissionSetSchema(CartographyNodeSchema):
     label: str = "AWSPermissionSet"
     properties: PermissionSetProperties = PermissionSetProperties()
-    sub_resource_relationship: AWSPermissionSetToAWSAccount = (
-        AWSPermissionSetToAWSAccount()
+    sub_resource_relationship: AWSPermissionSetToAWSAccountRel = (
+        AWSPermissionSetToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            PermissionSetToInstance(),
-            PermissionSetToAWSRole(),
+            PermissionSetToInstanceRel(),
+            PermissionSetToAWSRoleRel(),
         ],
     )

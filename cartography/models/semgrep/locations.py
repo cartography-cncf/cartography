@@ -30,7 +30,7 @@ class SemgrepSCALocToSemgrepSCAFindingRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:SemgrepSCALocation)<-[:USAGE_AT]-(:SemgrepSCAFinding)
-class SemgrepSCALocToSemgrepSCAFindingRelSchema(CartographyRelSchema):
+class SemgrepSCALocToSemgrepSCAFindingRel(CartographyRelSchema):
     target_node_label: str = "SemgrepSCAFinding"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SCA_ID")},
@@ -49,7 +49,7 @@ class SemgrepSCALocToSemgrepSCADeploymentRelProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 # (:SemgrepSCALocation)<-[:RESOURCE]-(:SemgrepSCADeployment)
-class SemgrepSCALocToSCADeploymentRelSchema(CartographyRelSchema):
+class SemgrepSCALocToSCADeploymentRel(CartographyRelSchema):
     target_node_label: str = "SemgrepDeployment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DEPLOYMENT_ID", set_in_kwargs=True)},
@@ -65,11 +65,11 @@ class SemgrepSCALocToSCADeploymentRelSchema(CartographyRelSchema):
 class SemgrepSCALocationSchema(CartographyNodeSchema):
     label: str = "SemgrepSCALocation"
     properties: SemgrepSCALocationProperties = SemgrepSCALocationProperties()
-    sub_resource_relationship: SemgrepSCALocToSCADeploymentRelSchema = (
-        SemgrepSCALocToSCADeploymentRelSchema()
+    sub_resource_relationship: SemgrepSCALocToSCADeploymentRel = (
+        SemgrepSCALocToSCADeploymentRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            SemgrepSCALocToSemgrepSCAFindingRelSchema(),
+            SemgrepSCALocToSemgrepSCAFindingRel(),
         ],
     )

@@ -56,7 +56,7 @@ class SnipeitTenantToSnipeitAssetRel(CartographyRelSchema):
 # (:SnipeitUser)-[:HAS_CHECKED_OUT]->(:SnipeitAsset)
 ###
 @dataclass(frozen=True)
-class SnipeitUserToSnipeitAssetProperties(CartographyRelProperties):
+class SnipeitUserToSnipeitAssetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -68,8 +68,8 @@ class SnipeitUserToSnipeitAssetRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_CHECKED_OUT"
-    properties: SnipeitUserToSnipeitAssetProperties = (
-        SnipeitUserToSnipeitAssetProperties()
+    properties: SnipeitUserToSnipeitAssetRelProperties = (
+        SnipeitUserToSnipeitAssetRelProperties()
     )
 
 

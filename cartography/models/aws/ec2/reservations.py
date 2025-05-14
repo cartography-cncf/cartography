@@ -21,20 +21,20 @@ class EC2ReservationNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2ReservationToAwsAccountRelProperties(CartographyRelProperties):
+class EC2ReservationToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2ReservationToAWSAccount(CartographyRelSchema):
+class EC2ReservationToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2ReservationToAwsAccountRelProperties = (
-        EC2ReservationToAwsAccountRelProperties()
+    properties: EC2ReservationToAWSAccountRelRelProperties = (
+        EC2ReservationToAWSAccountRelRelProperties()
     )
 
 
@@ -42,4 +42,6 @@ class EC2ReservationToAWSAccount(CartographyRelSchema):
 class EC2ReservationSchema(CartographyNodeSchema):
     label: str = "EC2Reservation"
     properties: EC2ReservationNodeProperties = EC2ReservationNodeProperties()
-    sub_resource_relationship: EC2ReservationToAWSAccount = EC2ReservationToAWSAccount()
+    sub_resource_relationship: EC2ReservationToAWSAccountRel = (
+        EC2ReservationToAWSAccountRel()
+    )

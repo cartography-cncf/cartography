@@ -19,16 +19,16 @@ class LinkDirection(Enum):
 
         class EMRCluster(CartographyNodeSchema):
             label: str = "EMRCluster"
-            sub_resource_relationship: CartographyRelSchema = EMRClusterToAWSAccount()
+            sub_resource_relationship: CartographyRelSchema = EMRClusterToAWSAccountRel()
             # ...
 
-        class EMRClusterToAWSAccount(CartographyRelSchema):
+        class EMRClusterToAWSAccountRel(CartographyRelSchema):
             target_node_label: str = "AWSAccount"
             rel_label: str = "RESOURCE"
             direction: LinkDirection = LinkDirection.INWARD
             # ...
 
-    If `EMRClusterToAWSAccount.direction` was LinkDirection.OUTWARD, then the directionality of the relationship would
+    If `EMRClusterToAWSAccountRel.direction` was LinkDirection.OUTWARD, then the directionality of the relationship would
     be `(:EMRCluster)-[:RESOURCE]->(:AWSAccount)` instead.
     """
 

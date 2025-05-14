@@ -30,38 +30,38 @@ class AWSInspectorPackageNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class InspectorPackageToAwsAccountRelProperties(CartographyRelProperties):
+class InspectorPackageToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class InspectorPackageToAWSAccount(CartographyRelSchema):
+class InspectorPackageToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: InspectorPackageToAwsAccountRelProperties = (
-        InspectorPackageToAwsAccountRelProperties()
+    properties: InspectorPackageToAWSAccountRelRelProperties = (
+        InspectorPackageToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class InspectorPackageToFindingRelProperties(CartographyRelProperties):
+class InspectorPackageToFindingRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class InspectorPackageToFinding(CartographyRelSchema):
+class InspectorPackageToFindingRel(CartographyRelSchema):
     target_node_label: str = "AWSInspectorFinding"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("findingarn")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS"
-    properties: InspectorPackageToFindingRelProperties = (
-        InspectorPackageToFindingRelProperties()
+    properties: InspectorPackageToFindingRelRelProperties = (
+        InspectorPackageToFindingRelRelProperties()
     )
 
 
@@ -69,11 +69,11 @@ class InspectorPackageToFinding(CartographyRelSchema):
 class AWSInspectorPackageSchema(CartographyNodeSchema):
     label: str = "AWSInspectorPackage"
     properties: AWSInspectorPackageNodeProperties = AWSInspectorPackageNodeProperties()
-    sub_resource_relationship: InspectorPackageToAWSAccount = (
-        InspectorPackageToAWSAccount()
+    sub_resource_relationship: InspectorPackageToAWSAccountRel = (
+        InspectorPackageToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            InspectorPackageToFinding(),
+            InspectorPackageToFindingRel(),
         ],
     )

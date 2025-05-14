@@ -43,38 +43,38 @@ class SSMInstanceInformationNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class SSMInstanceInformationToAWSAccountRelProperties(CartographyRelProperties):
+class SSMInstanceInformationToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class SSMInstanceInformationToAWSAccount(CartographyRelSchema):
+class SSMInstanceInformationToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SSMInstanceInformationToAWSAccountRelProperties = (
-        SSMInstanceInformationToAWSAccountRelProperties()
+    properties: SSMInstanceInformationToAWSAccountRelRelProperties = (
+        SSMInstanceInformationToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class SSMInstanceInformationToEC2InstanceRelProperties(CartographyRelProperties):
+class SSMInstanceInformationToEC2InstanceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class SSMInstanceInformationToEC2Instance(CartographyRelSchema):
+class SSMInstanceInformationToEC2InstanceRel(CartographyRelSchema):
     target_node_label: str = "EC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_INFORMATION"
-    properties: SSMInstanceInformationToEC2InstanceRelProperties = (
-        SSMInstanceInformationToEC2InstanceRelProperties()
+    properties: SSMInstanceInformationToEC2InstanceRelRelProperties = (
+        SSMInstanceInformationToEC2InstanceRelRelProperties()
     )
 
 
@@ -84,11 +84,11 @@ class SSMInstanceInformationSchema(CartographyNodeSchema):
     properties: SSMInstanceInformationNodeProperties = (
         SSMInstanceInformationNodeProperties()
     )
-    sub_resource_relationship: SSMInstanceInformationToAWSAccount = (
-        SSMInstanceInformationToAWSAccount()
+    sub_resource_relationship: SSMInstanceInformationToAWSAccountRel = (
+        SSMInstanceInformationToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            SSMInstanceInformationToEC2Instance(),
+            SSMInstanceInformationToEC2InstanceRel(),
         ],
     )

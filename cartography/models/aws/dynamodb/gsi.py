@@ -27,40 +27,40 @@ class DynamoDBGSINodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class DynamoDBGSIToAwsAccountRelProperties(CartographyRelProperties):
+class DynamoDBGSIToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:DynamoDBGlobalSecondaryIndex)<-[:RESOURCE]-(:AWSAccount)
-class DynamoDBGSIToAWSAccount(CartographyRelSchema):
+class DynamoDBGSIToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: DynamoDBGSIToAwsAccountRelProperties = (
-        DynamoDBGSIToAwsAccountRelProperties()
+    properties: DynamoDBGSIToAWSAccountRelRelProperties = (
+        DynamoDBGSIToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class DynamoDBGSIToDynamoDBTableRelProperties(CartographyRelProperties):
+class DynamoDBGSIToDynamoDBTableRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:DynamoDBGlobalSecondaryIndex)<-[:GLOBAL_SECONDARY_INDEX]-(:DynamoDBTable)
-class DynamoDBGSIToDynamoDBTable(CartographyRelSchema):
+class DynamoDBGSIToDynamoDBTableRel(CartographyRelSchema):
     target_node_label: str = "DynamoDBTable"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("TableArn")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "GLOBAL_SECONDARY_INDEX"
-    properties: DynamoDBGSIToDynamoDBTableRelProperties = (
-        DynamoDBGSIToDynamoDBTableRelProperties()
+    properties: DynamoDBGSIToDynamoDBTableRelRelProperties = (
+        DynamoDBGSIToDynamoDBTableRelRelProperties()
     )
 
 
@@ -68,9 +68,9 @@ class DynamoDBGSIToDynamoDBTable(CartographyRelSchema):
 class DynamoDBGSISchema(CartographyNodeSchema):
     label: str = "DynamoDBGlobalSecondaryIndex"
     properties: DynamoDBGSINodeProperties = DynamoDBGSINodeProperties()
-    sub_resource_relationship: DynamoDBGSIToAWSAccount = DynamoDBGSIToAWSAccount()
+    sub_resource_relationship: DynamoDBGSIToAWSAccountRel = DynamoDBGSIToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            DynamoDBGSIToDynamoDBTable(),
+            DynamoDBGSIToDynamoDBTableRel(),
         ],
     )

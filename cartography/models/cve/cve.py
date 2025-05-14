@@ -44,7 +44,7 @@ class CVEtoCVEFeedRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:CVE)<-[:RESOURCE]-(:CVEFeed)
-class CVEtoCVEFeedRelSchema(CartographyRelSchema):
+class CVEtoCVEFeedRel(CartographyRelSchema):
     target_node_label: str = "CVEFeed"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FEED_ID", set_in_kwargs=True)},
@@ -77,7 +77,7 @@ class CVEToSpotlightVulnerabilityRel(CartographyRelSchema):
 class CVESchema(CartographyNodeSchema):
     label: str = "CVE"
     properties: CVENodeProperties = CVENodeProperties()
-    sub_resource_relationship: CVEtoCVEFeedRelSchema = CVEtoCVEFeedRelSchema()
+    sub_resource_relationship: CVEtoCVEFeedRel = CVEtoCVEFeedRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CVEToSpotlightVulnerabilityRel(),

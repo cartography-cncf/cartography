@@ -6,13 +6,13 @@ from cartography.graph.cleanupbuilder import _build_cleanup_node_and_rel_queries
 from cartography.graph.cleanupbuilder import _build_cleanup_rel_query_no_sub_resource
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.job import get_parameters
-from cartography.models.aws.emr import EMRClusterToAWSAccount
+from cartography.models.aws.emr import EMRClusterToAWSAccountRel
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.graph.querybuilder.sample_models.asset_with_non_kwargs_tgm import (
     FakeEC2InstanceSchema,
 )
 from tests.data.graph.querybuilder.sample_models.asset_with_non_kwargs_tgm import (
-    FakeEC2InstanceToAWSAccount,
+    FakeEC2InstanceToAWSAccountRel,
 )
 from tests.data.graph.querybuilder.sample_models.interesting_asset import (
     InterestingAssetSchema,
@@ -84,11 +84,11 @@ def test_cleanup_with_invalid_selected_rel_raises_exc():
     Test that we raise a ValueError if we try to cleanup a node and provide a specified rel but the rel doesn't exist on
     the node schema.
     """
-    exc_msg = "EMRClusterToAWSAccount is not defined on CartographyNodeSchema type InterestingAssetSchema"
+    exc_msg = "EMRClusterToAWSAccountRel is not defined on CartographyNodeSchema type InterestingAssetSchema"
     with pytest.raises(ValueError, match=exc_msg):
         _build_cleanup_node_and_rel_queries(
             InterestingAssetSchema(),
-            EMRClusterToAWSAccount(),
+            EMRClusterToAWSAccountRel(),
         )
 
 
@@ -143,7 +143,7 @@ def test_build_cleanup_node_and_rel_queries_sub_res_tgm_not_validated_raises_exc
     with pytest.raises(ValueError, match="must have set_in_kwargs=True"):
         _build_cleanup_node_and_rel_queries(
             FakeEC2InstanceSchema(),
-            FakeEC2InstanceToAWSAccount(),
+            FakeEC2InstanceToAWSAccountRel(),
         )
 
 

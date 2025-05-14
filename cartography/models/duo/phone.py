@@ -49,7 +49,7 @@ class DuoPhoneToDuoApiHostRel(CartographyRelSchema):
     properties: DuoPhoneToDuoApiHostRelProperties = DuoPhoneToDuoApiHostRelProperties()
 
 
-class DuoPhoneToDuoUserProperties(CartographyRelProperties):
+class DuoPhoneToDuoUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -61,7 +61,7 @@ class DuoPhoneToDuoUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_DUO_PHONE"
-    properties: DuoPhoneToDuoUserProperties = DuoPhoneToDuoUserProperties()
+    properties: DuoPhoneToDuoUserRelProperties = DuoPhoneToDuoUserRelProperties()
 
 
 @dataclass(frozen=True)

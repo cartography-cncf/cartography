@@ -33,38 +33,38 @@ class EBSVolumeNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EBSVolumeToAwsAccountRelProperties(CartographyRelProperties):
+class EBSVolumeToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EBSVolumeToAWSAccount(CartographyRelSchema):
+class EBSVolumeToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EBSVolumeToAwsAccountRelProperties = (
-        EBSVolumeToAwsAccountRelProperties()
+    properties: EBSVolumeToAWSAccountRelRelProperties = (
+        EBSVolumeToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class EBSVolumeToEC2InstanceRelProperties(CartographyRelProperties):
+class EBSVolumeToEC2InstanceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EBSVolumeToEC2Instance(CartographyRelSchema):
+class EBSVolumeToEC2InstanceRel(CartographyRelSchema):
     target_node_label: str = "EC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ATTACHED_TO"
-    properties: EBSVolumeToEC2InstanceRelProperties = (
-        EBSVolumeToEC2InstanceRelProperties()
+    properties: EBSVolumeToEC2InstanceRelRelProperties = (
+        EBSVolumeToEC2InstanceRelRelProperties()
     )
 
 
@@ -76,10 +76,10 @@ class EBSVolumeSchema(CartographyNodeSchema):
 
     label: str = "EBSVolume"
     properties: EBSVolumeNodeProperties = EBSVolumeNodeProperties()
-    sub_resource_relationship: EBSVolumeToAWSAccount = EBSVolumeToAWSAccount()
+    sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EBSVolumeToEC2Instance(),
+            EBSVolumeToEC2InstanceRel(),
         ],
     )
 
@@ -106,9 +106,9 @@ class EBSVolumeInstanceSchema(CartographyNodeSchema):
 
     label: str = "EBSVolume"
     properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
-    sub_resource_relationship: EBSVolumeToAWSAccount = EBSVolumeToAWSAccount()
+    sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EBSVolumeToEC2Instance(),
+            EBSVolumeToEC2InstanceRel(),
         ],
     )

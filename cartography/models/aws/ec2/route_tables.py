@@ -27,89 +27,89 @@ class RouteTableNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class RouteTableToAwsAccountRelProperties(CartographyRelProperties):
+class RouteTableToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteTableToAWSAccount(CartographyRelSchema):
+class RouteTableToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: RouteTableToAwsAccountRelProperties = (
-        RouteTableToAwsAccountRelProperties()
+    properties: RouteTableToAWSAccountRelRelProperties = (
+        RouteTableToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class RouteTableToVpcRelProperties(CartographyRelProperties):
+class RouteTableToVpcRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteTableToVpc(CartographyRelSchema):
+class RouteTableToVpcRel(CartographyRelSchema):
     target_node_label: str = "AWSVpc"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("vpc_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF_AWS_VPC"
-    properties: RouteTableToVpcRelProperties = RouteTableToVpcRelProperties()
+    properties: RouteTableToVpcRelRelProperties = RouteTableToVpcRelRelProperties()
 
 
 @dataclass(frozen=True)
-class RouteTableToRouteRelProperties(CartographyRelProperties):
+class RouteTableToRouteRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteTableToRoute(CartographyRelSchema):
+class RouteTableToRouteRel(CartographyRelSchema):
     target_node_label: str = "EC2Route"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("RouteIds", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ROUTE"
-    properties: RouteTableToRouteRelProperties = RouteTableToRouteRelProperties()
+    properties: RouteTableToRouteRelRelProperties = RouteTableToRouteRelRelProperties()
 
 
 @dataclass(frozen=True)
-class RouteTableToAssociationRelProperties(CartographyRelProperties):
+class RouteTableToAssociationRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteTableToAssociation(CartographyRelSchema):
+class RouteTableToAssociationRel(CartographyRelSchema):
     target_node_label: str = "EC2RouteTableAssociation"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("RouteTableAssociationIds", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATION"
-    properties: RouteTableToAssociationRelProperties = (
-        RouteTableToAssociationRelProperties()
+    properties: RouteTableToAssociationRelRelProperties = (
+        RouteTableToAssociationRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class RouteTableToVpnGatewayRelProperties(CartographyRelProperties):
+class RouteTableToVpnGatewayRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 # TODO implement AWSVpnGateways
 @dataclass(frozen=True)
-class RouteTableToVpnGateway(CartographyRelSchema):
+class RouteTableToVpnGatewayRel(CartographyRelSchema):
     target_node_label: str = "AWSVpnGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VpnGatewayIds", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CONNECTED_TO"
-    properties: RouteTableToVpnGatewayRelProperties = (
-        RouteTableToVpnGatewayRelProperties()
+    properties: RouteTableToVpnGatewayRelRelProperties = (
+        RouteTableToVpnGatewayRelRelProperties()
     )
 
 
@@ -117,12 +117,12 @@ class RouteTableToVpnGateway(CartographyRelSchema):
 class RouteTableSchema(CartographyNodeSchema):
     label: str = "EC2RouteTable"
     properties: RouteTableNodeProperties = RouteTableNodeProperties()
-    sub_resource_relationship: RouteTableToAWSAccount = RouteTableToAWSAccount()
+    sub_resource_relationship: RouteTableToAWSAccountRel = RouteTableToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            RouteTableToVpc(),
-            RouteTableToRoute(),
-            RouteTableToAssociation(),
-            RouteTableToVpnGateway(),
+            RouteTableToVpcRel(),
+            RouteTableToRouteRel(),
+            RouteTableToAssociationRel(),
+            RouteTableToVpnGatewayRel(),
         ],
     )

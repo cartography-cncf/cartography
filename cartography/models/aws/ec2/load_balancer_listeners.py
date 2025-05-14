@@ -24,38 +24,38 @@ class ELBListenerNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ELBListenerToLoadBalancerRelProperties(CartographyRelProperties):
+class ELBListenerToLoadBalancerRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class ELBListenerToLoadBalancer(CartographyRelSchema):
+class ELBListenerToLoadBalancerRel(CartographyRelSchema):
     target_node_label: str = "LoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ELB_LISTENER"
-    properties: ELBListenerToLoadBalancerRelProperties = (
-        ELBListenerToLoadBalancerRelProperties()
+    properties: ELBListenerToLoadBalancerRelRelProperties = (
+        ELBListenerToLoadBalancerRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class ELBListenerToAWSAccountRelProperties(CartographyRelProperties):
+class ELBListenerToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class ELBListenerToAWSAccount(CartographyRelSchema):
+class ELBListenerToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: ELBListenerToAWSAccountRelProperties = (
-        ELBListenerToAWSAccountRelProperties()
+    properties: ELBListenerToAWSAccountRelRelProperties = (
+        ELBListenerToAWSAccountRelRelProperties()
     )
 
 
@@ -64,9 +64,9 @@ class ELBListenerSchema(CartographyNodeSchema):
     label: str = "ELBListener"
     properties: ELBListenerNodeProperties = ELBListenerNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Endpoint"])
-    sub_resource_relationship: ELBListenerToAWSAccount = ELBListenerToAWSAccount()
+    sub_resource_relationship: ELBListenerToAWSAccountRel = ELBListenerToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            ELBListenerToLoadBalancer(),
+            ELBListenerToLoadBalancerRel(),
         ],
     )

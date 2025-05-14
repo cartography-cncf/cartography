@@ -23,37 +23,37 @@ class SSOUserProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class SSOUserToOktaUserRelProperties(CartographyRelProperties):
+class SSOUserToOktaUserRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class SSOUserToOktaUser(CartographyRelSchema):
+class SSOUserToOktaUserRel(CartographyRelSchema):
     target_node_label: str = "UserAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ExternalId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CAN_ASSUME_IDENTITY"
-    properties: SSOUserToOktaUserRelProperties = SSOUserToOktaUserRelProperties()
+    properties: SSOUserToOktaUserRelRelProperties = SSOUserToOktaUserRelRelProperties()
 
 
 @dataclass(frozen=True)
-class AWSSSOUserToAwsAccountRelProperties(CartographyRelProperties):
+class AWSSSOUserToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:IdentityCenter)<-[:RESOURCE]-(:AWSAccount)
-class AWSSSOUserToAWSAccount(CartographyRelSchema):
+class AWSSSOUserToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSSSOUserToAwsAccountRelProperties = (
-        AWSSSOUserToAwsAccountRelProperties()
+    properties: AWSSSOUserToAWSAccountRelRelProperties = (
+        AWSSSOUserToAWSAccountRelRelProperties()
     )
 
 
@@ -62,9 +62,9 @@ class AWSSSOUserSchema(CartographyNodeSchema):
     label: str = "AWSSSOUser"
     properties: SSOUserProperties = SSOUserProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
-    sub_resource_relationship: AWSSSOUserToAWSAccount = AWSSSOUserToAWSAccount()
+    sub_resource_relationship: AWSSSOUserToAWSAccountRel = AWSSSOUserToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            SSOUserToOktaUser(),
+            SSOUserToOktaUserRel(),
         ],
     )

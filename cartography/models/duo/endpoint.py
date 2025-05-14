@@ -64,7 +64,7 @@ class DuoEndpointToDuoApiHostRel(CartographyRelSchema):
     )
 
 
-class DuoEndpointToDuoUserProperties(CartographyRelProperties):
+class DuoEndpointToDuoUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -76,7 +76,7 @@ class DuoEndpointToDuoUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_DUO_ENDPOINT"
-    properties: DuoEndpointToDuoUserProperties = DuoEndpointToDuoUserProperties()
+    properties: DuoEndpointToDuoUserRelProperties = DuoEndpointToDuoUserRelProperties()
 
 
 @dataclass(frozen=True)

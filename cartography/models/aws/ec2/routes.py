@@ -40,36 +40,36 @@ class RouteNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class RouteToAwsAccountRelProperties(CartographyRelProperties):
+class RouteToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteToAWSAccount(CartographyRelSchema):
+class RouteToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: RouteToAwsAccountRelProperties = RouteToAwsAccountRelProperties()
+    properties: RouteToAWSAccountRelRelProperties = RouteToAWSAccountRelRelProperties()
 
 
 @dataclass(frozen=True)
-class RouteToInternetGatewayRelProperties(CartographyRelProperties):
+class RouteToInternetGatewayRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteToInternetGateway(CartographyRelSchema):
+class RouteToInternetGatewayRel(CartographyRelSchema):
     target_node_label: str = "AWSInternetGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("gateway_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ROUTES_TO_GATEWAY"
-    properties: RouteToInternetGatewayRelProperties = (
-        RouteToInternetGatewayRelProperties()
+    properties: RouteToInternetGatewayRelRelProperties = (
+        RouteToInternetGatewayRelRelProperties()
     )
 
 
@@ -77,9 +77,9 @@ class RouteToInternetGateway(CartographyRelSchema):
 class RouteSchema(CartographyNodeSchema):
     label: str = "EC2Route"
     properties: RouteNodeProperties = RouteNodeProperties()
-    sub_resource_relationship: RouteToAWSAccount = RouteToAWSAccount()
+    sub_resource_relationship: RouteToAWSAccountRel = RouteToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            RouteToInternetGateway(),
+            RouteToInternetGatewayRel(),
         ]
     )

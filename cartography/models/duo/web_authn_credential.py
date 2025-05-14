@@ -40,7 +40,7 @@ class DuoWebAuthnCredentialToDuoApiHostRel(CartographyRelSchema):
     )
 
 
-class DuoWebAuthnCredentialToDuoUserProperties(CartographyRelProperties):
+class DuoWebAuthnCredentialToDuoUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -52,8 +52,8 @@ class DuoWebAuthnCredentialToDuoUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_DUO_WEB_AUTHN_CREDENTIAL"
-    properties: DuoWebAuthnCredentialToDuoUserProperties = (
-        DuoWebAuthnCredentialToDuoUserProperties()
+    properties: DuoWebAuthnCredentialToDuoUserRelProperties = (
+        DuoWebAuthnCredentialToDuoUserRelProperties()
     )
 
 

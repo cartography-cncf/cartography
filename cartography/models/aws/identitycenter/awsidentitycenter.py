@@ -21,21 +21,21 @@ class IdentityCenterInstanceProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class IdentityCenterToAwsAccountRelProperties(CartographyRelProperties):
+class IdentityCenterToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:IdentityCenter)<-[:RESOURCE]-(:AWSAccount)
-class IdentityCenterToAWSAccount(CartographyRelSchema):
+class IdentityCenterToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: IdentityCenterToAwsAccountRelProperties = (
-        IdentityCenterToAwsAccountRelProperties()
+    properties: IdentityCenterToAWSAccountRelRelProperties = (
+        IdentityCenterToAWSAccountRelRelProperties()
     )
 
 
@@ -43,4 +43,6 @@ class IdentityCenterToAWSAccount(CartographyRelSchema):
 class AWSIdentityCenterInstanceSchema(CartographyNodeSchema):
     label: str = "AWSIdentityCenter"
     properties: IdentityCenterInstanceProperties = IdentityCenterInstanceProperties()
-    sub_resource_relationship: IdentityCenterToAWSAccount = IdentityCenterToAWSAccount()
+    sub_resource_relationship: IdentityCenterToAWSAccountRel = (
+        IdentityCenterToAWSAccountRel()
+    )

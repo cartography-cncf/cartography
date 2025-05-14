@@ -29,7 +29,7 @@ class SemgrepDependencyToSemgrepDeploymentRelProperties(CartographyRelProperties
 
 @dataclass(frozen=True)
 # (:SemgrepDependency)<-[:RESOURCE]-(:SemgrepDeployment)
-class SemgrepDependencyToSemgrepDeploymentSchema(CartographyRelSchema):
+class SemgrepDependencyToSemgrepDeploymentRel(CartographyRelSchema):
     target_node_label: str = "SemgrepDeployment"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("DEPLOYMENT_ID", set_in_kwargs=True)},
@@ -75,8 +75,8 @@ class SemgrepGoLibrarySchema(CartographyNodeSchema):
         ["Dependency", "SemgrepDependency"],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
-    sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentSchema = (
-        SemgrepDependencyToSemgrepDeploymentSchema()
+    sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (
+        SemgrepDependencyToSemgrepDeploymentRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
@@ -92,8 +92,8 @@ class SemgrepNpmLibrarySchema(CartographyNodeSchema):
         ["Dependency", "SemgrepDependency"],
     )
     properties: SemgrepDependencyNodeProperties = SemgrepDependencyNodeProperties()
-    sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentSchema = (
-        SemgrepDependencyToSemgrepDeploymentSchema()
+    sub_resource_relationship: SemgrepDependencyToSemgrepDeploymentRel = (
+        SemgrepDependencyToSemgrepDeploymentRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [

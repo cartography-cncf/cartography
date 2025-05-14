@@ -26,12 +26,12 @@ class EC2KeyPairNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2KeyPairToAwsAccountRelProperties(CartographyRelProperties):
+class EC2KeyPairToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2KeyPairToAWSAccount(CartographyRelSchema):
+class EC2KeyPairToAWSAccountRel(CartographyRelSchema):
     """
     Relationship schema for EC2 keypairs to AWS Accounts
     """
@@ -42,8 +42,8 @@ class EC2KeyPairToAWSAccount(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2KeyPairToAwsAccountRelProperties = (
-        EC2KeyPairToAwsAccountRelProperties()
+    properties: EC2KeyPairToAWSAccountRelRelProperties = (
+        EC2KeyPairToAWSAccountRelRelProperties()
     )
 
 
@@ -56,4 +56,4 @@ class EC2KeyPairSchema(CartographyNodeSchema):
     label: str = "EC2KeyPair"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["KeyPair"])
     properties: EC2KeyPairNodeProperties = EC2KeyPairNodeProperties()
-    sub_resource_relationship: EC2KeyPairToAWSAccount = EC2KeyPairToAWSAccount()
+    sub_resource_relationship: EC2KeyPairToAWSAccountRel = EC2KeyPairToAWSAccountRel()

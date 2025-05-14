@@ -34,7 +34,7 @@ class EC2NetworkAclRuleAclRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class EC2NetworkAclRuleToAcl(CartographyRelSchema):
+class EC2NetworkAclRuleToAclRel(CartographyRelSchema):
     target_node_label: str = "EC2NetworkAcl"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"network_acl_id": PropertyRef("NetworkAclId")},
@@ -45,20 +45,20 @@ class EC2NetworkAclRuleToAcl(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class EC2NetworkAclRuleToAwsAccountRelProperties(CartographyRelProperties):
+class EC2NetworkAclRuleToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2NetworkAclRuleToAWSAccount(CartographyRelSchema):
+class EC2NetworkAclRuleToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2NetworkAclRuleToAwsAccountRelProperties = (
-        EC2NetworkAclRuleToAwsAccountRelProperties()
+    properties: EC2NetworkAclRuleToAWSAccountRelRelProperties = (
+        EC2NetworkAclRuleToAWSAccountRelRelProperties()
     )
 
 
@@ -73,12 +73,12 @@ class EC2NetworkAclInboundRuleSchema(CartographyNodeSchema):
         ["IpPermissionInbound"],
     )
     properties: EC2NetworkAclRuleNodeProperties = EC2NetworkAclRuleNodeProperties()
-    sub_resource_relationship: EC2NetworkAclRuleToAWSAccount = (
-        EC2NetworkAclRuleToAWSAccount()
+    sub_resource_relationship: EC2NetworkAclRuleToAWSAccountRel = (
+        EC2NetworkAclRuleToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2NetworkAclRuleToAcl(),
+            EC2NetworkAclRuleToAclRel(),
         ],
     )
 
@@ -96,11 +96,11 @@ class EC2NetworkAclEgressRuleSchema(CartographyNodeSchema):
         ],
     )
     properties: EC2NetworkAclRuleNodeProperties = EC2NetworkAclRuleNodeProperties()
-    sub_resource_relationship: EC2NetworkAclRuleToAWSAccount = (
-        EC2NetworkAclRuleToAWSAccount()
+    sub_resource_relationship: EC2NetworkAclRuleToAWSAccountRel = (
+        EC2NetworkAclRuleToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2NetworkAclRuleToAcl(),
+            EC2NetworkAclRuleToAclRel(),
         ],
     )

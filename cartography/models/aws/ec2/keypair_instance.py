@@ -22,38 +22,38 @@ class EC2KeyPairInstanceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2KeyPairInstanceToAwsAccountRelProperties(CartographyRelProperties):
+class EC2KeyPairInstanceToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2KeyPairInstanceToAWSAccount(CartographyRelSchema):
+class EC2KeyPairInstanceToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2KeyPairInstanceToAwsAccountRelProperties = (
-        EC2KeyPairInstanceToAwsAccountRelProperties()
+    properties: EC2KeyPairInstanceToAWSAccountRelRelProperties = (
+        EC2KeyPairInstanceToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class EC2KeyPairInstanceToEC2InstanceRelProperties(CartographyRelProperties):
+class EC2KeyPairInstanceToEC2InstanceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2KeyPairInstanceToEC2Instance(CartographyRelSchema):
+class EC2KeyPairInstanceToEC2InstanceRel(CartographyRelSchema):
     target_node_label: str = "EC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SSH_LOGIN_TO"
-    properties: EC2KeyPairInstanceToEC2InstanceRelProperties = (
-        EC2KeyPairInstanceToEC2InstanceRelProperties()
+    properties: EC2KeyPairInstanceToEC2InstanceRelRelProperties = (
+        EC2KeyPairInstanceToEC2InstanceRelRelProperties()
     )
 
 
@@ -66,11 +66,11 @@ class EC2KeyPairInstanceSchema(CartographyNodeSchema):
     label: str = "EC2KeyPair"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["KeyPair"])
     properties: EC2KeyPairInstanceNodeProperties = EC2KeyPairInstanceNodeProperties()
-    sub_resource_relationship: EC2KeyPairInstanceToAWSAccount = (
-        EC2KeyPairInstanceToAWSAccount()
+    sub_resource_relationship: EC2KeyPairInstanceToAWSAccountRel = (
+        EC2KeyPairInstanceToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2KeyPairInstanceToEC2Instance(),
+            EC2KeyPairInstanceToEC2InstanceRel(),
         ],
     )

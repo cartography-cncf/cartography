@@ -89,7 +89,7 @@ As an example of a `CartographyNodeSchema`, you can view our [EMRClusterSchema c
 class EMRClusterSchema(CartographyNodeSchema):
     label: str = 'EMRCluster'  # The label of the node
     properties: EMRClusterNodeProperties = EMRClusterNodeProperties()  # An object representing all properties on the EMR Cluster node
-    sub_resource_relationship: EMRClusterToAWSAccount = EMRClusterToAWSAccount()
+    sub_resource_relationship: EMRClusterToAWSAccountRel = EMRClusterToAWSAccountRel()
 ```
 
 An `EMRClusterSchema` object inherits from the `CartographyNodeSchema` class and contains a node label, properties, and connection to its [sub-resource](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228): an `AWSAccount`.
@@ -142,22 +142,22 @@ See [below](#indexescypher) for more information on indexes.
 
 Relationships can be defined on `CartographyNodeSchema` on either their [sub_resource_relationship](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228) field or their [other_relationships](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237) field (you can find an example of `other_relationships` [here in our test data](https://github.com/cartography-cncf/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94)).
 
-As seen above, an `EMRClusterSchema` only has a single relationship defined: an [EMRClusterToAWSAccount](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L94-L103):
+As seen above, an `EMRClusterSchema` only has a single relationship defined: an [EMRClusterToAWSAccountRel](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L94-L103):
 
 ```python
 @dataclass(frozen=True)
 # (:EMRCluster)<-[:RESOURCE]-(:AWSAccount)
-class EMRClusterToAWSAccount(CartographyRelSchema):
+class EMRClusterToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = 'AWSAccount'  # (1)
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(  # (2)
         {'id': PropertyRef('AccountId', set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD  # (3)
     rel_label: str = "RESOURCE"  # (4)
-    properties: EMRClusterToAwsAccountRelProperties = EMRClusterToAwsAccountRelProperties()  #  (5)
+    properties: EMRClusterToAWSAccountRelRelProperties = EMRClusterToAWSAccountRelRelProperties()  #  (5)
 ```
 
-This class is best described by explaining how it is processed: `build_ingestion_query()` will traverse the `EMRClusterSchema` to its `sub_resource_relationship` field and find the above `EMRClusterToAWSAccount` object. With this information, we know to
+This class is best described by explaining how it is processed: `build_ingestion_query()` will traverse the `EMRClusterSchema` to its `sub_resource_relationship` field and find the above `EMRClusterToAWSAccountRel` object. With this information, we know to
 - draw a relationship to an `AWSAccount` node (1) using the label "`RESOURCE`" (4)
 - by matching on the AWSAccount's "`id`" field" (2)
 - where the relationship [directionality](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L12-L34) is pointed _inward_ toward the EMRCluster (3)
@@ -165,7 +165,7 @@ This class is best described by explaining how it is processed: `build_ingestion
 
 ```python
 @dataclass(frozen=True)
-class EMRClusterToAwsAccountRelProperties(CartographyRelProperties):
+class EMRClusterToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 ```
 
@@ -316,7 +316,7 @@ Here's how to represent this in the Cartography data model:
           properties: ...
           sub_resource_relationship: ...
           other_relationships: OtherRelationships = OtherRelationships([
-              InstanceProfileToAWSRole(),
+              InstanceProfileToAWSRoleRel(),
           ])
       ```
 
@@ -324,7 +324,7 @@ Here's how to represent this in the Cartography data model:
 
       ```python
       @dataclass(frozen=True)
-      class InstanceProfileToAWSRole(CartographyRelSchema):
+      class InstanceProfileToAWSRoleRel(CartographyRelSchema):
           target_node_label: str = 'AWSRole'
           target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
               {'arn': PropertyRef('Roles', one_to_many=True)},

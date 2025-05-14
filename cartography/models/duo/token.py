@@ -38,7 +38,7 @@ class DuoTokenToDuoApiHostRel(CartographyRelSchema):
     properties: DuoTokenToDuoApiHostRelProperties = DuoTokenToDuoApiHostRelProperties()
 
 
-class DuoTokenToDuoUserProperties(CartographyRelProperties):
+class DuoTokenToDuoUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -50,7 +50,7 @@ class DuoTokenToDuoUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_DUO_TOKEN"
-    properties: DuoTokenToDuoUserProperties = DuoTokenToDuoUserProperties()
+    properties: DuoTokenToDuoUserRelProperties = DuoTokenToDuoUserRelProperties()
 
 
 @dataclass(frozen=True)

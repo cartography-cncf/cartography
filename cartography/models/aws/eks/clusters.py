@@ -28,20 +28,20 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EKSClusterToAwsAccountRelProperties(CartographyRelProperties):
+class EKSClusterToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EKSClusterToAWSAccount(CartographyRelSchema):
+class EKSClusterToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EKSClusterToAwsAccountRelProperties = (
-        EKSClusterToAwsAccountRelProperties()
+    properties: EKSClusterToAWSAccountRelRelProperties = (
+        EKSClusterToAWSAccountRelRelProperties()
     )
 
 
@@ -49,4 +49,4 @@ class EKSClusterToAWSAccount(CartographyRelSchema):
 class EKSClusterSchema(CartographyNodeSchema):
     label: str = "EKSCluster"
     properties: EKSClusterNodeProperties = EKSClusterNodeProperties()
-    sub_resource_relationship: EKSClusterToAWSAccount = EKSClusterToAWSAccount()
+    sub_resource_relationship: EKSClusterToAWSAccountRel = EKSClusterToAWSAccountRel()
