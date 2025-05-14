@@ -21,38 +21,38 @@ class EC2SecurityGroupInstanceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2SecurityGroupToAwsAccountRelProperties(CartographyRelProperties):
+class EC2SecurityGroupToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2SecurityGroupToAWSAccount(CartographyRelSchema):
+class EC2SecurityGroupToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2SecurityGroupToAwsAccountRelProperties = (
-        EC2SecurityGroupToAwsAccountRelProperties()
+    properties: EC2SecurityGroupToAWSAccountRelRelProperties = (
+        EC2SecurityGroupToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class EC2SecurityGroupToEC2InstanceRelProperties(CartographyRelProperties):
+class EC2SecurityGroupToEC2InstanceRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2SecurityGroupToEC2Instance(CartographyRelSchema):
+class EC2SecurityGroupToEC2InstanceRel(CartographyRelSchema):
     target_node_label: str = "EC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("InstanceId")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
-    properties: EC2SecurityGroupToEC2InstanceRelProperties = (
-        EC2SecurityGroupToEC2InstanceRelProperties()
+    properties: EC2SecurityGroupToEC2InstanceRelRelProperties = (
+        EC2SecurityGroupToEC2InstanceRelRelProperties()
     )
 
 
@@ -66,11 +66,11 @@ class EC2SecurityGroupInstanceSchema(CartographyNodeSchema):
     properties: EC2SecurityGroupInstanceNodeProperties = (
         EC2SecurityGroupInstanceNodeProperties()
     )
-    sub_resource_relationship: EC2SecurityGroupToAWSAccount = (
-        EC2SecurityGroupToAWSAccount()
+    sub_resource_relationship: EC2SecurityGroupToAWSAccountRel = (
+        EC2SecurityGroupToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2SecurityGroupToEC2Instance(),
+            EC2SecurityGroupToEC2InstanceRel(),
         ],
     )
