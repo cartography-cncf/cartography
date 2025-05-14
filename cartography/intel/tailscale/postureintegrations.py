@@ -43,11 +43,11 @@ def sync(
 def get(
     api_session: requests.Session,
     base_url: str,
-    tailnet: str,
+    org: str,
 ) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     req = api_session.get(
-        f"{base_url}/tailnet/{tailnet}/posture/integrations",
+        f"{base_url}/tailnet/{org}/posture/integrations",
         timeout=_TIMEOUT,
     )
     req.raise_for_status()
@@ -58,7 +58,7 @@ def get(
 def load_postureintegrations(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
-    tailnet: str,
+    org: str,
     update_tag: int,
 ) -> None:
     logger.info(f"Loading {len(data)} Tailscale PostureIntegrations to the graph")
@@ -67,7 +67,7 @@ def load_postureintegrations(
         TailscalePostureIntegrationSchema(),
         data,
         lastupdated=update_tag,
-        tailnet=tailnet,
+        org=org,
     )
 
 
