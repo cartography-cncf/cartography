@@ -13,6 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class TailscaleUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     display_name: PropertyRef = PropertyRef("displayName")
     login_name: PropertyRef = PropertyRef("loginName", extra_index=True)
     profile_pic_url: PropertyRef = PropertyRef("profilePicUrl")
@@ -24,7 +25,6 @@ class TailscaleUserNodeProperties(CartographyNodeProperties):
     device_count: PropertyRef = PropertyRef("deviceCount")
     last_seen: PropertyRef = PropertyRef("lastSeen")
     currently_connected: PropertyRef = PropertyRef("currentlyConnected")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)

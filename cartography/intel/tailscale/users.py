@@ -28,11 +28,9 @@ def sync(
         common_job_parameters["BASE_URL"],
         org,
     )
-    # CHANGEME: You can configure here a transform operation
-    # formated_users = transform(users)
     load_users(
         neo4j_session,
-        users,  # CHANGEME: replace with `formated_users` if your added a transform step
+        users,
         org,
         common_job_parameters["UPDATE_TAG"],
     )

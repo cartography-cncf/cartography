@@ -53,7 +53,6 @@ def get(
     org: str,
 ) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
-    # CHANGEME: You have to handle pagination if needed
     req = api_session.get(
         f"{base_url}/tailnet/{org}/devices",
         timeout=_TIMEOUT,

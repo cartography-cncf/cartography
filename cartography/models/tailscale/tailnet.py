@@ -8,6 +8,7 @@ from cartography.models.core.nodes import CartographyNodeSchema
 @dataclass(frozen=True)
 class TailscaleTailnetNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("org", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     devices_approval_on: PropertyRef = PropertyRef("devicesApprovalOn")
     devices_auto_updates_on: PropertyRef = PropertyRef("devicesAutoUpdatesOn")
     devices_key_duration_days: PropertyRef = PropertyRef("devicesKeyDurationDays")
@@ -20,7 +21,7 @@ class TailscaleTailnetNodeProperties(CartographyNodeProperties):
     posture_identity_collection_on: PropertyRef = PropertyRef(
         "postureIdentityCollectionOn"
     )
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 
 @dataclass(frozen=True)

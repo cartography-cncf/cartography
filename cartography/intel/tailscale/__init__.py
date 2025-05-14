@@ -23,7 +23,6 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     :return: None
     """
 
-    # CHANGEME: Add here needed credentials
     if not config.tailscale_token or not config.tailscale_org:
         logger.info(
             "Tailscale import is not configured - skipping this module. "

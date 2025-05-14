@@ -15,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     # We use nodeId because the old property `id` is deprecated
     id: PropertyRef = PropertyRef("nodeId")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
     hostname: PropertyRef = PropertyRef("hostname")
     client_version: PropertyRef = PropertyRef("clientVersion")
@@ -28,19 +29,19 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     is_external: PropertyRef = PropertyRef("isExternal")
     node_key: PropertyRef = PropertyRef("nodeKey")
     blocks_incoming_connections: PropertyRef = PropertyRef("blocksIncomingConnections")
-    clientConnectivity_endpoints: PropertyRef = PropertyRef(
+    client_connectivity_endpoints: PropertyRef = PropertyRef(
         "clientConnectivity.endpoints"
     )
-    clientConnectivity_mapping_varies_by_dest_ip: PropertyRef = PropertyRef(
+    client_connectivity_mapping_varies_by_dest_ip: PropertyRef = PropertyRef(
         "clientConnectivity.mappingVariesByDestIP"
     )
     tailnet_lock_error: PropertyRef = PropertyRef("tailnetLockError")
     tailnet_lock_key: PropertyRef = PropertyRef("tailnetLockKey")
-    postureIdentity_serial_numbers: PropertyRef = PropertyRef(
+    posture_identity_serial_numbers: PropertyRef = PropertyRef(
         "postureIdentity.serialNumbers"
     )
-    postureIdentity_disabled: PropertyRef = PropertyRef("postureIdentity.disabled")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    posture_identity_disabled: PropertyRef = PropertyRef("postureIdentity.disabled")
+
 
 
 @dataclass(frozen=True)

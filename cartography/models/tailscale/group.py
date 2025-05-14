@@ -14,8 +14,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class TailscaleGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    name: PropertyRef = PropertyRef("name")
+
 
 
 @dataclass(frozen=True)
