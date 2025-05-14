@@ -5,6 +5,8 @@ import time
 import neo4j
 
 from cartography.intel import create_indexes
+from demo.seeds.digitalocean import DigitalOceanSeed
+from demo.seeds.entra import EntraSeed
 from demo.seeds.github import GithubSeed
 from demo.seeds.lastpass import LastpassSeed
 
@@ -35,8 +37,11 @@ def main():
     # TODO: BigFix
     # TODO: CrowdStrike
     # TODO: CVE
+    logger.info("    DigitalOcean")
+    DigitalOceanSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: Duo
-    # TODO: Entra
+    logger.info("    Entra")
+    EntraSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: GCP
     logger.info("    GitHub")
     GithubSeed(neo4j_session, UPDATE_TAG).run()

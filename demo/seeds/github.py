@@ -1,7 +1,4 @@
-from unittest import TestCase
 from unittest.mock import patch
-
-import neo4j
 
 import cartography.intel.github.repos
 import cartography.intel.github.teams
@@ -9,18 +6,14 @@ import cartography.intel.github.users
 import tests.data.github.repos
 import tests.data.github.teams
 import tests.data.github.users
+from demo.seeds.base import Seed
 
-TEST_GITHUB_URL = tests.data.github.users.GITHUB_ORG_DATA["url"]
-TEST_GITHUB_ORG = tests.data.github.users.GITHUB_ORG_DATA["login"]
-FAKE_API_KEY = "asdf"
+GITHUB_URL = tests.data.github.users.GITHUB_ORG_DATA["url"]
+GITHUB_ORG = tests.data.github.users.GITHUB_ORG_DATA["login"]
+API_KEY = "asdf"
 
 
-class GithubSeed(TestCase):
-    def __init__(self, neo4j_session: neo4j.Session, update_tag: int):
-        super().__init__("seed")
-        self.neo4j_session = neo4j_session
-        self.update_tag = update_tag
-
+class GithubSeed(Seed):
     @patch.object(
         cartography.intel.github.users,
         "get_users",
@@ -51,16 +44,7 @@ class GithubSeed(TestCase):
         "get_teams",
         return_value=tests.data.github.teams.GH_TEAM_DATA,
     )
-    def seed(
-        self,
-        mock_teams,
-        mock_team_repos,
-        mock_team_users,
-        mock_team_child,
-        mock_owners,
-        mock_users,
-    ) -> None:
-        # DOC
+    def seed(self, *args) -> None:
         self._seed_users()
         self._seed_repos()
         self._seed_teams()
@@ -69,9 +53,9 @@ class GithubSeed(TestCase):
         cartography.intel.github.users.sync(
             self.neo4j_session,
             {"UPDATE_TAG": self.update_tag},
-            FAKE_API_KEY,
-            TEST_GITHUB_URL,
-            TEST_GITHUB_ORG,
+            API_KEY,
+            GITHUB_URL,
+            GITHUB_ORG,
         )
 
     def _seed_repos(self) -> None:
@@ -100,7 +84,7 @@ class GithubSeed(TestCase):
         cartography.intel.github.teams.sync_github_teams(
             self.neo4j_session,
             {"UPDATE_TAG": self.update_tag},
-            FAKE_API_KEY,
-            TEST_GITHUB_URL,
+            API_KEY,
+            GITHUB_URL,
             "example_org",
         )
