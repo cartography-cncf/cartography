@@ -45,14 +45,14 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
     `export "NEO4J_URL=<your_neo4j_instance_bolt_url:your_neo4j_instance_port>"`
 
 1. **Run tests using `make`**
-    - `uv run make test_lint` runs [pre-commit](https://pre-commit.com) linting against the codebase.
-    - `uv run make test_unit` runs the unit test suite.
+    - `test_lint` runs [pre-commit](https://pre-commit.com) linting against the codebase.
+    - `test_unit` runs the unit test suite.
 
     :::{warning}
     The below commands will **DELETE ALL NODES** on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this.
     :::
 
-    - `uv run make test_integration` runs the integration test suite.
+    - `make test_integration` runs the integration test suite.
     For more granular testing, you can invoke `pytest` directly:
       - `uv run pytest ./tests/integration/cartography/intel/aws/test_iam.py`
       - `uv run pytest ./tests/integration/cartography/intel/aws/test_iam.py::test_load_groups`

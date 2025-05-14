@@ -36,7 +36,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Install the project
-        run: uv sync --locked --group doc
+        run: uv sync --frozen --group doc
       # Build
       - name: Build Sphinx docs
         run: uv run ./docs/build.sh
