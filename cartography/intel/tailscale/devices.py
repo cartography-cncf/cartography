@@ -89,7 +89,7 @@ def load_devices(
     org: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} Tailscale Users to the graph")
+    logger.info(f"Loading {len(data)} Tailscale Devices to the graph")
     load(
         neo4j_session,
         TailscaleDeviceSchema(),

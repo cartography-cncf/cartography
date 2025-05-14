@@ -6,7 +6,7 @@ from typing import List
 
 
 class ACLParser:
-    """ ACLParser is a class that parses Tailscale ACLs to extract data.
+    """ACLParser is a class that parses Tailscale ACLs to extract data.
 
     It removes comments and trailing commas from the ACL string
     and converts it to a JSON object. It then provides methods
@@ -22,10 +22,11 @@ class ACLParser:
 
     Args:
         raw_acl (str): The raw ACL string to be parsed.
-   
+
     Attributes:
         data (dict): The parsed JSON object representing the ACL.
     """
+
     RE_SINGLE_LINE_COMMENT = re.compile(r'("(?:(?=(\\?))\2.)*?")|(?:\/{2,}.*)')
     RE_MULTI_LINE_COMMENT = re.compile(
         r'("(?:(?=(\\?))\2.)*?")|(?:\/\*(?:(?!\*\/).)+\*\/)', flags=re.M | re.DOTALL
