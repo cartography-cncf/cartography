@@ -72,4 +72,3 @@ Representation of a single User in Lastpass
     ```
     (:LastpassTenant)-[:RESOURCE]->(:LastpassUser)
     ```
-
