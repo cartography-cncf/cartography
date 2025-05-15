@@ -9,7 +9,7 @@ M -- HAS_ROLE --> R
 Z -- RESOURCE --> CloudflareDNSRecord
 ```
 
-### Account
+### CloudflareAccount
 
 Represents the Cloudflare Account (aka Tenant)
 
@@ -29,14 +29,15 @@ Represents the Cloudflare Account (aka Tenant)
 #### Relationships
 - `CloudflareRole`, `CloudflareMember`, `CloudflareZone` belong to an `CloudflareAccount`.
     ```
-    (:CloudflareAccount)<-[:RESOURCE]-(
+    (:CloudflareAccount)-[:RESOURCE]->(
         :CloudflareRole,
         :CloudflareMember,
+        :CloudflareZone
     )
     ```
 
 
-### Role
+### CloudflareRole
 
 Represents a user role in Cloudflare
 
@@ -48,17 +49,17 @@ Represents a user role in Cloudflare
 | name | Role name. |
 
 
-#### Relationships
+#### CloudflareRelationships
 - `CloudflareRole` belongs to a `CloudflareAccount`
     ```
-    (:CloudflareRole)-[:RESOURCE]->(:CloudflareAccount)
+    (:CloudflareRole)<-[:RESOURCE]-(:CloudflareAccount)
     ```
 - `CloudflareMember` has a `CloudflareRole`
     ```
     (:CloudflareRole)<-[:HAS_ROLE]-(:CloudflareMember)
     ```
 
-### Member
+### CloudflareMember
 
 Represents a membership in a Cloudflare account.
 
@@ -77,14 +78,14 @@ Represents a membership in a Cloudflare account.
 #### Relationships
 - `CloudflareMember` belongs to a `CloudflareAccount`
     ```
-    (:CloudflareMember)-[:RESOURCE]->(:CloudflareAccount)
+    (:CloudflareMember)<-[:RESOURCE]-(:CloudflareAccount)
     ```
 - `CloudflareMember` has a `CloudflareRole`
     ```
     (:CloudflareRole)<-[:HAS_ROLE]-(:CloudflareMember)
     ```
 
-### Zone
+### CloudflareZone
 
 Represents a DNS Zone in Cloudflare.
 
@@ -117,11 +118,11 @@ typically a partner-hosted zone or a CNAME setup. |
 #### Relationships
 - `CloudflareDNSRecord` belongs to an `CloudflareZone`.
     ```
-    (:CloudflareZone)<-[:RESOURCE]-(:CloudflareDNSRecord)
+    (:CloudflareZone)-[:RESOURCE]->(:CloudflareDNSRecord)
     ```
 
 
-### DNSRecord
+### CloudflareDNSRecord
 
 Represents a DNS entry in Cloudflare.
 
@@ -143,5 +144,5 @@ Represents a DNS entry in Cloudflare.
 #### Relationships
 - `CloudflareDNSRecord` belongs to a `CloudflareZone`
     ```
-    (:CloudflareDNSRecord)-[:RESOURCE]->(:CloudflareZone)
+    (:CloudflareDNSRecord)<-[:RESOURCE]-(:CloudflareZone)
     ```
