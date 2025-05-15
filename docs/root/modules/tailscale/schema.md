@@ -12,7 +12,7 @@ U -- MEMBER_OF --> G
 G -- MEMBER_OF --> G
 U -- OWNS --> T
 G -- OWNS --> T
-D -- IS_TAGGED --> T
+D -- TAGGED --> T
 ```
 
 ### TailscaleTailnet
@@ -126,7 +126,7 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
     ```
 - `Devices` are tagged with `Tag`
     ```
-    (:TailscaleDevice)-[:IS_TAGGED]->(:TailscaleTag)
+    (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
     ```
 
 
@@ -212,5 +212,5 @@ A tag in Tailscale (defined and used by ACL).
     ```
 - `Devices` are tagged with `Tag`
     ```
-    (:TailscaleDevice)-[:IS_TAGGED]->(:TailscaleTag)
+    (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
     ```

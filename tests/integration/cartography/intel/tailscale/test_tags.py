@@ -121,7 +121,7 @@ def test_load_tailscale_tags(mock_devices, mock_acls, neo4j_session):
             "id",
             "TailscaleDevice",
             "id",
-            "IS_TAGGED",
+            "TAGGED",
             rel_direction_right=False,
         )
         == expected_rels

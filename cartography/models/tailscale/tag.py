@@ -77,14 +77,14 @@ class TailscaleTagToDeviceRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:TailscaleDevice)-[:IS_TAGGED]->(:TailscaleTag)
+# (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
 class TailscaleTagToDeviceRel(CartographyRelSchema):
     target_node_label: str = "TailscaleDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("devices", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "IS_TAGGED"
+    rel_label: str = "TAGGED"
     properties: TailscaleTagToDeviceRelProperties = TailscaleTagToDeviceRelProperties()
 
 
