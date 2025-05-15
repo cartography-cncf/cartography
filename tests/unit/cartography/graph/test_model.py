@@ -14,7 +14,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 
-
 MODEL_CLASSES = (
     CartographyNodeSchema,
     CartographyRelSchema,
