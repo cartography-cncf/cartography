@@ -82,7 +82,7 @@ def test_load_lastpass_users(mock_api, neo4j_session):
             "LastpassTenant",
             "id",
             "RESOURCE",
-            rel_direction_right=True,
+            rel_direction_right=False,
         )
         == expected_rels
     )
