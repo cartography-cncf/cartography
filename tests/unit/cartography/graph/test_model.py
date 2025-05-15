@@ -1,5 +1,4 @@
 import inspect
-import logging
 import warnings
 from pkgutil import iter_modules
 from typing import Dict
@@ -15,7 +14,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 
-logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = (
     CartographyNodeSchema,
