@@ -40,6 +40,7 @@ def load_accounts(
     data: List[Dict[str, Any]],
     update_tag: int,
 ) -> None:
+    logger.info("Loading %d Cloudflare accounts into Neo4j.", len(data))
     load(
         neo4j_session,
         CloudflareAccountSchema(),

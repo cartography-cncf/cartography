@@ -47,6 +47,7 @@ def load_roles(
     account_id: str,
     update_tag: int,
 ) -> None:
+    logger.info("Loading %d Cloudflare roles into Neo4j.", len(data))
     load(
         neo4j_session,
         CloudflareRoleSchema(),

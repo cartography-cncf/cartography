@@ -46,6 +46,7 @@ def load_dnsrecords(
     zone_id: str,
     update_tag: int,
 ) -> None:
+    logger.info("Loading %d Cloudflare DNSRecords into Neo4j.", len(data))
     load(
         neo4j_session,
         CloudflareDNSRecordSchema(),

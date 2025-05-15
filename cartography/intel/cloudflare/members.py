@@ -48,6 +48,7 @@ def load_members(
     account_id: str,
     update_tag: int,
 ) -> None:
+    logger.info("Loading %d Cloudflare members into Neo4j.", len(data))
     load(
         neo4j_session,
         CloudflareMemberSchema(),
