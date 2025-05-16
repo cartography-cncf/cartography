@@ -1,8 +1,8 @@
 TENANTS = {
-    "company_a": {
-        "id": "Company A",
+    "simpson_org": {
+        "id": "SimpsonOrg",
     },
-    "company_b": {
-        "id": "Company B",
+    "south_park": {
+        "id": "SouthPark",
     },
 }
