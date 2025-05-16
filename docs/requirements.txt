@@ -1,5 +1,0 @@
-sphinx==8.1.3
-myst-parser[linkify]==4.0.1
-sphinxcontrib-mermaid==1.0.0
-shibuya==2025.4.25
-sphinx-copybutton==0.5.2
