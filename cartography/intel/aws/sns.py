@@ -90,7 +90,7 @@ def load_sns_topics(
 
     load(
         neo4j_session,
-        SNSTopicSchema(),  # Changed from AwsSnsTopicSchema
+        SNSTopicSchema(),  
         data,
         lastupdated=update_tag,
         Region=region,
@@ -104,7 +104,7 @@ def cleanup_sns(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     Run SNS cleanup job
     """
     logger.debug("Running SNS cleanup job.")
-    cleanup_job = GraphJob.from_node_schema(SNSTopicSchema(), common_job_parameters)  # Changed from AwsSnsTopicSchema
+    cleanup_job = GraphJob.from_node_schema(SNSTopicSchema(), common_job_parameters)  
     cleanup_job.run(neo4j_session)
 
 
@@ -152,7 +152,7 @@ def sync(
         neo4j_session,
         group_type='AWSAccount',
         group_id=current_aws_account_id,
-        synced_type='SNSTopic',  # Changed from AwsSnsTopic
+        synced_type='SNSTopic',  
         update_tag=update_tag,
         stat_handler=stat_handler
     )
