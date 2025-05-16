@@ -19,17 +19,22 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
 1. **Perform an editable install of the cartography source code**
 
-    Run `cd cartography` and then `pip install -e .` (yes, actually type the period into the command line) to install Cartography from source to the current venv.
+    Run `cd cartography` and then `uv sync` (yes, actually type the period into the command line) to install Cartography from source to the current venv.
 
 4. **Run from source**
 
-    After this finishes you should be able to run Cartography from source with `cartography --neo4j-uri bolt://localhost:7687`. Any changes to the source code in `{path-where-you-want-your-source-code}/cartography` are now locally testable by running `cartography` from the command line.
+    After this finishes you should be able to run Cartography from source with `uv run cartography --neo4j-uri bolt://localhost:7687`. Any changes to the source code in `{path-where-you-want-your-source-code}/cartography` are now locally testable by running `cartography` from the command line.
 
 ### Automated testing
 
 1. **Install test requirements**
 
-    `pip install .[dev]`
+    `uv sync --frozen --dev`
+
+:::{hint}
+--dev is optional; development dependencies are installed by default.
+--frozen ensures that only the pinned dependencies from the lockfile are used, rather than resolving to the latest available versions.
+:::
 
 1. **(OPTIONAL) Setup environment variables for integration tests**
 
@@ -40,8 +45,8 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
     `export "NEO4J_URL=<your_neo4j_instance_bolt_url:your_neo4j_instance_port>"`
 
 1. **Run tests using `make`**
-    - `make test_lint` runs [pre-commit](https://pre-commit.com) linting against the codebase.
-    - `make test_unit` runs the unit test suite.
+    - `test_lint` runs [pre-commit](https://pre-commit.com) linting against the codebase.
+    - `test_unit` runs the unit test suite.
 
     :::{warning}
     The below commands will **DELETE ALL NODES** on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this.
@@ -49,10 +54,10 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
     - `make test_integration` runs the integration test suite.
     For more granular testing, you can invoke `pytest` directly:
-      - `pytest ./tests/integration/cartography/intel/aws/test_iam.py`
-      - `pytest ./tests/integration/cartography/intel/aws/test_iam.py::test_load_groups`
-      - `pytest -k test_load_groups`
-    - `make test` can be used to run all of the above.
+      - `uv run pytest ./tests/integration/cartography/intel/aws/test_iam.py`
+      - `uv run pytest ./tests/integration/cartography/intel/aws/test_iam.py::test_load_groups`
+      - `uv run pytest -k test_load_groups`
+    - `uv run make test` can be used to run all of the above.
 
 ### Implementing custom sync commands
 

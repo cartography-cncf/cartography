@@ -17,12 +17,14 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Install uv version 0.7.3
+COPY --from=ghcr.io/astral-sh/uv@sha256:87a04222b228501907f487b338ca6fc1514a93369bfce6930eb06c8d576e58a4 /uv /uvx /bin/
+
 # Install dependencies.
 WORKDIR /var/cartography
 COPY . /var/cartography
-RUN pip install .[dev] && \
-    pip install -U -e . && \
-    chmod -R a+w /var/cartography
+RUN uv sync --dev && uv venv
+RUN chmod -R a+w /var/cartography
 
 # Now copy the entire source tree.
 ENV HOME=/var/cartography

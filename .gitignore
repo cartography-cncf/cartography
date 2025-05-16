@@ -20,7 +20,6 @@ dist/
 .local
 cartography/_version.py
 poetry.lock
-uv.lock
 .cursor-server
 .gitconfig
 .python-version
