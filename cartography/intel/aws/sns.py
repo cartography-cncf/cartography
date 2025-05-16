@@ -1,5 +1,7 @@
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import boto3
 import neo4j
@@ -7,8 +9,9 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.sns.topic import SNSTopicSchema
-from cartography.util import timeit, merge_module_sync_metadata
 from cartography.stats import get_stats_client
+from cartography.util import merge_module_sync_metadata
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -19,21 +22,23 @@ def get_sns_topics(boto3_session: boto3.session.Session, region: str) -> List[Di
     """
     Get all SNS Topics for a region.
     """
-    client = boto3_session.client('sns', region_name=region)
-    paginator = client.get_paginator('list_topics')
+    client = boto3_session.client("sns", region_name=region)
+    paginator = client.get_paginator("list_topics")
     topics = []
     for page in paginator.paginate():
-        topics.extend(page.get('Topics', []))
+        topics.extend(page.get("Topics", []))
 
     return topics
 
 
 @timeit
-def get_topic_attributes(boto3_session: boto3.session.Session, topic_arn: str, region: str) -> Optional[Dict]:
+def get_topic_attributes(
+    boto3_session: boto3.session.Session, topic_arn: str, region: str
+) -> Optional[Dict]:
     """
     Get attributes for an SNS Topic.
     """
-    client = boto3_session.client('sns', region_name=region)
+    client = boto3_session.client("sns", region_name=region)
     try:
         return client.get_topic_attributes(TopicArn=topic_arn)
     except Exception as e:
@@ -42,32 +47,36 @@ def get_topic_attributes(boto3_session: boto3.session.Session, topic_arn: str, r
 
 
 @timeit
-def transform_sns_topics(topics: List[Dict], attributes: Dict[str, Dict], region: str) -> List[Dict]:
+def transform_sns_topics(
+    topics: List[Dict], attributes: Dict[str, Dict], region: str
+) -> List[Dict]:
     """
     Transform SNS topic data for ingestion
     """
     transformed_topics = []
     for topic in topics:
-        topic_arn = topic['TopicArn']
+        topic_arn = topic["TopicArn"]
 
         # Extract topic name from ARN
         # Format: arn:aws:sns:region:account-id:topic-name
-        topic_name = topic_arn.split(':')[-1]
+        topic_name = topic_arn.split(":")[-1]
 
         # Get attributes
-        topic_attrs = attributes.get(topic_arn, {}).get('Attributes', {})
+        topic_attrs = attributes.get(topic_arn, {}).get("Attributes", {})
 
         transformed_topic = {
-            'TopicArn': topic_arn,
-            'TopicName': topic_name,
-            'DisplayName': topic_attrs.get('DisplayName', ''),
-            'Owner': topic_attrs.get('Owner', ''),
-            'SubscriptionsPending': int(topic_attrs.get('SubscriptionsPending', '0')),
-            'SubscriptionsConfirmed': int(topic_attrs.get('SubscriptionsConfirmed', '0')),
-            'SubscriptionsDeleted': int(topic_attrs.get('SubscriptionsDeleted', '0')),
-            'DeliveryPolicy': topic_attrs.get('DeliveryPolicy', ''),
-            'EffectiveDeliveryPolicy': topic_attrs.get('EffectiveDeliveryPolicy', ''),
-            'KmsMasterKeyId': topic_attrs.get('KmsMasterKeyId', ''),
+            "TopicArn": topic_arn,
+            "TopicName": topic_name,
+            "DisplayName": topic_attrs.get("DisplayName", ""),
+            "Owner": topic_attrs.get("Owner", ""),
+            "SubscriptionsPending": int(topic_attrs.get("SubscriptionsPending", "0")),
+            "SubscriptionsConfirmed": int(
+                topic_attrs.get("SubscriptionsConfirmed", "0")
+            ),
+            "SubscriptionsDeleted": int(topic_attrs.get("SubscriptionsDeleted", "0")),
+            "DeliveryPolicy": topic_attrs.get("DeliveryPolicy", ""),
+            "EffectiveDeliveryPolicy": topic_attrs.get("EffectiveDeliveryPolicy", ""),
+            "KmsMasterKeyId": topic_attrs.get("KmsMasterKeyId", ""),
         }
 
         transformed_topics.append(transformed_topic)
@@ -77,11 +86,11 @@ def transform_sns_topics(topics: List[Dict], attributes: Dict[str, Dict], region
 
 @timeit
 def load_sns_topics(
-    neo4j_session: neo4j.Session, 
-    data: List[Dict], 
-    region: str, 
-    aws_account_id: str, 
-    update_tag: int
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    aws_account_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load SNS Topics information into the graph
@@ -90,7 +99,7 @@ def load_sns_topics(
 
     load(
         neo4j_session,
-        SNSTopicSchema(),  
+        SNSTopicSchema(),
         data,
         lastupdated=update_tag,
         Region=region,
@@ -104,30 +113,32 @@ def cleanup_sns(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     Run SNS cleanup job
     """
     logger.debug("Running SNS cleanup job.")
-    cleanup_job = GraphJob.from_node_schema(SNSTopicSchema(), common_job_parameters)  
+    cleanup_job = GraphJob.from_node_schema(SNSTopicSchema(), common_job_parameters)
     cleanup_job.run(neo4j_session)
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, 
-    boto3_session: boto3.session.Session, 
-    regions: List[str], 
-    current_aws_account_id: str, 
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict
+    common_job_parameters: Dict,
 ) -> None:
     """
     Sync SNS Topics for all regions
     """
     for region in regions:
-        logger.info(f"Syncing SNS Topics for {region} in account {current_aws_account_id}")
+        logger.info(
+            f"Syncing SNS Topics for {region} in account {current_aws_account_id}"
+        )
         topics = get_sns_topics(boto3_session, region)
 
         # Get attributes for each topic
         topic_attributes = {}
         for topic in topics:
-            topic_arn = topic['TopicArn']
+            topic_arn = topic["TopicArn"]
             attrs = get_topic_attributes(boto3_session, topic_arn, region)
             if attrs:
                 topic_attributes[topic_arn] = attrs
@@ -137,11 +148,11 @@ def sync(
 
         # Load data
         load_sns_topics(
-            neo4j_session, 
-            transformed_topics, 
-            region, 
-            current_aws_account_id, 
-            update_tag
+            neo4j_session,
+            transformed_topics,
+            region,
+            current_aws_account_id,
+            update_tag,
         )
 
     # Clean up old entries
@@ -150,9 +161,9 @@ def sync(
     # Record that we've synced this module
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='AWSAccount',
+        group_type="AWSAccount",
         group_id=current_aws_account_id,
-        synced_type='SNSTopic',  
+        synced_type="SNSTopic",
         update_tag=update_tag,
-        stat_handler=stat_handler
+        stat_handler=stat_handler,
     )
