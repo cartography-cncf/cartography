@@ -7,12 +7,12 @@ from cartography.intel.github.repos import UserAffiliationAndRepoPermission
 GET_REPOS: List[dict[str, Any]] = [
     {
         "name": "sample_repo",
-        "nameWithOwner": "SimpsonOrg/sample_repo",
+        "nameWithOwner": "simpsonorg/sample_repo",
         "primaryLanguage": {
             "name": "Python",
         },
-        "url": "https://github.com/SimpsonOrg/sample_repo",
-        "sshUrl": "git@github.com:SimpsonOrg/sample_repo.git",
+        "url": "https://github.com/simpsonorg/sample_repo",
+        "sshUrl": "git@github.com:simpsonorg/sample_repo.git",
         "createdAt": "2011-02-15T18:40:15Z",
         "description": "My description",
         "updatedAt": "2020-01-02T20:10:09Z",
@@ -32,7 +32,7 @@ GET_REPOS: List[dict[str, Any]] = [
         "isDisabled": False,
         "isLocked": True,
         "owner": {
-            "url": "https://github.com/SimpsonOrg",
+            "url": "https://github.com/simpsonorg",
             "login": "SimpsonOrg",
             "__typename": "Organization",
         },
@@ -54,12 +54,12 @@ GET_REPOS: List[dict[str, Any]] = [
     },
     {
         "name": "SampleRepo2",
-        "nameWithOwner": "SimpsonOrg/SampleRepo2",
+        "nameWithOwner": "simpsonorg/SampleRepo2",
         "primaryLanguage": {
             "name": "Python",
         },
-        "url": "https://github.com/SimpsonOrg/SampleRepo2",
-        "sshUrl": "git@github.com:SimpsonOrg/SampleRepo2.git",
+        "url": "https://github.com/simpsonorg/SampleRepo2",
+        "sshUrl": "git@github.com:simpsonorg/SampleRepo2.git",
         "createdAt": "2011-09-21T18:55:16Z",
         "description": "Some other description",
         "updatedAt": "2020-07-03T00:25:25Z",
@@ -79,7 +79,7 @@ GET_REPOS: List[dict[str, Any]] = [
         "isDisabled": False,
         "isLocked": False,
         "owner": {
-            "url": "https://github.com/SimpsonOrg",
+            "url": "https://github.com/simpsonorg",
             "login": "SimpsonOrg",
             "__typename": "Organization",
         },
@@ -111,7 +111,7 @@ GET_REPOS: List[dict[str, Any]] = [
         "isDisabled": False,
         "isLocked": False,
         "owner": {
-            "url": "https://github.com/SimpsonOrg",
+            "url": "https://github.com/simpsonorg",
             "login": "SimpsonOrg",
             "__typename": "Organization",
         },
