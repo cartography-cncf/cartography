@@ -9,6 +9,7 @@ from demo.seeds.digitalocean import DigitalOceanSeed
 from demo.seeds.entra import EntraSeed
 from demo.seeds.github import GithubSeed
 from demo.seeds.lastpass import LastpassSeed
+from demo.seeds.snipeit import SnipeitSeed
 
 NEO4J_URL = os.environ.get("NEO4J_URL", "bolt://localhost:7687")
 
@@ -54,7 +55,8 @@ def main():
     # TODO: Okta
     # TODO: PagerDuty
     # TODO: Semgrep
-    # TODO: SnipeIt
+    logger.info("    SnipeIT")
+    SnipeitSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: Analysis
 
     # Close the session
@@ -62,4 +64,6 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
+    logger.setLevel(logging.INFO)
     main()
