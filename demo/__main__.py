@@ -9,6 +9,7 @@ from demo.seeds.digitalocean import DigitalOceanSeed
 from demo.seeds.entra import EntraSeed
 from demo.seeds.github import GithubSeed
 from demo.seeds.lastpass import LastpassSeed
+from demo.seeds.semgrep import SemgrepSeed
 from demo.seeds.snipeit import SnipeitSeed
 
 NEO4J_URL = os.environ.get("NEO4J_URL", "bolt://localhost:7687")
@@ -38,24 +39,25 @@ def main():
     # TODO: BigFix
     # TODO: CrowdStrike
     # TODO: CVE
-    logger.info("    DigitalOcean")
+    logger.info("    loading DigitalOcean")
     DigitalOceanSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: Duo
-    logger.info("    Entra")
+    logger.info("    loading Entra")
     EntraSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: GCP
-    logger.info("    GitHub")
+    logger.info("    loading GitHub")
     GithubSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: Jamf
     # TODO: Kandji
     # TODO: Kubernetes
-    logger.info("    LastPass")
+    logger.info("    loading LastPass")
     LastpassSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: OCI
     # TODO: Okta
     # TODO: PagerDuty
-    # TODO: Semgrep
-    logger.info("    SnipeIT")
+    logger.info("    loading Semgrep")
+    SemgrepSeed(neo4j_session, UPDATE_TAG).run()
+    logger.info("    loading SnipeIT")
     SnipeitSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: Analysis
 

@@ -62,28 +62,28 @@ def test_sync_github_teams(
     # Assert
     assert check_nodes(neo4j_session, "GitHubTeam", ["id", "url", "name"]) == {
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-a",
-            "https://github.com/orgs/SimpsonOrg/teams/team-a",
+            "https://github.com/orgs/simpsonorg/teams/team-a",
+            "https://github.com/orgs/simpsonorg/teams/team-a",
             "team-a",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-b",
-            "https://github.com/orgs/SimpsonOrg/teams/team-b",
+            "https://github.com/orgs/simpsonorg/teams/team-b",
+            "https://github.com/orgs/simpsonorg/teams/team-b",
             "team-b",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-c",
-            "https://github.com/orgs/SimpsonOrg/teams/team-c",
+            "https://github.com/orgs/simpsonorg/teams/team-c",
+            "https://github.com/orgs/simpsonorg/teams/team-c",
             "team-c",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-d",
-            "https://github.com/orgs/SimpsonOrg/teams/team-d",
+            "https://github.com/orgs/simpsonorg/teams/team-d",
+            "https://github.com/orgs/simpsonorg/teams/team-d",
             "team-d",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-e",
-            "https://github.com/orgs/SimpsonOrg/teams/team-e",
+            "https://github.com/orgs/simpsonorg/teams/team-e",
+            "https://github.com/orgs/simpsonorg/teams/team-e",
             "team-e",
         ),
     }
@@ -97,24 +97,24 @@ def test_sync_github_teams(
         rel_direction_right=False,
     ) == {
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-a",
-            "https://github.com/SimpsonOrg",
+            "https://github.com/orgs/simpsonorg/teams/team-a",
+            "https://github.com/simpsonorg",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-b",
-            "https://github.com/SimpsonOrg",
+            "https://github.com/orgs/simpsonorg/teams/team-b",
+            "https://github.com/simpsonorg",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-c",
-            "https://github.com/SimpsonOrg",
+            "https://github.com/orgs/simpsonorg/teams/team-c",
+            "https://github.com/simpsonorg",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-d",
-            "https://github.com/SimpsonOrg",
+            "https://github.com/orgs/simpsonorg/teams/team-d",
+            "https://github.com/simpsonorg",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-e",
-            "https://github.com/SimpsonOrg",
+            "https://github.com/orgs/simpsonorg/teams/team-e",
+            "https://github.com/simpsonorg",
         ),
     }
     assert check_rels(
@@ -127,8 +127,8 @@ def test_sync_github_teams(
         rel_direction_right=True,
     ) == {
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-b",
-            "https://github.com/SimpsonOrg/sample_repo",
+            "https://github.com/orgs/simpsonorg/teams/team-b",
+            "https://github.com/simpsonorg/sample_repo",
         ),
     }
     assert check_rels(
@@ -141,8 +141,8 @@ def test_sync_github_teams(
         rel_direction_right=True,
     ) == {
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-b",
-            "https://github.com/SimpsonOrg/SampleRepo2",
+            "https://github.com/orgs/simpsonorg/teams/team-b",
+            "https://github.com/simpsonorg/SampleRepo2",
         ),
     }
     assert check_rels(
@@ -155,7 +155,7 @@ def test_sync_github_teams(
         rel_direction_right=True,
     ) == {
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-b",
+            "https://github.com/orgs/simpsonorg/teams/team-b",
             "https://github.com/cartography-cncf/cartography",
         ),
     }
@@ -169,7 +169,7 @@ def test_sync_github_teams(
         rel_direction_right=False,
     ) == {
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-c",
+            "https://github.com/orgs/simpsonorg/teams/team-c",
             "https://github.com/hjsimpson",
         ),
     }
@@ -183,11 +183,11 @@ def test_sync_github_teams(
         rel_direction_right=False,
     ) == {
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-c",
+            "https://github.com/orgs/simpsonorg/teams/team-c",
             "https://github.com/lmsimpson",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-c",
+            "https://github.com/orgs/simpsonorg/teams/team-c",
             "https://github.com/mbsimpson",
         ),
     }
@@ -201,11 +201,11 @@ def test_sync_github_teams(
         rel_direction_right=False,
     ) == {
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-d",
-            "https://github.com/orgs/SimpsonOrg/teams/team-a",
+            "https://github.com/orgs/simpsonorg/teams/team-d",
+            "https://github.com/orgs/simpsonorg/teams/team-a",
         ),
         (
-            "https://github.com/orgs/SimpsonOrg/teams/team-d",
-            "https://github.com/orgs/SimpsonOrg/teams/team-b",
+            "https://github.com/orgs/simpsonorg/teams/team-d",
+            "https://github.com/orgs/simpsonorg/teams/team-b",
         ),
     }
