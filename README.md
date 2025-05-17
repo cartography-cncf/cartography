@@ -40,6 +40,7 @@ You can learn more about the story behind Cartography in our [presentation at BS
 - [Duo](https://cartography-cncf.github.io/cartography/modules/duo/index.html) - Users, Groups, Endpoints
 - [Kandji](https://cartography-cncf.github.io/cartography/modules/kandji/index.html) - Devices
 - [SnipeIT](https://cartography-cncf.github.io/cartography/modules/snipeit/index.html) - Users, Assets
+- Trivy Scanner - AWS ECR Images (TODO documentation)
 
 
 ## Philosophy

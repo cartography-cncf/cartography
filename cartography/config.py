@@ -123,6 +123,12 @@ class Config:
     :param snipeit_token: Token used to authenticate to the SnipeIT data provider. Optional.
     :type snipeit_tenant_id: string
     :param snipeit_tenant_id: Token used to authenticate to the SnipeIT data provider. Optional.
+    :type trivy_path: str
+    :param trivy_path: The path the to the Trivy file binary.
+    :type trivy_opa_policy_file_path: str
+    :param trivy_path: The path to the OPA policy file to use with Trivy. Optional.
+    :type trivy_resource_type: str
+    :param trivy_resource_type: The resource type to scan with Trivy e.g. 'aws.ecr'.
     """
 
     def __init__(
@@ -188,6 +194,9 @@ class Config:
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
+        trivy_path=None,
+        trivy_opa_policy_file_path=None,
+        trivy_resource_type=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -250,3 +259,6 @@ class Config:
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
+        self.trivy_path = trivy_path
+        self.trivy_opa_policy_file_path = trivy_opa_policy_file_path
+        self.trivy_resource_type = trivy_resource_type

@@ -33,6 +33,7 @@ import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.semgrep
 import cartography.intel.snipeit
+import cartography.intel.trivy
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -62,6 +63,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "duo": cartography.intel.duo.start_duo_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
+        "trivy": cartography.intel.trivy.start_trivy_scans,
         "analysis": cartography.intel.analysis.run,
     }
 )
