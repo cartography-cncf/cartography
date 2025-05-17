@@ -3273,6 +3273,26 @@ Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/
     ```
     (AWSAccount)-[RESOURCE]->(SNSTopic)
     ```
+### S3AccountPublicAccessBlock
+Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier in the format: `{account_id}:{region}` |
+| account_id | The AWS account ID |
+| region | The AWS region |
+| block_public_acls | Whether Amazon S3 blocks public access control lists (ACLs) for this bucket and objects |
+| ignore_public_acls | Whether Amazon S3 ignores public ACLs for this bucket and objects |
+| block_public_policy | Whether Amazon S3 blocks public bucket policies for this bucket |
+| restrict_public_buckets | Whether Amazon S3 restricts public policies for this bucket |
+
+#### Relationships
+- S3AccountPublicAccessBlock is a resource of an AWS Account.
+    ```
+    (AWSAccount)-[:RESOURCE]->(S3AccountPublicAccessBlock)
+    ```
 
 ### SSMInstanceInformation
 
