@@ -36,6 +36,7 @@ dependencies = [
     "boto3>=1.15.1",
     "botocore>=1.18.1",
     "dnspython>=1.15.0",
+    "dynaconf>=3.2.7",
     "neo4j>=4.4.4",
     "policyuniverse>=1.1.0.0",
     "google-api-python-client>=1.7.8",
@@ -64,6 +65,8 @@ dependencies = [
     "python-dateutil",
     "xmltodict",
     "duo-client",
+    "myst-parser[linkify]",
+    "sphinxcontrib-mermaid",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]

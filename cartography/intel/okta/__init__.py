@@ -1,5 +1,6 @@
 import logging
 from typing import Dict
+from typing import Optional
 
 import neo4j
 from okta.framework.OktaError import OktaError
@@ -14,6 +15,9 @@ from cartography.intel.okta import origins
 from cartography.intel.okta import roles
 from cartography.intel.okta import users
 from cartography.intel.okta.sync_state import OktaSyncState
+from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -46,71 +50,80 @@ def cleanup_okta_groups(
 
 
 @timeit
-def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_okta_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
     """
     Starts the OKTA ingestion process
     :param neo4j_session: The Neo4j session
-    :param config: A `cartography.config` object
+    :param config: The configuration object (Deprecated: use settings instead)
     :return: Nothing
     """
-    if not config.okta_api_key:
-        logger.warning(
-            "No valid Okta credentials could be found. Exiting Okta sync stage.",
-        )
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
+    if not check_module_settings("Okta", ["okta_org_id", "okta_api_key"]):
         return
 
-    logger.debug(f"Starting Okta sync on {config.okta_org_id}")
+    if settings.okta.get("saml_role_regex") is None:
+        settings.okta.update(
+            {"saml_role_regex": r"^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"}
+        )
+
+    logger.debug(f"Starting Okta sync on {settings.okta.org_id}")
 
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-        "OKTA_ORG_ID": config.okta_org_id,
+        "UPDATE_TAG": settings.common.update_tag,
+        "OKTA_ORG_ID": settings.okta.org_id,
     }
 
     state = OktaSyncState()
 
     organization.create_okta_organization(
         neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
+        settings.okta.org_id,
+        settings.common.update_tag,
     )
     users.sync_okta_users(
         neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
         state,
     )
     groups.sync_okta_groups(
         neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
         state,
     )
     applications.sync_okta_applications(
         neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
     )
     factors.sync_users_factors(
         neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
         state,
     )
     origins.sync_trusted_origins(
         neo4j_session,
-        config.okta_org_id,
-        config.update_tag,
-        config.okta_api_key,
+        settings.okta.org_id,
+        settings.common.update_tag,
+        settings.okta.api_key,
     )
     awssaml.sync_okta_aws_saml(
         neo4j_session,
-        config.okta_saml_role_regex,
-        config.update_tag,
-        config.okta_org_id,
+        settings.okta.saml_role_regex,
+        settings.common.update_tag,
+        settings.okta.org_id,
     )
 
     # need creds with permission
@@ -120,9 +133,9 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     try:
         roles.sync_roles(
             neo4j_session,
-            config.okta_org_id,
-            config.update_tag,
-            config.okta_api_key,
+            settings.okta.org_id,
+            settings.common.update_tag,
+            settings.okta.api_key,
             state,
         )
     except OktaError as okta_error:
@@ -139,8 +152,8 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     merge_module_sync_metadata(
         neo4j_session,
         group_type="OktaOrganization",
-        group_id=config.okta_org_id,
+        group_id=settings.okta.org_id,
         synced_type="OktaOrganization",
-        update_tag=config.update_tag,
+        update_tag=settings.common.update_tag,
         stat_handler=stat_handler,
     )

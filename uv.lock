@@ -500,12 +500,14 @@ dependencies = [
     { name = "crowdstrike-falconpy" },
     { name = "dnspython" },
     { name = "duo-client" },
+    { name = "dynaconf" },
     { name = "google-api-python-client" },
     { name = "google-auth" },
     { name = "kubernetes" },
     { name = "marshmallow" },
     { name = "msgraph-sdk" },
     { name = "msrestazure" },
+    { name = "myst-parser", extra = ["linkify"] },
     { name = "neo4j" },
     { name = "oci" },
     { name = "okta" },
@@ -516,6 +518,7 @@ dependencies = [
     { name = "python-digitalocean" },
     { name = "pyyaml" },
     { name = "requests" },
+    { name = "sphinxcontrib-mermaid" },
     { name = "statsd" },
     { name = "xmltodict" },
 ]
@@ -559,12 +562,14 @@ requires-dist = [
     { name = "crowdstrike-falconpy", specifier = ">=0.5.1" },
     { name = "dnspython", specifier = ">=1.15.0" },
     { name = "duo-client" },
+    { name = "dynaconf", specifier = ">=3.2.7" },
     { name = "google-api-python-client", specifier = ">=1.7.8" },
     { name = "google-auth", specifier = ">=2.37.0" },
     { name = "kubernetes", specifier = ">=22.6.0" },
     { name = "marshmallow", specifier = ">=3.0.0rc7" },
     { name = "msgraph-sdk" },
     { name = "msrestazure", specifier = ">=0.6.4" },
+    { name = "myst-parser", extras = ["linkify"] },
     { name = "neo4j", specifier = ">=4.4.4" },
     { name = "oci", specifier = ">=2.71.0" },
     { name = "okta", specifier = "<1.0.0" },
@@ -575,6 +580,7 @@ requires-dist = [
     { name = "python-digitalocean", specifier = ">=1.16.0" },
     { name = "pyyaml", specifier = ">=5.3.1" },
     { name = "requests", specifier = ">=2.22.0" },
+    { name = "sphinxcontrib-mermaid" },
     { name = "statsd" },
     { name = "xmltodict" },
 ]
@@ -959,6 +965,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/31/e9/f49c4e7fccb77fa5c43c2480e09a857a78b41e7331a75e128ed5df45c56b/durationpy-0.9.tar.gz", hash = "sha256:fd3feb0a69a0057d582ef643c355c40d2fa1c942191f914d12203b1a01ac722a", size = 3186, upload-time = "2024-10-02T17:59:00.873Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4c/a3/ac312faeceffd2d8f86bc6dcb5c401188ba5a01bc88e69bed97578a0dfcd/durationpy-0.9-py3-none-any.whl", hash = "sha256:e65359a7af5cedad07fb77a2dd3f390f8eb0b74cb845589fa6c057086834dd38", size = 3461, upload-time = "2024-10-02T17:58:59.349Z" },
+]
+
+[[package]]
+name = "dynaconf"
+version = "3.2.11"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/62/eb/e9d1249ff56b11e63fd8c7d0fcc1f94704e21693c16862bf0ebfb07bd61a/dynaconf-3.2.11.tar.gz", hash = "sha256:4cfc6a730c533bf1a1d0bf266ae202133a22236bb3227d23eff4b8542d4034a5", size = 234694, upload-time = "2025-05-06T15:44:59.16Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/36/64/580c74003a356c5662e7b1da43ecd7cbda6e8f970c87b30c5a654c8ccb53/dynaconf-3.2.11-py2.py3-none-any.whl", hash = "sha256:660de90879d4da236f79195692a7d197957224d7acf922bcc6899187dc7b4a27", size = 236536, upload-time = "2025-05-06T15:44:56.18Z" },
 ]
 
 [[package]]
