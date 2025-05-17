@@ -33,14 +33,12 @@ def get_account_public_access_block(
     try:
         account_id = boto3_session.client("sts").get_caller_identity()["Account"]
         response = client.get_public_access_block(AccountId=account_id)
-        # Return as a list with one item to match what the decorator expects
         return [response]
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchPublicAccessBlockConfiguration":
             logger.warning(
                 f"No public access block configuration found for account in region {region}"
             )
-            # Return an empty list when no configuration exists
             return []
         else:
             raise
