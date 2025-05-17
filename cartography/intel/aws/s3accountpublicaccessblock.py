@@ -23,7 +23,7 @@ stat_handler = get_stats_client(__name__)
 @timeit
 @aws_handle_regions
 def get_account_public_access_block(
-    boto3_session: boto3.session.Session, region: str
+    boto3_session: boto3.session.Session, region: str, account_id: str
 ) -> List[Dict]:
     """
     Get the S3 Account Public Access Block settings for a region.
@@ -31,13 +31,13 @@ def get_account_public_access_block(
     """
     client = boto3_session.client("s3control", region_name=region)
     try:
-        account_id = boto3_session.client("sts").get_caller_identity()["Account"]
+        # Use the provided account_id instead of retrieving it
         response = client.get_public_access_block(AccountId=account_id)
         return [response]
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchPublicAccessBlockConfiguration":
             logger.warning(
-                f"No public access block configuration found for account in region {region}"
+                f"No public access block configuration found for account {account_id} in region {region}"
             )
             return []
         else:
@@ -45,23 +45,29 @@ def get_account_public_access_block(
 
 
 def transform_account_public_access_block(
-    public_access_block: Dict,
+    public_access_blocks: List[Dict],
     region: str,
     aws_account_id: str,
-) -> Dict:
+) -> List[Dict]:
     """
     Transform S3 Account Public Access Block data for ingestion.
     """
-    pab = public_access_block.get("PublicAccessBlockConfiguration", {})
-    return {
-        "id": f"{aws_account_id}:{region}",
-        "account_id": aws_account_id,
-        "region": region,
-        "block_public_acls": pab.get("BlockPublicAcls"),
-        "ignore_public_acls": pab.get("IgnorePublicAcls"),
-        "block_public_policy": pab.get("BlockPublicPolicy"),
-        "restrict_public_buckets": pab.get("RestrictPublicBuckets"),
-    }
+    transformed_data = []
+
+    for public_access_block in public_access_blocks:
+        pab = public_access_block.get("PublicAccessBlockConfiguration", {})
+        transformed = {
+            "id": f"{aws_account_id}:{region}",
+            "account_id": aws_account_id,
+            "region": region,
+            "block_public_acls": pab.get("BlockPublicAcls"),
+            "ignore_public_acls": pab.get("IgnorePublicAcls"),
+            "block_public_policy": pab.get("BlockPublicPolicy"),
+            "restrict_public_buckets": pab.get("RestrictPublicBuckets"),
+        }
+        transformed_data.append(transformed)
+
+    return transformed_data
 
 
 @timeit
@@ -120,25 +126,23 @@ def sync(
             f"Syncing S3 Account Public Access Block for {region} in account {current_aws_account_id}"
         )
 
-        public_access_blocks = get_account_public_access_block(boto3_session, region)
-        transformed_data = []
+        public_access_blocks = get_account_public_access_block(
+            boto3_session, region, current_aws_account_id
+        )
+        transformed_data = transform_account_public_access_block(
+            public_access_blocks,
+            region,
+            current_aws_account_id,
+        )
 
-        for public_access_block in public_access_blocks:
-            transformed = transform_account_public_access_block(
-                public_access_block,
-                region,
-                current_aws_account_id,
-            )
-            transformed_data.append(transformed)
-
-        if transformed_data:
-            load_account_public_access_block(
-                neo4j_session,
-                transformed_data,
-                region,
-                current_aws_account_id,
-                update_tag,
-            )
+        # Removed the unnecessary if check
+        load_account_public_access_block(
+            neo4j_session,
+            transformed_data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
 
     cleanup_account_public_access_block(neo4j_session, common_job_parameters)
 
