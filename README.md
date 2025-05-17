@@ -22,7 +22,7 @@ You can learn more about the story behind Cartography in our [presentation at BS
 
 ## Supported platforms
 
-- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - API Gateway, Config, EC2, ECS, ECR, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager, Security Hub, SQS, SSM, STS, Tags
+- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - API Gateway, Config, EC2, ECS, ECR, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, S3AccountPublicAccessBlock, Secrets Manager, Security Hub, SNS, SQS, SSM, STS, Tags
 - [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
 - [Google GSuite](https://cartography-cncf.github.io/cartography/modules/gsuite/index.html) - users, groups
 - [Oracle Cloud Infrastructure](docs/setup/config/oci.md) - IAM
