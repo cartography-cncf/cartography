@@ -1,7 +1,6 @@
 import logging
 from typing import Dict
 from typing import List
-from typing import Optional
 
 import boto3
 import neo4j
@@ -13,6 +12,7 @@ from cartography.models.aws.s3.account_public_access_block import (
     S3AccountPublicAccessBlockSchema,
 )
 from cartography.stats import get_stats_client
+from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
@@ -21,38 +21,39 @@ stat_handler = get_stats_client(__name__)
 
 
 @timeit
+@aws_handle_regions
 def get_account_public_access_block(
     boto3_session: boto3.session.Session, region: str
-) -> Optional[Dict]:
+) -> List[Dict]:
     """
     Get the S3 Account Public Access Block settings for a region.
+    Returns a list containing at most one item (the block configuration).
     """
     client = boto3_session.client("s3control", region_name=region)
     try:
         account_id = boto3_session.client("sts").get_caller_identity()["Account"]
         response = client.get_public_access_block(AccountId=account_id)
-        return response
+        # Return as a list with one item to match what the decorator expects
+        return [response]
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchPublicAccessBlockConfiguration":
             logger.warning(
                 f"No public access block configuration found for account in region {region}"
             )
-            return None
+            # Return an empty list when no configuration exists
+            return []
         else:
             raise
 
 
 def transform_account_public_access_block(
-    public_access_block: Optional[Dict],
+    public_access_block: Dict,
     region: str,
     aws_account_id: str,
-) -> Optional[Dict]:
+) -> Dict:
     """
     Transform S3 Account Public Access Block data for ingestion.
     """
-    if public_access_block is None:
-        return None
-
     pab = public_access_block.get("PublicAccessBlockConfiguration", {})
     return {
         "id": f"{aws_account_id}:{region}",
@@ -121,17 +122,21 @@ def sync(
             f"Syncing S3 Account Public Access Block for {region} in account {current_aws_account_id}"
         )
 
-        public_access_block = get_account_public_access_block(boto3_session, region)
-        transformed_data = transform_account_public_access_block(
-            public_access_block,
-            region,
-            current_aws_account_id,
-        )
+        public_access_blocks = get_account_public_access_block(boto3_session, region)
+        transformed_data = []
+
+        for public_access_block in public_access_blocks:
+            transformed = transform_account_public_access_block(
+                public_access_block,
+                region,
+                current_aws_account_id,
+            )
+            transformed_data.append(transformed)
 
         if transformed_data:
             load_account_public_access_block(
                 neo4j_session,
-                [transformed_data],
+                transformed_data,
                 region,
                 current_aws_account_id,
                 update_tag,
