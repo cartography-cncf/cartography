@@ -81,7 +81,7 @@ def sync(
         logGroups = get_cloudwatch_log_groups(boto3_session, region)
         group_data: List[Dict[str, Any]] = []
         for logGroup in logGroups:
-                group_data.append(logGroup)
+            group_data.append(logGroup)
 
         load_cloudwatch_log_groups(
             neo4j_session,
