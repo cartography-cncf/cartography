@@ -1,0 +1,28 @@
+TAILSCALE_USERS = [
+    {
+        "id": "123456",
+        "displayName": "Marge Simpson",
+        "loginName": "mbsimpson@simpson.corp",
+        "profilePicUrl": "",
+        "created": "2022-12-01T05:23:30Z",
+        "type": "member",
+        "role": "owner",
+        "status": "active",
+        "deviceCount": "1",
+        "lastSeen": "2022-12-01T05:23:30Z",
+        "currentlyConnected": "True",
+    },
+    {
+        "id": "654321",
+        "displayName": "Homer Simpson",
+        "loginName": "hjsimpson@simpson.corp",
+        "profilePicUrl": "",
+        "created": "2022-12-01T05:23:30Z",
+        "type": "member",
+        "role": "member",
+        "status": "active",
+        "deviceCount": "1",
+        "lastSeen": "2022-12-01T05:23:30Z",
+        "currentlyConnected": "True",
+    },
+]
