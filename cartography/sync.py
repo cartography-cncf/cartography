@@ -67,7 +67,6 @@ TOP_LEVEL_MODULES = OrderedDict(
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
-        "trivy": cartography.intel.trivy.start_trivy_scans,
         "duo": cartography.intel.duo.start_duo_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
