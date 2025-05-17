@@ -68,7 +68,9 @@ class TailscaleGroupToGroupRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
-    properties: TailscaleGroupToGroupRelProperties = TailscaleGroupToGroupRelProperties()
+    properties: TailscaleGroupToGroupRelProperties = (
+        TailscaleGroupToGroupRelProperties()
+    )
 
 
 @dataclass(frozen=True)
