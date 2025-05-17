@@ -14,25 +14,16 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class CloudWatchLogGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("logGroupArn")
     arn: PropertyRef = PropertyRef("logGroupArn", extra_index=True)
-    creation_time: PropertyRef = PropertyRef(
-        "creationTime")
-    data_protection_status: PropertyRef = PropertyRef(
-        "dataProtectionStatus")
-    inherited_properties: PropertyRef = PropertyRef(
-        "inheritedProperties")
+    creation_time: PropertyRef = PropertyRef("creationTime")
+    data_protection_status: PropertyRef = PropertyRef("dataProtectionStatus")
+    inherited_properties: PropertyRef = PropertyRef("inheritedProperties")
     kms_key_id: PropertyRef = PropertyRef("kmsKeyId")
-    log_group_arn: PropertyRef = PropertyRef(
-        "logGroupArn")
-    log_group_class: PropertyRef = PropertyRef(
-        "logGroupClass")
-    log_group_name: PropertyRef = PropertyRef(
-        "logGroupName")
-    metric_filter_count: PropertyRef = PropertyRef(
-        "metricFilterCount")
-    retention_in_days: PropertyRef = PropertyRef(
-        "retentionInDays")
-    stored_bytes: PropertyRef = PropertyRef(
-        "storedBytes")
+    log_group_arn: PropertyRef = PropertyRef("logGroupArn")
+    log_group_class: PropertyRef = PropertyRef("logGroupClass")
+    log_group_name: PropertyRef = PropertyRef("logGroupName")
+    metric_filter_count: PropertyRef = PropertyRef("metricFilterCount")
+    retention_in_days: PropertyRef = PropertyRef("retentionInDays")
+    stored_bytes: PropertyRef = PropertyRef("storedBytes")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
