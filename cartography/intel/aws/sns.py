@@ -10,6 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.sns.topic import SNSTopicSchema
 from cartography.stats import get_stats_client
+from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
@@ -18,6 +19,7 @@ stat_handler = get_stats_client(__name__)
 
 
 @timeit
+@aws_handle_regions
 def get_sns_topics(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
     """
     Get all SNS Topics for a region.
@@ -46,7 +48,6 @@ def get_topic_attributes(
         return None
 
 
-@timeit
 def transform_sns_topics(
     topics: List[Dict], attributes: Dict[str, Dict], region: str
 ) -> List[Dict]:
@@ -135,7 +136,6 @@ def sync(
         )
         topics = get_sns_topics(boto3_session, region)
 
-        # Get attributes for each topic
         topic_attributes = {}
         for topic in topics:
             topic_arn = topic["TopicArn"]
@@ -143,10 +143,8 @@ def sync(
             if attrs:
                 topic_attributes[topic_arn] = attrs
 
-        # Transform data
         transformed_topics = transform_sns_topics(topics, topic_attributes, region)
 
-        # Load data
         load_sns_topics(
             neo4j_session,
             transformed_topics,
@@ -155,7 +153,6 @@ def sync(
             update_tag,
         )
 
-    # Clean up old entries
     cleanup_sns(neo4j_session, common_job_parameters)
 
     # Record that we've synced this module
