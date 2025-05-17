@@ -16,13 +16,12 @@ TEST_UPDATE_TAG = 123456789
 @patch.object(
     cartography.intel.aws.s3accountpublicaccessblock,
     "get_account_public_access_block",
-    return_value=tests.data.aws.s3accountpublicaccessblock.GET_PUBLIC_ACCESS_BLOCK,
+    return_value=[tests.data.aws.s3accountpublicaccessblock.GET_PUBLIC_ACCESS_BLOCK],
 )
 def test_sync_s3accountpublicaccessblock(mock_get_pab, neo4j_session):
     """
     Test that S3 Account Public Access Block settings are correctly synced to the graph.
     """
-
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
@@ -70,30 +69,28 @@ def test_sync_s3accountpublicaccessblock(mock_get_pab, neo4j_session):
     }
 
 
-def test_sync_s3accountpublicaccessblock_none(neo4j_session):
+@patch.object(
+    cartography.intel.aws.s3accountpublicaccessblock,
+    "get_account_public_access_block",
+    return_value=[],
+)
+def test_sync_s3accountpublicaccessblock_none(mock_get_pab, neo4j_session):
     """
     Test that when no S3 Account Public Access Block settings exist, no nodes are created.
     """
-
+    boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
     neo4j_session.run("MATCH (n:S3AccountPublicAccessBlock) DETACH DELETE n")
 
-    public_access_block = None
-    transformed_data = cartography.intel.aws.s3accountpublicaccessblock.transform_account_public_access_block(
-        public_access_block,
-        TEST_REGION,
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
         TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
-
-    if transformed_data:
-        cartography.intel.aws.s3accountpublicaccessblock.load_account_public_access_block(
-            neo4j_session,
-            [transformed_data],
-            TEST_REGION,
-            TEST_ACCOUNT_ID,
-            TEST_UPDATE_TAG,
-        )
 
     nodes = neo4j_session.run(
         """
@@ -107,19 +104,19 @@ def test_sync_s3accountpublicaccessblock_none(neo4j_session):
 @patch.object(
     cartography.intel.aws.s3accountpublicaccessblock,
     "get_account_public_access_block",
-    return_value=tests.data.aws.s3accountpublicaccessblock.GET_PUBLIC_ACCESS_BLOCK_PARTIAL,
+    return_value=[
+        tests.data.aws.s3accountpublicaccessblock.GET_PUBLIC_ACCESS_BLOCK_PARTIAL
+    ],
 )
 def test_sync_s3accountpublicaccessblock_partial(mock_get_pab, neo4j_session):
     """
     Test that S3 Account Public Access Block settings with some settings disabled are correctly synced.
     """
-
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
     neo4j_session.run("MATCH (n:S3AccountPublicAccessBlock) DETACH DELETE n")
 
-    # Act
     sync(
         neo4j_session,
         boto3_session,
