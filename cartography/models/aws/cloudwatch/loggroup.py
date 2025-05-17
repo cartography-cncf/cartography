@@ -13,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class CloudWatchLogGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("logGroupArn")
-    arn: PropertyRef = PropertyRef("logGroupArn")
+    arn: PropertyRef = PropertyRef("logGroupArn", extra_index=True)
     creation_time: PropertyRef = PropertyRef(
         "creationTime")
     data_protection_status: PropertyRef = PropertyRef(
@@ -22,12 +22,12 @@ class CloudWatchLogGroupNodeProperties(CartographyNodeProperties):
         "inheritedProperties")
     kms_key_id: PropertyRef = PropertyRef("kmsKeyId")
     log_group_arn: PropertyRef = PropertyRef(
-        "logGroupARN")
+        "logGroupArn")
     log_group_class: PropertyRef = PropertyRef(
         "logGroupClass")
     log_group_name: PropertyRef = PropertyRef(
         "logGroupName")
-    metric_filer_count: PropertyRef = PropertyRef(
+    metric_filter_count: PropertyRef = PropertyRef(
         "metricFilterCount")
     retention_in_days: PropertyRef = PropertyRef(
         "retentionInDays")

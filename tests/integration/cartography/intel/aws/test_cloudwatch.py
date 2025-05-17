@@ -35,8 +35,8 @@ def test_sync_cloudwatch(mock_get_log_groups, neo4j_session):
 
     # Assert
     assert check_nodes(neo4j_session, "CloudWatchLogGroup", ["arn"]) == {
-    ("arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/process-orders",),
-    ("arn:aws:logs:us-west-2:123456789012:log-group:/aws/codebuild/sample-project",),
+    ("arn:aws:logs:eu-west-1:123456789012:log-group:/aws/lambda/process-orders",),
+    ("arn:aws:logs:eu-west-1:123456789012:log-group:/aws/codebuild/sample-project",),
 }
 
     # Assert
@@ -49,6 +49,6 @@ def test_sync_cloudwatch(mock_get_log_groups, neo4j_session):
     "RESOURCE",
     rel_direction_right=True,
 ) == {
-    (TEST_ACCOUNT_ID, "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/process-orders"),
-    (TEST_ACCOUNT_ID, "arn:aws:logs:us-west-2:123456789012:log-group:/aws/codebuild/sample-project"),
+    (TEST_ACCOUNT_ID, "arn:aws:logs:eu-west-1:123456789012:log-group:/aws/lambda/process-orders"),
+    (TEST_ACCOUNT_ID, "arn:aws:logs:eu-west-1:123456789012:log-group:/aws/codebuild/sample-project"),
 }
