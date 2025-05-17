@@ -5,6 +5,7 @@ from cartography.intel.aws.ec2.route_tables import sync_route_tables
 
 from . import apigateway
 from . import cloudtrail
+from . import cloudwatch
 from . import config
 from . import dynamodb
 from . import ecr
@@ -102,4 +103,5 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "config": config.sync,
     "identitycenter": identitycenter.sync_identity_center_instances,
     "cloudtrail": cloudtrail.sync,
+    "cloudwatch": cloudwatch.sync,
 }
