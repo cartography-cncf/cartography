@@ -1,5 +1,4 @@
-GET_CLOUDWATCH_LOG_GROUPS = {
-    "logGroups": [
+GET_CLOUDWATCH_LOG_GROUPS = [
         {
             "logGroupName": "/aws/lambda/process-orders",
             "creationTime": 1685548800000,
@@ -26,6 +25,4 @@ GET_CLOUDWATCH_LOG_GROUPS = {
             "logGroupClass": "INFREQUENT_ACCESS",
             "logGroupArn": "arn:aws:logs:eu-west-1:123456789012:log-group:/aws/codebuild/sample-project"
         }
-    ],
-    "NextToken": ""
-}
+]
