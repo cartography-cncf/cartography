@@ -52,4 +52,3 @@ def test_sync_cloudwatch(mock_get_log_groups, neo4j_session):
     (TEST_ACCOUNT_ID, "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/process-orders"),
     (TEST_ACCOUNT_ID, "arn:aws:logs:us-west-2:123456789012:log-group:/aws/codebuild/sample-project"),
 }
-
