@@ -9,6 +9,7 @@ from msgraph.generated.models.user import User
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.common.helpers import load_human_from_users
 from cartography.models.entra.tenant import EntraTenantSchema
 from cartography.models.entra.user import EntraUserSchema
 from cartography.util import timeit
@@ -152,6 +153,7 @@ def load_users(
     update_tag: int,
 ) -> None:
     logger.info(f"Loading {len(users)} Entra users")
+    load_human_from_users(neo4j_session, update_tag, users, email_field="mail")
     load(
         neo4j_session,
         EntraUserSchema(),

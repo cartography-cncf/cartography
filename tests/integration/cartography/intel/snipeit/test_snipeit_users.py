@@ -27,48 +27,58 @@ def test_load_snipeit_user_relationship(neo4j_session):
     )
 
     # Assert
-
     # Make sure the expected Tenant is created
-    expected_nodes = {
-        ("Company A",),
-    }
-    check_nodes(
+    assert check_nodes(
         neo4j_session,
         "SnipeitTenant",
         ["id"],
-    )
+    ) == {
+        ("Company A",),
+    }
 
-    # Make sure the expected Devices are created
-    expected_nodes = {
+    # Make sure the expected Users are created
+    assert check_nodes(
+        neo4j_session,
+        "SnipeitUser",
+        ["id", "email"],
+    ) == {
         (1, "mcarter@example.net"),
         (2, "snipe@snipe.net"),
     }
-    assert (
-        check_nodes(
-            neo4j_session,
-            "SnipeitUser",
-            ["id", "email"],
-        )
-        == expected_nodes
-    )
 
-    # Make sure the expected relationships are created
-    expected_nodes_relationships = {
+    # Make sure Human nodes are created
+    assert check_nodes(neo4j_session, "Human", ["id", "email"]) == {
+        ("mcarter@example.net", "mcarter@example.net"),
+        ("snipe@snipe.net", "snipe@snipe.net"),
+    }
+
+    # Make sure Users are connected with Tenant
+    assert check_rels(
+        neo4j_session,
+        "SnipeitTenant",
+        "id",
+        "SnipeitUser",
+        "id",
+        "HAS_USER",
+        rel_direction_right=True,
+    ) == {
         ("Company A", 1),
         ("Company A", 2),
     }
-    assert (
-        check_rels(
-            neo4j_session,
-            "SnipeitTenant",
-            "id",
-            "SnipeitUser",
-            "id",
-            "HAS_USER",
-            rel_direction_right=True,
-        )
-        == expected_nodes_relationships
-    )
+
+    # Make sure Users are connected with Humans
+    assert check_rels(
+        neo4j_session,
+        "SnipeitUser",
+        "id",
+        "Human",
+        "email",
+        "IDENTITY_SNIPEIT",
+        rel_direction_right=False,
+    ) == {
+        (1, "mcarter@example.net"),
+        (2, "snipe@snipe.net"),
+    }
 
     # Cleanup test data
     common_job_parameters = {

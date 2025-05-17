@@ -111,6 +111,23 @@ class GitHubUserUnaffiliatedOrganizationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitHubUserToHumanRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GitHubUser)<-[:IDENTITY_GITHUB]-(:Human)
+class GitHubUserToHumanRel(CartographyRelSchema):
+    target_node_label: str = "Human"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("email")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "IDENTITY_GITHUB"
+    properties: GitHubUserToHumanRelProperties = GitHubUserToHumanRelProperties()
+
+
+@dataclass(frozen=True)
 class GitHubOrganizationUserSchema(CartographyNodeSchema):
     label: str = "GitHubUser"
     properties: GitHubOrganizationUserNodeProperties = (
@@ -120,6 +137,7 @@ class GitHubOrganizationUserSchema(CartographyNodeSchema):
         [
             GitHubUserMemberOfOrganizationRel(),
             GitHubUserAdminOfOrganizationRel(),
+            GitHubUserToHumanRel(),
         ],
     )
     sub_resource_relationship = None
@@ -134,6 +152,7 @@ class GitHubUnaffiliatedUserSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitHubUserUnaffiliatedOrganizationRel(),
+            GitHubUserToHumanRel(),
         ],
     )
     sub_resource_relationship = None

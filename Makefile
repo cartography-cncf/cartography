@@ -8,3 +8,6 @@ test_unit:
 
 test_integration:
 	uv run --frozen pytest -vvv --cov-report term-missing --cov=cartography tests/integration
+
+build-docs:
+	uv run --frozen ./docs/build.sh

@@ -166,6 +166,13 @@ def test_build_cleanup_queries_no_sub_resource():
         WITH r LIMIT $LIMIT_SIZE
         DELETE r;
         """,
+        """
+        MATCH (n:GitHubUser)
+        MATCH (n)<-[r:IDENTITY_GITHUB]-(:Human)
+        WHERE r.lastupdated <> $UPDATE_TAG
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """,
     ]
     assert clean_query_list(actual_queries) == clean_query_list(expected_queries)
 
