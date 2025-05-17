@@ -35,11 +35,17 @@ class S3AccountPublicAccessBlockToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: S3AccountPublicAccessBlockRelProperties = S3AccountPublicAccessBlockRelProperties()
+    properties: S3AccountPublicAccessBlockRelProperties = (
+        S3AccountPublicAccessBlockRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class S3AccountPublicAccessBlockSchema(CartographyNodeSchema):
     label: str = "S3AccountPublicAccessBlock"
-    properties: S3AccountPublicAccessBlockNodeProperties = S3AccountPublicAccessBlockNodeProperties()
-    sub_resource_relationship: S3AccountPublicAccessBlockToAWSAccountRel = S3AccountPublicAccessBlockToAWSAccountRel() 
+    properties: S3AccountPublicAccessBlockNodeProperties = (
+        S3AccountPublicAccessBlockNodeProperties()
+    )
+    sub_resource_relationship: S3AccountPublicAccessBlockToAWSAccountRel = (
+        S3AccountPublicAccessBlockToAWSAccountRel()
+    )
