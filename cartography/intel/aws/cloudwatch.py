@@ -4,7 +4,6 @@ from typing import Dict
 from typing import List
 
 import boto3
-import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
