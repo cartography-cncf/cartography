@@ -7,7 +7,7 @@ GET_PUBLIC_ACCESS_BLOCK = {
         "BlockPublicAcls": True,
         "IgnorePublicAcls": True,
         "BlockPublicPolicy": True,
-        "RestrictPublicBuckets": True
+        "RestrictPublicBuckets": True,
     }
 }
 
@@ -19,6 +19,6 @@ GET_PUBLIC_ACCESS_BLOCK_PARTIAL = {
         "BlockPublicAcls": True,
         "IgnorePublicAcls": False,
         "BlockPublicPolicy": True,
-        "RestrictPublicBuckets": False
+        "RestrictPublicBuckets": False,
     }
-} 
+}

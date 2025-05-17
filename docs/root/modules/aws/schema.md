@@ -3293,7 +3293,7 @@ Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazo
     ```
     (AWSAccount)-[:RESOURCE]->(S3AccountPublicAccessBlock)
     ```
-    
+
 ### SSMInstanceInformation
 
 Representation of an AWS SSM [InstanceInformation](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_InstanceInformation.html)
