@@ -1,7 +1,8 @@
-import cartography.intel.aws.secretsmanager
-import tests.data.aws.secretsmanager
 import datetime
 from datetime import timezone as tz
+
+import cartography.intel.aws.secretsmanager
+import tests.data.aws.secretsmanager
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
@@ -72,20 +73,28 @@ def test_load_secret_versions(neo4j_session, *args):
     Ensure that expected secret versions get loaded with their key fields.
     """
     # First load the parent secret
-    secret_data = [{
-        "ARN": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
-        "Name": "test-secret-1",
-        "Description": "This is a test secret",
-        "RotationEnabled": True,
-        "RotationRules": {"AutomaticallyAfterDays": 90},
-        "RotationLambdaARN": "arn:aws:lambda:us-east-1:000000000000:function:test-secret-rotate",
-        "KmsKeyId": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
-        "CreatedDate": datetime.datetime(2014, 4, 16, 18, 14, 49, tzinfo=tz.utc),
-        "LastRotatedDate": datetime.datetime(2014, 4, 16, 18, 14, 49, tzinfo=tz.utc),
-        "LastChangedDate": datetime.datetime(2014, 4, 16, 18, 14, 49, tzinfo=tz.utc),
-        "LastAccessedDate": datetime.datetime(2014, 4, 16, 18, 14, 49, tzinfo=tz.utc),
-        "PrimaryRegion": "us-west-1",
-    }]
+    secret_data = [
+        {
+            "ARN": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
+            "Name": "test-secret-1",
+            "Description": "This is a test secret",
+            "RotationEnabled": True,
+            "RotationRules": {"AutomaticallyAfterDays": 90},
+            "RotationLambdaARN": "arn:aws:lambda:us-east-1:000000000000:function:test-secret-rotate",
+            "KmsKeyId": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
+            "CreatedDate": datetime.datetime(2014, 4, 16, 18, 14, 49, tzinfo=tz.utc),
+            "LastRotatedDate": datetime.datetime(
+                2014, 4, 16, 18, 14, 49, tzinfo=tz.utc
+            ),
+            "LastChangedDate": datetime.datetime(
+                2014, 4, 16, 18, 14, 49, tzinfo=tz.utc
+            ),
+            "LastAccessedDate": datetime.datetime(
+                2014, 4, 16, 18, 14, 49, tzinfo=tz.utc
+            ),
+            "PrimaryRegion": "us-west-1",
+        }
+    ]
     cartography.intel.aws.secretsmanager.load_secrets(
         neo4j_session,
         secret_data,
@@ -124,7 +133,9 @@ def test_load_secret_versions(neo4j_session, *args):
     )
     print("\nVersion nodes in DB:")
     for node in version_nodes:
-        print(f"Version node: id={node['sv.id']}, arn={node['sv.arn']}, secret_id={node['sv.secret_id']}")
+        print(
+            f"Version node: id={node['sv.id']}, arn={node['sv.arn']}, secret_id={node['sv.secret_id']}"
+        )
 
     # Debug: Check if relationships exist
     relationships = neo4j_session.run(

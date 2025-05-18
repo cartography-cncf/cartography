@@ -78,7 +78,9 @@ def cleanup_secrets(neo4j_session: neo4j.Session, common_job_parameters: Dict) -
 
 @timeit
 @aws_handle_regions
-def get_secret_versions(boto3_session: boto3.session.Session, region: str, secret_arn: str) -> List[Dict]:
+def get_secret_versions(
+    boto3_session: boto3.session.Session, region: str, secret_arn: str
+) -> List[Dict]:
     """
     Get all versions of a secret from AWS Secrets Manager.
     """
@@ -91,7 +93,9 @@ def get_secret_versions(boto3_session: boto3.session.Session, region: str, secre
     except client.exceptions.ResourceNotFoundException:
         logger.warning(f"Secret {secret_arn} not found in region {region}")
     except client.exceptions.ClientError as e:
-        logger.warning(f"Failed to get versions for secret {secret_arn} in region {region}: {str(e)}")
+        logger.warning(
+            f"Failed to get versions for secret {secret_arn} in region {region}: {str(e)}"
+        )
     return versions
 
 
@@ -106,7 +110,7 @@ def load_secret_versions(
     """
     Load secret versions into Neo4j.
     """
-    
+
     ingest_secret_versions = """
     UNWIND $SecretVersions as version
         MERGE (sv:SecretsManagerSecretVersion{id: version.ARN})
@@ -134,7 +138,6 @@ def load_secret_versions(
         )
         version["CreatedDate"] = dict_date_to_epoch(version, "CreatedDate")
 
-
     neo4j_session.run(
         ingest_secret_versions,
         SecretVersions=data,
@@ -142,8 +145,7 @@ def load_secret_versions(
         AWS_ACCOUNT_ID=current_aws_account_id,
         aws_update_tag=aws_update_tag,
     )
-    
-    
+
     for version in data:
         create_relationship_query = """
         MATCH (sv:SecretsManagerSecretVersion{id: $version_arn})
@@ -153,15 +155,14 @@ def load_secret_versions(
         SET r.lastupdated = $aws_update_tag
         RETURN sv.arn as version_arn, s.arn as secret_arn
         """
-        
+
         result = neo4j_session.run(
             create_relationship_query,
             version_arn=version["ARN"],
             secret_id=version["SecretId"],
             aws_update_tag=aws_update_tag,
         )
-        
-        
+
         for record in result:
             logger.info(
                 "Created relationship: %s -> %s",
@@ -171,7 +172,9 @@ def load_secret_versions(
 
 
 @timeit
-def cleanup_secret_versions(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_secret_versions(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
     """
     Clean up secret versions that are no longer present.
     """
@@ -199,8 +202,7 @@ def sync(
         )
         secrets = get_secret_list(boto3_session, region)
         load_secrets(neo4j_session, secrets, region, current_aws_account_id, update_tag)
-        
-        
+
         for secret in secrets:
             secret_versions = get_secret_versions(boto3_session, region, secret["ARN"])
             if secret_versions:
@@ -211,6 +213,6 @@ def sync(
                     current_aws_account_id,
                     update_tag,
                 )
-    
+
     cleanup_secrets(neo4j_session, common_job_parameters)
     cleanup_secret_versions(neo4j_session, common_job_parameters)

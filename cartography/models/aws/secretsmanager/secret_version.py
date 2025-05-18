@@ -16,18 +16,19 @@ class SecretsManagerSecretVersionNodeProperties(CartographyNodeProperties):
     """
     Properties for AWS Secrets Manager Secret Version
     """
+
     # Align property names with the actual keys in the data
-    id: PropertyRef = PropertyRef("ARN")  
+    id: PropertyRef = PropertyRef("ARN")
     arn: PropertyRef = PropertyRef("ARN", extra_index=True)
-    secret_id: PropertyRef = PropertyRef("SecretId")  
+    secret_id: PropertyRef = PropertyRef("SecretId")
     version_id: PropertyRef = PropertyRef("VersionId")
-    version_stages: PropertyRef = PropertyRef("VersionStages")  
+    version_stages: PropertyRef = PropertyRef("VersionStages")
     created_date: PropertyRef = PropertyRef("CreatedDate")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Make KMS and tags optional since they might not always exist
-    kms_key_id: PropertyRef = PropertyRef("KmsKeyId", required=False)  
-    tags: PropertyRef = PropertyRef("Tags", required=False)  
+    kms_key_id: PropertyRef = PropertyRef("KmsKeyId", required=False)
+    tags: PropertyRef = PropertyRef("Tags", required=False)
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class SecretsManagerSecretVersionRelProperties(CartographyRelProperties):
     """
     Properties for relationships between Secret Version and other nodes
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -43,13 +45,16 @@ class SecretsManagerSecretVersionToAWSAccountRel(CartographyRelSchema):
     """
     Relationship between Secret Version and AWS Account
     """
+
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SecretsManagerSecretVersionRelProperties = SecretsManagerSecretVersionRelProperties()
+    properties: SecretsManagerSecretVersionRelProperties = (
+        SecretsManagerSecretVersionRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -57,6 +62,7 @@ class SecretsManagerSecretVersionToSecretRel(CartographyRelSchema):
     """
     Relationship between Secret Version and its parent Secret
     """
+
     target_node_label: str = "SecretsManagerSecret"
     # Use a multi-field matcher that tries both id and arn
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -65,7 +71,10 @@ class SecretsManagerSecretVersionToSecretRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "VERSION_OF"
-    properties: SecretsManagerSecretVersionRelProperties = SecretsManagerSecretVersionRelProperties()
+    properties: SecretsManagerSecretVersionRelProperties = (
+        SecretsManagerSecretVersionRelProperties()
+    )
+
 
 @dataclass(frozen=True)
 class SecretsManagerSecretVersionToKMSKeyRel(CartographyRelSchema):
@@ -73,13 +82,16 @@ class SecretsManagerSecretVersionToKMSKeyRel(CartographyRelSchema):
     Relationship between Secret Version and its KMS key
     Only created when KmsKeyId is present
     """
+
     target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("KmsKeyId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ENCRYPTED_BY"
-    properties: SecretsManagerSecretVersionRelProperties = SecretsManagerSecretVersionRelProperties()
+    properties: SecretsManagerSecretVersionRelProperties = (
+        SecretsManagerSecretVersionRelProperties()
+    )
     # Only create this relationship if KmsKeyId exists
     conditional_match_property: str = "KmsKeyId"
 
@@ -89,9 +101,14 @@ class SecretsManagerSecretVersionSchema(CartographyNodeSchema):
     """
     Schema for AWS Secrets Manager Secret Version
     """
+
     label: str = "SecretsManagerSecretVersion"
-    properties: SecretsManagerSecretVersionNodeProperties = SecretsManagerSecretVersionNodeProperties()
-    sub_resource_relationship: SecretsManagerSecretVersionToAWSAccountRel = SecretsManagerSecretVersionToAWSAccountRel()
+    properties: SecretsManagerSecretVersionNodeProperties = (
+        SecretsManagerSecretVersionNodeProperties()
+    )
+    sub_resource_relationship: SecretsManagerSecretVersionToAWSAccountRel = (
+        SecretsManagerSecretVersionToAWSAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SecretsManagerSecretVersionToSecretRel(),
