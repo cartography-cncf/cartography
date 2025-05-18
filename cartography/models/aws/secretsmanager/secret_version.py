@@ -17,7 +17,6 @@ class SecretsManagerSecretVersionNodeProperties(CartographyNodeProperties):
     Properties for AWS Secrets Manager Secret Version
     """
 
-    # Align property names with the actual keys in the data
     id: PropertyRef = PropertyRef("ARN")
     arn: PropertyRef = PropertyRef("ARN", extra_index=True)
     secret_id: PropertyRef = PropertyRef("SecretId")
@@ -26,9 +25,9 @@ class SecretsManagerSecretVersionNodeProperties(CartographyNodeProperties):
     created_date: PropertyRef = PropertyRef("CreatedDate")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    # Make KMS and tags optional since they might not always exist
-    kms_key_id: PropertyRef = PropertyRef("KmsKeyId", required=False)
-    tags: PropertyRef = PropertyRef("Tags", required=False)
+
+    kms_key_id: PropertyRef = PropertyRef("KmsKeyId")
+    tags: PropertyRef = PropertyRef("Tags")
 
 
 @dataclass(frozen=True)
@@ -64,10 +63,9 @@ class SecretsManagerSecretVersionToSecretRel(CartographyRelSchema):
     """
 
     target_node_label: str = "SecretsManagerSecret"
-    # Use a multi-field matcher that tries both id and arn
+    # Use only one matcher for the id field
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("SecretId")},
-        {"arn": PropertyRef("SecretId")},  # Added fallback matcher
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "VERSION_OF"

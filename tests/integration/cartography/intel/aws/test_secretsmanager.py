@@ -72,7 +72,7 @@ def test_load_secret_versions(neo4j_session, *args):
     """
     Ensure that expected secret versions get loaded with their key fields.
     """
-    # First load the parent secret
+
     secret_data = [
         {
             "ARN": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
@@ -103,18 +103,6 @@ def test_load_secret_versions(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
-    # Debug: Check if secret was created
-    secret_nodes = neo4j_session.run(
-        """
-        MATCH (s:SecretsManagerSecret)
-        RETURN s.id, s.arn
-        """
-    )
-    print("\nSecret nodes in DB:")
-    for node in secret_nodes:
-        print(f"Secret node: id={node['s.id']}, arn={node['s.arn']}")
-
-    # Then load the versions
     data = tests.data.aws.secretsmanager.LIST_SECRET_VERSIONS
     cartography.intel.aws.secretsmanager.load_secret_versions(
         neo4j_session,
@@ -123,30 +111,6 @@ def test_load_secret_versions(neo4j_session, *args):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-
-    # Debug: Check if version nodes were created
-    version_nodes = neo4j_session.run(
-        """
-        MATCH (sv:SecretsManagerSecretVersion)
-        RETURN sv.id, sv.arn, sv.secret_id
-        """
-    )
-    print("\nVersion nodes in DB:")
-    for node in version_nodes:
-        print(
-            f"Version node: id={node['sv.id']}, arn={node['sv.arn']}, secret_id={node['sv.secret_id']}"
-        )
-
-    # Debug: Check if relationships exist
-    relationships = neo4j_session.run(
-        """
-        MATCH (sv:SecretsManagerSecretVersion)-[r:VERSION_OF]->(s:SecretsManagerSecret)
-        RETURN sv.arn, s.arn, type(r)
-        """
-    )
-    print("\nRelationships in DB:")
-    for rel in relationships:
-        print(f"Relationship: {rel['sv.arn']} -[{rel['type(r)']}]-> {rel['s.arn']}")
 
     expected_nodes = {
         (
@@ -186,7 +150,6 @@ def test_load_secret_versions(neo4j_session, *args):
     }
     assert actual_nodes == expected_nodes
 
-    # Test relationships
     relationships = neo4j_session.run(
         """
         MATCH (sv:SecretsManagerSecretVersion)-[r:VERSION_OF]->(s:SecretsManagerSecret)

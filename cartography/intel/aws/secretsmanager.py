@@ -153,22 +153,14 @@ def load_secret_versions(
         MERGE (sv)-[r:VERSION_OF]->(s)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $aws_update_tag
-        RETURN sv.arn as version_arn, s.arn as secret_arn
         """
 
-        result = neo4j_session.run(
+        neo4j_session.run(
             create_relationship_query,
             version_arn=version["ARN"],
             secret_id=version["SecretId"],
             aws_update_tag=aws_update_tag,
         )
-
-        for record in result:
-            logger.info(
-                "Created relationship: %s -> %s",
-                record["version_arn"],
-                record["secret_arn"],
-            )
 
 
 @timeit
