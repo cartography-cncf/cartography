@@ -26,3 +26,20 @@ LIST_SECRETS = [
         "LastAccessedDate": datetime.datetime(2014, 4, 16, 18, 14, 49, tzinfo=tz.utc),
     },
 ]
+
+LIST_SECRET_VERSIONS = [
+    {
+        "ARN": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000:version:00000000-0000-0000-0000-000000000000",
+        "SecretId": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
+        "VersionId": "00000000-0000-0000-0000-000000000000",
+        "VersionStages": ["AWSCURRENT"],
+        "CreatedDate": datetime.datetime(2014, 4, 16, 18, 14, 49, tzinfo=tz.utc),
+    },
+    {
+        "ARN": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000:version:11111111-1111-1111-1111-111111111111",
+        "SecretId": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
+        "VersionId": "11111111-1111-1111-1111-111111111111",
+        "VersionStages": ["AWSPREVIOUS"],
+        "CreatedDate": datetime.datetime(2014, 4, 15, 18, 14, 49, tzinfo=tz.utc),
+    },
+]
