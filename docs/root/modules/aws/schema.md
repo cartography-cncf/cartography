@@ -788,7 +788,11 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 | metricFilterCount | The number of metric filters. |
 | retentionInDays | The number of days to retain the log events in the specified log group. |
 | storedBytes | The number of bytes stored. |
-
+#### Relationships
+- CLoudWatch LogGroups are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
 
 ### DBSubnetGroup
 
