@@ -77,6 +77,112 @@ def cleanup_secrets(neo4j_session: neo4j.Session, common_job_parameters: Dict) -
 
 
 @timeit
+@aws_handle_regions
+def get_secret_versions(boto3_session: boto3.session.Session, region: str, secret_arn: str) -> List[Dict]:
+    """
+    Get all versions of a secret from AWS Secrets Manager.
+    """
+    client = boto3_session.client("secretsmanager", region_name=region)
+    versions: List[Dict] = []
+    try:
+        paginator = client.get_paginator("list_secret_version_ids")
+        for page in paginator.paginate(SecretId=secret_arn):
+            versions.extend(page["Versions"])
+    except client.exceptions.ResourceNotFoundException:
+        logger.warning(f"Secret {secret_arn} not found in region {region}")
+    except client.exceptions.ClientError as e:
+        logger.warning(f"Failed to get versions for secret {secret_arn} in region {region}: {str(e)}")
+    return versions
+
+
+@timeit
+def load_secret_versions(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load secret versions into Neo4j.
+    """
+    
+    ingest_secret_versions = """
+    UNWIND $SecretVersions as version
+        MERGE (sv:SecretsManagerSecretVersion{id: version.ARN})
+        ON CREATE SET sv.firstseen = timestamp()
+        SET sv.arn = version.ARN,
+            sv.secret_id = version.SecretId,
+            sv.version_id = version.VersionId,
+            sv.version_stages = version.VersionStages,
+            sv.created_date = version.CreatedDate,
+            sv.region = $Region,
+            sv.lastupdated = $aws_update_tag
+        WITH sv
+        MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
+        MERGE (owner)-[r:RESOURCE]->(sv)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $aws_update_tag
+    """
+
+    logger.info("Loading %d secret versions", len(data))
+    for version in data:
+        logger.debug(
+            "Processing version %s for secret %s",
+            version["VersionId"],
+            version["SecretId"],
+        )
+        version["CreatedDate"] = dict_date_to_epoch(version, "CreatedDate")
+
+
+    neo4j_session.run(
+        ingest_secret_versions,
+        SecretVersions=data,
+        Region=region,
+        AWS_ACCOUNT_ID=current_aws_account_id,
+        aws_update_tag=aws_update_tag,
+    )
+    
+    
+    for version in data:
+        create_relationship_query = """
+        MATCH (sv:SecretsManagerSecretVersion{id: $version_arn})
+        MATCH (s:SecretsManagerSecret{id: $secret_id})
+        MERGE (sv)-[r:VERSION_OF]->(s)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $aws_update_tag
+        RETURN sv.arn as version_arn, s.arn as secret_arn
+        """
+        
+        result = neo4j_session.run(
+            create_relationship_query,
+            version_arn=version["ARN"],
+            secret_id=version["SecretId"],
+            aws_update_tag=aws_update_tag,
+        )
+        
+        
+        for record in result:
+            logger.info(
+                "Created relationship: %s -> %s",
+                record["version_arn"],
+                record["secret_arn"],
+            )
+
+
+@timeit
+def cleanup_secret_versions(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+    """
+    Clean up secret versions that are no longer present.
+    """
+    run_cleanup_job(
+        "aws_import_secret_versions_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -93,4 +199,18 @@ def sync(
         )
         secrets = get_secret_list(boto3_session, region)
         load_secrets(neo4j_session, secrets, region, current_aws_account_id, update_tag)
+        
+        
+        for secret in secrets:
+            secret_versions = get_secret_versions(boto3_session, region, secret["ARN"])
+            if secret_versions:
+                load_secret_versions(
+                    neo4j_session,
+                    secret_versions,
+                    region,
+                    current_aws_account_id,
+                    update_tag,
+                )
+    
     cleanup_secrets(neo4j_session, common_job_parameters)
+    cleanup_secret_versions(neo4j_session, common_job_parameters)
