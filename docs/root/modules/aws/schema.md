@@ -771,6 +771,29 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 | sns_topic_arn | The ARN of the SNS topic used by the CloudTrailTrail for delivery notifications. |
 
 
+### CloudWatchLogGroup
+Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)
+
+| Field | Description |
+|-------|-------------|
+| id | The ARN of the SNS log group |
+| arn | The Amazon Resource Name (ARN) of the log group |
+| creationTime | The creation time of the log group, expressed as the number of milliseconds after Jan 1, 1970 00:00:00 UTC. |
+| dataProtectionStatus | Displays whether this log group has a protection policy, or whether it had one in the past. |
+| inheritedProperties | Displays all the properties that this log group has inherited from account-level settings. |
+| kmsKeyId | The Amazon Resource Name (ARN) of the AWS KMS key to use when encrypting log data. |
+| logGroupArn | The Amazon Resource Name (ARN) of the log group. |
+| logGroupClass | This specifies the log group class for this log group. |
+| logGroupName | The name of the log group. |
+| metricFilterCount | The number of metric filters. |
+| retentionInDays | The number of days to retain the log events in the specified log group. |
+| storedBytes | The number of bytes stored. |
+#### Relationships
+- CLoudWatch LogGroups are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
+
 ### DBSubnetGroup
 
 Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSubnetGroup.html).  For more information on how RDS instances interact with these, please see [this article](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html).
