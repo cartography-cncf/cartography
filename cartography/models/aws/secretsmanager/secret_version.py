@@ -17,6 +17,7 @@ class SecretsManagerSecretVersionNodeProperties(CartographyNodeProperties):
     Properties for AWS Secrets Manager Secret Version
     """
 
+    # Align property names with the actual keys in the data
     id: PropertyRef = PropertyRef("ARN")
     arn: PropertyRef = PropertyRef("ARN", extra_index=True)
     secret_id: PropertyRef = PropertyRef("SecretId")
@@ -25,7 +26,7 @@ class SecretsManagerSecretVersionNodeProperties(CartographyNodeProperties):
     created_date: PropertyRef = PropertyRef("CreatedDate")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
+    # Make KMS and tags properties without required=False parameter
     kms_key_id: PropertyRef = PropertyRef("KmsKeyId")
     tags: PropertyRef = PropertyRef("Tags")
 
