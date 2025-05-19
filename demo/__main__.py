@@ -33,6 +33,21 @@ def main():
     logger.info("Creating indexes...")
     create_indexes.run(neo4j_session, None)
 
+    # Create Human
+    # This is an uggly hack to create a human node for the demo.
+    # We are still working on a better way to build humans (and other abstracts nodes) on Cartography
+    logger.info("Creating human node...")
+    humans = [
+        {"email": "mbsimpson@simpson.corp"},
+        {"email": "hjsimpson@simpson.corp"},
+        {"email": "lmsimpson@simpson.corp"},
+        {"email": "bjsimpson@simpson.corp"},
+    ]
+    neo4j_session.run(
+        "UNWIND $data as item MERGE (h:Human{email: item.email})",
+        data=humans,
+    )
+
     # Load the demo data
     logger.info("Loading demo data...")
     # TODO: AWS
