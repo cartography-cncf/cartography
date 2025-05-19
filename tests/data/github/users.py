@@ -1,6 +1,6 @@
 GITHUB_ORG_DATA = {
-    "url": "https://github.com/simpsonorg",
-    "login": "SimpsonOrg",
+    "url": "https://github.com/simpsoncorp",
+    "login": "SimpsonCorp",
 }
 
 

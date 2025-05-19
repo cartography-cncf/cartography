@@ -1,5 +1,5 @@
 ASSETS = {
-    "simpson_org": [
+    "simpson_corp": [
         {
             "id": 1373,
             "name": "",

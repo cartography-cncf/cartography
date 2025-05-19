@@ -1,6 +1,6 @@
 TENANTS = {
-    "simpson_org": {
-        "id": "SimpsonOrg",
+    "simpson_corp": {
+        "id": "SimpsonCorp",
     },
     "south_park": {
         "id": "SouthPark",

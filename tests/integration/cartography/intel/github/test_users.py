@@ -92,27 +92,27 @@ def test_sync(mock_owners, mock_users, neo4j_session):
         (
             "https://github.com/hjsimpson",
             "MEMBER_OF",
-            "https://github.com/simpsonorg",
+            "https://github.com/simpsoncorp",
         ),
         (
             "https://github.com/lmsimpson",
             "MEMBER_OF",
-            "https://github.com/simpsonorg",
+            "https://github.com/simpsoncorp",
         ),
         (
             "https://github.com/mbsimpson",
             "MEMBER_OF",
-            "https://github.com/simpsonorg",
+            "https://github.com/simpsoncorp",
         ),
         (
             "https://github.com/mbsimpson",
             "ADMIN_OF",
-            "https://github.com/simpsonorg",
+            "https://github.com/simpsoncorp",
         ),
         (
             "https://github.com/kbroflovski",
             "UNAFFILIATED",
-            "https://github.com/simpsonorg",
+            "https://github.com/simpsoncorp",
         ),
     }
     assert actual_nodes == expected_nodes
@@ -189,7 +189,7 @@ def test_sync_with_cleanups(mock_owners, mock_users, neo4j_session):
         "id",
         "ADMIN_OF",
     ) == {
-        ("https://github.com/mbsimpson", "https://github.com/simpsonorg"),
+        ("https://github.com/mbsimpson", "https://github.com/simpsoncorp"),
     }
 
     # Act: Sync a second time
@@ -209,5 +209,5 @@ def test_sync_with_cleanups(mock_owners, mock_users, neo4j_session):
         "id",
         "ADMIN_OF",
     ) == {
-        ("https://github.com/hjsimpson", "https://github.com/simpsonorg"),
+        ("https://github.com/hjsimpson", "https://github.com/simpsoncorp"),
     }
