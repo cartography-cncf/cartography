@@ -27,8 +27,14 @@ TRIVY_SCAN_FATAL_CIRCUIT_BREAKER_PERCENT = 10
 @timeit
 def get_scan_targets(
     neo4j_session: neo4j.Session,
+    account_ids: list[str] | None = None,
 ) -> List[Tuple[str, str, str, str, str]]:
-    aws_accounts = list_accounts(neo4j_session)
+
+    if not account_ids:
+        aws_accounts = list_accounts(neo4j_session)
+    else:
+        aws_accounts = account_ids
+
     ecr_images: List[Tuple[str, str, str, str, str]] = []
     for account_id in aws_accounts:
         ecr_images.extend(get_ecr_images(neo4j_session, account_id))
