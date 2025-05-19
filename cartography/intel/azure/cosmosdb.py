@@ -205,9 +205,6 @@ def _load_database_account_write_locations(
         for wl in write_locations:
             wl["db_write_account_id"] = database_account["id"]
 
-        for wl in write_locations:
-            print(wl)
-
         load(
             neo4j_session,
             AzureCosmosDBLocationSchema(),

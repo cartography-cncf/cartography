@@ -18,7 +18,7 @@ class AzureDiskProperties(CartographyNodeProperties):
     location: PropertyRef = PropertyRef("location")
     resourcegroup: PropertyRef = PropertyRef("resource_group")
     type: PropertyRef = PropertyRef("type")
-    createoption: PropertyRef = PropertyRef("reation_data.create_option")
+    createoption: PropertyRef = PropertyRef("creation_data.create_option")
     disksizegb: PropertyRef = PropertyRef("disk_size_gb")
     encryption: PropertyRef = PropertyRef("encryption_settings_collection.enabled")
     maxshares: PropertyRef = PropertyRef("max_shares")

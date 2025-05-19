@@ -936,7 +936,6 @@ def _load_transparent_data_encryptions(
 @timeit
 def cleanup_azure_sql_servers(
     neo4j_session: neo4j.Session,
-    server_list: List[Dict],
     common_job_parameters: Dict,
 ) -> None:
     for node in [
@@ -976,4 +975,4 @@ def sync(
         server_list,
         sync_tag,
     )
-    cleanup_azure_sql_servers(neo4j_session, server_list, common_job_parameters)
+    cleanup_azure_sql_servers(neo4j_session, common_job_parameters)
