@@ -123,6 +123,8 @@ class Config:
     :param snipeit_token: Token used to authenticate to the SnipeIT data provider. Optional.
     :type snipeit_tenant_id: string
     :param snipeit_tenant_id: Token used to authenticate to the SnipeIT data provider. Optional.
+    :type cloudflare_token: string
+    :param cloudflare_token: Cloudflare API key. Optional.
     """
 
     def __init__(
@@ -188,6 +190,7 @@ class Config:
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
+        cloudflare_token=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -250,3 +253,4 @@ class Config:
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
+        self.cloudflare_token = cloudflare_token
