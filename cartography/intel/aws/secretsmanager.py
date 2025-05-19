@@ -1,4 +1,3 @@
-import datetime
 import logging
 from typing import Dict
 from typing import List
@@ -7,15 +6,19 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.models.aws.secretsmanager.secret_version import (
     SecretsManagerSecretVersionSchema,
 )
+from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import dict_date_to_epoch
+from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+stat_handler = get_stats_client(__name__)
 
 
 @timeit
@@ -90,57 +93,31 @@ def get_secret_versions(
     Get all versions of a secret from AWS Secrets Manager.
     """
     client = boto3_session.client("secretsmanager", region_name=region)
-    versions: List[Dict] = []
-    try:
-        paginator = client.get_paginator("list_secret_version_ids")
-        for page in paginator.paginate(SecretId=secret_arn, IncludeDeprecated=True):
-            for version in page["Versions"]:
-                # Add SecretId to establish the parent-child relationship
-                version["SecretId"] = secret_arn
-                # Format ARN to match expected format: {secret_arn}:version:{version_id}
-                version["ARN"] = f"{secret_arn}:version:{version['VersionId']}"
+    paginator = client.get_paginator("list_secret_version_ids")
+    versions = []
 
-                # Convert createdDate to a datetime object if it's not already
-                if "CreatedDate" in version and not isinstance(
-                    version["CreatedDate"], datetime.datetime
-                ):
-                    version["CreatedDate"] = datetime.datetime.fromtimestamp(
-                        version["CreatedDate"], tz=datetime.timezone.utc
-                    )
+    for page in paginator.paginate(SecretId=secret_arn, IncludeDeprecated=True):
+        for version in page["Versions"]:
 
-            versions.extend(page["Versions"])
+            version["SecretId"] = secret_arn
 
-    except client.exceptions.ResourceNotFoundException:
-        logger.warning(f"Secret {secret_arn} not found in region {region}")
-    except client.exceptions.InvalidRequestException as e:
-        logger.warning(
-            f"Invalid request for secret {secret_arn} in region {region}: {str(e)}"
-        )
-    except client.exceptions.ClientError as e:
-        logger.warning(
-            f"Failed to get versions for secret {secret_arn} in region {region}: {str(e)}"
-        )
+            version["ARN"] = f"{secret_arn}:version:{version['VersionId']}"
+        versions.extend(page["Versions"])
 
     return versions
 
 
-@timeit
-def load_secret_versions(
-    neo4j_session: neo4j.Session,
-    data: List[Dict],
+def transform_secret_versions(
+    versions: List[Dict],
     region: str,
-    current_aws_account_id: str,
-    aws_update_tag: int,
-) -> None:
+    aws_account_id: str,
+) -> List[Dict]:
     """
-    Load secret versions into Neo4j using the data model.
+    Transform AWS Secrets Manager Secret Versions to match the data model.
     """
-    logger.info("Loading %d secret versions", len(data))
-
-    formatted_data = []
-    for version in data:
-
-        formatted_version = {
+    transformed_data = []
+    for version in versions:
+        transformed = {
             "ARN": version["ARN"],
             "SecretId": version["SecretId"],
             "VersionId": version["VersionId"],
@@ -149,30 +126,36 @@ def load_secret_versions(
         }
 
         if "KmsKeyId" in version and version["KmsKeyId"]:
-            formatted_version["KmsKeyId"] = version["KmsKeyId"]
+            transformed["KmsKeyId"] = version["KmsKeyId"]
 
         if "Tags" in version and version["Tags"]:
-            formatted_version["Tags"] = version["Tags"]
+            transformed["Tags"] = version["Tags"]
 
-        formatted_data.append(formatted_version)
+        transformed_data.append(transformed)
 
-        logger.debug(
-            "Processing version %s for secret %s",
-            version["VersionId"],
-            version["SecretId"],
-        )
+    return transformed_data
 
-    if not formatted_data:
-        logger.warning("No valid secret version data to load")
-        return
+
+@timeit
+def load_secret_versions(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Load secret versions into Neo4j using the data model.
+    """
+    logger.info(f"Loading {len(data)} Secret Versions for region {region} into graph.")
 
     load(
         neo4j_session,
         SecretsManagerSecretVersionSchema(),
-        formatted_data,
-        AWS_ID=current_aws_account_id,
-        lastupdated=aws_update_tag,
+        data,
+        lastupdated=update_tag,
         Region=region,
+        AWS_ID=aws_account_id,
     )
 
 
@@ -181,13 +164,13 @@ def cleanup_secret_versions(
     neo4j_session: neo4j.Session, common_job_parameters: Dict
 ) -> None:
     """
-    Clean up secret versions that are no longer present.
+    Run Secret Versions cleanup job.
     """
-    run_cleanup_job(
-        "aws_import_secret_versions_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    logger.debug("Running Secret Versions cleanup job.")
+    cleanup_job = GraphJob.from_node_schema(
+        SecretsManagerSecretVersionSchema(), common_job_parameters
     )
+    cleanup_job.run(neo4j_session)
 
 
 @timeit
@@ -199,11 +182,12 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    """
+    Sync AWS Secrets Manager resources.
+    """
     for region in regions:
         logger.info(
-            "Syncing Secrets Manager for region '%s' in account '%s'.",
-            region,
-            current_aws_account_id,
+            f"Syncing Secrets Manager for region '{region}' in account '{current_aws_account_id}'."
         )
         secrets = get_secret_list(boto3_session, region)
 
@@ -218,10 +202,17 @@ def sync(
                 f"Getting versions for secret {secret.get('Name', 'unnamed')} ({secret['ARN']})"
             )
             secret_versions = get_secret_versions(boto3_session, region, secret["ARN"])
+
             if secret_versions:
+                transformed_data = transform_secret_versions(
+                    secret_versions,
+                    region,
+                    current_aws_account_id,
+                )
+
                 load_secret_versions(
                     neo4j_session,
-                    secret_versions,
+                    transformed_data,
                     region,
                     current_aws_account_id,
                     update_tag,
@@ -233,3 +224,12 @@ def sync(
 
     cleanup_secrets(neo4j_session, common_job_parameters)
     cleanup_secret_versions(neo4j_session, common_job_parameters)
+
+    merge_module_sync_metadata(
+        neo4j_session,
+        group_type="AWSAccount",
+        group_id=current_aws_account_id,
+        synced_type="SecretsManagerSecretVersion",
+        update_tag=update_tag,
+        stat_handler=stat_handler,
+    )
