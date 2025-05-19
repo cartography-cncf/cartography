@@ -51,6 +51,7 @@ def get(
     return req.json()
 
 
+@timeit
 def load_tailnets(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
@@ -66,6 +67,7 @@ def load_tailnets(
     )
 
 
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:

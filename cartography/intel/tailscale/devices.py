@@ -62,7 +62,6 @@ def get(
     return results
 
 
-@timeit
 def transform(
     raw_data: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:

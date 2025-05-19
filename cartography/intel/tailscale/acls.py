@@ -63,7 +63,6 @@ def get(
     return req.text
 
 
-@timeit
 def transform(
     raw_acl: str,
     users: List[Dict[str, Any]],
@@ -135,6 +134,7 @@ def load_tags(
     )
 
 
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:

@@ -54,6 +54,7 @@ def get(
     return results
 
 
+@timeit
 def load_users(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
@@ -70,6 +71,7 @@ def load_users(
     )
 
 
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
