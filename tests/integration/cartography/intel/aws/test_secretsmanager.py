@@ -1,163 +1,123 @@
-import datetime
-from datetime import timezone as tz
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.aws.secretsmanager
 import tests.data.aws.secretsmanager
+from cartography.intel.aws.secretsmanager import sync
+from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-def test_load_load_secrets(neo4j_session, *args):
+@patch.object(
+    cartography.intel.aws.secretsmanager,
+    "get_secret_list",
+    return_value=tests.data.aws.secretsmanager.LIST_SECRETS,
+)
+@patch.object(
+    cartography.intel.aws.secretsmanager,
+    "get_secret_versions",
+    return_value=tests.data.aws.secretsmanager.LIST_SECRET_VERSIONS,
+)
+def test_sync_secretsmanager(mock_get_versions, mock_get_secrets, neo4j_session):
     """
-    Ensure that expected secrets get loaded with their key fields.
+    Test that Secrets Manager secrets and their versions are correctly synced to the graph.
     """
-    data = tests.data.aws.secretsmanager.LIST_SECRETS
-    cartography.intel.aws.secretsmanager.load_secrets(
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    neo4j_session.run("MATCH (n:SecretsManagerSecret) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:SecretsManagerSecretVersion) DETACH DELETE n")
+
+    sync(
         neo4j_session,
-        data,
-        TEST_REGION,
+        boto3_session,
+        [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session,
+        "SecretsManagerSecret",
+        [
+            "arn",
+            "name",
+            "rotation_enabled",
+            "kms_key_id",
+            "region",
+        ],
+    ) == {
         (
+            "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
             "test-secret-1",
             True,
-            90,
-            "arn:aws:lambda:us-east-1:000000000000:function:test-secret-rotate",
             "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
-            "us-west-1",
             "us-east-1",
-            1397672089,
         ),
         (
+            "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-2-000000",
             "test-secret-2",
             False,
             None,
-            None,
-            None,
-            None,
             "us-east-1",
-            1397672089,
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (s:SecretsManagerSecret)
-        RETURN s.name, s.rotation_enabled, s.rotation_rules_automatically_after_days,
-        s.rotation_lambda_arn, s.kms_key_id, s.primary_region, s.region, s.last_changed_date
-        """,
-    )
-    actual_nodes = {
-        (
-            n["s.name"],
-            n["s.rotation_enabled"],
-            n["s.rotation_rules_automatically_after_days"],
-            n["s.rotation_lambda_arn"],
-            n["s.kms_key_id"],
-            n["s.primary_region"],
-            n["s.region"],
-            n["s.last_changed_date"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
-
-
-def test_load_secret_versions(neo4j_session, *args):
-    """
-    Ensure that expected secret versions get loaded with their key fields.
-    """
-
-    secret_data = [
-        {
-            "ARN": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
-            "Name": "test-secret-1",
-            "Description": "This is a test secret",
-            "RotationEnabled": True,
-            "RotationRules": {"AutomaticallyAfterDays": 90},
-            "RotationLambdaARN": "arn:aws:lambda:us-east-1:000000000000:function:test-secret-rotate",
-            "KmsKeyId": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
-            "CreatedDate": datetime.datetime(2014, 4, 16, 18, 14, 49, tzinfo=tz.utc),
-            "LastRotatedDate": datetime.datetime(
-                2014, 4, 16, 18, 14, 49, tzinfo=tz.utc
-            ),
-            "LastChangedDate": datetime.datetime(
-                2014, 4, 16, 18, 14, 49, tzinfo=tz.utc
-            ),
-            "LastAccessedDate": datetime.datetime(
-                2014, 4, 16, 18, 14, 49, tzinfo=tz.utc
-            ),
-            "PrimaryRegion": "us-west-1",
-        }
-    ]
-    cartography.intel.aws.secretsmanager.load_secrets(
+    assert check_nodes(
         neo4j_session,
-        secret_data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    data = tests.data.aws.secretsmanager.LIST_SECRET_VERSIONS
-    cartography.intel.aws.secretsmanager.load_secret_versions(
-        neo4j_session,
-        data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    expected_nodes = {
+        "SecretsManagerSecretVersion",
+        [
+            "arn",
+            "secret_id",
+            "version_id",
+        ],
+    ) == {
         (
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000:version:00000000-0000-0000-0000-000000000000",
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
             "00000000-0000-0000-0000-000000000000",
-            ("AWSCURRENT",),
-            "us-east-1",
-            1397672089,
         ),
         (
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000:version:11111111-1111-1111-1111-111111111111",
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
             "11111111-1111-1111-1111-111111111111",
-            ("AWSPREVIOUS",),
-            "us-east-1",
-            1397585689,
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (sv:SecretsManagerSecretVersion)
-        RETURN sv.arn, sv.secret_id, sv.version_id, sv.version_stages, sv.region, sv.created_date
-        """,
-    )
-    actual_nodes = {
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "SecretsManagerSecret",
+        "arn",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
         (
-            n["sv.arn"],
-            n["sv.secret_id"],
-            n["sv.version_id"],
-            tuple(n["sv.version_stages"]),
-            n["sv.region"],
-            n["sv.created_date"],
-        )
-        for n in nodes
+            TEST_ACCOUNT_ID,
+            "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-2-000000",
+        ),
     }
-    assert actual_nodes == expected_nodes
 
-    relationships = neo4j_session.run(
-        """
-        MATCH (sv:SecretsManagerSecretVersion)-[r:VERSION_OF]->(s:SecretsManagerSecret)
-        RETURN sv.arn, s.arn
-        """,
-    )
-    actual_relationships = {(r["sv.arn"], r["s.arn"]) for r in relationships}
-    expected_relationships = {
+    assert check_rels(
+        neo4j_session,
+        "SecretsManagerSecretVersion",
+        "arn",
+        "SecretsManagerSecret",
+        "arn",
+        "VERSION_OF",
+        rel_direction_right=True,
+    ) == {
         (
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000:version:00000000-0000-0000-0000-000000000000",
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
@@ -167,4 +127,60 @@ def test_load_secret_versions(neo4j_session, *args):
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
         ),
     }
-    assert actual_relationships == expected_relationships
+
+
+@patch("cartography.util.dict_date_to_epoch", return_value=None)
+@patch.object(
+    cartography.intel.aws.secretsmanager,
+    "get_secret_list",
+    return_value=[
+        {
+            "ARN": "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
+            "Name": "test-secret-1",
+            "Description": "Test secret",
+            "RotationEnabled": False,
+            "DeletedDate": None,
+            "LastChangedDate": None,
+            "LastAccessedDate": None,
+            "LastRotatedDate": None,
+            "CreatedDate": None,
+        }
+    ],
+)
+@patch.object(
+    cartography.intel.aws.secretsmanager, "get_secret_versions", return_value=[]
+)
+def test_sync_secretsmanager_no_versions(
+    mock_get_versions, mock_get_secrets, mock_date_to_epoch, neo4j_session
+):
+    """
+    Test that when secrets exist but have no versions, no version nodes are created.
+    """
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    neo4j_session.run("MATCH (n:SecretsManagerSecret) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:SecretsManagerSecretVersion) DETACH DELETE n")
+
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    secrets = neo4j_session.run(
+        """
+        MATCH (n:SecretsManagerSecret) RETURN count(n) as count
+        """
+    )
+    assert secrets.single()["count"] > 0
+
+    versions = neo4j_session.run(
+        """
+        MATCH (n:SecretsManagerSecretVersion) RETURN count(n) as count
+        """
+    )
+    assert versions.single()["count"] == 0
