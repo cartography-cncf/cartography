@@ -583,7 +583,6 @@ class CLI:
             default=None,
             help="The name of an environment variable containing ApiKey with which to authenticate to Cloudflare.",
         )
-
         parser.add_argument(
             "--tailscale-token-env-var",
             type=str,
