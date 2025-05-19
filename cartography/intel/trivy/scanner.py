@@ -9,8 +9,8 @@ from typing import Optional
 import neo4j
 from neo4j import Session
 
-from cartography.graph.job import GraphJob
 from cartography.stats import get_stats_client
+from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -206,7 +206,7 @@ def transform_scan_results(results: List[Dict]) -> List[Dict]:
 
 @timeit
 def cleanup(neo4j_session: Session, common_job_parameters: Dict[str, Any]) -> None:
-    GraphJob.run_from_json_file(
+    run_cleanup_job(
         "trivy_scan_findings_cleanup.json",
         neo4j_session,
         common_job_parameters,
@@ -337,6 +337,7 @@ def _load_scan_results_in_single_class_tx(
         RepoName=ecr_repo_name,
         UpdateTag=update_tag,
     )
+    pass
 
 
 @timeit
