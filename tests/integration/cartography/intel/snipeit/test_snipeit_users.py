@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 def test_load_snipeit_user_relationship(neo4j_session):
     # Arrange
     TEST_UPDATE_TAG = 1234
-    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_org"]["id"]
+    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_snipeit_TENANT_ID,
     }
-    data = tests.data.snipeit.users.USERS["simpson_org"]
+    data = tests.data.snipeit.users.USERS["simpson_corp"]
 
     # Act
     cartography.intel.snipeit.user.load_users(
@@ -30,7 +30,7 @@ def test_load_snipeit_user_relationship(neo4j_session):
 
     # Make sure the expected Tenant is created
     expected_nodes = {
-        ("SimpsonOrg",),
+        ("SimpsonCorp",),
     }
     check_nodes(
         neo4j_session,
@@ -54,8 +54,8 @@ def test_load_snipeit_user_relationship(neo4j_session):
 
     # Make sure the expected relationships are created
     expected_nodes_relationships = {
-        ("SimpsonOrg", 1),
-        ("SimpsonOrg", 2),
+        ("SimpsonCorp", 1),
+        ("SimpsonCorp", 2),
     }
     assert (
         check_rels(
@@ -84,12 +84,12 @@ def test_load_snipeit_user_relationship(neo4j_session):
 def test_cleanup_snipeit_users(neo4j_session):
     # Arrange
     TEST_UPDATE_TAG = 1234
-    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_org"]["id"]
+    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_snipeit_TENANT_ID,
     }
-    data = tests.data.snipeit.users.USERS["simpson_org"]
+    data = tests.data.snipeit.users.USERS["simpson_corp"]
 
     # Act
     cartography.intel.snipeit.user.load_users(
@@ -117,8 +117,8 @@ def test_cleanup_snipeit_users(neo4j_session):
 
     # [Pre-test] Assert that the related and unrelated data exists
     expected_nodes_relationships = {
-        ("SimpsonOrg", 1),
-        ("SimpsonOrg", 2),
+        ("SimpsonCorp", 1),
+        ("SimpsonCorp", 2),
         ("SouthPark", 3),
         ("SouthPark", 4),
     }

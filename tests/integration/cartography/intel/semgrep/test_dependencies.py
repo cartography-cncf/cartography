@@ -197,15 +197,15 @@ def test_sync_dependencies(mock_get_dependencies, mock_get_deployment, neo4j_ses
         "REQUIRES",
     ) == {
         (
-            "simpsonorg/sample_repo",
+            "simpsoncorp/sample_repo",
             "github.com/foo/baz|1.2.3",
         ),
         (
-            "simpsonorg/sample_repo",
+            "simpsoncorp/sample_repo",
             "github.com/foo/buzz|4.5.0",
         ),
         (
-            "simpsonorg/sample_repo",
+            "simpsoncorp/sample_repo",
             "github.com/foo/biz|5.0.0",
         ),
     }

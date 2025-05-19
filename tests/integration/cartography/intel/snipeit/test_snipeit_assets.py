@@ -13,21 +13,21 @@ logger = logging.getLogger(__name__)
 def test_load_snipeit_assets_relationship(neo4j_session):
     # Arrange
     TEST_UPDATE_TAG = 1234
-    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_org"]["id"]
+    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_snipeit_TENANT_ID,
     }
 
     # Load test users for the relationship
-    data = tests.data.snipeit.users.USERS["simpson_org"]
+    data = tests.data.snipeit.users.USERS["simpson_corp"]
     cartography.intel.snipeit.user.load_users(
         neo4j_session,
         common_job_parameters,
         data,
     )
 
-    data = tests.data.snipeit.assets.ASSETS["simpson_org"]
+    data = tests.data.snipeit.assets.ASSETS["simpson_corp"]
 
     # Act
     cartography.intel.snipeit.asset.load_assets(
@@ -40,7 +40,7 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
     # Make sure the expected Tenant is created
     expected_nodes = {
-        ("SimpsonOrg",),
+        ("SimpsonCorp",),
     }
     check_nodes(
         neo4j_session,
@@ -64,8 +64,8 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
     # Make sure the expected relationships are created
     expected_nodes_relationships = {
-        ("SimpsonOrg", "C02ZJ48XXXXX"),
-        ("SimpsonOrg", "72ec94a8-b6dc-37f1-b2a9-0907806e8db7"),
+        ("SimpsonCorp", "C02ZJ48XXXXX"),
+        ("SimpsonCorp", "72ec94a8-b6dc-37f1-b2a9-0907806e8db7"),
     }
     assert (
         check_rels(
@@ -110,12 +110,12 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 def test_cleanup_snipeit_assets(neo4j_session):
     # Arrange
     TEST_UPDATE_TAG = 1234
-    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_org"]["id"]
+    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_snipeit_TENANT_ID,
     }
-    data = tests.data.snipeit.assets.ASSETS["simpson_org"]
+    data = tests.data.snipeit.assets.ASSETS["simpson_corp"]
 
     # Act
     cartography.intel.snipeit.asset.load_assets(
@@ -143,8 +143,8 @@ def test_cleanup_snipeit_assets(neo4j_session):
 
     # [Pre-test] Assert that the unrelated data exists
     expected_nodes_relationships = {
-        ("SimpsonOrg", 1373),
-        ("SimpsonOrg", 1372),
+        ("SimpsonCorp", 1373),
+        ("SimpsonCorp", 1372),
         ("SouthPark", 2598),
         ("SouthPark", 2597),
     }

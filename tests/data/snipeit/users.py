@@ -1,5 +1,5 @@
 USERS = {
-    "simpson_org": [
+    "simpson_corp": [
         {
             "id": 1,
             "avatar": "https://develop.snipeitapp.com/uploads/avatars/1.jpg",

@@ -9,6 +9,7 @@ from demo.seeds.digitalocean import DigitalOceanSeed
 from demo.seeds.duo import DuoSeed
 from demo.seeds.entra import EntraSeed
 from demo.seeds.github import GithubSeed
+from demo.seeds.kandji import KandjiSeed
 from demo.seeds.lastpass import LastpassSeed
 from demo.seeds.semgrep import SemgrepSeed
 from demo.seeds.snipeit import SnipeitSeed
@@ -61,17 +62,19 @@ def main():
     DuoSeed(neo4j_session, UPDATE_TAG).run()
     logger.info("    loading Entra")
     EntraSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: GCP
+    # TODO: GCP after data model migration
     logger.info("    loading GitHub")
     GithubSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: Jamf
-    # TODO: Kandji
+    # TODO: Gsuite after data model migration
+    # TODO: Jamf after data model migration
+    logger.info("    loading Kandji")
+    KandjiSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: Kubernetes
     logger.info("    loading LastPass")
     LastpassSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: OCI
-    # TODO: Okta
-    # TODO: PagerDuty
+    # TODO: OCI after data model migration
+    # TODO: Okta after data model migration
+    # TODO: PagerDuty after data model migration
     logger.info("    loading Semgrep")
     SemgrepSeed(neo4j_session, UPDATE_TAG).run()
     logger.info("    loading SnipeIT")
