@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.intel import create_indexes
 from demo.seeds.digitalocean import DigitalOceanSeed
+from demo.seeds.duo import DuoSeed
 from demo.seeds.entra import EntraSeed
 from demo.seeds.github import GithubSeed
 from demo.seeds.lastpass import LastpassSeed
@@ -41,7 +42,8 @@ def main():
     # TODO: CVE
     logger.info("    loading DigitalOcean")
     DigitalOceanSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: Duo
+    logger.info("    loading Duo")
+    DuoSeed(neo4j_session, UPDATE_TAG).run()
     logger.info("    loading Entra")
     EntraSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: GCP

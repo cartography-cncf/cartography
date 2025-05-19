@@ -7,7 +7,6 @@ from demo.seeds.base import Seed
 
 
 class SnipeitSeed(Seed):
-
     def seed(self, *args) -> None:
         for tenant_name, tenant in tests.data.snipeit.tenants.TENANTS.items():
             self._seed_users(tenant_name, tenant["id"])

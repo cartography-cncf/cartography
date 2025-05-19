@@ -52,7 +52,7 @@ async def test_sync_entra_users(mock_get_users, mock_get_tenant, neo4j_session):
         (
             "ae4ac864-4433-4ba6-96a6-20f8cffdadcb",
             "Homer Simpson",
-            "hjsimpson@simpson.org",
+            "hjsimpson@simpson.corp",
         ),
         (
             "11dca63b-cb03-4e53-bb75-fa8060285550",
