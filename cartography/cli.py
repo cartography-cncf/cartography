@@ -577,6 +577,12 @@ class CLI:
             default=None,
             help="An ID for the SnipeIT tenant.",
         )
+        parser.add_argument(
+            "--cloudflare-token-env-var",
+            type=str,
+            default=None,
+            help="The name of an environment variable containing ApiKey with which to authenticate to Cloudflare.",
+        )
 
         return parser
 
@@ -858,6 +864,15 @@ class CLI:
         else:
             logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
+
+        # Cloudflare config
+        if config.cloudflare_token_env_var:
+            logger.debug(
+                f"Reading Cloudflare ApiKey from environment variable {config.cloudflare_token_env_var}",
+            )
+            config.cloudflare_token = os.environ.get(config.cloudflare_token_env_var)
+        else:
+            config.cloudflare_token = None
 
         # Run cartography
         try:
