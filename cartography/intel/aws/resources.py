@@ -5,6 +5,7 @@ from cartography.intel.aws.ec2.route_tables import sync_route_tables
 
 from . import apigateway
 from . import cloudtrail
+from . import cloudwatch
 from . import config
 from . import dynamodb
 from . import ecr
@@ -24,6 +25,7 @@ from . import redshift
 from . import resourcegroupstaggingapi
 from . import route53
 from . import s3
+from . import s3accountpublicaccessblock
 from . import secretsmanager
 from . import securityhub
 from . import sns
@@ -93,6 +95,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "apigateway": apigateway.sync,
     "secretsmanager": secretsmanager.sync,
     "securityhub": securityhub.sync,
+    "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
     "sns": sns.sync,
     "sqs": sqs.sync,
     "ssm": ssm.sync,
@@ -100,4 +103,5 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "config": config.sync,
     "identitycenter": identitycenter.sync_identity_center_instances,
     "cloudtrail": cloudtrail.sync,
+    "cloudwatch": cloudwatch.sync,
 }
