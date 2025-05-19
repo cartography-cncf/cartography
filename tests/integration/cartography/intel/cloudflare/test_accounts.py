@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-import requests
-
 import cartography.intel.cloudflare.accounts
 import tests.data.cloudflare.accounts
 from tests.integration.util import check_nodes
@@ -22,13 +20,13 @@ def _ensure_local_neo4j_has_test_accounts(neo4j_session):
     "get",
     return_value=tests.data.cloudflare.accounts.CLOUDFLARE_ACCOUNTS,
 )
-def test_load_cloudflare_accounts(mock_api, neo4j_session):
+@patch("cloudflare.Cloudflare")
+def test_load_cloudflare_accounts(mock_cloudflare, mock_api, neo4j_session):
     """
     Ensure that accounts actually get loaded
     """
 
     # Arrange
-    api_session = requests.Session()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
     }
@@ -36,7 +34,7 @@ def test_load_cloudflare_accounts(mock_api, neo4j_session):
     # Act
     cartography.intel.cloudflare.accounts.sync(
         neo4j_session,
-        api_session,
+        mock_cloudflare,
         common_job_parameters,
     )
 

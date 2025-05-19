@@ -19,7 +19,7 @@ class CloudflareMemberNodeProperties(CartographyNodeProperties):
     user_id: PropertyRef = PropertyRef("user.id")
     lastname: PropertyRef = PropertyRef("user.last_name")
     two_factor_authentication_enabled: PropertyRef = PropertyRef(
-        "two_factor_authentication_enabled"
+        "user.two_factor_authentication_enabled"
     )
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

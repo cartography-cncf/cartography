@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-import requests
-
 import cartography.intel.cloudflare.dnsrecords
 import tests.data.cloudflare.dnsrecords
 import tests.data.cloudflare.zones
@@ -20,13 +18,13 @@ ZONE_ID = tests.data.cloudflare.zones.CLOUDFLARE_ZONES[0]["id"]
     "get",
     return_value=tests.data.cloudflare.dnsrecords.CLOUDFLARE_DNSRECORDS,
 )
-def test_load_cloudflare_dnsrecords(mock_api, neo4j_session):
+@patch("cloudflare.Cloudflare")
+def test_load_cloudflare_dnsrecords(mock_cloudflare, mock_api, neo4j_session):
     """
     Ensure that dnsrecords actually get loaded
     """
 
     # Arrange
-    api_session = requests.Session()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "zone_id": ZONE_ID,
@@ -36,7 +34,7 @@ def test_load_cloudflare_dnsrecords(mock_api, neo4j_session):
     # Act
     cartography.intel.cloudflare.dnsrecords.sync(
         neo4j_session,
-        api_session,
+        mock_cloudflare,
         common_job_parameters,
         ZONE_ID,
     )

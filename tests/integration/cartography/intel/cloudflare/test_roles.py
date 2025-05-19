@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-import requests
-
 import cartography.intel.cloudflare.roles
 import tests.data.cloudflare.accounts
 import tests.data.cloudflare.roles
@@ -29,20 +27,20 @@ def _ensure_local_neo4j_has_test_roles(neo4j_session):
     "get",
     return_value=tests.data.cloudflare.roles.CLOUDFLARE_ROLES,
 )
-def test_load_cloudflare_roles(mock_api, neo4j_session):
+@patch("cloudflare.Cloudflare")
+def test_load_cloudflare_roles(mock_cloudflare, mock_api, neo4j_session):
     """
     Ensure that roles actually get loaded
     """
 
     # Arrange
-    api_session = requests.Session()
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "account_id": ACCOUNT_ID}
     _ensure_local_neo4j_has_test_accounts(neo4j_session)
 
     # Act
     cartography.intel.cloudflare.roles.sync(
         neo4j_session,
-        api_session,
+        mock_cloudflare,
         common_job_parameters,
         account_id=ACCOUNT_ID,
     )
