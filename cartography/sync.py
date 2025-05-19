@@ -34,6 +34,7 @@ import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.semgrep
 import cartography.intel.snipeit
+import cartography.intel.tailscale
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -64,6 +65,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "duo": cartography.intel.duo.start_duo_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
+        "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
         "analysis": cartography.intel.analysis.run,
     }
 )

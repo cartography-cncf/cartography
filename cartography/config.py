@@ -123,6 +123,12 @@ class Config:
     :param snipeit_token: Token used to authenticate to the SnipeIT data provider. Optional.
     :type snipeit_tenant_id: string
     :param snipeit_tenant_id: Token used to authenticate to the SnipeIT data provider. Optional.
+    :type tailscale_token: str
+    :param tailscale_token: Tailscale API token. Optional.
+    :type tailscale_org: str
+    :param tailscale_org: Tailscale organization name. Optional.
+    :type tailscale_base_url: str
+    :param tailscale_base_url: Tailscale API base URL. Optional.
     :type cloudflare_token: string
     :param cloudflare_token: Cloudflare API key. Optional.
     """
@@ -190,6 +196,9 @@ class Config:
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
+        tailscale_token=None,
+        tailscale_org=None,
+        tailscale_base_url=None,
         cloudflare_token=None,
     ):
         self.neo4j_uri = neo4j_uri
@@ -253,4 +262,7 @@ class Config:
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
+        self.tailscale_token = tailscale_token
+        self.tailscale_org = tailscale_org
+        self.tailscale_base_url = tailscale_base_url
         self.cloudflare_token = cloudflare_token
