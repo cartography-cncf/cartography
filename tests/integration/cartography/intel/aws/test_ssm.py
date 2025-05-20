@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -165,3 +166,91 @@ def test_load_instance_patches(mock_get_instances, neo4j_session):
     )
     actual_nodes = {n["n.id"] for n in nodes}
     assert actual_nodes == {"i-02-test.x86_64:0:4.2.46-34.amzn2"}
+
+
+def test_load_ssm_parameters(neo4j_session):
+    # Arrange: load account
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Act
+    ssm_param_test_data = tests.data.aws.ssm.SSM_PARAMETERS_DATA
+    transformed_data = cartography.intel.aws.ssm.transform_ssm_parameters(
+        ssm_param_test_data,
+    )
+    cartography.intel.aws.ssm.load_ssm_parameters(
+        neo4j_session,
+        transformed_data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert: Check SSMParameter nodes and their properties
+    expected_nodes = {
+        (
+            "arn:aws:ssm:us-east-1:123456789012:parameter/my/app/config/db-host",
+            "/my/app/config/db-host",
+            "String",
+            1673776800,
+            "Hostname for the primary application database.",
+            None,
+            json.dumps([]),
+        ),
+        (
+            "arn:aws:ssm:us-east-1:123456789012:parameter/my/secure/api-key",
+            "/my/secure/api-key",
+            "SecureString",
+            1676903400,
+            "A super secret API key.",
+            "^[a-zA-Z0-9]{32}$",
+            json.dumps(
+                [
+                    {
+                        "PolicyText": '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": "*", "Action": "ssm:GetParameter", "Resource": "*"}]}',
+                        "PolicyType": "ResourceBased",
+                        "PolicyStatus": "Finished",
+                    }
+                ]
+            ),
+        ),
+    }
+
+    query = """
+    MATCH (p:SSMParameter)
+    RETURN p.id, p.name, p.type, p.lastmodifieddate, p.description, p.allowedpattern, p.policies_json
+    ORDER BY p.name // Optional: Order to make comparison easier if set iteration order isn't guaranteed
+    """
+    nodes = neo4j_session.run(query)
+    actual_nodes = {
+        (
+            n["p.id"],
+            n["p.name"],
+            n["p.type"],
+            n["p.lastmodifieddate"],
+            n["p.description"],
+            n["p.allowedpattern"],
+            n["p.policies_json"],
+        )
+        for n in nodes
+    }
+    assert actual_nodes == expected_nodes
+
+    # Assert: Relationship to AWSAccount
+    expected_rels_to_account = {
+        (
+            "arn:aws:ssm:us-east-1:123456789012:parameter/my/app/config/db-host",
+            TEST_ACCOUNT_ID,
+        ),
+        (
+            "arn:aws:ssm:us-east-1:123456789012:parameter/my/secure/api-key",
+            TEST_ACCOUNT_ID,
+        ),
+    }
+    query_account_rels = """
+    MATCH (p:SSMParameter)<-[r:RESOURCE]-(a:AWSAccount{id: $AccountId})
+    RETURN p.id AS ParamId, a.id AS AccountId
+    ORDER BY p.id // Optional: Order for consistent comparison
+    """
+    rels = neo4j_session.run(query_account_rels, AccountId=TEST_ACCOUNT_ID)
+    actual_rels_to_account = {(r["ParamId"], r["AccountId"]) for r in rels}
+    assert actual_rels_to_account == expected_rels_to_account

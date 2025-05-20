@@ -130,3 +130,58 @@ INSTANCE_PATCHES = [
         "_instance_id": "i-02",
     },
 ]
+
+
+SSM_PARAMETERS_DATA = [
+    {
+        "Name": "/my/app/config/db-host",
+        "ARN": "arn:aws:ssm:us-east-1:123456789012:parameter/my/app/config/db-host",
+        "Type": "String",
+        "Version": 2,
+        "LastModifiedDate": datetime.datetime(
+            2023,
+            1,
+            15,
+            10,
+            0,
+            0,
+            123000,
+            tzinfo=tz.utc,
+        ),
+        "LastModifiedUser": "arn:aws:iam::123456789012:user/deploy-user",
+        "Description": "Hostname for the primary application database.",
+        "DataType": "text",
+        "Tier": "Standard",
+        "AllowedPattern": None,
+        "Policies": [],
+    },
+    {
+        "Name": "/my/secure/api-key",
+        "ARN": "arn:aws:ssm:us-east-1:123456789012:parameter/my/secure/api-key",
+        "Type": "SecureString",
+        "KeyId": "arn:aws:kms:us-east-1:123456789012:key/mrk-abcdef1234567890",
+        "Version": 5,
+        "LastModifiedDate": datetime.datetime(
+            2023,
+            2,
+            20,
+            14,
+            30,
+            0,
+            456000,
+            tzinfo=tz.utc,
+        ),
+        "LastModifiedUser": "arn:aws:iam::123456789012:user/admin-user",
+        "Description": "A super secret API key.",
+        "DataType": "text",
+        "Tier": "Advanced",
+        "AllowedPattern": "^[a-zA-Z0-9]{32}$",
+        "Policies": [
+            {
+                "PolicyText": '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": "*", "Action": "ssm:GetParameter", "Resource": "*"}]}',
+                "PolicyType": "ResourceBased",
+                "PolicyStatus": "Finished",
+            },
+        ],
+    },
+]

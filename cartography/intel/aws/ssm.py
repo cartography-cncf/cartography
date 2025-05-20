@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 from typing import Dict
@@ -10,6 +11,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.ssm.instance_information import SSMInstanceInformationSchema
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
+from cartography.models.aws.ssm.parameters import SSMParameterSchema
 from cartography.util import aws_handle_regions
 from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
@@ -108,6 +110,31 @@ def transform_instance_patches(data_list: List[Dict[str, Any]]) -> List[Dict[str
 
 
 @timeit
+@aws_handle_regions
+def get_ssm_parameters(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict[str, Any]]:
+    client = boto3_session.client("ssm", region_name=region)
+    paginator = client.get_paginator("describe_parameters")
+    ssm_parameters_data: List[Dict[str, Any]] = []
+    for page in paginator.paginate(PaginationConfig={"PageSize": 50}):
+        ssm_parameters_data.extend(page.get("Parameters", []))
+    return ssm_parameters_data
+
+
+def transform_ssm_parameters(
+    raw_parameters_data: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    transformed_list: List[Dict[str, Any]] = []
+    for param in raw_parameters_data:
+        param["LastModifiedDate"] = dict_date_to_epoch(param, "LastModifiedDate")
+        param["PoliciesJson"] = json.dumps(param.get("Policies", []))
+        transformed_list.append(param)
+    return transformed_list
+
+
+@timeit
 def load_instance_information(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
@@ -144,6 +171,24 @@ def load_instance_patches(
 
 
 @timeit
+def load_ssm_parameters(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        SSMParameterSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
 def cleanup_ssm(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -154,6 +199,9 @@ def cleanup_ssm(
         common_job_parameters,
     ).run(neo4j_session)
     GraphJob.from_node_schema(SSMInstancePatchSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(SSMParameterSchema(), common_job_parameters).run(
         neo4j_session,
     )
 
@@ -193,4 +241,15 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
+
+        data = get_ssm_parameters(boto3_session, region)
+        data = transform_ssm_parameters(data)
+        load_ssm_parameters(
+            neo4j_session,
+            data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
     cleanup_ssm(neo4j_session, common_job_parameters)
