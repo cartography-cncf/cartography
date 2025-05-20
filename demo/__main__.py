@@ -5,6 +5,7 @@ import time
 import neo4j
 
 from cartography.intel import create_indexes
+from demo.seeds.cloudlare import CloudflareSeed
 from demo.seeds.digitalocean import DigitalOceanSeed
 from demo.seeds.duo import DuoSeed
 from demo.seeds.entra import EntraSeed
@@ -54,6 +55,8 @@ def main():
     # TODO: AWS
     # TODO: Azure
     # TODO: BigFix
+    logger.info("    loading Cloudflare")
+    CloudflareSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: CrowdStrike
     # TODO: CVE
     logger.info("    loading DigitalOcean")
@@ -79,6 +82,7 @@ def main():
     SemgrepSeed(neo4j_session, UPDATE_TAG).run()
     logger.info("    loading SnipeIT")
     SnipeitSeed(neo4j_session, UPDATE_TAG).run()
+    # TODO: Tailscale
     # TODO: Analysis
 
     # Close the session
