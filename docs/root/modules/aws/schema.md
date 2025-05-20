@@ -3273,6 +3273,29 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     ```
     (ECSTask)-[HAS_CONTAINER]->(ECSContainer)
     ```
+
+### EfsMountTarget
+Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/latest/ug/API_MountTargetDescription.html)
+| Field | Description |
+|-------|-------------|
+| **id** | System-assigned mount target ID |
+| arn | System-assigned mount target ID |
+| fileSystem_id | The ID of the file system for which the mount target is intended |
+| lifecycle_state | Lifecycle state of the mount target |
+| mount_target_id | System-assigned mount target ID |
+| subnet_id | The ID of the mount target's subnet |
+| availability_zone_id | The unique and consistent identifier of the Availability Zone that the mount target resides in |
+| availability_zone_name | The name of the Availability Zone in which the mount target is located |
+| ip_address | Address at which the file system can be mounted by using the mount target |
+| network_interface_id | The ID of the network interface that Amazon EFS created when it created the mount target |
+| owner_id | AWS account ID that owns the resource |
+| vpc_id | The virtual private cloud (VPC) ID that the mount target is configured in |
+#### Relationships
+- Efs MountTargets are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EfsMountTarget)
+    ```
+
 ### SNSTopic
 Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
 | Field | Description |
