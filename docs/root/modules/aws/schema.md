@@ -3446,7 +3446,7 @@ Representation of an AWS Systems Manager Parameter as returned by the [`describe
 
 - SecureString SSMParameters may be encrypted by an AWS KMS Key.
     ```
-    (SSMParameter)-[ENCRYPTED_BY]->(AWSKmsKey)
+    (SSMParameter)-[ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### AWSIdentityCenter
