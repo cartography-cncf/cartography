@@ -56,7 +56,10 @@ def get(
         )
     )
 
-def transform(apikeys: List[Dict[str, Any]],) -> List[Dict[str, Any]]:
+
+def transform(
+    apikeys: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     for apikey in apikeys:
         if apikey["owner"]["type"] == "user":

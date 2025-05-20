@@ -9,7 +9,7 @@ from cartography.models.core.nodes import CartographyNodeSchema
 class OpenAIOrganizationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    
+
 
 @dataclass(frozen=True)
 class OpenAIOrganizationSchema(CartographyNodeSchema):

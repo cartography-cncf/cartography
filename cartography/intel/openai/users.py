@@ -38,8 +38,6 @@ def get(
     api_session: requests.Session,
     base_url: str,
 ) -> List[Dict[str, Any]]:
-    results: List[Dict[str, Any]] = []
-    # CHANGEME: You have to handle pagination if needed
     return list(
         paginated_get(api_session, f"{base_url}/organization/users", timeout=_TIMEOUT)
     )

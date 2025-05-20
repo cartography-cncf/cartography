@@ -46,7 +46,11 @@ def get(
     api_session: requests.Session,
     base_url: str,
 ) -> List[Dict[str, Any]]:
-    return list(paginated_get(api_session, f"{base_url}/organization/projects", timeout=_TIMEOUT))
+    return list(
+        paginated_get(
+            api_session, f"{base_url}/organization/projects", timeout=_TIMEOUT
+        )
+    )
 
 
 @timeit
@@ -57,7 +61,9 @@ def get_project_users(
 ) -> List[Dict[str, Any]]:
     return list(
         paginated_get(
-            api_session, f"{base_url}/organization/projects/{project_id}/users", timeout=_TIMEOUT
+            api_session,
+            f"{base_url}/organization/projects/{project_id}/users",
+            timeout=_TIMEOUT,
         )
     )
 

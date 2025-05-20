@@ -7,8 +7,8 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -78,9 +78,7 @@ class OpenAIApiKeyToSARel(CartographyRelSchema):
 class OpenAIApiKeySchema(CartographyNodeSchema):
     label: str = "OpenAIApiKey"
     properties: OpenAIApiKeyNodeProperties = OpenAIApiKeyNodeProperties()
-    sub_resource_relationship: OpenAIApiKeyToProjectRel = (
-        OpenAIApiKeyToProjectRel()
-    )
+    sub_resource_relationship: OpenAIApiKeyToProjectRel = OpenAIApiKeyToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [OpenAIApiKeyToUserRel(), OpenAIApiKeyToSARel()],
     )

@@ -45,7 +45,9 @@ def get(
     base_url: str,
 ) -> List[Dict[str, Any]]:
     return list(
-        paginated_get(api_session, f"{base_url}/organization/admin_api_keys", timeout=_TIMEOUT)
+        paginated_get(
+            api_session, f"{base_url}/organization/admin_api_keys", timeout=_TIMEOUT
+        )
     )
 
 

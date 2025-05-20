@@ -7,8 +7,8 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -16,7 +16,6 @@ class OpenAIAdminApiKeyNodeProperties(CartographyNodeProperties):
     object: PropertyRef = PropertyRef("object")
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
-    value: PropertyRef = PropertyRef("value")
     created_at: PropertyRef = PropertyRef("created_at")
     last_used_at: PropertyRef = PropertyRef("last_used_at")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -55,7 +54,9 @@ class OpenAIAdminApiKeyToUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNS"
-    properties: OpenAIAdminApiKeyToUserRelProperties = OpenAIAdminApiKeyToUserRelProperties()
+    properties: OpenAIAdminApiKeyToUserRelProperties = (
+        OpenAIAdminApiKeyToUserRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -72,8 +73,9 @@ class OpenAIAdminApiKeyToSARel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNS"
-    properties: OpenAIAdminApiKeyToSARelProperties = OpenAIAdminApiKeyToSARelProperties()
-
+    properties: OpenAIAdminApiKeyToSARelProperties = (
+        OpenAIAdminApiKeyToSARelProperties()
+    )
 
 
 @dataclass(frozen=True)

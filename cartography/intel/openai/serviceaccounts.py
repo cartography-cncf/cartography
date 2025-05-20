@@ -9,9 +9,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.openai.util import paginated_get
-from cartography.models.openai.serviceaccount import (
-    OpenAIServiceAccountSchema,
-)
+from cartography.models.openai.serviceaccount import OpenAIServiceAccountSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -31,11 +29,9 @@ def sync(
         common_job_parameters["BASE_URL"],
         project_id,
     )
-    # CHANGEME: You can configure here a transform operation
-    # formated_serviceaccountss = transform(serviceaccountss)
-    load_serviceaccountss(
+    load_serviceaccounts(
         neo4j_session,
-        serviceaccountss,  # CHANGEME: replace with `formated_serviceaccountss` if your added a transform step
+        serviceaccountss,
         project_id,
         common_job_parameters["UPDATE_TAG"],
     )
@@ -61,7 +57,7 @@ def get(
 
 
 @timeit
-def load_serviceaccountss(
+def load_serviceaccounts(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
     project_id: str,
@@ -81,6 +77,6 @@ def load_serviceaccountss(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(
-        OpenAIServiceAccountSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(OpenAIServiceAccountSchema(), common_job_parameters).run(
+        neo4j_session
+    )
