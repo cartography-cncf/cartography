@@ -610,6 +610,24 @@ class CLI:
                 "Required if you are using the Tailscale intel module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--openai-apikey-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing a OpenAI API Key."
+                "Required if you are using the OpenAI intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--openai-org-id",
+            type=str,
+            default=None,
+            help=(
+                "The ID of the OpenAI organization to sync. "
+                "Required if you are using the OpenAI intel module. Ignored otherwise."
+            ),
+        )
 
         return parser
 
@@ -909,6 +927,15 @@ class CLI:
             config.cloudflare_token = os.environ.get(config.cloudflare_token_env_var)
         else:
             config.cloudflare_token = None
+
+        # OpenAI config
+        if config.openai_apikey_env_var:
+            logger.debug(
+                f"Reading OpenAI API key from environment variable {config.openai_apikey_env_var}",
+            )
+            config.openai_apikey = os.environ.get(config.openai_apikey_env_var)
+        else:
+            config.openai_apikey = None
 
         # Run cartography
         try:
