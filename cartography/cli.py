@@ -577,6 +577,39 @@ class CLI:
             default=None,
             help="An ID for the SnipeIT tenant.",
         )
+        parser.add_argument(
+            "--cloudflare-token-env-var",
+            type=str,
+            default=None,
+            help="The name of an environment variable containing ApiKey with which to authenticate to Cloudflare.",
+        )
+        parser.add_argument(
+            "--tailscale-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing a Tailscale API token."
+                "Required if you are using the Tailscale intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--tailscale-org",
+            type=str,
+            default=None,
+            help=(
+                "The name of the Tailscale organization to sync. "
+                "Required if you are using the Tailscale intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--tailscale-base-url",
+            type=str,
+            default="https://api.tailscale.com/api/v2",
+            help=(
+                "The base URL for the Tailscale API. "
+                "Required if you are using the Tailscale intel module. Ignored otherwise."
+            ),
+        )
 
         return parser
 
@@ -858,6 +891,24 @@ class CLI:
         else:
             logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
+
+        # Tailscale config
+        if config.tailscale_token_env_var:
+            logger.debug(
+                f"Reading Tailscale API token from environment variable {config.tailscale_token_env_var}",
+            )
+            config.tailscale_token = os.environ.get(config.tailscale_token_env_var)
+        else:
+            config.tailscale_token = None
+
+        # Cloudflare config
+        if config.cloudflare_token_env_var:
+            logger.debug(
+                f"Reading Cloudflare ApiKey from environment variable {config.cloudflare_token_env_var}",
+            )
+            config.cloudflare_token = os.environ.get(config.cloudflare_token_env_var)
+        else:
+            config.cloudflare_token = None
 
         # Run cartography
         try:

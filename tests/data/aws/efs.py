@@ -1,0 +1,26 @@
+GET_EFS_MOUNT_TARGETS = [
+    {
+        "OwnerId": "123456789012",
+        "MountTargetId": "fsmt-9f8e7d6c5b4a3z2x",
+        "FileSystemId": "arn:aws:elasticfilesystem:us-west-2:123456789012:file-system/fs-9876543210fedcba",
+        "SubnetId": "subnet-9z8y7x6w",
+        "LifeCycleState": "creating",
+        "IpAddress": "192.168.1.20",
+        "NetworkInterfaceId": "eni-789xyz123lmn456op",
+        "AvailabilityZoneId": "usw2-az1",
+        "AvailabilityZoneName": "us-west-2a",
+        "VpcId": "vpc-1xyz234abc567defg",
+    },
+    {
+        "OwnerId": "987654321098",
+        "MountTargetId": "fsmt-abcdef1234567890",
+        "FileSystemId": "arn:aws:elasticfilesystem:us-west-2:987654321098:file-system/fs-abcd1234efgh5678",
+        "SubnetId": "subnet-abcd1234",
+        "LifeCycleState": "deleting",
+        "IpAddress": "10.0.0.25",
+        "NetworkInterfaceId": "eni-456abc789def123gh",
+        "AvailabilityZoneId": "usw2-az1",
+        "AvailabilityZoneName": "us-west-2a",
+        "VpcId": "vpc-abc123def456ghi78",
+    },
+]

@@ -85,7 +85,7 @@ def query_for_okta_to_aws_role_mapping(
             group_to_role_mapping.append(mapping)
 
     if has_results and not group_to_role_mapping:
-        logger.warn(
+        logger.warning(
             "AWS Okta Application present, but no mappings were found. "
             "Please verify the mapping regex is correct",
         )
