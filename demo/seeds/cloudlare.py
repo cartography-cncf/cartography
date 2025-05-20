@@ -1,22 +1,20 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+from unittest.mock import patch
 
 import cartography.intel.cloudflare.accounts
 import cartography.intel.cloudflare.dnsrecords
+import cartography.intel.cloudflare.members
 import cartography.intel.cloudflare.roles
 import cartography.intel.cloudflare.zones
-import cartography.intel.cloudflare.members
 import tests.data.cloudflare.accounts
 import tests.data.cloudflare.dnsrecords
+import tests.data.cloudflare.members
 import tests.data.cloudflare.roles
 import tests.data.cloudflare.zones
-import tests.data.cloudflare.members
 from demo.seeds.base import Seed
-
-API_HOSTNAME = "https://api-1234.duo.com"
 
 
 class CloudflareSeed(Seed):
-
     @patch.object(
         cartography.intel.cloudflare.accounts,
         "get",
@@ -91,7 +89,7 @@ class CloudflareSeed(Seed):
             },
             account_id=account["id"],
         )
-    
+
     def _seed_dns_records(self, mock_client: Mock, zone: dict) -> None:
         cartography.intel.cloudflare.dnsrecords.sync(
             self.neo4j_session,
