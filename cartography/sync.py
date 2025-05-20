@@ -18,6 +18,7 @@ import cartography.intel.analysis
 import cartography.intel.aws
 import cartography.intel.azure
 import cartography.intel.bigfix
+import cartography.intel.cloudflare
 import cartography.intel.create_indexes
 import cartography.intel.crowdstrike
 import cartography.intel.cve
@@ -32,8 +33,10 @@ import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
+import cartography.intel.openai
 import cartography.intel.semgrep
 import cartography.intel.snipeit
+import cartography.intel.tailscale
 from cartography.config import Config
 from cartography.settings import populate_settings_from_config
 from cartography.settings import settings
@@ -50,12 +53,14 @@ TOP_LEVEL_MODULES = OrderedDict(
         "aws": cartography.intel.aws.start_aws_ingestion,
         "azure": cartography.intel.azure.start_azure_ingestion,
         "entra": cartography.intel.entra.start_entra_ingestion,
+        "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
         "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
         "gcp": cartography.intel.gcp.start_gcp_ingestion,
         "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
         "cve": cartography.intel.cve.start_cve_ingestion,
         "oci": cartography.intel.oci.start_oci_ingestion,
         "okta": cartography.intel.okta.start_okta_ingestion,
+        "openai": cartography.intel.openai.start_openai_ingestion,
         "github": cartography.intel.github.start_github_ingestion,
         "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
@@ -65,6 +70,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "duo": cartography.intel.duo.start_duo_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
+        "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
         "analysis": cartography.intel.analysis.run,
     }
 )
