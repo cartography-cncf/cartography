@@ -42,7 +42,7 @@ def test_load_openai_projects(mock_api, mock_api_members, neo4j_session):
     api_session = requests.Session()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "BASE_URL": "https://api.openapi.con/v1",
+        "BASE_URL": "https://api.openai.con/v1",
         "ORG_ID": TEST_ORG_ID,
     }
     _ensure_local_neo4j_has_test_users(neo4j_session)

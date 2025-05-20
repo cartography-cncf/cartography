@@ -15,13 +15,6 @@ O -- RESOURCE --> AK(AdminApiKey)
 ```
 
 
-
-# (:OpenAIOrganization)-[:RESOURCE]->(:OpenAIAdminApiKey)
-(:OpenAIUser)-[:OWNS]->(:OpenAIAdminApiKey)
-# (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIAdminApiKey)
-Project => ApiKey, Service Account
-
-
 ### OpenAIAdminApiKey
 
 Represents an individual Admin API key in an org.
