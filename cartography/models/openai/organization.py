@@ -7,10 +7,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 @dataclass(frozen=True)
 class OpenAIOrganizationNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('ORG_ID', set_in_kwargs=True)
+    id: PropertyRef = PropertyRef("id")
 
 
 @dataclass(frozen=True)
 class OpenAIOrganizationSchema(CartographyNodeSchema):
-    label: str = 'OpenAIOrganization'
+    label: str = "OpenAIOrganization"
     properties: OpenAIOrganizationNodeProperties = OpenAIOrganizationNodeProperties()

@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -22,28 +23,48 @@ class OpenAIProjectNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class OpenAIProjectToOrganizationUserRelProperties(CartographyRelProperties):
+class OpenAIProjectToOrganizationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:OpenAIOrganization)-[:RESOURCE]->(:OpenAIProject)
-class OpenAIProjectToOrganizationUserRel(CartographyRelSchema):
+class OpenAIProjectToOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OpenAIOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: OpenAIProjectToOrganizationUserRelProperties = (
-        OpenAIProjectToOrganizationUserRelProperties()
+    properties: OpenAIProjectToOrganizationRelProperties = (
+        OpenAIProjectToOrganizationRelProperties()
     )
+
+
+@dataclass(frozen=True)
+class OpenAIProjectToUserRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:OpenAIUser)-[:MEMBER_OD]->(:OpenAIProject)
+class OpenAIProjectToUserRel(CartographyRelSchema):
+    target_node_label: str = "OpenAIUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("users", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
+    properties: OpenAIProjectToUserRelProperties = OpenAIProjectToUserRelProperties()
 
 
 @dataclass(frozen=True)
 class OpenAIProjectSchema(CartographyNodeSchema):
     label: str = "OpenAIProject"
     properties: OpenAIProjectNodeProperties = OpenAIProjectNodeProperties()
-    sub_resource_relationship: OpenAIProjectToOrganizationUserRel = (
-        OpenAIProjectToOrganizationUserRel()
+    sub_resource_relationship: OpenAIProjectToOrganizationRel = (
+        OpenAIProjectToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [OpenAIProjectToUserRel()],
     )

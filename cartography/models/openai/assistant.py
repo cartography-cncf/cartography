@@ -27,21 +27,21 @@ class OpenAIAssistantNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class OpenAIAssistantToOrganizationUserRelProperties(CartographyRelProperties):
+class OpenAIAssistantToOrganizationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:OpenAIOrganization)-[:RESOURCE]->(:OpenAIAssistant)
-class OpenAIAssistantToOrganizationUserRel(CartographyRelSchema):
+class OpenAIAssistantToOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OpenAIOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: OpenAIAssistantToOrganizationUserRelProperties = (
-        OpenAIAssistantToOrganizationUserRelProperties()
+    properties: OpenAIAssistantToOrganizationRelProperties = (
+        OpenAIAssistantToOrganizationRelProperties()
     )
 
 
@@ -49,6 +49,6 @@ class OpenAIAssistantToOrganizationUserRel(CartographyRelSchema):
 class OpenAIAssistantSchema(CartographyNodeSchema):
     label: str = "OpenAIAssistant"
     properties: OpenAIAssistantNodeProperties = OpenAIAssistantNodeProperties()
-    sub_resource_relationship: OpenAIAssistantToOrganizationUserRel = (
-        OpenAIAssistantToOrganizationUserRel()
+    sub_resource_relationship: OpenAIAssistantToOrganizationRel = (
+        OpenAIAssistantToOrganizationRel()
     )

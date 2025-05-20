@@ -31,21 +31,21 @@ class OpenAIVectorStoreNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class OpenAIVectorStoreToOrganizationUserRelProperties(CartographyRelProperties):
+class OpenAIVectorStoreToOrganizationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 # (:OpenAIOrganization)<-[:RESOURCE]->(:OpenAIVectorStore)
-class OpenAIVectorStoreToOrganizationUserRel(CartographyRelSchema):
+class OpenAIVectorStoreToOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OpenAIOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: OpenAIVectorStoreToOrganizationUserRelProperties = (
-        OpenAIVectorStoreToOrganizationUserRelProperties()
+    properties: OpenAIVectorStoreToOrganizationRelProperties = (
+        OpenAIVectorStoreToOrganizationRelProperties()
     )
 
 
@@ -53,6 +53,6 @@ class OpenAIVectorStoreToOrganizationUserRel(CartographyRelSchema):
 class OpenAIVectorStoreSchema(CartographyNodeSchema):
     label: str = "OpenAIVectorStore"
     properties: OpenAIVectorStoreNodeProperties = OpenAIVectorStoreNodeProperties()
-    sub_resource_relationship: OpenAIVectorStoreToOrganizationUserRel = (
-        OpenAIVectorStoreToOrganizationUserRel()
+    sub_resource_relationship: OpenAIVectorStoreToOrganizationRel = (
+        OpenAIVectorStoreToOrganizationRel()
     )
