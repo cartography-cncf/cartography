@@ -12,77 +12,75 @@ from cartography.models.core.relationships import OtherRelationships
 
 
 @dataclass(frozen=True)
-class OpenAIAdminApiKeyNodeProperties(CartographyNodeProperties):
+class OpenAIApiKeyNodeProperties(CartographyNodeProperties):
     object: PropertyRef = PropertyRef("object")
-    id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
-    value: PropertyRef = PropertyRef("value")
     created_at: PropertyRef = PropertyRef("created_at")
     last_used_at: PropertyRef = PropertyRef("last_used_at")
+    id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class OpenAIAdminApiKeyToOrganizationRelProperties(CartographyRelProperties):
+class OpenAIApiKeyToProjectRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:OpenAIOrganization)-[:RESOURCE]->(:OpenAIAdminApiKey)
-class OpenAIAdminApiKeyToOrganizationRel(CartographyRelSchema):
-    target_node_label: str = "OpenAIOrganization"
+# (:OpenAIApiKey)<-[:RESOURCE]-(:OpenAIProject)
+class OpenAIApiKeyToProjectRel(CartographyRelSchema):
+    target_node_label: str = "OpenAIProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("project_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: OpenAIAdminApiKeyToOrganizationRelProperties = (
-        OpenAIAdminApiKeyToOrganizationRelProperties()
+    properties: OpenAIApiKeyToProjectRelProperties = (
+        OpenAIApiKeyToProjectRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class OpenAIAdminApiKeyToUserRelProperties(CartographyRelProperties):
+class OpenAIApiKeyToUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:OpenAIUser)-[:OWNS]->(:OpenAIAdminApiKey)
-class OpenAIAdminApiKeyToUserRel(CartographyRelSchema):
+# (:OpenAIUser)-[:OWNS]->(:OpenAIApiKey)
+class OpenAIApiKeyToUserRel(CartographyRelSchema):
     target_node_label: str = "OpenAIUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("owner_user_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNS"
-    properties: OpenAIAdminApiKeyToUserRelProperties = OpenAIAdminApiKeyToUserRelProperties()
+    properties: OpenAIApiKeyToUserRelProperties = OpenAIApiKeyToUserRelProperties()
 
 
 @dataclass(frozen=True)
-class OpenAIAdminApiKeyToSARelProperties(CartographyRelProperties):
+class OpenAIApiKeyToSARelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIAdminApiKey)
-class OpenAIAdminApiKeyToSARel(CartographyRelSchema):
+# (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIApiKey)
+class OpenAIApiKeyToSARel(CartographyRelSchema):
     target_node_label: str = "OpenAIServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("owner_sa_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNS"
-    properties: OpenAIAdminApiKeyToSARelProperties = OpenAIAdminApiKeyToSARelProperties()
-
+    properties: OpenAIApiKeyToSARelProperties = OpenAIApiKeyToSARelProperties()
 
 
 @dataclass(frozen=True)
-class OpenAIAdminApiKeySchema(CartographyNodeSchema):
-    label: str = "OpenAIAdminApiKey"
-    properties: OpenAIAdminApiKeyNodeProperties = OpenAIAdminApiKeyNodeProperties()
-    sub_resource_relationship: OpenAIAdminApiKeyToOrganizationRel = (
-        OpenAIAdminApiKeyToOrganizationRel()
+class OpenAIApiKeySchema(CartographyNodeSchema):
+    label: str = "OpenAIApiKey"
+    properties: OpenAIApiKeyNodeProperties = OpenAIApiKeyNodeProperties()
+    sub_resource_relationship: OpenAIApiKeyToProjectRel = (
+        OpenAIApiKeyToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [OpenAIAdminApiKeyToUserRel(), OpenAIAdminApiKeyToSARel()],
+        [OpenAIApiKeyToUserRel(), OpenAIApiKeyToSARel()],
     )

@@ -4,12 +4,10 @@ import neo4j
 import requests
 
 import cartography.intel.openai.adminapikeys
-import cartography.intel.openai.assistants
-import cartography.intel.openai.projectapikeys
+import cartography.intel.openai.apikeys
 import cartography.intel.openai.projects
-import cartography.intel.openai.projectserviceaccounts
+import cartography.intel.openai.serviceaccounts
 import cartography.intel.openai.users
-import cartography.intel.openai.vectorstores
 from cartography.config import Config
 from cartography.util import timeit
 
@@ -55,20 +53,6 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         ORG_ID=config.openai_org_id,
     )
 
-    cartography.intel.openai.vectorstores.sync(
-        neo4j_session,
-        api_session,
-        common_job_parameters,
-        ORG_ID=config.openai_org_id,
-    )
-
-    cartography.intel.openai.assistants.sync(
-        neo4j_session,
-        api_session,
-        common_job_parameters,
-        ORG_ID=config.openai_org_id,
-    )
-
     for project in cartography.intel.openai.projects.sync(
         neo4j_session,
         api_session,
@@ -81,17 +65,17 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             "ORG_ID": config.openai_org_id,
             "project_id": project["id"],
         }
-        cartography.intel.openai.projectserviceaccounts.sync(
+        cartography.intel.openai.serviceaccounts.sync(
             neo4j_session,
             api_session,
             project_job_parameters,
-            project_id=config.openai_project_id,
+            project_id=project["id"],
         )
-        cartography.intel.openai.projectapikeys.sync(
+        cartography.intel.openai.apikeys.sync(
             neo4j_session,
             api_session,
             project_job_parameters,
-            project_id=config.openai_project_id,
+            project_id=project["id"],
         )
 
     cartography.intel.openai.adminapikeys.sync(

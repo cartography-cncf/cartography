@@ -9,7 +9,9 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.openai.util import paginated_get
-from cartography.models.openai.vectorstore import OpenAIVectorStoreSchema
+from cartography.models.openai.serviceaccount import (
+    OpenAIServiceAccountSchema,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -22,14 +24,20 @@ def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
     common_job_parameters: Dict[str, Any],
-    ORG_ID: str,
+    project_id: str,
 ) -> None:
-    vectorstores = get(
+    serviceaccountss = get(
         api_session,
         common_job_parameters["BASE_URL"],
+        project_id,
     )
-    load_vectorstores(
-        neo4j_session, vectorstores, ORG_ID, common_job_parameters["UPDATE_TAG"]
+    # CHANGEME: You can configure here a transform operation
+    # formated_serviceaccountss = transform(serviceaccountss)
+    load_serviceaccountss(
+        neo4j_session,
+        serviceaccountss,  # CHANGEME: replace with `formated_serviceaccountss` if your added a transform step
+        project_id,
+        common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
 
@@ -38,26 +46,34 @@ def sync(
 def get(
     api_session: requests.Session,
     base_url: str,
+    project_id: str,
 ) -> List[Dict[str, Any]]:
     return list(
-        paginated_get(api_session, f"{base_url}/vector_stores", timeout=_TIMEOUT)
+        paginated_get(
+            api_session,
+            "{base_url}/organization/projects/{project_id}/service_accounts".format(
+                base_url=base_url,
+                project_id=project_id,
+            ),
+            timeout=_TIMEOUT,
+        )
     )
 
 
 @timeit
-def load_vectorstores(
+def load_serviceaccountss(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
-    ORG_ID: str,
+    project_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d OpenAI VectorStores into Neo4j.", len(data))
+    logger.info("Loading %d OpenAI ProjectServiceAccount into Neo4j.", len(data))
     load(
         neo4j_session,
-        OpenAIVectorStoreSchema(),
+        OpenAIServiceAccountSchema(),
         data,
         lastupdated=update_tag,
-        ORG_ID=ORG_ID,
+        project_id=project_id,
     )
 
 
@@ -65,6 +81,6 @@ def load_vectorstores(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(OpenAIVectorStoreSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    GraphJob.from_node_schema(
+        OpenAIServiceAccountSchema(), common_job_parameters
+    ).run(neo4j_session)

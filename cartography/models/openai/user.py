@@ -15,7 +15,7 @@ class OpenAIUserNodeProperties(CartographyNodeProperties):
     object: PropertyRef = PropertyRef("object")
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
-    email: PropertyRef = PropertyRef("email")
+    email: PropertyRef = PropertyRef("email", extra_index=True)
     role: PropertyRef = PropertyRef("role")
     added_at: PropertyRef = PropertyRef("added_at")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

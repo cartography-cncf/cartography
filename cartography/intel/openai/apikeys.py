@@ -9,7 +9,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.openai.util import paginated_get
-from cartography.models.openai.projectapikey import OpenAIProjectApiKeySchema
+from cartography.models.openai.apikey import OpenAIApiKeySchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -24,16 +24,15 @@ def sync(
     common_job_parameters: Dict[str, Any],
     project_id: str,
 ) -> None:
-    projectapikeys = get(
+    apikeys = get(
         api_session,
         common_job_parameters["BASE_URL"],
         project_id,
     )
-    # CHANGEME: You can configure here a transform operation
-    # formated_projectapikeys = transform(projectapikeys)
-    load_projectapikeys(
+    transformed_apikeys = transform(apikeys)
+    load_apikeys(
         neo4j_session,
-        projectapikeys,  # CHANGEME: replace with `formated_projectapikeys` if your added a transform step
+        transformed_apikeys,
         project_id,
         common_job_parameters["UPDATE_TAG"],
     )
@@ -49,7 +48,7 @@ def get(
     return list(
         paginated_get(
             api_session,
-            "{base_url}/projects/{project_id}/api-keys".format(
+            "{base_url}/organization/projects/{project_id}/api_keys".format(
                 base_url=base_url,
                 project_id=project_id,
             ),
@@ -57,18 +56,28 @@ def get(
         )
     )
 
+def transform(apikeys: List[Dict[str, Any]],) -> List[Dict[str, Any]]:
+    result: List[Dict[str, Any]] = []
+    for apikey in apikeys:
+        if apikey["owner"]["type"] == "user":
+            apikey["owner_user_id"] = apikey["owner"]["user"]["id"]
+        else:
+            apikey["owner_sa_id"] = apikey["owner"]["service_account"]["id"]
+        result.append(apikey)
+    return result
+
 
 @timeit
-def load_projectapikeys(
+def load_apikeys(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
     project_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d OpenAI ProjectApiKey into Neo4j.", len(data))
+    logger.info("Loading %d OpenAI Project APIKey into Neo4j.", len(data))
     load(
         neo4j_session,
-        OpenAIProjectApiKeySchema(),
+        OpenAIApiKeySchema(),
         data,
         lastupdated=update_tag,
         project_id=project_id,
@@ -79,6 +88,6 @@ def load_projectapikeys(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(OpenAIProjectApiKeySchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(OpenAIApiKeySchema(), common_job_parameters).run(
         neo4j_session
     )

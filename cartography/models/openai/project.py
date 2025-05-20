@@ -47,7 +47,7 @@ class OpenAIProjectToUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:OpenAIUser)-[:MEMBER_OD]->(:OpenAIProject)
+# (:OpenAIUser)-[:MEMBER_OF]->(:OpenAIProject)
 class OpenAIProjectToUserRel(CartographyRelSchema):
     target_node_label: str = "OpenAIUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

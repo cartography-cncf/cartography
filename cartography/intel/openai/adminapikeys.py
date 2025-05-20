@@ -28,11 +28,10 @@ def sync(
         api_session,
         common_job_parameters["BASE_URL"],
     )
-    # CHANGEME: You can configure here a transform operation
-    # formated_adminapikeys = transform(adminapikeys)
+    transformed_adminapikeys = transform(adminapikeys)
     load_adminapikeys(
         neo4j_session,
-        adminapikeys,  # CHANGEME: replace with `formated_adminapikeys` if your added a transform step
+        transformed_adminapikeys,
         ORG_ID,
         common_job_parameters["UPDATE_TAG"],
     )
@@ -46,8 +45,21 @@ def get(
     base_url: str,
 ) -> List[Dict[str, Any]]:
     return list(
-        paginated_get(api_session, f"{base_url}/admin_api_keys", timeout=_TIMEOUT)
+        paginated_get(api_session, f"{base_url}/organization/admin_api_keys", timeout=_TIMEOUT)
     )
+
+
+def transform(
+    adminapikeys: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    result: List[Dict[str, Any]] = []
+    for adminapikey in adminapikeys:
+        if adminapikey["owner"]["type"] == "user":
+            adminapikey["owner_user_id"] = adminapikey["owner"]["id"]
+        else:
+            adminapikey["owner_sa_id"] = adminapikey["owner"]["id"]
+        result.append(adminapikey)
+    return result
 
 
 @timeit
