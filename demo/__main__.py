@@ -14,6 +14,7 @@ from demo.seeds.kandji import KandjiSeed
 from demo.seeds.lastpass import LastpassSeed
 from demo.seeds.semgrep import SemgrepSeed
 from demo.seeds.snipeit import SnipeitSeed
+from demo.seeds.tailscale import TailscaleSeed
 
 NEO4J_URL = os.environ.get("NEO4J_URL", "bolt://localhost:7687")
 
@@ -82,7 +83,8 @@ def main():
     SemgrepSeed(neo4j_session, UPDATE_TAG).run()
     logger.info("    loading SnipeIT")
     SnipeitSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: Tailscale
+    logger.info("    loading Tailscale")
+    TailscaleSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: Analysis
 
     # Close the session
