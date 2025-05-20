@@ -3,7 +3,7 @@ from typing import Dict
 
 from cartography.intel.aws.ec2.route_tables import sync_route_tables
 
-from . import apigateway
+from . import apigateway, cognito
 from . import cloudtrail
 from . import config
 from . import dynamodb
@@ -98,4 +98,5 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "config": config.sync,
     "identitycenter": identitycenter.sync_identity_center_instances,
     "cloudtrail": cloudtrail.sync,
+    "cognito": cognito.sync,
 }

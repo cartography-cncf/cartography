@@ -3521,3 +3521,12 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
     ```
     (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
     ```
+
+### Cognito User Pool
+Representation of AWS [Cognito user pools](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools.html).
+
+| Field | Description |
+|-------|-------------|
+|UserPoolId| Timestamp of when a sync job first discovered this node  |
+
+
