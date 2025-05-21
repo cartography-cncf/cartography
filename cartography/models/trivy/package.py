@@ -52,7 +52,9 @@ class TrivyPackageToFinding(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "AFFECTS"
-    properties: TrivyPackageToFindingRelProperties = TrivyPackageToFindingRelProperties()
+    properties: TrivyPackageToFindingRelProperties = (
+        TrivyPackageToFindingRelProperties()
+    )
 
 
 @dataclass(frozen=True)

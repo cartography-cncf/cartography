@@ -3,4 +3,4 @@
 ```{toctree}
 config
 schema
-``` 
+```
