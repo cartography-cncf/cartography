@@ -32,6 +32,7 @@ import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
+import cartography.intel.openai
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale
@@ -56,6 +57,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "cve": cartography.intel.cve.start_cve_ingestion,
         "oci": cartography.intel.oci.start_oci_ingestion,
         "okta": cartography.intel.okta.start_okta_ingestion,
+        "openai": cartography.intel.openai.start_openai_ingestion,
         "github": cartography.intel.github.start_github_ingestion,
         "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
