@@ -12,6 +12,7 @@ from demo.seeds.entra import EntraSeed
 from demo.seeds.github import GithubSeed
 from demo.seeds.kandji import KandjiSeed
 from demo.seeds.lastpass import LastpassSeed
+from demo.seeds.openai import OpenAISeed
 from demo.seeds.semgrep import SemgrepSeed
 from demo.seeds.snipeit import SnipeitSeed
 from demo.seeds.tailscale import TailscaleSeed
@@ -78,6 +79,8 @@ def main():
     LastpassSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: OCI after data model migration
     # TODO: Okta after data model migration
+    logger.info("    loading OpenAI")
+    OpenAISeed(neo4j_session, UPDATE_TAG).run()
     # TODO: PagerDuty after data model migration
     logger.info("    loading Semgrep")
     SemgrepSeed(neo4j_session, UPDATE_TAG).run()
