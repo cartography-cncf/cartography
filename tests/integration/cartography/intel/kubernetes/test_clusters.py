@@ -27,23 +27,24 @@ def test_load_clusters(neo4j_session):
     assert check_nodes(neo4j_session, "KubernetesCluster", ["id"]) == expected_nodes
 
 
-def test_cluster_cleanup(neo4j_session):
-    # Arrange
-    data = KUBERNETES_CLUSTER_DATA
-    load_kubernetes_cluster(
-        neo4j_session,
-        data,
-        TEST_UPDATE_TAG,
-    )
+# cleaning up the kubernetes cluster node is currently not supported
+# def test_cluster_cleanup(neo4j_session):
+#     # Arrange
+#     data = KUBERNETES_CLUSTER_DATA
+#     load_kubernetes_cluster(
+#         neo4j_session,
+#         data,
+#         TEST_UPDATE_TAG,
+#     )
 
-    # Act
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG + 1,
-    }
-    cleanup(
-        neo4j_session,
-        common_job_parameters,
-    )
+#     # Act
+#     common_job_parameters = {
+#         "UPDATE_TAG": TEST_UPDATE_TAG + 1,
+#     }
+#     cleanup(
+#         neo4j_session,
+#         common_job_parameters,
+#     )
 
-    # Assert
-    assert check_nodes(neo4j_session, "KubernetesCluster", ["id"]) == set()
+#     # Assert
+#     assert check_nodes(neo4j_session, "KubernetesCluster", ["id"]) == set()

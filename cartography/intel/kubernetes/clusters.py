@@ -63,14 +63,14 @@ def load_kubernetes_cluster(
         lastupdated=update_tag,
     )
 
-
-def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
-) -> None:
-    logger.debug("Running cleanup job for KubernetesCluster")
-    run_cleanup_job(
-        "kubernetes_cluster_cleanup.json", neo4j_session, common_job_parameters
-    )
+# cleaning up the kubernetes cluster node is currently not supported
+# def cleanup(
+#     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+# ) -> None:
+#     logger.debug("Running cleanup job for KubernetesCluster")
+#     run_cleanup_job(
+#         "kubernetes_cluster_cleanup.json", neo4j_session, common_job_parameters
+#     )
 
 
 @timeit
@@ -85,5 +85,4 @@ def sync_kubernetes_cluster(
     cluster_info = transform_kubernetes_cluster(client, namespace, version)
 
     load_kubernetes_cluster(neo4j_session, cluster_info, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
     return cluster_info[0]
