@@ -16,7 +16,6 @@ from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
 from cartography.models.trivy.package import TrivyPackageSchema
 from cartography.stats import get_stats_client
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

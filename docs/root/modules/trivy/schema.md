@@ -88,4 +88,4 @@ Representation of a fix for a vulnerability.
 
     ```
     (TrivyFix)-[APPLIES_TO]->(TrivyImageFinding)
-    ``` 
+    ```
