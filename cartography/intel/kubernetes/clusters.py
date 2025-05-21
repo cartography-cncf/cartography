@@ -8,10 +8,10 @@ from kubernetes.client.models import V1Namespace
 from kubernetes.client.models import VersionInfo
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.clusters import KubernetesClusterSchema
+from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -68,10 +68,9 @@ def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
     logger.debug("Running cleanup job for KubernetesCluster")
-    cleanup_job = GraphJob.from_node_schema(
-        KubernetesClusterSchema(), common_job_parameters
+    run_cleanup_job(
+        "kubernetes_cluster_cleanup.json", neo4j_session, common_job_parameters
     )
-    cleanup_job.run(neo4j_session)
 
 
 @timeit
