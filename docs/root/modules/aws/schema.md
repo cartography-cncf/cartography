@@ -793,6 +793,29 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
     ```
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
     ```
+### CloudWatchLogMetricFilter
+
+Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_MetricFilter.html)
+
+| Field | Description |
+|-------|-------------|
+| id | The name of the metric filter. |
+| name | The name of the metric filter. |
+| filterName | The name of the metric filter. |
+| filterPattern | The filter pattern to use. |
+| logGroupName | The name of the log group associated with the metric filter. |
+| metricTransformations | A list of metric transformation objects. |
+| creationTime | The creation time of the metric filter. |
+
+#### Relationships
+- CloudWatch Log Metric Filters are a resource under the AWS Account.
+    ```cypher
+    (AWSAccount)-[RESOURCE]->(CloudWatchLogMetricFilter)
+    ```
+- CloudWatch Log Metric Filters belong to a specific CloudWatch Log Group.
+    ```cypher
+    (CloudWatchLogMetricFilter)-[METRIC_FILTER_FOR]->(CloudWatchLogGroup)
+    ```
 
 ### DBSubnetGroup
 
