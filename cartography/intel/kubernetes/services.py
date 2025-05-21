@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_services(client: K8sClient) -> List[Dict]:
-    items = k8s_paginate(client.core.list_service_for_all_namespaces, limit=1)
+    items = k8s_paginate(client.core.list_service_for_all_namespaces)
     return items
 
 

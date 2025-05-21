@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_secrets(client: K8sClient) -> List[V1Secret]:
-    items = k8s_paginate(client.core.list_secret_for_all_namespaces, limit=1)
+    items = k8s_paginate(client.core.list_secret_for_all_namespaces)
     return items
 
 
