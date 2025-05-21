@@ -16,11 +16,15 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def start_k8s_ingestion(session: Session, config: Config) -> None:
+    if not config.update_tag:
+        logger.error("Cartography update tag not provided.")
+        return
+
+    if not config.k8s_kubeconfig:
+        logger.error("Kubernetes kubeconfig not provided.")
+        return
 
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
-    if not config.k8s_kubeconfig:
-        logger.error("kubeconfig not found.")
-        return
 
     for client in get_k8s_clients(config.k8s_kubeconfig):
         logger.info(f"Syncing data for k8s cluster {client.name}...")
