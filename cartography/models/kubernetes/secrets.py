@@ -14,13 +14,15 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class KubernetesSecretNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid")
-    name: PropertyRef = PropertyRef("name")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
-    namespace: PropertyRef = PropertyRef("namespace")
+    namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
     owner_references: PropertyRef = PropertyRef("owner_references")
     type: PropertyRef = PropertyRef("type")
-    cluster_name: PropertyRef = PropertyRef("CLUSTER_NAME", set_in_kwargs=True)
+    cluster_name: PropertyRef = PropertyRef(
+        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

@@ -8,9 +8,9 @@ from cartography.models.core.nodes import CartographyNodeSchema
 @dataclass(frozen=True)
 class KubernetesClusterNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
-    external_id: PropertyRef = PropertyRef("external_id")
+    external_id: PropertyRef = PropertyRef("external_id", extra_index=True)
     version: PropertyRef = PropertyRef("git_version")
     version_major: PropertyRef = PropertyRef("version_major")
     version_minor: PropertyRef = PropertyRef("version_minor")

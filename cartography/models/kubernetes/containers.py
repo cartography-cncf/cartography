@@ -14,11 +14,13 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class KubernetesContainerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid")
-    name: PropertyRef = PropertyRef("name")
-    image: PropertyRef = PropertyRef("image")
-    namespace: PropertyRef = PropertyRef("namespace")
-    cluster_name: PropertyRef = PropertyRef("CLUSTER_NAME", set_in_kwargs=True)
-    pod_name: PropertyRef = PropertyRef("pod_name")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    image: PropertyRef = PropertyRef("image", extra_index=True)
+    namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
+    cluster_name: PropertyRef = PropertyRef(
+        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+    )
+    pod_name: PropertyRef = PropertyRef("pod_name", extra_index=True)
     image_pull_policy: PropertyRef = PropertyRef("image_pull_policy")
     status_image_id: PropertyRef = PropertyRef("status_image_id")
     status_image_sha: PropertyRef = PropertyRef("status_image_sha")

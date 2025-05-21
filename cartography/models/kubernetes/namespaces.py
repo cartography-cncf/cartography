@@ -13,11 +13,13 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class KubernetesNamespaceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("uid")
-    name: PropertyRef = PropertyRef("name")
+    name: PropertyRef = PropertyRef("name", extra_index=True)
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     deletion_timestamp: PropertyRef = PropertyRef("deletion_timestamp")
     status_phase: PropertyRef = PropertyRef("status_phase")
-    cluster_name: PropertyRef = PropertyRef("cluster_name", set_in_kwargs=True)
+    cluster_name: PropertyRef = PropertyRef(
+        "cluster_name", set_in_kwargs=True, extra_index=True
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
