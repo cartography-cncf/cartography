@@ -11,7 +11,6 @@ from cartography.client.core.tx import load
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.clusters import KubernetesClusterSchema
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -62,6 +61,7 @@ def load_kubernetes_cluster(
         cluster_data,
         lastupdated=update_tag,
     )
+
 
 # cleaning up the kubernetes cluster node is currently not supported
 # def cleanup(

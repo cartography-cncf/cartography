@@ -1,5 +1,4 @@
 # from cartography.intel.kubernetes.clusters import cleanup
-from cartography.intel.kubernetes.clusters import cleanup
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
