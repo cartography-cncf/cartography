@@ -5,10 +5,16 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import neo4j
 from neo4j import Session
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.trivy.findings import TrivyImageFindingSchema
+from cartography.models.trivy.fix import TrivyFixSchema
+from cartography.models.trivy.package import TrivyPackageSchema
 from cartography.stats import get_stats_client
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -146,21 +152,47 @@ def get_scan_results_for_single_image(
         return []
 
 
-def transform_scan_results(results: List[Dict]) -> List[Dict]:
+def _validate_packages(package_list: List[Dict]) -> List[Dict]:
     """
-    Trivy results produce a nested dictionary, so we pull out some info
-    from this to be added to TrivyImageFinding nodes
+    Validates that each package has the required fields.
+    Returns only packages that have both InstalledVersion and PkgName.
     """
+    validated_packages: List[Dict] = []
+    for pkg in package_list:
+        if (
+            "InstalledVersion" in pkg
+            and pkg["InstalledVersion"]
+            and "PkgName" in pkg
+            and pkg["PkgName"]
+        ):
+            validated_packages.append(pkg)
+        else:
+            logger.warning(
+                "Package object does not have required fields `InstalledVersion` or `PkgName` - skipping."
+            )
+    return validated_packages
+
+
+def transform_scan_results(
+    results: List[Dict], image_digest: str
+) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+    """
+    Transform raw Trivy scan results into a format suitable for loading into Neo4j.
+    Returns a tuple of (findings_list, packages_list, fixes_list).
+    """
+    findings_list = []
+    packages_list = []
+    fixes_list = []
+
     for scan_class in results:
         # Sometimes a scan class will have no vulns and Trivy will leave the key undefined instead of showing [].
         if "Vulnerabilities" in scan_class and scan_class["Vulnerabilities"]:
-            parsed_vuln_results: List[Dict] = []
             for result in scan_class["Vulnerabilities"]:
-                # If ID, Severity, FixedVersion, or PkgName do not exist, fail loudly.
-                # For all other fields, continue
-                parsed_result = {
-                    "NodeId": f'TIF|{result["VulnerabilityID"]}',
+                # Transform finding data
+                finding = {
+                    "id": f'TIF|{result["VulnerabilityID"]}',
                     "VulnerabilityID": result["VulnerabilityID"],
+                    "cve_id": result["VulnerabilityID"],
                     "Description": result.get("Description"),
                     "LastModifiedDate": result.get("LastModifiedDate"),
                     "PrimaryURL": result.get("PrimaryURL"),
@@ -168,9 +200,6 @@ def transform_scan_results(results: List[Dict]) -> List[Dict]:
                     "Severity": result["Severity"],
                     "SeveritySource": result.get("SeveritySource"),
                     "Title": result.get("Title"),
-                    "InstalledVersion": result["InstalledVersion"],
-                    "PkgName": result["PkgName"],
-                    "FixedVersion": result.get("FixedVersion"),
                     "nvd_v2_score": None,
                     "nvd_v2_vector": None,
                     "nvd_v3_score": None,
@@ -179,255 +208,127 @@ def transform_scan_results(results: List[Dict]) -> List[Dict]:
                     "redhat_v3_vector": None,
                     "ubuntu_v3_score": None,
                     "ubuntu_v3_vector": None,
+                    "Class": scan_class["Class"],
+                    "Type": scan_class["Type"],
+                    "ImageDigest": image_digest,  # For AFFECTS relationship
                 }
 
+                # Add CVSS scores if available
                 if "CVSS" in result:
                     if "nvd" in result["CVSS"]:
                         nvd = result["CVSS"]["nvd"]
-                        parsed_result["nvd_v2_score"] = nvd.get("V2Score")
-                        parsed_result["nvd_v2_vector"] = nvd.get("V2Vector")
-                        parsed_result["nvd_v3_score"] = nvd.get("V3Score")
-                        parsed_result["nvd_v3_vector"] = nvd.get("V3Vector")
+                        finding["nvd_v2_score"] = nvd.get("V2Score")
+                        finding["nvd_v2_vector"] = nvd.get("V2Vector")
+                        finding["nvd_v3_score"] = nvd.get("V3Score")
+                        finding["nvd_v3_vector"] = nvd.get("V3Vector")
                     if "redhat" in result["CVSS"]:
                         redhat = result["CVSS"]["redhat"]
-                        parsed_result["redhat_v3_score"] = redhat.get("V3Score")
-                        parsed_result["redhat_v3_vector"] = redhat.get("V3Vector")
+                        finding["redhat_v3_score"] = redhat.get("V3Score")
+                        finding["redhat_v3_vector"] = redhat.get("V3Vector")
                     if "ubuntu" in result["CVSS"]:
-                        redhat = result["CVSS"]["ubuntu"]
-                        parsed_result["ubuntu_v3_score"] = redhat.get("V3Score")
-                        parsed_result["ubuntu_v3_vector"] = redhat.get("V3Vector")
+                        ubuntu = result["CVSS"]["ubuntu"]
+                        finding["ubuntu_v3_score"] = ubuntu.get("V3Score")
+                        finding["ubuntu_v3_vector"] = ubuntu.get("V3Vector")
 
-                parsed_vuln_results.append(parsed_result)
+                findings_list.append(finding)
 
-            scan_class["Vulnerabilities"] = parsed_vuln_results
+                # Transform package data
+                package_id = f"{result['InstalledVersion']}|{result['PkgName']}"
+                packages_list.append(
+                    {
+                        "id": package_id,
+                        "InstalledVersion": result["InstalledVersion"],
+                        "PkgName": result["PkgName"],
+                        "Class": scan_class["Class"],
+                        "Type": scan_class["Type"],
+                        "ImageDigest": image_digest,  # For DEPLOYED relationship
+                        "FindingId": finding["id"],  # For AFFECTS relationship
+                    }
+                )
 
-    return results
+                # Transform fix data if available
+                if result.get("FixedVersion") is not None:
+                    fixes_list.append(
+                        {
+                            "id": f"{result['FixedVersion']}|{result['PkgName']}",
+                            "FixedVersion": result["FixedVersion"],
+                            "PackageId": package_id,
+                            "FindingId": finding["id"],
+                        }
+                    )
+
+    # Validate packages before returning
+    packages_list = _validate_packages(packages_list)
+    return findings_list, packages_list, fixes_list
 
 
 @timeit
 def cleanup(neo4j_session: Session, common_job_parameters: Dict[str, Any]) -> None:
-    run_cleanup_job(
-        "trivy_scan_findings_cleanup.json",
+    """
+    Run cleanup jobs for Trivy nodes.
+    """
+    logger.debug("Running Trivy cleanup")
+    # TODO add a fake tenant object for Trivy so that the cleanup jobs work
+    GraphJob.from_node_schema(TrivyImageFindingSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(TrivyPackageSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(TrivyFixSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def load_scan_vulns(
+    neo4j_session: neo4j.Session,
+    findings_list: List[Dict[str, Any]],
+    update_tag: int,
+) -> None:
+    """
+    Load TrivyImageFinding nodes into Neo4j.
+    """
+    load(
         neo4j_session,
-        common_job_parameters,
+        TrivyImageFindingSchema(),
+        findings_list,
+        lastupdated=update_tag,
     )
 
 
 @timeit
 def load_scan_packages(
     neo4j_session: neo4j.Session,
-    scan_results: List[Dict],
-    ecr_image_digest: str,
-    ecr_image_tag: str,
-    ecr_repo_name: str,
+    packages_list: List[Dict[str, Any]],
     update_tag: int,
 ) -> None:
-    for scan_class in scan_results:
-        if "Packages" in scan_class and scan_class["Packages"]:
-            validated_packages = _validate_packages(
-                scan_class["Packages"], ecr_image_tag, ecr_repo_name
-            )
-            neo4j_session.write_transaction(
-                _load_packages_in_single_class_tx,
-                ecr_image_digest,
-                ecr_image_tag,
-                ecr_repo_name,
-                validated_packages,
-                scan_class["Class"],
-                scan_class["Type"],
-                update_tag,
-            )
-
-
-@timeit
-def _load_scan_results_in_single_class_tx(
-    tx: neo4j.Transaction,
-    ecr_image_digest: str,
-    ecr_image_tag: str,
-    ecr_repo_name: str,
-    vulns_of_single_class: List[Dict],
-    trivy_class: str,
-    trivy_type: str,
-    update_tag: int,
-) -> None:
-    ingest_results = """
-    MATCH (image:ECRImage{id: $ImageDigest})
-
-    UNWIND $Findings as finding
-        MERGE (t:TrivyImageFinding{id: finding.NodeId})
-        ON CREATE SET t.firstseen = timestamp()
-        SET t:Risk,
-            t:CVE,
-            t.name = finding.VulnerabilityID,
-            t.cve_id = finding.VulnerabilityID,
-            t.lastupdated = $UpdateTag,
-            t.description = finding.Description,
-            t.last_modified_date = finding.LastModifiedDate,
-            t.primary_url = finding.PrimaryURL,
-            t.published_date = finding.PublishedDate,
-            t.severity = finding.Severity,
-            t.severity_source = finding.SeveritySource,
-            t.title = finding.Title,
-            t.cvss_nvd_v2_score = finding.nvd_v2_score,
-            t.cvss_nvd_v2_vector = finding.nvd_v2_vector,
-            t.cvss_nvd_v3_score = finding.nvd_v3_score,
-            t.cvss_nvd_v3_vector = finding.nvd_v3_vector,
-            t.cvss_redhat_v3_score = finding.redhat_v3_score,
-            t.cvss_redhat_v3_vector = finding.redhat_v3_vector,
-            t.cvss_ubuntu_v3_score = finding.ubuntu_v3_score,
-            t.cvss_ubuntu_v3_vector = finding.ubuntu_v3_vector,
-            t.class = $Class,
-            t.type = $Type
-
-        MERGE (p:Package{id:  finding.InstalledVersion + '|' + finding.PkgName})
-        ON CREATE SET p.installed_version = finding.InstalledVersion,
-            p.name = finding.PkgName,
-            p.firstseen = timestamp()
-        SET p:TrivyPackage,
-            p.lastupdated = $UpdateTag,
-            p.version = finding.InstalledVersion,
-            p.class = $Class,
-            p.type = $Type
-
-        MERGE (fix:TrivyFix{id: finding.FixedVersion + '|' + finding.PkgName})
-        ON CREATE SET fix.firstseen = timestamp()
-        SET fix:Fix,
-            fix.version = finding.FixedVersion,
-            fix.lastupdated = $UpdateTag
-
-        MERGE (p)-[should:SHOULD_UPDATE_TO]->(fix)
-        ON CREATE SET should.firstseen = timestamp()
-        SET should.version = finding.FixedVersion,
-            should.lastupdated = $UpdateTag
-
-        MERGE (fix)-[applies:APPLIES_TO]->(t)
-        ON CREATE SET applies.firstseen = timestamp()
-        SET applies.lastupdated = $UpdateTag
-
-        MERGE (p)-[r1:DEPLOYED]->(image)
-        ON CREATE SET r1.firstseen = timestamp()
-        SET r1.lastupdated = $UpdateTag
-
-        MERGE (t)-[a:AFFECTS]->(p)
-        ON CREATE SET a.firstseen = timestamp()
-        SET a.lastupdated = $UpdateTag
-
-        MERGE (t)-[a2:AFFECTS]->(image)
-        ON CREATE SET a2.firstseen = timestamp()
-        SET a2.lastupdated = $UpdateTag
     """
-    num_findings = len(vulns_of_single_class)
-    logger.info(
-        "Ingesting Trivy scan results: "
-        f"repo_name = {ecr_repo_name}, "
-        f"image_tag = {ecr_image_tag}, "
-        f"num_findings = {num_findings}, "
-        f"class = {trivy_class}, "
-        f"type = {trivy_type}, "
-        f"update_tag = {update_tag}.",
+    Load TrivyPackage nodes into Neo4j.
+    """
+    load(
+        neo4j_session,
+        TrivyPackageSchema(),
+        packages_list,
+        lastupdated=update_tag,
     )
-    stat_handler.incr("image_scan_cve_count", num_findings)
-    tx.run(
-        ingest_results,
-        Findings=vulns_of_single_class,
-        Class=trivy_class,
-        Type=trivy_type,
-        ImageDigest=ecr_image_digest,
-        ImageTag=ecr_image_tag,
-        RepoName=ecr_repo_name,
-        UpdateTag=update_tag,
-    )
-    pass
 
 
 @timeit
-def load_scan_vulns(
+def load_scan_fixes(
     neo4j_session: neo4j.Session,
-    scan_results: List[Dict[str, Any]],
-    ecr_image_digest: str,
-    ecr_image_tag: str,
-    ecr_repo_name: str,
+    fixes_list: List[Dict[str, Any]],
     update_tag: int,
 ) -> None:
-    for scan_class in scan_results:
-        # Sometimes a scan class will have no vulns and Trivy will leave the key undefined instead of showing [].
-        if "Vulnerabilities" in scan_class and scan_class["Vulnerabilities"]:
-            neo4j_session.write_transaction(
-                _load_scan_results_in_single_class_tx,
-                ecr_image_digest,
-                ecr_image_tag,
-                ecr_repo_name,
-                scan_class["Vulnerabilities"],
-                scan_class["Class"],
-                scan_class["Type"],
-                update_tag,
-            )
-
-
-@timeit
-def _load_packages_in_single_class_tx(
-    tx: neo4j.Transaction,
-    ecr_image_digest: str,
-    ecr_image_tag: str,
-    ecr_repo_name: str,
-    packages_of_single_class: List[Dict],
-    trivy_class: str,
-    trivy_type: str,
-    update_tag: int,
-) -> None:
-    ingest_results = """
-    MATCH (image:ECRImage{id: $ImageDigest})
-
-    UNWIND $Packages as pkg
-        MERGE (p:Package{id:  pkg.Version + '|' + pkg.Name})
-        ON CREATE SET p.installed_version = pkg.Version,
-            p.name = pkg.Name,
-            p.firstseen = timestamp()
-        SET p:TrivyPackage,
-            p.lastupdated = $UpdateTag,
-            p.version = pkg.Version,
-            p.class = $Class,
-            p.type = $Type
-
-        MERGE (p)-[r1:DEPLOYED]->(image)
-        ON CREATE SET r1.firstseen = timestamp()
-        SET r1.lastupdated = $UpdateTag
     """
-    num_packages = len(packages_of_single_class)
-    logger.info(
-        f"Ingesting Trivy package: "
-        f"repo_name = {ecr_repo_name}, "
-        f"image_tag = {ecr_image_tag}, "
-        f"num_packages = {num_packages}, "
-        f"class = {trivy_class}, "
-        f"type = {trivy_type}.",
+    Load TrivyFix nodes into Neo4j.
+    """
+    load(
+        neo4j_session,
+        TrivyFixSchema(),
+        fixes_list,
+        lastupdated=update_tag,
     )
-    tx.run(
-        ingest_results,
-        Packages=packages_of_single_class,
-        Class=trivy_class,
-        Type=trivy_type,
-        ImageDigest=ecr_image_digest,
-        ImageTag=ecr_image_tag,
-        RepoName=ecr_repo_name,
-        UpdateTag=update_tag,
-    )
-
-
-def _validate_packages(
-    package_list: List[Dict], ecr_image_tag: str, ecr_repo_name: str
-) -> List[Dict]:
-    validated_packages: List[Dict] = []
-    for pkg in package_list:
-        if "Version" in pkg and pkg["Version"] and "Name" in pkg and pkg["Name"]:
-            validated_packages.append(pkg)
-        else:
-            logger.warning(
-                f"Package object does not have a `Name` or `Value` - skipping. Please check why."
-                f"ecr_image_tag = {ecr_image_tag}, "
-                f"ecr_repo_name = {ecr_repo_name}.",
-            )
-    return validated_packages
 
 
 @timeit
@@ -459,12 +360,39 @@ def sync_single_image(
     results = get_scan_results_for_single_image(
         image_uri, image_subcmd_args, trivy_path
     )
-    parsed_results = transform_scan_results(results)
 
+    # Transform all data in one pass
+    findings_list, packages_list, fixes_list = transform_scan_results(
+        results,
+        image_digest,
+    )
+
+    # Log the transformation results
+    num_findings = len(findings_list)
+    logger.info(
+        "Transformed Trivy scan results: "
+        f"repo_name = {repo_name}, "
+        f"image_tag = {image_tag}, "
+        f"num_findings = {num_findings}, "
+        f"num_packages = {len(packages_list)}, "
+        f"num_fixes = {len(fixes_list)}."
+    )
+    stat_handler.incr("image_scan_cve_count", num_findings)
+
+    # Load the transformed data
     load_scan_vulns(
-        neo4j_session, parsed_results, image_digest, image_tag, repo_name, update_tag
+        neo4j_session,
+        findings_list,
+        update_tag=update_tag,
     )
     load_scan_packages(
-        neo4j_session, parsed_results, image_digest, image_tag, repo_name, update_tag
+        neo4j_session,
+        packages_list,
+        update_tag=update_tag,
+    )
+    load_scan_fixes(
+        neo4j_session,
+        fixes_list,
+        update_tag=update_tag,
     )
     stat_handler.incr("images_processed_count")
