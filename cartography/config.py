@@ -137,6 +137,12 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type trivy_path: str
+    :param trivy_path: The path the to the Trivy file binary.
+    :type trivy_opa_policy_file_path: str
+    :param trivy_path: The path to the OPA policy file to use with Trivy. Optional.
+    :type trivy_resource_type: str
+    :param trivy_resource_type: The resource type to scan with Trivy e.g. 'aws.ecr'.
     """
 
     def __init__(
@@ -209,6 +215,9 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        trivy_path=None,
+        trivy_opa_policy_file_path=None,
+        trivy_resource_type=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -278,3 +287,6 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.trivy_path = trivy_path
+        self.trivy_opa_policy_file_path = trivy_opa_policy_file_path
+        self.trivy_resource_type = trivy_resource_type
