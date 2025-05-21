@@ -30,7 +30,7 @@ TEST_REPO_NAME = "repository"
 
 
 # TODO: Replace with actual github demo data
-def create_dependency_nodes(neo4j_session):
+def create_dependency_nodes(neo4j_session) -> None:
     # Creates a set of dependency nodes in the graph
     neo4j_session.run(
         """
@@ -44,7 +44,7 @@ def create_dependency_nodes(neo4j_session):
 
 
 # TODO: Replace with actual CVE data
-def create_cve_nodes(neo4j_session):
+def create_cve_nodes(neo4j_session) -> None:
     # Creates a set of CVE nodes in the graph
     neo4j_session.run(
         """

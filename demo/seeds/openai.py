@@ -1,18 +1,16 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
-
 import cartography.intel.openai.adminapikeys
+import cartography.intel.openai.apikeys
+import cartography.intel.openai.projects
 import cartography.intel.openai.serviceaccounts
 import cartography.intel.openai.users
-import cartography.intel.openai.projects
-import cartography.intel.openai.apikeys
-import tests.data.openai.users
-import tests.data.openai.projects
-import tests.data.openai.apikeys
-import tests.data.openai.serviceaccounts
 import tests.data.openai.adminapikeys
-
+import tests.data.openai.apikeys
+import tests.data.openai.projects
+import tests.data.openai.serviceaccounts
+import tests.data.openai.users
 from demo.seeds.base import Seed
 
 ORG_ID = "org-iwai3meew4phaeNgu8ae"
@@ -53,15 +51,15 @@ class OpenAISeed(Seed):
         api_session = Mock()
         self._seed_users(api_session)
         for project in self._seed_projects(api_session):
-            self._seed_serviceaccounts(api_session, project['id'])
-            self._seed_apikeys(api_session, project['id'])
+            self._seed_serviceaccounts(api_session, project["id"])
+            self._seed_apikeys(api_session, project["id"])
         self._seed_admin_apikeys(api_session)
 
     def _seed_users(self, api_session: Mock) -> None:
         cartography.intel.openai.users.sync(
             self.neo4j_session,
             api_session,
-            common_job_parameters = {
+            common_job_parameters={
                 "UPDATE_TAG": self.update_tag,
                 "BASE_URL": "https://api.openai.com/v1",
                 "ORG_ID": ORG_ID,
@@ -73,19 +71,19 @@ class OpenAISeed(Seed):
         return cartography.intel.openai.projects.sync(
             self.neo4j_session,
             api_session,
-            common_job_parameters = {
+            common_job_parameters={
                 "UPDATE_TAG": self.update_tag,
                 "BASE_URL": "https://api.openai.com/v1",
                 "ORG_ID": ORG_ID,
             },
             ORG_ID=ORG_ID,
         )
-    
+
     def _seed_serviceaccounts(self, api_session: Mock, project_id: str) -> None:
         cartography.intel.openai.serviceaccounts.sync(
             self.neo4j_session,
             api_session,
-            common_job_parameters = {
+            common_job_parameters={
                 "UPDATE_TAG": self.update_tag,
                 "BASE_URL": "https://api.openai.com/v1",
                 "project_id": project_id,
@@ -97,7 +95,7 @@ class OpenAISeed(Seed):
         cartography.intel.openai.apikeys.sync(
             self.neo4j_session,
             api_session,
-            common_job_parameters = {
+            common_job_parameters={
                 "UPDATE_TAG": self.update_tag,
                 "BASE_URL": "https://api.openai.com/v1",
                 "project_id": project_id,
@@ -109,7 +107,7 @@ class OpenAISeed(Seed):
         cartography.intel.openai.adminapikeys.sync(
             self.neo4j_session,
             api_session,
-            common_job_parameters = {
+            common_job_parameters={
                 "UPDATE_TAG": self.update_tag,
                 "BASE_URL": "https://api.openai.com/v1",
                 "ORG_ID": ORG_ID,
