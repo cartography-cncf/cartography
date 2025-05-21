@@ -1,16 +1,16 @@
 from dataclasses import dataclass
 
 from cartography.models.aws.ec2.networkinterface_instance import (
-    EC2NetworkInterfaceToAWSAccount,
+    EC2NetworkInterfaceToAWSAccountRel,
 )
 from cartography.models.aws.ec2.networkinterface_instance import (
-    EC2NetworkInterfaceToEC2Instance,
+    EC2NetworkInterfaceToEC2InstanceRel,
 )
 from cartography.models.aws.ec2.networkinterface_instance import (
-    EC2NetworkInterfaceToEC2SecurityGroup,
+    EC2NetworkInterfaceToEC2SecurityGroupRel,
 )
 from cartography.models.aws.ec2.networkinterface_instance import (
-    EC2NetworkInterfaceToEC2Subnet,
+    EC2NetworkInterfaceToEC2SubnetRel,
 )
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
@@ -48,38 +48,38 @@ class EC2NetworkInterfaceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2NetworkInterfaceToElbRelProperties(CartographyRelProperties):
+class EC2NetworkInterfaceToElbRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2NetworkInterfaceToElb(CartographyRelSchema):
+class EC2NetworkInterfaceToElbRel(CartographyRelSchema):
     target_node_label: str = "LoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("ElbV1Id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "NETWORK_INTERFACE"
-    properties: EC2NetworkInterfaceToElbRelProperties = (
-        EC2NetworkInterfaceToElbRelProperties()
+    properties: EC2NetworkInterfaceToElbRelRelProperties = (
+        EC2NetworkInterfaceToElbRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class EC2NetworkInterfaceToElbV2RelProperties(CartographyRelProperties):
+class EC2NetworkInterfaceToElbV2RelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2NetworkInterfaceToElbV2(CartographyRelSchema):
+class EC2NetworkInterfaceToElbV2Rel(CartographyRelSchema):
     target_node_label: str = "LoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ElbV2Id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "NETWORK_INTERFACE"
-    properties: EC2NetworkInterfaceToElbV2RelProperties = (
-        EC2NetworkInterfaceToElbV2RelProperties()
+    properties: EC2NetworkInterfaceToElbV2RelRelProperties = (
+        EC2NetworkInterfaceToElbV2RelRelProperties()
     )
 
 
@@ -91,15 +91,15 @@ class EC2NetworkInterfaceSchema(CartographyNodeSchema):
 
     label: str = "NetworkInterface"
     properties: EC2NetworkInterfaceNodeProperties = EC2NetworkInterfaceNodeProperties()
-    sub_resource_relationship: EC2NetworkInterfaceToAWSAccount = (
-        EC2NetworkInterfaceToAWSAccount()
+    sub_resource_relationship: EC2NetworkInterfaceToAWSAccountRel = (
+        EC2NetworkInterfaceToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            EC2NetworkInterfaceToEC2Subnet(),
-            EC2NetworkInterfaceToEC2SecurityGroup(),
-            EC2NetworkInterfaceToElb(),
-            EC2NetworkInterfaceToElbV2(),
-            EC2NetworkInterfaceToEC2Instance(),
+            EC2NetworkInterfaceToEC2SubnetRel(),
+            EC2NetworkInterfaceToEC2SecurityGroupRel(),
+            EC2NetworkInterfaceToElbRel(),
+            EC2NetworkInterfaceToElbV2Rel(),
+            EC2NetworkInterfaceToEC2InstanceRel(),
         ],
     )

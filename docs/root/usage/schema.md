@@ -35,6 +35,9 @@
 ```{include} ../modules/bigfix/schema.md
 ```
 
+```{include} ../modules/cloudflare/schema.md
+```
+
 ```{include} ../modules/crowdstrike/schema.md
 ```
 
@@ -74,6 +77,9 @@
 ```{include} ../modules/okta/schema.md
 ```
 
+```{include} ../modules/openai/schema.md
+```
+
 ```{include} ../modules/pagerduty/schema.md
 ```
 
@@ -81,4 +87,7 @@
 ```
 
 ```{include} ../modules/snipeit/schema.md
+```
+
+```{include} ../modules/tailscale/schema.md
 ```

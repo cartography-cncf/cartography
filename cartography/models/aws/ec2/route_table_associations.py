@@ -27,56 +27,56 @@ class RouteTableAssociationNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class RouteTableAssociationToAwsAccountRelProperties(CartographyRelProperties):
+class RouteTableAssociationToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteTableAssociationToAWSAccount(CartographyRelSchema):
+class RouteTableAssociationToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: RouteTableAssociationToAwsAccountRelProperties = (
-        RouteTableAssociationToAwsAccountRelProperties()
+    properties: RouteTableAssociationToAWSAccountRelRelProperties = (
+        RouteTableAssociationToAWSAccountRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class RouteTableAssociationToSubnetRelProperties(CartographyRelProperties):
+class RouteTableAssociationToSubnetRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteTableAssociationToSubnet(CartographyRelSchema):
+class RouteTableAssociationToSubnetRel(CartographyRelSchema):
     target_node_label: str = "EC2Subnet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"subnetid": PropertyRef("subnet_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATED_SUBNET"
-    properties: RouteTableAssociationToSubnetRelProperties = (
-        RouteTableAssociationToSubnetRelProperties()
+    properties: RouteTableAssociationToSubnetRelRelProperties = (
+        RouteTableAssociationToSubnetRelRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class RouteTableAssociationToIgwRelProperties(CartographyRelProperties):
+class RouteTableAssociationToIgwRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class RouteTableAssociationToIgw(CartographyRelSchema):
+class RouteTableAssociationToIgwRel(CartographyRelSchema):
     target_node_label: str = "AWSInternetGateway"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("gateway_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSOCIATED_IGW_FOR_INGRESS"
-    properties: RouteTableAssociationToIgwRelProperties = (
-        RouteTableAssociationToIgwRelProperties()
+    properties: RouteTableAssociationToIgwRelRelProperties = (
+        RouteTableAssociationToIgwRelRelProperties()
     )
 
 
@@ -86,12 +86,12 @@ class RouteTableAssociationSchema(CartographyNodeSchema):
     properties: RouteTableAssociationNodeProperties = (
         RouteTableAssociationNodeProperties()
     )
-    sub_resource_relationship: RouteTableAssociationToAWSAccount = (
-        RouteTableAssociationToAWSAccount()
+    sub_resource_relationship: RouteTableAssociationToAWSAccountRel = (
+        RouteTableAssociationToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            RouteTableAssociationToSubnet(),
-            RouteTableAssociationToIgw(),
+            RouteTableAssociationToSubnetRel(),
+            RouteTableAssociationToIgwRel(),
         ],
     )
