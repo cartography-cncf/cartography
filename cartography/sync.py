@@ -36,6 +36,7 @@ import cartography.intel.openai
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale
+import cartography.intel.trivy
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
