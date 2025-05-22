@@ -561,7 +561,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "Your SnipeIT base URI"
+                "Your SnipeIT base URI. "
                 "Required if you are using the SnipeIT intel module. Ignored otherwise."
             ),
         )
@@ -588,7 +588,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "The name of an environment variable containing a Tailscale API token."
+                "The name of an environment variable containing a Tailscale API token. "
                 "Required if you are using the Tailscale intel module. Ignored otherwise."
             ),
         )
@@ -615,7 +615,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "The name of an environment variable containing a OpenAI API Key."
+                "The name of an environment variable containing a OpenAI API Key. "
                 "Required if you are using the OpenAI intel module. Ignored otherwise."
             ),
         )
@@ -626,6 +626,15 @@ class CLI:
             help=(
                 "The ID of the OpenAI organization to sync. "
                 "Required if you are using the OpenAI intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--anthropic-apikey-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing an Anthropic API Key. "
+                "Required if you are using the Anthropic intel module. Ignored otherwise."
             ),
         )
 
@@ -936,6 +945,15 @@ class CLI:
             config.openai_apikey = os.environ.get(config.openai_apikey_env_var)
         else:
             config.openai_apikey = None
+
+        # Anthropic config
+        if config.anthropic_apikey_env_var:
+            logger.debug(
+                f"Reading Anthropic API key from environment variable {config.anthropic_apikey_env_var}",
+            )
+            config.anthropic_apikey = os.environ.get(config.anthropic_apikey_env_var)
+        else:
+            config.anthropic_apikey = None
 
         # Run cartography
         try:

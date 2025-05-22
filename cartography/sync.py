@@ -14,6 +14,7 @@ from neo4j import GraphDatabase
 from statsd import StatsClient
 
 import cartography.intel.analysis
+import cartography.intel.anthropic
 import cartography.intel.aws
 import cartography.intel.azure
 import cartography.intel.bigfix
@@ -47,6 +48,7 @@ logger = logging.getLogger(__name__)
 TOP_LEVEL_MODULES = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
         "create-indexes": cartography.intel.create_indexes.run,
+        "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
         "aws": cartography.intel.aws.start_aws_ingestion,
         "azure": cartography.intel.azure.start_azure_ingestion,
         "entra": cartography.intel.entra.start_entra_ingestion,
