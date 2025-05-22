@@ -84,7 +84,7 @@ def test_load_openai_projects(mock_api, mock_api_members, neo4j_session):
     # Assert projects are linked to the correct users
     expected_rels = {
         ("user-ou3doohoeX6xie1Quiem", "proj_Eicie2Iid8ii4aiNg8va"),
-        ('user-uJeighaeFair8shaa2av', 'proj_Eicie2Iid8ii4aiNg8va')
+        ("user-uJeighaeFair8shaa2av", "proj_Eicie2Iid8ii4aiNg8va"),
     }
     assert (
         check_rels(
@@ -98,9 +98,7 @@ def test_load_openai_projects(mock_api, mock_api_members, neo4j_session):
         )
         == expected_rels
     )
-    expected_rels = {
-        ("user-ou3doohoeX6xie1Quiem", "proj_Eicie2Iid8ii4aiNg8va")
-    }
+    expected_rels = {("user-ou3doohoeX6xie1Quiem", "proj_Eicie2Iid8ii4aiNg8va")}
     assert (
         check_rels(
             neo4j_session,

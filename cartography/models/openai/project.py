@@ -72,8 +72,9 @@ class OpenAIProjectToUserAdminRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ADMIN_OF"
-    properties: OpenAIProjectToUserAdminRelProperties = OpenAIProjectToUserAdminRelProperties()
-
+    properties: OpenAIProjectToUserAdminRelProperties = (
+        OpenAIProjectToUserAdminRelProperties()
+    )
 
 
 @dataclass(frozen=True)

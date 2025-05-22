@@ -24,5 +24,5 @@ OPENAI_PROJECTS_MEMBERS = [
         "name": "Marge Simpson",
         "role": "member",
         "added_at": 1670089719,
-    }
+    },
 ]
