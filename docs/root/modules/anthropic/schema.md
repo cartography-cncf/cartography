@@ -117,7 +117,7 @@ Represents an individual API key in a project.
     ```
     (:AnthropicOrganization)-[:RESOURCE]->(:AnthropicApiKey)
     ```
-- `APIKey` is owned by a `User` 
+- `APIKey` is owned by a `User`
     ```
     (:AnthropicUser)-[:OWNS]->(:AnthropicApiKey)
     ```

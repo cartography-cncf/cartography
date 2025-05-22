@@ -12,7 +12,6 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AnthropicUserNodeProperties(CartographyNodeProperties):
-    object: PropertyRef = PropertyRef("object")
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     email: PropertyRef = PropertyRef("email", extra_index=True)
