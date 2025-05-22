@@ -197,7 +197,9 @@ def sync(
                 f"Getting versions for secret {secret.get('Name', 'unnamed')} ({secret['ARN']})"
             )
             versions = get_secret_versions(boto3_session, region, secret["ARN"])
-            logger.info(f"No versions found for secret {secret.get('Name', 'unnamed')}")
+            logger.info(
+                f"Found {len(versions)} versions for secret {secret.get('Name', 'unnamed')}"
+            )
             all_versions.extend(versions)
 
         transformed_data = transform_secret_versions(
