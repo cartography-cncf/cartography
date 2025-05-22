@@ -70,9 +70,6 @@ def load_users(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(OpenAIOrganizationSchema(), common_job_parameters).run(
-        neo4j_session
-    )
     GraphJob.from_node_schema(OpenAIUserSchema(), common_job_parameters).run(
         neo4j_session
     )
