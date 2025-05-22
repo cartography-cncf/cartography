@@ -799,8 +799,7 @@ Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.
 
 | Field | Description |
 |-------|-------------|
-| id | The name of the metric filter. |
-| name | The name of the metric filter. |
+| id | The unique identifier for the metric filter |
 | filterName | The name of the metric filter. |
 | filterPattern | The filter pattern to use. |
 | logGroupName | The name of the log group associated with the metric filter. |
