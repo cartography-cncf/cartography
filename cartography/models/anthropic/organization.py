@@ -17,7 +17,3 @@ class AnthropicOrganizationSchema(CartographyNodeSchema):
     properties: AnthropicOrganizationNodeProperties = (
         AnthropicOrganizationNodeProperties()
     )
-
-
-# WIP:
-# https://docs.anthropic.com/en/api/overview#response-headers

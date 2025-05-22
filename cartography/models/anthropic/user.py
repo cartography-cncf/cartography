@@ -47,6 +47,3 @@ class AnthropicUserSchema(CartographyNodeSchema):
     sub_resource_relationship: AnthropicUserToOrganizationRel = (
         AnthropicUserToOrganizationRel()
     )
-
-
-# WIP: https://api.anthropic.com/v1/organizations/users

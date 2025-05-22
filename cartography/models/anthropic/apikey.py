@@ -88,6 +88,3 @@ class AnthropicApiKeySchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [AnthropicApiKeyToUserRel(), AnthropicApiKeyToWorkspaceRel()],
     )
-
-
-# WIP: https://docs.anthropic.com/en/api/admin-api/apikeys/list-api-keys
