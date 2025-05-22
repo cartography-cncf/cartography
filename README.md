@@ -42,8 +42,8 @@ You can learn more about the story behind Cartography in our [presentation at BS
 - [SnipeIT](https://cartography-cncf.github.io/cartography/modules/snipeit/index.html) - Users, Assets
 - [Tailscale](https://cartography-cncf.github.io/cartography/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations
 - [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
-- [OpenAI](https://cartography-cncf.github.io/cartography/modules/openai/index.html) - - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
-- [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - - Organization, ApiKey, User, Workspace
+- [OpenAI](https://cartography-cncf.github.io/cartography/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
+- [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 
 
 ## Philosophy

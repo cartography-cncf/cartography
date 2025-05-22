@@ -561,7 +561,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "Your SnipeIT base URI"
+                "Your SnipeIT base URI. "
                 "Required if you are using the SnipeIT intel module. Ignored otherwise."
             ),
         )
@@ -588,7 +588,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "The name of an environment variable containing a Tailscale API token."
+                "The name of an environment variable containing a Tailscale API token. "
                 "Required if you are using the Tailscale intel module. Ignored otherwise."
             ),
         )
@@ -615,7 +615,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "The name of an environment variable containing a OpenAI API Key."
+                "The name of an environment variable containing a OpenAI API Key. "
                 "Required if you are using the OpenAI intel module. Ignored otherwise."
             ),
         )
@@ -633,7 +633,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "The name of an environment variable containing a Anthropic API Key."
+                "The name of an environment variable containing an Anthropic API Key. "
                 "Required if you are using the Anthropic intel module. Ignored otherwise."
             ),
         )

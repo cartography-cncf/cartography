@@ -49,7 +49,7 @@ Represents an individual `user` within an organization.
 #### Relationships
 - `User` belongs to an `Organization`
     ```
-    (AnthropicOrganization)-[:RESOURCE]->(AnthropicAdminApiKey)
+    (AnthropicOrganization)-[:RESOURCE]->(AnthropicApiKey)
     ```
 - `API Key` is owned by a `User`
     ```
@@ -94,7 +94,7 @@ Represents an individual workspace.
     ```
 - `User` are admin of a `Workpace`
     ```
-    (:AnthropicUser)-[:MEMBER_OF]->(:AnthropicWorkpace)
+    (:AnthropicUser)-[:ADMIN_OF]->(:AnthropicWorkpace)
     ```
 
 

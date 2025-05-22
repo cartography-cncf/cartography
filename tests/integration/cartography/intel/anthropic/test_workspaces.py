@@ -42,7 +42,7 @@ def test_load_anthropic_workspaces(mock_api, mock_api_members, neo4j_session):
     api_session = requests.Session()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "BASE_URL": "https://api.anthropic.con/v1",
+        "BASE_URL": "https://api.anthropic.com/v1",
     }
     _ensure_local_neo4j_has_test_users(neo4j_session)
 
