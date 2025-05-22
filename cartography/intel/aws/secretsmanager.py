@@ -98,9 +98,7 @@ def get_secret_versions(
 
     for page in paginator.paginate(SecretId=secret_arn, IncludeDeprecated=True):
         for version in page["Versions"]:
-
             version["SecretId"] = secret_arn
-
             version["ARN"] = f"{secret_arn}:version:{version['VersionId']}"
         versions.extend(page["Versions"])
 
@@ -191,36 +189,30 @@ def sync(
         )
         secrets = get_secret_list(boto3_session, region)
 
-        if not secrets:
-            logger.info(f"No secrets found in region {region}")
-            continue
-
         load_secrets(neo4j_session, secrets, region, current_aws_account_id, update_tag)
 
+        all_versions = []
         for secret in secrets:
             logger.info(
                 f"Getting versions for secret {secret.get('Name', 'unnamed')} ({secret['ARN']})"
             )
-            secret_versions = get_secret_versions(boto3_session, region, secret["ARN"])
+            versions = get_secret_versions(boto3_session, region, secret["ARN"])
+            logger.info(f"No versions found for secret {secret.get('Name', 'unnamed')}")
+            all_versions.extend(versions)
 
-            if secret_versions:
-                transformed_data = transform_secret_versions(
-                    secret_versions,
-                    region,
-                    current_aws_account_id,
-                )
+        transformed_data = transform_secret_versions(
+            all_versions,
+            region,
+            current_aws_account_id,
+        )
 
-                load_secret_versions(
-                    neo4j_session,
-                    transformed_data,
-                    region,
-                    current_aws_account_id,
-                    update_tag,
-                )
-            else:
-                logger.info(
-                    f"No versions found for secret {secret.get('Name', 'unnamed')}"
-                )
+        load_secret_versions(
+            neo4j_session,
+            transformed_data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
 
     cleanup_secrets(neo4j_session, common_job_parameters)
     cleanup_secret_versions(neo4j_session, common_job_parameters)
