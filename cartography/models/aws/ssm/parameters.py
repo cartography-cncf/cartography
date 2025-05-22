@@ -20,13 +20,14 @@ class SSMParameterNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("Description")
     type: PropertyRef = PropertyRef("Type")
     keyid: PropertyRef = PropertyRef("KeyId")
+    kms_key_id_short: PropertyRef = PropertyRef("KMSKeyidShort")
     version: PropertyRef = PropertyRef("Version")
     lastmodifieddate: PropertyRef = PropertyRef("LastModifiedDate")
     tier: PropertyRef = PropertyRef("Tier")
     lastmodifieduser: PropertyRef = PropertyRef("LastModifiedUser")
     datatype: PropertyRef = PropertyRef("DataType")
-    allowedpattern: PropertyRef = PropertyRef("AllowedPattern") 
-    policies_json: PropertyRef = PropertyRef("PoliciesJson")  
+    allowedpattern: PropertyRef = PropertyRef("AllowedPattern")
+    policies_json: PropertyRef = PropertyRef("PoliciesJson")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -34,7 +35,6 @@ class SSMParameterNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class SSMParameterToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
 
 
 @dataclass(frozen=True)
@@ -51,18 +51,21 @@ class SSMParameterToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class SSMParameterToKMSKeyRelRelProperties(CartographyRelProperties):
+class SSMParameterToKMSKeyRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class SSMParameterToKMSKeyRel(CartographyRelSchema):
-    target_node_label: str = 'AWSKmsKey'
+    target_node_label: str = "KMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('KeyId')},
+        {
+            "id": PropertyRef("KMSKeyidShort"),
+        }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ENCRYPTED_BY"
-    properties: SSMParameterToKMSKeyRelRelProperties = SSMParameterToKMSKeyRelRelProperties()
+    properties: SSMParameterToKMSKeyRelProperties = SSMParameterToKMSKeyRelProperties()
 
 
 @dataclass(frozen=True)
@@ -74,8 +77,8 @@ class SSMParameterSchema(CartographyNodeSchema):
         SSMParameterToAWSAccountRel()
     )
 
-    other_relationships: OtherRelationships = OtherRelationships( 
-        [ 
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
             SSMParameterToKMSKeyRel(),
         ],
     )
