@@ -12,16 +12,16 @@ LIST_SECRETS = [
         "KmsKeyId": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
         "CreatedDate": datetime.datetime(
             2024, 12, 15, 10, 30, 0, tzinfo=tz.utc
-        ),  # More recent
+        ), 
         "LastRotatedDate": datetime.datetime(
             2025, 3, 15, 10, 30, 0, tzinfo=tz.utc
-        ),  # Recent rotation
+        ), 
         "LastChangedDate": datetime.datetime(
             2025, 4, 20, 14, 45, 30, tzinfo=tz.utc
-        ),  # Recent change
+        ),  
         "LastAccessedDate": datetime.datetime(
             2025, 5, 20, 16, 20, 15, tzinfo=tz.utc
-        ),  # Very recent access
+        ), 
         "PrimaryRegion": "us-west-1",
     },
     {
@@ -43,7 +43,7 @@ LIST_SECRET_VERSIONS = [
         "VersionStages": ["AWSCURRENT"],
         "CreatedDate": datetime.datetime(
             2025, 4, 20, 14, 45, 30, tzinfo=tz.utc
-        ),  # Recent
+        ), 
         "KmsKeyId": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
     },
     {
@@ -53,7 +53,7 @@ LIST_SECRET_VERSIONS = [
         "VersionStages": ["AWSPREVIOUS"],
         "CreatedDate": datetime.datetime(
             2025, 3, 15, 10, 30, 0, tzinfo=tz.utc
-        ),  # Previous version
+        ), 
         "KmsKeyId": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
     },
 ]
