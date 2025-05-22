@@ -23,7 +23,7 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: Dict[str, Any],
     ORG_ID: str,
-) -> List[Dict]:
+) -> None:
     adminapikeys = get(
         api_session,
         common_job_parameters["BASE_URL"],
@@ -36,7 +36,6 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
-    return adminapikeys
 
 
 @timeit

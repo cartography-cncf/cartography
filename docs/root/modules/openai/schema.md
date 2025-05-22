@@ -69,7 +69,10 @@ Represents an individual `user` within an organization.
     ```
     (:OpenAIUser)-[:OWNS]->(:OpenAIApiKey)
     ```
-
+- `User` are member of a `Project`
+    ```
+    (:OpenAIUser)-[:MEMBER_OF]->(:OpenAIProject)
+    ```
 
 
 ### OpenAIProject
@@ -97,8 +100,13 @@ Represents an individual project.
     ```
 - `Project` belongs to an `Organization`
     ```
-    (OpenAIOrganization)-[:RESOURCE]->(OpenAIAdminApiKey)
+    (OpenAIOrganization)-[:RESOURCE]->(OpenAIProject)
     ```
+- `User` are member of a `Project`
+    ```
+    (:OpenAIUser)-[:MEMBER_OF]->(:OpenAIProject)
+    ```
+
 
 ### OpenAIServiceAccount
 
