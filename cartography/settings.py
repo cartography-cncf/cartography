@@ -479,3 +479,29 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config("entra_tenant_id", "CARTOGRAPHY_ENTRA__TENANT_ID")
         settings.update({"entra": {"tenant_id": config.entra_tenant_id}})
+    # Tailscale
+    if config.tailscale_token:
+        if show_deprecation_warning:
+            deprecated_config("tailscale_token", "CARTOGRAPHY_TAILSCALE__TOKEN")
+        settings.update({"tailscale": {"token": config.tailscale_token}})
+    if config.tailscale_org:
+        if show_deprecation_warning:
+            deprecated_config("tailscale_org", "CARTOGRAPHY_TAILSCALE__ORG")
+        settings.update({"tailscale": {"org": config.tailscale_org}})
+    if config.tailscale_base_url:
+        # We do not raise a deprecation warning here because there is a default value for tailscale_base_url
+        settings.update({"tailscale": {"base_url": config.tailscale_base_url}})
+    # Cloudflare
+    if config.cloudflare_token:
+        if show_deprecation_warning:
+            deprecated_config("cloudflare_token", "CARTOGRAPHY_CLOUDFLARE__TOKEN")
+        settings.update({"cloudflare": {"token": config.cloudflare_token}})
+    # OpenAI
+    if config.openai_apikey:
+        if show_deprecation_warning:
+            deprecated_config("openai_apikey", "CARTOGRAPHY_OPENAI__APIKEY")
+        settings.update({"openai": {"apikey": config.openai_apikey}})
+    if config.openai_org_id:
+        if show_deprecation_warning:
+            deprecated_config("openai_org_id", "CARTOGRAPHY_OPENAI__ORG_ID")
+        settings.update({"openai": {"org_id": config.openai_org_id}})

@@ -32,6 +32,8 @@ database="neo4j"
 #username=""
 #password=""
 #root_url=""
+[cloudflare]
+#token=""
 [crowdstrike]
 #client_id=""
 #client_secret=""
@@ -78,6 +80,9 @@ database="neo4j"
 #saml_role_regex="^aws\#\S+\#(?{{role}}[\w\-]+)\#(?{{accountid}}\d+)$"
 #api_key=""
 #org_id=""
+[openai]
+#apikey=""
+#org_id=""
 [pagerduty]
 #api_key=""
 [semgrep]
@@ -87,3 +92,7 @@ database="neo4j"
 #base_url=""
 #token=""
 #tenant_id=""
+[tailscale]
+#token=""
+#org=""
+#base_url="https://api.tailscale.com/api/v2"

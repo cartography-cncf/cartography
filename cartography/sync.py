@@ -47,7 +47,7 @@ from cartography.util import STATUS_SUCCESS
 logger = logging.getLogger(__name__)
 
 
-TOP_LEVEL_MODULES = OrderedDict(
+TOP_LEVEL_MODULES: OrderedDict[str, Callable] = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
         "create-indexes": cartography.intel.create_indexes.run,
         "aws": cartography.intel.aws.start_aws_ingestion,
