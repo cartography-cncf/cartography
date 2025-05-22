@@ -36,7 +36,7 @@ def sync(
             workspace["id"],
         ):
             workspace["users"].append(user["user_id"])
-            if user["worspace_role"] == "workspace_admin":
+            if user["workspace_role"] == "workspace_admin":
                 workspace["admins"].append(user["user_id"])
     load_workspaces(
         neo4j_session, workspaces, org_id, common_job_parameters["UPDATE_TAG"]
@@ -51,7 +51,7 @@ def get(
     base_url: str,
 ) -> Tuple[str, list[dict[str, Any]]]:
     return paginated_get(
-        api_session, f"{base_url}/organization/workspaces", timeout=_TIMEOUT
+        api_session, f"{base_url}/organizations/workspaces", timeout=_TIMEOUT
     )
 
 
@@ -63,7 +63,7 @@ def get_workspace_users(
 ) -> list[dict[str, Any]]:
     _, result = paginated_get(
         api_session,
-        f"{base_url}/organization/workspaces/{workspace_id}/users",
+        f"{base_url}/organizations/workspaces/{workspace_id}/members",
         timeout=_TIMEOUT,
     )
     return result

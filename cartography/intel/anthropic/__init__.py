@@ -33,6 +33,7 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     api_session.headers.update(
         {
             "X-Api-Key": config.anthropic_apikey,
+            "anthropic-version": "2023-06-01",
         }
     )
 

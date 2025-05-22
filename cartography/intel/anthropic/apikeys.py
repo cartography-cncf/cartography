@@ -42,7 +42,7 @@ def get(
     base_url: str,
 ) -> Tuple[str, list[dict[str, Any]]]:
     return paginated_get(
-        api_session, f"{base_url}/organization/api_keys", timeout=_TIMEOUT
+        api_session, f"{base_url}/organizations/api_keys", timeout=_TIMEOUT
     )
 
 
