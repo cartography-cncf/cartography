@@ -64,7 +64,7 @@ class OpenAIProjectToUserAdminRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:OpenAIUser)-[:ADMIN_OD]->(:OpenAIProject)
+# (:OpenAIUser)-[:ADMIN_OF]->(:OpenAIProject)
 class OpenAIProjectToUserAdminRel(CartographyRelSchema):
     target_node_label: str = "OpenAIUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
