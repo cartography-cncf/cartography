@@ -11,6 +11,7 @@ U -- OWNS --> K
 SA -- OWNS --> AK
 SA -- OWNS --> K
 U -- MEMBER_OF --> P
+U -- ADMIN_OF --> P
 O -- RESOURCE --> AK(AdminApiKey)
 ```
 
@@ -69,8 +70,14 @@ Represents an individual `user` within an organization.
     ```
     (:OpenAIUser)-[:OWNS]->(:OpenAIApiKey)
     ```
-
-
+- `User` are member of a `Project`
+    ```
+    (:OpenAIUser)-[:MEMBER_OF]->(:OpenAIProject)
+    ```
+- `User` are admin of a `Project`
+    ```
+    (:OpenAIUser)-[:ADMIN_OF]->(:OpenAIProject)
+    ```
 
 ### OpenAIProject
 
@@ -97,7 +104,15 @@ Represents an individual project.
     ```
 - `Project` belongs to an `Organization`
     ```
-    (OpenAIOrganization)-[:RESOURCE]->(OpenAIAdminApiKey)
+    (OpenAIOrganization)-[:RESOURCE]->(OpenAIProject)
+    ```
+- `User` are member of a `Project`
+    ```
+    (:OpenAIUser)-[:MEMBER_OF]->(:OpenAIProject)
+    ```
+- `User` are admin of a `Project`
+    ```
+    (:OpenAIUser)-[:ADMIN_OF]->(:OpenAIProject)
     ```
 
 ### OpenAIServiceAccount

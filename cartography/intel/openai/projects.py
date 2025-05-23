@@ -30,12 +30,15 @@ def sync(
     )
     for project in projects:
         project["users"] = []
+        project["admins"] = []
         for user in get_project_users(
             api_session,
             common_job_parameters["BASE_URL"],
             project["id"],
         ):
             project["users"].append(user["id"])
+            if user["role"] == "owner":
+                project["admins"].append(user["id"])
     load_projects(neo4j_session, projects, ORG_ID, common_job_parameters["UPDATE_TAG"])
     cleanup(neo4j_session, common_job_parameters)
     return projects
@@ -75,7 +78,7 @@ def load_projects(
     ORG_ID: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d OpenAIProjectSchema into Neo4j.", len(data))
+    logger.info("Loading %d OpenAI Projects into Neo4j.", len(data))
     load(
         neo4j_session,
         OpenAIProjectSchema(),

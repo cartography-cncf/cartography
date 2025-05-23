@@ -12,78 +12,79 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class OpenAIProjectNodeProperties(CartographyNodeProperties):
+class AnthropicWorkspaceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    object: PropertyRef = PropertyRef("object")
     name: PropertyRef = PropertyRef("name")
     created_at: PropertyRef = PropertyRef("created_at")
     archived_at: PropertyRef = PropertyRef("archived_at")
-    status: PropertyRef = PropertyRef("status")
+    display_color: PropertyRef = PropertyRef("display_color")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class OpenAIProjectToOrganizationRelProperties(CartographyRelProperties):
+class AnthropicWorkspaceToOrganizationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:OpenAIOrganization)-[:RESOURCE]->(:OpenAIProject)
-class OpenAIProjectToOrganizationRel(CartographyRelSchema):
-    target_node_label: str = "OpenAIOrganization"
+# (:AnthropicOrganization)-[:RESOURCE]->(:AnthropicWorkspace)
+class AnthropicWorkspaceToOrganizationRel(CartographyRelSchema):
+    target_node_label: str = "AnthropicOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: OpenAIProjectToOrganizationRelProperties = (
-        OpenAIProjectToOrganizationRelProperties()
+    properties: AnthropicWorkspaceToOrganizationRelProperties = (
+        AnthropicWorkspaceToOrganizationRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class OpenAIProjectToUserRelProperties(CartographyRelProperties):
+class AnthropicWorkspaceToUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:OpenAIUser)-[:MEMBER_OF]->(:OpenAIProject)
-class OpenAIProjectToUserRel(CartographyRelSchema):
-    target_node_label: str = "OpenAIUser"
+# (:AnthropicUser)-[:MEMBER_OF]->(:AnthropicWorkspace)
+class AnthropicWorkspaceToUserRel(CartographyRelSchema):
+    target_node_label: str = "AnthropicUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("users", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
-    properties: OpenAIProjectToUserRelProperties = OpenAIProjectToUserRelProperties()
+    properties: AnthropicWorkspaceToUserRelProperties = (
+        AnthropicWorkspaceToUserRelProperties()
+    )
 
 
 @dataclass(frozen=True)
-class OpenAIProjectToUserAdminRelProperties(CartographyRelProperties):
+class AnthropicWorkspaceToUserAdminRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:OpenAIUser)-[:ADMIN_OF]->(:OpenAIProject)
-class OpenAIProjectToUserAdminRel(CartographyRelSchema):
-    target_node_label: str = "OpenAIUser"
+# (:AnthropicUser)-[:ADMIN_OF]->(:AnthropicWorkspace)
+class AnthropicWorkspaceToUserAdminRel(CartographyRelSchema):
+    target_node_label: str = "AnthropicUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("admins", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ADMIN_OF"
-    properties: OpenAIProjectToUserAdminRelProperties = (
-        OpenAIProjectToUserAdminRelProperties()
+    properties: AnthropicWorkspaceToUserAdminRelProperties = (
+        AnthropicWorkspaceToUserAdminRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class OpenAIProjectSchema(CartographyNodeSchema):
-    label: str = "OpenAIProject"
-    properties: OpenAIProjectNodeProperties = OpenAIProjectNodeProperties()
-    sub_resource_relationship: OpenAIProjectToOrganizationRel = (
-        OpenAIProjectToOrganizationRel()
+class AnthropicWorkspaceSchema(CartographyNodeSchema):
+    label: str = "AnthropicWorkspace"
+    properties: AnthropicWorkspaceNodeProperties = AnthropicWorkspaceNodeProperties()
+    sub_resource_relationship: AnthropicWorkspaceToOrganizationRel = (
+        AnthropicWorkspaceToOrganizationRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [OpenAIProjectToUserRel(), OpenAIProjectToUserAdminRel()],
+        [AnthropicWorkspaceToUserRel(), AnthropicWorkspaceToUserAdminRel()],
     )

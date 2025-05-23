@@ -3610,3 +3610,34 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
     ```
     (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
     ```
+
+### SecretsManagerSecretVersion
+
+Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretVersionListEntry.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The ARN of the secret version. |
+| arn | The ARN of the secret version. |
+| secret_id | The ARN of the secret that this version belongs to. |
+| version_id | The unique identifier of this version of the secret. |
+| version_stages | A list of staging labels that are currently attached to this version of the secret. |
+| created_date | The date and time that this version of the secret was created. |
+| region | The AWS region where the secret version exists. |
+
+#### Relationships
+
+- AWS Secrets Manager Secret Versions are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SecretsManagerSecretVersion)
+    ```
+- Secret Versions belong to a Secret.
+    ```
+    (SecretsManagerSecretVersion)-[VERSION_OF]->(SecretsManagerSecret)
+    ```
+- If the secret version is encrypted with a KMS key, it has a relationship to that key.
+    ```
+    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
+    ```

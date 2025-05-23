@@ -63,7 +63,7 @@ def load_serviceaccounts(
     project_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d OpenAI ProjectServiceAccount into Neo4j.", len(data))
+    logger.info("Loading %d OpenAI ServiceAccount into Neo4j.", len(data))
     load(
         neo4j_session,
         OpenAIServiceAccountSchema(),

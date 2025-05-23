@@ -135,6 +135,8 @@ class Config:
     :param openai_apikey: OpenAI API key. Optional.
     :type openai_org_id: string
     :param openai_org_id: OpenAI organization id. Optional.
+    :type anthropic_apikey: string
+    :param anthropic_apikey: Anthropic API key. Optional.
     """
 
     def __init__(
@@ -206,6 +208,7 @@ class Config:
         cloudflare_token=None,
         openai_apikey=None,
         openai_org_id=None,
+        anthropic_apikey=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -274,3 +277,4 @@ class Config:
         self.cloudflare_token = cloudflare_token
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
+        self.anthropic_apikey = anthropic_apikey
