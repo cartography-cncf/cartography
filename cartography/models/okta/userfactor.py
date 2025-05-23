@@ -32,8 +32,7 @@ class OktaUserFactorToUserProperties(CartographyRelProperties):
 class OktaUserFactorToUserRel(CartographyRelSchema):
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        # WIP: Check if we can do a one_to_many match here
-        {"id": PropertyRef("USER_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("user_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "FACTOR"

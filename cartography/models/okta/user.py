@@ -52,15 +52,3 @@ class OktaUserSchema(CartographyNodeSchema):
     label: str = "OktaUser"
     properties: OktaUserProperties = OktaUserProperties()
     sub_resource_relationship: OktaUserToOrganizationRel = OktaUserToOrganizationRel()
-
-
-# WIP: Human node creation
-"""
-WITH new_user
-MERGE (h:Human{email: new_user.email})
-ON CREATE SET new_user.firstseen = timestamp()
-SET h.lastupdated = $okta_update_tag
-MERGE (h)-[r:IDENTITY_OKTA]->(new_user)
-ON CREATE SET new_user.firstseen = timestamp()
-SET h.lastupdated = $okta_update_tag
-"""
