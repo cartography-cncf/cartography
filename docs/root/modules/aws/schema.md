@@ -3414,6 +3414,41 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
     (EC2Instance)-[HAS_INFORMATION]->(SSMInstancePatch)
     ```
 
+### SSMParameter
+
+Representation of an AWS Systems Manager Parameter as returned by the [`describe_parameters` API](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/describe_parameters.html).
+
+| Field | Description |
+|-------|-------------|
+| **firstseen**| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The ARN of the parameter |
+| region | The region of the parameter. |
+| arn | The Amazon Resource Name (ARN) of the parameter. |
+| name | The parameter name. |
+| description | Description of the parameter actions. |
+| type | The type of parameter. Valid parameter types include String, StringList, and SecureString. |
+| keyid | The alias or ARN of the Key Management Service (KMS) key used to encrypt the parameter. Applies to SecureString parameters only. |
+| version | The parameter version. |
+| lastmodifieddate | Date the parameter was last changed or updated (stored as epoch time). |
+| tier | The parameter tier. |
+| lastmodifieduser | Amazon Resource Name (ARN) of the AWS user who last changed the parameter. |
+| datatype | The data type of the parameter, such as text or aws:ec2:image. |
+| allowedpattern | A regular expression that defines the constraints on the parameter value. |
+| policies_json | A JSON string representation of the list of policies associated with the parameter. |
+
+#### Relationships
+
+- SSMParameter is a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SSMParameter)
+    ```
+
+- SecureString SSMParameters may be encrypted by an AWS KMS Key.
+    ```
+    (SSMParameter)-[ENCRYPTED_BY]->(KMSKey)
+    ```
+
 ### AWSIdentityCenter
 
 Representation of an AWS Identity Center.
