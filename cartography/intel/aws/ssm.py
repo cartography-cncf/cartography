@@ -134,14 +134,14 @@ def transform_ssm_parameters(
         # KMSKey uses shorter UUID as their primary id
         # SSM Parameters, when encrypted, reference KMS keys using their full ARNs in the KeyId field
         # Adding a param to match on the id property of the target node
-        if param.get("Type") == "SecureString" and "KeyId" in param and param["KeyId"]:
+        if param.get("Type") == "SecureString" and param.get("KeyId") is not None:
             match = re.match(r".*key/(.*)$", param["KeyId"])
             if match:
-                param["KMSKeyidShort"] = match.group(1)
+                param["KMSKeyIdShort"] = match.group(1)
             else:
-                param["KMSKeyidShort"] = None
+                param["KMSKeyIdShort"] = None
         else:
-            param["KMSKeyidShort"] = None
+            param["KMSKeyIdShort"] = None
         transformed_list.append(param)
     return transformed_list
 

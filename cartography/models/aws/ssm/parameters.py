@@ -20,7 +20,7 @@ class SSMParameterNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("Description")
     type: PropertyRef = PropertyRef("Type")
     keyid: PropertyRef = PropertyRef("KeyId")
-    kms_key_id_short: PropertyRef = PropertyRef("KMSKeyidShort")
+    kms_key_id_short: PropertyRef = PropertyRef("KMSKeyIdShort")
     version: PropertyRef = PropertyRef("Version")
     lastmodifieddate: PropertyRef = PropertyRef("LastModifiedDate")
     tier: PropertyRef = PropertyRef("Tier")
@@ -33,7 +33,7 @@ class SSMParameterNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class SSMParameterToAWSAccountRelRelProperties(CartographyRelProperties):
+class SSMParameterToAWSAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -45,8 +45,8 @@ class SSMParameterToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SSMParameterToAWSAccountRelRelProperties = (
-        SSMParameterToAWSAccountRelRelProperties()
+    properties: SSMParameterToAWSAccountRelProperties = (
+        SSMParameterToAWSAccountRelProperties()
     )
 
 
@@ -60,7 +60,7 @@ class SSMParameterToKMSKeyRel(CartographyRelSchema):
     target_node_label: str = "KMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("KMSKeyidShort"),
+            "id": PropertyRef("KMSKeyIdShort"),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
