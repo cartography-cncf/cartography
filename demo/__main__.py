@@ -4,6 +4,7 @@ import os
 import neo4j
 
 from cartography.intel import create_indexes
+from demo.seeds.anthropic import AnthropicSeed
 from demo.seeds.azure import AzureSeed
 from demo.seeds.cloudlare import CloudflareSeed
 from demo.seeds.digitalocean import DigitalOceanSeed
@@ -70,6 +71,8 @@ def main():
 
     # Load the demo data
     logger.info("Loading demo data...")
+    logger.info("    loading Anthropic")
+    AnthropicSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: AWS
     logger.info("    loading Azure")
     AzureSeed(neo4j_session, UPDATE_TAG).run()
