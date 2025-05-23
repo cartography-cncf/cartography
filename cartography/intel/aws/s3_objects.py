@@ -58,7 +58,7 @@ def get_s3_objects_for_bucket(
     return objects
 
 
-@timeit
+
 def transform_s3_objects(
     objects: List[Dict],
     bucket_name: str,
