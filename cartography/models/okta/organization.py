@@ -7,7 +7,7 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 @dataclass(frozen=True)
 class OktaOrganizationProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("name")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
 
