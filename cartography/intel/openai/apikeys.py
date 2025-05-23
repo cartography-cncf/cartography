@@ -77,7 +77,7 @@ def load_apikeys(
     project_id: str,
     update_tag: int,
 ) -> None:
-    logger.info("Loading %d OpenAI Project APIKey into Neo4j.", len(data))
+    logger.info("Loading %d OpenAI APIKey into Neo4j.", len(data))
     load(
         neo4j_session,
         OpenAIApiKeySchema(),

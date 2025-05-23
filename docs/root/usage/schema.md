@@ -26,6 +26,9 @@
 ```{include} ../modules/_cartography-metadata/schema.md
 ```
 
+```{include} ../modules/anthropic/schema.md
+```
+
 ```{include} ../modules/aws/schema.md
 ```
 

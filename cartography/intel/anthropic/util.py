@@ -1,5 +1,4 @@
 from typing import Any
-from typing import Generator
 
 import requests
 
@@ -9,11 +8,12 @@ def paginated_get(
     url: str,
     timeout: tuple[int, int],
     after: str | None = None,
-) -> Generator[dict[str, Any], None, None]:
-    """Helper function to get paginated data from the OpenAI API.
+) -> tuple[str, list[dict[str, Any]]]:
+    """Helper function to get paginated data from the Anthropic API.
 
     This function handles the pagination of the API requests and returns
-    the results as a generator. It will continue to make requests until
+    the results in a list. It also retrieves the organization ID from the
+    response headers. The function will continue to make requests until
     all pages of data have been retrieved. The results are returned as a
     list of dictionaries, where each dictionary represents a single
     entity.
@@ -25,21 +25,27 @@ def paginated_get(
         after (str | None): The ID of the last item retrieved in the previous request.
             If None, the first page of results will be retrieved.
     Returns:
-        Generator[dict[str, Any], None, None]: A generator yielding dictionaries representing the results.
+        tuple[str, list[dict[str, Any]]]: A tuple containing the organization ID and a list of
+            dictionaries representing the results.
     """
-    params = {"after": after} if after else {}
+    results: list[dict[str, Any]] = []
+    params = {"after_id": after} if after else {}
     req = api_session.get(
         url,
         params=params,
         timeout=timeout,
     )
     req.raise_for_status()
+    # Get organization_id from the headers
+    organization_id = req.headers.get("anthropic-organization-id", "")
     result = req.json()
-    yield from result.get("data", [])
+    results.extend(result.get("data", []))
     if result.get("has_more"):
-        yield from paginated_get(
+        _, next_results = paginated_get(
             api_session,
             url,
             timeout=timeout,
             after=result.get("last_id"),
         )
+        results.extend(next_results)
+    return organization_id, results
