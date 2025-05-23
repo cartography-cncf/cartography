@@ -6,6 +6,7 @@ import neo4j
 from cartography.intel import create_indexes
 from demo.seeds.anthropic import AnthropicSeed
 from demo.seeds.azure import AzureSeed
+from demo.seeds.bigfix import BigfixSeed
 from demo.seeds.cloudlare import CloudflareSeed
 from demo.seeds.digitalocean import DigitalOceanSeed
 from demo.seeds.duo import DuoSeed
@@ -76,7 +77,8 @@ def main():
     # TODO: AWS
     logger.info("    loading Azure")
     AzureSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: BigFix
+    logger.info("    loading Bigfix")
+    BigfixSeed(neo4j_session, UPDATE_TAG).run()
     logger.info("    loading Cloudflare")
     CloudflareSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: CrowdStrike
