@@ -56,34 +56,34 @@ def test_sync_github_teams(
         TEST_JOB_PARAMS,
         FAKE_API_KEY,
         TEST_GITHUB_URL,
-        "example_org",
+        "SimpsonCorp",
     )
 
     # Assert
     assert check_nodes(neo4j_session, "GitHubTeam", ["id", "url", "name"]) == {
         (
-            "https://github.com/orgs/example_org/teams/team-a",
-            "https://github.com/orgs/example_org/teams/team-a",
+            "https://github.com/orgs/simpsoncorp/teams/team-a",
+            "https://github.com/orgs/simpsoncorp/teams/team-a",
             "team-a",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-b",
-            "https://github.com/orgs/example_org/teams/team-b",
+            "https://github.com/orgs/simpsoncorp/teams/team-b",
+            "https://github.com/orgs/simpsoncorp/teams/team-b",
             "team-b",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-c",
-            "https://github.com/orgs/example_org/teams/team-c",
+            "https://github.com/orgs/simpsoncorp/teams/team-c",
+            "https://github.com/orgs/simpsoncorp/teams/team-c",
             "team-c",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-d",
-            "https://github.com/orgs/example_org/teams/team-d",
+            "https://github.com/orgs/simpsoncorp/teams/team-d",
+            "https://github.com/orgs/simpsoncorp/teams/team-d",
             "team-d",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-e",
-            "https://github.com/orgs/example_org/teams/team-e",
+            "https://github.com/orgs/simpsoncorp/teams/team-e",
+            "https://github.com/orgs/simpsoncorp/teams/team-e",
             "team-e",
         ),
     }
@@ -97,24 +97,24 @@ def test_sync_github_teams(
         rel_direction_right=False,
     ) == {
         (
-            "https://github.com/orgs/example_org/teams/team-a",
-            "https://github.com/example_org",
+            "https://github.com/orgs/simpsoncorp/teams/team-a",
+            "https://github.com/simpsoncorp",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-b",
-            "https://github.com/example_org",
+            "https://github.com/orgs/simpsoncorp/teams/team-b",
+            "https://github.com/simpsoncorp",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-c",
-            "https://github.com/example_org",
+            "https://github.com/orgs/simpsoncorp/teams/team-c",
+            "https://github.com/simpsoncorp",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-d",
-            "https://github.com/example_org",
+            "https://github.com/orgs/simpsoncorp/teams/team-d",
+            "https://github.com/simpsoncorp",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-e",
-            "https://github.com/example_org",
+            "https://github.com/orgs/simpsoncorp/teams/team-e",
+            "https://github.com/simpsoncorp",
         ),
     }
     assert check_rels(
@@ -127,8 +127,8 @@ def test_sync_github_teams(
         rel_direction_right=True,
     ) == {
         (
-            "https://github.com/orgs/example_org/teams/team-b",
-            "https://github.com/example_org/sample_repo",
+            "https://github.com/orgs/simpsoncorp/teams/team-b",
+            "https://github.com/simpsoncorp/sample_repo",
         ),
     }
     assert check_rels(
@@ -141,8 +141,8 @@ def test_sync_github_teams(
         rel_direction_right=True,
     ) == {
         (
-            "https://github.com/orgs/example_org/teams/team-b",
-            "https://github.com/example_org/SampleRepo2",
+            "https://github.com/orgs/simpsoncorp/teams/team-b",
+            "https://github.com/simpsoncorp/SampleRepo2",
         ),
     }
     assert check_rels(
@@ -155,7 +155,7 @@ def test_sync_github_teams(
         rel_direction_right=True,
     ) == {
         (
-            "https://github.com/orgs/example_org/teams/team-b",
+            "https://github.com/orgs/simpsoncorp/teams/team-b",
             "https://github.com/cartography-cncf/cartography",
         ),
     }
@@ -169,8 +169,8 @@ def test_sync_github_teams(
         rel_direction_right=False,
     ) == {
         (
-            "https://github.com/orgs/example_org/teams/team-c",
-            "https://example.com/hjsimpson",
+            "https://github.com/orgs/simpsoncorp/teams/team-c",
+            "https://github.com/hjsimpson",
         ),
     }
     assert check_rels(
@@ -183,12 +183,12 @@ def test_sync_github_teams(
         rel_direction_right=False,
     ) == {
         (
-            "https://github.com/orgs/example_org/teams/team-c",
-            "https://example.com/lmsimpson",
+            "https://github.com/orgs/simpsoncorp/teams/team-c",
+            "https://github.com/lmsimpson",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-c",
-            "https://example.com/mbsimpson",
+            "https://github.com/orgs/simpsoncorp/teams/team-c",
+            "https://github.com/mbsimpson",
         ),
     }
     assert check_rels(
@@ -201,11 +201,11 @@ def test_sync_github_teams(
         rel_direction_right=False,
     ) == {
         (
-            "https://github.com/orgs/example_org/teams/team-d",
-            "https://github.com/orgs/example_org/teams/team-a",
+            "https://github.com/orgs/simpsoncorp/teams/team-d",
+            "https://github.com/orgs/simpsoncorp/teams/team-a",
         ),
         (
-            "https://github.com/orgs/example_org/teams/team-d",
-            "https://github.com/orgs/example_org/teams/team-b",
+            "https://github.com/orgs/simpsoncorp/teams/team-d",
+            "https://github.com/orgs/simpsoncorp/teams/team-b",
         ),
     }
