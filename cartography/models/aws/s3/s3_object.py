@@ -16,6 +16,7 @@ class S3ObjectNodeProperties(CartographyNodeProperties):
     """
     Properties for S3 Object based on ListObjectsV2 API response
     """
+
     id: PropertyRef = PropertyRef("ARN")
     arn: PropertyRef = PropertyRef("ARN", extra_index=True)
     key: PropertyRef = PropertyRef("Key", extra_index=True)
@@ -56,7 +57,7 @@ class S3ObjectToS3BucketRel(CartographyRelSchema):
     properties: S3ObjectRelProperties = S3ObjectRelProperties()
 
 
-@dataclass(frozen=True) 
+@dataclass(frozen=True)
 class S3ObjectToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -75,6 +76,5 @@ class S3ObjectSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             S3ObjectToS3BucketRel(),
-            
         ],
     )
