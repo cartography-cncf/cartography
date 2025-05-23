@@ -21,8 +21,7 @@ You can learn more about the story behind Cartography in our [presentation at BS
 
 
 ## Supported platforms
-
-- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - API Gateway, CloudWatch, Config, EC2, ECS, ECR, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager, Security Hub, SQS, SSM, STS, Tags
+- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - API Gateway, CloudWatch, Config, EC2, ECS, ECR, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SQS, SSM, STS, Tags
 - [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
 - [Google GSuite](https://cartography-cncf.github.io/cartography/modules/gsuite/index.html) - users, groups
 - [Oracle Cloud Infrastructure](https://cartography-cncf.github.io/cartography/modules/oci/index.html) - IAM
@@ -42,7 +41,8 @@ You can learn more about the story behind Cartography in our [presentation at BS
 - [SnipeIT](https://cartography-cncf.github.io/cartography/modules/snipeit/index.html) - Users, Assets
 - [Tailscale](https://cartography-cncf.github.io/cartography/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations
 - [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
-- [OpenAI](https://cartography-cncf.github.io/cartography/modules/openai/index.html) - - Organization, AdminApiKey, User, Project, ProjectServiceAccount, ProjectApiKey
+- [OpenAI](https://cartography-cncf.github.io/cartography/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
+- [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 
 
 ## Philosophy
