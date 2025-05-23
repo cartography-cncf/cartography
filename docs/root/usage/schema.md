@@ -26,6 +26,9 @@
 ```{include} ../modules/_cartography-metadata/schema.md
 ```
 
+```{include} ../modules/anthropic/schema.md
+```
+
 ```{include} ../modules/aws/schema.md
 ```
 
@@ -75,6 +78,9 @@
 ```
 
 ```{include} ../modules/okta/schema.md
+```
+
+```{include} ../modules/openai/schema.md
 ```
 
 ```{include} ../modules/pagerduty/schema.md
