@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Pagerduty Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Semgrep" href="../semgrep/index.html" /><link rel="prev" title="Pagerduty Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Pagerduty Schema"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">PagerDuty</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#pagerdutyescalationpolicy">PagerDutyEscalationPolicy</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyschedule">PagerDutySchedule</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyschedulelayer">PagerDutyScheduleLayer</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyservice">PagerDutyService</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyintegration">PagerDutyIntegration</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyteam">PagerDutyTeam</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagerdutyuser">PagerDutyUser</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/pagerduty/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">PagerDuty</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Pagerduty Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="pagerduty-schema">
+<h1>Pagerduty Schema<a class="headerlink" href="#pagerduty-schema" title="Link to this heading">¶</a></h1>
+<section id="pagerdutyescalationpolicy">
+<h2>PagerDutyEscalationPolicy<a class="headerlink" href="#pagerdutyescalationpolicy" title="Link to this heading">¶</a></h2>
+<p>Representation of a <a class="reference external" href="https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMjE-escalation-policy">PagerDuty Escalation Policy</a></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the escalation policy</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p>the API show URL at which the object is accessible</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of this pagerduty object (escalation_policy)</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p>A short-form, server-generated string that provides succinct, important information about an object suitable for primary labeling of an entity in a client. In many cases, this will be identical to name, though it is not intended to be an identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>on_call_handoff_notifications</p></td>
+<td><p>Determines how on call handoff notifications will be sent for users on the escalation policy. Defaults to “if_has_services”.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the escalation policy.</p></td>
+</tr>
+<tr class="row-even"><td><p>num_loops</p></td>
+<td><p>The number of times the escalation policy will repeat after reaching the end of its escalation.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>A PagerDutyEscalationPolicy has PagerDutyEscalationPolicyRules</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyEscalationPolicy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS</span>\<span class="n">_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyEscalationPolicyRule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A PagerDutyEscalationPolicy is associated with PagerDutyUsers</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyEscalationPolicy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ASSOCIATED</span>\<span class="n">_WITH</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A PagerDutyEscalationPolicy is associated with PagerDutySchedules</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyEscalationPolicy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ASSOCIATED</span>\<span class="n">_WITH</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutySchedule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A PagerDutyEscalationPolicy is associated with PagerDutyServices</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyEscalationPolicy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ASSOCIATED</span>\<span class="n">_WITH</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyService</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A PagerDutyEscalationPolicy is associated with PagerDutyTeams</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyEscalationPolicy</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ASSOCIATED</span>\<span class="n">_WITH</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyschedule">
+<h2>PagerDutySchedule<a class="headerlink" href="#pagerdutyschedule" title="Link to this heading">¶</a></h2>
+<p>Representation of a <a class="reference external" href="https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMzU-schedule">PagerDuty Schedule</a></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the schedule</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p>the API show URL at which the object is accessible</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of this pagerduty object (schedule)</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p>A short-form, server-generated string that provides succinct, important information about an object suitable for primary labeling of an entity in a client. In many cases, this will be identical to name, though it is not intended to be an identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the schedule.</p></td>
+</tr>
+<tr class="row-odd"><td><p>time_zone</p></td>
+<td><p>The time zone of the schedule</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The description of the schedule</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>A PagerDutySchedule has PagerDutyScheduleLayers</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutySchedule</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS</span>\<span class="n">_LAYER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyScheduleLayer</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyschedulelayer">
+<h2>PagerDutyScheduleLayer<a class="headerlink" href="#pagerdutyschedulelayer" title="Link to this heading">¶</a></h2>
+<p>Representation of a layer in a <a class="reference external" href="https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMzU-schedule">PagerDuty Schedule</a></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the schedule layer</p></td>
+</tr>
+<tr class="row-odd"><td><p>schedule_id</p></td>
+<td><p>The ID of the schedule this layer is attached to.</p></td>
+</tr>
+<tr class="row-even"><td><p>start</p></td>
+<td><p>The start time of this layer</p></td>
+</tr>
+<tr class="row-odd"><td><p>end</p></td>
+<td><p>The end time of this layer. If null, the layer does not end.</p></td>
+</tr>
+<tr class="row-even"><td><p>rotation_virtual_start</p></td>
+<td><p>The effective start time of the layer. This can be before the start time of the schedule.</p></td>
+</tr>
+<tr class="row-odd"><td><p>rotation_turn_length_seconds</p></td>
+<td><p>The duration of each on-call shift in seconds.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<p>No relationships originating from PagerDutyScheduleLayer</p>
+</section>
+</section>
+<section id="pagerdutyservice">
+<h2>PagerDutyService<a class="headerlink" href="#pagerdutyservice" title="Link to this heading">¶</a></h2>
+<p>Representation of a <a class="reference external" href="https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMjc-service">PagerDuty Service</a></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the service</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p>the API show URL at which the object is accessible</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of this pagerduty object (service)</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p>A short-form, server-generated string that provides succinct, important information about an object suitable for primary labeling of an entity in a client. In many cases, this will be identical to name, though it is not intended to be an identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of this service</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>The user-provided description of the service.</p></td>
+</tr>
+<tr class="row-even"><td><p>auto_resolve_timeout</p></td>
+<td><p>Time in seconds that an incident is automatically resolved if left open for that long. Value is null if the feature is disabled. Value must not be negative. Setting this field to 0, null (or unset in POST request) will disable the feature.</p></td>
+</tr>
+<tr class="row-odd"><td><p>acknowledgement_timeout</p></td>
+<td><p>Time in seconds that an incident changes to the Triggered State after being Acknowledged. Value is null if the feature is disabled. Value must not be negative. Setting this field to 0, null (or unset in POST request) will disable the feature.</p></td>
+</tr>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>The date/time when this service was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>The current state of the Service.</p></td>
+</tr>
+<tr class="row-even"><td><p>alert_creation</p></td>
+<td><p>Whether a service creates only incidents, or both alerts and incidents. A service must create alerts in order to enable incident merging.</p></td>
+</tr>
+<tr class="row-odd"><td><p>alert_grouping_parameters_type</p></td>
+<td><p>The type of Alert Grouping.</p></td>
+</tr>
+<tr class="row-even"><td><p>incident_urgency_rule_type</p></td>
+<td><p>The type of incident urgency: whether it’s constant, or it’s dependent on the support hours.</p></td>
+</tr>
+<tr class="row-odd"><td><p>incident_urgency_rule_during_support_hours_type</p></td>
+<td><p>The type of incident urgency: whether it’s constant, or it’s dependent on the support hours.</p></td>
+</tr>
+<tr class="row-even"><td><p>incident_urgency_rule_during_support_hours_urgency</p></td>
+<td><p>The incidents’ urgency, if type is constant.</p></td>
+</tr>
+<tr class="row-odd"><td><p>incident_urgency_rule_outside_support_hours_type</p></td>
+<td><p>The type of incident urgency: whether it’s constant, or it’s dependent on the support hours.</p></td>
+</tr>
+<tr class="row-even"><td><p>incident_urgency_rule_outside_support_hours_urgency</p></td>
+<td><p>The incidents’ urgency, if type is constant.</p></td>
+</tr>
+<tr class="row-odd"><td><p>support_hours_type</p></td>
+<td><p>The type of support hours</p></td>
+</tr>
+<tr class="row-even"><td><p>support_hours_time_zone</p></td>
+<td><p>The time zone for the support hours</p></td>
+</tr>
+<tr class="row-odd"><td><p>support_hours_start_time</p></td>
+<td><p>The support hours’ starting time of day (date portion is ignored)</p></td>
+</tr>
+<tr class="row-even"><td><p>support_hours_end_time</p></td>
+<td><p>support_hours_end_time</p></td>
+</tr>
+<tr class="row-odd"><td><p>support_hours_days_of_week</p></td>
+<td><p>(no description)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>A PagerDutyService has PagerDutyIntegrations</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyService</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS</span>\<span class="n">_INTEGRATION</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyIntegration</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyintegration">
+<h2>PagerDutyIntegration<a class="headerlink" href="#pagerdutyintegration" title="Link to this heading">¶</a></h2>
+<p>Representation of a <a class="reference external" href="https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMzA-integration">PagerDuty Integration</a></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the integration</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p>the API show URL at which the object is accessible</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of this pagerduty object (integration)</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p>A short-form, server-generated string that provides succinct, important information about an object suitable for primary labeling of an entity in a client. In many cases, this will be identical to name, though it is not intended to be an identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of this integration</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p>The date/time when this integration was created.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>A PagerDutyIntegration has PagerDutyVendors</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyIntegration</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS</span>\<span class="n">_VENDOR</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyVendor</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyteam">
+<h2>PagerDutyTeam<a class="headerlink" href="#pagerdutyteam" title="Link to this heading">¶</a></h2>
+<p>Representation of a <a class="reference external" href="https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMTc-team">PagerDuty Team</a></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the team</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p>the API show URL at which the object is accessible</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of this pagerduty object (team)</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p>A short-form, server-generated string that provides succinct, important information about an object suitable for primary labeling of an entity in a client. In many cases, this will be identical to name, though it is not intended to be an identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the team</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>The description of the team</p></td>
+</tr>
+<tr class="row-even"><td><p>default_role</p></td>
+<td><p>(no description, but returned by API)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h3>Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>A PagerDutyTeam is associated with PagerDutyServices</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyTeam</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ASSOCIATED</span>\<span class="n">_WITH</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyServices</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="pagerdutyuser">
+<h2>PagerDutyUser<a class="headerlink" href="#pagerdutyuser" title="Link to this heading">¶</a></h2>
+<p>Representation of a <a class="reference external" href="https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMTU-user">PagerDuty User</a></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>html_url</p></td>
+<td><p>the API show URL at which the object is accessible</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of this pagerduty object (user)</p></td>
+</tr>
+<tr class="row-odd"><td><p>summary</p></td>
+<td><p>A short-form, server-generated string that provides succinct, important information about an object suitable for primary labeling of an entity in a client. In many cases, this will be identical to name, though it is not intended to be an identifier.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>The user’s email address</p></td>
+</tr>
+<tr class="row-even"><td><p>time_zone</p></td>
+<td><p>The preferred time zone name. If null, the account’s time zone will be used.</p></td>
+</tr>
+<tr class="row-odd"><td><p>color</p></td>
+<td><p>The schedule color</p></td>
+</tr>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>The user role. Account must have the read_only_users ability to set a user as a read_only_user or a read_only_limited_user, and must have advanced permissions abilities to set a user as observer or restricted_access.</p></td>
+</tr>
+<tr class="row-odd"><td><p>avatar_url</p></td>
+<td><p>The URL of the user’s avatar.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The user’s bio.</p></td>
+</tr>
+<tr class="row-odd"><td><p>invitation_sent</p></td>
+<td><p>If true, the user has an outstanding invitation.</p></td>
+</tr>
+<tr class="row-even"><td><p>job_title</p></td>
+<td><p>The user’s title</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>A PagerDutyUser is a member of PagerDutySchedules</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER</span>\<span class="n">_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutySchedule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A PagerDutyUser is a member of PagerDutyScheduleLayers</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER</span>\<span class="n">_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyScheduleLayer</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A PagerDutyUser is a member of PagerDutyTeams</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">PagerDutyUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER</span>\<span class="n">_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PagerDutyTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Pagerduty Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../semgrep/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Semgrep</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=e2230717"></script></body>
+</html>
