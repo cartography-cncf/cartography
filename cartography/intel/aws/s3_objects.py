@@ -238,6 +238,21 @@ def sync(
         total_objects_synced += len(transformed_objects)
 
     logger.info(f"Total S3 objects synced: {total_objects_synced}")
+    metrics_query = """
+    MATCH (o:S3Object)<-[:RESOURCE]-(a:AWSAccount{id: $account_id})
+    WHERE o.lastupdated = $update_tag
+    RETURN o.storage_class as storage_class, count(*) as count
+    ORDER BY count DESC
+    """
+
+    result = neo4j_session.run(
+        metrics_query, account_id=current_aws_account_id, update_tag=update_tag
+    )
+
+    storage_class_counts = {
+        record["storage_class"]: record["count"] for record in result
+    }
+    logger.info(f"Storage class distribution: {storage_class_counts}")
 
     cleanup_s3_objects(neo4j_session, common_job_parameters)
 
