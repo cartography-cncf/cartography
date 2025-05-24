@@ -17,7 +17,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
-# Configuration constants
+
 DEFAULT_MAX_OBJECTS_PER_BUCKET = 10000
 
 
@@ -40,6 +40,13 @@ def get_s3_objects_for_bucket(
         max_objects: Maximum objects to return per bucket
         fetch_owner: Whether to fetch owner information
     """
+
+    if max_objects == 0:
+        logger.info(
+            f"S3 object sync is disabled for bucket {bucket_name} (max_objects=0)"
+        )
+        return []
+
     client = boto3_session.client("s3", region_name=region)
     objects = []
 
@@ -72,7 +79,7 @@ def transform_s3_objects(
     transformed_objects = []
 
     for obj in objects:
-        # Skip folder markers (0-byte objects ending with /)
+
         if obj.get("Size", 0) == 0 and obj.get("Key", "").endswith("/"):
             continue
 
@@ -88,16 +95,13 @@ def transform_s3_objects(
             "Region": region,
         }
 
-        # Add owner fields if present (only when FetchOwner=true)
         if "Owner" in obj:
             transformed["OwnerId"] = obj["Owner"].get("ID")
             transformed["OwnerDisplayName"] = obj["Owner"].get("DisplayName")
 
-        # Add checksum algorithm if present
         if "ChecksumAlgorithm" in obj:
             transformed["ChecksumAlgorithm"] = obj["ChecksumAlgorithm"]
 
-        # Add restore status for archived objects (Glacier)
         if "RestoreStatus" in obj:
             transformed["IsRestoreInProgress"] = obj["RestoreStatus"].get(
                 "IsRestoreInProgress"
@@ -108,7 +112,6 @@ def transform_s3_objects(
                     {"RestoreExpiryDate": restore_expiry}, "RestoreExpiryDate"
                 )
 
-        # Add version information if present
         if "VersionId" in obj:
             transformed["VersionId"] = obj["VersionId"]
             transformed["IsLatest"] = obj.get("IsLatest", True)
@@ -181,13 +184,16 @@ def sync(
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict,
-    max_objects_per_bucket: int = DEFAULT_MAX_OBJECTS_PER_BUCKET,
-    fetch_owner: bool = False,
 ) -> None:
-    """
-    Sync S3 objects with configurable limits.
-    """
-    # Get buckets from graph
+
+    max_objects_per_bucket = common_job_parameters.get(
+        "aws_s3_object_max_per_bucket", DEFAULT_MAX_OBJECTS_PER_BUCKET
+    )
+
+    logger.info(
+        f"Starting S3 object sync with max {max_objects_per_bucket} objects per bucket"
+    )
+
     buckets = get_s3_buckets_from_graph(neo4j_session, current_aws_account_id)
     logger.info(f"Found {len(buckets)} S3 buckets to process")
 
@@ -199,21 +205,20 @@ def sync(
         bucket_region = bucket["region"]
 
         logger.info(
-            f"Syncing objects from bucket {bucket_name} in region {bucket_region}"
+            f"Syncing objects from bucket {bucket_name} in region {bucket_region} "
+            f"(max: {max_objects_per_bucket})"
         )
 
-        # Get objects - simple linear flow
         objects = get_s3_objects_for_bucket(
             boto3_session,
             bucket_name,
             bucket_region,
             max_objects_per_bucket,
-            fetch_owner,
+            fetch_owner=False,
         )
 
         logger.info(f"Retrieved {len(objects)} objects from bucket {bucket_name}")
 
-        # Transform
         transformed_objects = transform_s3_objects(
             objects,
             bucket_name,
@@ -222,7 +227,6 @@ def sync(
             current_aws_account_id,
         )
 
-        # Load
         load_s3_objects(
             neo4j_session,
             transformed_objects,
@@ -235,10 +239,8 @@ def sync(
 
     logger.info(f"Total S3 objects synced: {total_objects_synced}")
 
-    # Cleanup
     cleanup_s3_objects(neo4j_session, common_job_parameters)
 
-    # Update sync metadata
     merge_module_sync_metadata(
         neo4j_session,
         group_type="AWSAccount",
