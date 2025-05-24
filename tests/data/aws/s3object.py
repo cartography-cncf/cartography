@@ -1,6 +1,7 @@
 import datetime
 from datetime import timezone
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 LIST_S3_OBJECTS = [
     {
