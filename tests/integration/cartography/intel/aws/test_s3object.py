@@ -1,4 +1,3 @@
-# tests/integration/cartography/intel/aws/test_s3object.py
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -60,7 +59,6 @@ def test_sync_s3_objects(mock_get_objects, neo4j_session):
     }
     assert check_nodes(neo4j_session, "S3Object", ["arn"]) == expected_arns
 
-    # Verify relationships
     expected_rels = {
         (TEST_ACCOUNT_ID, "arn:aws:s3:::test-bucket/documents/report.pdf"),
         (TEST_ACCOUNT_ID, "arn:aws:s3:::test-bucket/images/logo.png"),
@@ -247,7 +245,6 @@ def test_sync_s3_objects_disabled(mock_get_objects, neo4j_session):
 
     neo4j_session.run("MATCH (n:S3Object) DETACH DELETE n")
 
-    # Create a bucket
     neo4j_session.run(
         """
         MERGE (b:S3Bucket{id: 'arn:aws:s3:::test-bucket'})
@@ -264,7 +261,6 @@ def test_sync_s3_objects_disabled(mock_get_objects, neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    # Sync with disabled S3 objects
     sync(
         neo4j_session,
         boto3_session,
@@ -274,20 +270,17 @@ def test_sync_s3_objects_disabled(mock_get_objects, neo4j_session):
         {
             "UPDATE_TAG": TEST_UPDATE_TAG,
             "AWS_ID": TEST_ACCOUNT_ID,
-            "aws_s3_object_max_per_bucket": 0,  # Disabled
+            "aws_s3_object_max_per_bucket": 0,
         },
     )
 
-    # Verify the function was called with max_objects=0
     mock_get_objects.assert_called()
 
-    # Check that it was called with the correct parameters
     call_args = mock_get_objects.call_args_list
     for call in call_args:
-        # Verify max_objects parameter is 0
-        assert call[0][3] == 0  # max_objects is the 4th positional argument
 
-    # Verify no objects were created
+        assert call[0][3] == 0
+
     nodes = neo4j_session.run(
         """
         MATCH (n:S3Object) RETURN n.id;
