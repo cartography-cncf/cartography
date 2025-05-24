@@ -310,6 +310,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
+        "aws_s3_object_max_per_bucket": config.aws_s3_object_max_per_bucket,
     }
     try:
         boto3_session = boto3.Session()
