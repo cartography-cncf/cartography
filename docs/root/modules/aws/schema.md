@@ -3319,6 +3319,44 @@ Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/
     ```
     (AWSAccount)-[RESOURCE]->(SNSTopic)
     ```
+### S3Object
+Representation of an [S3 Object](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Object.html) as returned by ListObjectsV2.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the S3 object (bucket ARN + key) |
+| arn | The ARN of the S3 object |
+| key | The object key within the bucket |
+| bucket_name | The name of the bucket containing this object |
+| size | Size in bytes of the object |
+| storage_class | The storage class of the object (STANDARD, STANDARD_IA, GLACIER, etc.) |
+| last_modified | Date the object was last modified |
+| etag | Entity tag is a hash of the object |
+| owner_id | ID of the object owner (if FetchOwner was enabled) |
+| owner_display_name | Display name of the object owner (if FetchOwner was enabled) |
+| checksum_algorithm | The algorithm used to create a checksum of the object |
+| is_restore_in_progress | For archived objects, whether restoration is in progress |
+| restore_expiry_date | For restored objects, when the restored copy will expire |
+| region | The AWS region where the object exists |
+
+#### Relationships
+- S3 Objects are stored in S3 Buckets.
+    ```
+    (S3Object)-[STORED_IN]->(S3Bucket)
+    ```
+- S3 Objects are resources under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(S3Object)
+    ```
+
+#### Limitations
+- ListObjectsV2 returns a maximum of 1,000 objects per request
+- The sync is limited by `max_objects_per_bucket` parameter (default: 10,000)
+- Encryption information (KMS keys) is not available from ListObjectsV2
+- To get encryption details, head_object calls would be needed (not implemented due to cost)
+
 ### S3AccountPublicAccessBlock
 Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources.
 

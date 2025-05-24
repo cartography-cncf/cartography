@@ -140,6 +140,7 @@ def test_start_aws_ingestion(
         {
             "UPDATE_TAG": test_config.update_tag,
             "permission_relationships_file": test_config.permission_relationships_file,
+            "aws_s3_object_max_per_bucket": 10000,
         },
     )
 
