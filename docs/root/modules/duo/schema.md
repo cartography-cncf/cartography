@@ -156,6 +156,21 @@ Represents a [user](https://duo.com/docs/adminapi#users) in Duo.
     (DuoUser)<-[IDENTITY_DUO]-(Human)
     ```
 
+### Human
+
+Duo use Human node as pivot with other Identity Providers (GSuite, GitHub ...)
+
+:::{hint}
+Refer to Common Schema for more information on Human nodes.
+:::
+
+#### Relationships
+
+- Human as an access to Duo
+    ```
+    (Human)-[IDENTITY_DUO]->(DuoUser)
+    ```
+
 ### DuoEndpoint
 
 Represents a [endpoint](https://duo.com/docs/adminapi#endpoints) in Duo.

@@ -9,6 +9,7 @@ from requests import Session
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.common.helpers import load_human_from_users
 from cartography.models.lastpass.tenant import LastpassTenantSchema
 from cartography.models.lastpass.user import LastpassUserSchema
 from cartography.util import timeit
@@ -70,6 +71,13 @@ def load_users(
     tenant_id: int,
     update_tag: int,
 ) -> None:
+
+    load_human_from_users(
+        neo4j_session,
+        update_tag,
+        data,
+        email_field="username",
+    )
 
     load(
         neo4j_session,
