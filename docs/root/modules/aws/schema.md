@@ -3525,8 +3525,28 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 ### Cognito User Pool
 Representation of AWS [Cognito user pools](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools.html).
 
-| Field | Description |
-|-------|-------------|
-|UserPoolId| Timestamp of when a sync job first discovered this node  |
-
-
+| Field                          | Description                                   |
+|-------------------------------|-----------------------------------------------|
+| id                            | Unique identifier of the user pool            |
+| name                          | Name of the user pool                         |
+| policies                      | Policies associated with the user pool        |
+| deletion_protection           | Indicates if deletion protection is enabled   |
+| lambda_config                 | Lambda triggers configuration                 |
+| last_modified_date            | Last modification timestamp of the user pool |
+| creation_date                 | Creation timestamp of the user pool           |
+| schema_attributes             | Schema attributes for user profiles           |
+| auto_verified_attributes      | Attributes that are auto-verified             |
+| alias_attributes              | Alias attributes used for sign-in             |
+| verification_message_template | Template for verification messages            |
+| user_attribute_update_settings| Settings for updating user attributes         |
+| mfa_configuration             | Multi-factor authentication configuration     |
+| estimated_number_of_users     | Estimated number of users in the pool         |
+| email_configuration           | Email settings for the user pool              |
+| user_pool_tags                | Tags associated with the user pool            |
+| domain                        | Domain associated with the user pool          |
+| admin_create_user_config      | Configuration for admin-created users         |
+| username_configuration        | Username configuration                        |
+| arn                           | Amazon Resource Name of the user pool         |
+| account_recovery_setting      | Settings for account recovery                 |
+| user_pool_tier                | Tier classification of the user pool          |
+| region                        | AWS region of the user pool                   |
