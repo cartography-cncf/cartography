@@ -152,7 +152,6 @@ class Config:
         selected_modules=None,
         update_tag=None,
         aws_sync_all_profiles=False,
-        aws_s3_object_max_per_bucket=10000,
         aws_regions=None,
         aws_best_effort_mode=False,
         azure_sync_all_subscriptions=False,
@@ -213,6 +212,7 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        aws_s3_object_max_per_bucket=10000,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
