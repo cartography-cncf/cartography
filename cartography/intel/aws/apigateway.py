@@ -324,7 +324,7 @@ def load_apigateway_methods(
         lastupdated=update_tag,
         rest_api_id=rest_api_id,
         resource_id=resource_id,
-        account_id=account_id,
+        AWS_ID=account_id,
     )
 
 
@@ -471,8 +471,7 @@ def parse_policy(api_id: str, policy: Policy) -> Optional[Dict[Any, Any]]:
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     """
     Delete out-of-date API Gateway resources and relationships.
-    Order matters - clean up certificates, stages, and resources before cleaning up the REST APIs they connect to.
-    Method cleanup is handled within the sync_apigateway_rest_apis loop per resource.
+    Order matters - clean up certificates, stages, method and resources before cleaning up the REST APIs they connect to.
     """
     logger.info("Running API Gateway cleanup job.")
 
@@ -490,6 +489,13 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     )
     cleanup_job.run(neo4j_session)
 
+    # Then Method
+    cleanup_job = GraphJob.from_node_schema(
+        APIGatewayMethodSchema(),
+        common_job_parameters,
+    )
+
+    cleanup_job.run(neo4j_session)
     # Then resources
     cleanup_job = GraphJob.from_node_schema(
         APIGatewayResourceSchema(),
@@ -571,19 +577,6 @@ def sync_apigateway_rest_apis(
                 current_account_id,
                 aws_update_tag,
             )
-
-        # The APIGatewayMethod cleanup must be performed per parent resource within the sync loop.
-        # because its sub_resource_relationship requires the parent resource's identifying parameters (resource_id, rest_api_id)
-        method_cleanup_parameters = {
-            "UPDATE_TAG": aws_update_tag,
-            "account_id": current_account_id,
-            "rest_api_id": current_rest_api_id,
-            "resource_id": current_resource_id,
-            "region": current_region,
-        }
-        GraphJob.from_node_schema(
-            APIGatewayMethodSchema(), method_cleanup_parameters
-        ).run(neo4j_session)
 
 
 @timeit

@@ -27,12 +27,17 @@ class APIGatewayMethodProperties(CartographyNodeProperties):
     request_models_json: PropertyRef = PropertyRef("request_models_json")
     request_parameters_json: PropertyRef = PropertyRef("request_parameters_json")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    account_id: PropertyRef = PropertyRef("account_id", set_in_kwargs=True)
+    AWS_ID: PropertyRef = PropertyRef("AWS_ID", set_in_kwargs=True)
     rest_api_id: PropertyRef = PropertyRef("rest_api_id", set_in_kwargs=True)
     resource_id: PropertyRef = PropertyRef("resource_id", set_in_kwargs=True)
     lambda_function_arn: PropertyRef = PropertyRef("lambda_function_arn")
     s3_bucket_name: PropertyRef = PropertyRef("s3_bucket_name")
     dynamodb_table_arn: PropertyRef = PropertyRef("dynamodb_table_arn")
+
+
+@dataclass(frozen=True)
+class APIGatewayMethodToAWSAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
@@ -50,8 +55,23 @@ class APIGatewayMethodAccessesServiceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:APIGatewayResource)-[RESOURCE]->(:APIGatewayMethod)
+# (:AWSAccount)-[:RESOURCE]->(:APIGatewayMethod)
 @dataclass(frozen=True)
+class APIGatewayMethodToAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("AWS_ID", set_in_kwargs=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: APIGatewayMethodToAWSAccountRelProperties = (
+        APIGatewayMethodToAWSAccountRelProperties()
+    )
+
+
+# (:APIGatewayResource)-[HAS]->(:APIGatewayMethod)
 class APIGatewayResourceHasMethodRel(CartographyRelSchema):
     target_node_label: str = APIGatewayResourceSchema.label
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -60,7 +80,7 @@ class APIGatewayResourceHasMethodRel(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "HAS"
     properties: APIGatewayResourceHasMethodRelProperties = (
         APIGatewayResourceHasMethodRelProperties()
     )
@@ -120,11 +140,12 @@ class APIGatewayMethodAccessesDynamoDBRel(CartographyRelSchema):
 class APIGatewayMethodSchema(CartographyNodeSchema):
     label: str = "APIGatewayMethod"
     properties: APIGatewayMethodProperties = APIGatewayMethodProperties()
-    sub_resource_relationship: APIGatewayResourceHasMethodRel = (
-        APIGatewayResourceHasMethodRel()
+    sub_resource_relationship: APIGatewayMethodToAWSAccountRel = (
+        APIGatewayMethodToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            APIGatewayResourceHasMethodRel(),
             APIGatewayMethodInvokesLambdaRel(),
             APIGatewayMethodAccessesS3Rel(),
             APIGatewayMethodAccessesDynamoDBRel(),

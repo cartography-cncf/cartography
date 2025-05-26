@@ -464,7 +464,7 @@ def test_sync_apigateway(
         == expected_method_nodes
     )
 
-    # Assert APIGatewayResource to APIGatewayMethod relationships (:RESOURCE for cleanup)
+    # Assert APIGatewayResource to APIGatewayMethod relationships (:HAS)
     expected_resource_method_rels = {
         ("3kzxbg5sa2", "test-001|3kzxbg5sa2|GET"),
         ("3kzxbg5sa2", "test-001|3kzxbg5sa2|POST"),
@@ -479,7 +479,7 @@ def test_sync_apigateway(
             "id",
             "APIGatewayMethod",
             "id",
-            "RESOURCE",
+            "HAS",
             rel_direction_right=True,
         )
         == expected_resource_method_rels
@@ -535,6 +535,27 @@ def test_sync_apigateway(
             rel_direction_right=True,
         )
         == expected_ddb_access_rels
+    )
+
+    # Assert AWS Account to Method relationships (:RESOURCE)
+    expected_account_method_rels = {
+        (TEST_ACCOUNT_ID, "test-001|3kzxbg5sa2|GET"),
+        (TEST_ACCOUNT_ID, "test-001|3kzxbg5sa2|POST"),
+        (TEST_ACCOUNT_ID, "test-001|3kzxbg5sa2|PUT"),
+        (TEST_ACCOUNT_ID, "test-001|3kzxbg5sa2|DELETE"),
+        (TEST_ACCOUNT_ID, "test-001|3kzxbg5sa2|PATCH"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSAccount",
+            "id",
+            "APIGatewayMethod",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_account_method_rels
     )
 
     # Assert AWS Account to REST API relationships
