@@ -2473,6 +2473,56 @@ Representation of an AWS [API Gateway Resource](https://docs.aws.amazon.com/apig
     (APIGatewayRestAPI)-[RESOURCE]->(APIGatewayResource)
     ```
 
+### APIGatewayMethod
+
+Representation of an AWS [API Gateway Method](https://docs.aws.amazon.com/apigateway/latest/api/API_Method.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Composite ID: `rest_api_id|resource_id|http_method` |
+| http_method | The HTTP verb (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, ANY). |
+| authorization_type | The method's authorization type (e.g., NONE, AWS_IAM, CUSTOM, COGNITO_USER_POOLS). |
+| api_key_required | Boolean flag indicating whether a valid ApiKey is required to invoke this method. |
+| authorizer_id | The identifier of an authorizer used on this method (property only). |
+| operation_name | A human-friendly operation identifier for the method. |
+| request_validator_id | The identifier of a RequestValidator for request validation (property only). |
+| method_integration_json | JSON string representing the method's integration configuration. |
+| method_responses_json | JSON string representing the method's method responses configuration. |
+| request_models_json | JSON string representing the method's request models configuration. |
+| request_parameters_json | JSON string representing the method's request parameters configuration. |
+| lambda_function_arn | Extracted ARN of the AWS Lambda Function if the method's integration type is AWS/AWS_PROXY and the URI points to a Lambda. |
+| s3_bucket_name | Extracted name of the S3 Bucket if the method's integration type is AWS/AWS_PROXY and the URI points to S3. |
+| dynamodb_table_arn | Extracted ARN of the DynamoDB Table if the method's integration type is AWS/AWS_PROXY and the URI points to DynamoDB. |
+
+#### Relationships
+
+- API Gateway Methods are sub-resources of API Gateway Resources.
+    ```
+    (APIGatewayResource)-[RESOURCE]->(APIGatewayMethod)
+    ```
+    Description: An API Gateway Resource contains a Method.
+
+- An API Gateway Method may invoke an AWS Lambda Function.
+    ```
+    (APIGatewayMethod)-[INVOKES]->(AWSLambda)
+    ```
+    Description: Derived from the method's integration URI when the type is AWS/AWS_PROXY and the URI points to a Lambda function.
+
+- An API Gateway Method may access an S3 Bucket.
+    ```
+    (APIGatewayMethod)-[ACCESSES]->(S3Bucket)
+    ```
+    Description: Derived from the method's integration URI when the type is AWS/AWS_PROXY and the URI points to an S3 Bucket.
+
+- An API Gateway Method may access a DynamoDB Table.
+    ```
+    (APIGatewayMethod)-[ACCESSES]->(DynamoDBTable)
+    ```
+    Description: Derived from the method's integration URI when the type is AWS/AWS_PROXY and the URI points to a DynamoDB Table.
+
+
 ### AutoScalingGroup
 
 Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.com/autoscaling/ec2/userguide/AutoScalingGroup.html).

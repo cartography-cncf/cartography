@@ -194,3 +194,177 @@ GET_REST_API_DETAILS = [
         ),
     ),
 ]
+
+METHOD_RESPONSE_GET = {
+    "authorizationType": "NONE",
+    "apiKeyRequired": False,
+    "operationName": "RetrieveResource",
+    "methodIntegration_json": json.dumps(
+        {
+            "type": "AWS_PROXY",
+            "httpMethod": "GET",
+            "uri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-west-2:000000000000:function:sample-function-1/invocations",
+            "passthroughBehavior": "WHEN_NO_MATCH",
+            "connectionType": "INTERNET",
+            "timeoutInMillis": 29000,
+        }
+    ),
+    "methodResponses_json": json.dumps(
+        {
+            "200": {
+                "statusCode": "200",
+                "responseModels": {
+                    "application/json": "Empty",
+                },
+                "responseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": False,
+                },
+            },
+        }
+    ),
+    "requestModels_json": json.dumps(
+        {
+            "application/json": "Empty",
+        }
+    ),
+    "requestParameters_json": json.dumps(
+        {
+            "method.request.querystring.param1": False,
+        }
+    ),
+    "requestValidatorId": "validator-id-1",
+    "authorizerId": None,
+    "RestApiId": "test-001",
+    "ResourceId": "3kzxbg5sa2",
+    "HttpMethod": "GET",
+}
+
+
+METHOD_RESPONSE_POST = {
+    "authorizationType": "AWS_IAM",
+    "apiKeyRequired": True,
+    "operationName": "CreateResource",
+    "methodIntegration_json": json.dumps(
+        {
+            "type": "AWS_PROXY",
+            "httpMethod": "POST",
+            "uri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-west-2:000000000000:function:sample-function-2/invocations",
+            "passthroughBehavior": "WHEN_NO_MATCH",
+            "connectionType": "INTERNET",
+            "timeoutInMillis": 29000,
+        }
+    ),
+    "methodResponses_json": json.dumps(
+        {
+            "200": {
+                "statusCode": "200",
+                "responseModels": {},
+            },
+        }
+    ),
+    "requestModels_json": json.dumps({}),
+    "requestParameters_json": json.dumps({}),
+    "requestValidatorId": None,
+    "authorizerId": None,
+    "RestApiId": "test-001",
+    "ResourceId": "3kzxbg5sa2",
+    "HttpMethod": "POST",
+}
+
+METHOD_RESPONSE_PUT = {
+    "authorizationType": "CUSTOM",
+    "authorizerId": "ab12cdefgh",
+    "apiKeyRequired": False,
+    "operationName": "UpdateResource",
+    "methodIntegration_json": json.dumps(
+        {
+            "type": "MOCK",
+            "httpMethod": "PUT",
+            "uri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/",
+            "passthroughBehavior": "WHEN_NO_MATCH",
+        }
+    ),
+    "methodResponses_json": json.dumps(
+        {
+            "200": {
+                "statusCode": "200",
+            },
+        }
+    ),
+    "requestModels_json": json.dumps({}),
+    "requestParameters_json": json.dumps({}),
+    "requestValidatorId": None,
+    "RestApiId": "test-001",
+    "ResourceId": "3kzxbg5sa2",
+    "HttpMethod": "PUT",
+}
+
+
+METHOD_RESPONSE_S3 = {
+    "authorizationType": "AWS_IAM",
+    "apiKeyRequired": False,
+    "operationName": "DeleteObject",
+    "methodIntegration_json": json.dumps(
+        {
+            "type": "AWS",
+            "httpMethod": "DELETE",
+            "uri": "arn:aws:s3:::bucket-1/some/object",
+            "passthroughBehavior": "WHEN_NO_MATCH",
+            "timeoutInMillis": 29000,
+        }
+    ),
+    "methodResponses_json": json.dumps(
+        {
+            "204": {
+                "statusCode": "204",
+            },
+        }
+    ),
+    "requestModels_json": json.dumps({}),
+    "requestParameters_json": json.dumps(
+        {"integration.request.header.x-amz-acl": True}
+    ),
+    "requestValidatorId": None,
+    "authorizerId": None,
+    "RestApiId": "test-001",
+    "ResourceId": "3kzxbg5sa2",
+    "HttpMethod": "DELETE",
+}
+
+METHOD_RESPONSE_DDB = {
+    "authorizationType": "AWS_IAM",
+    "apiKeyRequired": True,
+    "operationName": "UpdateItem",
+    "methodIntegration_json": json.dumps(
+        {
+            "type": "AWS",
+            "httpMethod": "POST",
+            "uri": "arn:aws:dynamodb:us-east-1:000000000000:table/example-table",
+            "passthroughBehavior": "WHEN_NO_MATCH",
+            "timeoutInMillis": 29000,
+        }
+    ),
+    "methodResponses_json": json.dumps(
+        {
+            "200": {
+                "statusCode": "200",
+            }
+        }
+    ),
+    "requestModels_json": json.dumps({}),
+    "requestParameters_json": json.dumps({}),
+    "requestValidatorId": None,
+    "authorizerId": None,
+    "RestApiId": "test-001",
+    "ResourceId": "3kzxbg5sa2",
+    "HttpMethod": "PATCH",
+}
+
+
+MOCK_GET_METHOD_RESPONSES = {
+    ("test-001", "3kzxbg5sa2", "GET"): METHOD_RESPONSE_GET,
+    ("test-001", "3kzxbg5sa2", "POST"): METHOD_RESPONSE_POST,
+    ("test-001", "3kzxbg5sa2", "PUT"): METHOD_RESPONSE_PUT,
+    ("test-001", "3kzxbg5sa2", "DELETE"): METHOD_RESPONSE_S3,
+    ("test-001", "3kzxbg5sa2", "PATCH"): METHOD_RESPONSE_DDB,
+}

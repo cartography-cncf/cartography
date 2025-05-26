@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any
 from typing import Dict
 from typing import List
@@ -15,6 +16,7 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.apigateway import APIGatewayRestAPISchema
+from cartography.models.aws.apigateway_method import APIGatewayMethodSchema
 from cartography.models.aws.apigatewaycertificate import (
     APIGatewayClientCertificateSchema,
 )
@@ -118,6 +120,61 @@ def get_rest_api_resources(api: Dict, client: botocore.client.BaseClient) -> Lis
 
 
 @timeit
+def get_apigateway_methods(
+    boto3_session: boto3.session.Session,
+    rest_api_id: str,
+    resource_id: str,
+    region: str,
+) -> List[Dict]:
+    """
+    Fetches API Gateway methods for a specific resource within a REST API.
+    The AWS API does not provide a direct 'list methods for resource' call.
+    """
+    client = boto3_session.client("apigateway", region_name=region)
+    methods_data: List[Dict] = []
+    http_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "ANY"]
+
+    for http_method in http_methods:
+        try:
+            method_details = client.get_method(
+                restApiId=rest_api_id,
+                resourceId=resource_id,
+                httpMethod=http_method,
+            )
+            method_details["RestApiId"] = rest_api_id
+            method_details["ResourceId"] = resource_id
+            method_details["HttpMethod"] = http_method
+
+            # Storing complex fields as JSON strings if they exist in the raw response
+            if "methodIntegration" in method_details:
+                method_details["methodIntegration_json"] = json.dumps(
+                    method_details["methodIntegration"]
+                )
+                del method_details["methodIntegration"]
+            if "methodResponses" in method_details:
+                method_details["methodResponses_json"] = json.dumps(
+                    method_details["methodResponses"]
+                )
+                del method_details["methodResponses"]
+            if "requestModels" in method_details:
+                method_details["requestModels_json"] = json.dumps(
+                    method_details["requestModels"]
+                )
+                del method_details["requestModels"]
+            if "requestParameters" in method_details:
+                method_details["requestParameters_json"] = json.dumps(
+                    method_details["requestParameters"]
+                )
+                del method_details["requestParameters"]
+
+            methods_data.append(method_details)
+
+        except client.exceptions.NotFoundException:
+            continue
+    return methods_data
+
+
+@timeit
 def get_rest_api_policy(api: Dict, client: botocore.client.BaseClient) -> Any:
     """
     Gets the REST API policy. Returns policy string or None if no policy is present.
@@ -159,6 +216,79 @@ def transform_apigateway_rest_apis(
 
 
 @timeit
+@aws_handle_regions
+def transform_apigateway_methods(methods_data: List[Dict]) -> List[Dict]:
+    """
+    Transforms raw API Gateway method data into a format matching the model schema.
+    """
+    transformed_data: List[Dict] = []
+    for method in methods_data:
+        method_id = (
+            f"{method['RestApiId']}|{method['ResourceId']}|{method['HttpMethod']}"
+        )
+        lambda_function_arn: Optional[str] = None
+        s3_bucket_name: Optional[str] = None
+        dynamodb_table_arn: Optional[str] = None
+
+        if method.get("methodIntegration_json"):
+            integration = json.loads(method["methodIntegration_json"])
+            integration_uri = integration.get("uri", "")
+
+            lambda_arn_match = re.search(
+                r"(arn:aws:lambda:[a-z0-9-]+:[0-9]{12}:function:[a-zA-Z0-9_-]+(?:[:$][a-zA-Z0-9_-]+)?)",
+                integration_uri,
+            )
+            if lambda_arn_match:
+                lambda_function_arn = lambda_arn_match.group(1)
+                logger.debug(
+                    f"Method {method_id} extracted Lambda ARN: {lambda_function_arn}"
+                )
+
+            s3_arn_match = re.search(
+                r"arn:aws:s3:::(?P<bucket_name>[a-zA-Z0-9.\-_]{1,255})",
+                integration_uri,
+            )
+            apigateway_s3_match = re.search(
+                r"arn:aws:apigateway:[a-z0-9-]+:s3:path\/\/+(?P<bucket_name>[a-zA-Z0-9.\-_]{1,255})",
+                integration_uri,
+            )
+            if s3_arn_match:
+                s3_bucket_name = s3_arn_match.group("bucket_name")
+            elif apigateway_s3_match:
+                s3_bucket_name = apigateway_s3_match.group("bucket_name")
+
+            dynamodb_arn_match = re.search(
+                r"(arn:aws:dynamodb:[a-z0-9-]+:[0-9]{12}:table\/[a-zA-Z0-9_.-]+)",
+                integration_uri,
+            )
+            if dynamodb_arn_match:
+                dynamodb_table_arn = dynamodb_arn_match.group(1)
+
+        transformed_data.append(
+            {
+                "id": method_id,
+                "rest_api_id": method["RestApiId"],
+                "resource_id": method["ResourceId"],
+                "http_method": method["HttpMethod"],
+                "api_key_required": method.get("apiKeyRequired", False),
+                "authorization_scopes": list(method.get("authorizationScopes", [])),
+                "authorization_type": method.get("authorizationType"),
+                "authorizer_id": method.get("authorizerId"),
+                "operation_name": method.get("operationName"),
+                "request_validator_id": method.get("requestValidatorId"),
+                "method_integration_json": method.get("methodIntegration_json"),
+                "method_responses_json": method.get("methodResponses_json"),
+                "request_models_json": method.get("requestModels_json"),
+                "request_parameters_json": method.get("requestParameters_json"),
+                "lambda_function_arn": lambda_function_arn,
+                "s3_bucket_name": s3_bucket_name,
+                "dynamodb_table_arn": dynamodb_table_arn,
+            }
+        )
+    return transformed_data
+
+
+@timeit
 def load_apigateway_rest_apis(
     neo4j_session: neo4j.Session,
     data: List[Dict],
@@ -176,6 +306,27 @@ def load_apigateway_rest_apis(
         region=region,
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def load_apigateway_methods(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    rest_api_id: str,
+    resource_id: str,
+    account_id: str,
+    update_tag: int,
+) -> None:
+
+    load(
+        neo4j_session,
+        APIGatewayMethodSchema(),
+        data,
+        lastupdated=update_tag,
+        rest_api_id=rest_api_id,
+        resource_id=resource_id,
+        account_id=account_id,
     )
 
 
@@ -211,6 +362,8 @@ def transform_apigateway_certificates(
 
 def transform_rest_api_details(
     stages_certificate_resources: List[Tuple[Any, Any, Any, Any, Any]],
+    region: str,
+    current_aws_account_id: str,
 ) -> Tuple[List[Dict], List[Dict], List[Dict]]:
     """
     Transform Stage, Client Certificate, and Resource data for ingestion
@@ -239,6 +392,8 @@ def transform_rest_api_details(
         if len(resource) > 0:
             for r in resource:
                 r["apiId"] = api_id
+                r["region"] = region
+                r["account_id"] = current_aws_account_id
             resources.extend(resource)
 
     return stages, certificates, resources
@@ -250,12 +405,16 @@ def load_rest_api_details(
     stages_certificate_resources: List[Tuple[Any, Any, Any, Any, Any]],
     aws_account_id: str,
     update_tag: int,
-) -> None:
+    region: str,
+) -> Tuple[List[Dict], List[Dict], List[Dict]]:
     """
     Transform and load Stage, Client Certificate, and Resource data
+    Returns the transformed resources list
     """
     stages, certificates, resources = transform_rest_api_details(
         stages_certificate_resources,
+        region,
+        aws_account_id,
     )
 
     load(
@@ -281,6 +440,7 @@ def load_rest_api_details(
         lastupdated=update_tag,
         AWS_ID=aws_account_id,
     )
+    return stages, certificates, resources
 
 
 @timeit
@@ -314,6 +474,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     """
     Delete out-of-date API Gateway resources and relationships.
     Order matters - clean up certificates, stages, and resources before cleaning up the REST APIs they connect to.
+    Method cleanup is handled within the sync_apigateway_rest_apis loop per resource.
     """
     logger.info("Running API Gateway cleanup job.")
 
@@ -382,12 +543,49 @@ def sync_apigateway_rest_apis(
         current_aws_account_id,
         aws_update_tag,
     )
-    load_rest_api_details(
+    stages_data, certificates_data, resources_data = load_rest_api_details(
         neo4j_session,
         stages_certificate_resources,
         current_aws_account_id,
         aws_update_tag,
+        region,
     )
+
+    for resource_data in resources_data:
+        current_rest_api_id = resource_data["apiId"]
+        current_resource_id = resource_data["id"]
+        current_account_id = resource_data["account_id"]
+        current_region = resource_data["region"]
+
+        raw_methods = get_apigateway_methods(
+            boto3_session,
+            current_rest_api_id,
+            current_resource_id,
+            current_region,
+        )
+        transformed_methods = transform_apigateway_methods(raw_methods)
+        if transformed_methods:
+            load_apigateway_methods(
+                neo4j_session,
+                transformed_methods,
+                current_rest_api_id,
+                current_resource_id,
+                current_account_id,
+                aws_update_tag,
+            )
+
+        # The APIGatewayMethod cleanup must be performed per parent resource within the sync loop.
+        # because its sub_resource_relationship requires the parent resource's identifying parameters (resource_id, rest_api_id)
+        method_cleanup_parameters = {
+            "UPDATE_TAG": aws_update_tag,
+            "account_id": current_account_id,
+            "rest_api_id": current_rest_api_id,
+            "resource_id": current_resource_id,
+            "region": current_region,
+        }
+        GraphJob.from_node_schema(
+            APIGatewayMethodSchema(), method_cleanup_parameters
+        ).run(neo4j_session)
 
 
 @timeit

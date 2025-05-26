@@ -2,7 +2,13 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.apigateway
+import cartography.intel.aws.dynamodb
+import cartography.intel.aws.lambda_function
+import cartography.intel.aws.s3
 import tests.data.aws.apigateway
+import tests.data.aws.dynamodb
+import tests.data.aws.lambda_function
+import tests.data.aws.s3
 from cartography.client.core.tx import load
 from cartography.models.aws.apigatewaycertificate import (
     APIGatewayClientCertificateSchema,
@@ -16,6 +22,45 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
+
+
+def _ensure_local_neo4j_has_test_lambdas(neo4j_session, account_id, update_tag, region):
+    lambda_functions_data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
+    cartography.intel.aws.lambda_function.load_lambda_functions(
+        neo4j_session,
+        lambda_functions_data,
+        region,
+        account_id,
+        update_tag,
+    )
+
+
+def _ensure_local_neo4j_has_test_s3_buckets(neo4j_session, account_id, update_tag):
+    bucket_list_data = tests.data.aws.s3.LIST_BUCKETS
+    cartography.intel.aws.s3.load_s3_buckets(
+        neo4j_session,
+        bucket_list_data,
+        account_id,
+        update_tag,
+    )
+
+
+def _ensure_local_neo4j_has_test_dynamodb_tables(
+    neo4j_session, boto3_session, account_id, update_tag, common_job_parameters
+):
+    with patch.object(
+        cartography.intel.aws.dynamodb,
+        "get_dynamodb_tables",
+        return_value=tests.data.aws.dynamodb.LIST_DYNAMODB_TABLES["Tables"],
+    ):
+        cartography.intel.aws.dynamodb.sync_dynamodb_tables(
+            neo4j_session,
+            boto3_session,
+            TEST_REGION,
+            account_id,
+            update_tag,
+            common_job_parameters,
+        )
 
 
 def test_load_apigateway_rest_apis(neo4j_session):
@@ -289,13 +334,57 @@ def test_load_apigateway_resources_relationships(neo4j_session):
     "get_rest_api_details",
     return_value=tests.data.aws.apigateway.GET_REST_API_DETAILS,
 )
-def test_sync_apigateway(mock_get_details, mock_get_apis, neo4j_session):
+@patch.object(
+    cartography.intel.aws.apigateway,
+    "get_apigateway_methods",
+    side_effect=lambda boto3_session, rest_api_id, resource_id, region: [
+        response
+        for response in [
+            tests.data.aws.apigateway.MOCK_GET_METHOD_RESPONSES.get(
+                (rest_api_id, resource_id, "GET")
+            ),
+            tests.data.aws.apigateway.MOCK_GET_METHOD_RESPONSES.get(
+                (rest_api_id, resource_id, "POST")
+            ),
+            tests.data.aws.apigateway.MOCK_GET_METHOD_RESPONSES.get(
+                (rest_api_id, resource_id, "PUT")
+            ),
+            tests.data.aws.apigateway.MOCK_GET_METHOD_RESPONSES.get(
+                (rest_api_id, resource_id, "DELETE")
+            ),
+            tests.data.aws.apigateway.MOCK_GET_METHOD_RESPONSES.get(
+                (rest_api_id, resource_id, "PATCH")
+            ),
+        ]
+        if response is not None
+    ],
+)
+def test_sync_apigateway(
+    mock_get_apis,
+    mock_get_details,
+    mock_get_methods,
+    neo4j_session,
+):
     """
     Verify that API Gateway resources are properly synced
     """
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    _ensure_local_neo4j_has_test_lambdas(
+        neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG, TEST_REGION
+    )
+    _ensure_local_neo4j_has_test_s3_buckets(
+        neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG
+    )
+    _ensure_local_neo4j_has_test_dynamodb_tables(
+        neo4j_session,
+        boto3_session,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
 
     # Act
     cartography.intel.aws.apigateway.sync(
@@ -333,6 +422,120 @@ def test_sync_apigateway(mock_get_details, mock_get_apis, neo4j_session):
     assert check_nodes(neo4j_session, "APIGatewayResource", ["id"]) == {
         ("3kzxbg5sa2",),
     }
+
+    # Assertions FOR APIGatewayMethod(GET, POST, PUT, DELETE, PATCH)
+    lambda_list_data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
+    lambda_arn_1 = lambda_list_data[0]["FunctionArn"]
+    lambda_arn_2 = lambda_list_data[1]["FunctionArn"]
+
+    s3_bucket_list_data = tests.data.aws.s3.LIST_BUCKETS
+    s3_bucket_name_1 = s3_bucket_list_data["Buckets"][0]["Name"]
+
+    dynamodb_list_data = tests.data.aws.dynamodb.LIST_DYNAMODB_TABLES["Tables"]
+    dynamodb_table_arn_1 = dynamodb_list_data[0]["Table"]["TableArn"]
+
+    expected_method_nodes = {
+        ("test-001|3kzxbg5sa2|GET", "NONE", False, lambda_arn_1, None, None),
+        ("test-001|3kzxbg5sa2|POST", "AWS_IAM", True, lambda_arn_2, None, None),
+        ("test-001|3kzxbg5sa2|PUT", "CUSTOM", False, None, None, None),
+        ("test-001|3kzxbg5sa2|DELETE", "AWS_IAM", False, None, s3_bucket_name_1, None),
+        (
+            "test-001|3kzxbg5sa2|PATCH",
+            "AWS_IAM",
+            True,
+            None,
+            None,
+            dynamodb_table_arn_1,
+        ),
+    }
+    assert (
+        check_nodes(
+            neo4j_session,
+            "APIGatewayMethod",
+            [
+                "id",
+                "authorization_type",
+                "api_key_required",
+                "lambda_function_arn",
+                "s3_bucket_name",
+                "dynamodb_table_arn",
+            ],
+        )
+        == expected_method_nodes
+    )
+
+    # Assert APIGatewayResource to APIGatewayMethod relationships (:RESOURCE for cleanup)
+    expected_resource_method_rels = {
+        ("3kzxbg5sa2", "test-001|3kzxbg5sa2|GET"),
+        ("3kzxbg5sa2", "test-001|3kzxbg5sa2|POST"),
+        ("3kzxbg5sa2", "test-001|3kzxbg5sa2|PUT"),
+        ("3kzxbg5sa2", "test-001|3kzxbg5sa2|DELETE"),
+        ("3kzxbg5sa2", "test-001|3kzxbg5sa2|PATCH"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "APIGatewayResource",
+            "id",
+            "APIGatewayMethod",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_resource_method_rels
+    )
+
+    # Assert APIGatewayMethod to AWSLambda relationships (:INVOKES)
+    expected_invokes_rels = {
+        ("test-001|3kzxbg5sa2|GET", lambda_arn_1),
+        ("test-001|3kzxbg5sa2|POST", lambda_arn_2),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "APIGatewayMethod",
+            "id",
+            "AWSLambda",
+            "id",
+            "INVOKES",
+            rel_direction_right=True,
+        )
+        == expected_invokes_rels
+    )
+
+    # Assert APIGatewayMethod to S3Bucket relationships (:ACCESSES)
+    expected_s3_access_rels = {
+        ("test-001|3kzxbg5sa2|DELETE", s3_bucket_name_1),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "APIGatewayMethod",
+            "id",
+            "S3Bucket",
+            "id",
+            "ACCESSES",
+            rel_direction_right=True,
+        )
+        == expected_s3_access_rels
+    )
+
+    # Assert APIGatewayMethod to DynamoDBTable relationships (:ACCESSES)
+    expected_ddb_access_rels = {
+        ("test-001|3kzxbg5sa2|PATCH", dynamodb_table_arn_1),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "APIGatewayMethod",
+            "id",
+            "DynamoDBTable",
+            "id",
+            "ACCESSES",
+            rel_direction_right=True,
+        )
+        == expected_ddb_access_rels
+    )
 
     # Assert AWS Account to REST API relationships
     assert check_rels(
