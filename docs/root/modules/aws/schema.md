@@ -771,6 +771,29 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 | sns_topic_arn | The ARN of the SNS topic used by the CloudTrailTrail for delivery notifications. |
 
 
+### CloudWatchLogGroup
+Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)
+
+| Field | Description |
+|-------|-------------|
+| id | The ARN of the SNS log group |
+| arn | The Amazon Resource Name (ARN) of the log group |
+| creationTime | The creation time of the log group, expressed as the number of milliseconds after Jan 1, 1970 00:00:00 UTC. |
+| dataProtectionStatus | Displays whether this log group has a protection policy, or whether it had one in the past. |
+| inheritedProperties | Displays all the properties that this log group has inherited from account-level settings. |
+| kmsKeyId | The Amazon Resource Name (ARN) of the AWS KMS key to use when encrypting log data. |
+| logGroupArn | The Amazon Resource Name (ARN) of the log group. |
+| logGroupClass | This specifies the log group class for this log group. |
+| logGroupName | The name of the log group. |
+| metricFilterCount | The number of metric filters. |
+| retentionInDays | The number of days to retain the log events in the specified log group. |
+| storedBytes | The number of bytes stored. |
+#### Relationships
+- CLoudWatch LogGroups are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
+
 ### DBSubnetGroup
 
 Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSubnetGroup.html).  For more information on how RDS instances interact with these, please see [this article](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html).
@@ -3251,6 +3274,72 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     (ECSTask)-[HAS_CONTAINER]->(ECSContainer)
     ```
 
+### EfsMountTarget
+Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/latest/ug/API_MountTargetDescription.html)
+| Field | Description |
+|-------|-------------|
+| **id** | System-assigned mount target ID |
+| arn | System-assigned mount target ID |
+| fileSystem_id | The ID of the file system for which the mount target is intended |
+| lifecycle_state | Lifecycle state of the mount target |
+| mount_target_id | System-assigned mount target ID |
+| subnet_id | The ID of the mount target's subnet |
+| availability_zone_id | The unique and consistent identifier of the Availability Zone that the mount target resides in |
+| availability_zone_name | The name of the Availability Zone in which the mount target is located |
+| ip_address | Address at which the file system can be mounted by using the mount target |
+| network_interface_id | The ID of the network interface that Amazon EFS created when it created the mount target |
+| owner_id | AWS account ID that owns the resource |
+| vpc_id | The virtual private cloud (VPC) ID that the mount target is configured in |
+#### Relationships
+- Efs MountTargets are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EfsMountTarget)
+    ```
+
+### SNSTopic
+Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the SNS topic |
+| **arn** | The Amazon Resource Name (ARN) of the topic |
+| name | The name of the topic |
+| displayname | The display name of the topic |
+| owner | The AWS account ID of the topic's owner |
+| subscriptionspending | The number of subscriptions pending confirmation |
+| subscriptionsconfirmed | The number of confirmed subscriptions |
+| subscriptionsdeleted | The number of deleted subscriptions |
+| deliverypolicy | The JSON serialization of the topic's delivery policy |
+| effectivedeliverypolicy | The JSON serialization of the effective delivery policy |
+| kmsmasterkeyid | The ID of an AWS managed customer master key (CMK) for Amazon SNS or a custom CMK |
+| region | The AWS region where the topic is located |
+#### Relationships
+- SNS Topics are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SNSTopic)
+    ```
+### S3AccountPublicAccessBlock
+Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier in the format: `{account_id}:{region}` |
+| account_id | The AWS account ID |
+| region | The AWS region |
+| block_public_acls | Whether Amazon S3 blocks public access control lists (ACLs) for this bucket and objects |
+| ignore_public_acls | Whether Amazon S3 ignores public ACLs for this bucket and objects |
+| block_public_policy | Whether Amazon S3 blocks public bucket policies for this bucket |
+| restrict_public_buckets | Whether Amazon S3 restricts public policies for this bucket |
+
+#### Relationships
+- S3AccountPublicAccessBlock is a resource of an AWS Account.
+    ```
+    (AWSAccount)-[:RESOURCE]->(S3AccountPublicAccessBlock)
+    ```
+
 ### SSMInstanceInformation
 
 Representation of an AWS SSM [InstanceInformation](https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_InstanceInformation.html)
@@ -3323,6 +3412,41 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
 - EC2Instances have SSMInstancePatches
     ```
     (EC2Instance)-[HAS_INFORMATION]->(SSMInstancePatch)
+    ```
+
+### SSMParameter
+
+Representation of an AWS Systems Manager Parameter as returned by the [`describe_parameters` API](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/describe_parameters.html).
+
+| Field | Description |
+|-------|-------------|
+| **firstseen**| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The ARN of the parameter |
+| region | The region of the parameter. |
+| arn | The Amazon Resource Name (ARN) of the parameter. |
+| name | The parameter name. |
+| description | Description of the parameter actions. |
+| type | The type of parameter. Valid parameter types include String, StringList, and SecureString. |
+| keyid | The alias or ARN of the Key Management Service (KMS) key used to encrypt the parameter. Applies to SecureString parameters only. |
+| version | The parameter version. |
+| lastmodifieddate | Date the parameter was last changed or updated (stored as epoch time). |
+| tier | The parameter tier. |
+| lastmodifieduser | Amazon Resource Name (ARN) of the AWS user who last changed the parameter. |
+| datatype | The data type of the parameter, such as text or aws:ec2:image. |
+| allowedpattern | A regular expression that defines the constraints on the parameter value. |
+| policies_json | A JSON string representation of the list of policies associated with the parameter. |
+
+#### Relationships
+
+- SSMParameter is a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SSMParameter)
+    ```
+
+- SecureString SSMParameters may be encrypted by an AWS KMS Key.
+    ```
+    (SSMParameter)-[ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### AWSIdentityCenter
@@ -3520,4 +3644,35 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 - EC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
     ```
     (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
+    ```
+
+### SecretsManagerSecretVersion
+
+Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretVersionListEntry.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The ARN of the secret version. |
+| arn | The ARN of the secret version. |
+| secret_id | The ARN of the secret that this version belongs to. |
+| version_id | The unique identifier of this version of the secret. |
+| version_stages | A list of staging labels that are currently attached to this version of the secret. |
+| created_date | The date and time that this version of the secret was created. |
+| region | The AWS region where the secret version exists. |
+
+#### Relationships
+
+- AWS Secrets Manager Secret Versions are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SecretsManagerSecretVersion)
+    ```
+- Secret Versions belong to a Secret.
+    ```
+    (SecretsManagerSecretVersion)-[VERSION_OF]->(SecretsManagerSecret)
+    ```
+- If the secret version is encrypted with a KMS key, it has a relationship to that key.
+    ```
+    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```

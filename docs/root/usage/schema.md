@@ -90,6 +90,9 @@ While you're free to define custom relationships, using standardized types impro
 ```{include} ../modules/_cartography-metadata/schema.md
 ```
 
+```{include} ../modules/anthropic/schema.md
+```
+
 ```{include} ../modules/aws/schema.md
 ```
 
@@ -97,6 +100,9 @@ While you're free to define custom relationships, using standardized types impro
 ```
 
 ```{include} ../modules/bigfix/schema.md
+```
+
+```{include} ../modules/cloudflare/schema.md
 ```
 
 ```{include} ../modules/crowdstrike/schema.md
@@ -141,6 +147,9 @@ While you're free to define custom relationships, using standardized types impro
 ```{include} ../modules/okta/schema.md
 ```
 
+```{include} ../modules/openai/schema.md
+```
+
 ```{include} ../modules/pagerduty/schema.md
 ```
 
@@ -148,4 +157,7 @@ While you're free to define custom relationships, using standardized types impro
 ```
 
 ```{include} ../modules/snipeit/schema.md
+```
+
+```{include} ../modules/tailscale/schema.md
 ```

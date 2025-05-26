@@ -561,7 +561,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "Your SnipeIT base URI"
+                "Your SnipeIT base URI. "
                 "Required if you are using the SnipeIT intel module. Ignored otherwise."
             ),
         )
@@ -576,6 +576,66 @@ class CLI:
             type=str,
             default=None,
             help="An ID for the SnipeIT tenant.",
+        )
+        parser.add_argument(
+            "--cloudflare-token-env-var",
+            type=str,
+            default=None,
+            help="The name of an environment variable containing ApiKey with which to authenticate to Cloudflare.",
+        )
+        parser.add_argument(
+            "--tailscale-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing a Tailscale API token. "
+                "Required if you are using the Tailscale intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--tailscale-org",
+            type=str,
+            default=None,
+            help=(
+                "The name of the Tailscale organization to sync. "
+                "Required if you are using the Tailscale intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--tailscale-base-url",
+            type=str,
+            default="https://api.tailscale.com/api/v2",
+            help=(
+                "The base URL for the Tailscale API. "
+                "Required if you are using the Tailscale intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--openai-apikey-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing a OpenAI API Key. "
+                "Required if you are using the OpenAI intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--openai-org-id",
+            type=str,
+            default=None,
+            help=(
+                "The ID of the OpenAI organization to sync. "
+                "Required if you are using the OpenAI intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--anthropic-apikey-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing an Anthropic API Key. "
+                "Required if you are using the Anthropic intel module. Ignored otherwise."
+            ),
         )
 
         return parser
@@ -858,6 +918,42 @@ class CLI:
         else:
             logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
+
+        # Tailscale config
+        if config.tailscale_token_env_var:
+            logger.debug(
+                f"Reading Tailscale API token from environment variable {config.tailscale_token_env_var}",
+            )
+            config.tailscale_token = os.environ.get(config.tailscale_token_env_var)
+        else:
+            config.tailscale_token = None
+
+        # Cloudflare config
+        if config.cloudflare_token_env_var:
+            logger.debug(
+                f"Reading Cloudflare ApiKey from environment variable {config.cloudflare_token_env_var}",
+            )
+            config.cloudflare_token = os.environ.get(config.cloudflare_token_env_var)
+        else:
+            config.cloudflare_token = None
+
+        # OpenAI config
+        if config.openai_apikey_env_var:
+            logger.debug(
+                f"Reading OpenAI API key from environment variable {config.openai_apikey_env_var}",
+            )
+            config.openai_apikey = os.environ.get(config.openai_apikey_env_var)
+        else:
+            config.openai_apikey = None
+
+        # Anthropic config
+        if config.anthropic_apikey_env_var:
+            logger.debug(
+                f"Reading Anthropic API key from environment variable {config.anthropic_apikey_env_var}",
+            )
+            config.anthropic_apikey = os.environ.get(config.anthropic_apikey_env_var)
+        else:
+            config.anthropic_apikey = None
 
         # Run cartography
         try:
