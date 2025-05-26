@@ -56,7 +56,7 @@ def _ensure_local_neo4j_has_test_dynamodb_tables(
         cartography.intel.aws.dynamodb.sync_dynamodb_tables(
             neo4j_session,
             boto3_session,
-            TEST_REGION,
+            [TEST_REGION],
             account_id,
             update_tag,
             common_job_parameters,

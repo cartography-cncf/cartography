@@ -120,6 +120,7 @@ def get_rest_api_resources(api: Dict, client: botocore.client.BaseClient) -> Lis
 
 
 @timeit
+@aws_handle_regions
 def get_apigateway_methods(
     boto3_session: boto3.session.Session,
     rest_api_id: str,
@@ -240,9 +241,6 @@ def transform_apigateway_methods(methods_data: List[Dict]) -> List[Dict]:
             )
             if lambda_arn_match:
                 lambda_function_arn = lambda_arn_match.group(1)
-                logger.debug(
-                    f"Method {method_id} extracted Lambda ARN: {lambda_function_arn}"
-                )
 
             s3_arn_match = re.search(
                 r"arn:aws:s3:::(?P<bucket_name>[a-zA-Z0-9.\-_]{1,255})",
