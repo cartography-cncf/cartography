@@ -25,7 +25,7 @@ class BigfixSeed(Seed):
 
     def _seed_computers(self) -> None:
         cartography.intel.bigfix.computers.sync(
-            self.neo4j_session  ,
+            self.neo4j_session,
             BIGFIX_ROOT_URL,
             BIGFIX_USER,
             BIGFIX_PASSWORD,
