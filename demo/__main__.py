@@ -1,8 +1,10 @@
+import argparse
 import logging
 import os
 
 import neo4j
 
+from cartography.config import Config
 from cartography.intel import create_indexes
 from demo.seeds.anthropic import AnthropicSeed
 from demo.seeds.azure import AzureSeed
@@ -26,12 +28,17 @@ NEO4J_URL = os.environ.get("NEO4J_URL", "bolt://localhost:7687")
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main(force_flag: bool) -> None:
     # Set up Neo4j connection
     neo4j_driver = neo4j.GraphDatabase.driver(NEO4J_URL)
     neo4j_session = neo4j_driver.session()
 
     UPDATE_TAG = 0
+
+    # Config
+    config = Config(
+        neo4j_uri=NEO4J_URL,
+    )
 
     # Check if the database is empty
     logger.info("Checking if the database is empty...")
@@ -40,14 +47,19 @@ def main():
     )
     count = result.single()["count"]
     if count > 0:
-        print(
-            "Database already contains none demo data., Are you sure you want to continue? (y/N)"
-        )
-        answer = input()
-        if answer.lower() != "y":
-            logger.info("Exiting without making any changes.")
-            neo4j_session.close()
-            return
+        if force_flag:
+            logger.warning(
+                "Force flag is set. Proceeding to clear the database without confirmation."
+            )
+        else:
+            print(
+                "Database already contains none demo data., Are you sure you want to continue? (y/N)"
+            )
+            answer = input()
+            if answer.lower() != "y":
+                logger.info("Exiting without making any changes.")
+                neo4j_session.close()
+                return
 
     # Clear the previous database
     logger.info("Clearing the existing database...")
@@ -55,7 +67,7 @@ def main():
 
     # Create indexes
     logger.info("Creating indexes...")
-    create_indexes.run(neo4j_session, None)
+    create_indexes.run(neo4j_session, config)
 
     # Create Human
     # This is an uggly hack to create a human node for the demo.
@@ -122,6 +134,44 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description=(
+            "Cartography Demo: Load demo data into a Neo4j database for testing and development purposes."
+            " This script will clear the existing database and load a predefined set of demo data."
+            " Ensure you have a Neo4j instance running and accessible at the specified NEO4J_URL."
+            " The default URL is 'bolt://localhost:7687'."
+            " You can change this by setting the NEO4J_URL environment variable."
+            " Use the -v or --verbose flag for detailed logging, or -q or --quiet to suppress most logs."
+            " The script will prompt for confirmation if the database is not empty."
+            " Use with caution as it will delete all existing data in the Neo4j database."
+            " You can bypass the confirmation prompt by using the --force flag."
+        )
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging for cartography.",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Restrict cartography logging to warnings and errors only.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force the script to run without confirmation, even if the database is not empty.",
+    )
+    args = parser.parse_args()
+
     logging.basicConfig()
-    logger.setLevel(logging.INFO)
-    main()
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+    elif args.quiet:
+        logger.setLevel(logging.WARNING)
+    else:
+        logger.setLevel(logging.INFO)
+
+    main(args.force)
