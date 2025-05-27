@@ -17,6 +17,8 @@ database="neo4j"
 #port=8125
 [analysis]
 #job_directory
+[anthropic]
+#apikey=
 [aws]
 #sync_all_profiles=True
 #best_effort_mode=True

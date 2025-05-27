@@ -309,7 +309,7 @@ def run(sync: Sync) -> int:
 # DEPRECATED: use run() instead
 def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:
     logger.warning(
-        "The 'run_with_config' function is deprecated"
+        "The 'run_with_config' function is deprecated "
         "and will be removed in next version, use 'run' instead.",
     )
 

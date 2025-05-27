@@ -505,3 +505,8 @@ def populate_settings_from_config(config: Union[Config, argparse.Namespace]):
         if show_deprecation_warning:
             deprecated_config("openai_org_id", "CARTOGRAPHY_OPENAI__ORG_ID")
         settings.update({"openai": {"org_id": config.openai_org_id}})
+    # Anthropic
+    if config.anthropic_apikey:
+        if show_deprecation_warning:
+            deprecated_config("anthropic_apikey", "CARTOGRAPHY_ANTHROPIC__APIKEY")
+        settings.update({"anthropic": {"apikey": config.anthropic_apikey}})
