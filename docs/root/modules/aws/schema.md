@@ -2498,29 +2498,30 @@ Representation of an AWS [API Gateway Method](https://docs.aws.amazon.com/apigat
 
 #### Relationships
 
-- API Gateway Methods are sub-resources of API Gateway Resources.
+- API Gateway Methods are resources in an AWS Account.
     ```
-    (APIGatewayResource)-[RESOURCE]->(APIGatewayMethod)
+    (AWSAccount)-[RESOURCE]->(APIGatewayMethod)
     ```
-    Description: An API Gateway Resource contains a Method.
+
+- An API Gateway Resource may have an API Gateway Method.
+    ```
+    (APIGatewayResource)-[HAS]->(APIGatewayMethod)
+    ```
 
 - An API Gateway Method may invoke an AWS Lambda Function.
     ```
     (APIGatewayMethod)-[INVOKES]->(AWSLambda)
     ```
-    Description: Derived from the method's integration URI when the type is AWS/AWS_PROXY and the URI points to a Lambda function.
 
 - An API Gateway Method may access an S3 Bucket.
     ```
     (APIGatewayMethod)-[ACCESSES]->(S3Bucket)
     ```
-    Description: Derived from the method's integration URI when the type is AWS/AWS_PROXY and the URI points to an S3 Bucket.
 
 - An API Gateway Method may access a DynamoDB Table.
     ```
     (APIGatewayMethod)-[ACCESSES]->(DynamoDBTable)
     ```
-    Description: Derived from the method's integration URI when the type is AWS/AWS_PROXY and the URI points to a DynamoDB Table.
 
 
 ### AutoScalingGroup
