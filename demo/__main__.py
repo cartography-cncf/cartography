@@ -8,6 +8,7 @@ from demo.seeds.anthropic import AnthropicSeed
 from demo.seeds.azure import AzureSeed
 from demo.seeds.bigfix import BigfixSeed
 from demo.seeds.cloudlare import CloudflareSeed
+from demo.seeds.crowdstrike import CrowdsrikeSeed
 from demo.seeds.cve import CVESeed
 from demo.seeds.digitalocean import DigitalOceanSeed
 from demo.seeds.duo import DuoSeed
@@ -82,7 +83,8 @@ def main():
     BigfixSeed(neo4j_session, UPDATE_TAG).run()
     logger.info("    loading Cloudflare")
     CloudflareSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: CrowdStrike
+    logger.info("    loading CrowdStrike")
+    CrowdsrikeSeed(neo4j_session, UPDATE_TAG).run()
     logger.info("    loading CVE")
     CVESeed(neo4j_session, UPDATE_TAG).run()
     logger.info("    loading DigitalOcean")
@@ -98,7 +100,7 @@ def main():
     # TODO: Jamf after data model migration
     logger.info("    loading Kandji")
     KandjiSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: Kubernetes
+    # TODO: Kubernetes after data model migration
     logger.info("    loading LastPass")
     LastpassSeed(neo4j_session, UPDATE_TAG).run()
     # TODO: OCI after data model migration
@@ -113,7 +115,7 @@ def main():
     logger.info("    loading Tailscale")
     TailscaleSeed(neo4j_session, UPDATE_TAG).run()
 
-    # TODO: Analysis
+    # TODO: Analysis: blocked due to https://github.com/cartography-cncf/cartography/issues/1591
 
     # Close the session
     neo4j_session.close()
