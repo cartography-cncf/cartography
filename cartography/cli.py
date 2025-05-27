@@ -655,7 +655,7 @@ class CLI:
             default=None,
             help=(
                 "DEPRECATED: Use settings.toml or CARTOGRAPHY_SNIPEIT__BASE_URL instead."
-                "Your SnipeIT base URI"
+                "Your SnipeIT base URI. "
                 "Required if you are using the SnipeIT intel module. Ignored otherwise."
             ),
         )
@@ -692,8 +692,8 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "DEPRECATED: Use settings.toml or CARTOGRAPHY_TAILSCALE__TOKEN instead."
-                "The name of an environment variable containing a Tailscale API token."
+                "DEPRECATED: Use settings.toml or CARTOGRAPHY_TAILSCALE__TOKEN instead. "
+                "The name of an environment variable containing a Tailscale API token. "
                 "Required if you are using the Tailscale intel module. Ignored otherwise."
             ),
         )
@@ -702,7 +702,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "DEPRECATED: Use settings.toml or CARTOGRAPHY_TAILSCALE__ORG instead."
+                "DEPRECATED: Use settings.toml or CARTOGRAPHY_TAILSCALE__ORG instead. "
                 "The name of the Tailscale organization to sync. "
                 "Required if you are using the Tailscale intel module. Ignored otherwise."
             ),
@@ -712,7 +712,7 @@ class CLI:
             type=str,
             default="https://api.tailscale.com/api/v2",
             help=(
-                "DEPRECATED: Use settings.toml or CARTOGRAPHY_TAILSCALE__BASE_URL instead."
+                "DEPRECATED: Use settings.toml or CARTOGRAPHY_TAILSCALE__BASE_URL instead. "
                 "The base URL for the Tailscale API. "
                 "Required if you are using the Tailscale intel module. Ignored otherwise."
             ),
@@ -723,7 +723,7 @@ class CLI:
             default=None,
             help=(
                 "DEPRECATED: Use settings.toml or CARTOGRAPHY_OPENAI__APIKEY instead."
-                "The name of an environment variable containing a OpenAI API Key."
+                "The name of an environment variable containing a OpenAI API Key. "
                 "Required if you are using the OpenAI intel module. Ignored otherwise."
             ),
         )
@@ -735,6 +735,15 @@ class CLI:
                 "DEPRECATED: Use settings.toml or CARTOGRAPHY_OPENAI__ORG_ID instead."
                 "The ID of the OpenAI organization to sync. "
                 "Required if you are using the OpenAI intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--anthropic-apikey-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing an Anthropic API Key. "
+                "Required if you are using the Anthropic intel module. Ignored otherwise."
             ),
         )
 
@@ -974,6 +983,15 @@ class CLI:
             config.openai_apikey = os.environ.get(config.openai_apikey_env_var)
         else:
             config.openai_apikey = None
+
+        # Anthropic config
+        if config.anthropic_apikey_env_var:
+            logger.debug(
+                f"Reading Anthropic API key from environment variable {config.anthropic_apikey_env_var}",
+            )
+            config.anthropic_apikey = os.environ.get(config.anthropic_apikey_env_var)
+        else:
+            config.anthropic_apikey = None
 
         # DEPRECATED: This is a temporary measure to support the old config format
         # and the new config format. The old config format is deprecated and will be removed in a future release.

@@ -3414,6 +3414,41 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
     (EC2Instance)-[HAS_INFORMATION]->(SSMInstancePatch)
     ```
 
+### SSMParameter
+
+Representation of an AWS Systems Manager Parameter as returned by the [`describe_parameters` API](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/describe_parameters.html).
+
+| Field | Description |
+|-------|-------------|
+| **firstseen**| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The ARN of the parameter |
+| region | The region of the parameter. |
+| arn | The Amazon Resource Name (ARN) of the parameter. |
+| name | The parameter name. |
+| description | Description of the parameter actions. |
+| type | The type of parameter. Valid parameter types include String, StringList, and SecureString. |
+| keyid | The alias or ARN of the Key Management Service (KMS) key used to encrypt the parameter. Applies to SecureString parameters only. |
+| version | The parameter version. |
+| lastmodifieddate | Date the parameter was last changed or updated (stored as epoch time). |
+| tier | The parameter tier. |
+| lastmodifieduser | Amazon Resource Name (ARN) of the AWS user who last changed the parameter. |
+| datatype | The data type of the parameter, such as text or aws:ec2:image. |
+| allowedpattern | A regular expression that defines the constraints on the parameter value. |
+| policies_json | A JSON string representation of the list of policies associated with the parameter. |
+
+#### Relationships
+
+- SSMParameter is a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SSMParameter)
+    ```
+
+- SecureString SSMParameters may be encrypted by an AWS KMS Key.
+    ```
+    (SSMParameter)-[ENCRYPTED_BY]->(KMSKey)
+    ```
+
 ### AWSIdentityCenter
 
 Representation of an AWS Identity Center.
@@ -3609,4 +3644,35 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 - EC2Route routes to an AWSInternetGateway. In most cases this tells AWS "to reach the internet, use this IGW".
     ```
     (EC2Route)-[ROUTES_TO_GATEWAY]->(AWSInternetGateway)
+    ```
+
+### SecretsManagerSecretVersion
+
+Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretVersionListEntry.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The ARN of the secret version. |
+| arn | The ARN of the secret version. |
+| secret_id | The ARN of the secret that this version belongs to. |
+| version_id | The unique identifier of this version of the secret. |
+| version_stages | A list of staging labels that are currently attached to this version of the secret. |
+| created_date | The date and time that this version of the secret was created. |
+| region | The AWS region where the secret version exists. |
+
+#### Relationships
+
+- AWS Secrets Manager Secret Versions are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SecretsManagerSecretVersion)
+    ```
+- Secret Versions belong to a Secret.
+    ```
+    (SecretsManagerSecretVersion)-[VERSION_OF]->(SecretsManagerSecret)
+    ```
+- If the secret version is encrypted with a KMS key, it has a relationship to that key.
+    ```
+    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
