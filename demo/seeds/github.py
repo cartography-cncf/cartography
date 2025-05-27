@@ -86,5 +86,5 @@ class GithubSeed(Seed):
             {"UPDATE_TAG": self.update_tag},
             API_KEY,
             GITHUB_URL,
-            "example_org",
+            GITHUB_ORG,
         )
