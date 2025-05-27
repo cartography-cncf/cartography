@@ -485,13 +485,10 @@ def test_load_balancer_v2s_skips_missing_dnsname(neo4j_session, *args):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    # Only the valid load balancer should be present
-    nodes = neo4j_session.run(
-        """
-        MATCH (elbv2:LoadBalancerV2) RETURN elbv2.id as id
-        """
-    )
-    actual_ids = {n["id"] for n in nodes}
-    assert "myawesomeloadbalancer.amazonaws.com" in actual_ids
-    # The one with missing DNSName should not be present
-    assert "missingdnsnamelb" not in actual_ids
+    # The valid load balancer should be present
+    valid_lb_id = ("myawesomeloadbalancer.amazonaws.com",)
+    # The invalid load balancer should not be present
+    invalid_lb_id = ("missingdnsnamelb",)
+    actual = check_nodes(neo4j_session, "LoadBalancerV2", ["id"])
+    assert valid_lb_id in actual
+    assert invalid_lb_id not in actual
