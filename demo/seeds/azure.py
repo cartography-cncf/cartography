@@ -15,7 +15,8 @@ RESOURCE_GROUP = "TestRG"
 class AzureSeed(Seed):
 
     def seed(self, *args) -> None:
-        # TODO: self._seed_tenant()
+        # TODO: Add after datamodel migration
+        # self._seed_tenant()
         self._seed_subscription()
         self._seed_compute()
         self._seed_cosmosdb()

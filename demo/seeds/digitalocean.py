@@ -37,7 +37,6 @@ class DigitalOceanSeed(Seed):
     )
     @patch("digitalocean.Manager")
     def seed(self, mock_do_manager, *args) -> None:
-        # DOC
         self._seed_platform(mock_do_manager)
         self._seed_management(mock_do_manager)
         self._seed_compute(mock_do_manager)
