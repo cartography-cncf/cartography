@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -62,4 +63,7 @@ class AirbyteTagSchema(CartographyNodeSchema):
     properties: AirbyteTagNodeProperties = AirbyteTagNodeProperties()
     sub_resource_relationship: AirbyteTagToOrganizationRel = (
         AirbyteTagToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [AirbyteTagToWorkspaceRel()]
     )

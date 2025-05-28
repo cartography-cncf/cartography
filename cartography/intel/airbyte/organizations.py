@@ -4,7 +4,6 @@ from typing import Dict
 from typing import List
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -31,7 +30,7 @@ def sync(
 
 @timeit
 def get(
-    api_session: requests.Session,
+    api_session: AirbyteClient,
 ) -> List[Dict[str, Any]]:
     return api_session.get("/organizations")
 

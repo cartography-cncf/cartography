@@ -18,14 +18,28 @@ class AirbyteClient:
         self._access_token_expiry: int | None = None
         self._session = requests.Session()
 
-    def get(self, uri: str, params: dict = None) -> list[dict[str, Any]]:
+    def get(self, uri: str, params: dict | None = None, offset: int = 0) -> list[dict]:
         # DOC
         self.authenticate()
+        if params is None:
+            params_with_pagination = {}
+        else:
+            params_with_pagination = params.copy()
+        params_with_pagination["offset"] = offset
         response = self._session.get(
-            f"{self.base_url}{uri}", params=params, timeout=_TIMEOUT
+            f"{self.base_url}{uri}", params=params_with_pagination
         )
         response.raise_for_status()
-        return response.json().get("data", [])
+        data = response.json().get("data")
+        if response.json().get("next", "") != "":
+            data.extend(
+                self.get(
+                    uri,
+                    params=params,
+                    offset=offset + len(data),
+                )
+            )
+        return data
 
     def authenticate(self) -> None:
         # DOC
@@ -57,15 +71,20 @@ def normalize_airbyte_config(config: dict[str, Any]) -> dict[str, Any]:
     for key in config:
         if key in ("host", "port", "name", "region", "endpoint", "account", ""):
             normalized_config[key] = config[key]
-            break
-        if key in ("aws_region_name", "region_name"):
+        elif key in ("aws_region_name", "region_name", "s3_bucket_region"):
             normalized_config["region"] = config[key]
-        if key in ("queue_url", "url"):
+        elif key in ("queue_url", "url", "s3_endpoint"):
             normalized_config["endpoint"] = config[key]
-        if key in ("azure_blob_storage_account_name", "storage_account_name"):
+        elif key in ("azure_blob_storage_account_name", "storage_account_name"):
             normalized_config["account"] = config[key]
-        if key in ("azure_blob_storage_container_name", "bucket", "database"):
+        elif key in (
+            "azure_blob_storage_container_name",
+            "bucket",
+            "database",
+            "s3_bucket_name",
+        ):
             normalized_config["name"] = config[key]
+    return normalized_config
 
 
 def list_to_string(lst: list[str]) -> str | None:

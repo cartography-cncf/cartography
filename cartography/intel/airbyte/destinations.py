@@ -37,7 +37,7 @@ def sync(
 @timeit
 def get(
     api_session: AirbyteClient,
-    workspace_ids: List[str] = None,
+    workspace_ids: List[str],
 ) -> List[Dict[str, Any]]:
     return api_session.get(
         "/destinations",
