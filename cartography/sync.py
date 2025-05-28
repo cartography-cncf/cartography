@@ -13,6 +13,7 @@ import neo4j.exceptions
 from neo4j import GraphDatabase
 from statsd import StatsClient
 
+import cartography.intel.airbyte
 import cartography.intel.analysis
 import cartography.intel.anthropic
 import cartography.intel.aws
@@ -48,6 +49,7 @@ logger = logging.getLogger(__name__)
 TOP_LEVEL_MODULES = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
         "create-indexes": cartography.intel.create_indexes.run,
+        "airbyte": cartography.intel.airbyte.start_airbyte_ingestion,
         "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
         "aws": cartography.intel.aws.start_aws_ingestion,
         "azure": cartography.intel.azure.start_azure_ingestion,
