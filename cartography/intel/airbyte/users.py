@@ -2,6 +2,7 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Tuple
 
 import neo4j
 
@@ -22,7 +23,15 @@ def sync(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     users = get(api_session, org_id=org_id)
-    # WIP: https://reference.airbyte.com/reference/listpermissions
+    for user in users:
+        permissions = get_permissions(api_session, user["userId"], org_id=org_id)
+        org_admin, org_member, workspace_admin, workspace_member = (
+            transform_permissions(permissions)
+        )
+        user["adminOfOrganization"] = org_admin
+        user["memberOfOrganization"] = org_member
+        user["adminOfWorkspace"] = workspace_admin
+        user["memberOfWorkspace"] = workspace_member
     load_users(neo4j_session, users, org_id, common_job_parameters["UPDATE_TAG"])
     cleanup(neo4j_session, common_job_parameters)
 
@@ -33,6 +42,46 @@ def get(
     org_id: str,
 ) -> List[Dict[str, Any]]:
     return api_session.get("/users", params={"organizationId": org_id})
+
+
+@timeit
+def get_permissions(
+    api_session: AirbyteClient,
+    user_id: str,
+    org_id: str,
+) -> List[Dict[str, Any]]:
+    return api_session.get(
+        "/permissions",
+        params={"organizationId": org_id, "userId": user_id},
+    )
+
+
+@timeit
+def transform_permissions(
+    permissions: List[Dict[str, Any]],
+) -> Tuple[
+    List[str],  # org_admin
+    List[str],  # org_member
+    List[str],  # workspace_admin
+    List[str],  # workspace_member
+]:
+    org_admin: list[str] = []
+    org_member: list[str] = []
+    workspace_admin: list[str] = []
+    workspace_member: list[str] = []
+
+    for permission in permissions:
+        # workspace
+        if permission["scope"] == "workspace":
+            if permission["permissionType"] in ("workspace_owner", "workspace_admin"):
+                workspace_admin.append(permission["scopeId"])
+            workspace_member.append(permission["scopeId"])
+        # organization
+        elif permission["scope"] == "organization":
+            if permission["permissionType"] in ("organization_admin",):
+                org_admin.append(permission["scopeId"])
+            org_member.append(permission["scopeId"])
+    return org_admin, org_member, workspace_admin, workspace_member
 
 
 @timeit

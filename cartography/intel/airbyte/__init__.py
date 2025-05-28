@@ -99,5 +99,3 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
             workspace_ids,
             org_common_job_parameters,
         )
-
-        # WIP: https://reference.airbyte.com/reference/listapplications

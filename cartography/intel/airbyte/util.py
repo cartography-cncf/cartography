@@ -25,7 +25,7 @@ class AirbyteClient:
             f"{self.base_url}{uri}", params=params, timeout=_TIMEOUT
         )
         response.raise_for_status()
-        return response.json().get("data")
+        return response.json().get("data", [])
 
     def authenticate(self) -> None:
         # DOC
