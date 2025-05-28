@@ -2,12 +2,12 @@ import logging
 
 import neo4j
 
+import cartography.intel.airbyte.connections
 import cartography.intel.airbyte.destinations
 import cartography.intel.airbyte.organizations
 import cartography.intel.airbyte.sources
+import cartography.intel.airbyte.tags
 import cartography.intel.airbyte.users
-
-# import cartography.intel.airbyte.connections
 import cartography.intel.airbyte.workspaces
 from cartography.config import Config
 from cartography.intel.airbyte.util import AirbyteClient
@@ -84,18 +84,20 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
             org_common_job_parameters,
         )
 
-        # WIP: https://reference.airbyte.com/reference/listapplications
-        # WIP: https://reference.airbyte.com/reference/listtags
-
-        """
-
+        cartography.intel.airbyte.tags.sync(
+            neo4j_session,
+            api_client,
+            organization["organizationId"],
+            workspace_ids,
+            org_common_job_parameters,
+        )
 
         cartography.intel.airbyte.connections.sync(
             neo4j_session,
-            api_session,
+            api_client,
+            organization["organizationId"],
+            workspace_ids,
             org_common_job_parameters,
-            connectionId=config.airbyte_connectionid,
         )
 
-
-        """
+        # WIP: https://reference.airbyte.com/reference/listapplications

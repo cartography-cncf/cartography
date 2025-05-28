@@ -58,8 +58,8 @@ class AirbyteDestinationToWorkspaceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AirbyteDestinationToOrganizationRelProperties = (
-        AirbyteDestinationToOrganizationRelProperties()
+    properties: AirbyteDestinationToWorkspaceRelProperties = (
+        AirbyteDestinationToWorkspaceRelProperties()
     )
 
 
@@ -70,6 +70,6 @@ class AirbyteDestinationSchema(CartographyNodeSchema):
     sub_resource_relationship: AirbyteDestinationToOrganizationRel = (
         AirbyteDestinationToOrganizationRel()
     )
-    other_relationship: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [AirbyteDestinationToWorkspaceRel()]
     )

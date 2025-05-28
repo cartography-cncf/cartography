@@ -70,6 +70,6 @@ class AirbyteSourceSchema(CartographyNodeSchema):
     sub_resource_relationship: AirbyteSourceToOrganizationRel = (
         AirbyteSourceToOrganizationRel()
     )
-    other_relationship: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [AirbyteSourceToWorkspaceRel()]
     )

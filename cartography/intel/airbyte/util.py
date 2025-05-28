@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import Any
 
 import requests
 
@@ -10,25 +11,21 @@ _TIMEOUT = (60, 60)
 
 class AirbyteClient:
     # DOC
-    def __init__(self, base_url: str, client_id: str, client_secret: str):
+    def __init__(self, base_url: str, client_id: str, client_secret: str) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
         self.base_url = base_url
         self._access_token_expiry: int | None = None
         self._session = requests.Session()
 
-    def get(self, uri: str, params: dict = None):
+    def get(self, uri: str, params: dict = None) -> list[dict[str, Any]]:
         # DOC
         self.authenticate()
         response = self._session.get(
             f"{self.base_url}{uri}", params=params, timeout=_TIMEOUT
         )
         response.raise_for_status()
-        data = response.json().get("data")
-        # WIP: Uggly debugging
-        if data is None:
-            print(response.json())
-        return data
+        return response.json().get("data")
 
     def authenticate(self) -> None:
         # DOC
@@ -54,7 +51,7 @@ class AirbyteClient:
         print(f"Access token renewed, expires in {token_expiry} seconds.")
 
 
-def normalize_airbyte_config(config: dict) -> dict:
+def normalize_airbyte_config(config: dict[str, Any]) -> dict[str, Any]:
     # DOC
     normalized_config = {}
     for key in config:
@@ -69,3 +66,17 @@ def normalize_airbyte_config(config: dict) -> dict:
             normalized_config["account"] = config[key]
         if key in ("azure_blob_storage_container_name", "bucket", "database"):
             normalized_config["name"] = config[key]
+
+
+def list_to_string(lst: list[str]) -> str | None:
+    # DOC
+    if len(lst) == 0:
+        return None
+    # Sublist
+    formated_list: list[str] = []
+    for item in lst:
+        if isinstance(item, list):
+            formated_list.append("|".join(item))
+        else:
+            formated_list.append(str(item))
+    return ",".join(formated_list)
