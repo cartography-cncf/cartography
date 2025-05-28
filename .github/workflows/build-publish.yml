@@ -3,8 +3,8 @@ name: Build &
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+-*'
+      - '[0-9]+.[0-9]+.[0-9]+'        # releases that look like 1.2.3
+      - '[0-9]+.[0-9]+.[0-9]rc[0-9]+' # pre-releases that look like 1.2.3rc1 (not semver compliant but PEP 440 compliant)
 
 # Explicitly grant the `secrets.GITHUB_TOKEN` no permissions.
 permissions: {}
@@ -98,4 +98,5 @@ jobs:
         with:
             artifacts: "dist/*"
             generateReleaseNotes: "true"
-            makeLatest: "true"
+            makeLatest: ${{ contains(github.ref, 'rc') && 'false' || 'true' }}
+            prerelease: ${{ contains(github.ref, 'rc') && 'true' || 'false' }}
