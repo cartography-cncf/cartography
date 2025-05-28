@@ -4,7 +4,7 @@ import neo4j
 
 import cartography.intel.airbyte.organizations
 
-# import cartography.intel.airbyte.users
+import cartography.intel.airbyte.users
 # import cartography.intel.airbyte.sources
 # import cartography.intel.airbyte.destinations
 # import cartography.intel.airbyte.connections
@@ -47,44 +47,48 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         api_client,
         common_job_parameters,
     ):
-
         org_common_job_parameters = {
             "UPDATE_TAG": config.update_tag,
-            "ORGANIZATION_ID": organization["organizationId"],
+            "ORG_ID": organization["organizationId"],
         }
-
-        """
         cartography.intel.airbyte.users.sync(
             neo4j_session,
-            api_session,
-            common_job_parameters,
+            api_client,
+            organization["organizationId"],
+            org_common_job_parameters,
         )
+
+        # WIP: https://reference.airbyte.com/reference/listapplications
+        # WIP: https://reference.airbyte.com/reference/listtags
+
+        """
+
 
         cartography.intel.airbyte.sources.sync(
             neo4j_session,
             api_session,
-            common_job_parameters,
+            org_common_job_parameters,
             sourceId=config.airbyte_sourceid,
         )
 
         cartography.intel.airbyte.destinations.sync(
             neo4j_session,
             api_session,
-            common_job_parameters,
+            org_common_job_parameters,
             destinationId=config.airbyte_destinationid,
         )
 
         cartography.intel.airbyte.connections.sync(
             neo4j_session,
             api_session,
-            common_job_parameters,
+            org_common_job_parameters,
             connectionId=config.airbyte_connectionid,
         )
 
         cartography.intel.airbyte.workspaces.sync(
             neo4j_session,
             api_session,
-            common_job_parameters,
+            org_common_job_parameters,
             workspaceId=config.airbyte_workspaceid,
         )
         """
