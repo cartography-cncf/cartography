@@ -2,13 +2,13 @@ import logging
 
 import neo4j
 
+import cartography.intel.airbyte.destinations
 import cartography.intel.airbyte.organizations
-
+import cartography.intel.airbyte.sources
 import cartography.intel.airbyte.users
-# import cartography.intel.airbyte.sources
-# import cartography.intel.airbyte.destinations
+
 # import cartography.intel.airbyte.connections
-# import cartography.intel.airbyte.workspaces
+import cartography.intel.airbyte.workspaces
 from cartography.config import Config
 from cartography.intel.airbyte.util import AirbyteClient
 from cartography.util import timeit
@@ -42,19 +42,45 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         "UPDATE_TAG": config.update_tag,
     }
 
-    for organization in cartography.intel.airbyte.organizations.sync(
+    organizations = cartography.intel.airbyte.organizations.sync(
         neo4j_session,
         api_client,
         common_job_parameters,
-    ):
+    )
+
+    for organization in organizations:
         org_common_job_parameters = {
             "UPDATE_TAG": config.update_tag,
             "ORG_ID": organization["organizationId"],
         }
+        workspaces = cartography.intel.airbyte.workspaces.sync(
+            neo4j_session,
+            api_client,
+            organization["organizationId"],
+            org_common_job_parameters,
+        )
+        workspace_ids = [workspace["workspaceId"] for workspace in workspaces]
+
         cartography.intel.airbyte.users.sync(
             neo4j_session,
             api_client,
             organization["organizationId"],
+            org_common_job_parameters,
+        )
+
+        cartography.intel.airbyte.sources.sync(
+            neo4j_session,
+            api_client,
+            organization["organizationId"],
+            workspace_ids,
+            org_common_job_parameters,
+        )
+
+        cartography.intel.airbyte.destinations.sync(
+            neo4j_session,
+            api_client,
+            organization["organizationId"],
+            workspace_ids,
             org_common_job_parameters,
         )
 
@@ -64,20 +90,6 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         """
 
 
-        cartography.intel.airbyte.sources.sync(
-            neo4j_session,
-            api_session,
-            org_common_job_parameters,
-            sourceId=config.airbyte_sourceid,
-        )
-
-        cartography.intel.airbyte.destinations.sync(
-            neo4j_session,
-            api_session,
-            org_common_job_parameters,
-            destinationId=config.airbyte_destinationid,
-        )
-
         cartography.intel.airbyte.connections.sync(
             neo4j_session,
             api_session,
@@ -85,10 +97,5 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
             connectionId=config.airbyte_connectionid,
         )
 
-        cartography.intel.airbyte.workspaces.sync(
-            neo4j_session,
-            api_session,
-            org_common_job_parameters,
-            workspaceId=config.airbyte_workspaceid,
-        )
+
         """

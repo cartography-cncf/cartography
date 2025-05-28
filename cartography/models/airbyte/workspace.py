@@ -11,36 +11,36 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AirbyteUserNodeProperties(CartographyNodeProperties):
+class AirbyteWorkspaceNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("workspaceId")
     name: PropertyRef = PropertyRef("name")
-    email: PropertyRef = PropertyRef("email")
-    id: PropertyRef = PropertyRef("id")
+    data_residency: PropertyRef = PropertyRef("dataResidency")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AirbyteUserToOrganizationRelProperties(CartographyRelProperties):
+class AirbyteWorkspaceToOrganizationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteUser)
-class AirbyteUserToOrganizationRel(CartographyRelSchema):
+# (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteWorkspace)
+class AirbyteWorkspaceToOrganizationRel(CartographyRelSchema):
     target_node_label: str = "AirbyteOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AirbyteUserToOrganizationRelProperties = (
-        AirbyteUserToOrganizationRelProperties()
+    properties: AirbyteWorkspaceToOrganizationRelProperties = (
+        AirbyteWorkspaceToOrganizationRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AirbyteUserSchema(CartographyNodeSchema):
-    label: str = "AirbyteUser"
-    properties: AirbyteUserNodeProperties = AirbyteUserNodeProperties()
-    sub_resource_relationship: AirbyteUserToOrganizationRel = (
-        AirbyteUserToOrganizationRel()
+class AirbyteWorkspaceSchema(CartographyNodeSchema):
+    label: str = "AirbyteWorkspace"
+    properties: AirbyteWorkspaceNodeProperties = AirbyteWorkspaceNodeProperties()
+    sub_resource_relationship: AirbyteWorkspaceToOrganizationRel = (
+        AirbyteWorkspaceToOrganizationRel()
     )

@@ -52,3 +52,20 @@ class AirbyteClient:
         self._access_token_expiry = time.time() + token_expiry
         # WIP: Change for logger
         print(f"Access token renewed, expires in {token_expiry} seconds.")
+
+
+def normalize_airbyte_config(config: dict) -> dict:
+    # DOC
+    normalized_config = {}
+    for key in config:
+        if key in ("host", "port", "name", "region", "endpoint", "account", ""):
+            normalized_config[key] = config[key]
+            break
+        if key in ("aws_region_name", "region_name"):
+            normalized_config["region"] = config[key]
+        if key in ("queue_url", "url"):
+            normalized_config["endpoint"] = config[key]
+        if key in ("azure_blob_storage_account_name", "storage_account_name"):
+            normalized_config["account"] = config[key]
+        if key in ("azure_blob_storage_container_name", "bucket", "database"):
+            normalized_config["name"] = config[key]
