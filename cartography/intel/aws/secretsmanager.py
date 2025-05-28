@@ -133,7 +133,7 @@ def transform_secret_versions(
             "ARN": version["ARN"],
             "SecretId": version["SecretId"],
             "VersionId": version["VersionId"],
-            "VersionStages": version["VersionStages"],
+            "VersionStages": version.get("VersionStages"),
             "CreatedDate": dict_date_to_epoch(version, "CreatedDate"),
         }
 
