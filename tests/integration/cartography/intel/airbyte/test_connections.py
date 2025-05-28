@@ -1,29 +1,26 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import requests
-
 import cartography.intel.airbyte.connections
 import tests.data.airbyte.connections
 import tests.data.airbyte.workspaces
-from tests.integration.util import check_nodes
-from tests.integration.util import check_rels
+from tests.integration.cartography.intel.airbyte.test_destinations import (
+    _ensure_local_neo4j_has_test_destinations,
+)
 from tests.integration.cartography.intel.airbyte.test_organizations import (
     _ensure_local_neo4j_has_test_organizations,
-)
-from tests.integration.cartography.intel.airbyte.test_workspaces import (
-    _ensure_local_neo4j_has_test_workspaces,
-)
-from tests.integration.cartography.intel.airbyte.test_tags import (
-    _ensure_local_neo4j_has_test_tags,
 )
 from tests.integration.cartography.intel.airbyte.test_sources import (
     _ensure_local_neo4j_has_test_sources,
 )
-from tests.integration.cartography.intel.airbyte.test_destinations import (
-    _ensure_local_neo4j_has_test_destinations,
+from tests.integration.cartography.intel.airbyte.test_tags import (
+    _ensure_local_neo4j_has_test_tags,
 )
-
+from tests.integration.cartography.intel.airbyte.test_workspaces import (
+    _ensure_local_neo4j_has_test_workspaces,
+)
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_CONNECTIONID = "CHANGEME"
@@ -66,7 +63,7 @@ def test_load_airbyte_connections(mock_api, neo4j_session):
 
     # Assert Connections exist
     expected_nodes = {
-        ('b9fd93fc-115c-4b5a-a10f-833280713819', 'Backup to S3'),
+        ("b9fd93fc-115c-4b5a-a10f-833280713819", "Backup to S3"),
     }
     assert (
         check_nodes(neo4j_session, "AirbyteConnection", ["id", "name"])
@@ -75,8 +72,8 @@ def test_load_airbyte_connections(mock_api, neo4j_session):
 
     # Assert Streams exist
     excpected_nodes = {
-        ('b9fd93fc-115c-4b5a-a10f-833280713819_users', 'users'),
-        ('b9fd93fc-115c-4b5a-a10f-833280713819_issues', 'issues')
+        ("b9fd93fc-115c-4b5a-a10f-833280713819_users", "users"),
+        ("b9fd93fc-115c-4b5a-a10f-833280713819_issues", "issues"),
     }
     assert (
         check_nodes(neo4j_session, "AirbyteStream", ["id", "name"]) == excpected_nodes
@@ -84,7 +81,7 @@ def test_load_airbyte_connections(mock_api, neo4j_session):
 
     # Assert Connections are linked to Organizations
     expected_rels = {
-        ('b9fd93fc-115c-4b5a-a10f-833280713819', TEST_ORG_ID),
+        ("b9fd93fc-115c-4b5a-a10f-833280713819", TEST_ORG_ID),
     }
     assert (
         check_rels(
@@ -100,7 +97,10 @@ def test_load_airbyte_connections(mock_api, neo4j_session):
     )
     # Assert Connections are linked to Workspaces
     expected_rels = {
-        ('b9fd93fc-115c-4b5a-a10f-833280713819', 'e4388e31-9c21-461b-9b5d-1905ca28c599'),
+        (
+            "b9fd93fc-115c-4b5a-a10f-833280713819",
+            "e4388e31-9c21-461b-9b5d-1905ca28c599",
+        ),
     }
     assert (
         check_rels(
@@ -116,7 +116,10 @@ def test_load_airbyte_connections(mock_api, neo4j_session):
     )
     # Assert Connections are linked to Tags
     expected_rels = {
-        ('b9fd93fc-115c-4b5a-a10f-833280713819', 'f367d42e-4987-41af-9388-c96f6237a798'),
+        (
+            "b9fd93fc-115c-4b5a-a10f-833280713819",
+            "f367d42e-4987-41af-9388-c96f6237a798",
+        ),
     }
     assert (
         check_rels(
@@ -132,7 +135,10 @@ def test_load_airbyte_connections(mock_api, neo4j_session):
     )
     # Assert Connections are linked to Sources
     expected_rels = {
-        ('b9fd93fc-115c-4b5a-a10f-833280713819', 'b626221b-9250-4c8b-8615-653ca7e807ab'),
+        (
+            "b9fd93fc-115c-4b5a-a10f-833280713819",
+            "b626221b-9250-4c8b-8615-653ca7e807ab",
+        ),
     }
     assert (
         check_rels(
@@ -148,7 +154,7 @@ def test_load_airbyte_connections(mock_api, neo4j_session):
     )
     # Assert Connections are linked to Destinations
     expected_rels = {
-        ('b9fd93fc-115c-4b5a-a10f-833280713819', '30e064ed-4211-4868-9b8f-e2bbc8f8969a')
+        ("b9fd93fc-115c-4b5a-a10f-833280713819", "30e064ed-4211-4868-9b8f-e2bbc8f8969a")
     }
     assert (
         check_rels(
@@ -164,8 +170,14 @@ def test_load_airbyte_connections(mock_api, neo4j_session):
     )
     # Assert Streams are linked to Connections
     expected_rels = {
-        ('b9fd93fc-115c-4b5a-a10f-833280713819_issues', 'b9fd93fc-115c-4b5a-a10f-833280713819'),
-        ('b9fd93fc-115c-4b5a-a10f-833280713819_users', 'b9fd93fc-115c-4b5a-a10f-833280713819')
+        (
+            "b9fd93fc-115c-4b5a-a10f-833280713819_issues",
+            "b9fd93fc-115c-4b5a-a10f-833280713819",
+        ),
+        (
+            "b9fd93fc-115c-4b5a-a10f-833280713819_users",
+            "b9fd93fc-115c-4b5a-a10f-833280713819",
+        ),
     }
     assert (
         check_rels(

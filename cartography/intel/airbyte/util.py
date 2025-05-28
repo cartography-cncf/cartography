@@ -10,10 +10,11 @@ _TIMEOUT = (60, 60)
 
 
 class AirbyteClient:
-    """ A client for interacting with the Airbyte API.
+    """A client for interacting with the Airbyte API.
     This client handles authentication and provides methods to make GET requests to the Airbyte API.
     It automatically handles pagination for GET requests that return multiple pages of data.
     """
+
     def __init__(self, base_url: str, client_id: str, client_secret: str) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
@@ -22,7 +23,7 @@ class AirbyteClient:
         self._session = requests.Session()
 
     def get(self, uri: str, params: dict | None = None, offset: int = 0) -> list[dict]:
-        """ Make a GET request to the Airbyte API.
+        """Make a GET request to the Airbyte API.
         This method handles authentication and pagination.
         Args:
             uri (str): The URI to make the GET request to.
@@ -53,7 +54,7 @@ class AirbyteClient:
         return data
 
     def authenticate(self) -> None:
-        """ Authenticate with the Airbyte API using client credentials.
+        """Authenticate with the Airbyte API using client credentials.
         This method checks if the access token is still valid and renews it if necessary.
         If the access token is expired or not set, it will make a request to obtain a new access token.
         """
@@ -79,7 +80,7 @@ class AirbyteClient:
 
 
 def normalize_airbyte_config(config: dict[str, Any]) -> dict[str, Any]:
-    """ Normalize the Airbyte configuration dictionary.
+    """Normalize the Airbyte configuration dictionary.
     This function takes a configuration dictionary and normalizes it by mapping keys to a standard set of keys.
     This is useful for ensuring consistency across different configurations, and will allow to connect to existing nodes.
     Args:
@@ -108,7 +109,7 @@ def normalize_airbyte_config(config: dict[str, Any]) -> dict[str, Any]:
 
 
 def list_to_string(lst: list[str]) -> str | None:
-    """ Convert a list of strings to a comma-separated string. """
+    """Convert a list of strings to a comma-separated string."""
     if len(lst) == 0:
         return None
     # Sublist

@@ -22,7 +22,7 @@ def _ensure_local_neo4j_has_test_tags(neo4j_session):
         neo4j_session,
         tests.data.airbyte.tags.AIRBYTE_TAGS,
         TEST_ORG_ID,
-        TEST_UPDATE_TAG
+        TEST_UPDATE_TAG,
     )
 
 

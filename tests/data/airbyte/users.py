@@ -32,5 +32,5 @@ AIRBYTE_USERS_PERMISSIONS = [
         "userId": "eae5cd19-72c4-49b0-87b3-e2f0c99344a3",
         "scopeId": "e4388e31-9c21-461b-9b5d-1905ca28c599",
         "scope": "workspace",
-    }
+    },
 ]

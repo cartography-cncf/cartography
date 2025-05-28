@@ -26,7 +26,6 @@ def _ensure_local_neo4j_has_test_sources(neo4j_session):
     )
 
 
-
 @patch.object(
     cartography.intel.airbyte.sources,
     "get",
