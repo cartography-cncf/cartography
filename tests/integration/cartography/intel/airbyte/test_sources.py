@@ -17,6 +17,16 @@ TEST_UPDATE_TAG = 123456789
 TEST_ORG_ID = "31634962-4b3c-4b0c-810d-a2a77d6df222"
 
 
+def _ensure_local_neo4j_has_test_sources(neo4j_session):
+    cartography.intel.airbyte.sources.load_sources(
+        neo4j_session,
+        tests.data.airbyte.sources.AIRBYTE_SOURCES,
+        TEST_ORG_ID,
+        TEST_UPDATE_TAG,
+    )
+
+
+
 @patch.object(
     cartography.intel.airbyte.sources,
     "get",
@@ -86,7 +96,6 @@ def test_load_airbyte_sources(mock_api, neo4j_session):
     )
 
     # Assert sources are connected to the workspace
-    # Assert workspaces are connected to the organization
     expected_rels = {
         (
             "e4388e31-9c21-461b-9b5d-1905ca28c599",

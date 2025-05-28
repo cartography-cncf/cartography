@@ -17,6 +17,15 @@ TEST_UPDATE_TAG = 123456789
 TEST_ORG_ID = "31634962-4b3c-4b0c-810d-a2a77d6df222"
 
 
+def _ensure_local_neo4j_has_test_tags(neo4j_session):
+    cartography.intel.airbyte.tags.load_tags(
+        neo4j_session,
+        tests.data.airbyte.tags.AIRBYTE_TAGS,
+        TEST_ORG_ID,
+        TEST_UPDATE_TAG
+    )
+
+
 @patch.object(
     cartography.intel.airbyte.tags,
     "get",
