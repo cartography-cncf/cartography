@@ -28,12 +28,14 @@ import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gsuite
+import cartography.intel.jamf
 import cartography.intel.kandji
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.openai
+import cartography.intel.pagerduty
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale
@@ -56,6 +58,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
         "gcp": cartography.intel.gcp.start_gcp_ingestion,
         "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
+        "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "cve": cartography.intel.cve.start_cve_ingestion,
         "oci": cartography.intel.oci.start_oci_ingestion,
         "okta": cartography.intel.okta.start_okta_ingestion,
@@ -65,6 +68,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
+        "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
         "duo": cartography.intel.duo.start_duo_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
