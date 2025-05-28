@@ -10,7 +10,10 @@ _TIMEOUT = (60, 60)
 
 
 class AirbyteClient:
-    # DOC
+    """ A client for interacting with the Airbyte API.
+    This client handles authentication and provides methods to make GET requests to the Airbyte API.
+    It automatically handles pagination for GET requests that return multiple pages of data.
+    """
     def __init__(self, base_url: str, client_id: str, client_secret: str) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
@@ -19,7 +22,15 @@ class AirbyteClient:
         self._session = requests.Session()
 
     def get(self, uri: str, params: dict | None = None, offset: int = 0) -> list[dict]:
-        # DOC
+        """ Make a GET request to the Airbyte API.
+        This method handles authentication and pagination.
+        Args:
+            uri (str): The URI to make the GET request to.
+            params (dict | None): Optional parameters to include in the request.
+            offset (int): The offset for pagination, defaults to 0.
+        Returns:
+            list[dict]: A list of dictionaries containing the data from the response.
+        """
         self.authenticate()
         if params is None:
             params_with_pagination = {}
@@ -42,7 +53,10 @@ class AirbyteClient:
         return data
 
     def authenticate(self) -> None:
-        # DOC
+        """ Authenticate with the Airbyte API using client credentials.
+        This method checks if the access token is still valid and renews it if necessary.
+        If the access token is expired or not set, it will make a request to obtain a new access token.
+        """
         if self._access_token_expiry and self._access_token_expiry >= time.time():
             return
         self._session.headers.pop("Authorization", None)
@@ -61,12 +75,18 @@ class AirbyteClient:
         )
         token_expiry = data.get("expires_in", 0)
         self._access_token_expiry = time.time() + token_expiry
-        # WIP: Change for logger
-        print(f"Access token renewed, expires in {token_expiry} seconds.")
+        logger.debug("Access token renewed, expires in %s seconds.", token_expiry)
 
 
 def normalize_airbyte_config(config: dict[str, Any]) -> dict[str, Any]:
-    # DOC
+    """ Normalize the Airbyte configuration dictionary.
+    This function takes a configuration dictionary and normalizes it by mapping keys to a standard set of keys.
+    This is useful for ensuring consistency across different configurations, and will allow to connect to existing nodes.
+    Args:
+        config (dict[str, Any]): The configuration dictionary to normalize.
+    Returns:
+        dict[str, Any]: A normalized configuration dictionary with standardized keys.
+    """
     normalized_config = {}
     for key in config:
         if key in ("host", "port", "name", "region", "endpoint", "account", ""):
@@ -88,7 +108,7 @@ def normalize_airbyte_config(config: dict[str, Any]) -> dict[str, Any]:
 
 
 def list_to_string(lst: list[str]) -> str | None:
-    # DOC
+    """ Convert a list of strings to a comma-separated string. """
     if len(lst) == 0:
         return None
     # Sublist
