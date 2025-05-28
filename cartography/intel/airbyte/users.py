@@ -24,12 +24,11 @@ def sync(
 ) -> None:
     users = get(api_session, org_id=org_id)
     for user in users:
-        permissions = get_permissions(api_session, user["userId"], org_id=org_id)
-        org_admin, org_member, workspace_admin, workspace_member = (
-            transform_permissions(permissions)
+        permissions = get_permissions(api_session, user["id"], org_id=org_id)
+        org_admin, workspace_admin, workspace_member = transform_permissions(
+            permissions
         )
         user["adminOfOrganization"] = org_admin
-        user["memberOfOrganization"] = org_member
         user["adminOfWorkspace"] = workspace_admin
         user["memberOfWorkspace"] = workspace_member
     load_users(neo4j_session, users, org_id, common_job_parameters["UPDATE_TAG"])
@@ -61,12 +60,10 @@ def transform_permissions(
     permissions: List[Dict[str, Any]],
 ) -> Tuple[
     List[str],  # org_admin
-    List[str],  # org_member
     List[str],  # workspace_admin
     List[str],  # workspace_member
 ]:
     org_admin: list[str] = []
-    org_member: list[str] = []
     workspace_admin: list[str] = []
     workspace_member: list[str] = []
 
@@ -80,8 +77,7 @@ def transform_permissions(
         elif permission["scope"] == "organization":
             if permission["permissionType"] in ("organization_admin",):
                 org_admin.append(permission["scopeId"])
-            org_member.append(permission["scopeId"])
-    return org_admin, org_member, workspace_admin, workspace_member
+    return org_admin, workspace_admin, workspace_member
 
 
 @timeit

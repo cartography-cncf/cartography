@@ -26,6 +26,10 @@
 ```{include} ../modules/_cartography-metadata/schema.md
 ```
 
+```{include} ../modules/airbyte/schema.md
+```
+
+
 ```{include} ../modules/anthropic/schema.md
 ```
 

@@ -13,9 +13,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AirbyteUserNodeProperties(CartographyNodeProperties):
-    name: PropertyRef = PropertyRef("name")
-    email: PropertyRef = PropertyRef("email")
     id: PropertyRef = PropertyRef("id")
+    name: PropertyRef = PropertyRef("name")
+    email: PropertyRef = PropertyRef("email", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -54,25 +54,6 @@ class AirbyteUserToOrganizationAdminRel(CartographyRelSchema):
     rel_label: str = "ADMIN_OF"
     properties: AirbyteUserToOrganizationAdminRelProperties = (
         AirbyteUserToOrganizationAdminRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class AirbyteUserToOrganizationMemberRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:AirbyteOrganization)<-[:MEMBER_OF]-(:AirbyteUser)
-class AirbyteUserToOrganizationMemberRel(CartographyRelSchema):
-    target_node_label: str = "AirbyteOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("adminOfOrganization", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "MEMBER_OF"
-    properties: AirbyteUserToOrganizationMemberRelProperties = (
-        AirbyteUserToOrganizationMemberRelProperties()
     )
 
 
@@ -124,7 +105,6 @@ class AirbyteUserSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AirbyteUserToOrganizationAdminRel(),
-            AirbyteUserToOrganizationMemberRel(),
             AirbyteUserToWorkspaceAdminRel(),
             AirbyteUserToWorkspaceMemberRel(),
         ]

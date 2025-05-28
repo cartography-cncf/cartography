@@ -15,11 +15,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class AirbyteConnectionNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("connectionId")
     name: PropertyRef = PropertyRef("name")
-    destination_id: PropertyRef = PropertyRef("destinationId")
     namespace_format: PropertyRef = PropertyRef("namespaceFormat")
     prefix: PropertyRef = PropertyRef("prefix")
     status: PropertyRef = PropertyRef("status")
-    schedule: PropertyRef = PropertyRef("schedule.id")
     data_residency: PropertyRef = PropertyRef("dataResidency")
     non_breaking_schema_updates_behavior: PropertyRef = PropertyRef(
         "nonBreakingSchemaUpdatesBehavior"
