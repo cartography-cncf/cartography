@@ -46,7 +46,7 @@ def get(
 ) -> List[Dict[str, Any]]:
     return api_session.get(
         "/connections",
-        {"workspaceIds": ",".join(workspace_ids) if workspace_ids else None},
+        {"workspaceIds": ",".join(workspace_ids)} if workspace_ids else None,
     )
 
 

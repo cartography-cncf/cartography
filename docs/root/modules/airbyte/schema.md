@@ -87,7 +87,7 @@ Provides details of a single workspace.
     ```
 - `User` is member of an `Workspace`
     ```
-    (:AirbyteUser)-[:ADMIN_OF]->(:AirbyteWorkspace)
+    (:AirbyteUser)-[:MEMBER_OF]->(:AirbyteWorkspace)
     ```
 
 
@@ -119,7 +119,7 @@ Provides details of a single user in an organization.
 - `User` is member of an `Workspace`
     ```
     (:AirbyteUser)-[:ADMIN_OF]->(:AirbyteWorkspace)
-
+    ```
 
 
 ### AirbyteSource
@@ -145,7 +145,7 @@ Provides details of a single source.
 
 - `Source` belong to an `Organization`
     ```
-    (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteWorkspace)
+    (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteSource)
     ```
 - `Workspace` contains `Source`
     ```

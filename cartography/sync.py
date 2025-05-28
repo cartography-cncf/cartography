@@ -203,10 +203,6 @@ class Sync:
         return available_modules
 
 
-# Used to avoid repeatedly calling Sync.list_intel_modules()
-TOP_LEVEL_MODULES = Sync.list_intel_modules()
-
-
 def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:
     """
     Execute the cartography.sync.Sync.run method with parameters built from the given configuration object.

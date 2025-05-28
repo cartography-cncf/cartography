@@ -71,13 +71,11 @@ def test_load_airbyte_connections(mock_api, neo4j_session):
     )
 
     # Assert Streams exist
-    excpected_nodes = {
+    expected_nodes = {
         ("b9fd93fc-115c-4b5a-a10f-833280713819_users", "users"),
         ("b9fd93fc-115c-4b5a-a10f-833280713819_issues", "issues"),
     }
-    assert (
-        check_nodes(neo4j_session, "AirbyteStream", ["id", "name"]) == excpected_nodes
-    )
+    assert check_nodes(neo4j_session, "AirbyteStream", ["id", "name"]) == expected_nodes
 
     # Assert Connections are linked to Organizations
     expected_rels = {

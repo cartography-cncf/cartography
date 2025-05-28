@@ -39,7 +39,7 @@ class AirbyteClient:
             params_with_pagination = params.copy()
         params_with_pagination["offset"] = offset
         response = self._session.get(
-            f"{self.base_url}{uri}", params=params_with_pagination
+            f"{self.base_url}{uri}", params=params_with_pagination, timeout=_TIMEOUT
         )
         response.raise_for_status()
         data = response.json().get("data")

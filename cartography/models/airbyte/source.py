@@ -58,8 +58,8 @@ class AirbyteSourceToWorkspaceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AirbyteSourceToOrganizationRelProperties = (
-        AirbyteSourceToOrganizationRelProperties()
+    properties: AirbyteSourceToWorkspaceRelProperties = (
+        AirbyteSourceToWorkspaceRelProperties()
     )
 
 

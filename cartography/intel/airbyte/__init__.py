@@ -24,7 +24,11 @@ def start_airbyte_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
     :param config: A cartography.config object
     :return: None
     """
-    if not config.airbyte_client_id or not config.airbyte_client_secret:
+    if (
+        not config.airbyte_api_url
+        or not config.airbyte_client_id
+        or not config.airbyte_client_secret
+    ):
         logger.info(
             "Airbyte import is not configured - skipping this module. "
             "See docs to configure.",
