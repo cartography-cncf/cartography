@@ -52,8 +52,8 @@ class S3ObjectToS3BucketRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("BucketARN")},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "STORED_IN"
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "STORES"
     properties: S3ObjectRelProperties = S3ObjectRelProperties()
 
 
