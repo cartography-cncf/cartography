@@ -6,6 +6,7 @@ from typing import List
 LIST_S3_OBJECTS = [
     {
         "Key": "documents/report.pdf",
+        "ARN": "arn:aws:s3:::test-bucket/documents/report.pdf",
         "LastModified": datetime.datetime(2025, 5, 20, 10, 0, 0, tzinfo=timezone.utc),
         "ETag": "abc123",
         "Size": 1024000,
@@ -13,6 +14,7 @@ LIST_S3_OBJECTS = [
     },
     {
         "Key": "images/logo.png",
+        "ARN": "arn:aws:s3:::test-bucket/images/logo.png",
         "LastModified": datetime.datetime(2025, 5, 21, 14, 30, 0, tzinfo=timezone.utc),
         "ETag": "def456",
         "Size": 50000,
@@ -21,6 +23,7 @@ LIST_S3_OBJECTS = [
     },
     {
         "Key": "archive/old-data.zip",
+        "ARN": "arn:aws:s3:::test-bucket/archive/old-data.zip",
         "LastModified": datetime.datetime(2025, 5, 15, 8, 0, 0, tzinfo=timezone.utc),
         "ETag": "ghi789",
         "Size": 5000000,
@@ -32,6 +35,14 @@ LIST_S3_OBJECTS = [
             ),
         },
     },
+    {
+        "Key": "deleted/file.txt",
+        "ARN": "arn:aws:s3:::test-bucket/deleted/file.txt",
+        "LastModified": datetime.datetime(2025, 5, 22, 9, 0, 0, tzinfo=timezone.utc),
+        "ETag": "jkl012",
+        "Size": 0,
+        "StorageClass": "STANDARD",
+    },
 ]
 
 EMPTY_BUCKET_OBJECTS: List[Dict] = []
@@ -39,6 +50,7 @@ EMPTY_BUCKET_OBJECTS: List[Dict] = []
 SINGLE_OBJECT_WITH_OWNER = [
     {
         "Key": "images/logo.png",
+        "ARN": "arn:aws:s3:::test-bucket/images/logo.png",
         "LastModified": datetime.datetime(2025, 5, 21, 14, 30, 0, tzinfo=timezone.utc),
         "ETag": "def456",
         "Size": 50000,
@@ -50,6 +62,7 @@ SINGLE_OBJECT_WITH_OWNER = [
 SINGLE_GLACIER_OBJECT = [
     {
         "Key": "archive/old-data.zip",
+        "ARN": "arn:aws:s3:::test-bucket/archive/old-data.zip",
         "LastModified": datetime.datetime(2025, 5, 15, 8, 0, 0, tzinfo=timezone.utc),
         "ETag": "ghi789",
         "Size": 5000000,
