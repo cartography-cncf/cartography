@@ -257,16 +257,13 @@ class CLI:
             ),
         )
         parser.add_argument(
-            "--aws-s3-object-max-per-bucket",
+            "--aws-s3-object-sync-limit",
             type=int,
             default=10000,
             help=(
-                "Maximum number of S3 objects to sync per bucket. "
+                "Maximum number of S3 objects to sync across all buckets. "
                 "Set to 0 to disable S3 object sync entirely. "
-                "Default: 10000. "
-                "WARNING: S3 buckets can contain millions of objects. "
-                "Object names may contain sensitive information (PII/ePHI). "
-                "Consider your compliance requirements before enabling."
+                "Default: 10000. Optional."
             ),
         )
         parser.add_argument(
