@@ -769,7 +769,19 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 | s3_bucket_name | The Amazon S3 bucket name where the CloudTrailTrail delivers files. |
 | s3_key_prefix | The S3 key prefix used after the bucket name for the CloudTrailTrail's log files. |
 | sns_topic_arn | The ARN of the SNS topic used by the CloudTrailTrail for delivery notifications. |
-
+#### Relationships
+- CloudTrailTrail is a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudTrailTrail)
+    ```
+    CloudTrailTrail may be encrypted by an AWS KMS Key.
+    ```
+    (CloudTrailTrail)-[ENCRYPTED_BY]->(KMSKey)
+    ```
+    CloudTrailTrail can send logs to CloudWatchLogGroup.
+    ```
+    (CloudTrailTrail)-[SEND_LOGS_TO]->(CloudWatchLogGroup)
+    ```
 
 ### CloudWatchLogGroup
 Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)
@@ -792,6 +804,10 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 - CLoudWatch LogGroups are a resource under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
+    CloudWatch LogGroups may be encrypted by an AWS KMS Key.
+    ```
+    (CloudWatchLogGroup)-[ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### DBSubnetGroup
@@ -3319,6 +3335,32 @@ Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/
     ```
     (AWSAccount)-[RESOURCE]->(SNSTopic)
     ```
+
+### SNSTopicSubscription
+Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sns/latest/api/API_GetSubscriptionAttributes.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the SNS topic subscription |
+| **arn** | The Amazon Resource Name (ARN) of the topic subscription |
+| topic_arn | The topic ARN that the subscription is associated with |
+| confirmation_was_authenticated | `true` if the subscription confirmation request was authenticated |
+| delivery_policy | The JSON serialization of the subscription's delivery policy |
+| effective_delivery_policy | The JSON serialization of the effective delivery policy |
+| filter_policy | The filter policy JSON that is assigned to the subscription |
+| filter_policy_scope | The filtering scope for the subscription (`MessageAttributes` or `MessageBody`) |
+| pending_confirmation | `true` if the subscription hasn't been confirmed |
+| raw_message_delivery | `true` if raw message delivery is enabled for the subscription |
+| redrive_policy | JSON policy to send undeliverable messages to a dead-letter queue |
+| subscription_role_arn | The ARN of the IAM role associated with the subscription |
+#### Relationships
+- SNS Topic Subscriptions are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SNSTopicSubscription)
+    ```
+
 ### S3AccountPublicAccessBlock
 Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources.
 

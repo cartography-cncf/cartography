@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -46,7 +47,32 @@ class CloudWatchToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class CloudWatchLogGroupToKMSKeyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudWatchLogGroupToKMSKeyRel(CartographyRelSchema):
+    target_node_label: str = "KMSKey"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("kmsKeyId"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ENCRYPTED_BY"
+    properties: CloudWatchLogGroupToKMSKeyRelProperties = (
+        CloudWatchLogGroupToKMSKeyRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class CloudWatchLogGroupSchema(CartographyNodeSchema):
     label: str = "CloudWatchLogGroup"
     properties: CloudWatchLogGroupNodeProperties = CloudWatchLogGroupNodeProperties()
     sub_resource_relationship: CloudWatchToAWSAccountRel = CloudWatchToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            CloudWatchLogGroupToKMSKeyRel(),
+        ],
+    )

@@ -42,6 +42,7 @@ def get_cloudtrail_trail(
     region: str,
     trail_name: str,
 ) -> Dict[str, Any]:
+
     client = boto3_session.client(
         "cloudtrail", region_name=region, config=get_botocore_config()
     )
