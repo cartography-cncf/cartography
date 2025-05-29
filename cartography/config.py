@@ -51,9 +51,9 @@ class Config:
     :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
-    :type aws_s3_object_max_per_bucket: int
-    :param aws_s3_object_max_per_bucket: Maximum number of S3 objects to sync per bucket. Set to 0 to disable
-           S3 object sync entirely. Default: 10000. Optional.
+    :type aws_s3_object_sync_limit: int
+    :param aws_s3_object_sync_limit: Maximum number of S3 objects to sync across all buckets.
+           Set to 0 to disable S3 object sync entirely. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -163,6 +163,7 @@ class Config:
         entra_client_id=None,
         entra_client_secret=None,
         aws_requested_syncs=None,
+        aws_s3_object_sync_limit=None,
         analysis_job_directory=None,
         oci_sync_all_profiles=None,
         okta_org_id=None,
@@ -212,7 +213,6 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
-        aws_s3_object_max_per_bucket=10000,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -222,7 +222,6 @@ class Config:
         self.selected_modules = selected_modules
         self.update_tag = update_tag
         self.aws_sync_all_profiles = aws_sync_all_profiles
-        self.aws_s3_object_max_per_bucket = aws_s3_object_max_per_bucket
         self.aws_regions = aws_regions
         self.aws_best_effort_mode = aws_best_effort_mode
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
@@ -234,6 +233,7 @@ class Config:
         self.entra_client_id = entra_client_id
         self.entra_client_secret = entra_client_secret
         self.aws_requested_syncs = aws_requested_syncs
+        self.aws_s3_object_sync_limit = aws_s3_object_sync_limit
         self.analysis_job_directory = analysis_job_directory
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
