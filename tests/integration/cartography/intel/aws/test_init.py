@@ -127,6 +127,7 @@ def test_start_aws_ingestion(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,
         aws_sync_all_profiles=True,
+        aws_s3_object_sync_limit=10000,
     )
 
     # Act
@@ -140,7 +141,7 @@ def test_start_aws_ingestion(
         {
             "UPDATE_TAG": test_config.update_tag,
             "permission_relationships_file": test_config.permission_relationships_file,
-            "aws_s3_object_max_per_bucket": 10000,
+            "aws_s3_object_sync_limit": 10000,
         },
     )
 
