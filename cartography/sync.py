@@ -29,12 +29,14 @@ import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
 import cartography.intel.gsuite
+import cartography.intel.jamf
 import cartography.intel.kandji
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.openai
+import cartography.intel.pagerduty
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale
@@ -72,6 +74,8 @@ TOP_LEVEL_MODULES = OrderedDict(
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
+        "jamf": cartography.intel.jamf.start_jamf_ingestion,
+        "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "analysis": cartography.intel.analysis.run,
     }
 )
