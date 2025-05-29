@@ -1,20 +1,28 @@
 import logging
 import pathlib
+from typing import Optional
 
 import neo4j
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 
 logger = logging.getLogger(__name__)
 
 
-def run(neo4j_session: neo4j.Session, config: Config) -> None:
-    analysis_job_directory_path = config.analysis_job_directory
-    if not analysis_job_directory_path:
-        logger.info("Skipping analysis because no job path was provided.")
+def run(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
+
+    if not check_module_settings("Analysis", ["job_directory"]):
         return
-    analysis_job_directory = pathlib.Path(analysis_job_directory_path)
+
+    analysis_job_directory = pathlib.Path(settings.analysis.job_directory)
     if not analysis_job_directory.exists():
         logger.warning(
             "Skipping analysis because the provided job path '%s' does not exist.",
@@ -34,7 +42,7 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
             GraphJob.run_from_json_file(
                 path,
                 neo4j_session,
-                {"UPDATE_TAG": config.update_tag},
+                {"UPDATE_TAG": settings.common.update_tag},
             )
         except (KeyboardInterrupt, SystemExit):
             raise

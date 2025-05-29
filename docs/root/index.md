@@ -7,6 +7,7 @@
 :hidden: true
 
 install
+configurarion
 usage/index
 ops
 ```

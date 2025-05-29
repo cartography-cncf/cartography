@@ -1,3 +1,9 @@
+# DEPRECATED: This file is deprecated and will be removed in a future release.
+# Please use cartography.settings instead.
+# See https://www.dynaconf.com/ for more information on how to use Dynaconf.
+# See ./docs/roots/configuration.md for more information on how to migrate to Dynaconf.
+
+
 class Config:
     """
     A common interface for cartography configuration.
@@ -26,8 +32,6 @@ class Config:
     :type aws_sync_all_profiles: bool
     :param aws_sync_all_profiles: If True, AWS sync will run for all non-default profiles in the AWS_CONFIG_FILE. If
         False (default), AWS sync will run using the default credentials only. Optional.
-    :type aws_regions: str
-    :param aws_regions: Comma-separated list of AWS regions to sync. Optional.
     :type aws_best_effort_mode: bool
     :param aws_best_effort_mode: If True, AWS sync will not raise any exceptions, just log. If False (default),
         exceptions will be raised.
@@ -51,6 +55,8 @@ class Config:
     :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
+    :type aws_regions: str
+    :param aws_regions: Comma-separated list of AWS regions to sync. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool

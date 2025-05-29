@@ -1,5 +1,6 @@
 import logging
 from typing import List
+from typing import Optional
 
 import neo4j
 
@@ -19,7 +20,7 @@ def get_index_statements() -> List[str]:
     return statements
 
 
-def run(neo4j_session: neo4j.Session, config: Config) -> None:
+def run(neo4j_session: neo4j.Session, config: Optional[Config] = None) -> None:
     logger.info("Creating indexes for cartography node types.")
     for statement in get_index_statements():
         logger.debug("Executing statement: %s", statement)

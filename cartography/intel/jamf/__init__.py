@@ -1,31 +1,37 @@
 import logging
+from typing import Optional
 
 import neo4j
 
 from cartography.config import Config
 from cartography.intel.jamf import computers
+from cartography.settings import check_module_settings
+from cartography.settings import populate_settings_from_config
+from cartography.settings import settings
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def start_jamf_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_jamf_ingestion(
+    neo4j_session: neo4j.Session, config: Optional[Config] = None
+) -> None:
+    # DEPRECATED: This is a temporary measure to support the old config format
+    # and the new config format. The old config format is deprecated and will be removed in a future release.
+    if config is not None:
+        populate_settings_from_config(config)
 
-    if not config.jamf_base_uri or not config.jamf_user or not config.jamf_password:
-        # If the config is not set, we don't want to run this module
-        logger.info(
-            "Jamf import is not configured - skipping this module. See docs to configure."
-        )
+    if not check_module_settings("JAMF", ["base_url", "username", "password"]):
         return
 
     common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
+        "UPDATE_TAG": settings.common.update_tag,
     }
     computers.sync(
         neo4j_session,
-        config.jamf_base_uri,
-        config.jamf_user,
-        config.jamf_password,
+        settings.jamf.base_url,
+        settings.jamf.user,
+        settings.jamf.password,
         common_job_parameters,
     )
