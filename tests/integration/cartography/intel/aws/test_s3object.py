@@ -3,8 +3,6 @@ from datetime import timezone
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest
-
 import cartography.intel.aws.s3_objects
 from cartography.intel.aws.s3_objects import sync
 from cartography.intel.aws.s3_objects import transform_s3_objects
@@ -22,9 +20,8 @@ TEST_BUCKET_NAME = "test-bucket"
 TEST_BUCKET_ARN = "arn:aws:s3:::test-bucket"
 
 
-@pytest.fixture
-def setup_s3_bucket(neo4j_session):
-    """Setup test S3 bucket in Neo4j."""
+def _ensure_neo4j_has_test_buckets(neo4j_session):
+    """Ensure test buckets exist in Neo4j for testing."""
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     neo4j_session.run(
         """
@@ -59,8 +56,9 @@ def _mock_transform_objects(objects):
     "get_s3_object_data",
     return_value=_mock_transform_objects(LIST_S3_OBJECTS),
 )
-def test_sync_s3_objects(mock_get_data, neo4j_session, setup_s3_bucket):
+def test_sync_s3_objects(mock_get_data, neo4j_session):
     """Test basic S3 object sync functionality."""
+    _ensure_neo4j_has_test_buckets(neo4j_session)
     boto3_session = MagicMock()
 
     sync(
@@ -94,14 +92,30 @@ def test_sync_s3_objects(mock_get_data, neo4j_session, setup_s3_bucket):
         (TEST_BUCKET_ARN, "deleted/file.txt"),
     }
 
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "S3Object",
+        "key",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "documents/report.pdf"),
+        (TEST_ACCOUNT_ID, "images/logo.png"),
+        (TEST_ACCOUNT_ID, "archive/old-data.zip"),
+        (TEST_ACCOUNT_ID, "deleted/file.txt"),
+    }
+
 
 @patch.object(
     cartography.intel.aws.s3_objects,
     "get_s3_object_data",
     return_value=_mock_transform_objects(SINGLE_GLACIER_OBJECT),
 )
-def test_sync_s3_objects_glacier_restore(mock_get_data, neo4j_session, setup_s3_bucket):
+def test_sync_s3_objects_glacier_restore(mock_get_data, neo4j_session):
     """Test Glacier object with restore status."""
+    _ensure_neo4j_has_test_buckets(neo4j_session)
     boto3_session = MagicMock()
 
     sync(
@@ -132,8 +146,9 @@ def test_sync_s3_objects_glacier_restore(mock_get_data, neo4j_session, setup_s3_
     "get_s3_object_data",
     return_value=_mock_transform_objects(SINGLE_OBJECT_WITH_OWNER),
 )
-def test_sync_s3_objects_with_owner(mock_get_data, neo4j_session, setup_s3_bucket):
+def test_sync_s3_objects_with_owner(mock_get_data, neo4j_session):
     """Test S3 object with owner information creates AWSPrincipal relationship."""
+    _ensure_neo4j_has_test_buckets(neo4j_session)
     boto3_session = MagicMock()
 
     sync(
@@ -170,8 +185,9 @@ def test_sync_s3_objects_with_owner(mock_get_data, neo4j_session, setup_s3_bucke
     "get_s3_object_data",
     return_value=[],
 )
-def test_sync_s3_objects_disabled(mock_get_data, neo4j_session, setup_s3_bucket):
+def test_sync_s3_objects_disabled(mock_get_data, neo4j_session):
     """Test S3 object sync can be disabled with limit=0."""
+    _ensure_neo4j_has_test_buckets(neo4j_session)
     boto3_session = MagicMock()
 
     sync(
