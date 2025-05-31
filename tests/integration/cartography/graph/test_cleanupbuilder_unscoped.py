@@ -37,9 +37,9 @@ def test_cleanup_unscoped_node_end_to_end(neo4j_session):
         query,
         [
             {
-                "Id": "unscoped-node-id",
+                "id": "unscoped-node-id",
                 "name": "test-node",
-                "id": "simple-node-id",  # This will be used to create the RELATES_TO relationship
+                "simple_node_id": "simple-node-id",  # This will be used to create the RELATES_TO relationship
             }
         ],
         lastupdated=1,

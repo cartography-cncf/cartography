@@ -13,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class UnscopedNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Id")
+    id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -27,7 +27,7 @@ class UnscopedToSimpleRelProps(CartographyRelProperties):
 class UnscopedToSimpleRel(CartographyRelSchema):
     target_node_label: str = "SimpleNode"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
+        {"id": PropertyRef("simple_node_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RELATES_TO"

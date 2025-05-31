@@ -31,7 +31,7 @@ def test_build_ingestion_query_unscoped():
 
     expected = """
         UNWIND $DictList AS item
-            MERGE (i:UnscopedNode{id: item.Id})
+            MERGE (i:UnscopedNode{id: item.id})
             ON CREATE SET i.firstseen = timestamp()
             SET
                 i.lastupdated = $lastupdated,
@@ -42,7 +42,7 @@ def test_build_ingestion_query_unscoped():
                 WITH i, item
                 OPTIONAL MATCH (n0:SimpleNode)
                 WHERE
-                    n0.id = item.id
+                    n0.id = item.simple_node_id
                 WITH i, item, n0 WHERE n0 IS NOT NULL
                 MERGE (i)-[r0:RELATES_TO]->(n0)
                 ON CREATE SET r0.firstseen = timestamp()
