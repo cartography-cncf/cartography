@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>How to extend Cartography with Analysis Jobs - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contact" href="../contact.html" /><link rel="prev" title="How to write a new intel module" href="writing-intel-modules.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="How to extend Cartography with Analysis Jobs"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#overview">Overview</a><ul>
+<li><a class="reference internal" href="#the-stages">The stages</a></li>
+<li><a class="reference internal" href="#how-to-run">How to run</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet">Example job: which of my EC2 instances is accessible to any host on the internet?</a><ul>
+<li><a class="reference internal" href="#our-goal">Our goal</a></li>
+<li><a class="reference internal" href="#the-logic-in-plain-english">The logic in plain English</a></li>
+<li><a class="reference internal" href="#translating-the-plain-english-logic-into-neo4j-s-cypher-syntax">Translating the plain-English logic into Neo4j&#8217;s Cypher syntax</a></li>
+<li><a class="reference internal" href="#the-skeleton-of-an-analysis-job">The skeleton of an Analysis Job</a><ul>
+<li><a class="reference internal" href="#clean-up-first-then-update">Clean up first, then update</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#recap">Recap</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/dev/writing-analysis-jobs.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">How to extend Cartography with Analysis Jobs</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="how-to-extend-cartography-with-analysis-jobs">
+<h1>How to extend Cartography with Analysis Jobs<a class="headerlink" href="#how-to-extend-cartography-with-analysis-jobs" title="Link to this heading">¶</a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>In a nutshell, Analysis Jobs let you add your own customizations to Cartography by writing Neo4j queries. This helps you add powerful enhancements to your data without the need to write Python code.</p>
+<section id="the-stages">
+<h3>The stages<a class="headerlink" href="#the-stages" title="Link to this heading">¶</a></h3>
+<p>There are 3 stages to a cartography sync. First we create database indexes, next we ingest assets via intel modules, and finally we can run Analysis Jobs on the database (see <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/master/cartography/sync.py">cartography.sync.build_default_sync()</a>). This tutorial focuses on Analysis Jobs.</p>
+</section>
+<section id="how-to-run">
+<h3>How to run<a class="headerlink" href="#how-to-run" title="Link to this heading">¶</a></h3>
+<p>Each Analysis Job is a JSON file with a list of Neo4j statements which get run in order. To run Analysis Jobs, in your call to <code class="docutils literal notranslate"><span class="pre">cartography</span></code>, set the <code class="docutils literal notranslate"><span class="pre">--analysis-job-directory</span></code> parameter to the folder path of your jobs. Although the order of statements within a single job is preserved, we don’t guarantee the order in which jobs are executed.</p>
+</section>
+</section>
+<section id="example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet">
+<h2>Example job: which of my EC2 instances is accessible to any host on the internet?<a class="headerlink" href="#example-job-which-of-my-ec2-instances-is-accessible-to-any-host-on-the-internet" title="Link to this heading">¶</a></h2>
+<p>The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs that we’ve included by default in Cartography’s source tree is <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json">cartography/data/jobs/analysis/aws_ec2_asset_exposure.json</a>. This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.</p>
+<section id="our-goal">
+<h3>Our goal<a class="headerlink" href="#our-goal" title="Link to this heading">¶</a></h3>
+<p>After ingesting all our AWS data, we want to explicitly mark EC2 instances that are accessible to the public internet - a useful thing to know for anyone running an internet service. If any internet-open nodes are found, the job will add an attribute <code class="docutils literal notranslate"><span class="pre">exposed_internet</span> <span class="pre">=</span> <span class="pre">True</span></code> to the node. This way we can easily query to find the assets later on and take remediation action if needed.</p>
+<p>But how do we make this determination, and how should we structure the job?</p>
+</section>
+<section id="the-logic-in-plain-english">
+<h3>The logic in plain English<a class="headerlink" href="#the-logic-in-plain-english" title="Link to this heading">¶</a></h3>
+<p>We can use the following facts to tell if an EC2 instance is open to the internet:</p>
+<ol class="arabic simple">
+<li><p>The EC2 instance is a member of a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.</p></li>
+<li><p>The EC2 instance has a network interface that is connected to a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.</p></li>
+</ol>
+<p>The graph created by Cartography’s sync process already has this information for us; we just need to run a few queries to properly to mark it with <code class="docutils literal notranslate"><span class="pre">exposed_internet</span> <span class="pre">=</span> <span class="pre">True</span></code>. This example is complex but we hope that this exposes enough Neo4j concepts to help you write your own queries.</p>
+</section>
+<section id="translating-the-plain-english-logic-into-neo4j-s-cypher-syntax">
+<h3>Translating the plain-English logic into Neo4j’s Cypher syntax<a class="headerlink" href="#translating-the-plain-english-logic-into-neo4j-s-cypher-syntax" title="Link to this heading">¶</a></h3>
+<p>We can take the ideas above and use Cypher’s declarative syntax to “sketch” out this graph path.</p>
+<ol class="arabic">
+<li><p><em>The EC2 instance is a member of a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.</em></p>
+<p>In Cypher, this is</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">MATCH</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">IpRange</span><span class="p">{</span><span class="nb">id</span><span class="p">:</span> <span class="s1">&#39;0.0.0.0/0&#39;</span><span class="p">})</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_IP_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">IpPermissionInbound</span><span class="p">)</span>
+</span><span data-line="3"><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">group</span><span class="p">:</span><span class="n">EC2SecurityGroup</span><span class="p">)</span>
+</span><span data-line="4"><span class="o">&lt;-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">instance</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">)</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="n">SET</span> <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet</span> <span class="o">=</span> <span class="n">true</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="o">=</span> <span class="n">coalesce</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="p">,</span> <span class="p">[])</span> <span class="o">+</span> <span class="s1">&#39;direct&#39;</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>In the <code class="docutils literal notranslate"><span class="pre">SET</span></code> clause we add <code class="docutils literal notranslate"><span class="pre">exposed_internet</span> <span class="pre">=</span> <span class="pre">True</span></code> to the instance. We also add a field for <code class="docutils literal notranslate"><span class="pre">exposed_internet_type</span></code> to denote what type of internet exposure has occurred here. You can read the <a class="reference external" href="https://neo4j.com/docs/cypher-manual/current/functions/scalar/#functions-coalesce">documentation for <code class="docutils literal notranslate"><span class="pre">coalesce</span></code></a>, but in English this last part says “add <code class="docutils literal notranslate"><span class="pre">direct</span></code> to the list of ways this instance is exposed to the internet”.</p>
+</li>
+<li><p><em>The EC2 instance has a network interface that is connected to a Security Group that has an IP Rule applied to it that allows inbound traffic from the 0.0.0.0/0 subnet.</em></p>
+<p>This is the same as the previous query except for the final line:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">MATCH</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">IpRange</span><span class="p">{</span><span class="nb">id</span><span class="p">:</span> <span class="s1">&#39;0.0.0.0/0&#39;</span><span class="p">})</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_IP_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">IpPermissionInbound</span><span class="p">)</span>
+</span><span data-line="3"><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">group</span><span class="p">:</span><span class="n">EC2SecurityGroup</span><span class="p">)</span>
+</span><span data-line="4"><span class="o">&lt;-</span><span class="p">[:</span><span class="n">NETWORK_INTERFACE</span><span class="o">*.</span><span class="mf">.2</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">instance</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">)</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="n">SET</span> <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet</span> <span class="o">=</span> <span class="n">true</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="o">=</span> <span class="n">coalesce</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="p">,</span> <span class="p">[])</span> <span class="o">+</span> <span class="s1">&#39;direct&#39;</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">*..2</span></code> operator means “within 2 hops”. We use this here as a shortcut because there are a few more relationships between NetworkInterfaces and EC2SecurityGroups that we can skip over.</p>
+</li>
+</ol>
+<p>Finally, notice that (1) and (2) are similar enough that we can actually merge them like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">MATCH</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">IpRange</span><span class="p">{</span><span class="nb">id</span><span class="p">:</span> <span class="s1">&#39;0.0.0.0/0&#39;</span><span class="p">})</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_IP_RULE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">IpPermissionInbound</span><span class="p">)</span>
+</span><span data-line="3"><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">group</span><span class="p">:</span><span class="n">EC2SecurityGroup</span><span class="p">)</span>
+</span><span data-line="4"><span class="o">&lt;-</span><span class="p">[:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="o">|</span><span class="n">NETWORK_INTERFACE</span><span class="o">*.</span><span class="mf">.2</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">instance</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">)</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="n">SET</span> <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet</span> <span class="o">=</span> <span class="n">true</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="o">=</span> <span class="n">coalesce</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">exposed_internet_type</span> <span class="p">,</span> <span class="p">[])</span> <span class="o">+</span> <span class="s1">&#39;direct&#39;</span><span class="p">;</span>
+</span></pre></div>
+</div>
+<p>Kinda neat, right?</p>
+</section>
+<section id="the-skeleton-of-an-analysis-job">
+<h3>The skeleton of an Analysis Job<a class="headerlink" href="#the-skeleton-of-an-analysis-job" title="Link to this heading">¶</a></h3>
+<p>Now that we know what we want to do on a sync, how should we structure the Analysis Job?  Here is the basic skeleton that we recommend.</p>
+<section id="clean-up-first-then-update">
+<h4>Clean up first, then update<a class="headerlink" href="#clean-up-first-then-update" title="Link to this heading">¶</a></h4>
+<p>In general, the first statement(s) should be a “clean-up phase” that removes custom attributes or relationships that you may have added in a previous run. This ensures that whatever labels you add on this current run will be up to date and not stale. Next, the statements after the clean-up phase will perform the matching and attribute updates as described in the previous section.</p>
+<p><strong>Here’s our final result:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1">{
+</span><span data-line="2">  &quot;name&quot;: &quot;AWS asset internet exposure&quot;,
+</span><span data-line="3">  &quot;statements&quot;: [
+</span><span data-line="4">      {
+</span><span data-line="5">        &quot;__comment&quot;: &quot;This is a clean-up statement to remove custom attributes&quot;,
+</span><span data-line="6">        &quot;query&quot;: &quot;MATCH (n)
+</span><span data-line="7">                  WHERE n.exposed_internet IS NOT NULL
+</span><span data-line="8">                        AND labels(n) IN [&#39;AutoScalingGroup&#39;, &#39;EC2Instance&#39;, &#39;LoadBalancer&#39;]
+</span><span data-line="9">                  WITH n LIMIT $LIMIT_SIZE
+</span><span data-line="10">                  REMOVE n.exposed_internet, n.exposed_internet_type
+</span><span data-line="11">                  RETURN COUNT(*) as TotalCompleted&quot;,
+</span><span data-line="12">        &quot;iterative&quot;: true,
+</span><span data-line="13">        &quot;iterationsize&quot;: 1000
+</span><span data-line="14">      },
+</span><span data-line="15">      {
+</span><span data-line="16">        &quot;__comment__&quot;: &quot;This is our analysis logic as described in the section above&quot;,
+</span><span data-line="17">        &quot;query&quot;: MATCH (:IpRange{id: &#39;0.0.0.0/0&#39;})-[:MEMBER_OF_IP_RULE]-&gt;(:IpPermissionInbound)
+</span><span data-line="18">                 -[:MEMBER_OF_EC2_SECURITY_GROUP]-&gt;(group:EC2SecurityGroup)
+</span><span data-line="19">                 &lt;-[:MEMBER_OF_EC2_SECURITY_GROUP|NETWORK_INTERFACE*..2]-(instance:EC2Instance)
+</span><span data-line="20">
+</span><span data-line="21">                 SET instance.exposed_internet = true,
+</span><span data-line="22">                     instance.exposed_internet_type = coalesce(instance.exposed_internet_type , []) + &#39;direct&#39;;,
+</span><span data-line="23">        &quot;iterative&quot;: true,
+</span><span data-line="24">        &quot;iterationsize&quot;: 100
+</span><span data-line="25">      }
+</span><span data-line="26">  ]
+</span><span data-line="27">}
+</span></pre></div>
+</div>
+<p>Setting a statement as <code class="docutils literal notranslate"><span class="pre">iterative:</span> <span class="pre">true</span></code> means that we will run this query on <code class="docutils literal notranslate"><span class="pre">#{iterationsize}</span></code> entries at a time. This can be helpful for queries that return large numbers of records so that Neo4j doesn’t get too angry.</p>
+<p>Now we can enjoy the fruits of our labor and query for internet exposure:</p>
+<p><img alt="internet-exposure-query" src="../_images/exposed-internet.png" /></p>
+</section>
+</section>
+</section>
+<section id="recap">
+<h2>Recap<a class="headerlink" href="#recap" title="Link to this heading">¶</a></h2>
+<p>As shown, you create an Analysis Job by putting together a bunch of <code class="docutils literal notranslate"><span class="pre">statements</span></code> together (which are essentially Neo4j queries). In general, each job should first clean up the custom attributes added by a previous run, and then it can perform the match and update steps to add the custom attributes back again. This ensures that your data is up to date.</p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="writing-intel-modules.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">How to write a new intel module</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../contact.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Contact</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=e2230717"></script></body>
+</html>

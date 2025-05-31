@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Duo Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Microsoft Entra (formerly Azure AD)" href="../entra/index.html" /><link rel="prev" title="Duo Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Duo Schema"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Duo</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Duo Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#duoapihost">DuoApiHost</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#duogroup">DuoGroup</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#duouser">DuoUser</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#duoendpoint">DuoEndpoint</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#duophone">DuoPhone</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#duotoken">DuoToken</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#duowebauthncredential">DuoWebAuthnCredential</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/duo/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Duo</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Duo Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="duo-schema">
+<h1>Duo Schema<a class="headerlink" href="#duo-schema" title="Link to this heading">¶</a></h1>
+<section id="duoapihost">
+<h2>DuoApiHost<a class="headerlink" href="#duoapihost" title="Link to this heading">¶</a></h2>
+<p>Represents a Duo API Host to conain Duo resources.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The hostname</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>An DuoApiHost contains DuoUsers</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>An DuoApiHost contains DuoGroups</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>An DuoApiHost contains DuoEndpoints</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoEndpoint</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>An DuoApiHost contains DuoPhones</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoPhone</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>An DuoApiHost contains DuoTokens</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoToken</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>An DuoApiHost contains DuoWebAuthnCredentials</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoWebAuthnCredential</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="duogroup">
+<h2>DuoGroup<a class="headerlink" href="#duogroup" title="Link to this heading">¶</a></h2>
+<p>Represents a <a class="reference external" href="https://duo.com/docs/adminapi#groups">group</a> in Duo.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The user_id</p></td>
+</tr>
+<tr class="row-odd"><td><p>desc</p></td>
+<td><p>The group’s description.</p></td>
+</tr>
+<tr class="row-even"><td><p>group_id</p></td>
+<td><p>The group’s ID.</p></td>
+</tr>
+<tr class="row-odd"><td><p>mobile_otp_enabled</p></td>
+<td><p>Legacy parameter; no effect if specified and always returns false.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The group’s name. If managed by directory sync, then the name returned here also indicates the source directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p>push_enabled</p></td>
+<td><p>Legacy parameter; no effect if specified and always returns false.</p></td>
+</tr>
+<tr class="row-even"><td><p>sms_enabled</p></td>
+<td><p>Legacy parameter; no effect if specified and always returns false</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>The group’s authentication status. May be one of: “Active”, “Bypass”, “Disabled”</p></td>
+</tr>
+<tr class="row-even"><td><p>voice_enabled</p></td>
+<td><p>Legacy parameter; no effect if specified and always returns false</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>An DuoApiHost contains DuoGroups</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser is part of multiple DuoGroups.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF_DUO_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="duouser">
+<h2>DuoUser<a class="headerlink" href="#duouser" title="Link to this heading">¶</a></h2>
+<p>Represents a <a class="reference external" href="https://duo.com/docs/adminapi#users">user</a> in Duo.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The user_id</p></td>
+</tr>
+<tr class="row-odd"><td><p>alias1</p></td>
+<td><p>The user’s username alias1.</p></td>
+</tr>
+<tr class="row-even"><td><p>alias2</p></td>
+<td><p>The user’s username alias2.</p></td>
+</tr>
+<tr class="row-odd"><td><p>alias3</p></td>
+<td><p>The user’s username alias3.</p></td>
+</tr>
+<tr class="row-even"><td><p>alias4</p></td>
+<td><p>The user’s username alias4.</p></td>
+</tr>
+<tr class="row-odd"><td><p>aliases</p></td>
+<td><p>Map of the user’s username alias(es). Up to eight aliases may exist.</p></td>
+</tr>
+<tr class="row-even"><td><p>created</p></td>
+<td><p>The user’s creation date as a UNIX timestamp.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>The user’s email address.</p></td>
+</tr>
+<tr class="row-even"><td><p>firstname</p></td>
+<td><p>The user’s given name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>groups</p></td>
+<td><p>List of groups to which this user belongs. See Retrieve Groups for response info.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_enrolled</p></td>
+<td><p>Is true if the user has a phone, hardware token, U2F token, WebAuthn security key, or other WebAuthn method available for authentication. Otherwise, false.</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_directory_sync</p></td>
+<td><p>An integer indicating the last update to the user via directory sync as a Unix timestamp, or null if the user has never synced with an external directory or if the directory that originally created the user has been deleted from Duo.</p></td>
+</tr>
+<tr class="row-even"><td><p>last_login</p></td>
+<td><p>An integer indicating the last time this user logged in, as a Unix timestamp, or null if the user has not logged in.</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastname</p></td>
+<td><p>The user’s surname.</p></td>
+</tr>
+<tr class="row-even"><td><p>notes</p></td>
+<td><p>Notes about this user. Viewable in the Duo Admin Panel.</p></td>
+</tr>
+<tr class="row-odd"><td><p>realname</p></td>
+<td><p>The user’s real name (or full name).</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p>The user’s status. One of: “active”, “bypass”, “disabled”, “locked out”, “pending deletion”.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tokens</p></td>
+<td><p>A list of tokens that this user can use. A list of JSON strings</p></td>
+</tr>
+<tr class="row-even"><td><p>u2f_tokens</p></td>
+<td><p>A list of U2F tokens that this user can use. A list of JSON strings</p></td>
+</tr>
+<tr class="row-odd"><td><p>user_id</p></td>
+<td><p>The user’s ID.</p></td>
+</tr>
+<tr class="row-even"><td><p>username</p></td>
+<td><p>The user’s username.</p></td>
+</tr>
+<tr class="row-odd"><td><p>webauthncredentials</p></td>
+<td><p>A list of WebAuthn authenticators that this user can use. A list of JSON strings</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>An DuoApiHost contains DuoUsers</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser is part of multiple DuoGroups.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF_DUO_GROUP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser has multiple DuoEndpoints</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS_DUO_ENDPOINT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoEndpoint</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser has multiple DuoPhones</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS_DUO_PHONE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoPhone</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser has multiple DuoTokens</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS_DUO_TOKEN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoToken</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser has multiple WebAuthnCredentials</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS_DUO_WEB_AUTHN_CREDENTIAL</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">WebAuthnCredential</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser is an identity to a Human</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">IDENTITY_DUO</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">Human</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="duoendpoint">
+<h2>DuoEndpoint<a class="headerlink" href="#duoendpoint" title="Link to this heading">¶</a></h2>
+<p>Represents a <a class="reference external" href="https://duo.com/docs/adminapi#endpoints">endpoint</a> in Duo.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The epkey</p></td>
+</tr>
+<tr class="row-odd"><td><p>browsers</p></td>
+<td><p>Collected information about all detected browsers on an individual endpoint. A list of JSON strings</p></td>
+</tr>
+<tr class="row-even"><td><p>computer_sid</p></td>
+<td><p>The machine security identifier of a Windows endpoint.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cpu_id</p></td>
+<td><p>The CPU ID of a Windows endpoint.</p></td>
+</tr>
+<tr class="row-even"><td><p>device_id</p></td>
+<td><p>Custom device identifier of a Meraki-managed iOS endpoint. Returned for Duo Premier customers only.</p></td>
+</tr>
+<tr class="row-odd"><td><p>device_identifier</p></td>
+<td><p>The unique device attribute value that identifies the endpoint. Returned for Duo Premier customers only. This property will be deprecated in a future release.</p></td>
+</tr>
+<tr class="row-even"><td><p>device_identifier_type</p></td>
+<td><p>The device attribute used to identify a unique endpoint. One of “hardware_uuid”, “fqdn”, “hardware_serial”, “device_udid”, or none. This property will be deprecated in a future release.</p></td>
+</tr>
+<tr class="row-odd"><td><p>device_name</p></td>
+<td><p>The endpoint’s hostname.</p></td>
+</tr>
+<tr class="row-even"><td><p>device_udid</p></td>
+<td><p>The unique device identifier for iOS endpoints managed by Workspace ONE, MobileIron Cloud or Core, or Sophos Mobile via certificates. Returned for Duo Premier customers only.</p></td>
+</tr>
+<tr class="row-odd"><td><p>device_username</p></td>
+<td><p>The unique attribute value that identifies the endpoint’s associated user in the management system. Returned for Duo Premier customers only.</p></td>
+</tr>
+<tr class="row-even"><td><p>device_username_type</p></td>
+<td><p>The management system attribute used to identify the user associated with the unique endpoint. One of “os_username”, “upn”, “username”, “email”, or none. Returned for Duo Premier customers only.</p></td>
+</tr>
+<tr class="row-odd"><td><p>disk_encryption_status</p></td>
+<td><p>The hard drive encryption status of the endpoint as detected by the Duo Device Health app. One of “On”, “Off”, or “Unknown”.</p></td>
+</tr>
+<tr class="row-even"><td><p>domain_sid</p></td>
+<td><p>The Active Directory domain security identifier for a domain-joined Windows endpoint. Empty if the Windows endpoint is not joined to a domain.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>The email address, if present, of the user associated with an endpoint.</p></td>
+</tr>
+<tr class="row-even"><td><p>epkey</p></td>
+<td><p>The endpoint’s unique identifier.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firewall_status</p></td>
+<td><p>Status of the endpoint’s local firewall as detected by the Duo Device Health app. One of “On”, “Off”, or “Unknown”.</p></td>
+</tr>
+<tr class="row-even"><td><p>hardware_uuid</p></td>
+<td><p>The universally unique identifier for a Mac endpoint.</p></td>
+</tr>
+<tr class="row-odd"><td><p>health_app_client_version</p></td>
+<td><p>The version of the Duo Device Health app installed on the endpoint.</p></td>
+</tr>
+<tr class="row-even"><td><p>health_data_last_collected</p></td>
+<td><p>The last time the Duo Device Health app performed a device health check, as a Unix timestamp.</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_updated</p></td>
+<td><p>The last time the endpoint accessed Duo, as a Unix timestamp.</p></td>
+</tr>
+<tr class="row-even"><td><p>machine_guid</p></td>
+<td><p>The globally unique identifier for a Windows endpoint.</p></td>
+</tr>
+<tr class="row-odd"><td><p>model</p></td>
+<td><p>The device model of a 2FA endpoint.</p></td>
+</tr>
+<tr class="row-even"><td><p>os_build</p></td>
+<td><p>The endpoint’s operating system build number.</p></td>
+</tr>
+<tr class="row-odd"><td><p>os_family</p></td>
+<td><p>The endpoint’s operating system platform.</p></td>
+</tr>
+<tr class="row-even"><td><p>os_version</p></td>
+<td><p>The endpoint’s operating system version.</p></td>
+</tr>
+<tr class="row-odd"><td><p>password_status</p></td>
+<td><p>Whether the local admin password is set on the endpoint as detected by the Duo Device Health app. One of “Set”, “Unset”, or “Unknown”</p></td>
+</tr>
+<tr class="row-even"><td><p>security_agents</p></td>
+<td><p>Information about security agents present on the endpoint as detected by the Duo Device Health app. Returned for Duo Premier customers only. a list of JSON strings</p></td>
+</tr>
+<tr class="row-odd"><td><p>trusted_endpoint</p></td>
+<td><p>Whether the endpoint is a Duo managed endpoint. One of “yes”, “no”, or “unknown”. Returned for Duo Premier customers only.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The endpoint’s device class.</p></td>
+</tr>
+<tr class="row-odd"><td><p>username</p></td>
+<td><p>The Duo username of the user associated with an endpoint.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>An DuoApiHost contains DuoEndpoints</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoEndpoint</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser has multiple DuoEndpoints</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS_DUO_ENDPOINT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoEndpoint</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="duophone">
+<h2>DuoPhone<a class="headerlink" href="#duophone" title="Link to this heading">¶</a></h2>
+<p>Represents a <a class="reference external" href="https://duo.com/docs/adminapi#phones">phone</a> in Duo.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The phone_id</p></td>
+</tr>
+<tr class="row-odd"><td><p>activated</p></td>
+<td><p>Has this phone been activated for Duo Mobile yet? Either true or false.</p></td>
+</tr>
+<tr class="row-even"><td><p>capabilities</p></td>
+<td><p>List of strings, each a factor that can be used with the device. Any of “auto”, “push”, “pphone”, “sms”, “mobile_otp”</p></td>
+</tr>
+<tr class="row-odd"><td><p>encrypted</p></td>
+<td><p>The encryption status of an Android or iOS device file system. One of: “Encrypted”, “Unencrypted”, or “Unknown”. Blank for other platforms.</p></td>
+</tr>
+<tr class="row-even"><td><p>extension</p></td>
+<td><p>An extension, if necessary.</p></td>
+</tr>
+<tr class="row-odd"><td><p>fingerprint</p></td>
+<td><p>Whether an Android or iOS phone is configured for biometric verification. One of: “Configured”, “Disabled”, or “Unknown”. Blank for other platforms.</p></td>
+</tr>
+<tr class="row-even"><td><p>last_seen</p></td>
+<td><p>An integer indicating the timestamp of the last contact between Duo’s service and the activated Duo Mobile app installed on the phone. Blank if the device has never activated Duo Mobile or if the platform does not support it.</p></td>
+</tr>
+<tr class="row-odd"><td><p>model</p></td>
+<td><p>The phone’s model.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Free-form label for the phone.</p></td>
+</tr>
+<tr class="row-odd"><td><p>phone_id</p></td>
+<td><p>The phone’s ID.</p></td>
+</tr>
+<tr class="row-even"><td><p>platform</p></td>
+<td><p>The phone platform. One of: “unknown”, “google android”, “apple ios”, “windows phone 7”, “rim blackberry”, “java j2me”, “palm webos”, “symbian os”, “windows mobile”, or “generic smartphone”</p></td>
+</tr>
+<tr class="row-odd"><td><p>postdelay</p></td>
+<td><p>The time (in seconds) to wait after the extension is dialed and before the speaking the prompt.</p></td>
+</tr>
+<tr class="row-even"><td><p>predelay</p></td>
+<td><p>The time (in seconds) to wait after the number picks up and before dialing the extension.</p></td>
+</tr>
+<tr class="row-odd"><td><p>screenlock</p></td>
+<td><p>Whether screen lock is enabled on an Android or iOS phone. One of: “Locked”, “Unlocked”, or “Unknown”. Blank for other platforms.</p></td>
+</tr>
+<tr class="row-even"><td><p>sms_passcodes_sent</p></td>
+<td><p>Have SMS passcodes been sent to this phone? Either true or false.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tampered</p></td>
+<td><p>Whether an iOS or Android device is jailbroken or rooted. One of: “Not Tampered”, “Tampered”, or “Unknown”. Blank for other platforms.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of phone. One of: “unknown”, “mobile”, or “landline”.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>An DuoApiHost contains DuoPhone</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoPhone</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser has multiple DuoPhones</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS_DUO_PHONE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoPhone</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="duotoken">
+<h2>DuoToken<a class="headerlink" href="#duotoken" title="Link to this heading">¶</a></h2>
+<p>Represents a <a class="reference external" href="https://duo.com/docs/adminapi#tokens">token</a> in Duo.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The token_id</p></td>
+</tr>
+<tr class="row-odd"><td><p>admins</p></td>
+<td><p>A list of administrators associated with this hardware token. See Retrieve Administrators for descriptions of the response fields. A list of JSON strings</p></td>
+</tr>
+<tr class="row-even"><td><p>serial</p></td>
+<td><p>The serial number of the hardware token; used to uniquely identify the hardware token when paired with type.</p></td>
+</tr>
+<tr class="row-odd"><td><p>token_id</p></td>
+<td><p>The hardware token’s unique ID.</p></td>
+</tr>
+<tr class="row-even"><td><p>totp_step</p></td>
+<td><p>Value is null for all supported token types.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of hardware token.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h3>Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>An DuoApiHost contains DuoTokens</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoToken</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser has multiple DuoTokens</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS_DUO_TOKEN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoToken</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="duowebauthncredential">
+<h2>DuoWebAuthnCredential<a class="headerlink" href="#duowebauthncredential" title="Link to this heading">¶</a></h2>
+<p>Represents a <a class="reference external" href="https://duo.com/docs/adminapi#webauthn-credentials">web authn credential</a> in Duo.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The webauthnkey</p></td>
+</tr>
+<tr class="row-odd"><td><p>admin</p></td>
+<td><p>Selected information about the administrator attached to the WebAuthn credential. Returns null if attached to an end user. Not returned if the API application does not have sufficient permission to manage administrators. A JSON string</p></td>
+</tr>
+<tr class="row-even"><td><p>credential_name</p></td>
+<td><p>Free-form label for the WebAuthn credential.</p></td>
+</tr>
+<tr class="row-odd"><td><p>date_added</p></td>
+<td><p>The date the WebAuthn credential was registered in Duo.</p></td>
+</tr>
+<tr class="row-even"><td><p>label</p></td>
+<td><p>Indicates the type of WebAuthn credential. One of: “Security Key” or “Touch ID”. Present when attached to a user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>webauthnkey</p></td>
+<td><p>The WebAuthn credential’s registration identifier.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>An DuoApiHost contains DuoWebAuthnCredentials</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoApiHost</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoWebAuthnCredential</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>A DuoUser has multiple DuoWebAuthnCredentials</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">DuoUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS_DUO_WEB_AUTHN_CREDENTIAL</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">DuoWebAuthnCredential</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Duo Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../entra/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Microsoft Entra (formerly Azure AD)</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=e2230717"></script></body>
+</html>

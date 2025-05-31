@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Cloudflare Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Crowdstrike" href="../crowdstrike/index.html" /><link rel="prev" title="Cloudflare Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Cloudflare Schema"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Cloudflare</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#cloudflareaccount">CloudflareAccount</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cloudflarerole">CloudflareRole</a><ul>
+<li><a class="reference internal" href="#cloudflarerelationships">CloudflareRelationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cloudflaremember">CloudflareMember</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cloudflarezone">CloudflareZone</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cloudflarednsrecord">CloudflareDNSRecord</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/cloudflare/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Cloudflare</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Cloudflare Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="cloudflare-schema">
+<h1>Cloudflare Schema<a class="headerlink" href="#cloudflare-schema" title="Link to this heading">¶</a></h1>
+<pre  class="mermaid">
+        graph LR
+A(CloudflareAccount) -- RESOURCE --&gt; Z(CloudflareZone)
+A(CloudflareAccount) -- RESOURCE --&gt; M(CloudflareMember)
+A(CloudflareAccount) -- RESOURCE --&gt; R(CloudflareRole)
+M -- HAS_ROLE --&gt; R
+Z -- RESOURCE --&gt; CloudflareDNSRecord
+    </pre><section id="cloudflareaccount">
+<h2>CloudflareAccount<a class="headerlink" href="#cloudflareaccount" title="Link to this heading">¶</a></h2>
+<p>Represents the Cloudflare Account (aka Tenant)</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Identifier</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_on</p></td>
+<td><p>Timestamp for the creation of the account</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Account name</p></td>
+</tr>
+<tr class="row-odd"><td><p>abuse_contact_email</p></td>
+<td><p>Abuse contact email to notify for abuse reports.</p></td>
+</tr>
+<tr class="row-even"><td><p>default_nameservers</p></td>
+<td><p>Specifies the default nameservers to be used for new zones added to this account.<br/><br/>- <code class="docutils literal notranslate"><span class="pre">cloudflare.standard</span></code> for Cloudflare-branded nameservers<br/>- <code class="docutils literal notranslate"><span class="pre">custom.account</span></code> for account custom nameservers<br/>- <code class="docutils literal notranslate"><span class="pre">custom.tenant</span></code> for tenant custom nameservers<br/><br/>See <a class="reference external" href="https://developers.cloudflare.com/dns/additional-options/custom-nameservers/">Custom Nameservers</a><br/>for more information.<br/><br/>Deprecated in favor of <a class="reference external" href="https://developers.cloudflare.com/api/operations/dns-settings-for-an-account-update-dns-settings">DNS Settings</a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>enforce_twofactor</p></td>
+<td><p>Indicates whether membership in this account requires that<br/>Two-Factor Authentication is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>use_account_custom_ns_by_default</p></td>
+<td><p>Indicates whether new zones should use the account-level custom<br/>nameservers by default.<br/><br/>Deprecated in favor of <a class="reference external" href="https://developers.cloudflare.com/api/operations/dns-settings-for-an-account-update-dns-settings">DNS Settings</a>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">CloudflareRole</span></code>, <code class="docutils literal notranslate"><span class="pre">CloudflareMember</span></code>, <code class="docutils literal notranslate"><span class="pre">CloudflareZone</span></code> belong to an <code class="docutils literal notranslate"><span class="pre">CloudflareAccount</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">CloudflareAccount</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span>
+</span><span data-line="2">    <span class="p">:</span><span class="n">CloudflareRole</span><span class="p">,</span>
+</span><span data-line="3">    <span class="p">:</span><span class="n">CloudflareMember</span><span class="p">,</span>
+</span><span data-line="4">    <span class="p">:</span><span class="n">CloudflareZone</span>
+</span><span data-line="5"><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="cloudflarerole">
+<h2>CloudflareRole<a class="headerlink" href="#cloudflarerole" title="Link to this heading">¶</a></h2>
+<p>Represents a user role in Cloudflare</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Role identifier tag.</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>Description of role’s permissions.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Role name.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="cloudflarerelationships">
+<h3>CloudflareRelationships<a class="headerlink" href="#cloudflarerelationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">CloudflareRole</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">CloudflareAccount</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">CloudflareRole</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">CloudflareAccount</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CloudflareMember</span></code> has a <code class="docutils literal notranslate"><span class="pre">CloudflareRole</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">CloudflareRole</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">HAS_ROLE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">CloudflareMember</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="cloudflaremember">
+<h2>CloudflareMember<a class="headerlink" href="#cloudflaremember" title="Link to this heading">¶</a></h2>
+<p>Represents a membership in a Cloudflare account.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Membership identifier tag.</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>A member’s status in the account.</p></td>
+</tr>
+<tr class="row-even"><td><p>email</p></td>
+<td><p>Related user email</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstname</p></td>
+<td><p>Related user first name</p></td>
+</tr>
+<tr class="row-even"><td><p>user_id</p></td>
+<td><p>Related user id</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastname</p></td>
+<td><p>Related user last name</p></td>
+</tr>
+<tr class="row-even"><td><p>two_factor_authentication_enabled</p></td>
+<td><p>Related user MFA status</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">CloudflareMember</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">CloudflareAccount</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">CloudflareMember</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">CloudflareAccount</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CloudflareMember</span></code> has a <code class="docutils literal notranslate"><span class="pre">CloudflareRole</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">CloudflareRole</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">HAS_ROLE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">CloudflareMember</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="cloudflarezone">
+<h2>CloudflareZone<a class="headerlink" href="#cloudflarezone" title="Link to this heading">¶</a></h2>
+<p>Represents a DNS Zone in Cloudflare.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Identifier</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>activated_on</p></td>
+<td><p>The last time proof of ownership was detected and the zone was made<br/>active</p></td>
+</tr>
+<tr class="row-even"><td><p>created_on</p></td>
+<td><p>When the zone was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>development_mode</p></td>
+<td><p>The interval (in seconds) from when development mode expires<br/>(positive integer) or last expired (negative integer) for the<br/>domain. If development mode has never been enabled, this value is 0.</p></td>
+</tr>
+<tr class="row-even"><td><p>cdn_only</p></td>
+<td><p>The zone is only configured for CDN</p></td>
+</tr>
+<tr class="row-odd"><td><p>custom_certificate_quota</p></td>
+<td><p>Number of Custom Certificates the zone can have</p></td>
+</tr>
+<tr class="row-even"><td><p>dns_only</p></td>
+<td><p>The zone is only configured for DNS</p></td>
+</tr>
+<tr class="row-odd"><td><p>foundation_dns</p></td>
+<td><p>The zone is setup with Foundation DNS</p></td>
+</tr>
+<tr class="row-even"><td><p>page_rule_quota</p></td>
+<td><p>Number of Page Rules a zone can have</p></td>
+</tr>
+<tr class="row-odd"><td><p>phishing_detected</p></td>
+<td><p>The zone has been flagged for phishing</p></td>
+</tr>
+<tr class="row-even"><td><p>modified_on</p></td>
+<td><p>When the zone was last modified</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The domain name</p></td>
+</tr>
+<tr class="row-even"><td><p>original_dnshost</p></td>
+<td><p>DNS host at the time of switching to Cloudflare</p></td>
+</tr>
+<tr class="row-odd"><td><p>original_registrar</p></td>
+<td><p>Registrar for the domain at the time of switching to Cloudflare</p></td>
+</tr>
+<tr class="row-even"><td><p>status</p></td>
+<td><p>The zone status on Cloudflare.</p></td>
+</tr>
+<tr class="row-odd"><td><p>verification_key</p></td>
+<td><p>Verification key for partial zone setup.</p></td>
+</tr>
+<tr class="row-even"><td><p>paused</p></td>
+<td><p>Indicates whether the zone is only using Cloudflare DNS services. A</p></td>
+</tr>
+<tr class="row-odd"><td><p>true value means the zone will not receive security or performance</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>benefits.</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>A full zone implies that DNS is hosted with Cloudflare. A partial zone is</p></td>
+</tr>
+<tr class="row-even"><td><p>typically a partner-hosted zone or a CNAME setup.</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">CloudflareDNSRecord</span></code> belongs to an <code class="docutils literal notranslate"><span class="pre">CloudflareZone</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">CloudflareZone</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">CloudflareDNSRecord</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="cloudflarednsrecord">
+<h2>CloudflareDNSRecord<a class="headerlink" href="#cloudflarednsrecord" title="Link to this heading">¶</a></h2>
+<p>Represents a DNS entry in Cloudflare.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Identifier.</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the DNSRecord</p></td>
+</tr>
+<tr class="row-odd"><td><p>value</p></td>
+<td><p>The IP address that the DNSRecord points to</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The record type of the DNS record</p></td>
+</tr>
+<tr class="row-odd"><td><p>comment</p></td>
+<td><p>Comment for the DNS record</p></td>
+</tr>
+<tr class="row-even"><td><p>proxied</p></td>
+<td><p>Whether the record is proxied by Cloudflare or not</p></td>
+</tr>
+<tr class="row-odd"><td><p>ttl</p></td>
+<td><p>DNS record TTL (1 indicate automatic TTL, refer to Cloudflare documentation)</p></td>
+</tr>
+<tr class="row-even"><td><p>created_on</p></td>
+<td><p>When the record was created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>modified_on</p></td>
+<td><p>When the record was last modified.</p></td>
+</tr>
+<tr class="row-even"><td><p>proxiable</p></td>
+<td><p>Whether the record can be proxied by Cloudflare or not.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">CloudflareDNSRecord</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">CloudflareZone</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">CloudflareDNSRecord</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">CloudflareZone</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Cloudflare Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../crowdstrike/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Crowdstrike</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=e2230717"></script>
+      <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
+      <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+      <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+      <script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
+window.addEventListener("load", () => mermaid.run());
+</script></body>
+</html>

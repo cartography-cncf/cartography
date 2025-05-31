@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Cartography Developer Guide - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="How to write a new intel module" href="writing-intel-modules.html" /><link rel="prev" title="Tailscale Schema" href="../modules/tailscale/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Cartography Developer Guide"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#development-using-a-python-venv">Development using a Python venv</a><ul>
+<li><a class="reference internal" href="#running-the-source-code">Running the source code</a></li>
+<li><a class="reference internal" href="#automated-testing">Automated testing</a></li>
+<li><a class="reference internal" href="#implementing-custom-sync-commands">Implementing custom sync commands</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#dev-dockerfile">dev.Dockerfile</a><ul>
+<li><a class="reference internal" href="#dev-with-docker-compose">Dev with docker-compose</a><ul>
+<li><a class="reference internal" href="#run-the-full-test-suite">Run the full test suite</a></li>
+<li><a class="reference internal" href="#run-a-custom-sync-script">Run a <span class="xref myst">custom sync script</span></a></li>
+<li><a class="reference internal" href="#run-the-cartography-cli">Run the cartography CLI</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#equivalent-manual-docker-commands">Equivalent manual docker commands</a><ul>
+<li><a class="reference internal" href="#run-unit-tests-with-dev-dockerfile">Run unit tests with dev.Dockerfile</a></li>
+<li><a class="reference internal" href="#run-the-linter-with-dev-dockerfile">Run the linter with dev.Dockerfile</a></li>
+<li><a class="reference internal" href="#run-integration-tests-with-dev-dockerfile">Run integration tests with dev.Dockerfile</a></li>
+<li><a class="reference internal" href="#run-the-full-test-suite-with-dev-dockerfile">Run the full test suite with dev.Dockerfile</a></li>
+<li><a class="reference internal" href="#run-a-custom-sync-script-with-dev-dockerfile">Run a <span class="xref myst">custom sync script</span> with dev.Dockerfile</a></li>
+<li><a class="reference internal" href="#run-cartography-cli-with-dev-dockerfile">Run cartography CLI with dev.Dockerfile</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#how-to-write-a-new-intel-module">How to write a new intel module</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/dev/developer-guide.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Cartography Developer Guide</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="cartography-developer-guide">
+<h1>Cartography Developer Guide<a class="headerlink" href="#cartography-developer-guide" title="Link to this heading">¶</a></h1>
+<section id="development-using-a-python-venv">
+<h2>Development using a Python venv<a class="headerlink" href="#development-using-a-python-venv" title="Link to this heading">¶</a></h2>
+<section id="running-the-source-code">
+<h3>Running the source code<a class="headerlink" href="#running-the-source-code" title="Link to this heading">¶</a></h3>
+<p>This document assumes familiarity with Python dev practices such as using <a class="reference external" href="https://packaging.python.org/guides/installing-using-pip-and-virtualenv/">virtualenvs</a>.
+If you prefer docker instead, skip this and scroll down to <a class="reference internal" href="#dev-dockerfile"><span class="xref myst">these instructions</span></a>.</p>
+<ol class="arabic">
+<li><p><strong>Run Neo4j</strong></p>
+<p>Follow the <a class="reference internal" href="../install.html"><span class="doc std std-doc">Install Steps</span></a> so that you get Neo4j running locally. It’s up to you if you want to use Docker or a native install.</p>
+</li>
+<li><p><strong>Install Python 3.10</strong></p></li>
+<li><p><strong>Clone the source code</strong></p>
+<p>Run <code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">{path-where-you-want-your-source-code}</span></code>. Get the source code with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">git://github.com/lyft/cartography.git</span></code></p>
+</li>
+<li><p><strong>Perform an editable install of the cartography source code</strong></p>
+<p>Run <code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">cartography</span></code> and then <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span></code> (yes, actually type the period into the command line) to install Cartography from source to the current venv.</p>
+</li>
+<li><p><strong>Run from source</strong></p>
+<p>After this finishes you should be able to run Cartography from source with <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">cartography</span> <span class="pre">--neo4j-uri</span> <span class="pre">bolt://localhost:7687</span></code>. Any changes to the source code in <code class="docutils literal notranslate"><span class="pre">{path-where-you-want-your-source-code}/cartography</span></code> are now locally testable by running <code class="docutils literal notranslate"><span class="pre">cartography</span></code> from the command line.</p>
+</li>
+</ol>
+</section>
+<section id="automated-testing">
+<h3>Automated testing<a class="headerlink" href="#automated-testing" title="Link to this heading">¶</a></h3>
+<ol class="arabic">
+<li><p><strong>Install test requirements</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span> <span class="pre">--frozen</span> <span class="pre">--dev</span></code></p>
+</li>
+</ol>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>–dev is optional; development dependencies are installed by default.
+–frozen ensures that only the pinned dependencies from the lockfile are used, rather than resolving to the latest available versions.</p>
+</div>
+<ol class="arabic">
+<li><p><strong>(OPTIONAL) Setup environment variables for integration tests</strong></p>
+<p>The integration tests expect Neo4j to be running locally, listening on default ports, and with auth disabled.</p>
+<p>To run the integration tests on a specific Neo4j instance, add the following environment variable:</p>
+<p><code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">&quot;NEO4J_URL=&lt;your_neo4j_instance_bolt_url:your_neo4j_instance_port&gt;&quot;</span></code></p>
+</li>
+<li><p><strong>Run tests using <code class="docutils literal notranslate"><span class="pre">make</span></code></strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">test_lint</span></code> runs <a class="reference external" href="https://pre-commit.com">pre-commit</a> linting against the codebase.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">test_unit</span></code> runs the unit test suite.</p></li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The below commands will <strong>DELETE ALL NODES</strong> on your local Neo4j instance as part of our testing procedure. Only run any of the below commands if you are ok with this.</p>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">test_integration</span></code> runs the integration test suite.
+For more granular testing, you can invoke <code class="docutils literal notranslate"><span class="pre">pytest</span></code> directly:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">./tests/integration/cartography/intel/aws/test_iam.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">./tests/integration/cartography/intel/aws/test_iam.py::test_load_groups</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">-k</span> <span class="pre">test_load_groups</span></code></p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">make</span> <span class="pre">test</span></code> can be used to run all of the above.</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="implementing-custom-sync-commands">
+<h3>Implementing custom sync commands<a class="headerlink" href="#implementing-custom-sync-commands" title="Link to this heading">¶</a></h3>
+<p>By default, cartography will try to sync every intel module included as part of the default sync. If you’re not using certain intel modules, you can create a custom sync script and invoke it using the cartography CLI. For example, if you’re only interested in the AWS intel module you can create a sync script, <code class="docutils literal notranslate"><span class="pre">custom_sync.py</span></code>, that looks like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography</span><span class="w"> </span><span class="kn">import</span> <span class="n">cli</span>
+</span><span data-line="2"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography</span><span class="w"> </span><span class="kn">import</span> <span class="n">sync</span>
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.intel</span><span class="w"> </span><span class="kn">import</span> <span class="n">aws</span>
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.intel</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_indexes</span>
+</span><span data-line="5">
+</span><span data-line="6"><span class="k">def</span><span class="w"> </span><span class="nf">build_custom_sync</span><span class="p">():</span>
+</span><span data-line="7">    <span class="n">s</span> <span class="o">=</span> <span class="n">sync</span><span class="o">.</span><span class="n">Sync</span><span class="p">()</span>
+</span><span data-line="8">    <span class="n">s</span><span class="o">.</span><span class="n">add_stages</span><span class="p">([</span>
+</span><span data-line="9">        <span class="p">(</span><span class="s1">&#39;create-indexes&#39;</span><span class="p">,</span> <span class="n">create_indexes</span><span class="o">.</span><span class="n">run</span><span class="p">),</span>
+</span><span data-line="10">        <span class="p">(</span><span class="s1">&#39;aws&#39;</span><span class="p">,</span> <span class="n">aws</span><span class="o">.</span><span class="n">start_aws_ingestion</span><span class="p">),</span>
+</span><span data-line="11">    <span class="p">])</span>
+</span><span data-line="12">    <span class="k">return</span> <span class="n">s</span>
+</span><span data-line="13">
+</span><span data-line="14"><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+</span><span data-line="15">    <span class="k">return</span> <span class="n">cli</span><span class="o">.</span><span class="n">CLI</span><span class="p">(</span><span class="n">build_custom_sync</span><span class="p">(),</span> <span class="n">prog</span><span class="o">=</span><span class="s1">&#39;cartography&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">main</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+</span><span data-line="16">
+</span><span data-line="17"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+</span><span data-line="18">    <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+</span><span data-line="19">    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+</span></pre></div>
+</div>
+<p>Which can then be invoked using <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">custom_sync.py</span></code> and will have all the features of the cartography CLI while only including the intel modules you are specifically interested in using. For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography$ python custom_sync.py
+</span><span data-line="2">INFO:cartography.sync:Starting sync with update tag &#39;1569022981&#39;
+</span><span data-line="3">INFO:cartography.sync:Starting sync stage &#39;create-indexes&#39;
+</span><span data-line="4">INFO:cartography.intel.create_indexes:Creating indexes for cartography node types.
+</span><span data-line="5">INFO:cartography.sync:Finishing sync stage &#39;create-indexes&#39;
+</span><span data-line="6">INFO:cartography.sync:Starting sync stage &#39;aws&#39;
+</span><span data-line="7">INFO:botocore.credentials:Found credentials in shared credentials file: ~/.aws/credentials
+</span><span data-line="8">...
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="dev-dockerfile">
+<h2>dev.Dockerfile<a class="headerlink" href="#dev-dockerfile" title="Link to this heading">¶</a></h2>
+<p>We include a dev.Dockerfile that can help streamline common dev tasks. It is different from the main Dockerfile in that</p>
+<ol class="arabic simple">
+<li><p>It is strictly intended for dev purposes.</p></li>
+<li><p>It performs an editable install of the cartography source code and test requirements.</p></li>
+<li><p>It does not define a docker entrypoint. This is to allow you to run a custom sync script instead of just the main <code class="docutils literal notranslate"><span class="pre">cartography</span></code> command.</p></li>
+</ol>
+<p>To use it, build dev.Dockerfile with</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>/path/to/cartography/repo<span class="w">  </span><span class="c1"># We are assuming that you&#39;ve already cloned the cartography source code</span>
+</span><span data-line="2">docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>cartography-cncf/cartography-dev<span class="w"> </span>-f<span class="w"> </span>dev.Dockerfile<span class="w"> </span>./
+</span></pre></div>
+</div>
+<p>With that, there are some interesting things you can do with it.</p>
+<section id="dev-with-docker-compose">
+<h3>Dev with docker-compose<a class="headerlink" href="#dev-with-docker-compose" title="Link to this heading">¶</a></h3>
+<section id="run-the-full-test-suite">
+<h4>Run the full test suite<a class="headerlink" href="#run-the-full-test-suite" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cartography-dev<span class="w"> </span>make<span class="w"> </span>test_lint
+</span><span data-line="2">docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>make<span class="w"> </span>test_unit
+</span><span data-line="3">docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>make<span class="w"> </span>test_integration
+</span><span data-line="4">
+</span><span data-line="5"><span class="c1"># for all the above</span>
+</span><span data-line="6">docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>make<span class="w"> </span><span class="nb">test</span>
+</span></pre></div>
+</div>
+</section>
+<section id="run-a-custom-sync-script">
+<h4>Run a <a class="reference internal" href="#implementing-custom-sync-commands"><span class="xref myst">custom sync script</span></a><a class="headerlink" href="#run-a-custom-sync-script" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>python<span class="w"> </span>custom_script.py
+</span></pre></div>
+</div>
+</section>
+<section id="run-the-cartography-cli">
+<h4>Run the cartography CLI<a class="headerlink" href="#run-the-cartography-cli" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker-compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w">  </span>cartography-dev<span class="w"> </span>cartography<span class="w"> </span>--help
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="equivalent-manual-docker-commands">
+<h3>Equivalent manual docker commands<a class="headerlink" href="#equivalent-manual-docker-commands" title="Link to this heading">¶</a></h3>
+<p>If you don’t like docker-compose or if it doesn’t work for you for any reason, here are the equivalent manual docker commands for the previous scenarios:</p>
+<section id="run-unit-tests-with-dev-dockerfile">
+<h4>Run unit tests with dev.Dockerfile<a class="headerlink" href="#run-unit-tests-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cartography-cncf/cartography-dev<span class="w"> </span>make<span class="w"> </span>test_unit
+</span></pre></div>
+</div>
+<p>This is a simple command because it doesn’t require any volume mounts or docker networking.</p>
+</section>
+<section id="run-the-linter-with-dev-dockerfile">
+<h4>Run the linter with dev.Dockerfile<a class="headerlink" href="#run-the-linter-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">    </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/var/cartography<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">    </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/.cache/pre-commit:/var/cartography/.cache/pre-commit<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">    </span>cartography-cncf/cartography-dev<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">    </span>make<span class="w"> </span>test_lint
+</span></pre></div>
+</div>
+<p>The volume mounts are necessary to let pre-commit from within the container edit source files on the host machine, and for pre-commit’s cached state to save on your host machine without needing to update itself every time you run it.</p>
+</section>
+<section id="run-integration-tests-with-dev-dockerfile">
+<h4>Run integration tests with dev.Dockerfile<a class="headerlink" href="#run-integration-tests-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<p>First run a Neo4j container:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">    </span>--publish<span class="o">=</span><span class="m">7474</span>:7474<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">    </span>--publish<span class="o">=</span><span class="m">7687</span>:7687<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">    </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">    </span>-v<span class="w"> </span>data:/data<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">    </span>--name<span class="w"> </span>cartography-neo4j<span class="w"> </span><span class="se">\</span>
+</span><span data-line="7"><span class="w">    </span>--env<span class="o">=</span><span class="nv">NEO4J_AUTH</span><span class="o">=</span>none<span class="w"> </span><span class="se">\</span>
+</span><span data-line="8"><span class="w">    </span>neo4j:4.4-community
+</span></pre></div>
+</div>
+<p>and then call the integration test suite like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">  </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">  </span>-e<span class="w"> </span><span class="nv">NEO4J_URL</span><span class="o">=</span>bolt://cartography-neo4j:7687<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">  </span>cartography-cncf/cartography-dev<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">  </span>make<span class="w"> </span>test_integration
+</span></pre></div>
+</div>
+<p>Note that we needed to specify the <code class="docutils literal notranslate"><span class="pre">NEO4J_URL</span></code> env var so that the integration test would be able to reach the Neo4j container.</p>
+</section>
+<section id="run-the-full-test-suite-with-dev-dockerfile">
+<h4>Run the full test suite with dev.Dockerfile<a class="headerlink" href="#run-the-full-test-suite-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<p>Bring up a neo4j container</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">    </span>--publish<span class="o">=</span><span class="m">7474</span>:7474<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">    </span>--publish<span class="o">=</span><span class="m">7687</span>:7687<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">    </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">    </span>-v<span class="w"> </span>data:/data<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">    </span>--name<span class="w"> </span>cartography-neo4j<span class="w"> </span><span class="se">\</span>
+</span><span data-line="7"><span class="w">    </span>--env<span class="o">=</span><span class="nv">NEO4J_AUTH</span><span class="o">=</span>none<span class="w"> </span><span class="se">\</span>
+</span><span data-line="8"><span class="w">    </span>neo4j:4.4-community
+</span></pre></div>
+</div>
+<p>and then run the full test suite by specifying all the necessary volumes, network, and env vars.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">    </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>:/var/cartography<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">    </span>-v<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/.cache/pre-commit:/var/cartography/.cache/pre-commit<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">    </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">    </span>-e<span class="w"> </span><span class="nv">NEO4J_URL</span><span class="o">=</span>bolt://cartography-neo4j:7687<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">    </span>cartography-cncf/cartography-dev<span class="w"> </span><span class="se">\</span>
+</span><span data-line="7"><span class="w">    </span>make<span class="w"> </span><span class="nb">test</span>
+</span></pre></div>
+</div>
+</section>
+<section id="run-a-custom-sync-script-with-dev-dockerfile">
+<h4>Run a <a class="reference internal" href="#implementing-custom-sync-commands"><span class="xref myst">custom sync script</span></a> with dev.Dockerfile<a class="headerlink" href="#run-a-custom-sync-script-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cartography-cncf/cartography-dev<span class="w"> </span>python<span class="w"> </span>custom_sync.py
+</span></pre></div>
+</div>
+</section>
+<section id="run-cartography-cli-with-dev-dockerfile">
+<h4>Run cartography CLI with dev.Dockerfile<a class="headerlink" href="#run-cartography-cli-with-dev-dockerfile" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>cartography-cncf/cartography-dev<span class="w"> </span>cartography<span class="w"> </span>--help
+</span></pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="how-to-write-a-new-intel-module">
+<h2>How to write a new intel module<a class="headerlink" href="#how-to-write-a-new-intel-module" title="Link to this heading">¶</a></h2>
+<p>See <a class="reference internal" href="writing-intel-modules.html"><span class="doc std std-doc">here</span></a>.</p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="../modules/tailscale/schema.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Tailscale Schema</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="writing-intel-modules.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">How to write a new intel module</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=e2230717"></script></body>
+</html>

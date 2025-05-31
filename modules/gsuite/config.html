@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>GSuite Configuration - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="GSuite Schema" href="schema.html" /><link rel="prev" title="Google GSuite" href="index.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="GSuite Configuration"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Google GSuite</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#">GSuite Configuration</a></li>
+<li><a class="reference internal" href="#method-2-using-oauth">Method 2: Using OAuth</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/gsuite/config.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Google GSuite</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">GSuite Configuration</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="gsuite-configuration">
+<h1>GSuite Configuration<a class="headerlink" href="#gsuite-configuration" title="Link to this heading">¶</a></h1>
+<p>This module allows authentication from a service account or via OAuth tokens.</p>
+<p>Method 1: Using service account (legacy)</p>
+<p>Ingesting GSuite Users and Groups utilizes the <a class="reference external" href="https://developers.google.com/admin-sdk/">Google Admin SDK</a>.</p>
+<ol class="arabic simple">
+<li><p><a class="reference external" href="https://support.google.com/a/answer/60757?hl=en">Enable Google API access</a></p></li>
+<li><p>Create a new G Suite user account and accept the Terms of Service. This account will be used as the domain-wide delegated access.</p></li>
+<li><p><a class="reference external" href="https://developers.google.com/admin-sdk/directory/v1/guides/delegation">Perform G Suite Domain-Wide Delegation of Authority</a></p></li>
+<li><p>Download the service account’s credentials</p></li>
+<li><p>Export the environmental variables:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GSUITE_GOOGLE_APPLICATION_CREDENTIALS</span></code> - location of the credentials file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GSUITE_DELEGATED_ADMIN</span></code> - email address that you created in step 2</p></li>
+</ol>
+</li>
+</ol>
+</section>
+<section id="method-2-using-oauth">
+<h1>Method 2: Using OAuth<a class="headerlink" href="#method-2-using-oauth" title="Link to this heading">¶</a></h1>
+<ol class="arabic">
+<li><p>Create an App on <a class="reference external" href="https://console.cloud.google.com/">Google Cloud Console</a></p></li>
+<li><p>Refer to follow documentation if needed:</p>
+<ol class="arabic simple">
+<li><p><a class="reference external" href="https://developers.google.com/admin-sdk/directory/v1/quickstart/python">https://developers.google.com/admin-sdk/directory/v1/quickstart/python</a></p></li>
+<li><p><a class="reference external" href="https://developers.google.com/workspace/guides/get-started">https://developers.google.com/workspace/guides/get-started</a></p></li>
+<li><p><a class="reference external" href="https://support.google.com/a/answer/7281227?hl=fr">https://support.google.com/a/answer/7281227?hl=fr</a></p></li>
+</ol>
+</li>
+<li><p>Download credentials file</p></li>
+<li><p>Use helper script below for OAuth flow to obtain refresh_token</p></li>
+<li><p>Serialize needed secret</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+</span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
+</span><span data-line="3"><span class="n">auth_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;client_id&quot;</span><span class="p">:</span><span class="s2">&quot;xxxxx.apps.googleusercontent.com&quot;</span><span class="p">,</span><span class="s2">&quot;client_secret&quot;</span><span class="p">:</span><span class="s2">&quot;ChangeMe&quot;</span><span class="p">,</span> <span class="s2">&quot;refresh_token&quot;</span><span class="p">:</span><span class="s2">&quot;ChangeMe&quot;</span><span class="p">,</span> <span class="s2">&quot;token_uri&quot;</span><span class="p">:</span> <span class="s2">&quot;https://oauth2.googleapis.com/token&quot;</span><span class="p">})</span>
+</span><span data-line="4"><span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">auth_json</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Populate an environment variable of your choice with the contents of the base64 output from the previous step.</p></li>
+<li><p>Call the <code class="docutils literal notranslate"><span class="pre">cartography</span></code> CLI with <code class="docutils literal notranslate"><span class="pre">--gsuite-tokens-env-var</span> <span class="pre">YOUR_ENV_VAR_HERE</span></code> and <code class="docutils literal notranslate"><span class="pre">--gsuite-auth-method</span> <span class="pre">oauth</span></code>.</p></li>
+</ol>
+<p>Google Oauth Helper :</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">print_function</span>
+</span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+</span><span data-line="3"><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">google_auth_oauthlib.flow</span><span class="w"> </span><span class="kn">import</span> <span class="n">InstalledAppFlow</span>
+</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">googleapiclient.discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">build</span>
+</span><span data-line="7">
+</span><span data-line="8">
+</span><span data-line="9"><span class="n">scopes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;https://www.googleapis.com/auth/admin.directory.userreadonly&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.googleapis.com/auth/admin.directory.group.readonly&quot;</span><span class="p">,</span> <span class="s2">&quot;https://www.googleapis.com/auth/admin.directory.group.member&quot;</span><span class="p">]</span>
+</span><span data-line="10">
+</span><span data-line="11"><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Go to https://console.cloud.google.com/ &gt; API &amp; Services &gt; Credentials and download secrets&#39;</span><span class="p">)</span>
+</span><span data-line="12"><span class="n">project_id</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s1">&#39;Provide your project ID:&#39;</span><span class="p">)</span>
+</span><span data-line="13"><span class="n">client_id</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s1">&#39;Provide your client ID:&#39;</span><span class="p">)</span>
+</span><span data-line="14"><span class="n">client_secret</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s1">&#39;Provide your client secret:&#39;</span><span class="p">)</span>
+</span><span data-line="15"><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;credentials.json&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fc</span><span class="p">:</span>
+</span><span data-line="16">    <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="17">        <span class="s2">&quot;installed&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span data-line="18">            <span class="s2">&quot;client_id&quot;</span><span class="p">:</span> <span class="n">client_id</span><span class="p">,</span>
+</span><span data-line="19">            <span class="s2">&quot;project_id&quot;</span><span class="p">:</span> <span class="n">project_id</span><span class="p">,</span>
+</span><span data-line="20">            <span class="s2">&quot;auth_uri&quot;</span><span class="p">:</span><span class="s2">&quot;https://accounts.google.com/o/oauth2/auth&quot;</span><span class="p">,</span>
+</span><span data-line="21">            <span class="s2">&quot;token_uri&quot;</span><span class="p">:</span><span class="s2">&quot;https://oauth2.googleapis.com/token&quot;</span><span class="p">,</span>
+</span><span data-line="22">            <span class="s2">&quot;auth_provider_x509_cert_url&quot;</span><span class="p">:</span><span class="s2">&quot;https://www.googleapis.com/oauth2/v1/certs&quot;</span><span class="p">,</span>
+</span><span data-line="23">            <span class="s2">&quot;client_secret&quot;</span><span class="p">:</span><span class="s2">&quot;client_secret&quot;</span><span class="p">,</span>
+</span><span data-line="24">            <span class="s2">&quot;redirect_uris&quot;</span><span class="p">:[</span><span class="s2">&quot;http://localhost&quot;</span><span class="p">]</span>
+</span><span data-line="25">        <span class="p">}}</span>
+</span><span data-line="26">    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">fc</span><span class="p">)</span>
+</span><span data-line="27"><span class="n">flow</span> <span class="o">=</span> <span class="n">InstalledAppFlow</span><span class="o">.</span><span class="n">from_client_secrets_file</span><span class="p">(</span>
+</span><span data-line="28">    <span class="s1">&#39;credentials.json&#39;</span><span class="p">,</span> <span class="n">scopes</span><span class="p">)</span>
+</span><span data-line="29"><span class="n">flow</span><span class="o">.</span><span class="n">redirect_uri</span> <span class="o">=</span> <span class="s1">&#39;http://localhost&#39;</span>
+</span><span data-line="30"><span class="n">auth_url</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">flow</span><span class="o">.</span><span class="n">authorization_url</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="s1">&#39;consent&#39;</span><span class="p">)</span>
+</span><span data-line="31"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Please go to this URL: </span><span class="si">{</span><span class="n">auth_url</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+</span><span data-line="32"><span class="n">code</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s1">&#39;Enter the authorization code: &#39;</span><span class="p">)</span>
+</span><span data-line="33"><span class="n">flow</span><span class="o">.</span><span class="n">fetch_token</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">code</span><span class="p">)</span>
+</span><span data-line="34"><span class="n">creds</span> <span class="o">=</span> <span class="n">flow</span><span class="o">.</span><span class="n">credentials</span>
+</span><span data-line="35"><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Testing your credentials by gettings first 10 users in the domain ...&#39;</span><span class="p">)</span>
+</span><span data-line="36"><span class="n">service</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="s1">&#39;admin&#39;</span><span class="p">,</span> <span class="s1">&#39;directory_v1&#39;</span><span class="p">,</span> <span class="n">credentials</span><span class="o">=</span><span class="n">creds</span><span class="p">)</span>
+</span><span data-line="37"><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Getting the first 10 users in the domain&#39;</span><span class="p">)</span>
+</span><span data-line="38"><span class="n">results</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">users</span><span class="p">()</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">customer</span><span class="o">=</span><span class="s1">&#39;my_customer&#39;</span><span class="p">,</span> <span class="n">maxResults</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+</span><span data-line="39">                                <span class="n">orderBy</span><span class="o">=</span><span class="s1">&#39;email&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+</span><span data-line="40"><span class="n">users</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;users&#39;</span><span class="p">,</span> <span class="p">[])</span>
+</span><span data-line="41"><span class="k">if</span> <span class="ow">not</span> <span class="n">users</span><span class="p">:</span>
+</span><span data-line="42">    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No users in the domain.&#39;</span><span class="p">)</span>
+</span><span data-line="43"><span class="k">else</span><span class="p">:</span>
+</span><span data-line="44">    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Users:&#39;</span><span class="p">)</span>
+</span><span data-line="45">    <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users</span><span class="p">:</span>
+</span><span data-line="46">        <span class="nb">print</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> (</span><span class="si">{1}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user</span><span class="p">[</span><span class="s1">&#39;primaryEmail&#39;</span><span class="p">],</span>
+</span><span data-line="47">                                    <span class="n">user</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">][</span><span class="s1">&#39;fullName&#39;</span><span class="p">]))</span>
+</span><span data-line="48"><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Your credentials:&#39;</span><span class="p">)</span>
+</span><span data-line="49"><span class="nb">print</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">creds</span><span class="o">.</span><span class="n">to_json</span><span class="p">(),</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+</span><span data-line="50"><span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;credentials.json&#39;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="index.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Google GSuite</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="schema.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">GSuite Schema</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=e2230717"></script></body>
+</html>
