@@ -3,8 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.cloudtrail
 from cartography.intel.aws.cloudtrail import sync
-from tests.data.aws.cloudtrail import GET_CLOUDTRAIL_TRAIL
-from tests.data.aws.cloudtrail import LIST_CLOUDTRAIL_TRAILS
+from tests.data.aws.cloudtrail import DESCRIBE_CLOUDTRAIL_TRAILS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -17,14 +16,9 @@ TEST_UPDATE_TAG = 123456789
 @patch.object(
     cartography.intel.aws.cloudtrail,
     "get_cloudtrail_trails",
-    return_value=LIST_CLOUDTRAIL_TRAILS,
+    return_value=DESCRIBE_CLOUDTRAIL_TRAILS,
 )
-@patch.object(
-    cartography.intel.aws.cloudtrail,
-    "get_cloudtrail_trail",
-    return_value=GET_CLOUDTRAIL_TRAIL,
-)
-def test_sync_cloudtrail(mock_get_vols, mock_get_trails, neo4j_session):
+def test_sync_cloudtrail(mock_get_trails, neo4j_session):
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
