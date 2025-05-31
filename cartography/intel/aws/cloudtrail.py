@@ -4,7 +4,6 @@ from typing import Dict
 from typing import List
 
 import boto3
-import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
@@ -32,6 +31,7 @@ def get_cloudtrail_trails(
     # but the get_trail call only works in the home region
     trails_filtered = [trail for trail in trails if trail.get("HomeRegion") == region]
     return trails_filtered
+
 
 @timeit
 def load_cloudtrail_trails(
