@@ -2,12 +2,7 @@ import json
 import logging
 import subprocess
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
 
-import neo4j
 from neo4j import Session
 
 from cartography.client.core.tx import load
@@ -24,7 +19,7 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 def _call_trivy_binary(
-    ecr_image_uri: str, trivy_path: str, image_cmd_args: Optional[List[str]] = None
+    ecr_image_uri: str, trivy_path: str, image_cmd_args: list[str] | None = None
 ) -> bytes:
     """
     Calls Trivy to scan an image and returns the output.
@@ -79,11 +74,11 @@ def _call_trivy_update_db(trivy_path: str) -> None:
 def _build_image_subcommand(
     skip_update: bool,
     ignore_unfixed: bool = True,
-    triage_filter_policy_file_path: Optional[str] = None,
+    triage_filter_policy_file_path: str | None = None,
     os_findings_only: bool = False,
     list_all_pkgs: bool = False,
-    security_checks: Optional[str] = None,
-) -> List[str]:
+    security_checks: str | None = None,
+) -> list[str]:
     """
     Builds the subcommand arguments for Trivy image scanning.
 
@@ -128,8 +123,8 @@ def _build_image_subcommand(
 
 @timeit
 def get_scan_results_for_single_image(
-    ecr_image_uri: str, image_subcmd_args: List[str], trivy_path: str
-) -> List[Dict]:
+    ecr_image_uri: str, image_subcmd_args: list[str], trivy_path: str
+) -> list[dict]:
     """
     Runs trivy scanner on the given ecr_image_uri and returns vuln data results.
     """
@@ -139,7 +134,7 @@ def get_scan_results_for_single_image(
     )
 
     # Transform
-    trivy_data: Dict = json.loads(trivy_output_as_str)
+    trivy_data: dict = json.loads(trivy_output_as_str)
     # See https://github.com/aquasecurity/trivy/discussions/1050 for schema v2 shape
     if "Results" in trivy_data and trivy_data["Results"]:
         return trivy_data["Results"]
@@ -151,12 +146,12 @@ def get_scan_results_for_single_image(
         return []
 
 
-def _validate_packages(package_list: List[Dict]) -> List[Dict]:
+def _validate_packages(package_list: list[dict]) -> list[dict]:
     """
     Validates that each package has the required fields.
     Returns only packages that have both InstalledVersion and PkgName.
     """
-    validated_packages: List[Dict] = []
+    validated_packages: list[dict] = []
     for pkg in package_list:
         if (
             "InstalledVersion" in pkg
@@ -173,8 +168,8 @@ def _validate_packages(package_list: List[Dict]) -> List[Dict]:
 
 
 def transform_scan_results(
-    results: List[Dict], image_digest: str
-) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+    results: list[dict], image_digest: str
+) -> tuple[list[dict], list[dict], list[dict]]:
     """
     Transform raw Trivy scan results into a format suitable for loading into Neo4j.
     Returns a tuple of (findings_list, packages_list, fixes_list).
@@ -262,7 +257,7 @@ def transform_scan_results(
 
 
 @timeit
-def cleanup(neo4j_session: Session, common_job_parameters: Dict[str, Any]) -> None:
+def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> None:
     """
     Run cleanup jobs for Trivy nodes.
     """
@@ -280,8 +275,8 @@ def cleanup(neo4j_session: Session, common_job_parameters: Dict[str, Any]) -> No
 
 @timeit
 def load_scan_vulns(
-    neo4j_session: neo4j.Session,
-    findings_list: List[Dict[str, Any]],
+    neo4j_session: Session,
+    findings_list: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
     """
@@ -297,8 +292,8 @@ def load_scan_vulns(
 
 @timeit
 def load_scan_packages(
-    neo4j_session: neo4j.Session,
-    packages_list: List[Dict[str, Any]],
+    neo4j_session: Session,
+    packages_list: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
     """
@@ -314,8 +309,8 @@ def load_scan_packages(
 
 @timeit
 def load_scan_fixes(
-    neo4j_session: neo4j.Session,
-    fixes_list: List[Dict[str, Any]],
+    neo4j_session: Session,
+    fixes_list: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
     """
@@ -331,7 +326,7 @@ def load_scan_fixes(
 
 @timeit
 def sync_single_image(
-    neo4j_session: neo4j.Session,
+    neo4j_session: Session,
     image_tag: str,
     image_uri: str,
     repo_name: str,
