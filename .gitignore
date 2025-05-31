@@ -24,4 +24,3 @@ poetry.lock
 .gitconfig
 .python-version
 .python_history
-uv.lock
