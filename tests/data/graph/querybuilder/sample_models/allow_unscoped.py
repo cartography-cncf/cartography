@@ -38,7 +38,7 @@ class UnscopedToSimpleRel(CartographyRelSchema):
 class UnscopedNodeSchema(CartographyNodeSchema):
     label: str = "UnscopedNode"
     properties: UnscopedNodeProperties = UnscopedNodeProperties()
-    # This node can be cleaned up without being attached to a sub-resource
+    # This node can be cleaned up without being attached as a sub-resource of a parent node.
     scoped_cleanup: bool = False
     # Note that sub-resource relationship is not defined
     other_relationships: OtherRelationships = OtherRelationships(
