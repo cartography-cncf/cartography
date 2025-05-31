@@ -771,9 +771,9 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 | sns_topic_arn | The ARN of the SNS topic used by the CloudTrailTrail for delivery notifications. |
 
 #### Relationships
-- Cloudtrail Trails can be configured to log to S3 Buckets
+- CloudTrail Trails can be configured to log to S3 Buckets
     ```
-    (CloudtrailTrail)-[LOGS_TO]-(S3Bucket)
+    (CloudTrailTrail)-[LOGS_TO]-(S3Bucket)
     ```
 
 ### CloudWatchLogGroup
