@@ -55,6 +55,7 @@ class TrivyFixToFinding(CartographyRelSchema):
 @dataclass(frozen=True)
 class TrivyFixSchema(CartographyNodeSchema):
     label: str = "TrivyFix"
+    scoped_cleanup: bool = False
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Fix"])
     properties: TrivyFixNodeProperties = TrivyFixNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(

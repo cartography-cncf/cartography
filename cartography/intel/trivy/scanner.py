@@ -266,8 +266,7 @@ def cleanup(neo4j_session: Session, common_job_parameters: Dict[str, Any]) -> No
     """
     Run cleanup jobs for Trivy nodes.
     """
-    logger.debug("Running Trivy cleanup")
-    # TODO add a fake tenant object for Trivy so that the cleanup jobs work
+    logger.info("Running Trivy cleanup")
     GraphJob.from_node_schema(TrivyImageFindingSchema(), common_job_parameters).run(
         neo4j_session
     )
