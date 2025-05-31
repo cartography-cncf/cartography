@@ -67,7 +67,9 @@ class CloudTrailTrailToS3BucketRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "LOGS_TO"
-    properties: CloudTrailTrailToS3BucketRelProperties = CloudTrailTrailToS3BucketRelProperties()
+    properties: CloudTrailTrailToS3BucketRelProperties = (
+        CloudTrailTrailToS3BucketRelProperties()
+    )
 
 @dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
