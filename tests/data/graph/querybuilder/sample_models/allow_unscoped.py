@@ -3,12 +3,12 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.relationships import CartographyRelProperties, OtherRelationships
+from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
 
 
 @dataclass(frozen=True)
@@ -40,8 +40,9 @@ class UnscopedNodeSchema(CartographyNodeSchema):
     properties: UnscopedNodeProperties = UnscopedNodeProperties()
     # This node can be cleaned up without being attached to a sub-resource
     scoped_cleanup: bool = False
-    # No sub-resource relationship defined
-    sub_resource_relationship: CartographyRelSchema = None
-    other_relationships: OtherRelationships = OtherRelationships(rels=[
-        UnscopedToSimpleRel(),
-    ])
+    # Note that sub-resource relationship is not defined
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[
+            UnscopedToSimpleRel(),
+        ]
+    )

@@ -1,6 +1,8 @@
-from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.cleanupbuilder import build_cleanup_queries
-from tests.data.graph.querybuilder.sample_models.allow_unscoped import UnscopedNodeSchema
+from cartography.graph.querybuilder import build_ingestion_query
+from tests.data.graph.querybuilder.sample_models.allow_unscoped import (
+    UnscopedNodeSchema,
+)
 from tests.unit.cartography.graph.helpers import (
     remove_leading_whitespace_and_empty_lines,
 )
@@ -81,5 +83,9 @@ def test_build_cleanup_queries_unscoped():
     """
 
     # Assert
-    assert actual_delete_node == remove_leading_whitespace_and_empty_lines(expected_delete_node)
-    assert actual_delete_rel == remove_leading_whitespace_and_empty_lines(expected_delete_rel)
+    assert actual_delete_node == remove_leading_whitespace_and_empty_lines(
+        expected_delete_node
+    )
+    assert actual_delete_rel == remove_leading_whitespace_and_empty_lines(
+        expected_delete_rel
+    )
