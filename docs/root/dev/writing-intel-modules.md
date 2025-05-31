@@ -363,7 +363,7 @@ project gets synced in one at a time and it doesn't make sense to delete objects
 synced.
 
 For some other modules that don't have a clear tenant-like relationship, you can set `scoped_cleanup` to False on the
-node_schema. This might make sense for a vuln scanner module where there is no logcal tenant object.
+node_schema. This might make sense for a vuln scanner module where there is no logical tenant object.
 
 #### Legacy notes
 

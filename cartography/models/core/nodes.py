@@ -91,7 +91,7 @@ class CartographyNodeSchema(abc.ABC):
         """
         Optional.
         Allows subclasses to specify additional cartography relationships on the node.
-        :return: None if not overriden. Else return the node's OtherRelationships.
+        :return: None if not overridden. Else return the node's OtherRelationships.
         """
         return None
 
@@ -100,7 +100,7 @@ class CartographyNodeSchema(abc.ABC):
         """
         Optional.
         Allows specifying extra labels on the node.
-        :return: None if not overriden. Else return the ExtraNodeLabels specified on the node.
+        :return: None if not overridden. Else return the ExtraNodeLabels specified on the node.
         """
         return None
 
@@ -113,6 +113,6 @@ class CartographyNodeSchema(abc.ABC):
         resource. This is how our AWS sync behaves.
         If False, when we clean up node of this type, we will delete all stale nodes. This is designed for resource
         types that don't have a "tenant"-like entity.
-        :return: True if not overriden. Else return the boolean value specified on the node.
+        :return: True if not overridden. Else return the boolean value specified on the node.
         """
         return True
