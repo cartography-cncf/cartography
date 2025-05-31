@@ -54,6 +54,7 @@ class CloudTrailToAWSAccountRel(CartographyRelSchema):
         CloudTrailTrailToAwsAccountRelProperties()
     )
 
+
 @dataclass(frozen=True)
 class CloudTrailTrailToS3BucketRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -70,6 +71,7 @@ class CloudTrailTrailToS3BucketRel(CartographyRelSchema):
     properties: CloudTrailTrailToS3BucketRelProperties = (
         CloudTrailTrailToS3BucketRelProperties()
     )
+
 
 @dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
