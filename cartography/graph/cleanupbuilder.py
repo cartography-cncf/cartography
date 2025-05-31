@@ -17,33 +17,38 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
     Generates queries to clean up stale nodes and relationships from the given CartographyNodeSchema.
     Properly handles cases where a node schema has a scoped cleanup or not.
     Note that auto-cleanups for a node with no relationships is not currently supported.
-
-    Algorithm:
-    1. If node_schema has no relationships at all, return empty.
-
-    Otherwise,
-
-    1. If node_schema doesn't have a sub_resource relationship and if scoped_cleanup is true, generate queries
-    only to clean up its other_relationships. No nodes will be cleaned up. This is the case for SyncMetadata nodes.
-
-    Otherwise, clean up stale nodes, properly handling whether the node's scoped_cleanup flag is set. Specifically:
-
-    1. First delete all stale nodes. In the case of a scoped cleanup, ensure that we only do this for the nodes in the
-    sub resource currently being synced.
-    2. If this is a scoped cleanup, delete all stale node to sub resource relationships
-        - We don't expect this to be very common (never for AWS resources, at least), but in case it is possible for an
-          asset to change sub resources, we want to handle it properly.
-    3. For all other relationships defined on the node schema, delete all stale ones.
     :param node_schema: The given CartographyNodeSchema
     :return: A list of Neo4j queries to clean up nodes and relationships.
     """
+    # If the node has no relationships, do not delete the node. Leave this behind for the user to manage.
+    # Oftentimes these are SyncMetadata nodes.
     if (
         not node_schema.sub_resource_relationship
         and not node_schema.other_relationships
     ):
         return []
 
-    if not node_schema.sub_resource_relationship and node_schema.scoped_cleanup:
+    # Case 1 [Standard]: the node has a sub resource and scoped cleanup is true => clean up stale nodes
+    # of this type, scoped to the sub resource. Continue on to clean up the other_relationships too.
+    if node_schema.sub_resource_relationship and node_schema.scoped_cleanup:
+        queries = _build_cleanup_node_and_rel_queries(
+            node_schema,
+            node_schema.sub_resource_relationship,
+        )
+
+    # Case 2: The node has a sub resource but scoped cleanup is false => this does not make sense
+    # because if have a sub resource, we are implying that we are doing scoped cleanup.
+    elif node_schema.sub_resource_relationship and not node_schema.scoped_cleanup:
+        raise ValueError(
+            f"This is not expected: {node_schema.label} has a sub_resource_relationship but scoped_cleanup=False."
+            "Please check the class definition for this node schema. It doesn't make sense for a node to have a "
+            "sub resource relationship and an unscoped cleanup. Doing this will cause all stale nodes of this type "
+            "to be deleted regardless of the sub resource they are attached to."
+        )
+
+    # Case 3: The node has no sub resource but scoped cleanup is true => do not delete any nodes, but clean up stale relationships.
+    # Return early.
+    elif not node_schema.sub_resource_relationship and node_schema.scoped_cleanup:
         queries = []
         other_rels = (
             node_schema.other_relationships.rels
@@ -55,26 +60,20 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
             queries.append(query)
         return queries
 
-    result = []
-    if not node_schema.scoped_cleanup:
-        result = [_build_unscoped_cleanup_node_query(node_schema)]
-    # keep mypy happy by ensuring that the sub_resource_rel is not None here
-    elif node_schema.sub_resource_relationship:
-        result = _build_cleanup_node_and_rel_queries(
-            node_schema,
-            node_schema.sub_resource_relationship,
-        )
+    # Case 4: The node has no sub resource and scoped cleanup is false => clean up the stale nodes. Continue on to clean up the other_relationships too.
+    else:
+        queries = [_build_unscoped_cleanup_node_query(node_schema)]
 
     if node_schema.other_relationships:
         for rel in node_schema.other_relationships.rels:
             if node_schema.scoped_cleanup:
                 # [0] is the delete node query, [1] is the delete relationship query. We only want the latter.
                 _, rel_query = _build_cleanup_node_and_rel_queries(node_schema, rel)
-                result.append(rel_query)
+                queries.append(rel_query)
             else:
-                result.append(_build_cleanup_rel_queries_unscoped(node_schema, rel))
+                queries.append(_build_cleanup_rel_queries_unscoped(node_schema, rel))
 
-    return result
+    return queries
 
 
 def _build_cleanup_rel_query_no_sub_resource(
