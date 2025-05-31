@@ -62,7 +62,7 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
 
     # Case 4: The node has no sub resource and scoped cleanup is false => clean up the stale nodes. Continue on to clean up the other_relationships too.
     else:
-        queries = [_build_unscoped_cleanup_node_query(node_schema)]
+        queries = [_build_cleanup_node_query_unscoped(node_schema)]
 
     if node_schema.other_relationships:
         for rel in node_schema.other_relationships.rels:
@@ -221,7 +221,7 @@ def _build_cleanup_node_and_rel_queries(
     ]
 
 
-def _build_unscoped_cleanup_node_query(
+def _build_cleanup_node_query_unscoped(
     node_schema: CartographyNodeSchema,
 ) -> str:
     """

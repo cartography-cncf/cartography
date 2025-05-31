@@ -40,4 +40,4 @@ class InvalidUnscopedNodeSchema(CartographyNodeSchema):
     # This node has scoped_cleanup=False but also has a sub_resource_relationship
     # which should trigger the ValueError
     scoped_cleanup: bool = False
-    sub_resource_relationship: CartographyRelSchema = InvalidUnscopedToSimpleRel() 
+    sub_resource_relationship: CartographyRelSchema = InvalidUnscopedToSimpleRel()
