@@ -60,6 +60,7 @@ class TrivyPackageToFinding(CartographyRelSchema):
 @dataclass(frozen=True)
 class TrivyPackageSchema(CartographyNodeSchema):
     label: str = "Package"
+    scoped_cleanup: bool = False
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["TrivyPackage"])
     properties: TrivyPackageNodeProperties = TrivyPackageNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
