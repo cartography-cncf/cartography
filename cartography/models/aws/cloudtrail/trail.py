@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -55,7 +56,30 @@ class CloudTrailToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class CloudTrailTrailToS3BucketRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudTrailTrailToS3BucketRel(CartographyRelSchema):
+    target_node_label: str = "S3Bucket"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("S3BucketName")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "LOGS_TO"
+    properties: CloudTrailTrailToS3BucketRelProperties = (
+        CloudTrailTrailToS3BucketRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
     label: str = "CloudTrailTrail"
     properties: CloudTrailTrailNodeProperties = CloudTrailTrailNodeProperties()
     sub_resource_relationship: CloudTrailToAWSAccountRel = CloudTrailToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            CloudTrailTrailToS3BucketRel(),
+        ]
+    )
