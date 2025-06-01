@@ -984,15 +984,15 @@ class CLI:
 
         # Trivy config
         if config.trivy_path:
-            logger.debug(f"Trivy path: %s", config.trivy_path)
+            logger.debug(f"Trivy path: {config.trivy_path}")
 
         if config.trivy_opa_policy_file_path:
             logger.debug(
-                "Trivy OPA policy file path: %s", config.trivy_opa_policy_file_path
+                f"Trivy OPA policy file path: {config.trivy_opa_policy_file_path}"
             )
 
         if config.trivy_resource_type:
-            logger.debug("Trivy resource type: %s", config.trivy_resource_type)
+            logger.debug(f"Trivy resource type: {config.trivy_resource_type}")
 
         # Run cartography
         try:
