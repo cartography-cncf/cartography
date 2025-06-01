@@ -773,7 +773,7 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 #### Relationships
 - CloudTrail Trails can be configured to log to S3 Buckets
     ```
-    (CloudTrailTrail)-[LOGS_TO]-(S3Bucket)
+    (:CloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
     ```
 
 ### CloudWatchLogGroup
