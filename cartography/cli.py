@@ -637,6 +637,33 @@ class CLI:
                 "Required if you are using the Anthropic intel module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--trivy-path",
+            type=str,
+            default=None,
+            help=(
+                "The absolute path to the Trivy binary executable. "
+                "Required if you are using the Trivy module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--trivy-opa-policy-file-path",
+            type=str,
+            default=None,
+            help=(
+                "The path to an OPA policy file to use with Trivy. "
+                "Optional if you are using the Trivy module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--trivy-resource-type",
+            type=str,
+            default=None,
+            help=(
+                "The resource type to scan with Trivy (e.g. 'aws.ecr'). "
+                "Optional if you are using the Trivy module. Ignored otherwise."
+            ),
+        )
 
         return parser
 
@@ -954,6 +981,18 @@ class CLI:
             config.anthropic_apikey = os.environ.get(config.anthropic_apikey_env_var)
         else:
             config.anthropic_apikey = None
+
+        # Trivy config
+        if config.trivy_path:
+            logger.debug(f"Trivy path: %s", config.trivy_path)
+
+        if config.trivy_opa_policy_file_path:
+            logger.debug(
+                "Trivy OPA policy file path: %s", config.trivy_opa_policy_file_path
+            )
+
+        if config.trivy_resource_type:
+            logger.debug("Trivy resource type: %s", config.trivy_resource_type)
 
         # Run cartography
         try:

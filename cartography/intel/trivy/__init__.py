@@ -113,7 +113,7 @@ def sync_trivy_aws_ecr(
 
 
 @timeit
-def start_trivy_scans(neo4j_session: Session, config: Config) -> None:
+def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
     if not config.trivy_path:
         logger.info("Trivy module not configured. Skipping.")
         return
