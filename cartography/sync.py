@@ -71,6 +71,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
+        "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "analysis": cartography.intel.analysis.run,
     }
 )
