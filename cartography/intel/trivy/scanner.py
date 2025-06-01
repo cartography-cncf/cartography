@@ -363,7 +363,7 @@ def sync_single_image(
     # Log the transformation results
     num_findings = len(findings_list)
     logger.info(
-        "Transformed Trivy scan results: "
+        "Trivy scan results: "
         f"repo_name = {repo_name}, "
         f"image_tag = {image_tag}, "
         f"num_findings = {num_findings}, "
