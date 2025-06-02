@@ -22,19 +22,21 @@ async def get_entra_ous(client: GraphServiceClient) -> list[AdministrativeUnit]:
     Get all OUs from Microsoft Graph API with pagination support
     """
     all_units: list[AdministrativeUnit] = []
-    
+
     # Initialize first page request
     current_request = client.directory.administrative_units
-    
+
     while current_request:
         try:
             response = await current_request.get()
             if response and response.value:
                 all_units.extend(response.value)
-                
+
                 # Handle next page using OData link
                 if response.odata_next_link:
-                    current_request = client.directory.administrative_units.with_url(response.odata_next_link)
+                    current_request = client.directory.administrative_units.with_url(
+                        response.odata_next_link
+                    )
                 else:
                     current_request = None
             else:
@@ -42,7 +44,7 @@ async def get_entra_ous(client: GraphServiceClient) -> list[AdministrativeUnit]:
         except Exception as e:
             logger.error(f"Failed to retrieve administrative units: {str(e)}")
             current_request = None
-    
+
     return all_units
 
 
