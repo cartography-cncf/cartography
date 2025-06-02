@@ -1,4 +1,5 @@
 import cartography.intel.aws.s3
+import cartography.intel.aws.sns
 import tests.data.aws.s3
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_rels

@@ -2279,6 +2279,11 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
     (S3Bucket)-[TAGGED]->(AWSTag)
     ```
 
+- S3 Buckets can send notifications to SNS Topics.
+    ```
+    (S3Bucket)-[NOTIFIES]->(SNSTopic)
+    ```
+
 ### S3PolicyStatement
 
 Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-policies.html) for controlling ownership of objects and ACLs of the bucket.
@@ -3680,30 +3685,4 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 - If the secret version is encrypted with a KMS key, it has a relationship to that key.
     ```
     (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
-    ```
-
-### S3Bucket
-
-Representation of an AWS S3 Bucket.
-
-| Field | Description |
-|-------|-------------|
-| id | The name of the bucket |
-| name | The name of the bucket |
-| arn | The ARN of the bucket |
-| region | The region where the bucket is located |
-| creationdate | Date the bucket was created |
-
-#### Relationships
-
-- S3 Buckets belong to AWS Accounts.
-
-    ```
-    (:AWSAccount)-[:RESOURCE]->(:S3Bucket)
-    ```
-
-- S3 Buckets can send notifications to SNS Topics.
-
-    ```
-    (:S3Bucket)-[:NOTIFIES]->(:SNSTopic)
     ```

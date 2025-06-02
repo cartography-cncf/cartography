@@ -882,7 +882,7 @@ def _sync_s3_notifications(
             logger.debug(
                 f"Found {len(parsed_notifications)} notifications for bucket {bucket['Name']}"
             )
-        except Exception as e:
+        except ClientError as e:
             logger.warning(
                 f"Failed to retrieve notification configuration for bucket {bucket['Name']}: {e}"
             )
