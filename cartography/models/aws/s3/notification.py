@@ -21,4 +21,4 @@ class S3BucketToSNSTopicRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "NOTIFIES"
-    properties: S3BucketToSNSTopicRelProperties = S3BucketToSNSTopicRelProperties() 
+    properties: S3BucketToSNSTopicRelProperties = S3BucketToSNSTopicRelProperties()

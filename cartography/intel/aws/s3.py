@@ -752,7 +752,9 @@ def parse_public_access_block(
 
 
 @timeit
-def parse_notification_configuration(bucket: str, notification_config: Optional[Dict]) -> List[Dict]:
+def parse_notification_configuration(
+    bucket: str, notification_config: Optional[Dict]
+) -> List[Dict]:
     """
     Parse S3 bucket notification configuration to extract SNS topic notifications.
     Returns a list of notification configurations.
@@ -855,6 +857,42 @@ def cleanup_s3_bucket_acl_and_policy(
 
 
 @timeit
+def _sync_s3_notifications(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    bucket_data: Dict,
+    update_tag: int,
+) -> None:
+    """
+    Sync S3 bucket notification configurations to Neo4j.
+    """
+    logger.info("Syncing S3 bucket notifications")
+    s3_client = boto3_session.client("s3")
+    notifications = []
+
+    for bucket in bucket_data["Buckets"]:
+        try:
+            notification_config = s3_client.get_bucket_notification_configuration(
+                Bucket=bucket["Name"]
+            )
+            parsed_notifications = parse_notification_configuration(
+                bucket["Name"], notification_config
+            )
+            notifications.extend(parsed_notifications)
+            logger.debug(
+                f"Found {len(parsed_notifications)} notifications for bucket {bucket['Name']}"
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to retrieve notification configuration for bucket {bucket['Name']}: {e}"
+            )
+            continue
+
+    logger.info(f"Loading {len(notifications)} S3 bucket notifications into Neo4j")
+    _load_s3_notifications(neo4j_session, notifications, update_tag)
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -863,9 +901,16 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
-    logger.info("Syncing S3 for account '%s'.", current_aws_account_id)
-    bucket_data = get_s3_bucket_list(boto3_session)
+    """
+    Sync S3 buckets and their configurations to Neo4j.
+    This includes:
+    1. Basic bucket information
+    2. ACLs and policies
+    3. Notification configurations
+    """
+    logger.info("Syncing S3 for account '%s'", current_aws_account_id)
 
+    bucket_data = get_s3_bucket_list(boto3_session)
     load_s3_buckets(neo4j_session, bucket_data, current_aws_account_id, update_tag)
     cleanup_s3_buckets(neo4j_session, common_job_parameters)
 
@@ -877,6 +922,8 @@ def sync(
         update_tag,
     )
     cleanup_s3_bucket_acl_and_policy(neo4j_session, common_job_parameters)
+
+    _sync_s3_notifications(neo4j_session, boto3_session, bucket_data, update_tag)
 
     merge_module_sync_metadata(
         neo4j_session,
