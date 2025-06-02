@@ -23,6 +23,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 from cartography.util import to_asynchronous
 from cartography.util import to_synchronous
+from cartography.util import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -857,6 +858,7 @@ def cleanup_s3_bucket_acl_and_policy(
 
 
 @timeit
+@aws_handle_regions
 def _sync_s3_notifications(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
