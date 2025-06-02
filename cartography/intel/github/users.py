@@ -10,6 +10,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
+from cartography.models.common.helpers import load_human_from_users
 from cartography.models.github.orgs import GitHubOrganizationSchema
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from cartography.models.github.users import GitHubUnaffiliatedUserSchema
@@ -192,6 +193,8 @@ def load_users(
     org_data: Dict,
     update_tag: int,
 ) -> None:
+    load_human_from_users(neo4j_session, update_tag, user_data)
+
     logger.info(f"Loading {len(user_data)} GitHub users to the graph")
     load(
         neo4j_session,

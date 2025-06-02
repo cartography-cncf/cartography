@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.common.helpers import load_human_from_users
 from cartography.models.duo.user import DuoUserSchema
 from cartography.util import timeit
 
@@ -119,6 +120,12 @@ def _load_users(
     Load the users into the database
     """
     logger.info(f"Loading {len(users)} duo users")
+    load_human_from_users(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        users,
+    )
+
     load(
         neo4j_session,
         DuoUserSchema(),
