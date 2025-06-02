@@ -27,9 +27,11 @@ async def get_entra_ous(client: GraphServiceClient) -> list[AdministrativeUnit]:
     while request:
         response = await request.get()
         all_units.extend(response.value)
-        request = client.directory.administrative_units.with_url(
-            response.odata_next_link
-        ) if response.odata_next_link else None
+        request = (
+            client.directory.administrative_units.with_url(response.odata_next_link)
+            if response.odata_next_link
+            else None
+        )
 
     return all_units
 
