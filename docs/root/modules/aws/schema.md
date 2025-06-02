@@ -3681,3 +3681,29 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     ```
     (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
+
+### S3Bucket
+
+Representation of an AWS S3 Bucket.
+
+| Field | Description |
+|-------|-------------|
+| id | The name of the bucket |
+| name | The name of the bucket |
+| arn | The ARN of the bucket |
+| region | The region where the bucket is located |
+| creationdate | Date the bucket was created |
+
+#### Relationships
+
+- S3 Buckets belong to AWS Accounts.
+
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:S3Bucket)
+    ```
+
+- S3 Buckets can send notifications to SNS Topics.
+
+    ```
+    (:S3Bucket)-[:NOTIFIES]->(:SNSTopic)
+    ```

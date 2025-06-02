@@ -752,6 +752,49 @@ def parse_public_access_block(
 
 
 @timeit
+def parse_notification_configuration(bucket: str, notification_config: Optional[Dict]) -> List[Dict]:
+    """
+    Parse S3 bucket notification configuration to extract SNS topic notifications.
+    Returns a list of notification configurations.
+    """
+    if not notification_config or "TopicConfigurations" not in notification_config:
+        return []
+
+    notifications = []
+    for topic_config in notification_config.get("TopicConfigurations", []):
+        notification = {
+            "bucket": bucket,
+            "TopicArn": topic_config["TopicArn"],
+        }
+        notifications.append(notification)
+    return notifications
+
+
+@timeit
+def _load_s3_notifications(
+    neo4j_session: neo4j.Session,
+    notifications: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Ingest S3 bucket to SNS topic notification relationships into neo4j.
+    """
+    ingest_notifications = """
+    UNWIND $notifications AS notification
+    MATCH (bucket:S3Bucket{name: notification.bucket})
+    MATCH (topic:SNSTopic{arn: notification.TopicArn})
+    MERGE (bucket)-[r:NOTIFIES]->(topic)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $UpdateTag
+    """
+    neo4j_session.run(
+        ingest_notifications,
+        notifications=notifications,
+        UpdateTag=update_tag,
+    )
+
+
+@timeit
 def load_s3_buckets(
     neo4j_session: neo4j.Session,
     data: Dict,
