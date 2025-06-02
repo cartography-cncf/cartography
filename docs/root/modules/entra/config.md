@@ -11,4 +11,4 @@ To set up the Entra client,
 
 1. Go to [App Registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) in the Azure portal
 1. Create a new app registration.
-1. Grant it `User.Read.All` and `User.Read` permissions to the Microsoft graph to audit users.
+1. Grant it `User.Read.All` and `User.Read` and 'AdministrativeUnit.Read.All' permissions to the Microsoft graph to audit users. These permissions need to be of application type.
