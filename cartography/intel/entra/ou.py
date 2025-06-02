@@ -22,12 +22,16 @@ async def get_entra_ous(client: GraphServiceClient) -> list[AdministrativeUnit]:
     Get all OUs from Microsoft Graph API with pagination support
     """
     all_units: list[AdministrativeUnit] = []
-    request = client.directory.administrative_units.request()
+    request = client.directory.administrative_units
+
 
     while request:
         response = await request.get()
         all_units.extend(response.value)
-        request = response.odata_next_link if response.odata_next_link else None
+        request = client.directory.administrative_units.with_url(
+            response.odata_next_link
+        ) if response.odata_next_link else None
+
 
     return all_units
 
