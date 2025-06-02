@@ -770,6 +770,11 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 | s3_key_prefix | The S3 key prefix used after the bucket name for the CloudTrailTrail's log files. |
 | sns_topic_arn | The ARN of the SNS topic used by the CloudTrailTrail for delivery notifications. |
 
+#### Relationships
+- CloudTrail Trails can be configured to log to S3 Buckets
+    ```
+    (:CloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
+    ```
 
 ### CloudWatchLogGroup
 Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)
