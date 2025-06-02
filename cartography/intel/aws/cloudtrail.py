@@ -4,7 +4,6 @@ from typing import Dict
 from typing import List
 
 import boto3
-import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
@@ -25,37 +24,13 @@ def get_cloudtrail_trails(
     client = boto3_session.client(
         "cloudtrail", region_name=region, config=get_botocore_config()
     )
-    paginator = client.get_paginator("list_trails")
-    trails = []
-    for page in paginator.paginate():
-        trails.extend(page["Trails"])
+
+    trails = client.describe_trails()["trailList"]
 
     # CloudTrail multi-region trails are shown in list_trails,
     # but the get_trail call only works in the home region
     trails_filtered = [trail for trail in trails if trail.get("HomeRegion") == region]
     return trails_filtered
-
-
-@timeit
-def get_cloudtrail_trail(
-    boto3_session: boto3.Session,
-    region: str,
-    trail_name: str,
-) -> Dict[str, Any]:
-    client = boto3_session.client(
-        "cloudtrail", region_name=region, config=get_botocore_config()
-    )
-    trail_details: Dict[str, Any] = {}
-    try:
-        response = client.get_trail(Name=trail_name)
-        trail_details = response["Trail"]
-    except botocore.exceptions.ClientError as e:
-        code = e.response["Error"]["Code"]
-        msg = e.response["Error"]["Message"]
-        logger.warning(
-            f"Could not run CloudTrail get_trail due to boto3 error {code}: {msg}. Skipping.",
-        )
-    return trail_details
 
 
 @timeit
@@ -105,20 +80,10 @@ def sync(
             f"Syncing CloudTrail for region '{region}' in account '{current_aws_account_id}'.",
         )
         trails = get_cloudtrail_trails(boto3_session, region)
-        trail_data: List[Dict[str, Any]] = []
-        for trail in trails:
-            trail_name = trail["Name"]
-            trail_details = get_cloudtrail_trail(
-                boto3_session,
-                region,
-                trail_name,
-            )
-            if trail_details:
-                trail_data.append(trail_details)
 
         load_cloudtrail_trails(
             neo4j_session,
-            trail_data,
+            trails,
             region,
             current_aws_account_id,
             update_tag,
