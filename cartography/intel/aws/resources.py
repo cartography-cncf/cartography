@@ -10,7 +10,6 @@ from . import config
 from . import dynamodb
 from . import ecr
 from . import ecs
-from . import efs
 from . import eks
 from . import elasticache
 from . import elasticsearch
@@ -105,5 +104,4 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "identitycenter": identitycenter.sync_identity_center_instances,
     "cloudtrail": cloudtrail.sync,
     "cloudwatch": cloudwatch.sync,
-    "efs": efs.sync,
 }
