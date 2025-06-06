@@ -20,7 +20,6 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
     )
-    pod_name: PropertyRef = PropertyRef("pod_name", extra_index=True)
     image_pull_policy: PropertyRef = PropertyRef("image_pull_policy")
     status_image_id: PropertyRef = PropertyRef("status_image_id")
     status_image_sha: PropertyRef = PropertyRef("status_image_sha")
@@ -65,7 +64,7 @@ class KubernetesContainerToKubernetesPod(CartographyRelSchema):
         {
             "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
             "namespace": PropertyRef("namespace"),
-            "name": PropertyRef("pod_name"),
+            "id": PropertyRef("pod_id"),
         }
     )
     direction: LinkDirection = LinkDirection.INWARD

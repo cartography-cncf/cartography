@@ -23,11 +23,11 @@ def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
     containers = dict()
     for container in pod_containers:
         containers[container.name] = {
-            "uid": f"{pod.metadata.namespace}-{pod.metadata.name}-{container.name}",
+            "uid": f"{pod.metadata.uid}-{container.name}",
             "name": container.name,
             "image": container.image,
             "namespace": pod.metadata.namespace,
-            "pod_name": pod.metadata.name,
+            "pod_id": pod.metadata.uid,
             "imagePullPolicy": container.image_pull_policy,
         }
         if pod.status and pod.status.container_statuses:

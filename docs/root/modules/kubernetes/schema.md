@@ -92,7 +92,6 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | image | Docker image used in the container |
 | namespace | The Kubernetes namespace where this container is deployed |
 | cluster\_name | Name of the Kubernetes cluster where this container is deployed |
-| pod_name | The name of the Kubernetes Pod where this container is running |
 | image\_pull_policy | The policy that determines when the kubelet attempts to pull the specified image (Always, Never, IfNotPresent) |
 | status\_image\_id | ImageID of the container's image. |
 | status\_image\_sha | The SHA portion of the status\_image\_id |
