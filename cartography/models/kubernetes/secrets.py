@@ -32,7 +32,7 @@ class KubernetesSecretToKubernetesNamespaceProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:KubernetesSecret)<-[:RESOURCE]-(:KubernetesNamespace)
+# (:KubernetesSecret)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesSecretToKubernetesNamespace(CartographyRelSchema):
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -42,7 +42,7 @@ class KubernetesSecretToKubernetesNamespace(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "CONTAINS"
     properties: KubernetesSecretToKubernetesNamespaceProperties = (
         KubernetesSecretToKubernetesNamespaceProperties()
     )

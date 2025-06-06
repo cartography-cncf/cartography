@@ -41,7 +41,7 @@ class KubernetesContainerToKubernetesPodProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:KubernetesContainer)<-[:RESOURCE]-(:KubernetesNamespace)
+# (:KubernetesContainer)<-[:CONTAINS]-(:KubernetesNamespace)
 class KubernetesContainerToKubernetesNamespace(CartographyRelSchema):
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -51,7 +51,7 @@ class KubernetesContainerToKubernetesNamespace(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "CONTAINS"
     properties: KubernetesContainerToKubernetesNamespaceProperties = (
         KubernetesContainerToKubernetesNamespaceProperties()
     )
