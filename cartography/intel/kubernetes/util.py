@@ -2,8 +2,6 @@ import logging
 from datetime import datetime
 from typing import Any
 from typing import Callable
-from typing import List
-from typing import Optional
 
 from kubernetes import config
 from kubernetes.client import ApiClient
@@ -24,7 +22,7 @@ class K8CoreApiClient(CoreV1Api):
         self,
         name: str,
         config_file: str,
-        api_client: Optional[ApiClient] = None,
+        api_client: ApiClient | None = None,
     ) -> None:
         self.name = name
         if not api_client:
@@ -39,7 +37,7 @@ class K8NetworkingApiClient(NetworkingV1Api):
         self,
         name: str,
         config_file: str,
-        api_client: Optional[ApiClient] = None,
+        api_client: ApiClient | None = None,
     ) -> None:
         self.name = name
         if not api_client:
@@ -54,7 +52,7 @@ class K8VersionApiClient(VersionApi):
         self,
         name: str,
         config_file: str,
-        api_client: Optional[ApiClient] = None,
+        api_client: ApiClient | None = None,
     ) -> None:
         self.name = name
         if not api_client:
@@ -69,7 +67,7 @@ class K8sClient:
         self,
         name: str,
         config_file: str,
-        external_id: Optional[str] = None,
+        external_id: str | None = None,
     ) -> None:
         self.name = name
         self.config_file = config_file
@@ -79,7 +77,7 @@ class K8sClient:
         self.version = K8VersionApiClient(self.name, self.config_file)
 
 
-def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
+def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
     # returns a tuple of (all contexts, current context)
     contexts, _ = config.list_kube_config_contexts(kubeconfig)
     if not contexts:
@@ -97,7 +95,7 @@ def get_k8s_clients(kubeconfig: str) -> List[K8sClient]:
     return clients
 
 
-def get_epoch(date: Optional[datetime]) -> Optional[int]:
+def get_epoch(date: datetime | None) -> int | None:
     if date:
         return int(date.timestamp())
     return None

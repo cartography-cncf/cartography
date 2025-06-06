@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from kubernetes.client.models import V1Namespace
@@ -18,12 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_namespaces(client: K8sClient) -> List[Dict[str, Any]]:
+def get_namespaces(client: K8sClient) -> list[V1Namespace]:
     items = k8s_paginate(client.core.list_namespace)
     return items
 
 
-def transform_namespaces(namespaces: List[V1Namespace]) -> List[Dict[str, Any]]:
+def transform_namespaces(namespaces: list[V1Namespace]) -> list[dict[str, Any]]:
     transformed_namespaces = []
     for namespace in namespaces:
         transformed_namespaces.append(
@@ -40,7 +38,7 @@ def transform_namespaces(namespaces: List[V1Namespace]) -> List[Dict[str, Any]]:
 
 def load_namespaces(
     session: neo4j.Session,
-    namespaces: List[Dict[str, Any]],
+    namespaces: list[dict[str, Any]],
     update_tag: int,
     cluster_name: str,
     cluster_id: str,
@@ -57,7 +55,7 @@ def load_namespaces(
 
 
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     logger.debug("Running cleanup job for KubernetesNamespace")
     cleanup_job = GraphJob.from_node_schema(
@@ -71,7 +69,7 @@ def sync_namespaces(
     session: neo4j.Session,
     client: K8sClient,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     namespaces = get_namespaces(client)
     transformed_namespaces = transform_namespaces(namespaces)

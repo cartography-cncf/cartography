@@ -81,7 +81,7 @@ def test_load_secrets_relationships(neo4j_session, _create_test_cluster):
             "name",
             "KubernetesSecret",
             "name",
-            "RESOURCE",
+            "CONTAINS",
         )
         == expected_rels
     )
@@ -98,7 +98,7 @@ def test_load_secrets_relationships(neo4j_session, _create_test_cluster):
             "cluster_name",
             "KubernetesSecret",
             "name",
-            "RESOURCE",
+            "CONTAINS",
         )
         == expected_rels
     )

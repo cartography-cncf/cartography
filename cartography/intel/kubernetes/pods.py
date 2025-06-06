@@ -1,8 +1,6 @@
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from kubernetes.client.models import V1Container
@@ -20,8 +18,8 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-def _extract_pod_containers(pod: V1Pod) -> Dict[str, Any]:
-    pod_containers: List[V1Container] = pod.spec.containers
+def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
+    pod_containers: list[V1Container] = pod.spec.containers
     containers = dict()
     for container in pod_containers:
         containers[container.name] = {
@@ -54,16 +52,16 @@ def _extract_pod_containers(pod: V1Pod) -> Dict[str, Any]:
 
 
 @timeit
-def get_pods(client: K8sClient) -> List[Dict[str, Any]]:
+def get_pods(client: K8sClient) -> list[V1Pod]:
     items = k8s_paginate(client.core.list_pod_for_all_namespaces)
     return items
 
 
-def _format_pod_labels(labels: Dict[str, str]) -> str:
+def _format_pod_labels(labels: dict[str, str]) -> str:
     return json.dumps(labels)
 
 
-def transform_pods(pods: List[V1Pod]) -> List[Dict[str, Any]]:
+def transform_pods(pods: list[V1Pod]) -> list[dict[str, Any]]:
     transformed_pods = []
 
     for pod in pods:
@@ -87,7 +85,7 @@ def transform_pods(pods: List[V1Pod]) -> List[Dict[str, Any]]:
 @timeit
 def load_pods(
     session: neo4j.Session,
-    pods: List[Dict[str, Any]],
+    pods: list[dict[str, Any]],
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
@@ -103,7 +101,7 @@ def load_pods(
     )
 
 
-def transform_containers(pods: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def transform_containers(pods: list[dict[str, Any]]) -> list[dict[str, Any]]:
     containers = []
     for pod in pods:
         containers.extend(pod.get("containers", []))
@@ -113,7 +111,7 @@ def transform_containers(pods: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 @timeit
 def load_containers(
     session: neo4j.Session,
-    containers: List[Dict[str, Any]],
+    containers: list[dict[str, Any]],
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
@@ -130,7 +128,7 @@ def load_containers(
 
 
 @timeit
-def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+def cleanup(session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     logger.debug("Running cleanup job for KubernetesContainer")
     cleanup_job = GraphJob.from_node_schema(
         KubernetesContainerSchema(), common_job_parameters
@@ -149,8 +147,8 @@ def sync_pods(
     session: neo4j.Session,
     client: K8sClient,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
-) -> List[Dict[str, Any]]:
+    common_job_parameters: dict[str, Any],
+) -> list[dict[str, Any]]:
     pods = get_pods(client)
 
     transformed_pods = transform_pods(pods)

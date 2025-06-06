@@ -95,7 +95,7 @@ def test_load_pod_relationships(neo4j_session, _create_test_cluster):
             "name",
             "KubernetesPod",
             "name",
-            "RESOURCE",
+            "CONTAINS",
         )
         == expected_rels
     )
@@ -112,7 +112,7 @@ def test_load_pod_relationships(neo4j_session, _create_test_cluster):
             "cluster_name",
             "KubernetesPod",
             "name",
-            "RESOURCE",
+            "CONTAINS",
         )
         == expected_rels
     )

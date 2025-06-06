@@ -1,8 +1,6 @@
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from kubernetes.client.models import V1Service
@@ -19,18 +17,18 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_services(client: K8sClient) -> List[Dict]:
+def get_services(client: K8sClient) -> list[dict[str, Any]]:
     items = k8s_paginate(client.core.list_service_for_all_namespaces)
     return items
 
 
-def _format_service_selector(selector: Dict[str, str]) -> str:
+def _format_service_selector(selector: dict[str, str]) -> str:
     return json.dumps(selector)
 
 
 def transform_services(
-    services: List[V1Service], all_pods: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    services: list[V1Service], all_pods: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     services_list = []
     for service in services:
         item = {
@@ -53,8 +51,8 @@ def transform_services(
         pod_ids = []
         for pod in all_pods:
             if pod["namespace"] == service.metadata.namespace:
-                service_selector: Dict[str, str] = service.spec.selector
-                pod_labels: Dict[str, str] = json.loads(pod["labels"])
+                service_selector: dict[str, str] = service.spec.selector
+                pod_labels: dict[str, str] = json.loads(pod["labels"])
 
                 # check if pod labels match service selector
                 if service_selector:
@@ -72,7 +70,7 @@ def transform_services(
 
 def load_services(
     session: neo4j.Session,
-    services: List[Dict],
+    services: list[dict[str, Any]],
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
@@ -88,7 +86,7 @@ def load_services(
     )
 
 
-def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+def cleanup(session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     logger.debug("Running cleanup job for KubernetesService")
     cleanup_job = GraphJob.from_node_schema(
         KubernetesServiceSchema(), common_job_parameters
@@ -100,9 +98,9 @@ def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> No
 def sync_services(
     session: neo4j.Session,
     client: K8sClient,
-    all_pods: List[Dict[str, Any]],
+    all_pods: list[dict[str, Any]],
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     services = get_services(client)
     transformed_services = transform_services(services, all_pods)

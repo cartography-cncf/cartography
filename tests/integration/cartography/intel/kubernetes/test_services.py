@@ -86,7 +86,7 @@ def test_load_services_relationships(neo4j_session, _create_test_cluster):
             "name",
             "KubernetesService",
             "name",
-            "RESOURCE",
+            "CONTAINS",
         )
         == expected_rels
     )
@@ -102,7 +102,7 @@ def test_load_services_relationships(neo4j_session, _create_test_cluster):
             "cluster_name",
             "KubernetesService",
             "name",
-            "RESOURCE",
+            "CONTAINS",
         )
         == expected_rels
     )

@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from kubernetes.client.models import V1Namespace
@@ -30,7 +28,7 @@ def transform_kubernetes_cluster(
     client: K8sClient,
     namespace: V1Namespace,
     version: VersionInfo,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     cluster = {
         "id": namespace.metadata.uid,
         "creation_timestamp": get_epoch(namespace.metadata.creation_timestamp),
@@ -49,7 +47,7 @@ def transform_kubernetes_cluster(
 
 def load_kubernetes_cluster(
     neo4j_session: neo4j.Session,
-    cluster_data: List[Dict[str, Any]],
+    cluster_data: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
     logger.info(
@@ -78,8 +76,8 @@ def sync_kubernetes_cluster(
     neo4j_session: neo4j.Session,
     client: K8sClient,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
-) -> Dict[str, Any]:
+    common_job_parameters: dict[str, Any],
+) -> dict[str, Any]:
     namespace = get_kubernetes_cluster_namespace(client)
     version = get_kubernetes_cluster_version(client)
     cluster_info = transform_kubernetes_cluster(client, namespace, version)

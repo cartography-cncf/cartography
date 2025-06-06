@@ -1,9 +1,6 @@
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 
 import neo4j
 from kubernetes.client.models import V1OwnerReference
@@ -21,14 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_secrets(client: K8sClient) -> List[V1Secret]:
+def get_secrets(client: K8sClient) -> list[V1Secret]:
     items = k8s_paginate(client.core.list_secret_for_all_namespaces)
     return items
 
 
 def _get_owner_references(
-    owner_references: Optional[V1OwnerReference],
-) -> Optional[str]:
+    owner_references: list[V1OwnerReference] | None,
+) -> str | None:
     if owner_references:
         owner_references_list = []
         for owner_reference in owner_references:
@@ -45,7 +42,7 @@ def _get_owner_references(
     return None
 
 
-def transform_secrets(secrets: List[V1Secret]) -> List[Dict[str, Any]]:
+def transform_secrets(secrets: list[V1Secret]) -> list[dict[str, Any]]:
     secrets_list = []
     for secret in secrets:
         secrets_list.append(
@@ -68,7 +65,7 @@ def transform_secrets(secrets: List[V1Secret]) -> List[Dict[str, Any]]:
 @timeit
 def load_secrets(
     session: neo4j.Session,
-    secrets: List[Dict[str, Any]],
+    secrets: list[dict[str, Any]],
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
@@ -85,7 +82,7 @@ def load_secrets(
 
 
 @timeit
-def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
+def cleanup(session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
     logger.debug("Running cleanup for KubernetesSecrets")
     cleanup_job = GraphJob.from_node_schema(
         KubernetesSecretSchema(),
@@ -99,7 +96,7 @@ def sync_secrets(
     session: neo4j.Session,
     client: K8sClient,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     secrets = get_secrets(client)
     transformed_secrets = transform_secrets(secrets)
