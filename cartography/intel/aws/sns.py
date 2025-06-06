@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -9,6 +10,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.sns.topic import SNSTopicSchema
+from cartography.models.aws.sns.topic_subscription import SNSTopicSubscriptionSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
@@ -109,12 +111,109 @@ def load_sns_topics(
 
 
 @timeit
+@aws_handle_regions
+def get_subscriptions(
+    boto3_session: boto3.session.Session, region: str
+) -> List[Dict[str, Any]]:
+    """
+    Get all SNS Topics Subscriptions for a region.
+    """
+    client = boto3_session.client("sns", region_name=region)
+    paginator = client.get_paginator("list_subscriptions")
+    subscriptions = []
+    for page in paginator.paginate():
+        subscriptions.extend(page.get("Subscriptions", []))
+
+    return subscriptions
+
+
+@timeit
+@aws_handle_regions
+def get_subscription_attributes(
+    boto3_session: boto3.session.Session, region: str, subscription_arn: Any
+) -> Dict[str, Any]:
+    """
+    Get all SNS  Subscriptions attributes for a region.
+    """
+    client = boto3_session.client("sns", region_name=region)
+    response = client.get_subscription_attributes(SubscriptionArn=subscription_arn)
+    return response.get("Attributes", {})
+
+
+def transform_subscriptions(
+    subscriptions: List[Dict], attributes: Dict[Any, Dict], region: str
+) -> List[Dict]:
+    """
+    Transform SNS topic subscriptions data for ingestion
+    """
+    transformed_subscriptions = []
+    for subscription in subscriptions:
+        subscription_arn = subscription["SubscriptionArn"]
+
+        # Get attributes
+        subscription_attrs = attributes.get(subscription_arn, {}).get("Attributes", {})
+
+        transformed_subscription = {
+            "SubscriptionArn": subscription_arn,
+            "TopicArn": subscription.get("TopicArn", ""),
+            "ConfirmationWasAuthenticated": subscription_attrs.get(
+                "ConfirmationWasAuthenticated", ""
+            ),
+            "DeliveryPolicy": subscription_attrs.get("DeliveryPolicy", ""),
+            "EffectiveDeliveryPolicy": subscription_attrs.get(
+                "EffectiveDeliveryPolicy", ""
+            ),
+            "FilterPolicy": subscription_attrs.get("FilterPolicy", ""),
+            "FilterPolicyScope": subscription_attrs.get("FilterPolicyScope", ""),
+            "Owner": subscription_attrs.get("Owner", ""),
+            "PendingConfirmation": subscription_attrs.get("PendingConfirmation", ""),
+            "RawMessageDelivery": subscription_attrs.get("RawMessageDelivery", ""),
+            "RedrivePolicy": subscription_attrs.get("RedrivePolicy", ""),
+            "SubscriptionRoleArn": subscription_attrs.get("SubscriptionRoleArn", ""),
+        }
+
+        transformed_subscriptions.append(transformed_subscription)
+
+    return transformed_subscriptions
+
+
+@timeit
+def load_sns_topic_subscription(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Load SNS Topic Subscription information into the graph
+    """
+    logger.info(
+        f"Loading {len(data)} SNS topic subscription for region {region} into graph."
+    )
+
+    load(
+        neo4j_session,
+        SNSTopicSubscriptionSchema(),
+        data,
+        lastupdated=update_tag,
+        Region=region,
+        AWS_ID=aws_account_id,
+    )
+
+
+@timeit
 def cleanup_sns(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     """
     Run SNS cleanup job
     """
     logger.debug("Running SNS cleanup job.")
     cleanup_job = GraphJob.from_node_schema(SNSTopicSchema(), common_job_parameters)
+    cleanup_job.run(neo4j_session)
+
+    cleanup_job = GraphJob.from_node_schema(
+        SNSTopicSubscriptionSchema(), common_job_parameters
+    )
     cleanup_job.run(neo4j_session)
 
 
@@ -128,7 +227,7 @@ def sync(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Sync SNS Topics for all regions
+    Sync SNS Topics and Subscriptions for all regions
     """
     for region in regions:
         logger.info(
@@ -153,9 +252,35 @@ def sync(
             update_tag,
         )
 
+        # Get and load subscriptions
+        subscriptions = get_subscriptions(boto3_session, region)
+        subscription_attributes = {}
+
+        for subscription in subscriptions:
+            subscription_arn = subscription.get("SubscriptionArn")
+
+            attributes = get_subscription_attributes(
+                boto3_session, region, subscription_arn
+            )
+
+            if attributes:
+                subscription_attributes[subscription_arn] = attributes
+
+        transformed_subscriptions = transform_subscriptions(
+            subscriptions, subscription_attributes, region
+        )
+
+        load_sns_topic_subscription(
+            neo4j_session,
+            transformed_subscriptions,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+    # Cleanup and metadata update (outside region loop)
     cleanup_sns(neo4j_session, common_job_parameters)
 
-    # Record that we've synced this module
     merge_module_sync_metadata(
         neo4j_session,
         group_type="AWSAccount",
