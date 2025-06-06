@@ -121,6 +121,7 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 | namespace | The Kubernetes namespace where this service is deployed |
 | selector | Labels used by the service to select pods. Fetched from `service.spec.selector`. Stored as a JSON-encoded string. |
 | type | Type of kubernetes service e.g. `ClusterIP` |
+| cluster\_ip | The internal IP address assigned to the Kubernetes service within the cluster |
 | load\_balancer\_ip | IP of the load balancer when service type is `LoadBalancer` |
 | load\_balancer\_ingress | The list of load balancer ingress points, typically containing the hostname and IP. Stored as a JSON-encoded string. |
 | cluster\_name | Name of the Kubernetes cluster where this service is deployed |

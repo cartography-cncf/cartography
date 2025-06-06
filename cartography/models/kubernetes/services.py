@@ -20,6 +20,7 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
     namespace: PropertyRef = PropertyRef("namespace", extra_index=True)
     selector: PropertyRef = PropertyRef("selector")
     type: PropertyRef = PropertyRef("type")
+    cluster_ip: PropertyRef = PropertyRef("cluster_ip")
     load_balancer_ip: PropertyRef = PropertyRef("load_balancer_ip")
     load_balancer_ingress: PropertyRef = PropertyRef("load_balancer_ingress")
     cluster_name: PropertyRef = PropertyRef(

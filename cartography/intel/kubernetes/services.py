@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_services(client: K8sClient) -> list[dict[str, Any]]:
+def get_services(client: K8sClient) -> list[V1Service]:
     items = k8s_paginate(client.core.list_service_for_all_namespaces)
     return items
 
@@ -43,19 +43,22 @@ def transform_services(
             "load_balancer_ip": service.spec.load_balancer_ip,
         }
 
-        # TODO: add load_balancer_ingress to item
-        # if service.spec.type == "LoadBalancer":
-        #     item["load_balancer_ingress"] = json.dumps(service.status.load_balancer.ingress)
+        # TODO: instead of storing a json string, we should probably create seperate nodes for each ingress
+        if service.spec.type == "LoadBalancer":
+            if service.status.load_balancer:
+                item["load_balancer_ingress"] = json.dumps(
+                    service.status.load_balancer.ingress
+                )
 
         # check if pod labels match service selector and add pod_ids to item
         pod_ids = []
         for pod in all_pods:
             if pod["namespace"] == service.metadata.namespace:
-                service_selector: dict[str, str] = service.spec.selector
-                pod_labels: dict[str, str] = json.loads(pod["labels"])
+                service_selector: dict[str, str] | None = service.spec.selector
+                pod_labels: dict[str, str] | None = json.loads(pod["labels"])
 
                 # check if pod labels match service selector
-                if service_selector:
+                if pod_labels and service_selector:
                     if all(
                         service_selector[key] == pod_labels.get(key)
                         for key in service_selector

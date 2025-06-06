@@ -30,7 +30,7 @@ def transform_namespaces(namespaces: list[V1Namespace]) -> list[dict[str, Any]]:
                 "name": namespace.metadata.name,
                 "creation_timestamp": get_epoch(namespace.metadata.creation_timestamp),
                 "deletion_timestamp": get_epoch(namespace.metadata.deletion_timestamp),
-                "status_phase": namespace.status.phase,
+                "status_phase": namespace.status.phase if namespace.status else None,
             }
         )
     return transformed_namespaces
