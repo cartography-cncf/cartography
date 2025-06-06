@@ -51,7 +51,7 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
 #### Relationships
 - All namespace-scoped resources belong to a `KubernetesNamespace`.
     ```
-    (:KubernetesNamespace)-[:RESOURCE]->(:KubernetesPod,
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesPod,
                                          :KubernetesContainer,
                                          :KubernetesService,
                                          :KubernetesSecret,
@@ -152,5 +152,5 @@ Representation of a [Kubernetes Secret.](https://kubernetes.io/docs/concepts/con
 #### Relationships
 - `KubernetesNamespace` has `KubernetesSecret`.
     ```
-    (:KubernetesNamespace)-[:RESOURCE]->(:KubernetesSecret)
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesSecret)
     ```
