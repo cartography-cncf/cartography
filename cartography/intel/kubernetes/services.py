@@ -3,6 +3,8 @@ import logging
 from typing import Any
 
 import neo4j
+from kubernetes.client.models import V1LoadBalancerIngress
+from kubernetes.client.models import V1PortStatus
 from kubernetes.client.models import V1Service
 
 from cartography.client.core.tx import load
@@ -26,6 +28,41 @@ def _format_service_selector(selector: dict[str, str]) -> str:
     return json.dumps(selector)
 
 
+def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -> str:
+
+    def _format_ingress_ports(
+        ports: list[V1PortStatus] | None,
+    ) -> list[dict[str, Any]] | None:
+        if ports is None:
+            return None
+
+        ingress_ports = []
+        for port in ports:
+            ingress_ports.append(
+                {
+                    "error": port.port,
+                    "port": port.protocol,
+                    "protocol": port.ip,
+                }
+            )
+        return ingress_ports
+
+    if ingress is None:
+        return json.dumps(None)
+
+    loadbalancer_ingress = []
+    for item in ingress:
+        loadbalancer_ingress.append(
+            {
+                "hostname": item.hostname,
+                "ip": item.ip,
+                "ip_mode": item.ip_mode,
+                "ports": _format_ingress_ports(item.ports),
+            }
+        )
+    return json.dumps(loadbalancer_ingress)
+
+
 def transform_services(
     services: list[V1Service], all_pods: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -46,7 +83,7 @@ def transform_services(
         # TODO: instead of storing a json string, we should probably create seperate nodes for each ingress
         if service.spec.type == "LoadBalancer":
             if service.status.load_balancer:
-                item["load_balancer_ingress"] = json.dumps(
+                item["load_balancer_ingress"] = _format_load_balancer_ingress(
                     service.status.load_balancer.ingress
                 )
 
