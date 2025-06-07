@@ -914,7 +914,7 @@ class CLI:
                 config.snipeit_token = os.environ.get("SNIPEIT_TOKEN")
             else:
                 logger.warning("A SnipeIT base URI was provided but a token was not.")
-                config.kandji_token = None
+                config.snipeit_token = None
         else:
             logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
