@@ -1,6 +1,6 @@
 GITHUB_ORG_DATA = {
-    "url": "https://example.com/my_org",
-    "login": "my_org",
+    "url": "https://github.com/simpsoncorp",
+    "login": "SimpsonCorp",
 }
 
 
@@ -9,11 +9,11 @@ GITHUB_USER_DATA = (
         {
             "hasTwoFactorEnabled": None,
             "node": {
-                "url": "https://example.com/hjsimpson",
+                "url": "https://github.com/hjsimpson",
                 "login": "hjsimpson",
                 "name": "Homer Simpson",
                 "isSiteAdmin": False,
-                "email": "hjsimpson@example.com",
+                "email": "hjsimpson@simpson.corp",
                 "company": "Springfield Nuclear Power Plant",
             },
             "role": "MEMBER",
@@ -21,11 +21,11 @@ GITHUB_USER_DATA = (
         {
             "hasTwoFactorEnabled": None,
             "node": {
-                "url": "https://example.com/lmsimpson",
+                "url": "https://github.com/lmsimpson",
                 "login": "lmsimpson",
                 "name": "Lisa Simpson",
                 "isSiteAdmin": False,
-                "email": "lmsimpson@example.com",
+                "email": "lmsimpson@simpson.corp",
                 "company": "Simpson Residence",
             },
             "role": "MEMBER",
@@ -33,11 +33,11 @@ GITHUB_USER_DATA = (
         {
             "hasTwoFactorEnabled": True,
             "node": {
-                "url": "https://example.com/mbsimpson",
+                "url": "https://github.com/mbsimpson",
                 "login": "mbsimpson",
                 "name": "Marge Simpson",
                 "isSiteAdmin": False,
-                "email": "mbsimpson@example.com",
+                "email": "mbsimpson@simpson.corp",
                 "company": "Simpson Residence",
             },
             "role": "ADMIN",
@@ -51,11 +51,11 @@ GITHUB_USER_DATA_AT_TIMESTAMP_2 = (
         {
             "hasTwoFactorEnabled": None,
             "node": {
-                "url": "https://example.com/hjsimpson",
+                "url": "https://github.com/hjsimpson",
                 "login": "hjsimpson",
                 "name": "Homer Simpson",
                 "isSiteAdmin": False,
-                "email": "hjsimpson@example.com",
+                "email": "hjsimpson@simpson.corp",
                 "company": "Springfield Nuclear Power Plant",
             },
             # In timestamp 2, Homer is now an admin and no longer a member.
@@ -65,11 +65,11 @@ GITHUB_USER_DATA_AT_TIMESTAMP_2 = (
         {
             "hasTwoFactorEnabled": None,
             "node": {
-                "url": "https://example.com/lmsimpson",
+                "url": "https://github.com/lmsimpson",
                 "login": "lmsimpson",
                 "name": "Lisa Simpson",
                 "isSiteAdmin": False,
-                "email": "lmsimpson@example.com",
+                "email": "lmsimpson@simpson.corp",
                 "company": "Simpson Residence",
             },
             "role": "MEMBER",
@@ -77,11 +77,11 @@ GITHUB_USER_DATA_AT_TIMESTAMP_2 = (
         {
             "hasTwoFactorEnabled": True,
             "node": {
-                "url": "https://example.com/mbsimpson",
+                "url": "https://github.com/mbsimpson",
                 "login": "mbsimpson",
                 "name": "Marge Simpson",
                 "isSiteAdmin": False,
-                "email": "mbsimpson@example.com",
+                "email": "mbsimpson@simpson.corp",
                 "company": "Simpson Residence",
             },
             # In timestamp 2, Marge is no longer an ADMIN and is now a MEMBER.
@@ -102,33 +102,33 @@ GITHUB_ENTERPRISE_OWNER_DATA = (
     [
         {
             "node": {
-                "url": "https://example.com/kbroflovski",
+                "url": "https://github.com/kbroflovski",
                 "login": "kbroflovski",
                 "name": "Kyle Broflovski",
                 "isSiteAdmin": False,
-                "email": "kbroflovski@example.com",
+                "email": "kbroflovski@south.park",
                 "company": "South Park Elementary",
             },
             "organizationRole": "UNAFFILIATED",
         },
         {
             "node": {
-                "url": "https://example.com/mbsimpson",
+                "url": "https://github.com/mbsimpson",
                 "login": "mbsimpson",
                 "name": "Marge Simpson",
                 "isSiteAdmin": False,
-                "email": "mbsimpson@example.com",
+                "email": "mbsimpson@simpson.corp",
                 "company": "Simpson Residence",
             },
             "organizationRole": "OWNER",
         },
         {
             "node": {
-                "url": "https://example.com/lmsimpson",
+                "url": "https://github.com/lmsimpson",
                 "login": "lmsimpson",
                 "name": "Lisa Simpson",
                 "isSiteAdmin": False,
-                "email": "lmsimpson@example.com",
+                "email": "lmsimpson@simpson.corp",
                 "company": "Simpson Residence",
             },
             "organizationRole": "DIRECT_MEMBER",
