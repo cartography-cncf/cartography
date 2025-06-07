@@ -1,25 +1,22 @@
+import json
 from uuid import uuid4
 
-from tests.data.kubernetes.namespaces import GET_CLUSTER_DATA
-from tests.data.kubernetes.namespaces import GET_NAMESPACES_DATA
-from tests.data.kubernetes.pods import GET_PODS_DATA
+from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
+from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
 
-GET_SERVICES_DATA = [
+KUBERNETES_SERVICES_DATA = [
     {
         "uid": uuid4().hex,
         "name": "my-service",
         "creation_timestamp": 1633581666,
         "deletion_timestamp": 1633581966,
-        "namespace": GET_NAMESPACES_DATA[-1]["name"],
-        "cluster_uid": GET_CLUSTER_DATA["uid"],
+        "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
         "type": "ClusterIP",
-        "pods": [
-            {
-                "uid": GET_PODS_DATA[-1]["uid"],
-                "name": GET_PODS_DATA[-1]["name"],
-            },
+        "selector": json.dumps({"app": "my-app"}),
+        "cluster_ip": "1.1.1.1",
+        "pod_ids": [
+            KUBERNETES_PODS_DATA[0]["uid"],
         ],
         "load_balancer_ip": "1.1.1.1",
-        "ingress_host": "myhost.local",
     },
 ]
