@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>How to write a new intel module - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="How to extend Cartography with Analysis Jobs" href="writing-analysis-jobs.html" /><link rel="prev" title="Cartography Developer Guide" href="developer-guide.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="How to write a new intel module"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#before-getting-started">Before getting started&#8230;</a></li>
+<li><a class="reference internal" href="#the-fast-way">The fast way</a></li>
+<li><a class="reference internal" href="#configuration-and-credential-management">Configuration and credential management</a><ul>
+<li><a class="reference internal" href="#supplying-credentials-and-arguments-to-your-module">Supplying credentials and arguments to your module</a></li>
+<li><a class="reference internal" href="#an-important-note-on-validating-your-commandline-args">An important note on validating your commandline args</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#sync-get-transform-load-cleanup">Sync = Get, Transform, Load, Cleanup</a><ul>
+<li><a class="reference internal" href="#get">Get</a></li>
+<li><a class="reference internal" href="#transform">Transform</a><ul>
+<li><a class="reference internal" href="#handling-required-versus-optional-fields">Handling required versus optional fields</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#load">Load</a><ul>
+<li><a class="reference internal" href="#defining-a-node">Defining a node</a></li>
+<li><a class="reference internal" href="#defining-node-properties">Defining node properties</a><ul>
+<li><a class="reference internal" href="#node-property-indexes">Node property indexes</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#defining-relationships">Defining relationships</a></li>
+<li><a class="reference internal" href="#the-result">The result</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#additional-concepts">Additional concepts</a><ul>
+<li><a class="reference internal" href="#cartography-s-update-tag">cartography&#8217;s <code class="docutils literal notranslate"><span class="pre">update_tag</span></code>:</a></li>
+<li><a class="reference internal" href="#all-nodes-need-these-fields">All nodes need these fields</a></li>
+<li><a class="reference internal" href="#all-relationships-need-these-fields">All relationships need these fields</a></li>
+<li><a class="reference internal" href="#run-queries-only-on-indexed-fields-for-best-performance">Run queries only on indexed fields for best performance</a></li>
+<li><a class="reference internal" href="#indexes-cypher">indexes.cypher</a></li>
+<li><a class="reference internal" href="#lastupdated-and-firstseen">lastupdated and firstseen</a></li>
+<li><a class="reference internal" href="#one-to-many-relationships">One-to-many relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cleanup">Cleanup</a><ul>
+<li><a class="reference internal" href="#scoped-cleanups">Scoped cleanups</a></li>
+<li><a class="reference internal" href="#legacy-notes">Legacy notes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#error-handling-principles">Error handling principles</a></li>
+<li><a class="reference internal" href="#schema">Schema</a></li>
+<li><a class="reference internal" href="#making-tests">Making tests</a></li>
+<li><a class="reference internal" href="#other">Other</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/dev/writing-intel-modules.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">How to write a new intel module</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="how-to-write-a-new-intel-module">
+<h1>How to write a new intel module<a class="headerlink" href="#how-to-write-a-new-intel-module" title="Link to this heading">¶</a></h1>
+<p>If you want to add a new data type to Cartography, this is the guide for you. We look forward to receiving your PR!</p>
+<section id="before-getting-started">
+<h2>Before getting started…<a class="headerlink" href="#before-getting-started" title="Link to this heading">¶</a></h2>
+<p>Read through and follow the setup steps in <a class="reference internal" href="developer-guide.html"><span class="doc std std-doc">the Cartography developer guide</span></a>. Learn the basics of
+running, testing, and linting your code there.</p>
+</section>
+<section id="the-fast-way">
+<h2>The fast way<a class="headerlink" href="#the-fast-way" title="Link to this heading">¶</a></h2>
+<p>To get started coding without reading this doc, just copy the structure of our <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/master/cartography/intel/aws/emr.py">AWS EMR module</a> and use it as an example. For a longer written explanation of the “how” and “why”, read on.</p>
+</section>
+<section id="configuration-and-credential-management">
+<h2>Configuration and credential management<a class="headerlink" href="#configuration-and-credential-management" title="Link to this heading">¶</a></h2>
+<section id="supplying-credentials-and-arguments-to-your-module">
+<h3>Supplying credentials and arguments to your module<a class="headerlink" href="#supplying-credentials-and-arguments-to-your-module" title="Link to this heading">¶</a></h3>
+<p>If you need to supply an API key or other credential to your Cartography module, we recommend adding a CLI argument. An example of this can be seen <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/cli.py#L136">in our Okta module</a> where we require the user to specify the name of an environment variable containing their Okta API key. This credential will then be bound to Cartography’s <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/config.py#L3">Config object</a> which is present in all modules. You can specify different arguments from the commandline for your module via the Config object.</p>
+</section>
+<section id="an-important-note-on-validating-your-commandline-args">
+<h3>An important note on validating your commandline args<a class="headerlink" href="#an-important-note-on-validating-your-commandline-args" title="Link to this heading">¶</a></h3>
+<p>Note that it is your module’s responsibility to validate arguments that you introduce. For example with the Okta module, we <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/intel/okta/__init__.py#L37">validate</a> that <code class="docutils literal notranslate"><span class="pre">config.okta_api_key</span></code> has been defined before attempting to continue.</p>
+</section>
+</section>
+<section id="sync-get-transform-load-cleanup">
+<h2>Sync = Get, Transform, Load, Cleanup<a class="headerlink" href="#sync-get-transform-load-cleanup" title="Link to this heading">¶</a></h2>
+<p>A cartography intel module consists of one <code class="docutils literal notranslate"><span class="pre">sync</span></code> function. <code class="docutils literal notranslate"><span class="pre">sync</span></code> should call <code class="docutils literal notranslate"><span class="pre">get</span></code>, then <code class="docutils literal notranslate"><span class="pre">load</span></code>, and finally <code class="docutils literal notranslate"><span class="pre">cleanup</span></code>.</p>
+<section id="get">
+<h3>Get<a class="headerlink" href="#get" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">get</span></code> function <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L98">returns data as a list of dicts</a>
+from a resource provider API, which is GCP in this particular example.</p>
+<p><code class="docutils literal notranslate"><span class="pre">get</span></code> should be “dumb” in the sense that it should not handle retry logic or data
+manipulation. It should also raise an exception if it’s not able to complete successfully.</p>
+</section>
+<section id="transform">
+<h3>Transform<a class="headerlink" href="#transform" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">transform</span></code> function <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L193">manipulates the list of dicts</a>
+to make it easier to ingest to the graph. <code class="docutils literal notranslate"><span class="pre">transform</span></code> functions are sometimes omitted when a module author decides that the output from the <code class="docutils literal notranslate"><span class="pre">get</span></code> is already in the shape that they need.</p>
+<p>We have some best practices on handling transforms:</p>
+<section id="handling-required-versus-optional-fields">
+<h4>Handling required versus optional fields<a class="headerlink" href="#handling-required-versus-optional-fields" title="Link to this heading">¶</a></h4>
+<p>We should directly access dicts in cases where not having the data should cause a sync to fail.
+For example, if we are transforming AWS data, we definitely need an AWS object’s ARN field because it uniquely
+identifies the object. Therefore, we should access an object’s ARN using <code class="docutils literal notranslate"><span class="pre">data['arn']</span></code> as opposed to
+using <code class="docutils literal notranslate"><span class="pre">data.get('arn')</span></code> (the former will raise a <code class="docutils literal notranslate"><span class="pre">KeyError</span></code> if <code class="docutils literal notranslate"><span class="pre">arn</span></code> does not exist and the latter will just return
+<code class="docutils literal notranslate"><span class="pre">None</span></code> without an exception).</p>
+<p>We <em>want</em> the sync to fail if an important field is not present in our data. The idea here is that
+it is better to fail a sync than to add malformed data.</p>
+<p>On the other hand, we should use <code class="docutils literal notranslate"><span class="pre">data.get('SomeField')</span></code> if <code class="docutils literal notranslate"><span class="pre">SomeField</span></code> is something optional that can afford to be
+<code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<p>For the sake of consistency, if a field does not exist, set it to <code class="docutils literal notranslate"><span class="pre">None</span></code> and not <code class="docutils literal notranslate"><span class="pre">&quot;&quot;</span></code>.</p>
+</section>
+</section>
+<section id="load">
+<h3>Load<a class="headerlink" href="#load" title="Link to this heading">¶</a></h3>
+<p><a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L113-L132">As seen in our AWS EMR example</a>, the <code class="docutils literal notranslate"><span class="pre">load</span></code> function ingests a list of dicts to Neo4j by calling <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/client/core/tx.py#L191-L212">cartography.client.core.tx.load()</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">def</span><span class="w"> </span><span class="nf">load_emr_clusters</span><span class="p">(</span>
+</span><span data-line="2">        <span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span>
+</span><span data-line="3">        <span class="n">cluster_data</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+</span><span data-line="4">        <span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="5">        <span class="n">current_aws_account_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="6">        <span class="n">aws_update_tag</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="7"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="8">    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading EMR </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> clusters for region &#39;</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2">&#39; into graph.&quot;</span><span class="p">)</span>
+</span><span data-line="9">    <span class="n">load</span><span class="p">(</span>
+</span><span data-line="10">        <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="11">        <span class="n">EMRClusterSchema</span><span class="p">(),</span>
+</span><span data-line="12">        <span class="n">cluster_data</span><span class="p">,</span>
+</span><span data-line="13">        <span class="n">lastupdated</span><span class="o">=</span><span class="n">aws_update_tag</span><span class="p">,</span>
+</span><span data-line="14">        <span class="n">Region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+</span><span data-line="15">        <span class="n">AWS_ID</span><span class="o">=</span><span class="n">current_aws_account_id</span><span class="p">,</span>
+</span><span data-line="16">    <span class="p">)</span>
+</span><span data-line="17">
+</span></pre></div>
+</div>
+<section id="defining-a-node">
+<h4>Defining a node<a class="headerlink" href="#defining-a-node" title="Link to this heading">¶</a></h4>
+<p>As an example of a <code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code>, you can view our <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110">EMRClusterSchema code</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterSchema</span><span class="p">(</span><span class="n">CartographyNodeSchema</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;EMRCluster&#39;</span>  <span class="c1"># The label of the node</span>
+</span><span data-line="4">    <span class="n">properties</span><span class="p">:</span> <span class="n">EMRClusterNodeProperties</span> <span class="o">=</span> <span class="n">EMRClusterNodeProperties</span><span class="p">()</span>  <span class="c1"># An object representing all properties on the EMR Cluster node</span>
+</span><span data-line="5">    <span class="n">sub_resource_relationship</span><span class="p">:</span> <span class="n">EMRClusterToAWSAccountRel</span> <span class="o">=</span> <span class="n">EMRClusterToAWSAccountRel</span><span class="p">()</span>
+</span></pre></div>
+</div>
+<p>An <code class="docutils literal notranslate"><span class="pre">EMRClusterSchema</span></code> object inherits from the <code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code> class and contains a node label, properties, and connection to its <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228">sub-resource</a>: an <code class="docutils literal notranslate"><span class="pre">AWSAccount</span></code>.</p>
+<p>Note that the typehints are necessary for Python dataclasses to work properly.</p>
+</section>
+<section id="defining-node-properties">
+<h4>Defining node properties<a class="headerlink" href="#defining-node-properties" title="Link to this heading">¶</a></h4>
+<p>Here’s our <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L106-L110">EMRClusterNodeProperties code</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterNodeProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">arn</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;ClusterArn&#39;</span><span class="p">,</span> <span class="n">extra_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="4">    <span class="n">firstseen</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;firstseen&#39;</span><span class="p">)</span>
+</span><span data-line="5">    <span class="nb">id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;Id&#39;</span><span class="p">)</span>
+</span><span data-line="6">    <span class="c1"># ...</span>
+</span><span data-line="7">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;lastupdated&#39;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="8">    <span class="n">region</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;Region&#39;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="9">    <span class="n">security_configuration</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;SecurityConfiguration&#39;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>A <code class="docutils literal notranslate"><span class="pre">CartographyNodeProperties</span></code> object consists of <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L37">PropertyRef</a> objects. <code class="docutils literal notranslate"><span class="pre">PropertyRefs</span></code> tell <code class="docutils literal notranslate"><span class="pre">querybuilder.build_ingestion_query()</span></code> where to find appropriate values for each field from the list of dicts.</p>
+<p>For example, <code class="docutils literal notranslate"><span class="pre">id:</span> <span class="pre">PropertyRef</span> <span class="pre">=</span> <span class="pre">PropertyRef('Id')</span></code> above tells the querybuilder to set a field called <code class="docutils literal notranslate"><span class="pre">id</span></code> on the <code class="docutils literal notranslate"><span class="pre">EMRCluster</span></code> node using the value located at key <code class="docutils literal notranslate"><span class="pre">'id'</span></code> on each dict in the list.</p>
+<p>As another example, <code class="docutils literal notranslate"><span class="pre">region:</span> <span class="pre">PropertyRef</span> <span class="pre">=</span> <span class="pre">PropertyRef('Region',</span> <span class="pre">set_in_kwargs=True)</span></code> tells the querybuilder to set a field called <code class="docutils literal notranslate"><span class="pre">region</span></code> on the <code class="docutils literal notranslate"><span class="pre">EMRCluster</span></code> node using a keyword argument called <code class="docutils literal notranslate"><span class="pre">Region</span></code> supplied to <code class="docutils literal notranslate"><span class="pre">cartography.client.core.tx.load()</span></code>. <code class="docutils literal notranslate"><span class="pre">set_in_kwargs=True</span></code> is useful in cases where we want every object loaded by a single call to <code class="docutils literal notranslate"><span class="pre">load()</span></code> to have the same value for a given attribute.</p>
+<section id="node-property-indexes">
+<h5>Node property indexes<a class="headerlink" href="#node-property-indexes" title="Link to this heading">¶</a></h5>
+<p>Cartography uses its data model to automatically create indexes for</p>
+<ul class="simple">
+<li><p>node properties that uniquely identify the node (e.g. <code class="docutils literal notranslate"><span class="pre">id</span></code>)</p></li>
+<li><p>node properties are used to connect a node to other nodes (i.e. they are used as part of a <code class="docutils literal notranslate"><span class="pre">TargetNodeMatcher</span></code> on a <code class="docutils literal notranslate"><span class="pre">CartographyRelSchema</span></code>.)</p></li>
+<li><p>a node’s <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> field – this is used to enable faster cleanup jobs</p></li>
+</ul>
+<p>As seen in the above definition for <code class="docutils literal notranslate"><span class="pre">EMRClusterNodeProperties.arn</span></code>, you can also explicitly specify additional indexes for fields that you expect to be queried on by providing <code class="docutils literal notranslate"><span class="pre">extra_index=True</span></code> to the <code class="docutils literal notranslate"><span class="pre">PropertyRef</span></code> constructor:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterNodeProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+</span><span data-line="2">    <span class="c1"># ...</span>
+</span><span data-line="3">    <span class="n">arn</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;ClusterArn&#39;</span><span class="p">,</span> <span class="n">extra_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>Index creation is idempotent (we only create them if they don’t exist).</p>
+<p>See <a class="reference internal" href="#indexescypher"><span class="xref myst">below</span></a> for more information on indexes.</p>
+</section>
+</section>
+<section id="defining-relationships">
+<h4>Defining relationships<a class="headerlink" href="#defining-relationships" title="Link to this heading">¶</a></h4>
+<p>Relationships can be defined on <code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code> on either their <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228">sub_resource_relationship</a> field or their <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237">other_relationships</a> field (you can find an example of <code class="docutils literal notranslate"><span class="pre">other_relationships</span></code> <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94">here in our test data</a>).</p>
+<p>As seen above, an <code class="docutils literal notranslate"><span class="pre">EMRClusterSchema</span></code> only has a single relationship defined: an <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L94-L103">EMRClusterToAWSAccountRel</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="c1"># (:EMRCluster)&lt;-[:RESOURCE]-(:AWSAccount)</span>
+</span><span data-line="3"><span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterToAWSAccountRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="4">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;AWSAccount&#39;</span>  <span class="c1"># (1)</span>
+</span><span data-line="5">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">(</span>  <span class="c1"># (2)</span>
+</span><span data-line="6">        <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;AccountId&#39;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+</span><span data-line="7">    <span class="p">)</span>
+</span><span data-line="8">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">INWARD</span>  <span class="c1"># (3)</span>
+</span><span data-line="9">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;RESOURCE&quot;</span>  <span class="c1"># (4)</span>
+</span><span data-line="10">    <span class="n">properties</span><span class="p">:</span> <span class="n">EMRClusterToAWSAccountRelRelProperties</span> <span class="o">=</span> <span class="n">EMRClusterToAWSAccountRelRelProperties</span><span class="p">()</span>  <span class="c1">#  (5)</span>
+</span></pre></div>
+</div>
+<p>This class is best described by explaining how it is processed: <code class="docutils literal notranslate"><span class="pre">build_ingestion_query()</span></code> will traverse the <code class="docutils literal notranslate"><span class="pre">EMRClusterSchema</span></code> to its <code class="docutils literal notranslate"><span class="pre">sub_resource_relationship</span></code> field and find the above <code class="docutils literal notranslate"><span class="pre">EMRClusterToAWSAccountRel</span></code> object. With this information, we know to</p>
+<ul class="simple">
+<li><p>draw a relationship to an <code class="docutils literal notranslate"><span class="pre">AWSAccount</span></code> node (1) using the label “<code class="docutils literal notranslate"><span class="pre">RESOURCE</span></code>” (4)</p></li>
+<li><p>by matching on the AWSAccount’s “<code class="docutils literal notranslate"><span class="pre">id</span></code>” field” (2)</p></li>
+<li><p>where the relationship <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L12-L34">directionality</a> is pointed <em>inward</em> toward the EMRCluster (3)</p></li>
+<li><p>making sure to define a set of properties for the relationship (5). The <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L89-L91">full example RelProperties</a> is very short:</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">EMRClusterToAWSAccountRelRelProperties</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;lastupdated&#39;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="the-result">
+<h4>The result<a class="headerlink" href="#the-result" title="Link to this heading">¶</a></h4>
+<p>And those are all the objects necessary for this example! The resulting query will look something like this:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">UNWIND</span><span class="w"> </span><span class="err">$</span><span class="n">DictList</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">item</span>
+</span><span data-line="2"><span class="w">    </span><span class="k">MERGE</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">EMRCluster</span><span class="p">{</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">Id</span><span class="p">})</span>
+</span><span data-line="3"><span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="k">CREATE</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">firstseen</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">timestamp</span><span class="p">()</span>
+</span><span data-line="4"><span class="w">    </span><span class="k">SET</span>
+</span><span data-line="5"><span class="w">        </span><span class="n">i</span><span class="p">.</span><span class="n">lastupdated</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="err">$</span><span class="n">lastupdated</span><span class="p">,</span>
+</span><span data-line="6"><span class="w">        </span><span class="n">i</span><span class="p">.</span><span class="n">arn</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">ClusterArn</span>
+</span><span data-line="7"><span class="w">        </span><span class="c1">// ...</span>
+</span><span data-line="8">
+</span><span data-line="9"><span class="w">        </span><span class="k">WITH</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">item</span>
+</span><span data-line="10"><span class="w">        </span><span class="k">CALL</span><span class="w"> </span><span class="p">{</span>
+</span><span data-line="11"><span class="w">            </span><span class="k">WITH</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">item</span>
+</span><span data-line="12">
+</span><span data-line="13"><span class="w">            </span><span class="k">OPTIONAL</span><span class="w"> </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">j</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">{</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="err">$</span><span class="n">AccountId</span><span class="p">})</span>
+</span><span data-line="14"><span class="w">            </span><span class="k">WITH</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="n">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+</span><span data-line="15"><span class="w">            </span><span class="k">MERGE</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">&lt;-[</span><span class="n">r</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+</span><span data-line="16"><span class="w">            </span><span class="k">ON</span><span class="w"> </span><span class="k">CREATE</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">firstseen</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">timestamp</span><span class="p">()</span>
+</span><span data-line="17"><span class="w">            </span><span class="k">SET</span>
+</span><span data-line="18"><span class="w">                </span><span class="n">r</span><span class="p">.</span><span class="n">lastupdated</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="err">$</span><span class="n">lastupdated</span>
+</span><span data-line="19"><span class="w">        </span><span class="p">}</span>
+</span></pre></div>
+</div>
+<p>And that’s basically all you need to know to understand how to define your own nodes and relationships using cartography’s data objects. For more information, you can view the <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/master/cartography/graph/model.py">object model API documentation</a> as a reference.</p>
+</section>
+</section>
+<section id="additional-concepts">
+<h3>Additional concepts<a class="headerlink" href="#additional-concepts" title="Link to this heading">¶</a></h3>
+<p>This section explains cartography general patterns, conventions, and design decisions.</p>
+<section id="cartography-s-update-tag">
+<h4>cartography’s <code class="docutils literal notranslate"><span class="pre">update_tag</span></code>:<a class="headerlink" href="#cartography-s-update-tag" title="Link to this heading">¶</a></h4>
+<p><code class="docutils literal notranslate"><span class="pre">cartography</span></code>’s global <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/cli.py#L91-L98">config object carries around an update_tag property</a>
+which is a tag/label associated with the current sync.
+Cartography’s CLI code <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134">sets this to a Unix timestamp of when the CLI was run</a>.</p>
+<p>All <code class="docutils literal notranslate"><span class="pre">cartography</span></code> intel modules set the <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> property on all nodes and all relationships to this <code class="docutils literal notranslate"><span class="pre">update_tag</span></code>.</p>
+</section>
+<section id="all-nodes-need-these-fields">
+<h4>All nodes need these fields<a class="headerlink" href="#all-nodes-need-these-fields" title="Link to this heading">¶</a></h4>
+<ul>
+<li><p><a name="id">id</a> - an ID should be a string that uniquely identifies the node. In AWS, this is usually an
+ARN. In GCP, this is usually a partial URI.</p>
+<p>If possible, we should use API-provided fields for IDs and not create our own.
+In some cases though this is unavoidable -
+see <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema/gcp.md#gcpnetworktag">GCPNetworkTag</a>.</p>
+<p>When setting an <code class="docutils literal notranslate"><span class="pre">id</span></code>, ensure that you also include the field name that it came from. For example, since we’ve
+decided to use <code class="docutils literal notranslate"><span class="pre">partial_uri</span></code>s as an id for a GCPVpc,  we should include both <code class="docutils literal notranslate"><span class="pre">partial_uri</span></code> <em>and</em> <code class="docutils literal notranslate"><span class="pre">id</span></code> on the node.
+This way, a user can tell what fields were used to derive the <code class="docutils literal notranslate"><span class="pre">id</span></code>. This is accomplished <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L455-L457">here</a></p>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> - See <a class="reference internal" href="#lastupdated-and-firstseen"><span class="xref myst">below</span></a> on how this gets set automatically.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">firstseen</span></code> - See <a class="reference internal" href="#lastupdated-and-firstseen"><span class="xref myst">below</span></a> on how this gets set automatically.</p></li>
+</ul>
+</section>
+<section id="all-relationships-need-these-fields">
+<h4>All relationships need these fields<a class="headerlink" href="#all-relationships-need-these-fields" title="Link to this heading">¶</a></h4>
+<p>Cartography currently does not create indexes on relationships, so in most cases we should keep relationships lightweight with only these two fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> - See <a class="reference internal" href="#lastupdated-and-firstseen"><span class="xref myst">below</span></a> on how this gets set automatically.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">firstseen</span></code> - See <a class="reference internal" href="#lastupdated-and-firstseen"><span class="xref myst">below</span></a> on how this gets set automatically.</p></li>
+</ul>
+</section>
+<section id="run-queries-only-on-indexed-fields-for-best-performance">
+<h4>Run queries only on indexed fields for best performance<a class="headerlink" href="#run-queries-only-on-indexed-fields-for-best-performance" title="Link to this heading">¶</a></h4>
+<p>In this older example of ingesting GCP VPCs, we connect VPCs with GCPProjects
+<a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L451">based on their id fields</a>.
+<code class="docutils literal notranslate"><span class="pre">id</span></code>s are indexed, as seen <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L45">here</a>
+and <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher#L42">here</a>.
+All of these queries use indexes for faster lookup.</p>
+</section>
+<section id="indexes-cypher">
+<h4>indexes.cypher<a class="headerlink" href="#indexes-cypher" title="Link to this heading">¶</a></h4>
+<p>Older intel modules define indexes in <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/indexes.cypher">indexes.cypher</a>.
+By using CartographyNodeSchema and CartographyRelSchema objects, indexes are automatically created so you don’t need to update this file!</p>
+</section>
+<section id="lastupdated-and-firstseen">
+<h4>lastupdated and firstseen<a class="headerlink" href="#lastupdated-and-firstseen" title="Link to this heading">¶</a></h4>
+<p>On every cartography node and relationship, we set the <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> field to the <code class="docutils literal notranslate"><span class="pre">UPDATE_TAG</span></code> and <code class="docutils literal notranslate"><span class="pre">firstseen</span></code> field to <code class="docutils literal notranslate"><span class="pre">timestamp()</span></code> (a built-in Neo4j function equivalent to epoch time in milliseconds). This is automatically handled by the cartography object model.</p>
+</section>
+<section id="one-to-many-relationships">
+<h4>One-to-many relationships<a class="headerlink" href="#one-to-many-relationships" title="Link to this heading">¶</a></h4>
+<p>We can use the Cartography data model to represent one-to-many relationships. For example, an AWS IAM instance profile
+(<a class="reference external" href="https://docs.aws.amazon.com/IAM/latest/APIReference/API_InstanceProfile.html">API docs</a>) maps to one or more roles.</p>
+<p>An example instance profile object looks like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">INSTANCE_PROFILES</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="2">    <span class="p">{</span>
+</span><span data-line="3">        <span class="s2">&quot;Path&quot;</span><span class="p">:</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span>
+</span><span data-line="4">        <span class="s2">&quot;InstanceProfileName&quot;</span><span class="p">:</span> <span class="s2">&quot;my-instance-profile&quot;</span><span class="p">,</span>
+</span><span data-line="5">        <span class="s2">&quot;InstanceProfileId&quot;</span><span class="p">:</span> <span class="s2">&quot;AIPA4SD&quot;</span><span class="p">,</span>
+</span><span data-line="6">        <span class="s2">&quot;Arn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::1234:instance-profile/my-instance-profile&quot;</span><span class="p">,</span>
+</span><span data-line="7">        <span class="s2">&quot;CreateDate&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2024</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">23</span><span class="p">,</span> <span class="mi">54</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span>
+</span><span data-line="8">        <span class="s2">&quot;Roles&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span data-line="9">            <span class="p">{</span>
+</span><span data-line="10">                <span class="s2">&quot;Path&quot;</span><span class="p">:</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span>
+</span><span data-line="11">                <span class="s2">&quot;RoleName&quot;</span><span class="p">:</span> <span class="s2">&quot;role1&quot;</span><span class="p">,</span>
+</span><span data-line="12">                <span class="s2">&quot;RoleId&quot;</span><span class="p">:</span> <span class="s2">&quot;AROA4&quot;</span><span class="p">,</span>
+</span><span data-line="13">                <span class="s2">&quot;Arn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::1234:role/role1&quot;</span><span class="p">,</span>
+</span><span data-line="14">                <span class="s2">&quot;CreateDate&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2024</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">53</span><span class="p">,</span> <span class="mi">29</span><span class="p">),</span>
+</span><span data-line="15">            <span class="p">},</span>
+</span><span data-line="16">            <span class="p">{</span>
+</span><span data-line="17">                <span class="s2">&quot;Path&quot;</span><span class="p">:</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span>
+</span><span data-line="18">                <span class="s2">&quot;RoleName&quot;</span><span class="p">:</span> <span class="s2">&quot;role2&quot;</span><span class="p">,</span>
+</span><span data-line="19">                <span class="s2">&quot;RoleId&quot;</span><span class="p">:</span> <span class="s2">&quot;AROA5&quot;</span><span class="p">,</span>
+</span><span data-line="20">                <span class="s2">&quot;Arn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::1234:role/role2&quot;</span><span class="p">,</span>
+</span><span data-line="21">                <span class="s2">&quot;CreateDate&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2024</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">53</span><span class="p">,</span> <span class="mi">29</span><span class="p">),</span>
+</span><span data-line="22">            <span class="p">},</span>
+</span><span data-line="23">        <span class="p">],</span>
+</span><span data-line="24">    <span class="p">},</span>
+</span><span data-line="25"><span class="p">]</span>
+</span></pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">Roles</span></code> field in this data object is a list of objects (and that this is a one-to-many setup).</p>
+<p>Here’s how to represent this in the Cartography data model:</p>
+<ol class="arabic">
+<li><p>Transform the data so that <code class="docutils literal notranslate"><span class="pre">Roles</span></code> becomes a list of IDs and not dicts. Here we will use ARNs. The result should be:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">TRANSFORMED_INSTANCE_PROFILES</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="2">    <span class="p">{</span>
+</span><span data-line="3">        <span class="s2">&quot;Path&quot;</span><span class="p">:</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span>
+</span><span data-line="4">        <span class="s2">&quot;InstanceProfileName&quot;</span><span class="p">:</span> <span class="s2">&quot;my-instance-profile&quot;</span><span class="p">,</span>
+</span><span data-line="5">        <span class="s2">&quot;InstanceProfileId&quot;</span><span class="p">:</span> <span class="s2">&quot;AIPA4SD&quot;</span><span class="p">,</span>
+</span><span data-line="6">        <span class="s2">&quot;Arn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::1234:instance-profile/my-instance-profile&quot;</span><span class="p">,</span>
+</span><span data-line="7">        <span class="s2">&quot;CreateDate&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2024</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">23</span><span class="p">,</span> <span class="mi">54</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span>
+</span><span data-line="8">        <span class="s2">&quot;Roles&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span data-line="9">            <span class="s2">&quot;arn:aws:iam::1234:role/role1&quot;</span><span class="p">,</span>
+</span><span data-line="10">            <span class="s2">&quot;arn:aws:iam::1234:role/role2&quot;</span><span class="p">,</span>
+</span><span data-line="11">        <span class="p">]</span>
+</span><span data-line="12">    <span class="p">},</span>
+</span><span data-line="13"><span class="p">]</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Define the InstanceProfile node (irrelevant fields omitted for brevity):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">InstanceProfileSchema</span><span class="p">(</span><span class="n">CartographyNodeSchema</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;AWSInstanceProfile&#39;</span>
+</span><span data-line="4">    <span class="n">properties</span><span class="p">:</span> <span class="o">...</span>
+</span><span data-line="5">    <span class="n">sub_resource_relationship</span><span class="p">:</span> <span class="o">...</span>
+</span><span data-line="6">    <span class="n">other_relationships</span><span class="p">:</span> <span class="n">OtherRelationships</span> <span class="o">=</span> <span class="n">OtherRelationships</span><span class="p">([</span>
+</span><span data-line="7">        <span class="n">InstanceProfileToAWSRoleRel</span><span class="p">(),</span>
+</span><span data-line="8">    <span class="p">])</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Define its association with AWS roles</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">InstanceProfileToAWSRoleRel</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;AWSRole&#39;</span>
+</span><span data-line="4">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">(</span>
+</span><span data-line="5">        <span class="p">{</span><span class="s1">&#39;arn&#39;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;Roles&#39;</span><span class="p">,</span> <span class="n">one_to_many</span><span class="o">=</span><span class="kc">True</span><span class="p">)},</span>
+</span><span data-line="6">    <span class="p">)</span>
+</span><span data-line="7">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>
+</span><span data-line="8">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ASSOCIATED_WITH&quot;</span>
+</span><span data-line="9">    <span class="n">properties</span><span class="p">:</span> <span class="o">...</span>
+</span></pre></div>
+</div>
+<p>The key part is setting <code class="docutils literal notranslate"><span class="pre">one_to_many=True</span></code> in the PropertyRef for the TargetNodeMatcher. This instructs the data model
+to look for AWSRoles in the graph where their <code class="docutils literal notranslate"><span class="pre">arn</span></code> field is in the list pointed to by the <code class="docutils literal notranslate"><span class="pre">Roles</span></code> key on the data dict.</p>
+</li>
+</ol>
+<p>Now we can use the same steps described above in this doc to finish data ingestion.</p>
+</section>
+</section>
+<section id="cleanup">
+<h3>Cleanup<a class="headerlink" href="#cleanup" title="Link to this heading">¶</a></h3>
+<p>We have just added new nodes and relationships to the graph, and we have also updated previously-added ones
+by using <code class="docutils literal notranslate"><span class="pre">MERGE</span></code>. We now need to delete nodes and relationships that no longer exist, and we do this by removing
+all nodes and relationships that have <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> NOT set to the <code class="docutils literal notranslate"><span class="pre">update_tag</span></code> of this current run.</p>
+<p>By using Cartography schema objects, a cleanup function is <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/82e1dd0e851475381ac8f2a9a08027d67ec1d772/cartography/intel/aws/emr.py#L77-L80">trivial to write</a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">def</span><span class="w"> </span><span class="nf">cleanup</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">:</span> <span class="n">neo4j</span><span class="o">.</span><span class="n">Session</span><span class="p">,</span> <span class="n">common_job_parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="2">    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Running EMR cleanup job.&quot;</span><span class="p">)</span>
+</span><span data-line="3">    <span class="n">cleanup_job</span> <span class="o">=</span> <span class="n">GraphJob</span><span class="o">.</span><span class="n">from_node_schema</span><span class="p">(</span><span class="n">EMRClusterSchema</span><span class="p">(),</span> <span class="n">common_job_parameters</span><span class="p">)</span>
+</span><span data-line="4">    <span class="n">cleanup_job</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<section id="scoped-cleanups">
+<h4>Scoped cleanups<a class="headerlink" href="#scoped-cleanups" title="Link to this heading">¶</a></h4>
+<p>By default, a node_schema has <code class="docutils literal notranslate"><span class="pre">scoped_cleanup</span></code> flag set to True. This means that when we run a clean up job on that
+node type, then we will only delete stale nodes that are connected to the current sub-resource being synced. This is
+designed for modules like AWS or GCP where there a clear definition of a “tenant”-like object because each account or
+project gets synced in one at a time and it doesn’t make sense to delete objects outside of the current tenant being
+synced.</p>
+<p>For some other modules that don’t have a clear tenant-like relationship, you can set <code class="docutils literal notranslate"><span class="pre">scoped_cleanup</span></code> to False on the
+node_schema. This might make sense for a vuln scanner module where there is no logical tenant object.</p>
+</section>
+<section id="legacy-notes">
+<h4>Legacy notes<a class="headerlink" href="#legacy-notes" title="Link to this heading">¶</a></h4>
+<p>Older intel modules still do this process with hand-written cleanup jobs that work like this:</p>
+<ul>
+<li><p>Delete all old nodes</p>
+<p>You can see this in our <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L4">GCP VPCs example</a>.
+We run <code class="docutils literal notranslate"><span class="pre">DETACH</span> <span class="pre">DELETE</span></code> to delete an old node and disconnect it from all other nodes.</p>
+</li>
+<li><p>Delete all old relationships</p>
+<p>You can see this in the GCP VPC example <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L10">here</a>
+and <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/data/jobs/cleanup/gcp_compute_vpc_cleanup.json#L16">here</a>.</p>
+<ul class="simple">
+<li><p>Q: We just <code class="docutils literal notranslate"><span class="pre">DETACH</span> <span class="pre">DELETE</span></code>’d the node. Why do we need to delete the relationships too?</p></li>
+<li><p>A: There are cases where the node may continue to exist but the relationships between it and other nodes have changed.
+Explicitly deleting stale relationships accounts for this case.
+See this <a class="reference external" href="https://github.com/cartography-cncf/cartography/pull/124/files#r312277725">short discussion</a>.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+</section>
+<section id="error-handling-principles">
+<h2>Error handling principles<a class="headerlink" href="#error-handling-principles" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Don’t catch the base Exception class when error handling because it makes problems difficult to trace.</p></li>
+<li><p>Do catch the narrowest possible class of exception.</p></li>
+<li><p>Only catch exceptions when your code can resolve the issue. Otherwise, allow exceptions to bubble up.</p></li>
+</ul>
+</section>
+<section id="schema">
+<h2>Schema<a class="headerlink" href="#schema" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Update the <a class="reference external" href="https://github.com/cartography-cncf/cartography/tree/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema">schema</a>
+with every change!</p></li>
+</ul>
+</section>
+<section id="making-tests">
+<h2>Making tests<a class="headerlink" href="#making-tests" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Before making tests, read through and follow the setup steps in <a class="reference internal" href="developer-guide.html"><span class="doc std std-doc">the Cartography developer guide</span></a>.</p></li>
+<li><p>Add fake data for testing at <code class="docutils literal notranslate"><span class="pre">tests/data</span></code>. We can see
+the AWS EC2 instance example <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/d42253b9223ced996fa9c51dee3a51942e0a08f4/tests/data/aws/ec2/instances.py#L4">here</a>.</p></li>
+<li><p>If needed, add unit tests to <code class="docutils literal notranslate"><span class="pre">tests/unit/cartography/intel</span></code>. As seen in this GCP <a class="reference external" href="https://github.com/lyft/cartography/blob/828ed600f2b14adae9d0b78ef82de0acaf24b86a/tests/unit/cartography/intel/gcp/test_compute.py">example</a>,
+these tests ensure that <code class="docutils literal notranslate"><span class="pre">transform*</span></code> manipulates the data in expected ways.</p></li>
+<li><p>Add integration tests to  <code class="docutils literal notranslate"><span class="pre">tests/integration/cartography/intel</span></code>. See this AWS EC2 instance <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/d42253b9223ced996fa9c51dee3a51942e0a08f4/tests/integration/cartography/intel/aws/ec2/test_ec2_instances.py#L17-L22">example</a>.
+These tests assume that you have neo4j running at localhost:7687 with no password, and ensure that nodes loaded to the
+graph match your mock data.</p></li>
+</ul>
+</section>
+<section id="other">
+<h2>Other<a class="headerlink" href="#other" title="Link to this heading">¶</a></h2>
+<ul>
+<li><p>We prefer and will accept PRs which incrementally add information from a particular data source. Incomplete
+representations are OK provided they are consistent over time. For example, we don’t sync 100% of AWS resources but the
+resources that exist in the graph don’t change across syncs.</p></li>
+<li><p>Each intel module offers its own view of the graph</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This best practice is a little less precise, so if you’ve gotten to this point and you need clarification, just submit your PR and ask us.</p>
+</div>
+<p>As much as possible, each intel module should ingest data without assuming that a different module will ingest the
+same data. Explained another way, each module should “offer its own perspective” on the data. We believe doing this
+gives us a more complete graph. Below are some key guidelines clarifying and justifying this design choice.</p>
+</li>
+<li><p>It is possible (and encouraged) for more than one intel module to modify the same node type.</p>
+<p>For example, when we <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L188">connect RDS instances to their associated EC2 security
+groups</a>
+there are actually two different intel modules that retrieve EC2 security group data: the <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L13">RDS module</a>
+returns <a class="reference external" href="https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSecurityGroupMembership.html">partial group data</a>,
+and the EC2 module returns more complete data as it calls APIs specific for <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/ec2.py#L166">retrieving and loading security groups</a>.
+Because both the RDS and EC2 modules <code class="docutils literal notranslate"><span class="pre">MERGE</span></code> on a unique ID, we don’t need to worry about
+creating duplicate nodes in the graph.</p>
+<p>Another less obvious benefit of using <code class="docutils literal notranslate"><span class="pre">MERGE</span></code> across more than one intel module to connect nodes in this way is that
+in many cases, we’ve seen an intel module discover nodes that another module was not aware of!</p>
+</li>
+</ul>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="developer-guide.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Cartography Developer Guide</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="writing-analysis-jobs.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">How to extend Cartography with Analysis Jobs</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=e2230717"></script></body>
+</html>
