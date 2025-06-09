@@ -36,9 +36,9 @@ class EntraGroupToTenantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class EntraGroupToTenantRel(CartographyRelSchema):
     target_node_label: str = "EntraTenant"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("TENANT_ID", set_in_kwargs=True)
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)}
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: EntraGroupToTenantRelProperties = EntraGroupToTenantRelProperties()
@@ -53,9 +53,9 @@ class EntraGroupToUserRelProperties(CartographyRelProperties):
 # (:EntraUser)-[:MEMBER_OF]->(:EntraGroup)
 class EntraGroupToUserRel(CartographyRelSchema):
     target_node_label: str = "EntraUser"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("member_ids", one_to_many=True)
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("member_ids", one_to_many=True)}
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
     properties: EntraGroupToUserRelProperties = EntraGroupToUserRelProperties()
@@ -66,6 +66,8 @@ class EntraGroupSchema(CartographyNodeSchema):
     label: str = "EntraGroup"
     properties: EntraGroupNodeProperties = EntraGroupNodeProperties()
     sub_resource_relationship: EntraGroupToTenantRel = EntraGroupToTenantRel()
-    other_relationships: OtherRelationships = OtherRelationships([
-        EntraGroupToUserRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            EntraGroupToUserRel(),
+        ]
+    )

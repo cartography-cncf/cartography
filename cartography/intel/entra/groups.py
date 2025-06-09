@@ -1,11 +1,11 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 import neo4j
 from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
-from msgraph.generated.models.group import Group
 from msgraph.generated.models.directory_object import DirectoryObject
+from msgraph.generated.models.group import Group
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-async def get_entra_groups(client: GraphServiceClient) -> List[Group]:
+async def get_entra_groups(client: GraphServiceClient) -> list[Group]:
     """Get all groups from Microsoft Graph API with pagination."""
-    all_groups: List[Group] = []
+    all_groups: list[Group] = []
 
     request_configuration = client.groups.GroupsRequestBuilderGetRequestConfiguration(
         query_parameters=client.groups.GroupsRequestBuilderGetQueryParameters(top=999)
@@ -36,9 +36,9 @@ async def get_entra_groups(client: GraphServiceClient) -> List[Group]:
 
 
 @timeit
-async def get_group_members(client: GraphServiceClient, group_id: str) -> List[str]:
+async def get_group_members(client: GraphServiceClient, group_id: str) -> list[str]:
     """Get member user IDs for a given group."""
-    members: List[str] = []
+    members: list[str] = []
     request_builder = client.groups.by_group_id(group_id).members
     page = await request_builder.get()
     while page:
@@ -54,10 +54,11 @@ async def get_group_members(client: GraphServiceClient, group_id: str) -> List[s
     return members
 
 
-@timeit
-def transform_groups(groups: List[Group], member_map: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+def transform_groups(
+    groups: list[Group], member_map: dict[str, list[str]]
+) -> list[dict[str, Any]]:
     """Transform API responses into dictionaries for ingestion."""
-    result: List[Dict[str, Any]] = []
+    result: list[dict[str, Any]] = []
     for g in groups:
         transformed = {
             "id": g.id,
@@ -81,7 +82,7 @@ def transform_groups(groups: List[Group], member_map: Dict[str, List[str]]) -> L
 @timeit
 def load_groups(
     neo4j_session: neo4j.Session,
-    groups: List[Dict[str, Any]],
+    groups: list[dict[str, Any]],
     update_tag: int,
     tenant_id: str,
 ) -> None:
@@ -96,8 +97,12 @@ def load_groups(
 
 
 @timeit
-def cleanup_groups(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    GraphJob.from_node_schema(EntraGroupSchema(), common_job_parameters).run(neo4j_session)
+def cleanup_groups(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(EntraGroupSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -107,15 +112,19 @@ async def sync_entra_groups(
     client_id: str,
     client_secret: str,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """Sync Entra groups."""
-    credential = ClientSecretCredential(tenant_id=tenant_id, client_id=client_id, client_secret=client_secret)
-    client = GraphServiceClient(credential, scopes=["https://graph.microsoft.com/.default"])
+    credential = ClientSecretCredential(
+        tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
+    )
+    client = GraphServiceClient(
+        credential, scopes=["https://graph.microsoft.com/.default"]
+    )
 
     groups = await get_entra_groups(client)
 
-    member_map: Dict[str, List[str]] = {}
+    member_map: dict[str, list[str]] = {}
     for group in groups:
         try:
             member_map[group.id] = await get_group_members(client, group.id)
