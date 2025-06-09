@@ -19,6 +19,11 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 1234567890
 
 
+def mock_get_group_members_side_effect(client, group_id: str) -> list[str]:
+    """Mock side effect function to return member IDs for a given group."""
+    return [u.id for u in MOCK_GROUP_MEMBERS[group_id]]
+
+
 @patch.object(
     cartography.intel.entra.groups,
     "get_entra_groups",
@@ -29,7 +34,7 @@ TEST_UPDATE_TAG = 1234567890
     cartography.intel.entra.groups,
     "get_group_members",
     new_callable=AsyncMock,
-    side_effect=lambda client, gid: [u.id for u in MOCK_GROUP_MEMBERS[gid]],
+    side_effect=mock_get_group_members_side_effect,
 )
 @pytest.mark.asyncio
 async def test_sync_entra_groups(mock_get_members, mock_get_groups, neo4j_session):
