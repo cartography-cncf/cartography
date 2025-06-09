@@ -19,3 +19,5 @@ GET_SQS_QUEUE_ATTRIBUTES = [
         },
     ),
 ]
+
+LIST_SQS_QUEUE_URLS = [url for url, _ in GET_SQS_QUEUE_ATTRIBUTES]
