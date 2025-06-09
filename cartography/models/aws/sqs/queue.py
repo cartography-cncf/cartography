@@ -77,7 +77,6 @@ class SQSQueueToDeadLetterQueueRel(CartographyRelSchema):
     properties: SQSQueueToDeadLetterQueueRelProperties = (
         SQSQueueToDeadLetterQueueRelProperties()
     )
-    conditional_match_property: str = "redrive_policy_dead_letter_target_arn"
 
 
 @dataclass(frozen=True)
