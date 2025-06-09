@@ -1,0 +1,53 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
+from cartography.models.core.relationships import (
+    CartographyRelProperties,
+    CartographyRelSchema,
+    LinkDirection,
+    make_target_node_matcher,
+    TargetNodeMatcher,
+)
+
+
+@dataclass(frozen=True)
+class ECSContainerNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("containerArn")
+    arn: PropertyRef = PropertyRef("containerArn", extra_index=True)
+    task_arn: PropertyRef = PropertyRef("taskArn")
+    name: PropertyRef = PropertyRef("name")
+    image: PropertyRef = PropertyRef("image")
+    image_digest: PropertyRef = PropertyRef("imageDigest")
+    runtime_id: PropertyRef = PropertyRef("runtimeId")
+    last_status: PropertyRef = PropertyRef("lastStatus")
+    exit_code: PropertyRef = PropertyRef("exitCode")
+    reason: PropertyRef = PropertyRef("reason")
+    health_status: PropertyRef = PropertyRef("healthStatus")
+    cpu: PropertyRef = PropertyRef("cpu")
+    memory: PropertyRef = PropertyRef("memory")
+    memory_reservation: PropertyRef = PropertyRef("memoryReservation")
+    gpu_ids: PropertyRef = PropertyRef("gpuIds")
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToTaskRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToTaskRel(CartographyRelSchema):
+    target_node_label: str = "ECSTask"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("taskArn")})
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_CONTAINER"
+    properties: ECSContainerToTaskRelProperties = ECSContainerToTaskRelProperties()
+
+
+@dataclass(frozen=True)
+class ECSContainerSchema(CartographyNodeSchema):
+    label: str = "ECSContainer"
+    properties: ECSContainerNodeProperties = ECSContainerNodeProperties()
+    sub_resource_relationship: ECSContainerToTaskRel = ECSContainerToTaskRel()
