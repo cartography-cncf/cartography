@@ -43,6 +43,11 @@ MOCK_GROUP_MEMBERS = {
             odata_type="#microsoft.graph.user",
             display_name="Entra Test User 1",
         ),
+        Group(
+            id="22222222-2222-2222-2222-222222222222",
+            odata_type="#microsoft.graph.group",
+            display_name="Developers",
+        ),
     ],
     "22222222-2222-2222-2222-222222222222": [],
 }

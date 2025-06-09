@@ -131,3 +131,9 @@ Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/g
     ```cypher
     (:EntraUser)-[:MEMBER_OF]->(:EntraGroup)
     ```
+
+- Entra groups can be members of other groups
+
+    ```cypher
+    (:EntraGroup)-[:MEMBER_OF]->(:EntraGroup)
+    ```
