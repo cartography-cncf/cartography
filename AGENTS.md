@@ -14,7 +14,7 @@ This guide teaches you how to write intel modules for Cartography using the mode
 
 **Critical Files to Know:**
 - `cartography/config.py` - Configuration object definitions
-- `cartography/cli.py` - Command-line argument definitions  
+- `cartography/cli.py` - Command-line argument definitions
 - `cartography/client/core/tx.py` - Core `load()` function
 - `cartography/graph/job.py` - Cleanup job utilities
 - `cartography/models/core/` - Base data model classes
@@ -115,13 +115,13 @@ def sync(
     """
     # 1. GET - Fetch data from API
     raw_data = get(api_key, tenant_id)
-    
+
     # 2. TRANSFORM - Shape data for ingestion
     transformed_data = transform(raw_data)
-    
+
     # 3. LOAD - Ingest to Neo4j using data model
     load_users(neo4j_session, transformed_data, tenant_id, update_tag)
-    
+
     # 4. CLEANUP - Remove stale data
     cleanup(neo4j_session, common_job_parameters)
 ```
@@ -141,7 +141,7 @@ def get(api_key: str, tenant_id: str) -> dict[str, Any]:
         "api_key": api_key,
         "tenant_id": tenant_id,
     }
-    
+
     session = Session()
     response = session.post(
         "https://api.yourservice.com/users",
@@ -163,17 +163,17 @@ def transform(api_result: dict[str, Any]) -> list[dict[str, Any]]:
     Transform API data for Neo4j ingestion
     """
     result: list[dict[str, Any]] = []
-    
+
     for user_data in api_result["users"]:
         transformed_user = {
             # Required fields - use direct access (will raise KeyError if missing)
             "id": user_data["id"],
             "email": user_data["email"],
-            
+
             # Optional fields - use .get() with None default
             "name": user_data.get("name"),
             "last_login": user_data.get("last_login"),
-            
+
             # Convert timestamps if needed
             "created_at": (
                 int(dt_parse.parse(user_data["created_at"]).timestamp() * 1000)
@@ -181,7 +181,7 @@ def transform(api_result: dict[str, Any]) -> list[dict[str, Any]]:
             ),
         }
         result.append(transformed_user)
-    
+
     return result
 ```
 
@@ -207,17 +207,17 @@ from cartography.models.core.nodes import CartographyNodeProperties
 class YourServiceUserNodeProperties(CartographyNodeProperties):
     # Required unique identifier
     id: PropertyRef = PropertyRef("id")
-    
+
     # Automatic fields (set by cartography)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    
+
     # Business fields from your API
     email: PropertyRef = PropertyRef("email", extra_index=True)  # Create index for queries
     name: PropertyRef = PropertyRef("name")
     created_at: PropertyRef = PropertyRef("created_at")
     last_login: PropertyRef = PropertyRef("last_login")
     is_admin: PropertyRef = PropertyRef("is_admin")
-    
+
     # Fields from kwargs (same for all records in a batch)
     tenant_id: PropertyRef = PropertyRef("TENANT_ID", set_in_kwargs=True)
 ```
@@ -241,7 +241,7 @@ class YourServiceUserSchema(CartographyNodeSchema):
     label: str = "YourServiceUser"                              # Neo4j node label
     properties: YourServiceUserNodeProperties = YourServiceUserNodeProperties()
     sub_resource_relationship: YourServiceTenantToUserRel = YourServiceTenantToUserRel()
-    
+
     # Optional: Additional relationships
     other_relationships: OtherRelationships = OtherRelationships([
         YourServiceUserToHumanRel(),  # Connect to Human nodes
@@ -399,11 +399,11 @@ def start_your_service_ingestion(neo4j_session: neo4j.Session, config: Config) -
     if not config.your_service_api_key:
         logger.info("Your Service API key not configured - skipping module")
         return
-    
+
     if not config.your_service_tenant_id:
         logger.info("Your Service tenant ID not configured - skipping module")
         return
-    
+
     # Get API key from environment
     api_key = os.getenv(config.your_service_api_key)
     if not api_key:
@@ -454,11 +454,11 @@ def transform_user(user_data: dict[str, Any]) -> dict[str, Any]:
         # ✅ Required field - let it raise KeyError if missing
         "id": user_data["id"],
         "email": user_data["email"],
-        
+
         # ✅ Optional field - gracefully handle missing data
         "name": user_data.get("display_name"),
         "phone": user_data.get("phone_number"),
-        
+
         # ✅ Complex optional field handling (but now that Neo4j has a native timestamp type, we can just use that instead of converting to int)
         "last_login": (
             int(dt_parse.parse(user_data["last_login"]).timestamp() * 1000)
@@ -486,7 +486,7 @@ MOCK_USERS_RESPONSE = {
             "is_admin": False,
         },
         {
-            "id": "user-456", 
+            "id": "user-456",
             "email": "bob@example.com",
             "display_name": "Bob Jones",
             "created_at": "2023-02-20T16:45:00Z",
@@ -509,16 +509,16 @@ from tests.data.your_service.users import MOCK_USERS_RESPONSE
 
 def test_transform_users():
     result = transform(MOCK_USERS_RESPONSE)
-    
+
     assert len(result) == 2
-    
+
     alice = result[0]
     assert alice["id"] == "user-123"
     assert alice["email"] == "alice@example.com"
     assert alice["name"] == "Alice Smith"
     assert alice["is_admin"] is False
     assert alice["last_login"] is not None  # Converted timestamp
-    
+
     bob = result[1]
     assert bob["id"] == "user-456"
     assert bob["last_login"] is None  # Handled missing data
@@ -557,20 +557,20 @@ def test_sync_users(mock_api, neo4j_session):
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
-    
+
     # Assert - Use check_nodes() instead of raw Neo4j queries
     expected_nodes = {
         ("user-123", "alice@example.com"),
         ("user-456", "bob@example.com"),
     }
     assert check_nodes(neo4j_session, "YourServiceUser", ["id", "email"]) == expected_nodes
-    
+
     # Verify tenant was created
     expected_tenant_nodes = {
         (TEST_TENANT_ID,),
     }
     assert check_nodes(neo4j_session, "YourServiceTenant", ["id"]) == expected_tenant_nodes
-    
+
     # Assert - Use check_rels() instead of raw Neo4j queries for relationships
     expected_rels = {
         ("user-123", TEST_TENANT_ID),
@@ -581,7 +581,7 @@ def test_sync_users(mock_api, neo4j_session):
             neo4j_session,
             "YourServiceUser",
             "id",
-            "YourServiceTenant", 
+            "YourServiceTenant",
             "id",
             "RESOURCE",
             rel_direction_right=True,
@@ -647,7 +647,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any])
     Remove nodes that weren't updated in this sync run
     """
     logger.debug("Running Your Service cleanup job")
-    
+
     # Cleanup users
     GraphJob.from_node_schema(YourServiceUserSchema(), common_job_parameters).run(neo4j_session)
 ```
@@ -808,10 +808,10 @@ class YourNodeProperties(CartographyNodeProperties):
 ### Standard Sync Function Template
 ```python
 @timeit
-def sync(neo4j_session: neo4j.Session, api_key: str, tenant_id: str, 
+def sync(neo4j_session: neo4j.Session, api_key: str, tenant_id: str,
          update_tag: int, common_job_parameters: dict[str, Any]) -> None:
     data = get(api_key, tenant_id)              # 1. GET
-    transformed = transform(data)               # 2. TRANSFORM  
+    transformed = transform(data)               # 2. TRANSFORM
     load_entities(neo4j_session, transformed,   # 3. LOAD
                  tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)  # 4. CLEANUP
@@ -819,9 +819,9 @@ def sync(neo4j_session: neo4j.Session, api_key: str, tenant_id: str,
 
 ### Standard Load Pattern
 ```python
-def load_entities(neo4j_session: neo4j.Session, data: list[dict], 
+def load_entities(neo4j_session: neo4j.Session, data: list[dict],
                  tenant_id: str, update_tag: int) -> None:
-    load(neo4j_session, YourSchema(), data, 
+    load(neo4j_session, YourSchema(), data,
          lastupdated=update_tag, TENANT_ID=tenant_id)
 ```
 
@@ -836,7 +836,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any])
 # OUTWARD: (:Source)-[:REL]->(:Target)
 direction: LinkDirection = LinkDirection.OUTWARD
 
-# INWARD: (:Source)<-[:REL]-(:Target)  
+# INWARD: (:Source)<-[:REL]-(:Target)
 direction: LinkDirection = LinkDirection.INWARD
 ```
 
@@ -857,7 +857,7 @@ def start_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     if not config.your_api_key_env_var:
         logger.info("Module not configured - skipping")
         return
-    
+
     api_key = os.getenv(config.your_api_key_env_var)
     if not api_key:
         logger.error(f"Environment variable {config.your_api_key_env_var} not set")
@@ -870,7 +870,7 @@ cartography/intel/your_service/
 ├── __init__.py          # Main entry point
 └── entities.py          # Domain sync modules
 
-cartography/models/your_service/  
+cartography/models/your_service/
 ├── entity.py            # Data model definitions
 └── tenant.py            # Tenant model
 
