@@ -179,7 +179,7 @@ def test_load_s3_policies(neo4j_session, *args):
 
 def test_load_s3_bucket_ownership(neo4j_session, *args):
     """
-    Ensure that expected bucket gets loaded with their bucke ownership controls fields.
+    Ensure that expected bucket gets loaded with their bucket ownership controls fields.
     """
     data = tests.data.aws.s3.GET_BUCKET_OWNERSHIP_CONTROLS
     cartography.intel.aws.s3._load_bucket_ownership_controls(
