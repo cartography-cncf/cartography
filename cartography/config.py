@@ -137,6 +137,12 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type airbyte_client_id: str
+    :param airbyte_client_id: Airbyte client ID for API authentication. Optional.
+    :type airbyte_client_secret: str
+    :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
+    :type airbyte_api_url: str
+    :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
     """
 
     def __init__(
@@ -209,6 +215,9 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        airbyte_client_id=None,
+        airbyte_client_secret=None,
+        airbyte_api_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -278,3 +287,6 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.airbyte_client_id = airbyte_client_id
+        self.airbyte_client_secret = airbyte_client_secret
+        self.airbyte_api_url = airbyte_api_url
