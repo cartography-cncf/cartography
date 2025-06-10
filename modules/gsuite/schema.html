@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>GSuite Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Jamf" href="../jamf/index.html" /><link rel="prev" title="GSuite Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="GSuite Schema"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Google GSuite</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#gsuiteuser">GSuiteUser</a><ul>
+<li><a class="reference internal" href="#node-labels">Node Labels</a></li>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gsuitegroup">GSuiteGroup</a><ul>
+<li><a class="reference internal" href="#id1">Node Labels</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/gsuite/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Google GSuite</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">GSuite Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="gsuite-schema">
+<h1>GSuite Schema<a class="headerlink" href="#gsuite-schema" title="Link to this heading">¶</a></h1>
+<section id="gsuiteuser">
+<h2>GSuiteUser<a class="headerlink" href="#gsuiteuser" title="Link to this heading">¶</a></h2>
+<p>Reference:
+<a class="reference external" href="https://developers.google.com/admin-sdk/directory/v1/reference/users#resource">https://developers.google.com/admin-sdk/directory/v1/reference/users#resource</a></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique ID for the user as a string. A user id can be used as a user request URI’s userKey</p></td>
+</tr>
+<tr class="row-odd"><td><p>user_id</p></td>
+<td><p>duplicate of id.</p></td>
+</tr>
+<tr class="row-even"><td><p>agreed_to_terms</p></td>
+<td><p>This property is true if the user has completed an initial login and accepted the Terms of Service agreement.</p></td>
+</tr>
+<tr class="row-odd"><td><p>change_password_at_next_login</p></td>
+<td><p>Indicates if the user is forced to change their password at next login. This setting doesn’t apply when the user signs in via a third-party identity provider.</p></td>
+</tr>
+<tr class="row-even"><td><p>creation_time</p></td>
+<td><p>The time the user’s account was created. The value is in ISO 8601 date and time format. The time is the complete date plus hours, minutes, and seconds in the form YYYY-MM-DDThh:mm:ssTZD. For example, 2010-04-05T17:30:04+01:00.</p></td>
+</tr>
+<tr class="row-odd"><td><p>customer_id</p></td>
+<td><p>The customer ID to retrieve all account users.  You can use the alias my_customer to represent your account’s customerId.  As a reseller administrator, you can use the resold customer account’s customerId. To get a customerId, use the account’s primary domain in the domain parameter of a users.list request.</p></td>
+</tr>
+<tr class="row-even"><td><p>etag</p></td>
+<td><p>ETag of the resource</p></td>
+</tr>
+<tr class="row-odd"><td><p>include_in_global_address_list</p></td>
+<td><p>Indicates if the user’s profile is visible in the G Suite global address list when the contact sharing feature is enabled for the domain. For more information about excluding user profiles, see the administration help center.</p></td>
+</tr>
+<tr class="row-even"><td><p>ip_whitelisted</p></td>
+<td><p>If true, the user’s IP address is white listed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_admin</p></td>
+<td><p>Indicates a user with super admininistrator privileges. The isAdmin property can only be edited in the Make a user an administrator operation (makeAdmin method). If edited in the user insert or update methods, the edit is ignored by the API service.</p></td>
+</tr>
+<tr class="row-even"><td><p>is_delegated_admin</p></td>
+<td><p>Indicates if the user is a delegated administrator.  Delegated administrators are supported by the API but cannot create or undelete users, or make users administrators. These requests are ignored by the API service.  Roles and privileges for administrators are assigned using the Admin console.</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_enforced_in_2_sv</p></td>
+<td><p>Is 2-step verification enforced (Read-only)</p></td>
+</tr>
+<tr class="row-even"><td><p>is_enrolled_in_2_sv</p></td>
+<td><p>Is enrolled in 2-step verification (Read-only)</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_mailbox_setup</p></td>
+<td><p>Indicates if the user’s Google mailbox is created. This property is only applicable if the user has been assigned a Gmail license.</p></td>
+</tr>
+<tr class="row-even"><td><p>kind</p></td>
+<td><p>The type of the API resource. For Users resources, the value is admin#directory#user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_login_time</p></td>
+<td><p>The last time the user logged into the user’s account. The value is in ISO 8601 date and time format. The time is the complete date plus hours, minutes, and seconds in the form YYYY-MM-DDThh:mm:ssTZD. For example, 2010-04-05T17:30:04+01:00.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>First name + Last name</p></td>
+</tr>
+<tr class="row-odd"><td><p>family_name</p></td>
+<td><p>The user’s last name. Required when creating a user account.</p></td>
+</tr>
+<tr class="row-even"><td><p>given_name</p></td>
+<td><p>The user’s first name. Required when creating a user account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>org_unit_path</p></td>
+<td><p>The full path of the parent organization associated with the user. If the parent organization is the top-level, it is represented as a forward slash (/).</p></td>
+</tr>
+<tr class="row-even"><td><p>primary_email</p></td>
+<td><p>The user’s primary email address. This property is required in a request to create a user account. The primaryEmail must be unique and cannot be an alias of another user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>suspended</p></td>
+<td><p>Indicates if user is suspended</p></td>
+</tr>
+<tr class="row-even"><td><p>thumbnail_photo_etag</p></td>
+<td><p>ETag of the user’s photo</p></td>
+</tr>
+<tr class="row-odd"><td><p>thumbnail_photo_url</p></td>
+<td><p>Photo Url of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of when a sync job last updated this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="node-labels">
+<h3>Node Labels<a class="headerlink" href="#node-labels" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GSuiteUser</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GCPPrincipal</span></code></p></li>
+</ul>
+</section>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GSuiteUser is an identity for a Human</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">Human</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">IDENTITY_GSUITE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GSuiteUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gsuitegroup">
+<h2>GSuiteGroup<a class="headerlink" href="#gsuitegroup" title="Link to this heading">¶</a></h2>
+<p>Reference:
+<a class="reference external" href="https://developers.google.com/admin-sdk/directory/v1/reference/groups">https://developers.google.com/admin-sdk/directory/v1/reference/groups</a></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique ID of a group. A group id can be used as a group request URI’s groupKey.</p></td>
+</tr>
+<tr class="row-odd"><td><p>admin_created</p></td>
+<td><p>Value is true if this group was created by an administrator rather than a user.</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>An extended description to help users determine the purpose of a group. For example, you can include information about who should join the group, the types of messages to send to the group, links to FAQs about the group, or related groups. Maximum length is 4,096 characters.</p></td>
+</tr>
+<tr class="row-odd"><td><p>direct_members_count</p></td>
+<td><p>The number of users that are direct members of the group. If a group is a member (child) of this group (the parent), members of the child group are not counted in the directMembersCount property of the parent group</p></td>
+</tr>
+<tr class="row-even"><td><p>email</p></td>
+<td><p>The group’s email address. If your account has multiple domains, select the appropriate domain for the email address. The email must be unique. This property is required when creating a group. Group email addresses are subject to the same character usage rules as usernames, see the administration help center for the details.</p></td>
+</tr>
+<tr class="row-odd"><td><p>etag</p></td>
+<td><p>ETag of the resource</p></td>
+</tr>
+<tr class="row-even"><td><p>kind</p></td>
+<td><p>The type of the API resource. For Groups resources, the value is admin#directory#group.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The group’s display name.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of when a sync job last updated this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Node Labels<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">GSuiteGroup</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GCPPrincipal</span></code></p></li>
+</ul>
+</section>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GSuiteGroup can have members that are GSuiteUsers.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GSuiteUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GSuiteGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">GSuite Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../jamf/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Jamf</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=e2230717"></script></body>
+</html>

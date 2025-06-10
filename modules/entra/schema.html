@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Entra Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Google Cloud Compute (GCP)" href="../gcp/index.html" /><link rel="prev" title="Entra Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Entra Schema"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Microsoft Entra (formerly Azure AD)</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Entra Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#entratenant">EntraTenant</a></li>
+<li><a class="reference internal" href="#entrauser">EntraUser</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#entraou">EntraOU</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#entragroup">EntraGroup</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/entra/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Microsoft Entra (formerly Azure AD)</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Entra Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="entra-schema">
+<h1>Entra Schema<a class="headerlink" href="#entra-schema" title="Link to this heading">¶</a></h1>
+<section id="entratenant">
+<h2>EntraTenant<a class="headerlink" href="#entratenant" title="Link to this heading">¶</a></h2>
+<p>Representation of an Entra (formerly Azure AD) Tenant.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Entra Tenant ID (GUID)</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_date_time</p></td>
+<td><p>Date and time when the tenant was created</p></td>
+</tr>
+<tr class="row-even"><td><p>default_usage_location</p></td>
+<td><p>Default location for usage reporting</p></td>
+</tr>
+<tr class="row-odd"><td><p>deleted_date_time</p></td>
+<td><p>Date and time when the tenant was deleted (if applicable)</p></td>
+</tr>
+<tr class="row-even"><td><p>display_name</p></td>
+<td><p>Display name of the tenant</p></td>
+</tr>
+<tr class="row-odd"><td><p>marketing_notification_emails</p></td>
+<td><p>List of email addresses for marketing notifications</p></td>
+</tr>
+<tr class="row-even"><td><p>mobile_device_management_authority</p></td>
+<td><p>Mobile device management authority for the tenant</p></td>
+</tr>
+<tr class="row-odd"><td><p>on_premises_last_sync_date_time</p></td>
+<td><p>Last time the tenant was synced with on-premises directory</p></td>
+</tr>
+<tr class="row-even"><td><p>on_premises_sync_enabled</p></td>
+<td><p>Whether on-premises directory sync is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>partner_tenant_type</p></td>
+<td><p>Type of partner tenant</p></td>
+</tr>
+<tr class="row-even"><td><p>postal_code</p></td>
+<td><p>Postal code of the tenant’s address</p></td>
+</tr>
+<tr class="row-odd"><td><p>preferred_language</p></td>
+<td><p>Preferred language for the tenant</p></td>
+</tr>
+<tr class="row-even"><td><p>state</p></td>
+<td><p>State/province of the tenant’s address</p></td>
+</tr>
+<tr class="row-odd"><td><p>street</p></td>
+<td><p>Street address of the tenant</p></td>
+</tr>
+<tr class="row-even"><td><p>tenant_type</p></td>
+<td><p>Type of tenant (e.g., ‘AAD’)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="entrauser">
+<h2>EntraUser<a class="headerlink" href="#entrauser" title="Link to this heading">¶</a></h2>
+<p>Representation of an Entra <a class="reference external" href="https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&amp;amp;tabs=http">User</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Entra User ID (GUID)</p></td>
+</tr>
+<tr class="row-odd"><td><p>user_principal_name</p></td>
+<td><p>User Principal Name (UPN) of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>display_name</p></td>
+<td><p>Display name of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>given_name</p></td>
+<td><p>Given (first) name of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>surname</p></td>
+<td><p>Surname (last name) of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>Primary email address of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>other_mails</p></td>
+<td><p>Additional email addresses of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>preferred_language</p></td>
+<td><p>Preferred language of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>preferred_name</p></td>
+<td><p>Preferred name of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>State/province of the user’s address</p></td>
+</tr>
+<tr class="row-even"><td><p>usage_location</p></td>
+<td><p>Location for usage reporting</p></td>
+</tr>
+<tr class="row-odd"><td><p>user_type</p></td>
+<td><p>Type of user</p></td>
+</tr>
+<tr class="row-even"><td><p>show_in_address_list</p></td>
+<td><p>Whether the user appears in address lists</p></td>
+</tr>
+<tr class="row-odd"><td><p>sign_in_sessions_valid_from_date_time</p></td>
+<td><p>Date and time from which sign-in sessions are valid</p></td>
+</tr>
+<tr class="row-even"><td><p>security_identifier</p></td>
+<td><p>Security identifier of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>account_enabled</p></td>
+<td><p>Whether the user account is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>city</p></td>
+<td><p>City of the user’s address</p></td>
+</tr>
+<tr class="row-odd"><td><p>company_name</p></td>
+<td><p>Company name of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>consent_provided_for_minor</p></td>
+<td><p>Whether consent was provided for a minor</p></td>
+</tr>
+<tr class="row-odd"><td><p>country</p></td>
+<td><p>Country of the user’s address</p></td>
+</tr>
+<tr class="row-even"><td><p>created_date_time</p></td>
+<td><p>Date and time when the user was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>creation_type</p></td>
+<td><p>Type of user creation</p></td>
+</tr>
+<tr class="row-even"><td><p>deleted_date_time</p></td>
+<td><p>Date and time when the user was deleted (if applicable)</p></td>
+</tr>
+<tr class="row-odd"><td><p>department</p></td>
+<td><p>Department of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>employee_id</p></td>
+<td><p>Employee ID of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>employee_type</p></td>
+<td><p>Type of employee</p></td>
+</tr>
+<tr class="row-even"><td><p>external_user_state</p></td>
+<td><p>State of external user</p></td>
+</tr>
+<tr class="row-odd"><td><p>external_user_state_change_date_time</p></td>
+<td><p>Date and time when external user state changed</p></td>
+</tr>
+<tr class="row-even"><td><p>hire_date</p></td>
+<td><p>Hire date of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_management_restricted</p></td>
+<td><p>Whether management is restricted</p></td>
+</tr>
+<tr class="row-even"><td><p>is_resource_account</p></td>
+<td><p>Whether this is a resource account</p></td>
+</tr>
+<tr class="row-odd"><td><p>job_title</p></td>
+<td><p>Job title of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>last_password_change_date_time</p></td>
+<td><p>Date and time of last password change</p></td>
+</tr>
+<tr class="row-odd"><td><p>mail_nickname</p></td>
+<td><p>Mail nickname of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>office_location</p></td>
+<td><p>Office location of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>on_premises_distinguished_name</p></td>
+<td><p>Distinguished name in on-premises directory</p></td>
+</tr>
+<tr class="row-even"><td><p>on_premises_domain_name</p></td>
+<td><p>Domain name in on-premises directory</p></td>
+</tr>
+<tr class="row-odd"><td><p>on_premises_immutable_id</p></td>
+<td><p>Immutable ID in on-premises directory</p></td>
+</tr>
+<tr class="row-even"><td><p>on_premises_last_sync_date_time</p></td>
+<td><p>Last time the user was synced with on-premises directory</p></td>
+</tr>
+<tr class="row-odd"><td><p>on_premises_sam_account_name</p></td>
+<td><p>SAM account name in on-premises directory</p></td>
+</tr>
+<tr class="row-even"><td><p>on_premises_security_identifier</p></td>
+<td><p>Security identifier in on-premises directory</p></td>
+</tr>
+<tr class="row-odd"><td><p>on_premises_sync_enabled</p></td>
+<td><p>Whether on-premises directory sync is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>on_premises_user_principal_name</p></td>
+<td><p>User Principal Name in on-premises directory</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>All Entra users are linked to an Entra Tenant</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">EntraUser</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">EntraTenant</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Entra users are members of groups</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">EntraUser</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">MEMBER_OF</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">EntraGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="entraou">
+<h2>EntraOU<a class="headerlink" href="#entraou" title="Link to this heading">¶</a></h2>
+<p>Representation of an Entra <a class="reference external" href="https://learn.microsoft.com/en-us/graph/api/administrativeunit-get?view=graph-rest-1.0&amp;amp;tabs=http">OU</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Entra Administrative Unit (OU) ID (GUID)</p></td>
+</tr>
+<tr class="row-odd"><td><p>display_name</p></td>
+<td><p>Display name of the administrative unit</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>Description of the administrative unit</p></td>
+</tr>
+<tr class="row-odd"><td><p>membership_type</p></td>
+<td><p>Membership type (“Assigned” for static or “Dynamic for rule-based)</p></td>
+</tr>
+<tr class="row-even"><td><p>visibility</p></td>
+<td><p>Visibility setting (“Public” or “Private”)</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_member_management_restricted</p></td>
+<td><p>Whether member management is restricted</p></td>
+</tr>
+<tr class="row-even"><td><p>deleted_date_time</p></td>
+<td><p>Date and time when the administrative unit was soft-deleted</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>All Entra OUs are linked to an Entra Tenant</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">EntraOU</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">EntraTenant</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="entragroup">
+<h2>EntraGroup<a class="headerlink" href="#entragroup" title="Link to this heading">¶</a></h2>
+<p>Representation of an Entra <a class="reference external" href="https://learn.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&amp;amp;tabs=http">Group</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Entra Group ID (GUID)</p></td>
+</tr>
+<tr class="row-odd"><td><p>display_name</p></td>
+<td><p>Display name of the group</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>Description of the group</p></td>
+</tr>
+<tr class="row-odd"><td><p>mail</p></td>
+<td><p>Primary email address of the group</p></td>
+</tr>
+<tr class="row-even"><td><p>mail_nickname</p></td>
+<td><p>Mail nickname</p></td>
+</tr>
+<tr class="row-odd"><td><p>mail_enabled</p></td>
+<td><p>Whether the group has a mailbox</p></td>
+</tr>
+<tr class="row-even"><td><p>security_enabled</p></td>
+<td><p>Whether the group is security enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>group_types</p></td>
+<td><p>List of group types</p></td>
+</tr>
+<tr class="row-even"><td><p>visibility</p></td>
+<td><p>Group visibility setting</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_assignable_to_role</p></td>
+<td><p>Whether the group can be assigned to roles</p></td>
+</tr>
+<tr class="row-even"><td><p>created_date_time</p></td>
+<td><p>Creation timestamp</p></td>
+</tr>
+<tr class="row-odd"><td><p>deleted_date_time</p></td>
+<td><p>Deletion timestamp if applicable</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>All Entra groups are linked to an Entra Tenant</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">EntraGroup</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">EntraTenant</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Entra users are members of groups</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">EntraUser</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">MEMBER_OF</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">EntraGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Entra groups can be members of other groups</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">EntraGroup</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">MEMBER_OF</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">EntraGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Entra Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../gcp/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Google Cloud Compute (GCP)</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=e2230717"></script></body>
+</html>

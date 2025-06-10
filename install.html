@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="./">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Quick start: Install and Run Cartography On Test Machine - cartography documentation</title><link rel="shortcut icon" href="_static/logo-vertical.svg"/><link rel="search" title="Search" href="search.html" /><link rel="next" title="Usage" href="usage/index.html" /><link rel="prev" title="What is Cartography?" href="index.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Quick start: Install and Run Cartography On Test Machine"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="index.html">
+      <img class="light-logo" src="_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#option-1-run-docker-compose-preferred">Option 1: Run docker-compose (preferred)</a></li>
+<li><a class="reference internal" href="#option-2-manually-run-2-containers">Option 2: manually run 2 containers</a></li>
+<li><a class="reference internal" href="#option-3-native-install">Option 3: Native install</a></li>
+<li><a class="reference internal" href="#things-to-do-next">Things to do next</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/install.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Quick start: Install and Run Cartography On Test Machine</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="quick-start-install-and-run-cartography-on-test-machine">
+<h1>Quick start: Install and Run Cartography On Test Machine<a class="headerlink" href="#quick-start-install-and-run-cartography-on-test-machine" title="Link to this heading">¶</a></h1>
+<p>Time to set up a test machine to run Cartography.</p>
+<section id="option-1-run-docker-compose-preferred">
+<h2>Option 1: Run docker-compose (preferred)<a class="headerlink" href="#option-1-run-docker-compose-preferred" title="Link to this heading">¶</a></h2>
+<p>This is the quickest way to get started: you will run a cartography cron job and a Neo4j docker container on your
+machine to pull data from AWS.</p>
+<p><img alt="dockercompose-flow.png" src="_images/dockercompose-flow.png" /></p>
+<ol class="arabic">
+<li><p>Clone the Cartography repo to your machine.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">git<span class="w"> </span>clone<span class="w"> </span>git@github.com:cartography-cncf/cartography.git
+</span></pre></div>
+</div>
+<p>or</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">git<span class="w"> </span>clone<span class="w"> </span>https://github.com/cartography-cncf/cartography
+</span></pre></div>
+</div>
+</li>
+<li><p><strong>Start up the Neo4j graph database.</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>cartography
+</span><span data-line="2">docker-compose<span class="w"> </span>up<span class="w"> </span>-d
+</span></pre></div>
+</div>
+<p>If this command errors out with permission problems, you may need to configure your Docker Desktop/Rancher Desktop/etc to use a different virtual machine volume setting: try virtiofs on Mac.</p>
+<p>It may take a minute for the Neo4j container to spin up.</p>
+</li>
+<li><p><strong>Configure and run Cartography.</strong></p>
+<p>In this example we will run Cartography on <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules/aws/config.html">AWS</a> with a profile called “1234_testprofile” and default region set to “us-east-1”.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker-compose<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">    </span>-e<span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>1234_testprofile<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">    </span>-e<span class="w"> </span><span class="nv">AWS_DEFAULT_REGION</span><span class="o">=</span>us-east-1<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">    </span>cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://cartography-neo4j-1:7687
+</span></pre></div>
+</div>
+<p>If you get a connection error like <code class="docutils literal notranslate"><span class="pre">ValueError:</span> <span class="pre">Cannot</span> <span class="pre">resolve</span> <span class="pre">address</span> <span class="pre">cartography-neo4j-1:7687</span></code>, you may need to wait a bit for the Neo4j container to be ready. Run <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">ps</span></code> periodically to check on it and then retry the <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">run</span> <span class="pre">..</span></code> command.</p>
+<p>You will know it works when your terminal shows log messages displaying how many assets are being loaded to the graph:</p>
+<p><img alt="docker-compose-run.png" src="_images/docker-compose-run.png" /></p>
+<p><strong>Notes:</strong></p>
+<ul class="simple">
+<li><p>You can view a full list of Cartography’s CLI arguments by running <code class="docutils literal notranslate"><span class="pre">docker-compose</span> <span class="pre">run</span> <span class="pre">cartography</span> <span class="pre">--help</span></code>.</p></li>
+<li><p>Also see the configuration section of <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules">each relevant intel module</a> to set up each data source. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.</p>
+<ul>
+<li><p>You can pass in environment variables to the cartography container using the docker-compose format like this: <code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">VARIABLE1</span> <span class="pre">-e</span> <span class="pre">VARIABLE2=value2</span></code>.</p></li>
+<li><p>You can make files available to the cartography container by editing the volumes in the docker-compose.yml file. See docker-compose documentation on how to do that.</p></li>
+</ul>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cartography-neo4j-1</span></code> is how the Cartography docker container knows how to reach the Neo4j container in docker-compose.</p></li>
+<li><p>AWS things</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">AWS_DEFAULT_REGION</span></code> must be specified.</p></li>
+<li><p>The docker-compose.yml maps in <code class="docutils literal notranslate"><span class="pre">~/.aws/</span></code> on your host machine to <code class="docutils literal notranslate"><span class="pre">/var/cartography/.aws</span></code> in the cartography container so that the container has access to AWS profile and credential files.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>View the graph.</strong></p>
+<p>You can view the graph while it is still syncing by visiting <a class="reference external" href="http://localhost:7474">http://localhost:7474</a>. Try a query like</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">match</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSRole</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">c</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">*</span>
+</span></pre></div>
+</div>
+<p>It should look like this:</p>
+<p><img alt="dockercompose-result.png" src="_images/dockercompose-result.png" /></p>
+</li>
+<li><p><strong>Optional</strong>: If you want to configure the Neo4j container itself, you can do this via the <code class="docutils literal notranslate"><span class="pre">.compose</span></code> directory, which is
+git ignored. neo4j config, logs, etc are all located at <code class="docutils literal notranslate"><span class="pre">.compose/neo4j/...</span></code></p></li>
+<li><p><strong>Optional</strong>: You can supply additional environment variables via <code class="docutils literal notranslate"><span class="pre">docker-compose</span></code> like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Temporarily disable bash command history</span>
+</span><span data-line="2"><span class="nb">set</span><span class="w"> </span>+o<span class="w"> </span><span class="nb">history</span>
+</span><span data-line="3"><span class="c1"># See the cartography github configuration intel module docs</span>
+</span><span data-line="4"><span class="nb">export</span><span class="w"> </span><span class="nv">GITHUB_KEY</span><span class="o">=</span>BASE64ENCODEDKEY
+</span><span data-line="5"><span class="c1"># You need to set this after starting neo4j once, and resetting</span>
+</span><span data-line="6"><span class="c1"># the default neo4j password, which is neo4j</span>
+</span><span data-line="7"><span class="nb">export</span><span class="w"> </span><span class="nv">NEO4j_PASSWORD</span><span class="o">=</span>...
+</span><span data-line="8"><span class="c1"># Reenable bash command history</span>
+</span><span data-line="9"><span class="nb">set</span><span class="w"> </span>-o<span class="w"> </span><span class="nb">history</span>
+</span><span data-line="10"><span class="c1"># Start cartography dependencies</span>
+</span><span data-line="11">docker-compose<span class="w"> </span>up<span class="w"> </span>-d
+</span><span data-line="12"><span class="c1"># Run cartography</span>
+</span><span data-line="13">docker-compose<span class="w"> </span>run<span class="w"> </span>-e<span class="w"> </span>GITHUB_KEY<span class="w"> </span>-e<span class="w"> </span>NEO4j_PASSWORD<span class="w"> </span>cartography<span class="w"> </span>cartography<span class="w"> </span>--github-config-env-var<span class="w"> </span>GITHUB_KEY<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://neo4j:7687<span class="w"> </span>--neo4j-password-env-var<span class="w"> </span>NEO4j_PASSWORD<span class="w"> </span>--neo4j-user<span class="w"> </span>neo4j
+</span></pre></div>
+</div>
+</li>
+</ol>
+<p>Read on to see <a class="reference internal" href="#things-to-do-next"><span class="xref myst">other things you can do with Cartography</span></a>.</p>
+</section>
+<section id="option-2-manually-run-2-containers">
+<h2>Option 2: manually run 2 containers<a class="headerlink" href="#option-2-manually-run-2-containers" title="Link to this heading">¶</a></h2>
+<ol class="arabic">
+<li><p><strong>Run the Neo4j graph database container.</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Create a docker network so that cartography can talk to neo4j</span>
+</span><span data-line="2">docker<span class="w"> </span>network<span class="w"> </span>create<span class="w"> </span>cartography-network
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># run the Neo4j graph database</span>
+</span><span data-line="5">docker<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">    </span>--publish<span class="o">=</span><span class="m">7474</span>:7474<span class="w"> </span><span class="se">\</span>
+</span><span data-line="7"><span class="w">    </span>--publish<span class="o">=</span><span class="m">7687</span>:7687<span class="w"> </span><span class="se">\</span>
+</span><span data-line="8"><span class="w">    </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+</span><span data-line="9"><span class="w">    </span>-v<span class="w"> </span>data:/data<span class="w"> </span><span class="se">\</span>
+</span><span data-line="10"><span class="w">    </span>--name<span class="w"> </span>cartography-neo4j<span class="w"> </span><span class="se">\</span>
+</span><span data-line="11"><span class="w">    </span>--env<span class="o">=</span><span class="nv">NEO4J_AUTH</span><span class="o">=</span>none<span class="w"> </span><span class="se">\</span>
+</span><span data-line="12"><span class="w">    </span>neo4j:4.4-community
+</span></pre></div>
+</div>
+<ul class="simple">
+<li><p>Refer to the Neo4j Docker <a class="reference external" href="https://github.com/neo4j/docker-neo4j">official docs</a> for more information.</p></li>
+<li><p>Note that we are just playing around here on a test instance and have specified <code class="docutils literal notranslate"><span class="pre">--env=NEO4J_AUTH=none</span></code> to turn off authentication.</p></li>
+<li><p>If you experience very slow write performance using an ARM-based machine like an M1 Mac, see if using an ARM image helps. Neo4j keeps ARM builds <a class="reference external" href="https://hub.docker.com/r/arm64v8/neo4j/">here</a>.</p></li>
+</ul>
+</li>
+<li><p><strong>Configure and run Cartography.</strong></p>
+<p>See the configuration section of <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules">each relevant intel module</a> to set up each data source. In this example we will use <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules/aws/config.html">AWS</a>.</p>
+<p>This command runs cartography on an AWS profile called “1234_testprofile” on region us-east-1. We also expose the host machine’s ~/.aws directory to ~/var/cartography/.aws in the container so that AWS configs work.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">   </span>--network<span class="w"> </span>cartography-network<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">   </span>-v<span class="w"> </span>~/.aws:/var/cartography/.aws/<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">   </span>-e<span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>1234_testprofile<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">   </span>-e<span class="w"> </span><span class="nv">AWS_DEFAULT_REGION</span><span class="o">=</span>us-east-1<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">   </span>cartography-cncf/cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://cartography-neo4j:7687
+</span></pre></div>
+</div>
+<p>If things work, your terminal will look like this where you see log messages displaying how many assets are being loaded to the graph:</p>
+<p><img alt="docker-compose-run.png" src="_images/docker-compose-run.png" /></p>
+<p class="rubric" id="notes">Notes:</p>
+<ul class="simple">
+<li><p>You pass in environment variables to the cartography container using the docker format like this: <code class="docutils literal notranslate"><span class="pre">-e</span> <span class="pre">VARIABLE1</span> <span class="pre">-e</span> <span class="pre">VARIABLE2=value2</span></code>.</p></li>
+<li><p>AWS things</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">AWS_DEFAULT_REGION</span></code> must be specified.</p></li>
+<li><p>Our docker-compose.yml maps in <code class="docutils literal notranslate"><span class="pre">~/.aws/</span></code> on your host machine to <code class="docutils literal notranslate"><span class="pre">/var/cartography/.aws</span></code> in the cartography container, so the container has access to AWS profile and credential files.</p></li>
+</ul>
+</li>
+<li><p>You can view a full list of Cartography’s CLI arguments by running <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">cartography-cncf/cartography</span> <span class="pre">--help</span></code>.</p></li>
+</ul>
+</li>
+<li><p><strong>View the graph.</strong></p>
+<p>You can view the graph while it is still syncing by visiting <a class="reference external" href="http://localhost:7474">http://localhost:7474</a>. Try a query like</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">match</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSRole</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">c</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">*</span>
+</span></pre></div>
+</div>
+<p>It should look like this:</p>
+<p><img alt="dockercompose-result.png" src="_images/dockercompose-result.png" /></p>
+</li>
+</ol>
+<p>Read on to see <a class="reference internal" href="#things-to-do-next"><span class="xref myst">other things you can do with Cartography</span></a>.</p>
+</section>
+<section id="option-3-native-install">
+<h2>Option 3: Native install<a class="headerlink" href="#option-3-native-install" title="Link to this heading">¶</a></h2>
+<p>Do this if you prefer to install and manage all the dependencies yourself. Cartography <em>should</em> work on Linux, Mac, and Windows, but bear in mind we haven’t tested much on Windows so far.</p>
+<p><img alt="yourowntestmachine.png" src="_images/yourowntestmachine.png" /></p>
+<ol class="arabic">
+<li><p><strong>Ensure that you have Python 3.10 set up on your machine.</strong></p>
+<p>Older or newer versions of Python may work but are not explicitly supported. You will probably have more luck with newer versions.</p>
+</li>
+<li><p><strong>Run Neo4j graph database version 4.4 or higher. 4.3 and lower will <em>not</em> work.</strong></p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1"> ⚠️ Neo4j 5.x will probably work since it&#39;s included in our test suite, but we do not explicitly support it yet.
+</span></pre></div>
+</div>
+<ol class="arabic">
+<li><p>We recommend running Neo4j as a Docker container so that you save time and don’t need to install Java. Run <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--publish=7474:7474</span> <span class="pre">--publish=7687:7687</span> <span class="pre">-v</span> <span class="pre">data:/data</span> <span class="pre">--env=NEO4J_AUTH=none</span> <span class="pre">neo4j:4.4-community</span></code>.</p></li>
+<li><p>Otherwise, if you prefer to <strong>install Neo4j from scratch</strong>,</p>
+<ol class="arabic">
+<li><p>Neo4j requires a JVM (JDK/JRE 11 or higher). One option is <a class="reference external" href="https://docs.aws.amazon.com/corretto/latest/corretto-11-ug/what-is-corretto-11.html">Amazon Coretto 11</a>.</p>
+<p>⚠️ Make sure you have the <code class="docutils literal notranslate"><span class="pre">JAVA_HOME</span></code> environment variable set. The following works for Mac OS: <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">JAVA_HOME=$(/usr/libexec/java_home)</span></code></p>
+</li>
+<li><p>Go to the <a class="reference external" href="https://neo4j.com/download-center/#community">Neo4j download page</a>, and download Neo4j Community Edition 4.4.*.</p></li>
+<li><p><a class="reference external" href="https://neo4j.com/docs/operations-manual/current/installation/">Install</a> Neo4j.</p>
+<p>⚠️ For local testing, you might want to turn off authentication via property <code class="docutils literal notranslate"><span class="pre">dbms.security.auth_enabled</span></code> in file NEO4J_PATH/conf/neo4j.conf</p>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>Install cartography to the current Python virtual environment with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">cartography</span></code>.</strong></p>
+<p>We recommend creating a separate venv for just Cartography and its dependencies. You can read about venvs <a class="reference external" href="https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments">here</a>, and searching on how to use tools like pyenv and pyenv-virtualenv.</p>
+</li>
+<li><p><strong>Configure your data sources.</strong></p>
+<p>See the configuration section of <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules">each relevant intel module</a> for more details. In this example we will use <a class="reference external" href="https://cartography-cncf.github.io/cartography/modules/aws/config.html">AWS</a>.</p>
+</li>
+<li><p><strong>Run cartography.</strong></p>
+<ul>
+<li><p>For a specific AWS account defined as a separate profile in your AWS config file, set the <code class="docutils literal notranslate"><span class="pre">AWS_PROFILE</span></code> environment variable, for example this command runs cartography on an AWS profile called “1234_testprofile” on region us-east-1.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nv">AWS_PROFILE</span><span class="o">=</span>1234_testprofile<span class="w"> </span><span class="nv">AWS_DEFAULT_REGION</span><span class="o">=</span>us-east-1<span class="w"> </span>cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://localhost:7687
+</span></pre></div>
+</div>
+</li>
+<li><p>For one account using the <code class="docutils literal notranslate"><span class="pre">default</span></code> profile defined in your AWS config file, run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://localhost:7687
+</span></pre></div>
+</div>
+</li>
+<li><p>For more than one AWS account, run</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nv">AWS_CONFIG_FILE</span><span class="o">=</span>/path/to/your/aws/config<span class="w"> </span>cartography<span class="w"> </span>--neo4j-uri<span class="w"> </span>bolt://localhost:7687<span class="w"> </span>--aws-sync-all-profiles
+</span></pre></div>
+</div>
+</li>
+</ul>
+<p>You can view a full list of Cartography’s CLI arguments by running <code class="docutils literal notranslate"><span class="pre">cartography</span> <span class="pre">--help</span></code>.</p>
+<p>If everything worked, the sync will pull data from your configured accounts and ingest data to Neo4j! This process might take a long time if your account has a lot of assets.
+<img alt="nativeinstall-run.png" src="_images/nativeinstall-run.png" /></p>
+</li>
+<li><p><strong>View the graph.</strong>
+You can view the graph while it is still syncing by visiting <a class="reference external" href="http://localhost:7474">http://localhost:7474</a>. Try a query like</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">match</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="n">AWSRole</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">c</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">*</span>
+</span></pre></div>
+</div>
+<p>It should look like this:</p>
+<p><img alt="dockercompose-result.png" src="_images/dockercompose-result.png" /></p>
+</li>
+</ol>
+</section>
+<section id="things-to-do-next">
+<h2>Things to do next<a class="headerlink" href="#things-to-do-next" title="Link to this heading">¶</a></h2>
+<p>Here’s some ideas to get the most out of Cartography:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="module-list.html"><span class="doc std std-doc">Set up other data providers</span></a></p></li>
+<li><p>View our <a class="reference internal" href="ops.html"><span class="doc std std-doc">Operations Guide</span></a> for tips on running Cartography in production</p></li>
+<li><p>Read our <a class="reference internal" href="usage/tutorial.html"><span class="doc std std-doc">usage instructions</span></a> and <a class="reference internal" href="usage/schema.html"><span class="doc std std-doc">schema</span></a> to learn how to query the graph</p></li>
+<li><p>Think of <a class="reference internal" href="usage/applications.html"><span class="doc std std-doc">applications</span></a> to build around it</p></li>
+<li><p>Consider <a class="reference internal" href="dev/writing-intel-modules.html"><span class="doc std std-doc">writing your own Cartography custom modules</span></a></p></li>
+</ul>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="index.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Home</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="usage/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Usage</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="_static/copybutton.js?v=f281be69"></script>
+      <script src="_static/shibuya.js?v=e2230717"></script></body>
+</html>
