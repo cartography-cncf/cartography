@@ -25,13 +25,14 @@ This guide teaches you how to write intel modules for Cartography using the mode
 2. @Module Structure Overview
 3. @The Sync Pattern: Get, Transform, Load, Cleanup
 4. @Data Model: Defining Nodes and Relationships
-5. @One-to-Many Relationships
-6. @Configuration and Credentials
-7. @Error Handling
-8. @Testing Your Module
-9. @Common Patterns and Examples
-10. @Troubleshooting Guide
-11. @Quick Reference
+5. @Advanced Node Schema Properties
+6. @One-to-Many Relationships
+7. @Configuration and Credentials
+8. @Error Handling
+9. @Testing Your Module
+10. @Common Patterns and Examples
+11. @Troubleshooting Guide
+12. @Quick Reference
 
 ## 🚀 Quick Start: Copy an Existing Module {#quick-start}
 
@@ -279,6 +280,68 @@ class YourServiceTenantToUserRel(CartographyRelSchema):
 - `LinkDirection.OUTWARD`: `(:YourServiceUser)-[:RESOURCE]->(:YourServiceTenant)`
 - `LinkDirection.INWARD`: `(:YourServiceUser)<-[:RESOURCE]-(:YourServiceTenant)`
 
+### Advanced Node Schema Properties
+
+#### Extra Node Labels
+
+Add additional Neo4j labels to your nodes using `extra_node_labels`:
+
+```python
+from cartography.models.core.nodes import ExtraNodeLabels
+
+@dataclass(frozen=True)
+class YourServiceUserSchema(CartographyNodeSchema):
+    label: str = "YourServiceUser"
+    properties: YourServiceUserNodeProperties = YourServiceUserNodeProperties()
+    sub_resource_relationship: YourServiceTenantToUserRel = YourServiceTenantToUserRel()
+
+    # Add extra labels like "Identity" and "Asset" to the node
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Identity", "Asset"])
+```
+
+This creates nodes with multiple labels: `(:YourServiceUser:Identity:Asset)`.
+
+#### Scoped Cleanup
+
+Control cleanup behavior with `scoped_cleanup`:
+
+```python
+@dataclass(frozen=True)
+class YourServiceUserSchema(CartographyNodeSchema):
+    label: str = "YourServiceUser"
+    properties: YourServiceUserNodeProperties = YourServiceUserNodeProperties()
+    sub_resource_relationship: YourServiceTenantToUserRel = YourServiceTenantToUserRel()
+
+    # Default behavior (scoped_cleanup=True): Only clean up users within the current tenant
+    # scoped_cleanup: bool = True  # This is the default, no need to specify
+```
+
+**⚠️ When to Override `scoped_cleanup`:**
+
+Set `scoped_cleanup=False` **ONLY** for intel modules that don't have a clear tenant-like entity:
+
+```python
+@dataclass(frozen=True)
+class VulnerabilitySchema(CartographyNodeSchema):
+    label: str = "Vulnerability"
+    properties: VulnerabilityNodeProperties = VulnerabilityNodeProperties()
+    sub_resource_relationship: None = None  # No tenant relationship
+
+    # Vulnerabilities are global data, not scoped to a specific tenant
+    scoped_cleanup: bool = False
+```
+
+**Examples where `scoped_cleanup=False` makes sense:**
+- Vulnerability databases (CVE data is global)
+- Threat intelligence feeds (IOCs are not tenant-specific)
+- Public certificate transparency logs
+- Global DNS/domain information
+
+**Default behavior (`scoped_cleanup=True`) is correct for:**
+- User accounts (scoped to organization/tenant)
+- Infrastructure resources (scoped to AWS account, Azure subscription, etc.)
+- Application assets (scoped to company/tenant)
+
 ### Loading Data
 
 Use the `load` function with your schema:
@@ -355,6 +418,69 @@ class RouteTableToSubnetRel(CartographyRelSchema):
 ```
 
 **The Magic**: `one_to_many=True` tells Cartography to create a relationship to each subnet whose `subnet_id` is in the `subnet_ids` list.
+
+### ⚠️ Common Schema Mistakes to Avoid
+
+**DO NOT add custom properties to `CartographyRelSchema` or `CartographyNodeSchema` subclasses**: These dataclasses are processed by Cartography's core loading system, which only recognizes the standard fields defined in the base classes. Any additional fields you add will be ignored and have no effect.
+
+```python
+# ❌ Don't do this - custom fields are ignored by the loading system
+@dataclass(frozen=True)
+class MyRelationship(CartographyRelSchema):
+    target_node_label: str = "SomeNode"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("some_id")})
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONNECTS_TO"
+    properties: MyRelProperties = MyRelProperties()
+    # ❌ These custom fields do nothing:
+    conditional_match_property: str = "some_id"
+    custom_flag: bool = True
+    extra_config: dict = {"key": "value"}
+
+# ❌ Don't do this either - custom fields on node schemas are also ignored
+@dataclass(frozen=True)
+class MyNodeSchema(CartographyNodeSchema):
+    label: str = "MyNode"
+    properties: MyNodeProperties = MyNodeProperties()
+    sub_resource_relationship: MyRel = MyRel()
+    # ❌ This custom field does nothing:
+    custom_setting: str = "ignored"
+
+# ✅ Do this instead - stick to the standard schema fields only
+@dataclass(frozen=True)
+class MyRelationship(CartographyRelSchema):
+    target_node_label: str = "SomeNode"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("some_id")})
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONNECTS_TO"
+    properties: MyRelProperties = MyRelProperties()
+
+@dataclass(frozen=True)
+class MyNodeSchema(CartographyNodeSchema):
+    label: str = "MyNode"
+    properties: MyNodeProperties = MyNodeProperties()
+    sub_resource_relationship: MyRel = MyRel()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AnotherLabel", ...]) # Optional
+    other_relationships: OtherRelationships = OtherRelationships([...])  # Optional
+    scoped_cleanup: bool = True  # Optional, defaults to True, almost should never be overridden. This is only used for intel modules that don't have a clear tenant-like entity.
+```
+
+**Standard fields for `CartographyRelSchema`:**
+- `target_node_label`: str
+- `target_node_matcher`: TargetNodeMatcher
+- `direction`: LinkDirection
+- `rel_label`: str
+- `properties`: CartographyRelProperties subclass
+
+**Standard fields for `CartographyNodeSchema`:**
+- `label`: str
+- `properties`: CartographyNodeProperties subclass
+- `sub_resource_relationship`: CartographyRelSchema subclass
+- `other_relationships`: OtherRelationships (optional)
+- `extra_node_labels`: ExtraNodeLabels (optional)
+- `scoped_cleanup`: bool (optional, defaults to True, almost should never be overridden. This is only used for intel modules that don't have a clear tenant-like entity.)
+
+If you need conditional behavior, handle it in your transform function by setting field values to `None` when relationships shouldn't be created, or by filtering your data before calling `load()`.
 
 ## ⚙️ Configuration and Credentials {#configuration}
 
@@ -685,6 +811,8 @@ Before submitting your module:
 - [ ] ✅ **Configuration**: CLI args, config validation, credential handling
 - [ ] ✅ **Sync Pattern**: get() → transform() → load() → cleanup()
 - [ ] ✅ **Data Model**: Node properties, relationships, proper typing
+- [ ] ✅ **Schema Fields**: Only use standard fields in `CartographyRelSchema`/`CartographyNodeSchema` subclasses
+- [ ] ✅ **Scoped Cleanup**: Verify `scoped_cleanup=True` (default) for tenant-scoped resources, `False` only for global data
 - [ ] ✅ **Error Handling**: Specific exceptions, required vs optional fields
 - [ ] ✅ **Testing**: Unit tests for transform, integration tests for loading
 - [ ] ✅ **Documentation**: Schema docs, docstrings, inline comments
@@ -730,8 +858,18 @@ load(neo4j_session, UserSchema(), user_data, lastupdated=update_tag, TENANT_ID=t
 # ✅ Solution: Check common_job_parameters structure
 common_job_parameters = {
     "UPDATE_TAG": config.update_tag,  # Must match what's set on nodes
-    "TENANT_ID": tenant_id,           # If using scoped cleanup
+    "TENANT_ID": tenant_id,           # If using scoped cleanup (default)
 }
+
+# ❌ Problem: Cleanup deleting too much data (wrong scoped_cleanup setting)
+# ✅ Solution: Verify scoped_cleanup setting is appropriate
+@dataclass(frozen=True)
+class MySchema(CartographyNodeSchema):
+    # For tenant-scoped resources (default, most common):
+    # scoped_cleanup: bool = True  # Default - no need to specify
+
+    # For global resources only (rare):
+    scoped_cleanup: bool = False  # Only for vuln data, threat intel, etc.
 ```
 
 #### Data Transform Issues
@@ -744,6 +882,25 @@ common_job_parameters = {
     "email": data.get("email", ""),      # ❌ Don't use empty string default
     "email": data.get("email"),          # ✅ Use None default
 }
+```
+
+#### Schema Definition Issues
+```python
+# ❌ Problem: Adding custom fields to schema classes
+# ✅ Solution: Remove them - only standard fields are recognized by the loading system
+@dataclass(frozen=True)
+class MyRel(CartographyRelSchema):
+    # Remove any custom fields like these:
+    # conditional_match_property: str = "some_field"  # ❌ Ignored
+    # custom_flag: bool = True                        # ❌ Ignored
+    # extra_config: dict = {}                         # ❌ Ignored
+
+    # Keep only the standard relationship fields
+    target_node_label: str = "TargetNode"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(...)
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONNECTS_TO"
+    properties: MyRelProperties = MyRelProperties()
 ```
 
 #### Performance Issues
