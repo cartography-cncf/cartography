@@ -1,57 +1,61 @@
-import cartography.intel.aws.ec2
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
+import cartography.intel.aws.ec2.tgw
 import tests.data.aws.ec2.tgw
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "eu-west-1"
 TEST_UPDATE_TAG = 123456789
 
 
-def test_load_transit_gateways(neo4j_session):
-    data = tests.data.aws.ec2.tgw.TRANSIT_GATEWAYS
-    cartography.intel.aws.ec2.tgw.load_transit_gateways(
+@patch.object(
+    cartography.intel.aws.ec2.tgw,
+    "get_transit_gateways",
+    return_value=tests.data.aws.ec2.tgw.TRANSIT_GATEWAYS,
+)
+@patch.object(
+    cartography.intel.aws.ec2.tgw,
+    "get_tgw_attachments",
+    return_value=tests.data.aws.ec2.tgw.TRANSIT_GATEWAY_ATTACHMENTS,
+)
+@patch.object(
+    cartography.intel.aws.ec2.tgw,
+    "get_tgw_vpc_attachments",
+    return_value=tests.data.aws.ec2.tgw.TGW_VPC_ATTACHMENTS,
+)
+def test_sync_transit_gateways(mock_vpc_att, mock_att, mock_tgw, neo4j_session):
+    boto3_session = MagicMock()
+
+    cartography.intel.aws.ec2.tgw.sync_transit_gateways(
         neo4j_session,
-        data,
-        TEST_REGION,
+        boto3_session,
+        [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    expected_nodes = {
-        "arn:aws:ec2:eu-west-1:000000000000:transit-gateway/tgw-0123456789abcdef0",
+    assert check_nodes(neo4j_session, "AWSTransitGateway", ["arn"]) == {
+        ("arn:aws:ec2:eu-west-1:000000000000:transit-gateway/tgw-0123456789abcdef0",),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:AWSTransitGateway) RETURN n.arn;
-        """,
-    )
-    actual_nodes = {n["n.arn"] for n in nodes}
+    assert check_nodes(
+        neo4j_session, "AWSTransitGatewayAttachment", ["transit_gateway_attachment_id"]
+    ) == {
+        ("tgw-attach-aaaabbbbccccdef01",),
+    }
 
-    assert actual_nodes == expected_nodes
-
-
-def test_load_tgw_attachments(neo4j_session):
-    data = (
-        tests.data.aws.ec2.tgw.TRANSIT_GATEWAY_ATTACHMENTS
-        + tests.data.aws.ec2.tgw.TGW_VPC_ATTACHMENTS
-    )
-    cartography.intel.aws.ec2.tgw.load_tgw_attachments(
+    assert check_rels(
         neo4j_session,
-        data,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-
-    expected_nodes = {
-        "tgw-attach-aaaabbbbccccdef01",
+        "AWSTransitGatewayAttachment",
+        "transit_gateway_attachment_id",
+        "AWSTransitGateway",
+        "tgw_id",
+        "ATTACHED_TO",
+        rel_direction_right=True,
+    ) == {
+        ("tgw-attach-aaaabbbbccccdef01", "tgw-0123456789abcdef0"),
     }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (tgwa:AWSTransitGatewayAttachment)-[:ATTACHED_TO]->(tgw:AWSTransitGateway) RETURN tgwa.id;
-        """,
-    )
-    actual_nodes = {n["tgwa.id"] for n in nodes}
-
-    assert actual_nodes == expected_nodes
