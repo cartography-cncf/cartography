@@ -7,11 +7,11 @@ def test_transform_groups():
     result = transform_groups(
         MOCK_ENTRA_GROUPS,
         {
-            gid: [u.id for u in members if hasattr(u, "odata_type") and u.odata_type == "#microsoft.graph.user"]
+            gid: [u.id for u in members if u.odata_type == "#microsoft.graph.user"]
             for gid, members in MOCK_GROUP_MEMBERS.items()
         },
         {
-            gid: [g.id for g in members if hasattr(g, "odata_type") and g.odata_type == "#microsoft.graph.group"]
+            gid: [g.id for g in members if g.odata_type == "#microsoft.graph.group"]
             for gid, members in MOCK_GROUP_MEMBERS.items()
         },
     )

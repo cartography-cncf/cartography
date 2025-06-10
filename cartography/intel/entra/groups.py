@@ -36,7 +36,9 @@ async def get_entra_groups(client: GraphServiceClient) -> list[Group]:
 
 
 @timeit
-async def get_group_members(client: GraphServiceClient, group_id: str) -> tuple[list[str], list[str]]:
+async def get_group_members(
+    client: GraphServiceClient, group_id: str
+) -> tuple[list[str], list[str]]:
     """Get member user IDs and subgroup IDs for a given group."""
     user_ids: list[str] = []
     group_ids: list[str] = []
