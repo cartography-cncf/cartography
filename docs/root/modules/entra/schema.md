@@ -99,3 +99,35 @@ Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/admi
     ```cypher
     (:EntraOU)-[:RESOURCE]->(:EntraTenant)
     ```
+
+### EntraGroup
+Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http).
+
+|Field | Description|
+|-------|-------------|
+|id | Entra Group ID (GUID)|
+|display_name | Display name of the group|
+|description | Description of the group|
+|mail | Primary email address of the group|
+|mail_nickname | Mail nickname|
+|mail_enabled | Whether the group has a mailbox|
+|security_enabled | Whether the group is security enabled|
+|group_types | List of group types|
+|visibility | Group visibility setting|
+|is_assignable_to_role | Whether the group can be assigned to roles|
+|created_date_time | Creation timestamp|
+|deleted_date_time | Deletion timestamp if applicable|
+
+#### Relationships
+
+- All Entra groups are linked to an Entra Tenant
+
+    ```cypher
+    (:EntraGroup)-[:RESOURCE]->(:EntraTenant)
+    ```
+
+- Entra users are members of groups
+
+    ```cypher
+    (:EntraUser)-[:MEMBER_OF]->(:EntraGroup)
+    ```
