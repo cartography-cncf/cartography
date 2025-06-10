@@ -72,6 +72,21 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 |on_premises_sync_enabled | Whether on-premises directory sync is enabled|
 |on_premises_user_principal_name | User Principal Name in on-premises directory|
 
+#### Relationships
+
+- All Entra users are linked to an Entra Tenant
+
+    ```cypher
+    (:EntraUser)-[:RESOURCE]->(:EntraTenant)
+    ```
+
+- Entra users are members of groups
+
+    ```cypher
+    (:EntraUser)-[:MEMBER_OF]->(:EntraGroup)
+    ```
+
+
 ### EntraOU
 Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/administrativeunit-get?view=graph-rest-1.0&tabs=http).
 
@@ -87,12 +102,6 @@ Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/admi
 
 
 #### Relationships
-
-- All Entra users are linked to an Entra Tenant
-
-    ```cypher
-    (:EntraUser)-[:RESOURCE]->(:EntraTenant)
-    ```
 
 - All Entra OUs are linked to an Entra Tenant
 
@@ -130,4 +139,10 @@ Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/g
 
     ```cypher
     (:EntraUser)-[:MEMBER_OF]->(:EntraGroup)
+    ```
+
+- Entra groups can be members of other groups
+
+    ```cypher
+    (:EntraGroup)-[:MEMBER_OF]->(:EntraGroup)
     ```
