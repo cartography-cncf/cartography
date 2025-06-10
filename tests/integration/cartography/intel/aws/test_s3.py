@@ -175,3 +175,36 @@ def test_load_s3_policies(neo4j_session, *args):
     )
 
     assert actual_relationships.single().value() == 3
+
+
+def test_load_s3_bucket_ownership(neo4j_session, *args):
+    """
+    Ensure that expected bucket gets loaded with their bucket ownership controls fields.
+    """
+    data = tests.data.aws.s3.GET_BUCKET_OWNERSHIP_CONTROLS
+    cartography.intel.aws.s3._load_bucket_ownership_controls(
+        neo4j_session, data, TEST_UPDATE_TAG
+    )
+
+    expected_nodes = {
+        (
+            "bucket-1",
+            "BucketOwnerPreferred",
+        ),
+    }
+
+    nodes = neo4j_session.run(
+        """
+        MATCH (s:S3Bucket)
+        WHERE s.id = 'bucket-1'
+        RETURN s.id, s.object_ownership
+        """,
+    )
+    actual_nodes = {
+        (
+            n["s.id"],
+            n["s.object_ownership"],
+        )
+        for n in nodes
+    }
+    assert actual_nodes == expected_nodes
