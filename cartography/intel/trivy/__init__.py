@@ -107,9 +107,13 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
         config: Configuration object containing S3 settings
     """
     # Check if S3 configuration is provided
-    if not config.trivy_s3_bucket or not config.trivy_s3_prefix:
+    if not config.trivy_s3_bucket:
         logger.info("Trivy S3 configuration not provided. Skipping Trivy ingestion.")
         return
+
+    # Default to empty string if s3 prefix is not provided
+    if config.trivy_s3_prefix is None:
+        config.trivy_s3_prefix = ""
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
