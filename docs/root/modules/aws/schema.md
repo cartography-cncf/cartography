@@ -1475,6 +1475,12 @@ ECRRepositoryImage.
     (:Package)-[:DEPLOYED]->(:ECRImage)
     ```
 
+- A TrivyImageFinding is a vulnerability that affects an ECRImage.
+
+    ```
+    (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
+    ```
+
 
 ### Package
 
@@ -1493,30 +1499,17 @@ Representation of a software package, as found by an AWS ECR vulnerability scan.
     (:Package)-[:DEPLOYED]->(:ECRImage)
     ```
 
-- AWS ECR scans yield ECRScanFindings that affect software packages
+- A TrivyImageFinding is a vulnerability that affects a software Package.
+
     ```
-    (:ECRScanFindings)-[:AFFECTS]->(:Package)
-    ```
-
-
-### ECRScanFinding (:Risk:CVE)
-
-Representation of a scan finding from AWS ECR. This is the result output of [`ecr.describe_image_scan_findings()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_DescribeImageScanFindings.html).
-
-| Field | Description |
-|--------|-----------|
-| name | The name of the ECR scan finding, e.g. a CVE name |
-| **id** | Same as name |
-| severity | The severity of the risk |
-| uri | A URI link to a descriptive article on the risk |
-
-#### Relationships
-
-- AWS ECR scans yield ECRScanFindings that affect software packages
-    ```
-    (:ECRScanFindings)-[:AFFECTS]->(:Package)
+    (:Package)-[:AFFECTS]->(:TrivyImageFinding)
     ```
 
+- We should update a vulnerable package to a fixed version described by a TrivyFix.
+
+    ```
+    (:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
+    ```
 
 
 ### EKSCluster
