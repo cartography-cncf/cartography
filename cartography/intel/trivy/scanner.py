@@ -2,7 +2,9 @@ import json
 import logging
 import subprocess
 from typing import Any
+from urllib.parse import unquote
 
+import boto3
 from neo4j import Session
 
 from cartography.client.core.tx import load
@@ -257,6 +259,94 @@ def transform_scan_results(
 
 
 @timeit
+def list_s3_scan_results(
+    s3_bucket: str,
+    s3_prefix: str,
+    ecr_images: list[tuple[str, str, str, str, str]],
+    boto3_session: boto3.Session,
+) -> list[tuple[str, str, str, str, str, str]]:
+    """
+    List S3 objects that match ECR image URIs and return matched scan data.
+
+    Args:
+        s3_bucket: S3 bucket name containing scan results
+        s3_prefix: S3 prefix path containing scan results
+        ecr_images: List of ECR image tuples (region, image_tag, image_uri, repo_name, image_digest)
+        boto3_session: boto3 session for dependency injection
+
+    Returns:
+        List of tuples (region, image_tag, image_uri, repo_name, image_digest, s3_object_key)
+        for images that have corresponding scan results in S3
+    """
+    s3_client = boto3_session.client("s3")
+
+    # Create a mapping of image URIs to their metadata for efficient lookup
+    image_uri_to_metadata = {}
+    for region, image_tag, image_uri, repo_name, image_digest in ecr_images:
+        image_uri_to_metadata[image_uri] = (
+            region,
+            image_tag,
+            image_uri,
+            repo_name,
+            image_digest,
+        )
+
+    matched_results = []
+
+    try:
+        # List objects in the S3 prefix
+        paginator = s3_client.get_paginator("list_objects_v2")
+        page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
+
+        for page in page_iterator:
+            if "Contents" not in page:
+                continue
+
+            for obj in page["Contents"]:
+                object_key = obj["Key"]
+
+                # Skip non-JSON files
+                if not object_key.endswith(".json"):
+                    continue
+
+                # Skip files that don't start with our prefix
+                if not object_key.startswith(s3_prefix):
+                    continue
+
+                # Extract relative path after prefix
+                relative_key = object_key[len(s3_prefix) :].lstrip("/")
+                if not relative_key.endswith(".json"):
+                    continue
+
+                # URL decode the image URI and remove .json suffix
+                potential_image_uri = unquote(relative_key[:-5])
+
+                # Check if this image URI matches one of our ECR images
+                if potential_image_uri not in image_uri_to_metadata:
+                    continue
+
+                # Found a match - add to results
+                region, image_tag, image_uri, repo_name, image_digest = (
+                    image_uri_to_metadata[potential_image_uri]
+                )
+                matched_results.append(
+                    (region, image_tag, image_uri, repo_name, image_digest, object_key)
+                )
+                logger.debug(f"Found S3 scan result for image: {potential_image_uri}")
+
+    except Exception as e:
+        logger.error(
+            f"Error listing S3 objects in bucket {s3_bucket} with prefix {s3_prefix}: {e}"
+        )
+        raise
+
+    logger.info(
+        f"Found {len(matched_results)} ECR images with corresponding S3 scan results"
+    )
+    return matched_results
+
+
+@timeit
 def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> None:
     """
     Run cleanup jobs for Trivy nodes.
@@ -322,6 +412,126 @@ def load_scan_fixes(
         fixes_list,
         lastupdated=update_tag,
     )
+
+
+@timeit
+def read_scan_results_from_s3(
+    boto3_session: boto3.Session,
+    s3_bucket: str,
+    s3_object_key: str,
+    image_uri: str,
+) -> list[dict]:
+    """
+    Read and parse Trivy scan results from S3.
+
+    Args:
+        boto3_session: boto3 session for S3 operations
+        s3_bucket: S3 bucket containing scan results
+        s3_object_key: S3 object key for the scan results
+        image_uri: ECR image URI (for logging purposes)
+
+    Returns:
+        List of scan result dictionaries from the "Results" key
+    """
+    s3_client = boto3_session.client("s3")
+
+    # Read JSON scan results from S3
+    logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
+    response = s3_client.get_object(Bucket=s3_bucket, Key=s3_object_key)
+    scan_data_json = response["Body"].read().decode("utf-8")
+
+    # Parse JSON data
+    trivy_data = json.loads(scan_data_json)
+
+    # Extract results using the same logic as binary scanning
+    if "Results" in trivy_data and trivy_data["Results"]:
+        results = trivy_data["Results"]
+    else:
+        stat_handler.incr("image_scan_no_results_count")
+        logger.warning(
+            f"S3 scan data did not contain a `Results` key for URI = {image_uri}; continuing."
+        )
+        results = []
+
+    return results
+
+
+@timeit
+def sync_single_image_from_s3(
+    neo4j_session: Session,
+    image_tag: str,
+    image_uri: str,
+    repo_name: str,
+    image_digest: str,
+    update_tag: int,
+    s3_bucket: str,
+    s3_object_key: str,
+    boto3_session: boto3.Session,
+) -> None:
+    """
+    Read Trivy scan results from S3 and sync to Neo4j.
+
+    Args:
+        neo4j_session: Neo4j session for database operations
+        image_tag: ECR image tag
+        image_uri: ECR image URI
+        repo_name: ECR repository name
+        image_digest: ECR image digest
+        update_tag: Update tag for tracking
+        s3_bucket: S3 bucket containing scan results
+        s3_object_key: S3 object key for this image's scan results
+        boto3_session: boto3 session for S3 operations
+    """
+    try:
+        # Read and parse scan results from S3
+        results = read_scan_results_from_s3(
+            boto3_session,
+            s3_bucket,
+            s3_object_key,
+            image_uri,
+        )
+
+        # Transform all data in one pass using existing function
+        findings_list, packages_list, fixes_list = transform_scan_results(
+            results,
+            image_digest,
+        )
+
+        # Log the transformation results
+        num_findings = len(findings_list)
+        logger.info(
+            "S3 Trivy scan results: "
+            f"repo_name = {repo_name}, "
+            f"image_tag = {image_tag}, "
+            f"num_findings = {num_findings}, "
+            f"num_packages = {len(packages_list)}, "
+            f"num_fixes = {len(fixes_list)}."
+        )
+        stat_handler.incr("image_scan_cve_count", num_findings)
+
+        # Load the transformed data using existing functions
+        load_scan_vulns(
+            neo4j_session,
+            findings_list,
+            update_tag=update_tag,
+        )
+        load_scan_packages(
+            neo4j_session,
+            packages_list,
+            update_tag=update_tag,
+        )
+        load_scan_fixes(
+            neo4j_session,
+            fixes_list,
+            update_tag=update_tag,
+        )
+        stat_handler.incr("images_processed_count")
+
+    except Exception as e:
+        logger.error(
+            f"Failed to process S3 scan results for {image_uri} from {s3_object_key}: {e}"
+        )
+        raise
 
 
 @timeit

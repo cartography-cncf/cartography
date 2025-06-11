@@ -664,6 +664,24 @@ class CLI:
                 "Optional if you are using the Trivy module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--trivy-s3-bucket",
+            type=str,
+            default=None,
+            help=(
+                "The S3 bucket name containing Trivy scan results. "
+                "Required if you are using the Trivy module with S3 results. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--trivy-s3-prefix",
+            type=str,
+            default=None,
+            help=(
+                "The S3 prefix path containing Trivy scan results. "
+                "Required if you are using the Trivy module with S3 results. Ignored otherwise."
+            ),
+        )
 
         return parser
 
@@ -993,6 +1011,12 @@ class CLI:
 
         if config.trivy_resource_type:
             logger.debug(f"Trivy resource type: {config.trivy_resource_type}")
+
+        if config.trivy_s3_bucket:
+            logger.debug(f"Trivy S3 bucket: {config.trivy_s3_bucket}")
+
+        if config.trivy_s3_prefix:
+            logger.debug(f"Trivy S3 prefix: {config.trivy_s3_prefix}")
 
         # Run cartography
         try:

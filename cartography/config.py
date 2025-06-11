@@ -143,6 +143,10 @@ class Config:
     :param trivy_path: The path to the OPA policy file to use with Trivy. Optional.
     :type trivy_resource_type: str
     :param trivy_resource_type: The resource type to scan with Trivy e.g. 'aws.ecr'.
+    :type trivy_s3_bucket: str
+    :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
+    :type trivy_s3_prefix: str
+    :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
     """
 
     def __init__(
@@ -218,6 +222,8 @@ class Config:
         trivy_path=None,
         trivy_opa_policy_file_path=None,
         trivy_resource_type=None,
+        trivy_s3_bucket=None,
+        trivy_s3_prefix=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -290,3 +296,5 @@ class Config:
         self.trivy_path = trivy_path
         self.trivy_opa_policy_file_path = trivy_opa_policy_file_path
         self.trivy_resource_type = trivy_resource_type
+        self.trivy_s3_bucket = trivy_s3_bucket
+        self.trivy_s3_prefix = trivy_s3_prefix
