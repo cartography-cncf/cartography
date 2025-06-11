@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 def test_load_kandji_devices_relationship(neo4j_session):
     # Arrange
     TEST_UPDATE_TAG = 1234
-    TEST_KANDJI_TENANT_ID = tests.data.kandji.tenant.TENANT["company_a"]["id"]
+    TEST_KANDJI_TENANT_ID = tests.data.kandji.tenant.TENANT["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_KANDJI_TENANT_ID,
     }
-    data = tests.data.kandji.devices.DEVICES["company_a_devices"]
+    data = tests.data.kandji.devices.DEVICES["simpson_corp_devices"]
 
     # Act
     cartography.intel.kandji.devices.load_devices(
@@ -30,7 +30,7 @@ def test_load_kandji_devices_relationship(neo4j_session):
 
     # Make sure the expected Tenant is created
     expected_nodes = {
-        ("Company A",),
+        ("SimpsonCorp",),
     }
     check_nodes(
         neo4j_session,
@@ -54,8 +54,8 @@ def test_load_kandji_devices_relationship(neo4j_session):
 
     # Make sure the expected relationships are created
     expected_nodes_relationships = {
-        ("Company A", "fc60decb-30cb-4db1-b3ec-2fa8ea1b83ed"),
-        ("Company A", "f27bcd08-f653-4930-83b0-51970e923b98"),
+        ("SimpsonCorp", "fc60decb-30cb-4db1-b3ec-2fa8ea1b83ed"),
+        ("SimpsonCorp", "f27bcd08-f653-4930-83b0-51970e923b98"),
     }
     assert (
         check_rels(
@@ -84,12 +84,12 @@ def test_load_kandji_devices_relationship(neo4j_session):
 def test_cleanup_kandji_devices(neo4j_session):
     # Arrange
     TEST_UPDATE_TAG = 1234
-    TEST_KANDJI_TENANT_ID = tests.data.kandji.tenant.TENANT["company_a"]["id"]
+    TEST_KANDJI_TENANT_ID = tests.data.kandji.tenant.TENANT["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_KANDJI_TENANT_ID,
     }
-    data = tests.data.kandji.devices.DEVICES["company_a_devices"]
+    data = tests.data.kandji.devices.DEVICES["simpson_corp_devices"]
 
     # Act
     cartography.intel.kandji.devices.load_devices(
@@ -100,12 +100,12 @@ def test_cleanup_kandji_devices(neo4j_session):
 
     # Arrange: load in an unrelated data with different UPDATE_TAG
     UNRELATED_UPDATE_TAG = TEST_UPDATE_TAG + 1
-    TENANT_ID = tests.data.kandji.tenant.TENANT["company_b"]["id"]
+    TENANT_ID = tests.data.kandji.tenant.TENANT["south_park"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": UNRELATED_UPDATE_TAG,
         "TENANT_ID": TENANT_ID,
     }
-    data = tests.data.kandji.devices.DEVICES["company_b_devices"]
+    data = tests.data.kandji.devices.DEVICES["south_park_devices"]
 
     cartography.intel.kandji.devices.load_devices(
         neo4j_session,
@@ -117,10 +117,10 @@ def test_cleanup_kandji_devices(neo4j_session):
 
     # [Pre-test] Assert that the unrelated data exists
     expected_nodes_relationships = {
-        ("Company A", "fc60decb-30cb-4db1-b3ec-2fa8ea1b83ed"),
-        ("Company A", "f27bcd08-f653-4930-83b0-51970e923b98"),
-        ("Company B", "748C5E49-134E-486C-A609-88A66A1BE4A1"),
-        ("Company B", "706AF44A-9F51-4E84-B336-C4924097FFB6"),
+        ("SimpsonCorp", "fc60decb-30cb-4db1-b3ec-2fa8ea1b83ed"),
+        ("SimpsonCorp", "f27bcd08-f653-4930-83b0-51970e923b98"),
+        ("SouthPark", "748C5E49-134E-486C-A609-88A66A1BE4A1"),
+        ("SouthPark", "706AF44A-9F51-4E84-B336-C4924097FFB6"),
     }
     assert (
         check_rels(
