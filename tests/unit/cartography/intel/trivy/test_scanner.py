@@ -4,129 +4,9 @@ from unittest.mock import patch
 
 import pytest
 
-from cartography.intel.trivy.scanner import _build_image_subcommand
 from cartography.intel.trivy.scanner import list_s3_scan_results
 from cartography.intel.trivy.scanner import read_scan_results_from_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
-
-
-def test_build_image_subcommand_default_args():
-    """Test the function with default arguments."""
-    result = _build_image_subcommand(skip_update=False)
-
-    # Should contain default arguments
-    assert "--format" in result
-    assert "json" in result
-    assert "--timeout" in result
-    assert "15m" in result
-    assert "--ignore-unfixed" in result
-    assert len(result) == 5  # 2 pairs of arguments plus one single argument
-
-
-def test_build_image_subcommand_skip_update():
-    """Test the function with skip_update=True."""
-    result = _build_image_subcommand(skip_update=True)
-
-    assert "--skip-update" in result
-    assert "--ignore-unfixed" in result
-
-
-def test_build_image_subcommand_with_policy_file():
-    """Test the function with a policy file path."""
-    policy_path = "/path/to/policy.yaml"
-    result = _build_image_subcommand(
-        skip_update=False, triage_filter_policy_file_path=policy_path
-    )
-
-    assert "--ignore-policy" in result
-    assert policy_path in result
-
-
-def test_build_image_subcommand_os_findings_only():
-    """Test the function with os_findings_only=True."""
-    result = _build_image_subcommand(skip_update=False, os_findings_only=True)
-
-    assert "--vuln-type" in result
-    assert "os" in result
-
-
-def test_build_image_subcommand_list_all_packages():
-    """Test the function with list_all_pkgs=True."""
-    result = _build_image_subcommand(skip_update=False, list_all_pkgs=True)
-
-    assert "--list-all-pkgs" in result
-
-
-def test_build_image_subcommand_security_checks():
-    """Test the function with security_checks parameter."""
-    security_checks = "vuln,config"
-    result = _build_image_subcommand(skip_update=False, security_checks=security_checks)
-
-    assert "--security-checks" in result
-    assert security_checks in result
-
-
-def test_build_image_subcommand_all_options():
-    """Test the function with all options enabled."""
-    policy_path = "/path/to/policy.yaml"
-    security_checks = "vuln,config"
-
-    result = _build_image_subcommand(
-        skip_update=True,
-        ignore_unfixed=True,
-        triage_filter_policy_file_path=policy_path,
-        os_findings_only=True,
-        list_all_pkgs=True,
-        security_checks=security_checks,
-    )
-
-    # Check all expected arguments are present
-    assert "--skip-update" in result
-    assert "--ignore-unfixed" in result
-    assert "--ignore-policy" in result
-    assert policy_path in result
-    assert "--vuln-type" in result
-    assert "os" in result
-    assert "--list-all-pkgs" in result
-    assert "--security-checks" in result
-    assert security_checks in result
-
-
-def test_build_complete_trivy_command():
-    """Test building a complete, runnable Trivy command."""
-    # Example configuration
-    trivy_path = "/usr/local/bin/trivy"
-    image_uri = "amazon/aws-cli:latest"
-    policy_path = "/path/to/policy.yaml"
-
-    # Build the subcommand arguments
-    subcmd_args = _build_image_subcommand(
-        skip_update=True,
-        ignore_unfixed=True,
-        triage_filter_policy_file_path=policy_path,
-        os_findings_only=False,
-        list_all_pkgs=True,
-        security_checks="vuln",
-    )
-
-    # Construct the complete command
-    command = [trivy_path, "--quiet", "image"] + subcmd_args + [image_uri]
-    command_str = " ".join(command)
-
-    # Expected command format - hardcoded for clarity
-    expected = (
-        "/usr/local/bin/trivy --quiet image "
-        "--format json "
-        "--timeout 15m "
-        "--skip-update "
-        "--ignore-unfixed "
-        "--ignore-policy /path/to/policy.yaml "
-        "--list-all-pkgs "
-        "--security-checks vuln "
-        "amazon/aws-cli:latest"
-    )
-
-    assert command_str == expected
 
 
 @patch("boto3.Session")
@@ -533,9 +413,7 @@ def test_sync_single_image_from_s3_success(
     mock_neo4j_session = MagicMock()
     mock_boto3_session = MagicMock()
 
-    image_tag = "v1.2.3"
     image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3"
-    repo_name = "test-app"
     image_digest = "sha256:abcd1234efgh5678"
     update_tag = 12345
     s3_bucket = "trivy-scan-results"
@@ -565,9 +443,7 @@ def test_sync_single_image_from_s3_success(
     # Act
     sync_single_image_from_s3(
         mock_neo4j_session,
-        image_tag,
         image_uri,
-        repo_name,
         image_digest,
         update_tag,
         s3_bucket,
@@ -613,9 +489,7 @@ def test_sync_single_image_from_s3_read_error(mock_read_scan_results):
     mock_neo4j_session = MagicMock()
     mock_boto3_session = MagicMock()
 
-    image_tag = "latest"
     image_uri = "987654321098.dkr.ecr.eu-west-1.amazonaws.com/backend:latest"
-    repo_name = "backend"
     image_digest = "sha256:xyz789abc123"
     update_tag = 67890
     s3_bucket = "trivy-scan-results"
@@ -633,9 +507,7 @@ def test_sync_single_image_from_s3_read_error(mock_read_scan_results):
     with pytest.raises(ClientError):
         sync_single_image_from_s3(
             mock_neo4j_session,
-            image_tag,
             image_uri,
-            repo_name,
             image_digest,
             update_tag,
             s3_bucket,
@@ -663,9 +535,7 @@ def test_sync_single_image_from_s3_transform_error(
     mock_neo4j_session = MagicMock()
     mock_boto3_session = MagicMock()
 
-    image_tag = "sha256-def456"
     image_uri = "555666777888.dkr.ecr.ap-southeast-2.amazonaws.com/worker:sha256-def456"
-    repo_name = "worker"
     image_digest = "sha256:def456ghi789"
     update_tag = 11111
     s3_bucket = "trivy-scan-results"
@@ -682,9 +552,7 @@ def test_sync_single_image_from_s3_transform_error(
     with pytest.raises(KeyError):
         sync_single_image_from_s3(
             mock_neo4j_session,
-            image_tag,
             image_uri,
-            repo_name,
             image_digest,
             update_tag,
             s3_bucket,
@@ -714,9 +582,7 @@ def test_sync_single_image_from_s3_load_error(
     mock_neo4j_session = MagicMock()
     mock_boto3_session = MagicMock()
 
-    image_tag = "v3.0.0-beta"
     image_uri = "111222333444.dkr.ecr.ca-central-1.amazonaws.com/api:v3.0.0-beta"
-    repo_name = "api"
     image_digest = "sha256:beta123abc456"
     update_tag = 99999
     s3_bucket = "trivy-scan-results"
@@ -742,9 +608,7 @@ def test_sync_single_image_from_s3_load_error(
     with pytest.raises(Exception, match="Database connection failed"):
         sync_single_image_from_s3(
             mock_neo4j_session,
-            image_tag,
             image_uri,
-            repo_name,
             image_digest,
             update_tag,
             s3_bucket,

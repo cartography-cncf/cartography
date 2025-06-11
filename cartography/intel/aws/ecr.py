@@ -242,6 +242,7 @@ def sync(
         image_data = {}
         repositories = get_ecr_repositories(boto3_session, region)
         image_data = _get_image_data(boto3_session, region, repositories)
+        # len here should be 1!
         load_ecr_repositories(
             neo4j_session,
             repositories,

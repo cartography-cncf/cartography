@@ -1,7 +1,7 @@
 TRIVY_SAMPLE = {
     "SchemaVersion": 2,
     "CreatedAt": "2025-05-17T13:51:07.592255-07:00",
-    "ArtifactName": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:4e380d27466c0e83",
+    "ArtifactName": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890",
     "ArtifactType": "container_image",
     "Metadata": {
         "Size": 1037615616,
@@ -19,10 +19,10 @@ TRIVY_SAMPLE = {
             "sha256:08bbaabad23800155ef9736e4133da5b141c131aa11718dd387ba50594bd8612",
         ],
         "RepoTags": [
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:4e380d27466c0e83"
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890"
         ],
         "RepoDigests": [
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository@sha256:88016fd13f6aa39b702c1714662"
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository@sha256:88016fd13f6aa39b702c1714662"
         ],
         "ImageConfig": {
             "architecture": "amd64",
@@ -254,7 +254,7 @@ TRIVY_SAMPLE = {
     },
     "Results": [
         {
-            "Target": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:4e380d27466c0e83 (debian 12.8)",
+            "Target": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890 (debian 12.8)",
             "Class": "os-pkgs",
             "Type": "debian",
             "Vulnerabilities": [
