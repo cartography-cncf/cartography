@@ -4,7 +4,7 @@ from unittest.mock import patch
 import cartography.intel.aws.ecr
 import cartography.intel.trivy
 import tests.data.aws.ecr
-from cartography.intel.trivy import sync_trivy_aws_ecr
+from cartography.intel.trivy import sync_trivy_aws_ecr_from_s3
 from tests.data.trivy.trivy_sample import TRIVY_SAMPLE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -16,26 +16,46 @@ TEST_REGION = "us-east-1"
 
 
 @patch.object(
+    cartography.intel.trivy,
+    "list_s3_scan_results",
+    return_value=[
+        (
+            "us-east-1",
+            "1234567890",
+            "000000000000.dkr.ecr.us-east-1/test-repository:1234567890",
+            "test-repository",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "trivy-scans/000000000000.dkr.ecr.us-east-1/test-repository:1234567890.json",
+        )
+    ],
+)
+@patch.object(
     cartography.intel.trivy.scanner,
-    "get_scan_results_for_single_image",
+    "read_scan_results_from_s3",
     return_value=TRIVY_SAMPLE["Results"],
 )
 @patch.object(
     cartography.intel.aws.ecr,
     "get_ecr_repositories",
-    return_value=tests.data.aws.ecr.DESCRIBE_REPOSITORIES["repositories"],
+    return_value=tests.data.aws.ecr.DESCRIBE_REPOSITORIES["repositories"][
+        2:
+    ],  # just the test-repository,
 )
 @patch.object(
     cartography.intel.aws.ecr,
     "get_ecr_repository_images",
     return_value=tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-        "000000000000.dkr.ecr.us-east-1/example-repository"
+        "000000000000.dkr.ecr.us-east-1/test-repository"
     ][
         :1
     ],  # just one image
 )
 def test_sync_trivy_aws_ecr(
-    mock_get_images, mock_get_repos, mock_get_scan_results, neo4j_session
+    mock_get_images,
+    mock_get_repos,
+    mock_get_scan_results,
+    mock_list_s3_scan_results,
+    neo4j_session,
 ):
     """
     Ensure that Trivy scan results are properly loaded into Neo4j
@@ -55,12 +75,13 @@ def test_sync_trivy_aws_ecr(
     )
 
     # Act
-    sync_trivy_aws_ecr(
+    sync_trivy_aws_ecr_from_s3(
         neo4j_session,
-        "/usr/local/bin/trivy",  # trivy_path
-        None,  # trivy_opa_policy_file_path
+        "test-bucket",
+        "trivy-scans/",
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+        boto3_session,
     )
 
     # Assert TrivyImageFinding nodes exist

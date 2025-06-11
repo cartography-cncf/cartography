@@ -638,39 +638,12 @@ class CLI:
             ),
         )
         parser.add_argument(
-            "--trivy-path",
-            type=str,
-            default=None,
-            help=(
-                "The absolute path to the Trivy binary executable. "
-                "Required if you are using the Trivy module. Ignored otherwise."
-            ),
-        )
-        parser.add_argument(
-            "--trivy-opa-policy-file-path",
-            type=str,
-            default=None,
-            help=(
-                "The path to an OPA policy file to use with Trivy. "
-                "Optional if you are using the Trivy module. Ignored otherwise."
-            ),
-        )
-        parser.add_argument(
-            "--trivy-resource-type",
-            type=str,
-            default=None,
-            help=(
-                "The resource type to scan with Trivy (e.g. 'aws.ecr'). "
-                "Optional if you are using the Trivy module. Ignored otherwise."
-            ),
-        )
-        parser.add_argument(
             "--trivy-s3-bucket",
             type=str,
             default=None,
             help=(
                 "The S3 bucket name containing Trivy scan results. "
-                "Required if you are using the Trivy module with S3 results. Ignored otherwise."
+                "Required if you are using the Trivy module. Ignored otherwise."
             ),
         )
         parser.add_argument(
@@ -679,7 +652,7 @@ class CLI:
             default=None,
             help=(
                 "The S3 prefix path containing Trivy scan results. "
-                "Required if you are using the Trivy module with S3 results. Ignored otherwise."
+                "Required if you are using the Trivy module. Ignored otherwise."
             ),
         )
 
@@ -1001,17 +974,6 @@ class CLI:
             config.anthropic_apikey = None
 
         # Trivy config
-        if config.trivy_path:
-            logger.debug(f"Trivy path: {config.trivy_path}")
-
-        if config.trivy_opa_policy_file_path:
-            logger.debug(
-                f"Trivy OPA policy file path: {config.trivy_opa_policy_file_path}"
-            )
-
-        if config.trivy_resource_type:
-            logger.debug(f"Trivy resource type: {config.trivy_resource_type}")
-
         if config.trivy_s3_bucket:
             logger.debug(f"Trivy S3 bucket: {config.trivy_s3_bucket}")
 

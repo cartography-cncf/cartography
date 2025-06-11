@@ -1,6 +1,5 @@
 import json
 import logging
-import subprocess
 from typing import Any
 from urllib.parse import unquote
 
@@ -17,135 +16,6 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
-
-
-@timeit
-def _call_trivy_binary(
-    ecr_image_uri: str, trivy_path: str, image_cmd_args: list[str] | None = None
-) -> bytes:
-    """
-    Calls Trivy to scan an image and returns the output.
-
-    Args:
-        ecr_image_uri: The URI of the image to scan
-        trivy_path: Path to the Trivy binary
-        image_cmd_args: Optional list of command arguments
-
-    Returns:
-        bytes: The command output
-
-    Raises:
-        subprocess.CalledProcessError: If the command fails
-    """
-    command = [trivy_path, "--quiet", "image"]
-    if image_cmd_args:
-        command.extend(image_cmd_args)
-    command.append(ecr_image_uri)
-
-    try:
-        output = subprocess.check_output(command, stderr=subprocess.STDOUT)
-        stat_handler.incr("image_scan_success_count")
-        return output
-    except subprocess.CalledProcessError:
-        stat_handler.incr("image_scan_fatal_count")
-        raise
-
-
-@timeit
-def _call_trivy_update_db(trivy_path: str) -> None:
-    """
-    Updates the Trivy vulnerability database.
-
-    Args:
-        trivy_path: Path to the Trivy binary
-
-    Raises:
-        subprocess.CalledProcessError: If the update fails
-    """
-    command = [trivy_path, "--quiet", "image", "--download-db-only"]
-
-    try:
-        subprocess.check_output(command, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as exc:
-        logger.error(
-            f"Trivy database update failed: {exc.output.decode('utf-8') if isinstance(exc.output, bytes) else exc.output}"
-        )
-        raise
-
-
-def _build_image_subcommand(
-    skip_update: bool,
-    ignore_unfixed: bool = True,
-    triage_filter_policy_file_path: str | None = None,
-    os_findings_only: bool = False,
-    list_all_pkgs: bool = False,
-    security_checks: str | None = None,
-) -> list[str]:
-    """
-    Builds the subcommand arguments for Trivy image scanning.
-
-    Args:
-        skip_update: Whether to skip database update
-        ignore_unfixed: Whether to ignore unfixed vulnerabilities
-        triage_filter_policy_file_path: Path to policy file for filtering
-        os_findings_only: Whether to only scan OS vulnerabilities
-        list_all_pkgs: Whether to list all packages
-        security_checks: Comma-separated list of security checks to run
-
-    Returns:
-        List[str]: List of command arguments
-    """
-    args = [
-        "--format",
-        "json",
-        "--timeout",
-        "15m",  # Default = 5 minutes. Some images need 15 mins.
-    ]
-
-    if skip_update:
-        args.append("--skip-update")
-
-    if ignore_unfixed:
-        args.append("--ignore-unfixed")
-
-    if triage_filter_policy_file_path:
-        args.extend(["--ignore-policy", triage_filter_policy_file_path])
-
-    if os_findings_only:
-        args.extend(["--vuln-type", "os"])
-
-    if list_all_pkgs:
-        args.append("--list-all-pkgs")
-
-    if security_checks:
-        args.extend(["--security-checks", security_checks])
-
-    return args
-
-
-@timeit
-def get_scan_results_for_single_image(
-    ecr_image_uri: str, image_subcmd_args: list[str], trivy_path: str
-) -> list[dict]:
-    """
-    Runs trivy scanner on the given ecr_image_uri and returns vuln data results.
-    """
-    # Get
-    trivy_output_as_str: bytes = _call_trivy_binary(
-        ecr_image_uri, trivy_path, image_subcmd_args
-    )
-
-    # Transform
-    trivy_data: dict = json.loads(trivy_output_as_str)
-    # See https://github.com/aquasecurity/trivy/discussions/1050 for schema v2 shape
-    if "Results" in trivy_data and trivy_data["Results"]:
-        return trivy_data["Results"]
-    else:
-        stat_handler.incr("image_scan_no_results_count")
-        logger.warning(
-            f"trivy scan did not return a `results` key for URI = {ecr_image_uri}; continuing."
-        )
-        return []
 
 
 def _validate_packages(package_list: list[dict]) -> list[dict]:
@@ -280,7 +150,7 @@ def list_s3_scan_results(
     """
     s3_client = boto3_session.client("s3")
 
-    # Create a mapping of image URIs to their metadata for efficient lookup
+    # Use the graph data to create a mapping of image URIs to their metadata for efficient lookup from the s3 listing
     image_uri_to_metadata = {}
     for region, image_tag, image_uri, repo_name, image_digest in ecr_images:
         image_uri_to_metadata[image_uri] = (
@@ -459,9 +329,7 @@ def read_scan_results_from_s3(
 @timeit
 def sync_single_image_from_s3(
     neo4j_session: Session,
-    image_tag: str,
     image_uri: str,
-    repo_name: str,
     image_digest: str,
     update_tag: int,
     s3_bucket: str,
@@ -473,9 +341,7 @@ def sync_single_image_from_s3(
 
     Args:
         neo4j_session: Neo4j session for database operations
-        image_tag: ECR image tag
         image_uri: ECR image URI
-        repo_name: ECR repository name
         image_digest: ECR image digest
         update_tag: Update tag for tracking
         s3_bucket: S3 bucket containing scan results
@@ -484,7 +350,7 @@ def sync_single_image_from_s3(
     """
     try:
         # Read and parse scan results from S3
-        results = read_scan_results_from_s3(
+        results: list[dict] = read_scan_results_from_s3(
             boto3_session,
             s3_bucket,
             s3_object_key,
@@ -497,16 +363,7 @@ def sync_single_image_from_s3(
             image_digest,
         )
 
-        # Log the transformation results
         num_findings = len(findings_list)
-        logger.info(
-            "S3 Trivy scan results: "
-            f"repo_name = {repo_name}, "
-            f"image_tag = {image_tag}, "
-            f"num_findings = {num_findings}, "
-            f"num_packages = {len(packages_list)}, "
-            f"num_fixes = {len(fixes_list)}."
-        )
         stat_handler.incr("image_scan_cve_count", num_findings)
 
         # Load the transformed data using existing functions
@@ -532,70 +389,3 @@ def sync_single_image_from_s3(
             f"Failed to process S3 scan results for {image_uri} from {s3_object_key}: {e}"
         )
         raise
-
-
-@timeit
-def sync_single_image(
-    neo4j_session: Session,
-    image_tag: str,
-    image_uri: str,
-    repo_name: str,
-    image_digest: str,
-    update_tag: int,
-    skip_db_update: bool,
-    trivy_path: str,
-    trivy_opa_policy_file_path: str,
-) -> None:
-    # Default scan configuration
-    # - ignore_unfixed=True: Skip vulnerabilities without fixes
-    # - os_findings_only=False: Scan both OS and library vulnerabilities
-    # - list_all_pkgs=True: Include all packages in results
-    # - security_checks="vuln": Focus on vulnerability scanning for better performance
-    image_subcmd_args = _build_image_subcommand(
-        skip_update=skip_db_update,
-        ignore_unfixed=True,
-        triage_filter_policy_file_path=trivy_opa_policy_file_path,
-        os_findings_only=False,
-        list_all_pkgs=True,
-        security_checks="vuln",
-    )
-
-    results = get_scan_results_for_single_image(
-        image_uri, image_subcmd_args, trivy_path
-    )
-
-    # Transform all data in one pass
-    findings_list, packages_list, fixes_list = transform_scan_results(
-        results,
-        image_digest,
-    )
-
-    # Log the transformation results
-    num_findings = len(findings_list)
-    logger.info(
-        "Trivy scan results: "
-        f"repo_name = {repo_name}, "
-        f"image_tag = {image_tag}, "
-        f"num_findings = {num_findings}, "
-        f"num_packages = {len(packages_list)}, "
-        f"num_fixes = {len(fixes_list)}."
-    )
-    stat_handler.incr("image_scan_cve_count", num_findings)
-
-    # Load the transformed data
-    load_scan_vulns(
-        neo4j_session,
-        findings_list,
-        update_tag=update_tag,
-    )
-    load_scan_packages(
-        neo4j_session,
-        packages_list,
-        update_tag=update_tag,
-    )
-    load_scan_fixes(
-        neo4j_session,
-        fixes_list,
-        update_tag=update_tag,
-    )
-    stat_handler.incr("images_processed_count")
