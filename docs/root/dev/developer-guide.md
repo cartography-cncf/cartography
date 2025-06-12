@@ -5,6 +5,7 @@
 ### Running the source code
 
 This document assumes familiarity with Python dev practices such as using [virtualenvs](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/).
+Cartography also uses [uv](https://docs.astral.sh/uv/) for fast Python dependency installs.
 If you prefer docker instead, skip this and scroll down to [these instructions](#dev-dockerfile).
 
 1. **Run Neo4j**
@@ -13,17 +14,28 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
 1. **Install Python 3.10**
 
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
 1. **Clone the source code**
 
-    Run `cd {path-where-you-want-your-source-code}`. Get the source code with `git clone git://github.com/lyft/cartography.git`
+    Run `cd {path-where-you-want-your-source-code}`. Get the source code with `git clone git://github.com:cartography-cncf/cartography.git`
 
 1. **Perform an editable install of the cartography source code**
 
-    Run `cd cartography` and then `uv sync` (yes, actually type the period into the command line) to install Cartography from source to the current venv.
+    ```bash
+    cd cartography
+    uv venv # to create the virtualenv
+    source .venv/bin/activate # to activate the venv
+    uv pip install -e . # yes, actually type the period into the command line.
+    ```
 
-4. **Run from source**
+    This performs an editable install of cartography so that as you edit the source code, you can run the `cartography` commandline tool locally and see your changes take effect immediately.
 
-    After this finishes you should be able to run Cartography from source with `uv run cartography --neo4j-uri bolt://localhost:7687`. Any changes to the source code in `{path-where-you-want-your-source-code}/cartography` are now locally testable by running `cartography` from the command line.
+    Side note: If you need to work on other Python projects, you can deactivate the virtualenv with `deactivate`
+
+1. **Run from source**
+
+    After this finishes you should be able to run Cartography from source with ` cartography --neo4j-uri bolt://localhost:7687` as long as the virtualenv is activated. Any changes to the source code in `{path-where-you-want-your-source-code}/cartography` are now locally testable by running `cartography` from the command line.
 
 ### Automated testing
 
