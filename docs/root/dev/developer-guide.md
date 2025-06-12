@@ -35,7 +35,7 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
 1. **Run from source**
 
-    After this finishes you should be able to run Cartography from source with ` cartography --neo4j-uri bolt://localhost:7687` as long as the virtualenv is activated. Any changes to the source code in `{path-where-you-want-your-source-code}/cartography` are now locally testable by running `cartography` from the command line.
+    After this finishes you should be able to run Cartography from source with `cartography --neo4j-uri bolt://localhost:7687` as long as the virtualenv is activated. Any changes to the source code in `{path-where-you-want-your-source-code}/cartography` are now locally testable by running `cartography` from the command line.
 
 ### Automated testing
 
