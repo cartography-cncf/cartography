@@ -6,6 +6,8 @@ CREATE INDEX IF NOT EXISTS FOR (n:AWSConfigRule) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSConfigRule) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:APIGatewayClientCertificate) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:APIGatewayClientCertificate) ON (n.lastupdated);
+CREATE INDEX IF NOT EXISTS FOR (n:ACMCertificate) ON (n.id);
+CREATE INDEX IF NOT EXISTS FOR (n:ACMCertificate) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:APIGatewayRestAPI) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:APIGatewayRestAPI) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:APIGatewayResource) ON (n.id);

@@ -2459,6 +2459,35 @@ Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazo
     (APIGatewayStage)-[HAS_CERTIFICATE]->(APIGatewayClientCertificate)
     ```
 
+### ACMCertificate
+
+Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the certificate |
+| domainname | The primary domain name of the certificate |
+| status | The status of the certificate |
+| type | The source of the certificate |
+| key_algorithm | The key algorithm used |
+| signature_algorithm | The signature algorithm |
+| not_before | The time before which the certificate is invalid |
+| not_after | The time after which the certificate expires |
+| in_use_by | List of ARNs of resources that use this certificate |
+
+#### Relationships
+
+- ACM Certificates are resources under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(ACMCertificate)
+    ```
+- ACM Certificates may be used by ELBV2Listeners.
+    ```
+    (ACMCertificate)-[USED_BY]->(ELBV2Listener)
+    ```
+
 ### APIGatewayResource
 
 Representation of an AWS [API Gateway Resource](https://docs.aws.amazon.com/apigateway/api-reference/resource/resource/).
