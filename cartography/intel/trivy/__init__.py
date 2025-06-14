@@ -8,7 +8,7 @@ from cartography.client.aws import list_accounts
 from cartography.client.aws.ecr import get_ecr_images
 from cartography.config import Config
 from cartography.intel.trivy.scanner import cleanup
-from cartography.intel.trivy.scanner import list_s3_scan_results
+from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -21,20 +21,49 @@ stat_handler = get_stats_client("trivy.scanner")
 def get_scan_targets(
     neo4j_session: Session,
     account_ids: list[str] | None = None,
-) -> list[tuple[str, str, str, str, str]]:
+) -> set[str]:
     """
-    Return list of ECR images from all accounts in the graph as tuples with shape (region, image_tag, image_uri,
-    repo_name, image_digest).
+    Return list of ECR images from all accounts in the graph.
     """
     if not account_ids:
         aws_accounts = list_accounts(neo4j_session)
     else:
         aws_accounts = account_ids
 
-    ecr_images: list[tuple[str, str, str, str, str]] = []
+    ecr_images: set[str] = set()
     for account_id in aws_accounts:
-        ecr_images.extend(get_ecr_images(neo4j_session, account_id))
+        for _, _, image_uri, _, _ in get_ecr_images(neo4j_session, account_id):
+            ecr_images.add(image_uri)
+
     return ecr_images
+
+
+def _get_intersection(
+    images_in_graph: set[str], json_files: set[str], trivy_s3_prefix: str
+) -> list[tuple[str, str]]:
+    """
+    Get the intersection of ECR images in the graph and S3 scan results.
+
+    Args:
+        images_in_graph: Set of ECR images in the graph
+        json_files: Set of S3 object keys for JSON files
+        trivy_s3_prefix: S3 prefix path containing scan results
+
+    Returns:
+        List of tuples (image_uri, s3_object_key)
+    """
+    intersection = []
+    prefix_len = len(trivy_s3_prefix)
+    for s3_object_key in json_files:
+        # Sample key "123456789012.dkr.ecr.us-west-2.amazonaws.com/other-repo:v1.0.json"
+        # Sample key "folder/derp/123456789012.dkr.ecr.us-west-2.amazonaws.com/other-repo:v1.0.json"
+        # Remove the prefix and the .json suffix
+        image_uri = s3_object_key[prefix_len:-5]
+
+        if image_uri in images_in_graph:
+            intersection.append((image_uri, s3_object_key))
+
+    return intersection
 
 
 @timeit
@@ -51,7 +80,6 @@ def sync_trivy_aws_ecr_from_s3(
 
     Args:
         neo4j_session: Neo4j session for database operations
-        ecr_images: List of ECR image tuples (region, image_tag, image_uri, repo_name, image_digest)
         trivy_s3_bucket: S3 bucket containing scan results
         trivy_s3_prefix: S3 prefix path containing scan results
         update_tag: Update tag for tracking
@@ -62,32 +90,19 @@ def sync_trivy_aws_ecr_from_s3(
         f"Using S3 scanning from bucket {trivy_s3_bucket} with prefix {trivy_s3_prefix}"
     )
 
-    # Get the list of ECR images from the graph
-    ecr_images = get_scan_targets(neo4j_session)
-
-    # Get list of ECR images that have corresponding S3 scan results
-    s3_scan_results = list_s3_scan_results(
-        trivy_s3_bucket,
-        trivy_s3_prefix,
-        ecr_images,
-        boto3_session,
+    images_in_graph: set[str] = get_scan_targets(neo4j_session)
+    json_files: set[str] = get_json_files_in_s3(
+        trivy_s3_bucket, trivy_s3_prefix, boto3_session
+    )
+    intersection: list[tuple[str, str]] = _get_intersection(
+        images_in_graph, json_files, trivy_s3_prefix
     )
 
-    logger.info(f"Processing {len(s3_scan_results)} ECR images with S3 scan results")
-
-    # Process images with S3 scan results
-    for (
-        _,
-        _,
-        image_uri,
-        _,
-        image_digest,
-        s3_object_key,
-    ) in s3_scan_results:
+    logger.info(f"Processing {len(intersection)} ECR images with S3 scan results")
+    for image_uri, s3_object_key in intersection:
         sync_single_image_from_s3(
             neo4j_session,
             image_uri,
-            image_digest,
             update_tag,
             trivy_s3_bucket,
             s3_object_key,
