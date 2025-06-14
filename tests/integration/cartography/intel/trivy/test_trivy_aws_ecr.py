@@ -17,22 +17,18 @@ TEST_REGION = "us-east-1"
 
 @patch.object(
     cartography.intel.trivy,
-    "list_s3_scan_results",
-    return_value=[
-        (
-            "us-east-1",
-            "1234567890",
-            "000000000000.dkr.ecr.us-east-1/test-repository:1234567890",
-            "test-repository",
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-            "trivy-scans/000000000000.dkr.ecr.us-east-1/test-repository:1234567890.json",
-        )
-    ],
+    "get_json_files_in_s3",
+    return_value={
+        "trivy-scans/000000000000.dkr.ecr.us-east-1/test-repository:1234567890.json"
+    },
 )
 @patch.object(
     cartography.intel.trivy.scanner,
     "read_scan_results_from_s3",
-    return_value=TRIVY_SAMPLE["Results"],
+    return_value=(
+        TRIVY_SAMPLE["Results"],
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    ),
 )
 @patch.object(
     cartography.intel.aws.ecr,

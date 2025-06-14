@@ -1,7 +1,6 @@
 import json
 import logging
 from typing import Any
-from urllib.parse import unquote
 
 import boto3
 from neo4j import Session
@@ -129,44 +128,27 @@ def transform_scan_results(
 
 
 @timeit
-def list_s3_scan_results(
-    s3_bucket: str,
-    s3_prefix: str,
-    ecr_images: list[tuple[str, str, str, str, str]],
-    boto3_session: boto3.Session,
-) -> list[tuple[str, str, str, str, str, str]]:
+def get_json_files_in_s3(
+    s3_bucket: str, s3_prefix: str, boto3_session: boto3.Session
+) -> set[str]:
     """
-    List S3 objects that match ECR image URIs and return matched scan data.
+    List S3 objects in the S3 prefix.
 
     Args:
         s3_bucket: S3 bucket name containing scan results
         s3_prefix: S3 prefix path containing scan results
-        ecr_images: List of ECR image tuples (region, image_tag, image_uri, repo_name, image_digest)
         boto3_session: boto3 session for dependency injection
 
     Returns:
-        List of tuples (region, image_tag, image_uri, repo_name, image_digest, s3_object_key)
-        for images that have corresponding scan results in S3
+        Set of S3 object keys for JSON files in the S3 prefix
     """
     s3_client = boto3_session.client("s3")
-
-    # Use the graph data to create a mapping of image URIs to their metadata for efficient lookup from the s3 listing
-    image_uri_to_metadata = {}
-    for region, image_tag, image_uri, repo_name, image_digest in ecr_images:
-        image_uri_to_metadata[image_uri] = (
-            region,
-            image_tag,
-            image_uri,
-            repo_name,
-            image_digest,
-        )
-
-    matched_results = []
 
     try:
         # List objects in the S3 prefix
         paginator = s3_client.get_paginator("list_objects_v2")
         page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
+        results = set()
 
         for page in page_iterator:
             if "Contents" not in page:
@@ -183,26 +165,7 @@ def list_s3_scan_results(
                 if not object_key.startswith(s3_prefix):
                     continue
 
-                # Extract relative path after prefix
-                relative_key = object_key[len(s3_prefix) :].lstrip("/")
-                if not relative_key.endswith(".json"):
-                    continue
-
-                # URL decode the image URI and remove .json suffix
-                potential_image_uri = unquote(relative_key[:-5])
-
-                # Check if this image URI matches one of our ECR images
-                if potential_image_uri not in image_uri_to_metadata:
-                    continue
-
-                # Found a match - add to results
-                region, image_tag, image_uri, repo_name, image_digest = (
-                    image_uri_to_metadata[potential_image_uri]
-                )
-                matched_results.append(
-                    (region, image_tag, image_uri, repo_name, image_digest, object_key)
-                )
-                logger.debug(f"Found S3 scan result for image: {potential_image_uri}")
+                results.add(object_key)
 
     except Exception as e:
         logger.error(
@@ -210,10 +173,8 @@ def list_s3_scan_results(
         )
         raise
 
-    logger.info(
-        f"Found {len(matched_results)} ECR images with corresponding S3 scan results"
-    )
-    return matched_results
+    logger.info(f"Found {len(results)} json files in s3://{s3_bucket}/{s3_prefix}")
+    return results
 
 
 @timeit
@@ -290,7 +251,7 @@ def read_scan_results_from_s3(
     s3_bucket: str,
     s3_object_key: str,
     image_uri: str,
-) -> list[dict]:
+) -> tuple[list[dict], str | None]:
     """
     Read and parse Trivy scan results from S3.
 
@@ -301,7 +262,7 @@ def read_scan_results_from_s3(
         image_uri: ECR image URI (for logging purposes)
 
     Returns:
-        List of scan result dictionaries from the "Results" key
+        Tuple of (list of scan result dictionaries from the "Results" key, image digest)
     """
     s3_client = boto3_session.client("s3")
 
@@ -323,14 +284,22 @@ def read_scan_results_from_s3(
         )
         results = []
 
-    return results
+    image_digest = None
+    if "Metadata" in trivy_data and trivy_data["Metadata"]:
+        repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
+        if repo_digests:
+            repo_digest = repo_digests[0].split("@")[0]
+            # Sample input: 000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository@sha256:88016
+            # Sample output: sha256:88016
+            image_digest = repo_digest.split("@")[1]
+
+    return results, image_digest
 
 
 @timeit
 def sync_single_image_from_s3(
     neo4j_session: Session,
     image_uri: str,
-    image_digest: str,
     update_tag: int,
     s3_bucket: str,
     s3_object_key: str,
@@ -342,7 +311,6 @@ def sync_single_image_from_s3(
     Args:
         neo4j_session: Neo4j session for database operations
         image_uri: ECR image URI
-        image_digest: ECR image digest
         update_tag: Update tag for tracking
         s3_bucket: S3 bucket containing scan results
         s3_object_key: S3 object key for this image's scan results
@@ -350,12 +318,15 @@ def sync_single_image_from_s3(
     """
     try:
         # Read and parse scan results from S3
-        results: list[dict] = read_scan_results_from_s3(
+        results, image_digest = read_scan_results_from_s3(
             boto3_session,
             s3_bucket,
             s3_object_key,
             image_uri,
         )
+        if not image_digest:
+            logger.warning(f"No image digest found for {image_uri}; skipping over.")
+            return
 
         # Transform all data in one pass using existing function
         findings_list, packages_list, fixes_list = transform_scan_results(
