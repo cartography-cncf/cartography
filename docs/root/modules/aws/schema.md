@@ -2490,6 +2490,7 @@ Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/lates
     ```
     (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
     ```
+  Note: the AWS ACM API may return a load balancer ARN for the `in_use_by` field instead of a listener ARN. To properly map the certificate to the listener in this situation, we need to rely on data from the ELBV2 module. This is a weird quirk of the AWS API.
 
 ### APIGatewayResource
 

@@ -2,7 +2,6 @@ import logging
 from typing import Any
 
 import boto3
-import botocore
 import neo4j
 
 from cartography.client.core.tx import load
@@ -22,7 +21,6 @@ stat_handler = get_stats_client(__name__)
 def get_acm_certificates(
     boto3_session: boto3.session.Session, region: str
 ) -> list[dict[str, Any]]:
-    """Fetch certificate details from AWS ACM."""
     client = boto3_session.client("acm", region_name=region)
     paginator = client.get_paginator("list_certificates")
     summaries: list[dict[str, Any]] = []
@@ -32,12 +30,8 @@ def get_acm_certificates(
     details: list[dict[str, Any]] = []
     for summary in summaries:
         arn = summary["CertificateArn"]
-        try:
-            resp = client.describe_certificate(CertificateArn=arn)
-            details.append(resp["Certificate"])
-        except botocore.exceptions.ClientError as e:
-            logger.warning(f"Could not describe certificate {arn}: {e}")
-            continue
+        resp = client.describe_certificate(CertificateArn=arn)
+        details.append(resp["Certificate"])
     return details
 
 
