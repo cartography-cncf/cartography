@@ -1,4 +1,4 @@
-9CREATE INDEX IF NOT EXISTS FOR (n:AWSConfigurationRecorder) ON (n.id);
+CREATE INDEX IF NOT EXISTS FOR (n:AWSConfigurationRecorder) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSConfigurationRecorder) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSConfigDeliveryChannel) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSConfigDeliveryChannel) ON (n.lastupdated);
