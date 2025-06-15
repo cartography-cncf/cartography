@@ -182,3 +182,7 @@ SNS_TOPIC_ATTRIBUTES = {
         "KmsMasterKeyId": "",
     },
 }
+GET_BUCKET_OWNERSHIP_CONTROLS = {
+    "bucket": "bucket-1",
+    "object_ownership": "BucketOwnerPreferred",
+}
