@@ -327,3 +327,97 @@ def test_load_lambda_layers_relationships(neo4j_session):
     actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected_nodes
+
+from unittest.mock import MagicMock, patch
+from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_nodes, check_rels
+
+# Precompute lambda function details for sync testing
+MOCK_DETAILS = []
+for func in tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS:
+    function_arn = func["FunctionArn"]
+    aliases = [a for a in tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTION_ALIASES if a["FunctionArn"] == function_arn]
+    esms = [e for e in tests.data.aws.lambda_function.LIST_EVENT_SOURCE_MAPPINGS if e["FunctionArn"] == function_arn]
+    layers = [l for l in tests.data.aws.lambda_function.LIST_LAYERS if l["FunctionArn"] == function_arn]
+    MOCK_DETAILS.append((function_arn, aliases, esms, layers))
+
+
+@patch.object(cartography.intel.aws.lambda_function, "get_lambda_data", return_value=tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS)
+@patch.object(cartography.intel.aws.lambda_function, "get_lambda_function_details", return_value=MOCK_DETAILS)
+def test_sync_lambda(mock_get_details, mock_get_data, neo4j_session):
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    cartography.intel.aws.lambda_function.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_nodes(neo4j_session, "AWSLambda", ["id"]) == {
+        (f["FunctionArn"],) for f in tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
+    }
+
+    assert check_nodes(neo4j_session, "AWSLambdaFunctionAlias", ["id"]) == {
+        (a["AliasArn"],) for a in tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTION_ALIASES
+    }
+
+    assert check_nodes(neo4j_session, "AWSLambdaEventSourceMapping", ["id"]) == {
+        (e["UUID"],) for e in tests.data.aws.lambda_function.LIST_EVENT_SOURCE_MAPPINGS
+    }
+
+    assert check_nodes(neo4j_session, "AWSLambdaLayer", ["id"]) == {
+        (l["Arn"],) for l in tests.data.aws.lambda_function.LIST_LAYERS
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSLambda",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, f["FunctionArn"]) for f in tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "AWSLambdaFunctionAlias",
+        "id",
+        "KNOWN_AS",
+        rel_direction_right=True,
+    ) == {
+        (a["FunctionArn"], a["AliasArn"]) for a in tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTION_ALIASES
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "AWSLambdaEventSourceMapping",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (e["FunctionArn"], e["UUID"]) for e in tests.data.aws.lambda_function.LIST_EVENT_SOURCE_MAPPINGS
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "AWSLambdaLayer",
+        "id",
+        "HAS",
+        rel_direction_right=True,
+    ) == {
+        (l["FunctionArn"], l["Arn"]) for l in tests.data.aws.lambda_function.LIST_LAYERS
+    }
+
