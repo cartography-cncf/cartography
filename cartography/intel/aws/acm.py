@@ -1,19 +1,15 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import botocore
 import neo4j
-from dateutil import parser as dt_parser
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.acm.certificate import ACMCertificateSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
-from cartography.util import dict_date_to_epoch
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
@@ -25,15 +21,15 @@ stat_handler = get_stats_client(__name__)
 @aws_handle_regions
 def get_acm_certificates(
     boto3_session: boto3.session.Session, region: str
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """Fetch certificate details from AWS ACM."""
     client = boto3_session.client("acm", region_name=region)
     paginator = client.get_paginator("list_certificates")
-    summaries: List[Dict] = []
+    summaries: list[dict[str, Any]] = []
     for page in paginator.paginate():
         summaries.extend(page.get("CertificateSummaryList", []))
 
-    details: List[Dict] = []
+    details: list[dict[str, Any]] = []
     for summary in summaries:
         arn = summary["CertificateArn"]
         try:
@@ -45,26 +41,20 @@ def get_acm_certificates(
     return details
 
 
-def transform_acm_certificates(certificates: List[Dict], region: str) -> List[Dict]:
-    transformed: List[Dict] = []
+def transform_acm_certificates(
+    certificates: list[dict[str, Any]], region: str
+) -> list[dict[str, Any]]:
+    transformed: list[dict[str, Any]] = []
     for cert in certificates:
-        item: Dict[str, Any] = {
+        item: dict[str, Any] = {
             "Arn": cert["CertificateArn"],
             "DomainName": cert.get("DomainName"),
             "Type": cert.get("Type"),
             "Status": cert.get("Status"),
             "KeyAlgorithm": cert.get("KeyAlgorithm"),
             "SignatureAlgorithm": cert.get("SignatureAlgorithm"),
-            "NotBefore": (
-                dict_date_to_epoch({"d": dt_parser.parse(cert["NotBefore"])}, "d")
-                if cert.get("NotBefore")
-                else None
-            ),
-            "NotAfter": (
-                dict_date_to_epoch({"d": dt_parser.parse(cert["NotAfter"])}, "d")
-                if cert.get("NotAfter")
-                else None
-            ),
+            "NotBefore": cert.get("NotBefore"),
+            "NotAfter": cert.get("NotAfter"),
             "InUseBy": cert.get("InUseBy", []),
             "Region": region,
         }
@@ -79,7 +69,7 @@ def transform_acm_certificates(certificates: List[Dict], region: str) -> List[Di
 @timeit
 def load_acm_certificates(
     neo4j_session: neo4j.Session,
-    data: List[Dict],
+    data: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     update_tag: int,
@@ -97,7 +87,7 @@ def load_acm_certificates(
 
 @timeit
 def cleanup_acm_certificates(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     logger.debug("Running ACM certificate cleanup job.")
     GraphJob.from_node_schema(ACMCertificateSchema(), common_job_parameters).run(
@@ -109,10 +99,10 @@ def cleanup_acm_certificates(
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
         logger.info(
