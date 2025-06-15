@@ -1684,15 +1684,18 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 | port | The port of this endpoint |
 | ssl\_policy | Only set for HTTPS or TLS listener. The security policy that defines which protocols and ciphers are supported. |
 | targetgrouparn | The ARN of the Target Group, if the Action type is `forward`. |
-
+| arn | The ARN of the ELBV2Listener |
 
 #### Relationships
 
-- A ELBV2Listener is installed on a LoadBalancerV2.
+- LoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
-    (elbv2)-[r:ELBV2_LISTENER]->(ELBV2Listener)
+    (:LoadBalancerV2)-[:ELBV2_LISTENER]->(:ELBV2Listener)
     ```
-
+- ACM Certificates may be used by ELBV2Listeners.
+    ```
+    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    ```
 
 ### Ip
 
@@ -2481,11 +2484,11 @@ Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/lates
 
 - ACM Certificates are resources under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ACMCertificate)
+    (:AWSAccount)-[:RESOURCE]->(:ACMCertificate)
     ```
 - ACM Certificates may be used by ELBV2Listeners.
     ```
-    (ACMCertificate)-[USED_BY]->(ELBV2Listener)
+    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
     ```
 
 ### APIGatewayResource
