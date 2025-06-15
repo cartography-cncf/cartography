@@ -1684,15 +1684,18 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 | port | The port of this endpoint |
 | ssl\_policy | Only set for HTTPS or TLS listener. The security policy that defines which protocols and ciphers are supported. |
 | targetgrouparn | The ARN of the Target Group, if the Action type is `forward`. |
-
+| arn | The ARN of the ELBV2Listener |
 
 #### Relationships
 
-- A ELBV2Listener is installed on a LoadBalancerV2.
+- LoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
-    (elbv2)-[r:ELBV2_LISTENER]->(ELBV2Listener)
+    (:LoadBalancerV2)-[:ELBV2_LISTENER]->(:ELBV2Listener)
     ```
-
+- ACM Certificates may be used by ELBV2Listeners.
+    ```
+    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    ```
 
 ### Ip
 
@@ -2458,6 +2461,36 @@ Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazo
     ```
     (APIGatewayStage)-[HAS_CERTIFICATE]->(APIGatewayClientCertificate)
     ```
+
+### ACMCertificate
+
+Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the certificate |
+| domainname | The primary domain name of the certificate |
+| status | The status of the certificate |
+| type | The source of the certificate |
+| key_algorithm | The key algorithm used |
+| signature_algorithm | The signature algorithm |
+| not_before | The time before which the certificate is invalid |
+| not_after | The time after which the certificate expires |
+| in_use_by | List of ARNs of resources that use this certificate |
+
+#### Relationships
+
+- ACM Certificates are resources under the AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ACMCertificate)
+    ```
+- ACM Certificates may be used by ELBV2Listeners.
+    ```
+    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    ```
+  Note: the AWS ACM API may return a load balancer ARN for the `in_use_by` field instead of a listener ARN. To properly map the certificate to the listener in this situation, we need to rely on data from the ELBV2 module. This is a weird quirk of the AWS API.
 
 ### APIGatewayResource
 
