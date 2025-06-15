@@ -354,6 +354,19 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     cleanup_job.run(neo4j_session)
 ```
 
+#### Scoped cleanups
+
+By default, a node_schema has `scoped_cleanup` flag set to True. This means that when we run a clean up job on that
+node type, then we will only delete stale nodes that are connected to the current sub-resource being synced. This is
+designed for modules like AWS or GCP where there a clear definition of a "tenant"-like object because each account or
+project gets synced in one at a time and it doesn't make sense to delete objects outside of the current tenant being
+synced.
+
+For some other modules that don't have a clear tenant-like relationship, you can set `scoped_cleanup` to False on the
+node_schema. This might make sense for a vuln scanner module where there is no logical tenant object.
+
+#### Legacy notes
+
 Older intel modules still do this process with hand-written cleanup jobs that work like this:
 
 - Delete all old nodes

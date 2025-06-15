@@ -770,6 +770,11 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 | s3_key_prefix | The S3 key prefix used after the bucket name for the CloudTrailTrail's log files. |
 | sns_topic_arn | The ARN of the SNS topic used by the CloudTrailTrail for delivery notifications. |
 
+#### Relationships
+- CloudTrail Trails can be configured to log to S3 Buckets
+    ```
+    (:CloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
+    ```
 
 ### CloudWatchLogGroup
 Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)
@@ -1679,15 +1684,18 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 | port | The port of this endpoint |
 | ssl\_policy | Only set for HTTPS or TLS listener. The security policy that defines which protocols and ciphers are supported. |
 | targetgrouparn | The ARN of the Target Group, if the Action type is `forward`. |
-
+| arn | The ARN of the ELBV2Listener |
 
 #### Relationships
 
-- A ELBV2Listener is installed on a LoadBalancerV2.
+- LoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
-    (elbv2)-[r:ELBV2_LISTENER]->(ELBV2Listener)
+    (:LoadBalancerV2)-[:ELBV2_LISTENER]->(:ELBV2Listener)
     ```
-
+- ACM Certificates may be used by ELBV2Listeners.
+    ```
+    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    ```
 
 ### Ip
 
@@ -2256,6 +2264,7 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 | ignore\_public\_acls | Specifies whether Amazon S3 should ignore public ACLs for this bucket and objects in this bucket. |
 | block\_public\_acls | Specifies whether Amazon S3 should block public bucket policies for this bucket. |
 | restrict\_public\_buckets | Specifies whether Amazon S3 should restrict public bucket policies for this bucket. |
+| object_ownership | The bucket's [Object Ownership](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html) setting. `BucketOwnerEnforced` indicates that ACLs on the bucket and its objects are ignored. `BucketOwnerPreferred` and `ObjectWriter` indicate that ACLs still function; see [the AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html#object-ownership-overview) for details.|
 
 #### Relationships
 
@@ -2452,6 +2461,36 @@ Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazo
     ```
     (APIGatewayStage)-[HAS_CERTIFICATE]->(APIGatewayClientCertificate)
     ```
+
+### ACMCertificate
+
+Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the certificate |
+| domainname | The primary domain name of the certificate |
+| status | The status of the certificate |
+| type | The source of the certificate |
+| key_algorithm | The key algorithm used |
+| signature_algorithm | The signature algorithm |
+| not_before | The time before which the certificate is invalid |
+| not_after | The time after which the certificate expires |
+| in_use_by | List of ARNs of resources that use this certificate |
+
+#### Relationships
+
+- ACM Certificates are resources under the AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ACMCertificate)
+    ```
+- ACM Certificates may be used by ELBV2Listeners.
+    ```
+    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    ```
+  Note: the AWS ACM API may return a load balancer ARN for the `in_use_by` field instead of a listener ARN. To properly map the certificate to the listener in this situation, we need to rely on data from the ELBV2 module. This is a weird quirk of the AWS API.
 
 ### APIGatewayResource
 
@@ -3273,29 +3312,6 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     ```
     (ECSTask)-[HAS_CONTAINER]->(ECSContainer)
     ```
-
-### EfsMountTarget
-Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/latest/ug/API_MountTargetDescription.html)
-| Field | Description |
-|-------|-------------|
-| **id** | System-assigned mount target ID |
-| arn | System-assigned mount target ID |
-| fileSystem_id | The ID of the file system for which the mount target is intended |
-| lifecycle_state | Lifecycle state of the mount target |
-| mount_target_id | System-assigned mount target ID |
-| subnet_id | The ID of the mount target's subnet |
-| availability_zone_id | The unique and consistent identifier of the Availability Zone that the mount target resides in |
-| availability_zone_name | The name of the Availability Zone in which the mount target is located |
-| ip_address | Address at which the file system can be mounted by using the mount target |
-| network_interface_id | The ID of the network interface that Amazon EFS created when it created the mount target |
-| owner_id | AWS account ID that owns the resource |
-| vpc_id | The virtual private cloud (VPC) ID that the mount target is configured in |
-#### Relationships
-- Efs MountTargets are a resource under the AWS Account.
-    ```
-    (AWSAccount)-[RESOURCE]->(EfsMountTarget)
-    ```
-
 ### SNSTopic
 Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
 | Field | Description |
@@ -3450,6 +3466,41 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
 - EC2Instances have SSMInstancePatches
     ```
     (EC2Instance)-[HAS_INFORMATION]->(SSMInstancePatch)
+    ```
+
+### SSMParameter
+
+Representation of an AWS Systems Manager Parameter as returned by the [`describe_parameters` API](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm/client/describe_parameters.html).
+
+| Field | Description |
+|-------|-------------|
+| **firstseen**| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The ARN of the parameter |
+| region | The region of the parameter. |
+| arn | The Amazon Resource Name (ARN) of the parameter. |
+| name | The parameter name. |
+| description | Description of the parameter actions. |
+| type | The type of parameter. Valid parameter types include String, StringList, and SecureString. |
+| keyid | The alias or ARN of the Key Management Service (KMS) key used to encrypt the parameter. Applies to SecureString parameters only. |
+| version | The parameter version. |
+| lastmodifieddate | Date the parameter was last changed or updated (stored as epoch time). |
+| tier | The parameter tier. |
+| lastmodifieduser | Amazon Resource Name (ARN) of the AWS user who last changed the parameter. |
+| datatype | The data type of the parameter, such as text or aws:ec2:image. |
+| allowedpattern | A regular expression that defines the constraints on the parameter value. |
+| policies_json | A JSON string representation of the list of policies associated with the parameter. |
+
+#### Relationships
+
+- SSMParameter is a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SSMParameter)
+    ```
+
+- SecureString SSMParameters may be encrypted by an AWS KMS Key.
+    ```
+    (SSMParameter)-[ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### AWSIdentityCenter

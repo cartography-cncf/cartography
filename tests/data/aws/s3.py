@@ -136,3 +136,8 @@ LIST_STATEMENTS = {
         },
     ),
 }
+
+GET_BUCKET_OWNERSHIP_CONTROLS = {
+    "bucket": "bucket-1",
+    "object_ownership": "BucketOwnerPreferred",
+}

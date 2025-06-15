@@ -91,16 +91,30 @@ def get_secret_versions(
 ) -> List[Dict]:
     """
     Get all versions of a secret from AWS Secrets Manager.
+
+    Note: list_secret_version_ids is not paginatable through boto3's paginator,
+    so we implement manual pagination.
     """
     client = boto3_session.client("secretsmanager", region_name=region)
-    paginator = client.get_paginator("list_secret_version_ids")
+    next_token = None
     versions = []
 
-    for page in paginator.paginate(SecretId=secret_arn, IncludeDeprecated=True):
-        for version in page["Versions"]:
+    while True:
+        params = {"SecretId": secret_arn, "IncludeDeprecated": True}
+        if next_token:
+            params["NextToken"] = next_token
+
+        response = client.list_secret_version_ids(**params)
+
+        for version in response.get("Versions", []):
             version["SecretId"] = secret_arn
             version["ARN"] = f"{secret_arn}:version:{version['VersionId']}"
-        versions.extend(page["Versions"])
+
+        versions.extend(response.get("Versions", []))
+
+        next_token = response.get("NextToken")
+        if not next_token:
+            break
 
     return versions
 
@@ -119,7 +133,7 @@ def transform_secret_versions(
             "ARN": version["ARN"],
             "SecretId": version["SecretId"],
             "VersionId": version["VersionId"],
-            "VersionStages": version["VersionStages"],
+            "VersionStages": version.get("VersionStages"),
             "CreatedDate": dict_date_to_epoch(version, "CreatedDate"),
         }
 
