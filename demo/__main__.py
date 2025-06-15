@@ -87,47 +87,36 @@ def main(force_flag: bool) -> None:
         neo4j_session.run("CALL db.awaitIndexes('600s')")
 
     # Load the demo data
-    logger.info("Loading demo data...")
-    logger.info("    loading Anthropic")
-    AnthropicSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: AWS
-    logger.info("    loading Azure")
-    AzureSeed(neo4j_session, UPDATE_TAG).run()
-    logger.info("    loading Bigfix")
-    BigfixSeed(neo4j_session, UPDATE_TAG).run()
-    logger.info("    loading Cloudflare")
-    CloudflareSeed(neo4j_session, UPDATE_TAG).run()
-    logger.info("    loading CrowdStrike")
-    CrowdsrikeSeed(neo4j_session, UPDATE_TAG).run()
-    logger.info("    loading CVE")
-    CVESeed(neo4j_session, UPDATE_TAG).run()
-    logger.info("    loading DigitalOcean")
-    DigitalOceanSeed(neo4j_session, UPDATE_TAG).run()
-    logger.info("    loading Duo")
-    DuoSeed(neo4j_session, UPDATE_TAG).run()
-    logger.info("    loading Entra")
-    EntraSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: GCP after data model migration
-    logger.info("    loading GitHub")
-    GithubSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: Gsuite after data model migration
-    # TODO: Jamf after data model migration
-    logger.info("    loading Kandji")
-    KandjiSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: Kubernetes after data model migration
-    logger.info("    loading LastPass")
-    LastpassSeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: OCI after data model migration
-    # TODO: Okta after data model migration
-    logger.info("    loading OpenAI")
-    OpenAISeed(neo4j_session, UPDATE_TAG).run()
-    # TODO: PagerDuty after data model migration
-    logger.info("    loading Semgrep")
-    SemgrepSeed(neo4j_session, UPDATE_TAG).run()
-    logger.info("    loading SnipeIT")
-    SnipeitSeed(neo4j_session, UPDATE_TAG).run()
-    logger.info("    loading Tailscale")
-    TailscaleSeed(neo4j_session, UPDATE_TAG).run()
+    import importlib
+    import pkgutil
+    import inspect
+
+    from demo import seeds
+    seed_classes: list[type] = []
+
+    for _, mod_name, _ in pkgutil.iter_modules(seeds.__path__):
+        if mod_name == "base":
+            continue
+        module = importlib.import_module(f"demo.seeds.{mod_name}")
+        for _, obj in inspect.getmembers(module, inspect.isclass):
+            # A valid seed is a concrete subclass declared inside demo.seeds.*
+            if (
+                issubclass(obj, (Seed, AsyncSeed))
+                and obj not in (Seed, AsyncSeed)
+                and obj.__module__.startswith("demo.seeds")
+            ):
+                seed_classes.append(obj)
+
+    # Preserve deterministic order for reproducibility
+    seed_classes.sort(key=lambda cls: cls.__name__)
+
+    logger.info("Loading demo data via %d seed classes...", len(seed_classes))
+    for seed_cls in seed_classes:
+        logger.info("    loading %s", seed_cls.__name__)
+        try:
+            seed_cls(neo4j_session, UPDATE_TAG).run()
+        except Exception:
+            logger.exception("Seed %s failed", seed_cls.__name__)
 
     # TODO: Analysis: blocked due to https://github.com/cartography-cncf/cartography/issues/1591
 
