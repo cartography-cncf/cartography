@@ -100,7 +100,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "sns": sns.sync,
     "sqs": sqs.sync,
     "ssm": ssm.sync,
-    "acm": acm.sync,
+    "acm:certificate": acm.sync,
     "inspector": inspector.sync,
     "config": config.sync,
     "identitycenter": identitycenter.sync_identity_center_instances,
