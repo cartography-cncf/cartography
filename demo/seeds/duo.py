@@ -19,6 +19,13 @@ API_HOSTNAME = "https://api-1234.duo.com"
 
 
 class DuoSeed(Seed):
+    @property
+    def common_job_parameters(self) -> dict:
+        return {
+            "DUO_API_HOSTNAME": API_HOSTNAME,
+            "UPDATE_TAG": self.update_tag,
+        }
+
     def seed(self, *args) -> None:
         mock_client = Mock(
             get_users=Mock(return_value=tests.data.duo.users.GET_USERS_RESPONSE),
@@ -44,68 +51,47 @@ class DuoSeed(Seed):
     def _seed_hosts(self) -> None:
         cartography.intel.duo.api_host.sync_duo_api_host(
             self.neo4j_session,
-            {
-                "DUO_API_HOSTNAME": API_HOSTNAME,
-                "UPDATE_TAG": self.update_tag,
-            },
+            self.common_job_parameters,
         )
 
     def _seed_users(self, mock_client: Mock) -> None:
         cartography.intel.duo.users.sync_duo_users(
             mock_client,
             self.neo4j_session,
-            {
-                "DUO_API_HOSTNAME": API_HOSTNAME,
-                "UPDATE_TAG": self.update_tag,
-            },
+            self.common_job_parameters,
         )
 
     def _seed_tokens(self, mock_client: Mock) -> None:
         cartography.intel.duo.tokens.sync(
             mock_client,
             self.neo4j_session,
-            {
-                "DUO_API_HOSTNAME": API_HOSTNAME,
-                "UPDATE_TAG": self.update_tag,
-            },
+            self.common_job_parameters,
         )
 
     def _seed_web_authn_credentials(self, mock_client: Mock) -> None:
         cartography.intel.duo.web_authn_credentials.sync(
             mock_client,
             self.neo4j_session,
-            {
-                "DUO_API_HOSTNAME": API_HOSTNAME,
-                "UPDATE_TAG": self.update_tag,
-            },
+            self.common_job_parameters,
         )
 
     def _seed_endpoints(self, mock_client: Mock) -> None:
         cartography.intel.duo.endpoints.sync_duo_endpoints(
             mock_client,
             self.neo4j_session,
-            {
-                "DUO_API_HOSTNAME": API_HOSTNAME,
-                "UPDATE_TAG": self.update_tag,
-            },
+            self.common_job_parameters,
         )
 
     def _seed_phones(self, mock_client: Mock) -> None:
         cartography.intel.duo.phones.sync(
             mock_client,
             self.neo4j_session,
-            {
-                "DUO_API_HOSTNAME": API_HOSTNAME,
-                "UPDATE_TAG": self.update_tag,
-            },
+            self.common_job_parameters,
         )
 
     def _seed_groups(self, mock_client: Mock) -> None:
         cartography.intel.duo.groups.sync_duo_groups(
             mock_client,
             self.neo4j_session,
-            {
-                "DUO_API_HOSTNAME": API_HOSTNAME,
-                "UPDATE_TAG": self.update_tag,
-            },
+            self.common_job_parameters,
         )

@@ -24,20 +24,29 @@ from demo.seeds.snipeit import SnipeitSeed
 from demo.seeds.tailscale import TailscaleSeed
 
 NEO4J_URL = os.environ.get("NEO4J_URL", "bolt://localhost:7687")
+NEO4J_USER = os.environ.get("NEO4J_USER")
+NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD")
+UPDATE_TAG = 0
 
 logger = logging.getLogger(__name__)
 
 
 def main(force_flag: bool) -> None:
     # Set up Neo4j connection
-    neo4j_driver = neo4j.GraphDatabase.driver(NEO4J_URL)
+    if NEO4J_USER and NEO4J_PASSWORD:
+        neo4j_driver = neo4j.GraphDatabase.driver(
+            NEO4J_URL,
+            auth=neo4j.basic_auth(NEO4J_USER, NEO4J_PASSWORD),
+        )
+    else:
+        neo4j_driver = neo4j.GraphDatabase.driver(NEO4J_URL)
     neo4j_session = neo4j_driver.session()
-
-    UPDATE_TAG = 0
 
     # Config
     config = Config(
         neo4j_uri=NEO4J_URL,
+        neo4j_user=NEO4J_USER,
+        neo4j_password=NEO4J_PASSWORD,
     )
 
     # Check if the database is empty
@@ -53,7 +62,7 @@ def main(force_flag: bool) -> None:
             )
         else:
             print(
-                "Database already contains none demo data., Are you sure you want to continue? (y/N)"
+                "Database already contains data. Are you sure you want to continue? (y/N)"
             )
             answer = input()
             if answer.lower() != "y":
@@ -68,21 +77,14 @@ def main(force_flag: bool) -> None:
     # Create indexes
     logger.info("Creating indexes...")
     create_indexes.run(neo4j_session, config)
-
-    # Create Human
-    # This is an uggly hack to create a human node for the demo.
-    # We are still working on a better way to build humans (and other abstracts nodes) on Cartography
-    logger.info("Creating human node...")
-    humans = [
-        {"email": "mbsimpson@simpson.corp"},
-        {"email": "hjsimpson@simpson.corp"},
-        {"email": "lmsimpson@simpson.corp"},
-        {"email": "bjsimpson@simpson.corp"},
-    ]
-    neo4j_session.run(
-        "UNWIND $data as item MERGE (h:Human{email: item.email})",
-        data=humans,
-    )
+    # Wait for indexes to finish building to avoid "insanely frequent schema changes"
+    # error when we immediately start writing data.
+    logger.info("Waiting for indexes to become online...")
+    try:
+        neo4j_session.run("CALL db.awaitIndexes()")
+    except neo4j.exceptions.Neo4jError:
+        # Some Neo4j versions require a timeout argument.
+        neo4j_session.run("CALL db.awaitIndexes('600s')")
 
     # Load the demo data
     logger.info("Loading demo data...")
