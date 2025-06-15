@@ -50,11 +50,12 @@ def test_get_snapshots_in_use(neo4j_session):
     assert expected_snapshots == set(actual_snapshots)
 
 
-def test_load_volumes(neo4j_session):
+def test_load_snapshots(neo4j_session):
     data = tests.data.aws.ec2.snapshots.DESCRIBE_SNAPSHOTS
+    transformed = cartography.intel.aws.ec2.snapshots.transform_snapshots(data)
     cartography.intel.aws.ec2.snapshots.load_snapshots(
         neo4j_session,
-        data,
+        transformed,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -75,7 +76,7 @@ def test_load_volumes(neo4j_session):
     assert actual_nodes == expected_nodes
 
 
-def test_load_volumes_relationships(neo4j_session):
+def test_load_snapshots_relationships(neo4j_session):
     # Create Test AWSAccount
     neo4j_session.run(
         """
@@ -89,9 +90,10 @@ def test_load_volumes_relationships(neo4j_session):
 
     # Load Test Volumes
     data = tests.data.aws.ec2.snapshots.DESCRIBE_SNAPSHOTS
+    transformed = cartography.intel.aws.ec2.snapshots.transform_snapshots(data)
     cartography.intel.aws.ec2.snapshots.load_snapshots(
         neo4j_session,
-        data,
+        transformed,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
