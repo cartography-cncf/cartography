@@ -1,27 +1,17 @@
 import argparse
+import importlib
+import inspect
 import logging
 import os
+import pkgutil
 
 import neo4j
 
 from cartography.config import Config
 from cartography.intel import create_indexes
-from demo.seeds.anthropic import AnthropicSeed
-from demo.seeds.azure import AzureSeed
-from demo.seeds.bigfix import BigfixSeed
-from demo.seeds.cloudlare import CloudflareSeed
-from demo.seeds.crowdstrike import CrowdsrikeSeed
-from demo.seeds.cve import CVESeed
-from demo.seeds.digitalocean import DigitalOceanSeed
-from demo.seeds.duo import DuoSeed
-from demo.seeds.entra import EntraSeed
-from demo.seeds.github import GithubSeed
-from demo.seeds.kandji import KandjiSeed
-from demo.seeds.lastpass import LastpassSeed
-from demo.seeds.openai import OpenAISeed
-from demo.seeds.semgrep import SemgrepSeed
-from demo.seeds.snipeit import SnipeitSeed
-from demo.seeds.tailscale import TailscaleSeed
+from demo import seeds
+from demo.seeds.base import AsyncSeed
+from demo.seeds.base import Seed
 
 NEO4J_URL = os.environ.get("NEO4J_URL", "bolt://localhost:7687")
 NEO4J_USER = os.environ.get("NEO4J_USER")
@@ -86,14 +76,8 @@ def main(force_flag: bool) -> None:
         # Some Neo4j versions require a timeout argument.
         neo4j_session.run("CALL db.awaitIndexes('600s')")
 
-    # Load the demo data
-    import importlib
-    import pkgutil
-    import inspect
-
-    from demo import seeds
+    # Load demo data
     seed_classes: list[type] = []
-
     for _, mod_name, _ in pkgutil.iter_modules(seeds.__path__):
         if mod_name == "base":
             continue
