@@ -33,6 +33,7 @@ import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
+import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.semgrep
 import cartography.intel.snipeit
@@ -70,6 +71,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
+        "ontology": cartography.intel.ontology.run,
         "analysis": cartography.intel.analysis.run,
     }
 )
@@ -197,6 +199,7 @@ class Sync:
                         intel_module_info.name,
                     )
                 available_modules[intel_module_info.name] = v
+        available_modules["ontology"] = cartography.intel.ontology.run
         available_modules["analysis"] = cartography.intel.analysis.run
         return available_modules
 
