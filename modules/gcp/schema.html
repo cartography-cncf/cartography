@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>GCP Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Github" href="../github/index.html" /><link rel="prev" title="GCP Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="GCP Schema"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Google Cloud Compute (GCP)</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">GCP Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#gcporganization">GCPOrganization</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpfolder">GCPFolder</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpproject">GCPProject</a></li>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+<li><a class="reference internal" href="#gcpbucket">GCPBucket</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpdnszone">GCPDNSZone</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#label-gcpbucketlabel">Label: GCPBucketLabel</a></li>
+<li><a class="reference internal" href="#gcpinstance">GCPInstance</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpnetworktag">GCPNetworkTag</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpvpc">GCPVpc</a><ul>
+<li><a class="reference internal" href="#id7">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpnetworkinterface">GCPNetworkInterface</a><ul>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpnicaccessconfig">GCPNicAccessConfig</a><ul>
+<li><a class="reference internal" href="#id9">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcprecordset">GCPRecordSet</a><ul>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpsubnet">GCPSubnet</a><ul>
+<li><a class="reference internal" href="#id11">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpfirewall">GCPFirewall</a><ul>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpforwardingrule">GCPForwardingRule</a><ul>
+<li><a class="reference internal" href="#id13">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gkecluster">GKECluster</a><ul>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#iprule-ippermissioninbound-gcpiprule">IpRule::IpPermissionInbound::GCPIpRule</a><ul>
+<li><a class="reference internal" href="#id15">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#iprange">IpRange</a><ul>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcpserviceaccount">GCPServiceAccount</a><ul>
+<li><a class="reference internal" href="#id17">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#gcprole">GCPRole</a><ul>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/gcp/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Google Cloud Compute (GCP)</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">GCP Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="gcp-schema">
+<h1>GCP Schema<a class="headerlink" href="#gcp-schema" title="Link to this heading">¶</a></h1>
+<section id="gcporganization">
+<h2>GCPOrganization<a class="headerlink" href="#gcporganization" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/resource-manager/reference/rest/v1/organizations">Organization</a> object.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The name of the GCP Organization, e.g. “organizations/1234”</p></td>
+</tr>
+<tr class="row-odd"><td><p>displayname</p></td>
+<td><p>The “friendly name”, e.g. “My Company”</p></td>
+</tr>
+<tr class="row-even"><td><p>lifecyclestate</p></td>
+<td><p>The organization’s current lifecycle state. Assigned by the server.  See the <a class="reference external" href="https://cloud.google.com/resource-manager/reference/rest/v1/organizations#LifecycleState">official docs</a>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPOrganizations contain GCPFolders.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPFolder</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPOrganizations can contain GCPProjects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPProjects</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpfolder">
+<h2>GCPFolder<a class="headerlink" href="#gcpfolder" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/resource-manager/reference/rest/v2/folders">Folder</a>.  An additional helpful reference is the <a class="reference external" href="https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy">Google Compute Platform resource hierarchy</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The name of the folder, e.g. “folders/1234”</p></td>
+</tr>
+<tr class="row-odd"><td><p>displayname</p></td>
+<td><p>A friendly name of the folder, e.g. “My Folder”.</p></td>
+</tr>
+<tr class="row-even"><td><p>lifecyclestate</p></td>
+<td><p>The folder’s current lifecycle state. Assigned by the server.  See the <a class="reference external" href="https://cloud.google.com/resource-manager/reference/rest/v2/folders#LifecycleState">official docs</a>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPOrganizations are parents of GCPFolders.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPOrganization</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">PARENT</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GCPFolder</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPFolders can contain GCPProjects</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPFolder</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPFolders can contain other GCPFolders.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPFolder</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPFolder</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpproject">
+<h2>GCPProject<a class="headerlink" href="#gcpproject" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/resource-manager/reference/rest/v1/projects">Project</a>.  An additional helpful reference is the <a class="reference external" href="https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy">Google Compute Platform resource hierarchy</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the project, e.g. “sys-12345”</p></td>
+</tr>
+<tr class="row-odd"><td><p>projectnumber</p></td>
+<td><p>The number uniquely identifying the project, e.g. ‘987654’</p></td>
+</tr>
+<tr class="row-even"><td><p>displayname</p></td>
+<td><p>A friendly name of the project, e.g. “MyProject”.</p></td>
+</tr>
+<tr class="row-odd"><td><p>lifecyclestate</p></td>
+<td><p>The project’s current lifecycle state. Assigned by the server.  See the <a class="reference external" href="https://cloud.google.com/resource-manager/reference/rest/v1/projects#LifecycleState">official docs</a>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id2">
+<h2>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h2>
+<ul>
+<li><p>GCPOrganizations contain GCPProjects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPProjects</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPFolders can contain GCPProjects</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPFolder</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPVpcs are part of GCPProjects</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="gcpbucket">
+<h2>GCPBucket<a class="headerlink" href="#gcpbucket" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/storage/docs/json_api/v1/buckets">Storage Bucket</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the storage bucket, e.g. “bucket-12345”</p></td>
+</tr>
+<tr class="row-odd"><td><p>projectnumber</p></td>
+<td><p>The number uniquely identifying the project associated with the storage bucket, e.g. ‘987654’</p></td>
+</tr>
+<tr class="row-even"><td><p>self_link</p></td>
+<td><p>The URI of the storage bucket</p></td>
+</tr>
+<tr class="row-odd"><td><p>kind</p></td>
+<td><p>The kind of item this is. For storage buckets, this is always storage#bucket</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The location of the bucket. Object data for objects in the bucket resides in physical storage within this region. Defaults to US. See <a class="reference external" href="https://cloud.google.com/storage/docs/locations">Cloud Storage bucket locations</a> for the authoritative list.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location_type</p></td>
+<td><p>The type of location that the bucket resides in, as determined by the <code class="docutils literal notranslate"><span class="pre">location</span></code> property</p></td>
+</tr>
+<tr class="row-even"><td><p>meta_generation</p></td>
+<td><p>The metadata generation of this bucket</p></td>
+</tr>
+<tr class="row-odd"><td><p>storage_class</p></td>
+<td><p>The bucket’s default storage class, used whenever no <code class="docutils literal notranslate"><span class="pre">storageClass</span></code> is specified for a newly-created object. For more information, see <a class="reference external" href="https://cloud.google.com/storage/docs/storage-classes">storage classes</a></p></td>
+</tr>
+<tr class="row-even"><td><p>time_created</p></td>
+<td><p>The creation time of the bucket in RFC 3339 format</p></td>
+</tr>
+<tr class="row-odd"><td><p>retention_period</p></td>
+<td><p>The period of time, in seconds, that objects in the bucket must be retained and cannot be deleted, overwritten, or archived</p></td>
+</tr>
+<tr class="row-even"><td><p>iam_config_bucket_policy_only</p></td>
+<td><p>The bucket’s <a class="reference external" href="https://cloud.google.com/storage/docs/bucket-policy-only">Bucket Policy Only</a> configuration</p></td>
+</tr>
+<tr class="row-odd"><td><p>owner_entity</p></td>
+<td><p>The entity, in the form <code class="docutils literal notranslate"><span class="pre">project-owner-projectId</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>owner_entity_id</p></td>
+<td><p>The ID for the entity</p></td>
+</tr>
+<tr class="row-odd"><td><p>versioning_enabled</p></td>
+<td><p>The bucket’s versioning configuration (if set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, versioning is fully enabled for this bucket)</p></td>
+</tr>
+<tr class="row-even"><td><p>log_bucket</p></td>
+<td><p>The destination bucket where the current bucket’s logs should be placed</p></td>
+</tr>
+<tr class="row-odd"><td><p>requester_pays</p></td>
+<td><p>The bucket’s billing configuration (if set to true, Requester Pays is enabled for this bucket)</p></td>
+</tr>
+<tr class="row-even"><td><p>default_kms_key_name</p></td>
+<td><p>A Cloud KMS key that will be used to encrypt objects inserted into this bucket, if no encryption method is specified</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPBuckets are part of GCPProjects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPBucket</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPBuckets can be labelled with GCPBucketLabels.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPBucket</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">LABELLED</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GCPBucketLabels</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpdnszone">
+<h2>GCPDNSZone<a class="headerlink" href="#gcpdnszone" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/dns/docs/reference/v1/">DNS Zone</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>created_at</p></td>
+<td><p>The date and time the zone was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>An optional description of the zone</p></td>
+</tr>
+<tr class="row-even"><td><p>dns_name</p></td>
+<td><p>The DNS name of this managed zone, for instance “example.com.”.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Unique identifier</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the zone</p></td>
+</tr>
+<tr class="row-even"><td><p>nameservers</p></td>
+<td><p>Virtual name servers the zone is delegated to</p></td>
+</tr>
+<tr class="row-odd"><td><p>visibility</p></td>
+<td><p>The zone’s visibility: <code class="docutils literal notranslate"><span class="pre">public</span></code> zones are exposed to the Internet, while <code class="docutils literal notranslate"><span class="pre">private</span></code> zones are visible only to Virtual Private Cloud resources.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GKEClusters are resources of GCPProjects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPDNSZone</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="label-gcpbucketlabel">
+<h2>Label: GCPBucketLabel<a class="headerlink" href="#label-gcpbucketlabel" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/storage/docs/key-terms#bucket-labels">Storage Bucket Label</a>.  This node contains a key-value pair.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The ID of the bucket label.  Takes the form “GCPBucketLabel_{key}.”</p></td>
+</tr>
+<tr class="row-odd"><td><p>key</p></td>
+<td><p>The key of the bucket label.</p></td>
+</tr>
+<tr class="row-even"><td><p>value</p></td>
+<td><p>The value of the bucket label.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li><p>GCPBuckets can be labeled with GCPBucketLabels.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPBucket</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">LABELED</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GCPBucketLabels</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="gcpinstance">
+<h2>GCPInstance<a class="headerlink" href="#gcpinstance" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/compute/docs/reference/rest/v1/instances">Instance</a>.  Additional references can be found in the <a class="reference external" href="https://cloud.google.com/compute/docs/concepts">official documentation</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The partial resource URI representing this instance. Has the form <code class="docutils literal notranslate"><span class="pre">projects/{project_name}/zones/{zone_name}/instances/{instance_name}</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>partial_uri</p></td>
+<td><p>Same as <code class="docutils literal notranslate"><span class="pre">id</span></code> above.</p></td>
+</tr>
+<tr class="row-even"><td><p>self_link</p></td>
+<td><p>The full resource URI representing this instance. Has the form <code class="docutils literal notranslate"><span class="pre">https://www.googleapis.com/compute/v1/{partial_uri}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>instancename</p></td>
+<td><p>The name of the instance, e.g. “my-instance”</p></td>
+</tr>
+<tr class="row-even"><td><p>zone_name</p></td>
+<td><p>The zone that the instance is installed on</p></td>
+</tr>
+<tr class="row-odd"><td><p>hostname</p></td>
+<td><p>If present, the hostname of the instance</p></td>
+</tr>
+<tr class="row-even"><td><p>exposed_internet</p></td>
+<td><p>Set to True  with <code class="docutils literal notranslate"><span class="pre">exposed_internet_type</span> <span class="pre">=</span> <span class="pre">'direct'</span></code> if there is an ‘allow’ IPRule attached to one of the instance’s ingress firewalls with the following conditions:  The ‘allow’ IpRule allows traffic from one or more TCP ports, and the ‘allow’ IpRule is not superceded by a ‘deny’ IPRule (in GCP, a firewall rule of priority 1 gets applied ahead of a firewall rule of priority 100, and ‘deny’ rules of the same priority are applied ahead of ‘allow’ rules)</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>The <a class="reference external" href="https://cloud.google.com/compute/docs/instances/instance-life-cycle">GCP Instance Lifecycle</a> state of the instance</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h3>Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPInstances are resources of GCPProjects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPNetworkInterfaces are attached to GCPInstances</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">NETWORK_INTERFACE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkInterface</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCP Instances may be members of one or more GCP VPCs.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_GCP_VPC</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>Also note that this relationship is a shortcut for:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">NETWORK_INTERFACE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GCPNetworkInterface</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">PART_OF_SUBNET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPSubnet</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCP Instances may have GCP Tags defined on them for use in <a class="reference external" href="https://cloud.google.com/blog/products/gcp/labelling-and-grouping-your-google-cloud-platform-resources">network firewall routing</a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">TAGGED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCP Firewalls allow ingress to GCP instances.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">FIREWALL_INGRESS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>Note that this relationship is a shortcut for:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">vpc</span><span class="p">:</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">MEMBER_OF_GCP_VPC</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">TAGGED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">TARGET_TAG</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">{</span><span class="n">direction</span><span class="p">:</span> <span class="s1">&#39;INGRESS&#39;</span><span class="p">})</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">vpc</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>as well as</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">MATCH</span> <span class="p">(</span><span class="n">fw</span><span class="p">:</span><span class="n">GCPFirewall</span><span class="p">{</span><span class="n">direction</span><span class="p">:</span> <span class="s1">&#39;INGRESS&#39;</span><span class="p">,</span> <span class="n">has_target_service_accounts</span><span class="p">:</span> <span class="kc">False</span><span class="p">}})</span>
+</span><span data-line="2"><span class="n">WHERE</span> <span class="n">NOT</span> <span class="p">(</span><span class="n">fw</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">TARGET_TAG</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span>
+</span><span data-line="3"><span class="n">MATCH</span> <span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF_GCP_VPC</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">fw</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpnetworktag">
+<h2>GCPNetworkTag<a class="headerlink" href="#gcpnetworktag" title="Link to this heading">¶</a></h2>
+<p>Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are defined on GCP instances for use in <a class="reference external" href="https://cloud.google.com/blog/products/gcp/labelling-and-grouping-your-google-cloud-platform-resources">network firewall routing</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>GCP doesn’t define a resource URI for Tags so we define this as <code class="docutils literal notranslate"><span class="pre">{instance</span> <span class="pre">resource</span> <span class="pre">URI}/tags/{tag</span> <span class="pre">value}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>tag_id</p></td>
+<td><p>same as <code class="docutils literal notranslate"><span class="pre">id</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>value</p></td>
+<td><p>The actual value of the tag</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCP Instances can be labeled with tags.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">TAGGED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCP Firewalls can be labeled with tags to direct traffic to or deny traffic to labeled GCPInstances</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">TARGET_TAG</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">DEFINED_IN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpvpc">
+<h2>GCPVpc<a class="headerlink" href="#gcpvpc" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/compute/docs/reference/rest/v1/networks/">VPC</a>.  In GCP documentation this is also known simply as a “Network” object.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The partial resource URI representing this VPC.  Has the form <code class="docutils literal notranslate"><span class="pre">projects/{project_name}/global/networks/{vpc</span> <span class="pre">name}</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>partial_uri</p></td>
+<td><p>Same as <code class="docutils literal notranslate"><span class="pre">id</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>self_link</p></td>
+<td><p>The full resource URI representing this VPC. Has the form <code class="docutils literal notranslate"><span class="pre">https://www.googleapis.com/compute/v1/{partial_uri}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the VPC</p></td>
+</tr>
+<tr class="row-even"><td><p>project_id</p></td>
+<td><p>The project ID that this VPC belongs to</p></td>
+</tr>
+<tr class="row-odd"><td><p>auto_create_subnetworks</p></td>
+<td><p>When set to true, the VPC network is created in “auto” mode. When set to false, the VPC network is created in “custom” mode.  An auto mode VPC network starts with one subnet per region. Each subnet has a predetermined range as described in <a class="reference external" href="https://cloud.google.com/vpc/docs/vpc#ip-ranges">Auto mode VPC network IP ranges</a>.</p></td>
+</tr>
+<tr class="row-even"><td><p>routing_confg_routing_mode</p></td>
+<td><p>The network-wide routing mode to use. If set to REGIONAL, this network’s Cloud Routers will only advertise routes with subnets of this network in the same region as the router. If set to GLOBAL, this network’s Cloud Routers will advertise routes with all subnets of this network, across regions.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>A description for the VPC</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id7">
+<h3>Relationships<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPVpcs are part of projects</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPVpcs contain GCPSubnets</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPSubnet</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPSubnets are part of GCP VPCs</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPSubnet</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">DEFINED_IN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCP Instances may be members of one or more GCP VPCs.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF_GCP_VPC</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>Also note that this relationship is a shortcut for:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">NETWORK_INTERFACE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">GCPNetworkInterface</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">PART_OF_SUBNET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPSubnet</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpnetworkinterface">
+<h2>GCPNetworkInterface<a class="headerlink" href="#gcpnetworkinterface" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP Instance’s <a class="reference external" href="https://cloud.google.com/compute/docs/reference/rest/v1/instances/list">network interface</a> (scroll down to the fields on “networkInterface”).</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>A partial resource URI representing this network interface.  Note: GCP does not define a partial resource URI for network interfaces, so we create one so we can uniquely identify GCP network interfaces.  Has the form <code class="docutils literal notranslate"><span class="pre">projects/{project_name}/zones/{zone_name}/instances/{instance_name}/networkinterfaces/{network</span> <span class="pre">interface</span> <span class="pre">name}</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>nic_id</p></td>
+<td><p>Same as <code class="docutils literal notranslate"><span class="pre">id</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the network interface</p></td>
+</tr>
+<tr class="row-odd"><td><p>private_ip</p></td>
+<td><p>The private IP address of this network interface.  This IP is valid on the network interface’s VPC.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPNetworkInterfaces are attached to GCPInstances</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">NETWORK_INTERFACE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkInterface</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPNetworkInterfaces are connected to GCPSubnets</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPNetworkInterface</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">PART_OF_SUBNET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPSubnet</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPNetworkInterfaces have GCPNicAccessConfig objects defined on them</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPNetworkInterface</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNicAccessConfig</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpnicaccessconfig">
+<h2>GCPNicAccessConfig<a class="headerlink" href="#gcpnicaccessconfig" title="Link to this heading">¶</a></h2>
+<p>Representation of the AccessConfig object on a GCP Instance’s <a class="reference external" href="https://cloud.google.com/compute/docs/reference/rest/v1/instances/list">network interface</a> (scroll down to the fields on “networkInterface”).</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>A partial resource URI representing this AccessConfig.  Note: GCP does not define a partial resource URI for AccessConfigs, so we create one so we can uniquely identify GCP network interface access configs.  Has the form <code class="docutils literal notranslate"><span class="pre">projects/{project_name}/zones/{zone_name}/instances/{instance_name}/networkinterfaces/{network</span> <span class="pre">interface</span> <span class="pre">name}/accessconfigs/{access</span> <span class="pre">config</span> <span class="pre">type}</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>partial_uri</p></td>
+<td><p>Same as <code class="docutils literal notranslate"><span class="pre">id</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of configuration. GCP docs say: “The default and only option is ONE_TO_ONE_NAT.”</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of this access configuration. The default and recommended name is External NAT, but you can use any arbitrary string, such as My external IP or Network Access.</p></td>
+</tr>
+<tr class="row-even"><td><p>public_ip</p></td>
+<td><p>The external IP associated with this instance</p></td>
+</tr>
+<tr class="row-odd"><td><p>set_public_ptr</p></td>
+<td><p>Specifies whether a public DNS ‘PTR’ record should be created to map the external IP address of the instance to a DNS domain name.</p></td>
+</tr>
+<tr class="row-even"><td><p>public_ptr_domain_name</p></td>
+<td><p>The DNS domain name for the public PTR record. You can set this field only if the setPublicPtr field is enabled.</p></td>
+</tr>
+<tr class="row-odd"><td><p>network_tier</p></td>
+<td><p>This signifies the networking tier used for configuring this access configuration and can only take the following values: PREMIUM, STANDARD.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id9">
+<h3>Relationships<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPNetworkInterfaces have GCPNicAccessConfig objects defined on them</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPNetworkInterface</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNicAccessConfig</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcprecordset">
+<h2>GCPRecordSet<a class="headerlink" href="#gcprecordset" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/dns/docs/reference/v1/">Resource Record Set</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>data</p></td>
+<td><p>Data contained in the record</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Same as <code class="docutils literal notranslate"><span class="pre">name</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the Resource Record Set</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The identifier of a supported record type. See the list of <a class="reference external" href="https://cloud.google.om/dns/docs/overview#supported_dns_record_types">Supported DNS record types</a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ttl</p></td>
+<td><p>Number of seconds that this ResourceRecordSet can be cached by resolvers.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPRecordSets are records of GCPDNSZones.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPDNSZone</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">HAS_RECORD</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPRecordSet</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpsubnet">
+<h2>GCPSubnet<a class="headerlink" href="#gcpsubnet" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks">Subnetwork</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>A partial resource URI representing this Subnet.  Has the form <code class="docutils literal notranslate"><span class="pre">projects/{project}/regions/{region}/subnetworks/{subnet</span> <span class="pre">name}</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>partial_uri</p></td>
+<td><p>Same as <code class="docutils literal notranslate"><span class="pre">id</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>self_link</p></td>
+<td><p>The full resource URI representing this subnet. Has the form <code class="docutils literal notranslate"><span class="pre">https://www.googleapis.com/compute/v1/{partial_uri}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p>The project ID that this Subnet belongs to</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of this Subnet</p></td>
+</tr>
+<tr class="row-odd"><td><p>region</p></td>
+<td><p>The region of this Subnet</p></td>
+</tr>
+<tr class="row-even"><td><p>gateway_address</p></td>
+<td><p>Gateway IP address of this Subnet</p></td>
+</tr>
+<tr class="row-odd"><td><p>ip_cidr_range</p></td>
+<td><p>The CIDR range covered by this Subnet</p></td>
+</tr>
+<tr class="row-even"><td><p>vpc_partial_uri</p></td>
+<td><p>The partial URI of the VPC that this Subnet is a part of</p></td>
+</tr>
+<tr class="row-odd"><td><p>private_ip_google_access</p></td>
+<td><p>Whether the VMs in this subnet can access Google services without assigned external IP addresses. This field can be both set at resource creation time and updated using setPrivateIpGoogleAccess.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id11">
+<h3>Relationships<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPSubnets are part of GCP VPCs</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPSubnet</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPNetworkInterfaces are connected to GCPSubnets</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPNetworkInterface</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">PART_OF_SUBNET</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPSubnet</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpfirewall">
+<h2>GCPFirewall<a class="headerlink" href="#gcpfirewall" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/list">Firewall</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>A partial resource URI representing this Firewall.</p></td>
+</tr>
+<tr class="row-odd"><td><p>partial_uri</p></td>
+<td><p>Same as <code class="docutils literal notranslate"><span class="pre">id</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>direction</p></td>
+<td><p>Either ‘INGRESS’ for inbound or ‘EGRESS’ for outbound</p></td>
+</tr>
+<tr class="row-odd"><td><p>disabled</p></td>
+<td><p>Whether this firewall object is disabled</p></td>
+</tr>
+<tr class="row-even"><td><p>priority</p></td>
+<td><p>The priority of this firewall rule from 1 (apply this first)-65535 (apply this last)</p></td>
+</tr>
+<tr class="row-odd"><td><p>self_link</p></td>
+<td><p>The full resource URI to this firewall</p></td>
+</tr>
+<tr class="row-even"><td><p>has_target_service_accounts</p></td>
+<td><p>Set to True if this Firewall has target service accounts defined. This field is currently a placeholder for future functionality to add GCP IAM objects to Cartography. If True, this firewall rule will only apply to GCP instances that use the specified target service account.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Firewalls belong to VPCs</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Firewalls define rules that allow traffic</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GcpIpRule</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ALLOWED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Firewalls define rules that deny traffic</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GcpIpRule</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">DENIED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCP Firewalls can be labeled with tags to direct traffic to or deny traffic to labeled GCPInstances</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">TARGET_TAG</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCP Firewalls allow ingress to GCP instances.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">FIREWALL_INGRESS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>Note that this relationship is a shortcut for:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">vpc</span><span class="p">:</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">MEMBER_OF_GCP_VPC</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">TAGGED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">TARGET_TAG</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">{</span><span class="n">direction</span><span class="p">:</span> <span class="s1">&#39;INGRESS&#39;</span><span class="p">})</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">vpc</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>as well as</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">MATCH</span> <span class="p">(</span><span class="n">fw</span><span class="p">:</span><span class="n">GCPFirewall</span><span class="p">{</span><span class="n">direction</span><span class="p">:</span> <span class="s1">&#39;INGRESS&#39;</span><span class="p">,</span> <span class="n">has_target_service_accounts</span><span class="p">:</span> <span class="kc">False</span><span class="p">}})</span>
+</span><span data-line="2"><span class="n">WHERE</span> <span class="n">NOT</span> <span class="p">(</span><span class="n">fw</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">TARGET_TAG</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPNetworkTag</span><span class="p">)</span>
+</span><span data-line="3"><span class="n">MATCH</span> <span class="p">(</span><span class="n">GCPInstance</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF_GCP_VPC</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">fw</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpforwardingrule">
+<h2>GCPForwardingRule<a class="headerlink" href="#gcpforwardingrule" title="Link to this heading">¶</a></h2>
+<p>Representation of GCP <a class="reference external" href="https://cloud.google.com/compute/docs/reference/rest/v1/forwardingRules/list">Forwarding Rules</a> and <a class="reference external" href="https://cloud.google.com/compute/docs/reference/rest/v1/globalForwardingRules/list">Global Forwarding Rules</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>A partial resource URI representing this Forwarding Rule</p></td>
+</tr>
+<tr class="row-odd"><td><p>partial_uri</p></td>
+<td><p>Same as <code class="docutils literal notranslate"><span class="pre">id</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>ip_address</p></td>
+<td><p>IP address that this Forwarding Rule serves</p></td>
+</tr>
+<tr class="row-odd"><td><p>ip_protocol</p></td>
+<td><p>IP protocol to which this rule applies</p></td>
+</tr>
+<tr class="row-even"><td><p>load_balancing_scheme</p></td>
+<td><p>Specifies the Forwarding Rule type</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Name of the Forwarding Rule</p></td>
+</tr>
+<tr class="row-even"><td><p>network</p></td>
+<td><p>A partial resource URI of the network this Forwarding Rule belongs to</p></td>
+</tr>
+<tr class="row-odd"><td><p>port_range</p></td>
+<td><p>Port range used in conjunction with a target resource. Only packets addressed to ports in the specified range will be forwarded to target configured</p></td>
+</tr>
+<tr class="row-even"><td><p>ports</p></td>
+<td><p>Ports to forward to a backend service. Only packets addressed to these ports are forwarded to the backend services configured</p></td>
+</tr>
+<tr class="row-odd"><td><p>project_id</p></td>
+<td><p>The project ID that this Forwarding Rule belongs to</p></td>
+</tr>
+<tr class="row-even"><td><p>region</p></td>
+<td><p>The region of this Forwarding Rule</p></td>
+</tr>
+<tr class="row-odd"><td><p>self_link</p></td>
+<td><p>Server-defined URL for the resource</p></td>
+</tr>
+<tr class="row-even"><td><p>subnetwork</p></td>
+<td><p>A partial resource URI of the subnetwork this Forwarding Rule belongs to</p></td>
+</tr>
+<tr class="row-odd"><td><p>target</p></td>
+<td><p>A partial resource URI of the target resource to receive the traffic</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id13">
+<h3>Relationships<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPForwardingRules can be a resource of a GCPVpc.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPVpc</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPForwardingRule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GCPForwardingRules can be a resource of a GCPSubnet.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPSubnet</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPForwardingRule</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gkecluster">
+<h2>GKECluster<a class="headerlink" href="#gkecluster" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/">GKE Cluster</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>basic_auth</p></td>
+<td><p>Set to <code class="docutils literal notranslate"><span class="pre">True</span></code> if both <code class="docutils literal notranslate"><span class="pre">masterauth_username</span></code> and <code class="docutils literal notranslate"><span class="pre">masterauth_password</span></code> are set</p></td>
+</tr>
+<tr class="row-odd"><td><p>created_at</p></td>
+<td><p>The date and time the cluster was created</p></td>
+</tr>
+<tr class="row-even"><td><p>cluster_ipv4cidr</p></td>
+<td><p>The IP address range of the container pods in the cluster</p></td>
+</tr>
+<tr class="row-odd"><td><p>current_master_version</p></td>
+<td><p>The current software version of the master endpoint</p></td>
+</tr>
+<tr class="row-even"><td><p>database_encryption</p></td>
+<td><p>Configuration of etcd encryption</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>An optional description of the cluster</p></td>
+</tr>
+<tr class="row-even"><td><p>endpoint</p></td>
+<td><p>The IP address of the cluster’s master endpoint. The endpoint can be accessed from the internet at <a class="reference external" href="https://username:password&#64;endpoint/">https://username:password&#64;endpoint/</a></p></td>
+</tr>
+<tr class="row-odd"><td><p>exposed_internet</p></td>
+<td><p>Set to <code class="docutils literal notranslate"><span class="pre">True</span></code> if at least among <code class="docutils literal notranslate"><span class="pre">private_nodes</span></code>, <code class="docutils literal notranslate"><span class="pre">private_endpoint_enabled</span></code>, or <code class="docutils literal notranslate"><span class="pre">master_authorized_networks</span></code> are disabled</p></td>
+</tr>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>id</strong></p></td>
+<td><p>Same as <code class="docutils literal notranslate"><span class="pre">self_link</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>initial_version</p></td>
+<td><p>The initial Kubernetes version for the cluster</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The name of the Google Compute Engine zone or region in which the cluster resides</p></td>
+</tr>
+<tr class="row-even"><td><p>logging_service</p></td>
+<td><p>The logging service used to write logs. Available options: <code class="docutils literal notranslate"><span class="pre">logging.googleapis.com/kubernetes</span></code>, <code class="docutils literal notranslate"><span class="pre">logging.googleapis.com</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>master_authorized_networks</p></td>
+<td><p>If enabled, it disallows all external traffic to access Kubernetes master through HTTPS except traffic from the given CIDR blocks, Google Compute Engine Public IPs and Google Prod IPs</p></td>
+</tr>
+<tr class="row-even"><td><p>masterauth_username</p></td>
+<td><p>The username to use for HTTP basic authentication to the master endpoint. For clusters v1.6.0 and later, basic authentication can be disabled by leaving username unspecified (or setting it to the empty string)</p></td>
+</tr>
+<tr class="row-odd"><td><p>masterauth_password</p></td>
+<td><p>The password to use for HTTP basic authentication to the master endpoint. If a password is provided for cluster creation, username must be non-empty</p></td>
+</tr>
+<tr class="row-even"><td><p>monitoring_service</p></td>
+<td><p>The monitoring service used to write metrics. Available options: <code class="docutils literal notranslate"><span class="pre">monitoring.googleapis.com/kubernetes</span></code>, <code class="docutils literal notranslate"><span class="pre">monitoring.googleapis.com</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the cluster</p></td>
+</tr>
+<tr class="row-even"><td><p>network</p></td>
+<td><p>The name of the Google Compute Engine network to which the cluster is connected</p></td>
+</tr>
+<tr class="row-odd"><td><p>network_policy</p></td>
+<td><p>Set to <code class="docutils literal notranslate"><span class="pre">True</span></code> if a network policy provider has been enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>private_endpoint_enabled</p></td>
+<td><p>Whether the master’s internal IP address is used as the cluster endpoint</p></td>
+</tr>
+<tr class="row-odd"><td><p>private_endpoint</p></td>
+<td><p>The internal IP address of the cluster’s master endpoint</p></td>
+</tr>
+<tr class="row-even"><td><p>private_nodes</p></td>
+<td><p>If enabled, all nodes are given only private addresses and communicate with the master via private networking</p></td>
+</tr>
+<tr class="row-odd"><td><p>public_endpoint</p></td>
+<td><p>The external IP address of the cluster’s master endpoint</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>self_link</strong></p></td>
+<td><p>Server-defined URL for the resource</p></td>
+</tr>
+<tr class="row-odd"><td><p>services_ipv4cidr</p></td>
+<td><p>The IP address range of the Kubernetes services in the cluster</p></td>
+</tr>
+<tr class="row-even"><td><p>shielded_nodes</p></td>
+<td><p>Whether Shielded Nodes are enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>The current status of the cluster</p></td>
+</tr>
+<tr class="row-even"><td><p>subnetwork</p></td>
+<td><p>The name of the Google Compute Engine subnetwork to which the cluster is connected</p></td>
+</tr>
+<tr class="row-odd"><td><p>zone</p></td>
+<td><p>The name of the Google Compute Engine zone in which the cluster resides</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GKEClusters are resources of GCPProjects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GKECluster</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="iprule-ippermissioninbound-gcpiprule">
+<h2>IpRule::IpPermissionInbound::GCPIpRule<a class="headerlink" href="#iprule-ippermissioninbound-gcpiprule" title="Link to this heading">¶</a></h2>
+<p>An IpPermissionInbound node is a specific type of IpRule.  It represents a generic inbound IP-based rules.  The creation of this node is currently derived from ingesting AWS <a class="reference internal" href="#ec2securitygroup"><span class="xref myst">EC2 Security Group</span></a> rules.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>ruleid</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">{firewall_partial_uri}/{rule_type}/{port_range}{protocol}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-odd"><td><p>protocol</p></td>
+<td><p>The protocol this rule applies to</p></td>
+</tr>
+<tr class="row-even"><td><p>fromport</p></td>
+<td><p>Lowest port in the range defined by this rule</p></td>
+</tr>
+<tr class="row-odd"><td><p>toport</p></td>
+<td><p>Highest port in the range defined by this rule</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id15">
+<h3>Relationships<a class="headerlink" href="#id15" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCP Firewall rules are defined on IpRange objects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPIpRule</span><span class="p">,</span> <span class="n">IpRule</span><span class="p">,</span> <span class="n">IpPermissionInbound</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">MEMBER_OF_IP_RULE</span><span class="p">)</span><span class="o">-</span><span class="p">(:</span><span class="n">IpRange</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Firewalls define rules that allow traffic</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GcpIpRule</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ALLOWED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Firewalls define rules that deny traffic</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GcpIpRule</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">DENIED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPFirewall</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="iprange">
+<h2>IpRange<a class="headerlink" href="#iprange" title="Link to this heading">¶</a></h2>
+<p>Representation of an IP range or subnet.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>CIDR notation for the IP range. E.g. “0.0.0.0/0” for the whole internet.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCP Firewall rules are defined on IpRange objects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPIpRule</span><span class="p">,</span> <span class="n">IpRule</span><span class="p">,</span> <span class="n">IpPermissionInbound</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">MEMBER_OF_IP_RULE</span><span class="p">)</span><span class="o">-</span><span class="p">(:</span><span class="n">IpRange</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcpserviceaccount">
+<h2>GCPServiceAccount<a class="headerlink" href="#gcpserviceaccount" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts">Service Account</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier for the service account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>The email address associated with the service account.</p></td>
+</tr>
+<tr class="row-even"><td><p>displayName</p></td>
+<td><p>The display name of the service account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>oauth2ClientId</p></td>
+<td><p>The OAuth2 client ID associated with the service account.</p></td>
+</tr>
+<tr class="row-even"><td><p>uniqueId</p></td>
+<td><p>The unique ID of the service account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>disabled</p></td>
+<td><p>A boolean indicating if the service account is disabled.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>The timestamp of the last update.</p></td>
+</tr>
+<tr class="row-odd"><td><p>projectId</p></td>
+<td><p>The ID of the GCP project to which the service account belongs.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id17">
+<h3>Relationships<a class="headerlink" href="#id17" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPServiceAccounts are resources of GCPProjects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPServiceAccount</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="gcprole">
+<h2>GCPRole<a class="headerlink" href="#gcprole" title="Link to this heading">¶</a></h2>
+<p>Representation of a GCP <a class="reference external" href="https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles">Role</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier for the role.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the role.</p></td>
+</tr>
+<tr class="row-even"><td><p>title</p></td>
+<td><p>The title of the role.</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>A description of the role.</p></td>
+</tr>
+<tr class="row-even"><td><p>deleted</p></td>
+<td><p>A boolean indicating if the role is deleted.</p></td>
+</tr>
+<tr class="row-odd"><td><p>etag</p></td>
+<td><p>The ETag of the role.</p></td>
+</tr>
+<tr class="row-even"><td><p>includedPermissions</p></td>
+<td><p>A list of permissions included in the role.</p></td>
+</tr>
+<tr class="row-odd"><td><p>roleType</p></td>
+<td><p>The type of the role (e.g., BASIC, PREDEFINED, CUSTOM).</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>The timestamp of the last update.</p></td>
+</tr>
+<tr class="row-odd"><td><p>projectId</p></td>
+<td><p>The ID of the GCP project to which the role belongs.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GCPRoles are resources of GCPProjects.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GCPRole</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GCPProject</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">GCP Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../github/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Github</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=e2230717"></script></body>
+</html>

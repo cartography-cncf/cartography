@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Github Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Google GSuite" href="../gsuite/index.html" /><link rel="prev" title="Github Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Github Schema"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Github</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Github Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#githubrepository">GitHubRepository</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githuborganization">GitHubOrganization</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubteam">GitHubTeam</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubuser">GitHubUser</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#githubbranch">GitHubBranch</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#programminglanguage">ProgrammingLanguage</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#dependency-pythonlibrary">Dependency::PythonLibrary</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/github/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Github</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Github Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="github-schema">
+<h1>Github Schema<a class="headerlink" href="#github-schema" title="Link to this heading">¶</a></h1>
+<pre  class="mermaid">
+        graph LR
+
+O(GitHubOrganization) -- OWNER --&gt; R(GitHubRepository)
+O -- RESOURCE --&gt; T(GitHubTeam)
+U(GitHubUser) -- MEMBER_OF --&gt; O
+U -- ADMIN_OF --&gt; O
+U -- UNAFFILIATED --&gt; O
+U -- OWNER --&gt; R
+U -- OUTSIDE_COLLAB_{ACTION} --&gt; R
+U -- DIRECT_COLLAB_{ACTION} --&gt; R
+R -- LANGUAGE --&gt; L(ProgrammingLanguage)
+R -- BRANCH --&gt; B(GitHubBranch)
+T -- {ROLE} --&gt; R
+T -- MEMBER_OF_TEAM --&gt; T
+U -- MEMBER --&gt; T
+U -- MAINTENER --&gt; T
+    </pre><section id="githubrepository">
+<h2>GitHubRepository<a class="headerlink" href="#githubrepository" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubRepository (repo) <a class="reference external" href="https://developer.github.com/v4/object/repository/">repository object</a>. This node contains all data unique to the repo.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The GitHub repo id. These are not unique across GitHub instances, so are prepended with the API URL the id applies to</p></td>
+</tr>
+<tr class="row-odd"><td><p>createdat</p></td>
+<td><p>GitHub timestamp from when the repo was created</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Name of the repo</p></td>
+</tr>
+<tr class="row-odd"><td><p>fullname</p></td>
+<td><p>Name of the organization and repo together</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>Text describing the repo</p></td>
+</tr>
+<tr class="row-odd"><td><p>primarylanguage</p></td>
+<td><p>The primary language used in the repo</p></td>
+</tr>
+<tr class="row-even"><td><p>homepage</p></td>
+<td><p>The website used as a homepage for project information</p></td>
+</tr>
+<tr class="row-odd"><td><p>defaultbranch</p></td>
+<td><p>The default branch used by the repo, typically master</p></td>
+</tr>
+<tr class="row-even"><td><p>defaultbranchid</p></td>
+<td><p>The unique identifier of the default branch</p></td>
+</tr>
+<tr class="row-odd"><td><p>private</p></td>
+<td><p>True if repo is private</p></td>
+</tr>
+<tr class="row-even"><td><p>disabled</p></td>
+<td><p>True if repo is disabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>archived</p></td>
+<td><p>True if repo is archived</p></td>
+</tr>
+<tr class="row-even"><td><p>locked</p></td>
+<td><p>True if repo is locked</p></td>
+</tr>
+<tr class="row-odd"><td><p>giturl</p></td>
+<td><p>URL used to access the repo from git commandline</p></td>
+</tr>
+<tr class="row-even"><td><p>url</p></td>
+<td><p>Web URL for viewing the repo</p></td>
+</tr>
+<tr class="row-odd"><td><p>sshurl</p></td>
+<td><p>URL for access the repo via SSH</p></td>
+</tr>
+<tr class="row-even"><td><p>updatedat</p></td>
+<td><p>GitHub timestamp for last time repo was modified</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubUsers or GitHubOrganizations own GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OWNER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OWNER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories in an organization can have <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation">outside collaborators</a> who may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">Reference</a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OUTSIDE_COLLAB_</span><span class="p">{</span><span class="n">ACTION</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories in an organization also mark all <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation">direct collaborators</a>, folks who are not necessarily ‘outside’ but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">Reference</a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DIRECT_COLLAB_</span><span class="p">{</span><span class="n">ACTION</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories use ProgrammingLanguages</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">LANGUAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">ProgrammingLanguage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories have GitHubBranches</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">BRANCH</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubBranch</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubTeams can have various levels of <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">access</a> to GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ADMIN</span><span class="o">|</span><span class="n">READ</span><span class="o">|</span><span class="n">WRITE</span><span class="o">|</span><span class="n">TRIAGE</span><span class="o">|</span><span class="n">MAINTAIN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githuborganization">
+<h2>GitHubOrganization<a class="headerlink" href="#githuborganization" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubOrganization <a class="reference external" href="https://developer.github.com/v4/object/organization/">organization object</a>. This node contains minimal data for the GitHub Organization.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The URL of the GitHub organization</p></td>
+</tr>
+<tr class="row-odd"><td><p>username</p></td>
+<td><p>Name of the organization</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubOrganizations own GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OWNER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubTeams are resources under GitHubOrganizations</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers relate to GitHubOrganizations in a few ways:</p>
+<ul>
+<li><p>Most typically, they are members of an organization.</p></li>
+<li><p>They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both <code class="docutils literal notranslate"><span class="pre">MEMBER_OF</span></code> and <code class="docutils literal notranslate"><span class="pre">ADMIN_OF</span></code>.</p></li>
+<li><p>In some cases there may be a user who is “unaffiliated” with an org, for example if the user is an enterprise owner, but not member of, the org.  <a class="reference external" href="https://docs.github.com/en/enterprise-cloud&#64;latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners">Enterprise owners</a> have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># a typical member</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># an admin member has two relationships to the org</span>
+</span><span data-line="5"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="6"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ADMIN_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="7">
+</span><span data-line="8"><span class="c1"># an unaffiliated user (e.g. an enterprise owner)</span>
+</span><span data-line="9"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">UNAFFILIATED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubteam">
+<h2>GitHubTeam<a class="headerlink" href="#githubteam" title="Link to this heading">¶</a></h2>
+<p>A GitHubTeam <a class="reference external" href="https://docs.github.com/en/graphql/reference/objects#team">organization object</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The URL of the GitHub Team</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name (a.k.a URL slug) of the GitHub Team</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>Description of the GitHub team</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubTeams can have various levels of <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">access</a> to GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ADMIN</span><span class="o">|</span><span class="n">READ</span><span class="o">|</span><span class="n">WRITE</span><span class="o">|</span><span class="n">TRIAGE</span><span class="o">|</span><span class="n">MAINTAIN</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubTeams are resources under GitHubOrganizations</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubTeams may be children of other teams:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF_TEAM</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers may be <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#teammembershiptype">‘immediate’</a> members of a team (as opposed to being members via membership in a child team), with their membership <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#teammemberrole">role</a> being MEMBER or MAINTAINER.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER</span><span class="o">|</span><span class="n">MAINTAINER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubuser">
+<h2>GitHubUser<a class="headerlink" href="#githubuser" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubUser <a class="reference external" href="https://developer.github.com/v4/object/user/">user object</a>. This node contains minimal data for the GitHub User.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The URL of the GitHub user</p></td>
+</tr>
+<tr class="row-odd"><td><p>username</p></td>
+<td><p>Name of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>fullname</p></td>
+<td><p>The full name</p></td>
+</tr>
+<tr class="row-odd"><td><p>has_2fa_enabled</p></td>
+<td><p>Whether the user has 2-factor authentication enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>is_site_admin</p></td>
+<td><p>Whether the user is a site admin</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_enterprise_owner</p></td>
+<td><p>Whether the user is an <a class="reference external" href="https://docs.github.com/en/enterprise-cloud&#64;latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners">enterprise owner</a></p></td>
+</tr>
+<tr class="row-even"><td><p>permission</p></td>
+<td><p>Only present if the user is an <a class="reference external" href="https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection">outside collaborator</a> of this repo.  <code class="docutils literal notranslate"><span class="pre">permission</span></code> is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">ref</a>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>The user’s publicly visible profile email.</p></td>
+</tr>
+<tr class="row-even"><td><p>company</p></td>
+<td><p>The user’s public profile company.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubUsers own GitHubRepositories.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">OWNER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories in an organization can have <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation">outside collaborators</a> who may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">Reference</a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OUTSIDE_COLLAB_</span><span class="p">{</span><span class="n">ACTION</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubRepositories in an organization also mark all <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation">direct collaborators</a>, folks who are not necessarily ‘outside’ but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ (<a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#repositorypermission">Reference</a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DIRECT_COLLAB_</span><span class="p">{</span><span class="n">ACTION</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers relate to GitHubOrganizations in a few ways:</p>
+<ul>
+<li><p>Most typically, they are members of an organization.</p></li>
+<li><p>They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both <code class="docutils literal notranslate"><span class="pre">MEMBER_OF</span></code> and <code class="docutils literal notranslate"><span class="pre">ADMIN_OF</span></code>.</p></li>
+<li><p>In some cases there may be a user who is “unaffiliated” with an org, for example if the user is an enterprise owner, but not member of, the org.  <a class="reference external" href="https://docs.github.com/en/enterprise-cloud&#64;latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners">Enterprise owners</a> have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># a typical member</span>
+</span><span data-line="2"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># an admin member has two relationships to the org</span>
+</span><span data-line="5"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="6"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">ADMIN_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span><span data-line="7">
+</span><span data-line="8"><span class="c1"># an unaffiliated user (e.g. an enterprise owner)</span>
+</span><span data-line="9"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">UNAFFILIATED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</li>
+<li><p>GitHubTeams may be children of other teams:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER_OF_TEAM</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>GitHubUsers may be <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#teammembershiptype">‘immediate’</a> members of a team (as opposed to being members via membership in a child team), with their membership <a class="reference external" href="https://docs.github.com/en/graphql/reference/enums#teammemberrole">role</a> being MEMBER or MAINTAINER.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubUser</span><span class="p">)</span><span class="o">-</span><span class="p">[</span><span class="n">MEMBER</span><span class="o">|</span><span class="n">MAINTAINER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">GitHubTeam</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="githubbranch">
+<h2>GitHubBranch<a class="headerlink" href="#githubbranch" title="Link to this heading">¶</a></h2>
+<p>Representation of a single GitHubBranch <a class="reference external" href="https://developer.github.com/v4/object/ref">ref object</a>. This node contains minimal data for a repository branch.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The GitHub branch id. These are not unique across GitHub instances, so are prepended with the API URL the id applies to</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Name of the branch</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubRepositories have GitHubBranches.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubBranch</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">BRANCH</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="programminglanguage">
+<h2>ProgrammingLanguage<a class="headerlink" href="#programminglanguage" title="Link to this heading">¶</a></h2>
+<p>Representation of a single Programming Language <a class="reference external" href="https://developer.github.com/v4/object/language">language object</a>. This node contains programming language information.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>Language ids need not be tracked across instances, so defaults to the name</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Name of the language</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h3>Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>GitHubRepositories use ProgrammingLanguages.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">ProgrammingLanguage</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[</span><span class="n">LANGUAGE</span><span class="p">]</span><span class="o">-</span><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="dependency-pythonlibrary">
+<h2>Dependency::PythonLibrary<a class="headerlink" href="#dependency-pythonlibrary" title="Link to this heading">¶</a></h2>
+<p>Representation of a Python library as listed in a <a class="reference external" href="https://pip.pypa.io/en/stable/user_guide/#requirements-files">requirements.txt</a>
+or <a class="reference external" href="https://setuptools.pypa.io/en/latest/userguide/declarative_config.html">setup.cfg</a> file.
+Within a setup.cfg file, cartography will load everything from <code class="docutils literal notranslate"><span class="pre">install_requires</span></code>, <code class="docutils literal notranslate"><span class="pre">setup_requires</span></code>, and <code class="docutils literal notranslate"><span class="pre">extras_require</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The <a class="reference external" href="https://packaging.pypa.io/en/latest/utils/#packaging.utils.canonicalize_name">canonicalized</a> name of the library. If the library was pinned in a requirements file using the <code class="docutils literal notranslate"><span class="pre">==</span></code> operator, then <code class="docutils literal notranslate"><span class="pre">id</span></code> has the form <code class="docutils literal notranslate"><span class="pre">{canonical</span> <span class="pre">name}|{pinned_version}</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The <a class="reference external" href="https://packaging.pypa.io/en/latest/utils/#packaging.utils.canonicalize_name">canonicalized</a> name of the library.</p></td>
+</tr>
+<tr class="row-even"><td><p>version</p></td>
+<td><p>The exact version of the library. This field is only present if the library was pinned in a requirements file using the <code class="docutils literal notranslate"><span class="pre">==</span></code> operator.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Software on Github repos can import Python libraries by optionally specifying a version number.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">REQUIRES</span><span class="p">{</span><span class="n">specifier</span><span class="p">}]</span><span class="o">-&gt;</span><span class="p">(</span><span class="n">PythonLibrary</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<ul class="simple">
+<li><p>specifier: A string describing this library’s version e.g. “&lt;4.0,&gt;=3.0” or “==1.0.2”. This field is only present on the <code class="docutils literal notranslate"><span class="pre">:REQUIRES</span></code> edge if the repo’s requirements file provided a version pin.</p></li>
+</ul>
+</li>
+<li><p>A Python Dependency is affected by a SemgrepSCAFinding (optional)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">SemgrepSCAFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">AFFECTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">PythonLibrary</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Github Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../gsuite/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Google GSuite</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=e2230717"></script>
+      <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
+      <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+      <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+      <script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
+window.addEventListener("load", () => mermaid.run());
+</script></body>
+</html>

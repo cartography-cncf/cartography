@@ -1,0 +1,3004 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Azure Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="BigFix" href="../bigfix/index.html" /><link rel="prev" title="Azure Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Azure Schema"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Microsoft Azure</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Azure Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#azuretenant">AzureTenant</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azureprincipal">AzurePrincipal</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azuresubscription">AzureSubscription</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#virtualmachine">VirtualMachine</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azuredatadisk">AzureDataDisk</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azuredisk">AzureDisk</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azuresnapshot">AzureSnapshot</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azuresqlserver">AzureSQLServer</a><ul>
+<li><a class="reference internal" href="#id7">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azureserverdnsalias">AzureServerDNSAlias</a><ul>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azureserveradadministrator">AzureServerADAdministrator</a><ul>
+<li><a class="reference internal" href="#id9">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurerecoverabledatabase">AzureRecoverableDatabase</a><ul>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurerestorabledroppeddatabase">AzureRestorableDroppedDatabase</a><ul>
+<li><a class="reference internal" href="#id11">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurefailovergroup">AzureFailoverGroup</a><ul>
+<li><a class="reference internal" href="#id12">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azureelasticpool">AzureElasticPool</a><ul>
+<li><a class="reference internal" href="#id13">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azuresqldatabase">AzureSQLDatabase</a><ul>
+<li><a class="reference internal" href="#id14">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurereplicationlink">AzureReplicationLink</a><ul>
+<li><a class="reference internal" href="#id15">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azuredatabasethreatdetectionpolicy">AzureDatabaseThreatDetectionPolicy</a><ul>
+<li><a class="reference internal" href="#id16">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurerestorepoint">AzureRestorePoint</a><ul>
+<li><a class="reference internal" href="#id17">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azuretransparentdataencryption">AzureTransparentDataEncryption</a><ul>
+<li><a class="reference internal" href="#id18">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurestorageaccount">AzureStorageAccount</a><ul>
+<li><a class="reference internal" href="#id19">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurestoragequeueservice">AzureStorageQueueService</a><ul>
+<li><a class="reference internal" href="#id20">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurestoragetableservice">AzureStorageTableService</a><ul>
+<li><a class="reference internal" href="#id21">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurestoragefileservice">AzureStorageFileService</a><ul>
+<li><a class="reference internal" href="#id22">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurestorageblobservice">AzureStorageBlobService</a><ul>
+<li><a class="reference internal" href="#id23">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurestoragequeue">AzureStorageQueue</a><ul>
+<li><a class="reference internal" href="#id24">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurestoragetable">AzureStorageTable</a><ul>
+<li><a class="reference internal" href="#id25">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurestoragefileshare">AzureStorageFileShare</a><ul>
+<li><a class="reference internal" href="#id26">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurestorageblobcontainer">AzureStorageBlobContainer</a><ul>
+<li><a class="reference internal" href="#id27">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbaccount">AzureCosmosDBAccount</a><ul>
+<li><a class="reference internal" href="#id28">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdblocation">AzureCosmosDBLocation</a><ul>
+<li><a class="reference internal" href="#id29">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbcorspolicy">AzureCosmosDBCorsPolicy</a><ul>
+<li><a class="reference internal" href="#id30">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbaccountfailoverpolicy">AzureCosmosDBAccountFailoverPolicy</a><ul>
+<li><a class="reference internal" href="#id31">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecdbprivateendpointconnection">AzureCDBPrivateEndpointConnection</a><ul>
+<li><a class="reference internal" href="#id32">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbvirtualnetworkrule">AzureCosmosDBVirtualNetworkRule</a><ul>
+<li><a class="reference internal" href="#id33">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbsqldatabase">AzureCosmosDBSqlDatabase</a><ul>
+<li><a class="reference internal" href="#id34">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbcassandrakeyspace">AzureCosmosDBCassandraKeyspace</a><ul>
+<li><a class="reference internal" href="#id35">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbmongodbdatabase">AzureCosmosDBMongoDBDatabase</a><ul>
+<li><a class="reference internal" href="#id36">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbtableresource">AzureCosmosDBTableResource</a><ul>
+<li><a class="reference internal" href="#id37">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbsqlcontainer">AzureCosmosDBSqlContainer</a><ul>
+<li><a class="reference internal" href="#id38">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbcassandratable">AzureCosmosDBCassandraTable</a><ul>
+<li><a class="reference internal" href="#id39">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#azurecosmosdbmongodbcollection">AzureCosmosDBMongoDBCollection</a><ul>
+<li><a class="reference internal" href="#id40">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/azure/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Microsoft Azure</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Azure Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="azure-schema">
+<h1>Azure Schema<a class="headerlink" href="#azure-schema" title="Link to this heading">¶</a></h1>
+<section id="azuretenant">
+<h2>AzureTenant<a class="headerlink" href="#azuretenant" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/resources/Tenants/List">Azure Tenant</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The Azure Tenant ID number</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Principal is part of the Azure Account.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureTenant)-[RESOURCE]-&gt;(AzurePrincipal)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azureprincipal">
+<h2>AzurePrincipal<a class="headerlink" href="#azureprincipal" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/graph/api/resources/user?view=graph-rest-1.0">Azure Principal</a>..</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>email</strong></p></td>
+<td><p>Email of the Azure Principal</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Principal is part of the Azure Account.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzurePrincipal)-[RESOURCE]-&gt;(AzureTenant)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azuresubscription">
+<h2>AzureSubscription<a class="headerlink" href="#azuresubscription" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/resources/subscriptions">Azure Subscription</a>..</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The Azure Subscription ID number</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The friendly name that identifies the subscription</p></td>
+</tr>
+<tr class="row-even"><td><p>path</p></td>
+<td><p>The full ID for the Subscription</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>Can be one of <code class="docutils literal notranslate"><span class="pre">Enabled</span> <span class="pre">|</span> <span class="pre">Disabled</span> <span class="pre">|</span> <span class="pre">Deleted</span> <span class="pre">|</span> <span class="pre">PastDue</span> <span class="pre">|</span> <span class="pre">Warned</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Tenant contains one or more Subscriptions.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureTenant)-[RESOURCE]-&gt;(AzureSubscription)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="virtualmachine">
+<h2>VirtualMachine<a class="headerlink" href="#virtualmachine" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines">Azure Virtual Machine</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The Azure Virtual Machine ID number</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The location where Virtual Machine is created</p></td>
+</tr>
+<tr class="row-odd"><td><p>resourcegroup</p></td>
+<td><p>The Resource Group where Virtual Machine is created</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The friendly name that identifies the Virtual Machine</p></td>
+</tr>
+<tr class="row-odd"><td><p>plan</p></td>
+<td><p>The plan associated with the Virtual Machine</p></td>
+</tr>
+<tr class="row-even"><td><p>size</p></td>
+<td><p>The size of the Virtual Machine</p></td>
+</tr>
+<tr class="row-odd"><td><p>license_type</p></td>
+<td><p>The type of license</p></td>
+</tr>
+<tr class="row-even"><td><p>computer_name</p></td>
+<td><p>The computer name</p></td>
+</tr>
+<tr class="row-odd"><td><p>identity_type</p></td>
+<td><p>The type of identity used for the virtual machine</p></td>
+</tr>
+<tr class="row-even"><td><p>zones</p></td>
+<td><p>The Virtual Machine zones</p></td>
+</tr>
+<tr class="row-odd"><td><p>ultra_ssd_enabled</p></td>
+<td><p>Enables or disables a capability on the virtual machine or virtual machine scale set.</p></td>
+</tr>
+<tr class="row-even"><td><p>priority</p></td>
+<td><p>Specifies the priority for the virtual machine</p></td>
+</tr>
+<tr class="row-odd"><td><p>eviction_policy</p></td>
+<td><p>Specifies the eviction policy for the Virtual Machine</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Subscription contains one or more Virtual Machines.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSubscription)-[RESOURCE]-&gt;(VirtualMachine)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azuredatadisk">
+<h2>AzureDataDisk<a class="headerlink" href="#azuredatadisk" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines/get#datadisk">Azure Data Disk</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The Azure Data Disk ID number</p></td>
+</tr>
+<tr class="row-odd"><td><p>lun</p></td>
+<td><p>Specifies the logical unit number of the data disk</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The data disk name</p></td>
+</tr>
+<tr class="row-odd"><td><p>vhd</p></td>
+<td><p>The virtual hard disk associated with data disk</p></td>
+</tr>
+<tr class="row-even"><td><p>image</p></td>
+<td><p>The source user image virtual hard disk</p></td>
+</tr>
+<tr class="row-odd"><td><p>size</p></td>
+<td><p>The size of the disk in GB</p></td>
+</tr>
+<tr class="row-even"><td><p>caching</p></td>
+<td><p>Specifies the caching requirement</p></td>
+</tr>
+<tr class="row-odd"><td><p>createoption</p></td>
+<td><p>Specifies how the disk should be created</p></td>
+</tr>
+<tr class="row-even"><td><p>write_accelerator_enabled</p></td>
+<td><p>Specifies whether writeAccelerator should be enabled or disabled on the data disk</p></td>
+</tr>
+<tr class="row-odd"><td><p>managed_disk_storage_type</p></td>
+<td><p>The data disk storage type</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Virtual Machines are attached to Data Disks.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (VirtualMachine)-[ATTACHED_TO]-&gt;(AzureDataDisk)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azuredisk">
+<h2>AzureDisk<a class="headerlink" href="#azuredisk" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/compute/disks">Azure Disk</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The Azure Disk ID number</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The location where Disk is created</p></td>
+</tr>
+<tr class="row-odd"><td><p>resourcegroup</p></td>
+<td><p>The Resource Group where Disk is created</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The friendly name that identifies the Disk</p></td>
+</tr>
+<tr class="row-odd"><td><p>createoption</p></td>
+<td><p>Specifies how the disk should be created</p></td>
+</tr>
+<tr class="row-even"><td><p>disksizegb</p></td>
+<td><p>The size of the disk in GB</p></td>
+</tr>
+<tr class="row-odd"><td><p>encryption</p></td>
+<td><p>Specifies whether the disk has encryption enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>maxshares</p></td>
+<td><p>Specifies how many machines can share the disk</p></td>
+</tr>
+<tr class="row-odd"><td><p>ostype</p></td>
+<td><p>The operating system type of the disk</p></td>
+</tr>
+<tr class="row-even"><td><p>tier</p></td>
+<td><p>Performance Tier associated with the disk</p></td>
+</tr>
+<tr class="row-odd"><td><p>sku</p></td>
+<td><p>The disk sku name</p></td>
+</tr>
+<tr class="row-even"><td><p>zones</p></td>
+<td><p>The logical zone list for disk</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h3>Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Subscription contains one or more Disks.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSubscription)-[RESOURCE]-&gt;(AzureDisk)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azuresnapshot">
+<h2>AzureSnapshot<a class="headerlink" href="#azuresnapshot" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/compute/snapshots">Azure Snapshot</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The Azure Snapshot ID number</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The location where snapshot is created</p></td>
+</tr>
+<tr class="row-odd"><td><p>resourcegroup</p></td>
+<td><p>The Resource Group where snapshot is created</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The friendly name that identifies the snapshot</p></td>
+</tr>
+<tr class="row-odd"><td><p>createoption</p></td>
+<td><p>Specifies how the disk should be created</p></td>
+</tr>
+<tr class="row-even"><td><p>disksizegb</p></td>
+<td><p>The size of the snapshot in GB</p></td>
+</tr>
+<tr class="row-odd"><td><p>encryption</p></td>
+<td><p>Specifies whether the snapshot has encryption enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>incremental</p></td>
+<td><p>Indicates whether a snapshot is incremental or not</p></td>
+</tr>
+<tr class="row-odd"><td><p>network_access_policy</p></td>
+<td><p>Policy for accessing the snapshot via network</p></td>
+</tr>
+<tr class="row-even"><td><p>ostype</p></td>
+<td><p>The operating system type of the snapshot</p></td>
+</tr>
+<tr class="row-odd"><td><p>tier</p></td>
+<td><p>Performance Tier associated with the snapshot</p></td>
+</tr>
+<tr class="row-even"><td><p>sku</p></td>
+<td><p>The snapshot sku name</p></td>
+</tr>
+<tr class="row-odd"><td><p>zones</p></td>
+<td><p>The logical zone list for snapshot</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Subscription contains one or more Snapshots.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSubscription)-[RESOURCE]-&gt;(AzureSnapshot)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azuresqlserver">
+<h2>AzureSQLServer<a class="headerlink" href="#azuresqlserver" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/servers">AzureSQLServer</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The location where the resource is created</p></td>
+</tr>
+<tr class="row-even"><td><p>resourcegroup</p></td>
+<td><p>The Resource Group where SQL Server is created</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The friendly name that identifies the SQL server</p></td>
+</tr>
+<tr class="row-even"><td><p>kind</p></td>
+<td><p>Specifies the kind of SQL server</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>The state of the server</p></td>
+</tr>
+<tr class="row-even"><td><p>version</p></td>
+<td><p>The version of the server</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id7">
+<h3>Relationships<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Subscription contains one or more SQL Servers.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSubscription)-[RESOURCE]-&gt;(AzureSQLServer)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Server can be used by one or more Azure Server DNS Aliases.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[USED_BY]-&gt;(AzureServerDNSAlias)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Server can be administered by one or more Azure Server AD Administrators.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[ADMINISTERED_BY]-&gt;(AzureServerADAdministrator)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Server has one or more Azure Recoverable Database.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureRecoverableDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Server has one or more Azure Restorable Dropped Database.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureRestorableDroppedDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Server has one or more Azure Failover Group.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureFailoverGroup)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Server has one or more Azure Elastic Pool.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureElasticPool)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Server has one or more Azure SQL Database.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureSQLDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azureserverdnsalias">
+<h2>AzureServerDNSAlias<a class="headerlink" href="#azureserverdnsalias" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/serverdnsaliases">AzureServerDNSAlias</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the server DNS alias</p></td>
+</tr>
+<tr class="row-even"><td><p>dnsrecord</p></td>
+<td><p>The fully qualified DNS record for alias.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Server can be used by one or more Azure Server DNS Aliases.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[USED_BY]-&gt;(AzureServerDNSAlias)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azureserveradadministrator">
+<h2>AzureServerADAdministrator<a class="headerlink" href="#azureserveradadministrator" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/serverazureadadministrators">AzureServerADAdministrator</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>administratortype</p></td>
+<td><p>The type of the server administrator.</p></td>
+</tr>
+<tr class="row-odd"><td><p>login</p></td>
+<td><p>The login name of the server administrator.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id9">
+<h3>Relationships<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Server can be administered by one or more Azure Server AD Administrators.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[ADMINISTERED_BY]-&gt;(AzureServerADAdministrator)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurerecoverabledatabase">
+<h2>AzureRecoverableDatabase<a class="headerlink" href="#azurerecoverabledatabase" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/recoverabledatabases">AzureRecoverableDatabase</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>edition</p></td>
+<td><p>The edition of the database.</p></td>
+</tr>
+<tr class="row-odd"><td><p>servicelevelobjective</p></td>
+<td><p>The service level objective name of the database.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastbackupdate</p></td>
+<td><p>The last available backup date of the database (ISO8601 format).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Server has one or more Azure Recoverable Database.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureRecoverableDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurerestorabledroppeddatabase">
+<h2>AzureRestorableDroppedDatabase<a class="headerlink" href="#azurerestorabledroppeddatabase" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/restorabledroppeddatabases">AzureRestorableDroppedDatabase</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The geo-location where the resource lives.</p></td>
+</tr>
+<tr class="row-odd"><td><p>databasename</p></td>
+<td><p>The name of the database.</p></td>
+</tr>
+<tr class="row-even"><td><p>creationdate</p></td>
+<td><p>The creation date of the database (ISO8601 format).</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletiondate</p></td>
+<td><p>The deletion date of the database (ISO8601 format).</p></td>
+</tr>
+<tr class="row-even"><td><p>restoredate</p></td>
+<td><p>The earliest restore date of the database (ISO8601 format).</p></td>
+</tr>
+<tr class="row-odd"><td><p>edition</p></td>
+<td><p>The edition of the database.</p></td>
+</tr>
+<tr class="row-even"><td><p>servicelevelobjective</p></td>
+<td><p>The service level objective name of the database.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxsizebytes</p></td>
+<td><p>The max size in bytes of the database.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id11">
+<h3>Relationships<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Server has one or more Azure Restorable Dropped Database.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureRestorableDroppedDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurefailovergroup">
+<h2>AzureFailoverGroup<a class="headerlink" href="#azurefailovergroup" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/failovergroups">AzureFailoverGroup</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The geo-location where the resource lives.</p></td>
+</tr>
+<tr class="row-odd"><td><p>replicationrole</p></td>
+<td><p>Local replication role of the failover group instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>replicationstate</p></td>
+<td><p>Replication state of the failover group instance.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id12">
+<h3>Relationships<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Server has one or more Azure Failover Group.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureFailoverGroup)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azureelasticpool">
+<h2>AzureElasticPool<a class="headerlink" href="#azureelasticpool" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/elasticpools">AzureElasticPool</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The location of the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>kind</p></td>
+<td><p>The kind of elastic pool.</p></td>
+</tr>
+<tr class="row-even"><td><p>creationdate</p></td>
+<td><p>The creation date of the elastic pool (ISO8601 format).</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>The state of the elastic pool.</p></td>
+</tr>
+<tr class="row-even"><td><p>maxsizebytes</p></td>
+<td><p>The storage limit for the database elastic pool in bytes.</p></td>
+</tr>
+<tr class="row-odd"><td><p>licensetype</p></td>
+<td><p>The license type to apply for this elastic pool.</p></td>
+</tr>
+<tr class="row-even"><td><p>zoneredundant</p></td>
+<td><p>Specifies whether or not this elastic pool is zone redundant, which means the replicas of this elastic pool will be spread across multiple availability zones.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id13">
+<h3>Relationships<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Server has one or more Azure Elastic Pool.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureElasticPool)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azuresqldatabase">
+<h2>AzureSQLDatabase<a class="headerlink" href="#azuresqldatabase" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/databases">AzureSQLDatabase</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The location of the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>kind</p></td>
+<td><p>The kind of database.</p></td>
+</tr>
+<tr class="row-even"><td><p>creationdate</p></td>
+<td><p>The creation date of the database (ISO8601 format).</p></td>
+</tr>
+<tr class="row-odd"><td><p>databaseid</p></td>
+<td><p>The ID of the database.</p></td>
+</tr>
+<tr class="row-even"><td><p>maxsizebytes</p></td>
+<td><p>The max size of the database expressed in bytes.</p></td>
+</tr>
+<tr class="row-odd"><td><p>licensetype</p></td>
+<td><p>The license type to apply for this database.</p></td>
+</tr>
+<tr class="row-even"><td><p>secondarylocation</p></td>
+<td><p>The default secondary region for this database.</p></td>
+</tr>
+<tr class="row-odd"><td><p>elasticpoolid</p></td>
+<td><p>The resource identifier of the elastic pool containing this database.</p></td>
+</tr>
+<tr class="row-even"><td><p>collation</p></td>
+<td><p>The collation of the database.</p></td>
+</tr>
+<tr class="row-odd"><td><p>failovergroupid</p></td>
+<td><p>Failover Group resource identifier that this database belongs to.</p></td>
+</tr>
+<tr class="row-even"><td><p>zoneredundant</p></td>
+<td><p>Whether or not this database is zone redundant, which means the replicas of this database will be spread across multiple availability zones.</p></td>
+</tr>
+<tr class="row-odd"><td><p>restorabledroppeddbid</p></td>
+<td><p>The resource identifier of the restorable dropped database associated with create operation of this database.</p></td>
+</tr>
+<tr class="row-even"><td><p>recoverabledbid</p></td>
+<td><p>The resource identifier of the recoverable database associated with create operation of this database.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id14">
+<h3>Relationships<a class="headerlink" href="#id14" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Server has one or more Azure SQL Database.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLServer)-[RESOURCE]-&gt;(AzureSQLDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Database contains one or more Azure Replication Links.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLDatabase)-[CONTAINS]-&gt;(AzureReplicationLink)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Database contains a Database Threat Detection Policy.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLDatabase)-[CONTAINS]-&gt;(AzureDatabaseThreatDetectionPolicy)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Database contains one or more Restore Points.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLDatabase)-[CONTAINS]-&gt;(AzureRestorePoint)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure SQL Database contains Transparent Data Encryption.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLDatabase)-[CONTAINS]-&gt;(AzureTransparentDataEncryption)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurereplicationlink">
+<h2>AzureReplicationLink<a class="headerlink" href="#azurereplicationlink" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/replicationlinks">AzureReplicationLink</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>Location of the server that contains this firewall rule.</p></td>
+</tr>
+<tr class="row-odd"><td><p>partnerdatabase</p></td>
+<td><p>The name of the partner database.</p></td>
+</tr>
+<tr class="row-even"><td><p>partnerlocation</p></td>
+<td><p>The Azure Region of the partner database.</p></td>
+</tr>
+<tr class="row-odd"><td><p>partnerrole</p></td>
+<td><p>The role of the database in the replication link.</p></td>
+</tr>
+<tr class="row-even"><td><p>partnerserver</p></td>
+<td><p>The name of the server hosting the partner database.</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>Replication mode of this replication link.</p></td>
+</tr>
+<tr class="row-even"><td><p>state</p></td>
+<td><p>The replication state for the replication link.</p></td>
+</tr>
+<tr class="row-odd"><td><p>percentcomplete</p></td>
+<td><p>The percentage of seeding complete for the replication link.</p></td>
+</tr>
+<tr class="row-even"><td><p>role</p></td>
+<td><p>The role of the database in the replication link.</p></td>
+</tr>
+<tr class="row-odd"><td><p>starttime</p></td>
+<td><p>The start time for the replication link.</p></td>
+</tr>
+<tr class="row-even"><td><p>terminationallowed</p></td>
+<td><p>Legacy value indicating whether termination is allowed.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id15">
+<h3>Relationships<a class="headerlink" href="#id15" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Database contains one or more Azure Replication Links.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLDatabase)-[CONTAINS]-&gt;(AzureReplicationLink)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azuredatabasethreatdetectionpolicy">
+<h2>AzureDatabaseThreatDetectionPolicy<a class="headerlink" href="#azuredatabasethreatdetectionpolicy" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/databasethreatdetectionpolicies">AzureDatabaseThreatDetectionPolicy</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The geo-location where the resource lives.</p></td>
+</tr>
+<tr class="row-odd"><td><p>kind</p></td>
+<td><p>The kind of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>emailadmins</p></td>
+<td><p>Specifies that the alert is sent to the account administrators.</p></td>
+</tr>
+<tr class="row-odd"><td><p>emailaddresses</p></td>
+<td><p>Specifies the semicolon-separated list of e-mail addresses to which the alert is sent.</p></td>
+</tr>
+<tr class="row-even"><td><p>retentiondays</p></td>
+<td><p>Specifies the number of days to keep in the Threat Detection audit logs.</p></td>
+</tr>
+<tr class="row-odd"><td><p>state</p></td>
+<td><p>Specifies the state of the policy.</p></td>
+</tr>
+<tr class="row-even"><td><p>storageendpoint</p></td>
+<td><p>Specifies the blob storage endpoint.</p></td>
+</tr>
+<tr class="row-odd"><td><p>useserverdefault</p></td>
+<td><p>Specifies whether to use the default server policy.</p></td>
+</tr>
+<tr class="row-even"><td><p>disabledalerts</p></td>
+<td><p>Specifies the semicolon-separated list of alerts that are disabled, or empty string to disable no alerts.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id16">
+<h3>Relationships<a class="headerlink" href="#id16" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Database contains a Database Threat Detection Policy.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLDatabase)-[CONTAINS]-&gt;(AzureDatabaseThreatDetectionPolicy)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurerestorepoint">
+<h2>AzureRestorePoint<a class="headerlink" href="#azurerestorepoint" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/restorepoints">AzureRestorePoint</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The geo-location where the resource lives.</p></td>
+</tr>
+<tr class="row-odd"><td><p>restoredate</p></td>
+<td><p>The earliest time to which this database can be restored.</p></td>
+</tr>
+<tr class="row-even"><td><p>restorepointtype</p></td>
+<td><p>The type of restore point.</p></td>
+</tr>
+<tr class="row-odd"><td><p>creationdate</p></td>
+<td><p>The time the backup was taken.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id17">
+<h3>Relationships<a class="headerlink" href="#id17" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Database contains one or more Restore Points.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLDatabase)-[CONTAINS]-&gt;(AzureRestorePoint)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azuretransparentdataencryption">
+<h2>AzureTransparentDataEncryption<a class="headerlink" href="#azuretransparentdataencryption" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/sql/transparentdataencryptions">AzureTransparentDataEncryption</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The resource ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The resource location.</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>The status of the database transparent data encryption.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id18">
+<h3>Relationships<a class="headerlink" href="#id18" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure SQL Database contains Transparent Data Encryption.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSQLDatabase)-[CONTAINS]-&gt;(AzureTransparentDataEncryption)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurestorageaccount">
+<h2>AzureStorageAccount<a class="headerlink" href="#azurestorageaccount" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/storagerp/storageaccounts">AzureStorageAccount</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource ID for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>location</p></td>
+<td><p>The geo-location where the resource lives.</p></td>
+</tr>
+<tr class="row-odd"><td><p>resourcegroup</p></td>
+<td><p>The Resource Group where the storage account is created</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>kind</p></td>
+<td><p>Gets the Kind of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>creationtime</p></td>
+<td><p>Gets the creation date and time of the storage account in UTC.</p></td>
+</tr>
+<tr class="row-odd"><td><p>hnsenabled</p></td>
+<td><p>Specifies if the Account HierarchicalNamespace is enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p>primarylocation</p></td>
+<td><p>Gets the location of the primary data center for the storage account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>secondarylocation</p></td>
+<td><p>Gets the location of the geo-replicated secondary for the storage account.</p></td>
+</tr>
+<tr class="row-even"><td><p>provisioningstate</p></td>
+<td><p>Gets the status of the storage account at the time the operation was called.</p></td>
+</tr>
+<tr class="row-odd"><td><p>statusofprimary</p></td>
+<td><p>Gets the status availability status of the primary location of the storage account.</p></td>
+</tr>
+<tr class="row-even"><td><p>statusofsecondary</p></td>
+<td><p>Gets the status availability status of the secondary location of the storage account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>supportshttpstrafficonly</p></td>
+<td><p>Allows https traffic only to storage service if sets to true.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id19">
+<h3>Relationships<a class="headerlink" href="#id19" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Subscription contains one or more Storage Accounts.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSubscription)-[RESOURCE]-&gt;(AzureStorageAccount)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Storage Accounts uses one or more Queue Services.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageAccount)-[USES]-&gt;(AzureStorageQueueService)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Storage Accounts uses one or more Table Services.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageAccount)-[USES]-&gt;(AzureStorageTableService)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Storage Accounts uses one or more File Services.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageAccount)-[USES]-&gt;(AzureStorageFileService)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Storage Accounts uses one or more Blob Services.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageAccount)-[USES]-&gt;(AzureStorageBlobService)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurestoragequeueservice">
+<h2>AzureStorageQueueService<a class="headerlink" href="#azurestoragequeueservice" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/storagerp/queueservices">AzureStorageQueueService</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource ID for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the queue service.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id20">
+<h3>Relationships<a class="headerlink" href="#id20" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Storage Accounts uses one or more Queue Services.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageAccount)-[USES]-&gt;(AzureStorageQueueService)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Queue Service contains one or more queues.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageQueueService)-[CONTAINS]-&gt;(AzureStorageQueue)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurestoragetableservice">
+<h2>AzureStorageTableService<a class="headerlink" href="#azurestoragetableservice" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/storagerp/tableservices">AzureStorageTableService</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource ID for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the table service.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id21">
+<h3>Relationships<a class="headerlink" href="#id21" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Storage Accounts uses one or more Table Services.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageAccount)-[USES]-&gt;(AzureStorageTableService)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Table Service contains one or more tables.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageTableService)-[CONTAINS]-&gt;(AzureStorageTable)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurestoragefileservice">
+<h2>AzureStorageFileService<a class="headerlink" href="#azurestoragefileservice" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/storagerp/fileservices">AzureStorageFileService</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource ID for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the file service.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id22">
+<h3>Relationships<a class="headerlink" href="#id22" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Storage Accounts uses one or more File Services.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageAccount)-[USES]-&gt;(AzureStorageFileService)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Table Service contains one or more file shares.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageFileService)-[CONTAINS]-&gt;(AzureStorageFileShare)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurestorageblobservice">
+<h2>AzureStorageBlobService<a class="headerlink" href="#azurestorageblobservice" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/storagerp/blobservices">AzureStorageBlobService</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource ID for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the blob service.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id23">
+<h3>Relationships<a class="headerlink" href="#id23" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Storage Accounts uses one or more Blob Services.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageAccount)-[USES]-&gt;(AzureStorageBlobService)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Blob Service contains one or more blob containers.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageBlobService)-[CONTAINS]-&gt;(AzureStorageBlobContainer)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurestoragequeue">
+<h2>AzureStorageQueue<a class="headerlink" href="#azurestoragequeue" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/storagerp/queue">AzureStorageQueue</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource ID for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the queue.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id24">
+<h3>Relationships<a class="headerlink" href="#id24" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Queue Service contains one or more queues.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageQueueService)-[CONTAINS]-&gt;(AzureStorageQueue)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurestoragetable">
+<h2>AzureStorageTable<a class="headerlink" href="#azurestoragetable" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/storagerp/table">AzureStorageTable</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource ID for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the table resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>tablename</p></td>
+<td><p>Table name under the specified account.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id25">
+<h3>Relationships<a class="headerlink" href="#id25" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Table Service contains one or more tables.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageTableService)-[CONTAINS]-&gt;(AzureStorageTable)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurestoragefileshare">
+<h2>AzureStorageFileShare<a class="headerlink" href="#azurestoragefileshare" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/storagerp/fileshares">AzureStorageFileShare</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource ID for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastmodifiedtime</p></td>
+<td><p>Specifies the date and time the share was last modified.</p></td>
+</tr>
+<tr class="row-even"><td><p>sharequota</p></td>
+<td><p>The maximum size of the share, in gigabytes.</p></td>
+</tr>
+<tr class="row-odd"><td><p>accesstier</p></td>
+<td><p>Specifies the access tier for the share.</p></td>
+</tr>
+<tr class="row-even"><td><p>deleted</p></td>
+<td><p>Indicates whether the share was deleted.</p></td>
+</tr>
+<tr class="row-odd"><td><p>accesstierchangetime</p></td>
+<td><p>Indicates the last modification time for share access tier.</p></td>
+</tr>
+<tr class="row-even"><td><p>accesstierstatus</p></td>
+<td><p>Indicates if there is a pending transition for access tier.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deletedtime</p></td>
+<td><p>The deleted time if the share was deleted.</p></td>
+</tr>
+<tr class="row-even"><td><p>enabledprotocols</p></td>
+<td><p>The authentication protocol that is used for the file share.</p></td>
+</tr>
+<tr class="row-odd"><td><p>remainingretentiondays</p></td>
+<td><p>Remaining retention days for share that was soft deleted.</p></td>
+</tr>
+<tr class="row-even"><td><p>shareusagebytes</p></td>
+<td><p>The approximate size of the data stored on the share.</p></td>
+</tr>
+<tr class="row-odd"><td><p>version</p></td>
+<td><p>The version of the share.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id26">
+<h3>Relationships<a class="headerlink" href="#id26" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>File Service contains one or more file shares.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageTableService)-[CONTAINS]-&gt;(AzureStorageFileShare)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurestorageblobcontainer">
+<h2>AzureStorageBlobContainer<a class="headerlink" href="#azurestorageblobcontainer" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/storagerp/blobcontainers">AzureStorageBlobContainer</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource ID for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>deleted</p></td>
+<td><p>Indicates whether the blob container was deleted.</p></td>
+</tr>
+<tr class="row-even"><td><p>deletedtime</p></td>
+<td><p>Blob container deletion time.</p></td>
+</tr>
+<tr class="row-odd"><td><p>defaultencryptionscope</p></td>
+<td><p>Default the container to use specified encryption scope for all writes.</p></td>
+</tr>
+<tr class="row-even"><td><p>publicaccess</p></td>
+<td><p>Specifies whether data in the container may be accessed publicly and the level of access.</p></td>
+</tr>
+<tr class="row-odd"><td><p>leasestatus</p></td>
+<td><p>The lease status of the container.</p></td>
+</tr>
+<tr class="row-even"><td><p>leasestate</p></td>
+<td><p>Lease state of the container.</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastmodifiedtime</p></td>
+<td><p>Specifies the date and time the container was last modified.</p></td>
+</tr>
+<tr class="row-even"><td><p>remainingretentiondays</p></td>
+<td><p>Specifies the remaining retention days for soft deleted blob container.</p></td>
+</tr>
+<tr class="row-odd"><td><p>version</p></td>
+<td><p>The version of the deleted blob container.</p></td>
+</tr>
+<tr class="row-even"><td><p>hasimmutabilitypolicy</p></td>
+<td><p>Specifies the if the container has an ImmutabilityPolicy or not.</p></td>
+</tr>
+<tr class="row-odd"><td><p>haslegalhold</p></td>
+<td><p>Specifies if the container has any legal hold tags.</p></td>
+</tr>
+<tr class="row-even"><td><p>leaseduration</p></td>
+<td><p>Specifies whether the lease on a container is of infinite or fixed duration, only when the container is leased.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id27">
+<h3>Relationships<a class="headerlink" href="#id27" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Blob Service contains one or more blob containers.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureStorageBlobService)-[CONTAINS]-&gt;(AzureStorageBlobContainer)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbaccount">
+<h2>AzureCosmosDBAccount<a class="headerlink" href="#azurecosmosdbaccount" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">AzureCosmosDBAccount</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique resource identifier of the ARM resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The location of the resource group to which the resource belongs.</p></td>
+</tr>
+<tr class="row-even"><td><p>resourcegroup</p></td>
+<td><p>The Resource Group where the database account is created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the ARM resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>kind</p></td>
+<td><p>Indicates the type of database account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>The type of Azure resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>ipranges</p></td>
+<td><p>List of IpRules.</p></td>
+</tr>
+<tr class="row-odd"><td><p>capabilities</p></td>
+<td><p>List of Cosmos DB capabilities for the account.</p></td>
+</tr>
+<tr class="row-even"><td><p>documentendpoint</p></td>
+<td><p>The connection endpoint for the Cosmos DB database account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>virtualnetworkfilterenabled</p></td>
+<td><p>Flag to indicate whether to enable/disable Virtual Network ACL rules.</p></td>
+</tr>
+<tr class="row-even"><td><p>enableautomaticfailover</p></td>
+<td><p>Enables automatic failover of the write region in the rare event that the region is unavailable due to an outage.</p></td>
+</tr>
+<tr class="row-odd"><td><p>provisioningstate</p></td>
+<td><p>The status of the Cosmos DB account at the time the operation was called.</p></td>
+</tr>
+<tr class="row-even"><td><p>multiplewritelocations</p></td>
+<td><p>Enables the account to write in multiple locations.</p></td>
+</tr>
+<tr class="row-odd"><td><p>accountoffertype</p></td>
+<td><p>The offer type for the Cosmos DB database account.</p></td>
+</tr>
+<tr class="row-even"><td><p>publicnetworkaccess</p></td>
+<td><p>Whether requests from Public Network are allowed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>enablecassandraconnector</p></td>
+<td><p>Enables the cassandra connector on the Cosmos DB C* account.</p></td>
+</tr>
+<tr class="row-even"><td><p>connectoroffer</p></td>
+<td><p>The cassandra connector offer type for the Cosmos DB database C* account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>disablekeybasedmetadatawriteaccess</p></td>
+<td><p>Disable write operations on metadata resources (databases, containers, throughput) via account keys.</p></td>
+</tr>
+<tr class="row-even"><td><p>keyvaulturi</p></td>
+<td><p>The URI of the key vault.</p></td>
+</tr>
+<tr class="row-odd"><td><p>enablefreetier</p></td>
+<td><p>Flag to indicate whether Free Tier is enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p>enableanalyticalstorage</p></td>
+<td><p>Flag to indicate whether to enable storage analytics.</p></td>
+</tr>
+<tr class="row-odd"><td><p>defaultconsistencylevel</p></td>
+<td><p>The default consistency level and configuration settings of the Cosmos DB account.</p></td>
+</tr>
+<tr class="row-even"><td><p>maxstalenessprefix</p></td>
+<td><p>When used with the Bounded Staleness consistency level, this value represents the number of stale requests tolerated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxintervalinseconds</p></td>
+<td><p>When used with the Bounded Staleness consistency level, this value represents the time amount of staleness (in seconds) tolerated.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id28">
+<h3>Relationships<a class="headerlink" href="#id28" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Subscription contains one or more database accounts.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureSubscription)-[RESOURCE]-&gt;(AzureCosmosDBAccount)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Database Account can be read from, written from and is associated with Azure CosmosDB Locations.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CAN_WRITE_FROM]-&gt;(AzureCosmosDBLocation)
+</span><span data-line="3">  ```
+</span><span data-line="4">  (AzureCosmosDBAccount)-[CAN_READ_FROM]-&gt;(AzureCosmosDBLocation)
+</span><span data-line="5">  ```
+</span><span data-line="6">  (AzureCosmosDBAccount)-[ASSOCIATED_WITH]-&gt;(AzureCosmosDBLocation)
+</span><span data-line="7">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Database Account contains one or more Cors Policy.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBCorsPolicy)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Database Account contains one or more failover policies.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBAccountFailoverPolicy)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Database Account is configured with one or more private endpoint connections.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONFIGURED_WITH]-&gt;(AzureCDBPrivateEndpointConnection)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Database Account is configured with one or more virtual network rules.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONFIGURED_WITH]-&gt;(AzureCosmosDBVirtualNetworkRule)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Database Account contains one or more SQL databases.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBSqlDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Database Account contains one or more Cassandra keyspace.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBCassandraKeyspace)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Database Account contains one or more MongoDB Database.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBMongoDBDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Azure Database Account contains one or more table resource.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBTableResource)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdblocation">
+<h2>AzureCosmosDBLocation<a class="headerlink" href="#azurecosmosdblocation" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">Azure CosmosDB Location</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique identifier of the region within the database account.</p></td>
+</tr>
+<tr class="row-odd"><td><p>locationname</p></td>
+<td><p>The name of the region.</p></td>
+</tr>
+<tr class="row-even"><td><p>documentendpoint</p></td>
+<td><p>The connection endpoint for the specific region.</p></td>
+</tr>
+<tr class="row-odd"><td><p>provisioningstate</p></td>
+<td><p>The status of the Cosmos DB account at the time the operation was called.</p></td>
+</tr>
+<tr class="row-even"><td><p>failoverpriority</p></td>
+<td><p>The failover priority of the region.</p></td>
+</tr>
+<tr class="row-odd"><td><p>iszoneredundant</p></td>
+<td><p>Flag to indicate whether or not this region is an AvailabilityZone region.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id29">
+<h3>Relationships<a class="headerlink" href="#id29" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Database Account has write permissions from, read permissions from and is associated with Azure CosmosDB Locations.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CAN_WRITE_FROM]-&gt;(AzureCosmosDBLocation)
+</span><span data-line="3">  ```
+</span><span data-line="4">  (AzureCosmosDBAccount)-[CAN_READ_FROM]-&gt;(AzureCosmosDBLocation)
+</span><span data-line="5">  ```
+</span><span data-line="6">  (AzureCosmosDBAccount)-[ASSOCIATED_WITH]-&gt;(AzureCosmosDBLocation)
+</span><span data-line="7">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbcorspolicy">
+<h2>AzureCosmosDBCorsPolicy<a class="headerlink" href="#azurecosmosdbcorspolicy" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">Azure Cosmos DB Cors Policy</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique resource identifier for Cors Policy.</p></td>
+</tr>
+<tr class="row-odd"><td><p>allowedorigins</p></td>
+<td><p>The origin domains that are permitted to make a request against the service via CORS.</p></td>
+</tr>
+<tr class="row-even"><td><p>allowedmethods</p></td>
+<td><p>The methods (HTTP request verbs) that the origin domain may use for a CORS request.</p></td>
+</tr>
+<tr class="row-odd"><td><p>allowedheaders</p></td>
+<td><p>The request headers that the origin domain may specify on the CORS request.</p></td>
+</tr>
+<tr class="row-even"><td><p>exposedheaders</p></td>
+<td><p>The response headers that may be sent in the response to the CORS request and exposed by the browser to the request issuer.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxageinseconds</p></td>
+<td><p>The maximum amount time that a browser should cache the preflight OPTIONS request.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id30">
+<h3>Relationships<a class="headerlink" href="#id30" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Database Account contains one or more Cors Policy.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBCorsPolicy)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbaccountfailoverpolicy">
+<h2>AzureCosmosDBAccountFailoverPolicy<a class="headerlink" href="#azurecosmosdbaccountfailoverpolicy" title="Link to this heading">¶</a></h2>
+<p>Representation of an Azure Database Account <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">Failover Policy</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique identifier of the region in which the database account replicates to.</p></td>
+</tr>
+<tr class="row-odd"><td><p>locationname</p></td>
+<td><p>The name of the region in which the database account exists.</p></td>
+</tr>
+<tr class="row-even"><td><p>failoverpriority</p></td>
+<td><p>The failover priority of the region. A failover priority of 0 indicates a write region.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id31">
+<h3>Relationships<a class="headerlink" href="#id31" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Database Account contains one or more failover policies.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBAccountFailoverPolicy)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecdbprivateendpointconnection">
+<h2>AzureCDBPrivateEndpointConnection<a class="headerlink" href="#azurecdbprivateendpointconnection" title="Link to this heading">¶</a></h2>
+<p>Representation of an Azure Cosmos DB <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">Private Endpoint Connection</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Fully qualified resource Id for the resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>privateendpointid</p></td>
+<td><p>Resource id of the private endpoint.</p></td>
+</tr>
+<tr class="row-odd"><td><p>status</p></td>
+<td><p>The private link service connection status.</p></td>
+</tr>
+<tr class="row-even"><td><p>actionrequired</p></td>
+<td><p>Any action that is required beyond basic workflow (approve/ reject/ disconnect).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id32">
+<h3>Relationships<a class="headerlink" href="#id32" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Database Account is configured with one or more private endpoint connections.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONFIGURED_WITH]-&gt;(AzureCDBPrivateEndpointConnection)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbvirtualnetworkrule">
+<h2>AzureCosmosDBVirtualNetworkRule<a class="headerlink" href="#azurecosmosdbvirtualnetworkrule" title="Link to this heading">¶</a></h2>
+<p>Representation of an Azure Cosmos DB <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">Virtual Network Rule</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Resource ID of a subnet.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ignoremissingvnetserviceendpoint</p></td>
+<td><p>Create firewall rule before the virtual network has vnet service endpoint enabled.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id33">
+<h3>Relationships<a class="headerlink" href="#id33" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Database Account is configured with one or more virtual network rules.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONFIGURED_WITH]-&gt;(AzureCosmosDBVirtualNetworkRule)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbsqldatabase">
+<h2>AzureCosmosDBSqlDatabase<a class="headerlink" href="#azurecosmosdbsqldatabase" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">AzureCosmosDBSqlDatabase</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique resource identifier of the ARM resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the ARM resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of Azure resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The location of the resource group to which the resource belongs.</p></td>
+</tr>
+<tr class="row-even"><td><p>throughput</p></td>
+<td><p>Value of the Cosmos DB resource throughput or autoscaleSettings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxthroughput</p></td>
+<td><p>Represents maximum throughput, the resource can scale up to.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id34">
+<h3>Relationships<a class="headerlink" href="#id34" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Database Account contains one or more SQL databases.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBSqlDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>SQL Databases contain one or more SQL containers.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBSqlDatabase)-[CONTAINS]-&gt;(AzureCosmosDBSqlContainer)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbcassandrakeyspace">
+<h2>AzureCosmosDBCassandraKeyspace<a class="headerlink" href="#azurecosmosdbcassandrakeyspace" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">AzureCosmosDBCassandraKeyspace</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique resource identifier of the ARM resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the ARM resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of Azure resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The location of the resource group to which the resource belongs.</p></td>
+</tr>
+<tr class="row-even"><td><p>throughput</p></td>
+<td><p>Value of the Cosmos DB resource throughput or autoscaleSettings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxthroughput</p></td>
+<td><p>Represents maximum throughput, the resource can scale up to.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id35">
+<h3>Relationships<a class="headerlink" href="#id35" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Database Account contains one or more Cassandra keyspace.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBCassandraKeyspace)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>Cassandra Keyspace contains one or more Cassandra tables.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBCassandraKeyspace)-[CONTAINS]-&gt;(AzureCosmosDBCassandraTable)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbmongodbdatabase">
+<h2>AzureCosmosDBMongoDBDatabase<a class="headerlink" href="#azurecosmosdbmongodbdatabase" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">AzureCosmosDBMongoDBDatabase</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique resource identifier of the ARM resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the ARM resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of Azure resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The location of the resource group to which the resource belongs.</p></td>
+</tr>
+<tr class="row-even"><td><p>throughput</p></td>
+<td><p>Value of the Cosmos DB resource throughput or autoscaleSettings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxthroughput</p></td>
+<td><p>Represents maximum throughput, the resource can scale up to.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id36">
+<h3>Relationships<a class="headerlink" href="#id36" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Database Account contains one or more MongoDB Database.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBMongoDBDatabase)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+<li><p>MongoDB database contains one or more MongoDB collections.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBMongoDBDatabase)-[CONTAINS]-&gt;(AzureCosmosDBMongoDBCollection)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbtableresource">
+<h2>AzureCosmosDBTableResource<a class="headerlink" href="#azurecosmosdbtableresource" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">AzureCosmosDBTableResource</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique resource identifier of the ARM resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the ARM resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of Azure resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The location of the resource group to which the resource belongs.</p></td>
+</tr>
+<tr class="row-even"><td><p>throughput</p></td>
+<td><p>Value of the Cosmos DB resource throughput or autoscaleSettings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxthroughput</p></td>
+<td><p>Represents maximum throughput, the resource can scale up to.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id37">
+<h3>Relationships<a class="headerlink" href="#id37" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Azure Database Account contains one or more table resource.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBAccount)-[CONTAINS]-&gt;(AzureCosmosDBTableResource)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbsqlcontainer">
+<h2>AzureCosmosDBSqlContainer<a class="headerlink" href="#azurecosmosdbsqlcontainer" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">AzureCosmosDBSqlContainer</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique resource identifier of the ARM resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the ARM resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of Azure resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The location of the resource group to which the resource belongs.</p></td>
+</tr>
+<tr class="row-even"><td><p>throughput</p></td>
+<td><p>Value of the Cosmos DB resource throughput or autoscaleSettings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxthroughput</p></td>
+<td><p>Represents maximum throughput, the resource can scale up to.</p></td>
+</tr>
+<tr class="row-even"><td><p>container</p></td>
+<td><p>Name of the Cosmos DB SQL container.</p></td>
+</tr>
+<tr class="row-odd"><td><p>defaultttl</p></td>
+<td><p>Default time to live.</p></td>
+</tr>
+<tr class="row-even"><td><p>analyticalttl</p></td>
+<td><p>Specifies the Analytical TTL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>isautomaticindexingpolicy</p></td>
+<td><p>Indicates if the indexing policy is automatic.</p></td>
+</tr>
+<tr class="row-even"><td><p>indexingmode</p></td>
+<td><p>Indicates the indexing mode.</p></td>
+</tr>
+<tr class="row-odd"><td><p>conflictresolutionpolicymode</p></td>
+<td><p>Indicates the conflict resolution mode.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id38">
+<h3>Relationships<a class="headerlink" href="#id38" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>SQL Databases contain one or more SQL containers.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBSqlDatabase)-[CONTAINS]-&gt;(AzureCosmosDBSqlContainer)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbcassandratable">
+<h2>AzureCosmosDBCassandraTable<a class="headerlink" href="#azurecosmosdbcassandratable" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">AzureCosmosDBCassandraTable</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique resource identifier of the ARM resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the ARM resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of Azure resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The location of the resource group to which the resource belongs.</p></td>
+</tr>
+<tr class="row-even"><td><p>throughput</p></td>
+<td><p>Value of the Cosmos DB resource throughput or autoscaleSettings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxthroughput</p></td>
+<td><p>Represents maximum throughput, the resource can scale up to.</p></td>
+</tr>
+<tr class="row-even"><td><p>container</p></td>
+<td><p>Name of the Cosmos DB Cassandra table.</p></td>
+</tr>
+<tr class="row-odd"><td><p>defaultttl</p></td>
+<td><p>Time to live of the Cosmos DB Cassandra table.</p></td>
+</tr>
+<tr class="row-even"><td><p>analyticalttl</p></td>
+<td><p>Specifies the Analytical TTL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id39">
+<h3>Relationships<a class="headerlink" href="#id39" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Cassandra Keyspace contains one or more Cassandra tables.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBCassandraKeyspace)-[CONTAINS]-&gt;(AzureCosmosDBCassandraTable)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="azurecosmosdbmongodbcollection">
+<h2>AzureCosmosDBMongoDBCollection<a class="headerlink" href="#azurecosmosdbmongodbcollection" title="Link to this heading">¶</a></h2>
+<p>Representation of an <a class="reference external" href="https://docs.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/">AzureCosmosDBMongoDBCollection</a>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job discovered this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique resource identifier of the ARM resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the ARM resource.</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of Azure resource.</p></td>
+</tr>
+<tr class="row-odd"><td><p>location</p></td>
+<td><p>The location of the resource group to which the resource belongs.</p></td>
+</tr>
+<tr class="row-even"><td><p>throughput</p></td>
+<td><p>Value of the Cosmos DB resource throughput or autoscaleSettings.</p></td>
+</tr>
+<tr class="row-odd"><td><p>maxthroughput</p></td>
+<td><p>Represents maximum throughput, the resource can scale up to.</p></td>
+</tr>
+<tr class="row-even"><td><p>collectionname</p></td>
+<td><p>Name of the Cosmos DB MongoDB collection.</p></td>
+</tr>
+<tr class="row-odd"><td><p>analyticalttl</p></td>
+<td><p>Specifies the Analytical TTL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id40">
+<h3>Relationships<a class="headerlink" href="#id40" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>MongoDB database contains one or more MongoDB collections.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">  ```
+</span><span data-line="2">  (AzureCosmosDBMongoDBDatabase)-[CONTAINS]-&gt;(AzureCosmosDBMongoDBCollection)
+</span><span data-line="3">  ```
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Azure Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../bigfix/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">BigFix</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=e2230717"></script></body>
+</html>

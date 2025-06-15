@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Sample queries - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Cartography Schema" href="schema.html" /><link rel="prev" title="Building around Cartography" href="applications.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=397bb51e" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=c516b45e" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Sample queries"/>
+<meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="HeadNav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="HeadNav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2 -translate-x-2"></span>
+          <span class="hamburger_3 -translate-x-1"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Usage</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="applications.html">Building around Cartography</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema.html">Cartography Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Compute (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#which-aws-iam-roles-have-admin-permissions-in-my-accounts">Which AWS IAM roles have admin permissions in my accounts?</a></li>
+<li><a class="reference internal" href="#which-aws-iam-roles-in-my-environment-have-the-ability-to-delete-policies">Which AWS IAM roles in my environment have the ability to delete policies?</a></li>
+<li><a class="reference internal" href="#which-aws-iam-roles-in-my-environment-have-an-action-that-contains-the-word-create">Which AWS IAM roles in my environment have an action that contains the word &#8220;create&#8221;?</a></li>
+<li><a class="reference internal" href="#what-rds-instances-are-installed-in-my-aws-accounts">What RDS instances are installed in my AWS accounts?</a></li>
+<li><a class="reference internal" href="#which-rds-instances-have-encryption-turned-off">Which RDS instances have encryption turned off?</a></li>
+<li><a class="reference internal" href="#which-ec2-instances-are-exposed-directly-or-indirectly-to-the-internet">Which EC2 instances are exposed (directly or indirectly) to the internet?</a></li>
+<li><a class="reference internal" href="#which-open-ports-are-internet-accesible-from-securitygroups">Which open ports are internet accesible from SecurityGroups</a></li>
+<li><a class="reference internal" href="#which-elb-loadbalancers-are-internet-accessible">Which ELB LoadBalancers are internet accessible?</a></li>
+<li><a class="reference internal" href="#which-elbv2-loadbalancerv2s-application-load-balancers-are-internet-accessible">Which ELBv2 LoadBalancerV2s (Application Load Balancers) are internet accessible?</a></li>
+<li><a class="reference internal" href="#which-open-ports-are-internet-accesible-from-elb-or-elbv2">Which open ports are internet accesible from ELB or ELBv2?</a></li>
+<li><a class="reference internal" href="#find-everything-about-an-ip-address">Find everything about an IP Address</a></li>
+<li><a class="reference internal" href="#which-s3-buckets-have-a-policy-granting-any-level-of-anonymous-access-to-the-bucket">Which S3 buckets have a policy granting any level of anonymous access to the bucket?</a></li>
+<li><a class="reference internal" href="#how-many-unencrypted-rds-instances-do-i-have-in-all-my-aws-accounts">How many unencrypted RDS instances do I have in all my AWS accounts?</a></li>
+<li><a class="reference internal" href="#what-languages-are-used-in-a-given-github-repository">What languages are used in a given GitHub repository?</a></li>
+<li><a class="reference internal" href="#what-are-the-dependencies-used-in-a-given-github-repository">What are the dependencies used in a given GitHub repository?</a></li>
+<li><a class="reference internal" href="#given-a-dependency-which-github-repos-depend-on-it">Given a dependency, which GitHub repos depend on it?</a></li>
+<li><a class="reference internal" href="#what-are-all-the-dependencies-used-across-all-github-repos">What are all the dependencies used across all GitHub repos?</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    <span>cartography-cncf/cartography</span>
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/usage/samplequeries.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6"><div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Usage</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Sample queries</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="sample-queries">
+<h1>Sample queries<a class="headerlink" href="#sample-queries" title="Link to this heading">¶</a></h1>
+<p>Note: you might want to add <code class="docutils literal notranslate"><span class="pre">LIMIT</span> <span class="pre">30</span></code> at the end of these queries to make sure they RETURN
+quickly in case you have a large graph.</p>
+<section id="which-aws-iam-roles-have-admin-permissions-in-my-accounts">
+<h2>Which AWS IAM roles have admin permissions in my accounts?<a class="headerlink" href="#which-aws-iam-roles-have-admin-permissions-in-my-accounts" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span>
+</span><span data-line="3"><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&#39;*&#39;</span><span class="p">)</span>
+</span><span data-line="4"><span class="k">RETURN</span><span class="w"> </span><span class="p">*</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28stmt%3AAWSPolicyStatement%29--%28pol%3AAWSPolicy%29--%28principal%3AAWSPrincipal%29--%28a%3AAWSAccount%29%0AWHERE%20stmt.effect%20%3D%20%22Allow%22%0AAND%20any%28x%20IN%20stmt.action%20WHERE%20x%20%3D%20%27%2A%27%29%0ARETURN%20%2A">test it locally</a></p>
+</section>
+<section id="which-aws-iam-roles-in-my-environment-have-the-ability-to-delete-policies">
+<h2>Which AWS IAM roles in my environment have the ability to delete policies?<a class="headerlink" href="#which-aws-iam-roles-in-my-environment-have-the-ability-to-delete-policies" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">acc</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span>
+</span><span data-line="3"><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="p">=</span><span class="s">&quot;iam:DeletePolicy&quot;</span><span class="w"> </span><span class="p">)</span>
+</span><span data-line="4"><span class="k">RETURN</span><span class="w"> </span><span class="p">*</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28stmt%3AAWSPolicyStatement%29--%28pol%3AAWSPolicy%29--%28principal%3AAWSPrincipal%29--%28acc%3AAWSAccount%29%0AWHERE%20stmt.effect%20%3D%20%22Allow%22%0AAND%20any%28x%20IN%20stmt.action%20WHERE%20x%3D%22iam%3ADeletePolicy%22%20%29%0ARETURN%20%2A">test it locally</a></p>
+<p>Note: can replace “<code class="docutils literal notranslate"><span class="pre">iam:DeletePolicy</span></code>” to search for other IAM actions.</p>
+</section>
+<section id="which-aws-iam-roles-in-my-environment-have-an-action-that-contains-the-word-create">
+<h2>Which AWS IAM roles in my environment have an action that contains the word “create”?<a class="headerlink" href="#which-aws-iam-roles-in-my-environment-have-an-action-that-contains-the-word-create" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">acc</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span>
+</span><span data-line="3"><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">toLower</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="n">contains</span><span class="w"> </span><span class="s">&quot;create&quot;</span><span class="p">)</span>
+</span><span data-line="4"><span class="k">RETURN</span><span class="w"> </span><span class="p">*</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28stmt%3AAWSPolicyStatement%29--%28pol%3AAWSPolicy%29--%28principal%3AAWSPrincipal%29--%28acc%3AAWSAccount%29%0AWHERE%20stmt.effect%20%3D%20%22Allow%22%0AAND%20any%28x%20IN%20stmt.action%20WHERE%20toLower%28x%29%20contains%20%22create%22%29%0ARETURN%20%2A">test it locally</a></p>
+</section>
+<section id="what-rds-instances-are-installed-in-my-aws-accounts">
+<h2>What <a class="reference external" href="https://aws.amazon.com/rds/">RDS</a> instances are installed in my <a class="reference external" href="https://aws.amazon.com/">AWS</a> accounts?<a class="headerlink" href="#what-rds-instances-are-installed-in-my-aws-accounts" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">aws</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="o">-[</span><span class="n">r</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">rds</span><span class="p">:</span><span class="n">RDSInstance</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="p">*</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28aws%3AAWSAccount%29-%5Br%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%29%0ARETURN%20%2A">test it locally</a></p>
+</section>
+<section id="which-rds-instances-have-encryption-turned-off">
+<h2>Which RDS instances have <a class="reference external" href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html">encryption</a> turned off?<a class="headerlink" href="#which-rds-instances-have-encryption-turned-off" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">rds</span><span class="p">:</span><span class="n">RDSInstance</span><span class="p">{</span><span class="n">storage_encrypted</span><span class="p">:</span><span class="k">false</span><span class="p">})</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">rds</span><span class="p">.</span><span class="n">id</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28a%3AAWSAccount%29-%5B%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%7Bstorage_encrypted%3Afalse%7D%29%0ARETURN%20a.name%2C%20rds.id">test it locally</a></p>
+</section>
+<section id="which-ec2-instances-are-exposed-directly-or-indirectly-to-the-internet">
+<h2>Which <a class="reference external" href="https://aws.amazon.com/ec2/">EC2</a> instances are exposed (directly or indirectly) to the internet?<a class="headerlink" href="#which-ec2-instances-are-exposed-directly-or-indirectly-to-the-internet" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">instance</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">{</span><span class="n">exposed_internet</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">})</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">instanceid</span><span class="p">,</span><span class="w"> </span><span class="n">instance</span><span class="p">.</span><span class="n">publicdnsname</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28instance%3AEC2Instance%7Bexposed_internet%3A%20true%7D%29%0ARETURN%20instance.instanceid%2C%20instance.publicdnsname">test it locally</a></p>
+</section>
+<section id="which-open-ports-are-internet-accesible-from-securitygroups">
+<h2>Which open ports are internet accesible from <a class="reference external" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-security-groups.html">SecurityGroups</a><a class="headerlink" href="#which-open-ports-are-internet-accesible-from-securitygroups" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="w">    </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">open</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">sg</span><span class="p">:</span><span class="n">EC2SecurityGroup</span><span class="p">)</span>
+</span><span data-line="2"><span class="w">    </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">sg</span><span class="p">)</span><span class="o">&lt;-[</span><span class="p">:</span><span class="n">MEMBER_OF_EC2_SECURITY_GROUP</span><span class="o">]-</span><span class="p">(</span><span class="n">ipi</span><span class="p">:</span><span class="n">IpPermissionInbound</span><span class="p">)</span>
+</span><span data-line="3"><span class="w">    </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">ipi</span><span class="p">)</span><span class="o">&lt;--</span><span class="p">(</span><span class="n">ir</span><span class="p">:</span><span class="n">IpRange</span><span class="p">)</span>
+</span><span data-line="4"><span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">ir</span><span class="p">.</span><span class="n">range</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;0.0.0.0/0&quot;</span>
+</span><span data-line="5"><span class="w">    </span><span class="k">OPTIONAL</span><span class="w"> </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">dns</span><span class="p">:</span><span class="n">AWSDNSRecord</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">DNS_POINTS_TO</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">lb</span><span class="p">)</span>
+</span><span data-line="6"><span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">open</span><span class="p">.</span><span class="n">scheme</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;internet-facing&quot;</span>
+</span><span data-line="7"><span class="w">    </span><span class="k">RETURN</span><span class="w"> </span><span class="k">DISTINCT</span><span class="w"> </span><span class="n">ipi</span><span class="p">.</span><span class="n">toport</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">port</span><span class="p">,</span><span class="w"> </span><span class="n">open</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">sg</span><span class="p">.</span><span class="n">id</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28open%29-%5B%3AMEMBER_OF_EC2_SECURITY_GROUP%5D-%3E%28sg%3AEC2SecurityGroup%29%0A%20%20%20%20MATCH%20%28sg%29%3C-%5B%3AMEMBER_OF_EC2_SECURITY_GROUP%5D-%28ipi%3AIpPermissionInbound%29%0A%20%20%20%20MATCH%20%28ipi%29%3C--%28ir%3AIpRange%29%0A%20%20%20%20WHERE%20ir.range%20%3D%20%220.0.0.0%2F0%22%0A%20%20%20%20OPTIONAL%20MATCH%20%28dns%3AAWSDNSRecord%29-%5B%3ADNS_POINTS_TO%5D-%3E%28lb%29%0A%20%20%20%20WHERE%20open.scheme%20%3D%20%22internet-facing%22%0A%20%20%20%20RETURN%20DISTINCT%20ipi.toport%20as%20port%2C%20open.id%2C%20sg.id">test it locally</a></p>
+</section>
+<section id="which-elb-loadbalancers-are-internet-accessible">
+<h2>Which <a class="reference external" href="https://aws.amazon.com/elasticloadbalancing/">ELB</a> LoadBalancers are internet accessible?<a class="headerlink" href="#which-elb-loadbalancers-are-internet-accessible" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">elb</span><span class="p">:</span><span class="n">LoadBalancer</span><span class="p">{</span><span class="n">exposed_internet</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">})</span><span class="err">—-</span><span class="p">&gt;(</span><span class="n">listener</span><span class="p">:</span><span class="n">ELBListener</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">elb</span><span class="p">.</span><span class="n">dnsname</span><span class="p">,</span><span class="w"> </span><span class="n">listener</span><span class="p">.</span><span class="n">port</span>
+</span><span data-line="3"><span class="k">ORDER</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">elb</span><span class="p">.</span><span class="n">dnsname</span><span class="p">,</span><span class="w"> </span><span class="n">listener</span><span class="p">.</span><span class="n">port</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28elb%3ALoadBalancer%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBListener%29%0ARETURN%20elb.dnsname%2C%20listener.port%0AORDER%20by%20elb.dnsname%2C%20listener.port">test it locally</a></p>
+</section>
+<section id="which-elbv2-loadbalancerv2s-application-load-balancers-are-internet-accessible">
+<h2>Which <a class="reference external" href="https://aws.amazon.com/elasticloadbalancing/">ELBv2</a> LoadBalancerV2s (Application Load Balancers) are internet accessible?<a class="headerlink" href="#which-elbv2-loadbalancerv2s-application-load-balancers-are-internet-accessible" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">elbv2</span><span class="p">:</span><span class="n">LoadBalancerV2</span><span class="p">{</span><span class="n">exposed_internet</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">})</span><span class="err">—-</span><span class="p">&gt;(</span><span class="n">listener</span><span class="p">:</span><span class="n">ELBV2Listener</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">elbv2</span><span class="p">.</span><span class="n">dnsname</span><span class="p">,</span><span class="w"> </span><span class="n">listener</span><span class="p">.</span><span class="n">port</span>
+</span><span data-line="3"><span class="k">ORDER</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">elbv2</span><span class="p">.</span><span class="n">dnsname</span><span class="p">,</span><span class="w"> </span><span class="n">listener</span><span class="p">.</span><span class="n">port</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28elbv2%3ALoadBalancerV2%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBV2Listener%29%0ARETURN%20elbv2.dnsname%2C%20listener.port%0AORDER%20by%20elbv2.dnsname%2C%20listener.port">test it locally</a></p>
+</section>
+<section id="which-open-ports-are-internet-accesible-from-elb-or-elbv2">
+<h2>Which open ports are internet accesible from ELB or ELBv2?<a class="headerlink" href="#which-open-ports-are-internet-accesible-from-elb-or-elbv2" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="w">    </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">elb</span><span class="p">:</span><span class="n">LoadBalancer</span><span class="p">{</span><span class="n">exposed_internet</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">})</span><span class="err">—-</span><span class="p">&gt;(</span><span class="n">listener</span><span class="p">:</span><span class="n">ELBListener</span><span class="p">)</span>
+</span><span data-line="2"><span class="w">    </span><span class="k">RETURN</span><span class="w"> </span><span class="k">DISTINCT</span><span class="w"> </span><span class="n">elb</span><span class="p">.</span><span class="n">dnsname</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">dnsname</span><span class="p">,</span><span class="w"> </span><span class="n">listener</span><span class="p">.</span><span class="n">port</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">port</span>
+</span><span data-line="3"><span class="w">    </span><span class="k">UNION</span>
+</span><span data-line="4"><span class="w">    </span><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">lb</span><span class="p">:</span><span class="n">LoadBalancerV2</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">ELBV2_LISTENER</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">l</span><span class="p">:</span><span class="n">ELBV2Listener</span><span class="p">)</span>
+</span><span data-line="5"><span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">lb</span><span class="p">.</span><span class="n">scheme</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;internet-facing&quot;</span>
+</span><span data-line="6"><span class="w">    </span><span class="k">RETURN</span><span class="w"> </span><span class="k">DISTINCT</span><span class="w"> </span><span class="n">lb</span><span class="p">.</span><span class="n">dnsname</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">dnsname</span><span class="p">,</span><span class="w"> </span><span class="n">l</span><span class="p">.</span><span class="n">port</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">port</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28elb%3ALoadBalancer%7Bexposed_internet%3A%20true%7D%29%E2%80%94-%3E%28listener%3AELBListener%29%0A%20%20%20%20RETURN%20DISTINCT%20elb.dnsname%20as%20dnsname%2C%20listener.port%20as%20port%20%0A%20%20%20%20UNION%0A%20%20%20%20MATCH%20%28lb%3ALoadBalancerV2%29-%5B%3AELBV2_LISTENER%5D-%3E%28l%3AELBV2Listener%29%0A%20%20%20%20WHERE%20lb.scheme%20%3D%20%22internet-facing%22%0A%20%20%20%20RETURN%20DISTINCT%20lb.dnsname%20as%20dnsname%2C%20l.port%20as%20port">test it locally</a></p>
+</section>
+<section id="find-everything-about-an-ip-address">
+<h2>Find everything about an IP Address<a class="headerlink" href="#find-everything-about-an-ip-address" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="p">:</span><span class="n">EC2PrivateIp</span><span class="p">)</span><span class="o">-[</span><span class="n">r</span><span class="o">]-</span><span class="p">(</span><span class="n">n2</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">public_ip</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="err">$</span><span class="n">neodash_ip</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">,</span><span class="w"> </span><span class="n">n2</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="k">UNION</span><span class="w"> </span><span class="k">MATCH</span><span class="p">(</span><span class="n">n</span><span class="p">:</span><span class="n">EC2Instance</span><span class="p">)</span><span class="o">-[</span><span class="n">r</span><span class="o">]-</span><span class="p">(</span><span class="n">n2</span><span class="p">)</span>
+</span><span data-line="6"><span class="k">WHERE</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">publicipaddress</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="err">$</span><span class="n">neodash_ip</span>
+</span><span data-line="7"><span class="k">RETURN</span><span class="w">  </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">,</span><span class="w"> </span><span class="n">n2</span>
+</span><span data-line="8">
+</span><span data-line="9"><span class="k">UNION</span><span class="w"> </span><span class="k">MATCH</span><span class="p">(</span><span class="n">n</span><span class="p">:</span><span class="n">NetworkInterface</span><span class="p">)</span><span class="o">-[</span><span class="n">r</span><span class="o">]-</span><span class="p">(</span><span class="n">n2</span><span class="p">)</span>
+</span><span data-line="10"><span class="k">WHERE</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">public_ip</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="err">$</span><span class="n">neodash_ip</span>
+</span><span data-line="11"><span class="k">RETURN</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">,</span><span class="w"> </span><span class="n">n2</span>
+</span><span data-line="12">
+</span><span data-line="13"><span class="k">UNION</span><span class="w"> </span><span class="k">MATCH</span><span class="p">(</span><span class="n">n</span><span class="p">:</span><span class="n">ElasticIPAddress</span><span class="p">)</span><span class="o">-[</span><span class="n">r</span><span class="o">]-</span><span class="p">(</span><span class="n">n2</span><span class="p">)</span>
+</span><span data-line="14"><span class="k">WHERE</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">public_ip</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="err">$</span><span class="n">neodash_ip</span>
+</span><span data-line="15"><span class="k">RETURN</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">,</span><span class="w"> </span><span class="n">n2</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28n%3AEC2PrivateIp%29-%5Br%5D-%28n2%29%0AWHERE%20n.public_ip%20%3D%20%24neodash_ip%0ARETURN%20n%2C%20r%2C%20n2%0A%0AUNION%20MATCH%28n%3AEC2Instance%29-%5Br%5D-%28n2%29%0AWHERE%20n.publicipaddress%20%3D%20%24neodash_ip%0ARETURN%20%20n%2C%20r%2C%20n2%0A%0AUNION%20MATCH%28n%3ANetworkInterface%29-%5Br%5D-%28n2%29%0AWHERE%20n.public_ip%20%3D%20%24neodash_ip%0ARETURN%20n%2C%20r%2C%20n2%0A%0AUNION%20MATCH%28n%3AElasticIPAddress%29-%5Br%5D-%28n2%29%0AWHERE%20n.public_ip%20%3D%20%24neodash_ip%0ARETURN%20n%2C%20r%2C%20n2">test it locally</a></p>
+</section>
+<section id="which-s3-buckets-have-a-policy-granting-any-level-of-anonymous-access-to-the-bucket">
+<h2>Which <a class="reference external" href="https://aws.amazon.com/s3/">S3</a> buckets have a policy granting any level of anonymous access to the bucket?<a class="headerlink" href="#which-s3-buckets-have-a-policy-granting-any-level-of-anonymous-access-to-the-bucket" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="n">S3Bucket</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">anonymous_access</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">true</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">s</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28s%3AS3Bucket%29%0AWHERE%20s.anonymous_access%20%3D%20true%0ARETURN%20s">test it locally</a></p>
+</section>
+<section id="how-many-unencrypted-rds-instances-do-i-have-in-all-my-aws-accounts">
+<h2>How many unencrypted RDS instances do I have in all my AWS accounts?<a class="headerlink" href="#how-many-unencrypted-rds-instances-do-i-have-in-all-my-aws-accounts" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">RESOURCE</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">rds</span><span class="p">:</span><span class="n">RDSInstance</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">rds</span><span class="p">.</span><span class="n">storage_encrypted</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">false</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">AWSAccount</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">(</span><span class="n">rds</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">UnencryptedInstances</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28a%3AAWSAccount%29-%5B%3ARESOURCE%5D-%3E%28rds%3ARDSInstance%29%0AWHERE%20rds.storage_encrypted%20%3D%20false%0ARETURN%20a.name%20as%20AWSAccount%2C%20count%28rds%29%20as%20UnencryptedInstances">test it locally</a></p>
+</section>
+<section id="what-languages-are-used-in-a-given-github-repository">
+<h2>What languages are used in a given GitHub repository?<a class="headerlink" href="#what-languages-are-used-in-a-given-github-repository" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(:</span><span class="n">GitHubRepository</span><span class="p">{</span><span class="n">name</span><span class="p">:</span><span class="s">&quot;myrepo&quot;</span><span class="p">})</span><span class="o">-[</span><span class="p">:</span><span class="n">LANGUAGE</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">lang</span><span class="p">:</span><span class="n">ProgrammingLanguage</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">lang</span><span class="p">.</span><span class="n">name</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28%3AGitHubRepository%7Bname%3A%22myrepo%22%7D%29-%5B%3ALANGUAGE%5D-%3E%28lang%3AProgrammingLanguage%29%0ARETURN%20lang.name">test it locally</a></p>
+</section>
+<section id="what-are-the-dependencies-used-in-a-given-github-repository">
+<h2>What are the dependencies used in a given GitHub repository?<a class="headerlink" href="#what-are-the-dependencies-used-in-a-given-github-repository" title="Link to this heading">¶</a></h2>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(:</span><span class="n">GitHubRepository</span><span class="p">{</span><span class="n">name</span><span class="p">:</span><span class="s">&quot;myrepo&quot;</span><span class="p">})</span><span class="o">-[</span><span class="n">edge</span><span class="p">:</span><span class="n">REQUIRES</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">dep</span><span class="p">:</span><span class="n">Dependency</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">edge</span><span class="p">.</span><span class="n">specifier</span><span class="p">,</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">version</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28%3AGitHubRepository%7Bname%3A%22myrepo%22%7D%29-%5Bedge%3AREQUIRES%5D-%3E%28dep%3ADependency%29%0ARETURN%20dep.name%2C%20edge.specifier%2C%20dep.version">test it locally</a></p>
+<p>If you want to filter to just e.g. Python libraries:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(:</span><span class="n">GitHubRepository</span><span class="p">{</span><span class="n">name</span><span class="p">:</span><span class="s">&quot;myrepo&quot;</span><span class="p">})</span><span class="o">-[</span><span class="n">edge</span><span class="p">:</span><span class="n">REQUIRES</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">dep</span><span class="p">:</span><span class="n">Dependency</span><span class="p">:</span><span class="n">PythonLibrary</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">edge</span><span class="p">.</span><span class="n">specifier</span><span class="p">,</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">version</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28%3AGitHubRepository%7Bname%3A%22myrepo%22%7D%29-%5Bedge%3AREQUIRES%5D-%3E%28dep%3ADependency%3APythonLibrary%29%0ARETURN%20dep.name%2C%20edge.specifier%2C%20dep.version">test it locally</a></p>
+</section>
+<section id="given-a-dependency-which-github-repos-depend-on-it">
+<h2>Given a dependency, which GitHub repos depend on it?<a class="headerlink" href="#given-a-dependency-which-github-repos-depend-on-it" title="Link to this heading">¶</a></h2>
+<p>Using boto3 as an example dependency:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">dep</span><span class="p">:</span><span class="n">Dependency</span><span class="p">:</span><span class="n">PythonLibrary</span><span class="p">{</span><span class="n">name</span><span class="p">:</span><span class="s">&quot;boto3&quot;</span><span class="p">})</span><span class="o">&lt;-[</span><span class="n">req</span><span class="p">:</span><span class="n">REQUIRES</span><span class="o">]-</span><span class="p">(</span><span class="n">repo</span><span class="p">:</span><span class="n">GitHubRepository</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">repo</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">req</span><span class="p">.</span><span class="n">specifier</span><span class="p">,</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">version</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28dep%3ADependency%3APythonLibrary%7Bname%3A%22boto3%22%7D%29%3C-%5Breq%3AREQUIRES%5D-%28repo%3AGitHubRepository%29%0ARETURN%20repo.name%2C%20req.specifier%2C%20dep.version">test it locally</a></p>
+</section>
+<section id="what-are-all-the-dependencies-used-across-all-github-repos">
+<h2>What are all the dependencies used across all GitHub repos?<a class="headerlink" href="#what-are-all-the-dependencies-used-across-all-github-repos" title="Link to this heading">¶</a></h2>
+<p>Just the list of dependencies and their versions:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">dep</span><span class="p">:</span><span class="n">Dependency</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="k">DISTINCT</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">version</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">version</span>
+</span><span data-line="3"><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">name</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28dep%3ADependency%29%0ARETURN%20DISTINCT%20dep.name%20AS%20name%2C%20dep.version%20AS%20version%0AORDER%20BY%20dep.name">test it locally</a></p>
+<p>With info about which repos are using them:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">repo</span><span class="p">:</span><span class="n">GitHubRepository</span><span class="p">)</span><span class="o">-[</span><span class="n">edge</span><span class="p">:</span><span class="n">REQUIRES</span><span class="o">]-&gt;</span><span class="p">(</span><span class="n">dep</span><span class="p">:</span><span class="n">Dependency</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">repo</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">edge</span><span class="p">.</span><span class="n">specifier</span><span class="p">,</span><span class="w"> </span><span class="n">dep</span><span class="p">.</span><span class="n">version</span>
+</span></pre></div>
+</div>
+<p><a class="reference external" href="http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&amp;amp;db=neo4j&amp;amp;connectURL=bolt://neo4j:neo4j&#64;localhost:7474&amp;amp;cmd=edit&amp;amp;arg=MATCH%20%28repo%3AGitHubRepository%29-%5Bedge%3AREQUIRES%5D-%3E%28dep%3ADependency%29%0ARETURN%20repo.name%2C%20dep.name%2C%20edge.specifier%2C%20dep.version">test it locally</a></p>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="applications.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Building around Cartography</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="schema.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Cartography Schema</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=e2230717"></script></body>
+</html>
