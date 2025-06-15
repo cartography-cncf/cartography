@@ -29,14 +29,14 @@ class UserToUserAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:User)<-[:HAS_ACCOUNT]-(:UserAccount)
+# (:User)-[:HAS_ACCOUNT]->(:UserAccount)
 # This is a relationship to a sementic label used by modules' users nodes
 class UserToUserAccountRel(CartographyRelSchema):
     target_node_label: str = "UserAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("email")},
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_ACCOUNT"
     properties: UserToUserAccountRelProperties = UserToUserAccountRelProperties()
 
