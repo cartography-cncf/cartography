@@ -2283,6 +2283,11 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
     (S3Bucket)-[TAGGED]->(AWSTag)
     ```
 
+- S3 Buckets can send notifications to SNS Topics.
+    ```
+    (S3Bucket)-[NOTIFIES]->(SNSTopic)
+    ```
+
 ### S3PolicyStatement
 
 Representation of an AWS S3 [Bucket Policy Statements](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-policies.html) for controlling ownership of objects and ACLs of the bucket.
