@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from cartography.intel.trivy import _get_intersection
+from cartography.intel.trivy import sync_trivy_aws_ecr_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import read_scan_results_from_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
@@ -613,3 +614,51 @@ def test_get_intersection_empty_prefix():
         )
     ]
     assert result == expected
+
+
+def test_get_intersection_no_matches():
+    """Test the _get_intersection function when there are no matching images."""
+    # Arrange
+    images_in_graph = {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"}
+    json_files = {
+        "trivy-scans/111111111111.dkr.ecr.us-east-1.amazonaws.com/other-repo:latest.json"
+    }
+    trivy_s3_prefix = "trivy-scans/"
+
+    # Act
+    result = _get_intersection(images_in_graph, json_files, trivy_s3_prefix)
+
+    # Assert that we get an empty list when there are no matches
+    assert result == []
+
+
+@patch("cartography.intel.trivy.get_scan_targets")
+@patch("cartography.intel.trivy.scanner.get_json_files_in_s3")
+@patch("cartography.intel.trivy._get_intersection")
+def test_sync_trivy_aws_ecr_from_s3_no_matches(
+    mock_get_intersection,
+    mock_get_json_files,
+    mock_get_scan_targets,
+):
+    """Test that sync_trivy_aws_ecr_from_s3 raises an error when no images match."""
+    # Arrange
+    mock_get_scan_targets.return_value = {
+        "987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"
+    }
+    mock_get_json_files.return_value = {
+        "trivy-scans/111111111111.dkr.ecr.us-east-1.amazonaws.com/other-repo:latest.json"
+    }
+    mock_get_intersection.return_value = []  # No matches found
+
+    # Act & Assert
+    with pytest.raises(
+        ValueError, match="No ECR images with S3 json scan results found"
+    ):
+        sync_trivy_aws_ecr_from_s3(
+            neo4j_session=MagicMock(),
+            trivy_s3_bucket="test-bucket",
+            trivy_s3_prefix="trivy-scans/",
+            update_tag=123,
+            common_job_parameters={},
+            boto3_session=MagicMock(),
+        )
