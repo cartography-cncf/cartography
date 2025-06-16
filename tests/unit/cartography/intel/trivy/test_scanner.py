@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from cartography.intel.trivy import _get_intersection
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import read_scan_results_from_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
@@ -570,3 +571,45 @@ def test_sync_single_image_from_s3_load_error(
         update_tag=update_tag,
     )
     mock_load_scan_packages.assert_not_called()
+
+
+def test_get_intersection():
+    """Test the _get_intersection function with matching ECR image and S3 scan result."""
+    # Arrange
+    images_in_graph = {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"}
+    json_files = {
+        "trivy-scans/987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d.json"
+    }
+    trivy_s3_prefix = "trivy-scans/"  # Note the trailing slash
+
+    # Act
+    result = _get_intersection(images_in_graph, json_files, trivy_s3_prefix)
+
+    # Assert that we retrieve the correct key
+    expected = [
+        (
+            "987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d",
+            "trivy-scans/987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d.json",
+        )
+    ]
+    assert result == expected
+
+
+def test_get_intersection_empty_prefix():
+    """Test the _get_intersection function with an empty prefix."""
+    # Arrange
+    images_in_graph = {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"}
+    json_files = {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d.json"}
+    trivy_s3_prefix = ""  # Empty prefix
+
+    # Act
+    result = _get_intersection(images_in_graph, json_files, trivy_s3_prefix)
+
+    # Assert that we retrieve the correct key
+    expected = [
+        (
+            "987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d",
+            "987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d.json",
+        )
+    ]
+    assert result == expected

@@ -288,10 +288,11 @@ def read_scan_results_from_s3(
     if "Metadata" in trivy_data and trivy_data["Metadata"]:
         repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
         if repo_digests:
-            repo_digest = repo_digests[0].split("@")[0]
             # Sample input: 000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository@sha256:88016
             # Sample output: sha256:88016
-            image_digest = repo_digest.split("@")[1]
+            repo_digest = repo_digests[0]
+            if "@" in repo_digest:
+                image_digest = repo_digest.split("@")[1]
 
     return results, image_digest
 

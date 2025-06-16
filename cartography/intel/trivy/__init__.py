@@ -98,6 +98,18 @@ def sync_trivy_aws_ecr_from_s3(
         images_in_graph, json_files, trivy_s3_prefix
     )
 
+    if len(intersection) == 0:
+        logger.error(
+            f"Trivy sync was configured, but there are no ECR images with S3 json scan results in bucket "
+            f"'{trivy_s3_bucket}' with prefix '{trivy_s3_prefix}'. "
+            "Skipping Trivy sync to avoid potential data loss. "
+            "Please check the S3 bucket and prefix configuration. We expect the json files in s3 to be named "
+            f"`<image_uri>.json` and to be in the same bucket and prefix as the scan results. If the prefix is "
+            "a folder, it MUST end with a trailing slash '/'. "
+        )
+        logger.error(f"JSON files in S3: {json_files}")
+        raise ValueError("No ECR images with S3 json scan results found.")
+
     logger.info(f"Processing {len(intersection)} ECR images with S3 scan results")
     for image_uri, s3_object_key in intersection:
         sync_single_image_from_s3(
