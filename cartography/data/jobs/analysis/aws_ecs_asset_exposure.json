@@ -9,6 +9,11 @@
       "__comment": "Mark tasks as internet exposed when their host EC2 instance is internet exposed",
       "query": "MATCH (t:ECSTask)<-[:HAS_TASK]-(ci:ECSContainerInstance) MATCH (i:EC2Instance{instanceid: ci.ec2_instance_id}) WHERE i.exposed_internet = true SET t.exposed_internet = true, t.exposed_internet_type = i.exposed_internet_type",
       "iterative": false
+    },
+    {
+      "__comment": "Mark Fargate tasks as internet exposed when an attached network interface has a public IP and open security groups",
+      "query": "MATCH (:IpRange{id: '0.0.0.0/0'})-[:MEMBER_OF_IP_RULE]->(:IpPermissionInbound)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(t:ECSTask) WHERE ni.public_ip IS NOT NULL SET t.exposed_internet = true, t.exposed_internet_type = CASE WHEN t.exposed_internet_type IS NULL THEN ['direct'] WHEN NOT 'direct' IN t.exposed_internet_type THEN t.exposed_internet_type + ['direct'] ELSE t.exposed_internet_type END",
+      "iterative": false
     }
   ],
   "name": "AWS ECS internet exposure"

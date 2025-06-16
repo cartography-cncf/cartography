@@ -439,6 +439,7 @@ def load_ecs_tasks(
     """
     containers: List[Dict[str, Any]] = []
     tasks: List[Dict[str, Any]] = []
+    task_network_interfaces: List[Dict[str, str]] = []
     for task in data:
         task["connectivityAt"] = dict_date_to_epoch(task, "connectivityAt")
         task["createdAt"] = dict_date_to_epoch(task, "createdAt")
@@ -450,6 +451,20 @@ def load_ecs_tasks(
         task["stoppingAt"] = dict_date_to_epoch(task, "stoppingAt")
         containers.extend(task["containers"])
         tasks.append(task)
+
+        for attachment in task.get("attachments", []):
+            if attachment.get("type") == "ElasticNetworkInterface":
+                details = {
+                    d.get("name"): d.get("value") for d in attachment.get("details", [])
+                }
+                network_interface_id = details.get("networkInterfaceId")
+                if network_interface_id:
+                    task_network_interfaces.append(
+                        {
+                            "task_arn": task["taskArn"],
+                            "network_interface_id": network_interface_id,
+                        },
+                    )
 
     neo4j_session.run(
         ingest_tasks,
@@ -467,6 +482,35 @@ def load_ecs_tasks(
         current_aws_account_id,
         aws_update_tag,
     )
+
+    if task_network_interfaces:
+        interface_ids = list(
+            {rel["network_interface_id"] for rel in task_network_interfaces}
+        )
+        neo4j_session.run(
+            """
+            UNWIND $Ids AS id
+                MERGE (ni:NetworkInterface{id: id})
+                ON CREATE SET ni.firstseen = timestamp(), ni.region = $Region
+                SET ni.lastupdated = $aws_update_tag
+            """,
+            Ids=interface_ids,
+            Region=region,
+            aws_update_tag=aws_update_tag,
+        )
+
+        neo4j_session.run(
+            """
+            UNWIND $TaskNetworkInterfaces AS rel
+                MATCH (t:ECSTask{id: rel.task_arn})
+                MATCH (ni:NetworkInterface{id: rel.network_interface_id})
+                MERGE (t)-[r:NETWORK_INTERFACE]->(ni)
+                ON CREATE SET r.firstseen = timestamp()
+                SET r.lastupdated = $aws_update_tag
+            """,
+            TaskNetworkInterfaces=task_network_interfaces,
+            aws_update_tag=aws_update_tag,
+        )
 
 
 @timeit

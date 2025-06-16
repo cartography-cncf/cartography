@@ -95,6 +95,19 @@ def test_load_ecs_container_instances(neo4j_session, *args):
     for n in nodes:
         assert n["c"] == 1
 
+    nodes = neo4j_session.run(
+        """
+        MATCH (t:ECSTask)-[:NETWORK_INTERFACE]->(ni:NetworkInterface)
+        RETURN t.id, ni.id
+        """,
+    )
+    assert {(n["t.id"], n["ni.id"]) for n in nodes} == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
+            "eni-00000000000000000",
+        ),
+    }
+
 
 def test_load_ecs_services(neo4j_session, *args):
     cartography.intel.aws.ecs.load_ecs_clusters(
