@@ -86,9 +86,7 @@ def sync_trivy_aws_ecr_from_s3(
         common_job_parameters: Common job parameters for cleanup
         boto3_session: boto3 session for S3 operations
     """
-    logger.info(
-        f"Using S3 scanning from bucket {trivy_s3_bucket} with prefix {trivy_s3_prefix}"
-    )
+    logger.info(f"Using Trivy scan results from s3://{trivy_s3_bucket}/{trivy_s3_prefix}")
 
     images_in_graph: set[str] = get_scan_targets(neo4j_session)
     json_files: set[str] = get_json_files_in_s3(
