@@ -320,7 +320,7 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 
 - AWSLambda functions may act as AWSPrincipals via role assumption.
     ```
-    (:AWSLambda)-[:STS_ASSUME_ROLE_ALLOW]->(:AWSPrincipal)
+    (:AWSLambda)-[:STS_ASSUMEROLE_ALLOW]->(:AWSPrincipal)
     ```
 
 - AWSLambda functions may also have aliases.
