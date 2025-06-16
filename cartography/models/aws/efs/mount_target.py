@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -46,9 +47,32 @@ class EfsMountTargetToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class EfsMountTargetToEfsFileSystemRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class EfsMountTargetToEfsFileSystemRel(CartographyRelSchema):
+    target_node_label: str = "EfsFileSystem"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("FileSystemId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ATTACHED_TO"
+    properties: EfsMountTargetToEfsFileSystemRelProperties = (
+        EfsMountTargetToEfsFileSystemRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class EfsMountTargetSchema(CartographyNodeSchema):
     label: str = "EfsMountTarget"
     properties: EfsMountTargetNodeProperties = EfsMountTargetNodeProperties()
     sub_resource_relationship: EfsMountTargetToAWSAccountRel = (
         EfsMountTargetToAWSAccountRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            EfsMountTargetToEfsFileSystemRel(),
+        ]
     )

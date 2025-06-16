@@ -88,3 +88,22 @@ def test_sync_efs(mock_get_file_systems, mock_get_mount_targets, neo4j_session):
             "arn:aws:elasticfilesystem:us-west-2:123456789012:file-system/fs-def67890",
         ),
     }
+
+    assert check_rels(
+        neo4j_session,
+        "EfsMountTarget",
+        "arn",
+        "EfsFileSystem",
+        "arn",
+        "ATTACHED_TO",
+        rel_direction_right=True,
+    ) == {
+        (
+            "fsmt-9f8e7d6c5b4a3z2x",
+            "arn:aws:elasticfilesystem:us-west-2:123456789012:file-system/fs-abc12345",
+        ),
+        (
+            "fsmt-abcdef1234567890",
+            "arn:aws:elasticfilesystem:us-west-2:123456789012:file-system/fs-def67890",
+        ),
+    }
