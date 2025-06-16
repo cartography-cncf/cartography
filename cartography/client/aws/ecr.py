@@ -13,8 +13,8 @@ def get_ecr_images(
 ) -> Set[Tuple[str, str, str, str, str]]:
     """
     Queries the graph for all ECR images and their parent images.
-    Returns 5-tuples of ECR repository regions, tags, names, and binary digests. This is used to identify which images
-    to scan.
+    Returns 5-tuples of ECR repository regions, tags, URIs, names, and binary digests. This is used to identify which
+    images to scan.
     :param neo4j_session: The neo4j session object.
     :param aws_account_id: The AWS account ID to get ECR repo data for.
     :return: 5-tuples of repo region, image tag, image URI, repo_name, and image_digest.
