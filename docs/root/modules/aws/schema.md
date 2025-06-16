@@ -3261,6 +3261,7 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 | task\_definition\_arn | The ARN of the task definition that creates the task. |
 | version | The version counter for the task. |
 | ephemeral\_storage\_size\_in\_gib | The total amount, in GiB, of ephemeral storage to set for the task. |
+| exposed_internet | Set to True when the EC2 instance hosting the task is internet accessible. |
 
 #### Relationships
 
