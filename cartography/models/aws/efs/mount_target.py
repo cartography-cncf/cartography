@@ -33,7 +33,7 @@ class EfsMountTargetToAwsAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class EfsToAWSAccountRel(CartographyRelSchema):
+class EfsMountTargetToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -49,4 +49,6 @@ class EfsToAWSAccountRel(CartographyRelSchema):
 class EfsMountTargetSchema(CartographyNodeSchema):
     label: str = "EfsMountTarget"
     properties: EfsMountTargetNodeProperties = EfsMountTargetNodeProperties()
-    sub_resource_relationship: EfsToAWSAccountRel = EfsToAWSAccountRel()
+    sub_resource_relationship: EfsMountTargetToAWSAccountRel = (
+        EfsMountTargetToAWSAccountRel()
+    )
