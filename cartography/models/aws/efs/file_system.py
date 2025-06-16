@@ -19,8 +19,7 @@ class EfsFileSystemNodeProperties(CartographyNodeProperties):
     creation_time: PropertyRef = PropertyRef("CreationTime")
     lifecycle_state: PropertyRef = PropertyRef("LifeCycleState")
     name: PropertyRef = PropertyRef("Name")
-    number_of_mount_targets: PropertyRef = PropertyRef(
-        "NumberOfMountTargets")
+    number_of_mount_targets: PropertyRef = PropertyRef("NumberOfMountTargets")
     size_in_bytes_value: PropertyRef = PropertyRef("SizeInBytesValue")
     size_in_bytes_timestamp: PropertyRef = PropertyRef("SizeInBytesTimestamp")
     performance_mode: PropertyRef = PropertyRef("PerformanceMode")
@@ -29,8 +28,7 @@ class EfsFileSystemNodeProperties(CartographyNodeProperties):
     throughput_mode: PropertyRef = PropertyRef("ThroughputMode")
     availability_zone_name: PropertyRef = PropertyRef("AvailabilityZoneName")
     availability_zone_id: PropertyRef = PropertyRef("AvailabilityZoneId")
-    file_system_protection: PropertyRef = PropertyRef(
-        "FileSystemProtection")
+    file_system_protection: PropertyRef = PropertyRef("FileSystemProtection")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -56,4 +54,6 @@ class EfsFileSystemToAWSAccountRel(CartographyRelSchema):
 class EfsFileSystemSchema(CartographyNodeSchema):
     label: str = "EfsFileSystem"
     properties: EfsFileSystemNodeProperties = EfsFileSystemNodeProperties()
-    sub_resource_relationship: EfsFileSystemToAWSAccountRel = EfsFileSystemToAWSAccountRel()
+    sub_resource_relationship: EfsFileSystemToAWSAccountRel = (
+        EfsFileSystemToAWSAccountRel()
+    )
