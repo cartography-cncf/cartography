@@ -109,6 +109,28 @@ LOAD_BALANCER_DATA = [
         "Listeners": LOAD_BALANCER_LISTENERS,
         "TargetGroups": TARGET_GROUPS,
     },
+    # Entry with missing DNSName to test skip/warning logic
+    {
+        "CreatedTime": "10-27-2019 12:35AM",
+        "LoadBalancerName": "missingdnsnamelb",
+        "Type": "application",
+        "Scheme": "internet-facing",
+        "AvailabilityZones": [
+            {
+                "ZoneName": "myAZ",
+                "SubnetId": "mysubnetIdB",
+                "LoadBalancerAddresses": [
+                    {
+                        "IpAddress": "50.0.2.0",
+                        "AllocationId": "someId2",
+                    },
+                ],
+            },
+        ],
+        "SecurityGroups": ["sg-345678"],
+        "Listeners": LOAD_BALANCER_LISTENERS,
+        "TargetGroups": TARGET_GROUPS,
+    },
 ]
 
 # 'LoadBalancers': [
