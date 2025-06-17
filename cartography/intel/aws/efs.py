@@ -12,7 +12,6 @@ from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.efs.file_system import EfsFileSystemSchema
 from cartography.models.aws.efs.mount_target import EfsMountTargetSchema
 from cartography.util import aws_handle_regions
-from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -47,16 +46,12 @@ def transform_efs_file_systems(
             "FileSystemArn": file_system["FileSystemArn"],
             "OwnerId": file_system.get("OwnerId"),
             "CreationToken": file_system.get("CreationToken"),
-            "CreationTime": dict_date_to_epoch(
-                file_system, file_system.get("CreationTime", "")
-            ),
+            "CreationTime": file_system.get("CreationTime"),
             "LifeCycleState": file_system.get("LifeCycleState"),
             "Name": file_system.get("Name"),
             "NumberOfMountTargets": file_system.get("NumberOfMountTargets"),
             "SizeInBytesValue": file_system.get("SizeInBytes", {}).get("Value"),
-            "SizeInBytesTimestamp": dict_date_to_epoch(
-                file_system, file_system.get("SizeInBytes", {}).get("Timestamp", "")
-            ),
+            "SizeInBytesTimestamp": file_system.get("SizeInBytes", {}).get("Timestamp"),
             "PerformanceMode": file_system.get("PerformanceMode"),
             "Encrypted": file_system.get("Encrypted"),
             "KmsKeyId": file_system.get("KmsKeyId"),
@@ -64,7 +59,7 @@ def transform_efs_file_systems(
             "AvailabilityZoneName": file_system.get("AvailabilityZoneName"),
             "AvailabilityZoneId": file_system.get("AvailabilityZoneId"),
             "FileSystemProtection": file_system.get("FileSystemProtection", {}).get(
-                "ReplicationOverwriteProtection", ""
+                "ReplicationOverwriteProtection"
             ),
         }
         transformed_file_systems.append(transformed_file_system)
@@ -184,13 +179,10 @@ def sync(
         )
 
         mountTargets = get_efs_mount_targets(fileSystems, boto3_session, region)
-        mount_target_data: List[Dict[str, Any]] = []
-        for mountTarget in mountTargets:
-            mount_target_data.append(mountTarget)
 
         load_efs_mount_targets(
             neo4j_session,
-            mount_target_data,
+            mountTargets,
             region,
             current_aws_account_id,
             update_tag,
