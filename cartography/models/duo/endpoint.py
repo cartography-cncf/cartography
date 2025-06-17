@@ -21,7 +21,7 @@ class DuoEndpointNodeProperties(CartographyNodeProperties):
     device_id: PropertyRef = PropertyRef("device_id")
     device_identifier: PropertyRef = PropertyRef("device_identifier")
     device_identifier_type: PropertyRef = PropertyRef("device_identifier_type")
-    device_name: PropertyRef = PropertyRef("device_name")
+    device_name: PropertyRef = PropertyRef("device_name", extra_index=True)
     device_udid: PropertyRef = PropertyRef("device_udid")
     device_username: PropertyRef = PropertyRef("device_username")
     device_username_type: PropertyRef = PropertyRef("device_username_type")

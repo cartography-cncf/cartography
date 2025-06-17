@@ -12,7 +12,7 @@ class CrowdstrikeHostNodeProperties(CartographyNodeProperties):
     instance_id: PropertyRef = PropertyRef("instance_id", extra_index=True)
     serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
     status: PropertyRef = PropertyRef("status")
-    hostname: PropertyRef = PropertyRef("hostname")
+    hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
     machine_domain: PropertyRef = PropertyRef("machine_domain")
     crowdstrike_first_seen: PropertyRef = PropertyRef("first_seen")
     crowdstrike_last_seen: PropertyRef = PropertyRef("last_seen")
