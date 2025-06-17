@@ -664,6 +664,24 @@ class CLI:
                 "Required if you are using the Airbyte intel module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--trivy-s3-bucket",
+            type=str,
+            default=None,
+            help=(
+                "The S3 bucket name containing Trivy scan results. "
+                "Required if you are using the Trivy module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--trivy-s3-prefix",
+            type=str,
+            default=None,
+            help=(
+                "The S3 prefix path containing Trivy scan results. "
+                "Required if you are using the Trivy module. Ignored otherwise."
+            ),
+        )
 
         return parser
 
@@ -941,7 +959,7 @@ class CLI:
                 config.snipeit_token = os.environ.get("SNIPEIT_TOKEN")
             else:
                 logger.warning("A SnipeIT base URI was provided but a token was not.")
-                config.kandji_token = None
+                config.snipeit_token = None
         else:
             logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
@@ -992,6 +1010,13 @@ class CLI:
             )
         else:
             config.airbyte_client_secret = None
+
+        # Trivy config
+        if config.trivy_s3_bucket:
+            logger.debug(f"Trivy S3 bucket: {config.trivy_s3_bucket}")
+
+        if config.trivy_s3_prefix:
+            logger.debug(f"Trivy S3 prefix: {config.trivy_s3_prefix}")
 
         # Run cartography
         try:

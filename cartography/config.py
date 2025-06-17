@@ -143,6 +143,10 @@ class Config:
     :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
     :type airbyte_api_url: str
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
+    :type trivy_s3_bucket: str
+    :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
+    :type trivy_s3_prefix: str
+    :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
     """
 
     def __init__(
@@ -218,6 +222,8 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
+        trivy_s3_bucket=None,
+        trivy_s3_prefix=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -290,3 +296,5 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        self.trivy_s3_bucket = trivy_s3_bucket
+        self.trivy_s3_prefix = trivy_s3_prefix

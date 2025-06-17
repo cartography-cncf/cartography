@@ -40,6 +40,7 @@ import cartography.intel.pagerduty
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale
+import cartography.intel.trivy
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -76,6 +77,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
         "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
+        "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "analysis": cartography.intel.analysis.run,
     }
 )
