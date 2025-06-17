@@ -2,8 +2,8 @@ import logging
 
 import neo4j
 
-import cartography.intel.ontology.users
 import cartography.intel.ontology.hosts
+import cartography.intel.ontology.users
 from cartography.config import Config
 from cartography.util import timeit
 

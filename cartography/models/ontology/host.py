@@ -26,6 +26,7 @@ class HostNodeProperties(CartographyNodeProperties):
     platform: PropertyRef = PropertyRef("platform")
     serial_number: PropertyRef = PropertyRef("serial_number", extra_index=True)
 
+
 @dataclass(frozen=True)
 class HostToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
