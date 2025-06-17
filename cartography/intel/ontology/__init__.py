@@ -2,7 +2,7 @@ import logging
 
 import neo4j
 
-import cartography.intel.ontology.hosts
+import cartography.intel.ontology.clientcomputers
 import cartography.intel.ontology.users
 from cartography.config import Config
 from cartography.util import timeit
@@ -18,17 +18,17 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
 
     # WIP: Get source of truth for ontology from config
     USER_SOURCE_OF_TRUTH = ["duo"]
-    HOST_SOURCE_OF_TRUTH = ["snipeit"]
+    COMPUTERS_SOURCE_OF_TRUTH = ["snipeit"]
 
-    cartography.intel.ontology.hosts.sync(
-        neo4j_session,
-        HOST_SOURCE_OF_TRUTH,
-        config.update_tag,
-        common_job_parameters,
-    )
     cartography.intel.ontology.users.sync(
         neo4j_session,
         USER_SOURCE_OF_TRUTH,
+        config.update_tag,
+        common_job_parameters,
+    )
+    cartography.intel.ontology.clientcomputers.sync(
+        neo4j_session,
+        COMPUTERS_SOURCE_OF_TRUTH,
         config.update_tag,
         common_job_parameters,
     )

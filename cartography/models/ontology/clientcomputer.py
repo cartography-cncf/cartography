@@ -1,4 +1,4 @@
-# See: https://d3fend.mitre.org/dao/artifact/d3f:Host/
+# See: https://d3fend.mitre.org/dao/artifact/d3f:ClientComputer/
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
@@ -14,12 +14,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class HostNodeProperties(CartographyNodeProperties):
+class ClientComputerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("hostname")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
-    # WIP: is_server: PropertyRef = PropertyRef("is_server")
-    # WIP: is_virtual: PropertyRef = PropertyRef("is_virtual")
     os: PropertyRef = PropertyRef("os")
     os_version: PropertyRef = PropertyRef("os_version")
     model: PropertyRef = PropertyRef("model")
@@ -28,101 +26,101 @@ class HostNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class HostToNodeRelProperties(CartographyRelProperties):
+class ClientComputerToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:Host)-[:HAS_OBSERVATION]->(:DuoEndpoint)
-class HostToDuoEndpointRel(CartographyRelSchema):
+# (:ClientComputer)-[:HAS_OBSERVATION]->(:DuoEndpoint)
+class ClientComputerToDuoEndpointRel(CartographyRelSchema):
     target_node_label: str = "DuoEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"device_name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: HostToNodeRelProperties = HostToNodeRelProperties()
+    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
 
 
-# (:Host)-[:HAS_OBSERVATION]->(:DuoPhone)
-class HostToDuoPhoneRel(CartographyRelSchema):
+# (:ClientComputer)-[:HAS_OBSERVATION]->(:DuoPhone)
+class ClientComputerToDuoPhoneRel(CartographyRelSchema):
     target_node_label: str = "DuoPhone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: HostToNodeRelProperties = HostToNodeRelProperties()
+    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
 
 
-# (:Host)-[:HAS_OBSERVATION]->(:KandjiDevice)
-class HostToKandjiDeviceRel(CartographyRelSchema):
+# (:ClientComputer)-[:HAS_OBSERVATION]->(:KandjiDevice)
+class ClientComputerToKandjiDeviceRel(CartographyRelSchema):
     target_node_label: str = "KandjiDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"device_name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: HostToNodeRelProperties = HostToNodeRelProperties()
+    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
 
 
-# (:Host)-[:HAS_OBSERVATION]->(:SnipeitAsset)
-class HostToSnipeitAssetRel(CartographyRelSchema):
+# (:ClientComputer)-[:HAS_OBSERVATION]->(:SnipeitAsset)
+class ClientComputerToSnipeitAssetRel(CartographyRelSchema):
     target_node_label: str = "SnipeitAsset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: HostToNodeRelProperties = HostToNodeRelProperties()
+    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
 
 
-# (:Host)-[:HAS_OBSERVATION]->(:TailscaleDevice)
-class HostToTailscaleDeviceRel(CartographyRelSchema):
+# (:ClientComputer)-[:HAS_OBSERVATION]->(:TailscaleDevice)
+class ClientComputerToTailscaleDeviceRel(CartographyRelSchema):
     target_node_label: str = "TailscaleDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"hostname": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: HostToNodeRelProperties = HostToNodeRelProperties()
+    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
 
 
-# (:Host)-[:HAS_OBSERVATION]->(:CrowdstrikeHost)
-class HostToCrowdstrikeHostRel(CartographyRelSchema):
+# (:ClientComputer)-[:HAS_OBSERVATION]->(:CrowdstrikeHost)
+class ClientComputerToCrowdstrikeHostRel(CartographyRelSchema):
     target_node_label: str = "CrowdstrikeHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"hostname": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: HostToNodeRelProperties = HostToNodeRelProperties()
+    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
 
 
-# (:Host)-[:RESOURCE]->(:BigfixComputer)
-class HostToBigfixComputerRel(CartographyRelSchema):
+# (:ClientComputer)-[:RESOURCE]->(:BigfixComputer)
+class ClientComputerToBigfixComputerRel(CartographyRelSchema):
     target_node_label: str = "BigfixComputer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"computername": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: HostToNodeRelProperties = HostToNodeRelProperties()
+    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
 
 
 @dataclass(frozen=True)
-class HostSchema(CartographyNodeSchema):
-    label: str = "Host"
+class ClientComputerSchema(CartographyNodeSchema):
+    label: str = "ClientComputer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
-    properties: HostNodeProperties = HostNodeProperties()
+    properties: ClientComputerNodeProperties = ClientComputerNodeProperties()
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
-            HostToDuoEndpointRel(),
-            HostToDuoPhoneRel(),
-            HostToKandjiDeviceRel(),
-            HostToSnipeitAssetRel(),
-            HostToTailscaleDeviceRel(),
-            HostToCrowdstrikeHostRel(),
-            HostToBigfixComputerRel(),
+            ClientComputerToDuoEndpointRel(),
+            ClientComputerToDuoPhoneRel(),
+            ClientComputerToKandjiDeviceRel(),
+            ClientComputerToSnipeitAssetRel(),
+            ClientComputerToTailscaleDeviceRel(),
+            ClientComputerToCrowdstrikeHostRel(),
+            ClientComputerToBigfixComputerRel(),
         ],
     )
