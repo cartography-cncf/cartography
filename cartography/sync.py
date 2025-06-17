@@ -38,6 +38,7 @@ import cartography.intel.openai
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale
+import cartography.intel.trivy
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -71,6 +72,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
+        "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "ontology": cartography.intel.ontology.run,
         "analysis": cartography.intel.analysis.run,
     }
