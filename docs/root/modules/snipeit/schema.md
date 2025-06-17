@@ -32,6 +32,7 @@ Representation of a SnipeIT asset.
 |company | The company the asset belongs to |
 |manufacturer | Manufacturer of the asset |
 |model | Model of the device|
+|name | Name of the device|
 |serial | Serial number of the asset|
 
 #### Relationships
