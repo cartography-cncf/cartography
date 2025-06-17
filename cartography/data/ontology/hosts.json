@@ -1,0 +1,67 @@
+{
+
+    "bigfix": {
+        "nodes": {
+            "BigFixComputer": {
+                "hostname": "computername",
+                "os": "os"
+            }
+        }
+    },
+    "crowdstrike": {
+        "nodes": {
+            "CrowdstrikeHost": {
+                "hostname": "hostname",
+                "os_version": "os_version",
+                "platform": "platform_name",
+                "model": "model",
+                "serial_number": "serial_number",
+                "instance_id": "instance_id"
+            }
+        }
+    },
+    "duo": {
+        "nodes": {
+            "DuoEndpoint": {
+                "hostname": "device_name",
+                "os": "os_family",
+                "os_version": "os_version",
+                "model": "model"
+            },
+            "DuoPhone": {
+                "hostname": "name",
+                "os_version": "os_version",
+                "model": "model",
+                "platform": "platform"
+            }
+        }
+    },
+    "kandji": {
+        "nodes": {
+            "KandjiDevice": {
+                "hostname": "device_name",
+                "serial_number": "serial_number",
+                "os_version": "os_version",
+                "model": "model",
+                "platform": "platform"
+            }
+        }
+    },
+    "snipeit": {
+        "nodes": {
+            "SnipeitAsset": {
+                "hostname": "name",
+                "serial_number": "serial",
+                "model": "model"
+            }
+        }
+    },
+    "tailscale": {
+        "nodes": {
+            "TailscaleDevice": {
+                "hostname": "hostname",
+                "os": "os"
+            }
+        }
+    }
+}
