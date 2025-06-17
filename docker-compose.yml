@@ -58,6 +58,8 @@ services:
 
 # Intended to run local automated tests, custom sync scripts, and local changes.
   cartography-dev:
+    # See dev instructions: we assume that you have built this with
+    # `docker build -t cartography-cncf/cartography-dev -f dev.Dockerfile ./`
     image: cartography-cncf/cartography-dev
     build:
       context: .
