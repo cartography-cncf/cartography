@@ -449,3 +449,46 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
         ("test-lb-1-1234567890.us-east-1.elb.amazonaws.com443HTTPS", "000000000000"),
         ("test-lb-2-1234567890.us-east-1.elb.amazonaws.com8080TCP", "000000000000"),
     }
+
+
+def test_load_balancer_v2s_skips_missing_dnsname(neo4j_session, *args):
+    load_balancer_data = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA
+    # Setup required nodes
+    neo4j_session.run(
+        """
+        MERGE (ec2:EC2Instance{instanceid: $ec2_instance_id})
+        ON CREATE SET ec2.firstseen = timestamp()
+        SET ec2.lastupdated = $aws_update_tag
+
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag
+
+        MERGE (group:EC2SecurityGroup{groupid: $GROUP_ID_1})
+        ON CREATE SET group.firstseen = timestamp()
+        SET group.last_updated = $aws_update_tag
+
+        MERGE (group2:EC2SecurityGroup{groupid: $GROUP_ID_2})
+        ON CREATE SET group2.firstseen = timestamp()
+        SET group2.last_updated = $aws_update_tag
+        """,
+        ec2_instance_id="i-0f76fade",
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+        GROUP_ID_1="sg-123456",
+        GROUP_ID_2="sg-234567",
+    )
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
+        neo4j_session,
+        load_balancer_data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    # The valid load balancer should be present
+    valid_lb_id = ("myawesomeloadbalancer.amazonaws.com",)
+    # The invalid load balancer should not be present
+    invalid_lb_id = ("missingdnsnamelb",)
+    actual = check_nodes(neo4j_session, "LoadBalancerV2", ["id"])
+    assert valid_lb_id in actual
+    assert invalid_lb_id not in actual
