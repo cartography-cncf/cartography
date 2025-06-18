@@ -1,0 +1,99 @@
+{
+    "anthropic": {
+        "nodes": {
+            "AnthropicUser": {
+
+                    "email": "email",
+                    "fullname": "name"
+
+            }
+        }
+    },
+    "cloudflare": {
+        "nodes": {
+            "CloudflareMember": {
+
+                    "email": "email",
+                    "firstname": "firstname",
+                    "lastname": "lastname"
+
+            }
+        }
+    },
+    "duo": {
+        "nodes": {
+            "DuoUser": {
+
+                    "email": "email",
+                    "firstname": "firstname",
+                    "lastname": "lastname",
+                    "username": "username",
+                    "fullname": "realname"
+
+            }
+        }
+    },
+    "entra": {
+        "nodes": {
+            "EntraUser": {
+
+                    "email": "email",
+                    "firstname": "given_name",
+                    "lastname": "surname",
+                    "fullname": "display_name"
+
+            }
+        }
+    },
+    "github": {
+        "nodes": {
+            "GitHubUser": {
+
+                    "email": "email",
+                    "username": "username",
+                    "fullname": "fullname"
+
+            }
+        }
+    },
+    "lastpass": {
+        "nodes": {
+            "LastPassUser": {
+
+                    "email": "email",
+                    "fullname": "name"
+
+            }
+        }
+    },
+    "openai": {
+        "nodes": {
+            "OpenAIUser": {
+
+                    "email": "email",
+                    "fullname": "name"
+
+            }
+        }
+    },
+    "snipeit": {
+        "nodes": {
+            "SnipeitUser": {
+
+                    "email": "email",
+                    "username": "username"
+
+            }
+        }
+    },
+    "tailscale": {
+        "nodes": {
+            "TailscaleUser": {
+
+                    "email": "email",
+                    "fullname": "display_name"
+
+            }
+        }
+    }
+}

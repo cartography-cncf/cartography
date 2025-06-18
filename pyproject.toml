@@ -107,6 +107,7 @@ cartography-detectdrift = "cartography.driftdetect.cli:main"
 "cartography.data.jobs.analysis" = ["*.json"]
 "cartography.data.jobs.scoped_analysis" = ["*.json"]
 "cartography.data.jobs.cleanup" = ["*.json"]
+"cartography.data.ontology" = ["*.json"]
 
 [project.urls]
 Homepage = "https://cartography-cncf.github.io/cartography"

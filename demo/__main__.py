@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.config import Config
 from cartography.intel import create_indexes
+from cartography.intel import ontology
 from demo import seeds
 from demo.seeds.base import AsyncSeed
 from demo.seeds.base import Seed
@@ -37,6 +38,8 @@ def main(force_flag: bool) -> None:
         neo4j_uri=NEO4J_URL,
         neo4j_user=NEO4J_USER,
         neo4j_password=NEO4J_PASSWORD,
+        ontology_users_source="duo",
+        ontology_clientcomputers_source="snipeit",
     )
 
     # Check if the database is empty
@@ -101,6 +104,10 @@ def main(force_flag: bool) -> None:
             seed_cls(neo4j_session, UPDATE_TAG).run()
         except Exception:
             logger.exception("Seed %s failed", seed_cls.__name__)
+
+    # Ontology
+    logger.info("Building ontology ...")
+    ontology.run(neo4j_session, config)
 
     # TODO: Analysis: blocked due to https://github.com/cartography-cncf/cartography/issues/1591
 

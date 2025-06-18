@@ -47,8 +47,10 @@ def test_load_tailscale_devices(mock_api, neo4j_session):
 
     # Assert Devices exist
     expected_nodes = {
-        ("n292kg92CNTRL", "pangolin.tailfe8c.ts.net"),
-        ("n2fskgfgCNT89", "monkey.tailfe8c.ts.net"),
+        ("n292kg92CNTRL", "bluemarge-linux.tailfe8c.ts.net"),
+        ("p892kg92CNTRL", "itchy-windows.tailfe8c.ts.net"),
+        ("n2fskgfgCNT89", "donut-mac.tailfe8c.ts.net"),
+        ("abcskgfgCN789", "anonymous-pixel.tailfe8c.ts.net"),
     }
     assert (
         check_nodes(neo4j_session, "TailscaleDevice", ["id", "name"]) == expected_nodes
@@ -58,6 +60,8 @@ def test_load_tailscale_devices(mock_api, neo4j_session):
     expected_rels = {
         ("n292kg92CNTRL", TEST_ORG),
         ("n2fskgfgCNT89", TEST_ORG),
+        ("p892kg92CNTRL", TEST_ORG),
+        ("abcskgfgCN789", TEST_ORG),
     }
     assert (
         check_rels(
@@ -75,7 +79,9 @@ def test_load_tailscale_devices(mock_api, neo4j_session):
     # Assert Users are connected with Devices
     expected_rels = {
         ("123456", "n292kg92CNTRL"),
+        ("123456", "p892kg92CNTRL"),
         ("654321", "n2fskgfgCNT89"),
+        ("654321", "abcskgfgCN789"),
     }
     assert (
         check_rels(
