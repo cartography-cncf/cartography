@@ -145,14 +145,14 @@ def get_sso_users(
     return users
 
 
-def transform_sso_users(users: List[Dict]) -> List[Dict]:
+def transform_sso_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Transform SSO users to match the expected schema
     """
     transformed_users = []
     for user in users:
         if user.get("ExternalIds") is not None:
-            user["ExternalId"] = user.get("ExternalIds")[0].get("Id")
+            user["ExternalId"] = user["ExternalIds"][0].get("Id")
         transformed_users.append(user)
     return transformed_users
 
