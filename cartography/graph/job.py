@@ -123,11 +123,13 @@ class GraphJob:
         }
 
     @classmethod
-    def from_json(cls, blob: str, short_name: Optional[str] = None) -> "GraphJob":
+    def from_json(
+        cls, blob: Union[str, dict], short_name: Optional[str] = None
+    ) -> "GraphJob":
         """
-        Create a job from a JSON blob.
+        Create a job from a JSON dict or blob.
         """
-        data: Dict = json.loads(blob)
+        data = json.loads(blob) if isinstance(blob, str) else blob
         statements = _get_statements_from_json(data, short_name)
         name = data["name"]
         return cls(name, statements, short_name)
@@ -196,12 +198,12 @@ class GraphJob:
     def run_from_json(
         cls,
         neo4j_session: neo4j.Session,
-        blob: str,
+        blob: Union[str, dict],
         parameters: Dict,
         short_name: Optional[str] = None,
     ) -> None:
         """
-        Run a job from a JSON blob. This will deserialize the job and execute all statements sequentially.
+        Run a job from a JSON dict or blob. This will deserialize the job and execute all statements sequentially.
         """
         if not parameters:
             parameters = {}

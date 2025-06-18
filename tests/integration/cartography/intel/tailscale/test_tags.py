@@ -112,7 +112,7 @@ def test_load_tailscale_tags(mock_devices, mock_acls, neo4j_session):
 
     # Assert Tag to Device relationships exist
     expected_rels = {
-        ("tag:byod", "n292kg92CNTRL"),
+        ("tag:byod", "p892kg92CNTRL"),
     }
     assert (
         check_rels(

@@ -50,8 +50,11 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
     # Make sure the expected assets are created
     expected_nodes = {
-        (1373, "C02ZJ48XXXXX"),
-        (1372, "72ec94a8-b6dc-37f1-b2a9-0907806e8db7"),
+        (1373, "SIMP-MAC-HOMER-01"),
+        (1375, "SIMP-IOS-HOMER-01"),
+        (1372, "SIMP-WIN-MARGE-01"),
+        (1376, "SIMP-ANDROID-MARGE-01"),
+        (1371, "SIMP-LINUX-MARGE-017"),
     }
     assert (
         check_nodes(
@@ -64,8 +67,11 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
     # Make sure the expected relationships are created
     expected_nodes_relationships = {
-        ("SimpsonCorp", "C02ZJ48XXXXX"),
-        ("SimpsonCorp", "72ec94a8-b6dc-37f1-b2a9-0907806e8db7"),
+        ("SimpsonCorp", "SIMP-ANDROID-MARGE-01"),
+        ("SimpsonCorp", "SIMP-MAC-HOMER-01"),
+        ("SimpsonCorp", "SIMP-WIN-MARGE-01"),
+        ("SimpsonCorp", "SIMP-LINUX-MARGE-017"),
+        ("SimpsonCorp", "SIMP-IOS-HOMER-01"),
     }
     assert (
         check_rels(
@@ -81,7 +87,11 @@ def test_load_snipeit_assets_relationship(neo4j_session):
     )
 
     expected_nodes_relationships = {
-        ("mbsimpson@simpson.corp", "C02ZJ48XXXXX"),
+        ("mbsimpson@simpson.corp", "SIMP-LINUX-MARGE-017"),
+        ("mbsimpson@simpson.corp", "SIMP-WIN-MARGE-01"),
+        ("mbsimpson@simpson.corp", "SIMP-ANDROID-MARGE-01"),
+        ("hjsimpson@simpson.corp", "SIMP-MAC-HOMER-01"),
+        ("hjsimpson@simpson.corp", "SIMP-IOS-HOMER-01"),
     }
     assert (
         check_rels(
@@ -145,8 +155,10 @@ def test_cleanup_snipeit_assets(neo4j_session):
     expected_nodes_relationships = {
         ("SimpsonCorp", 1373),
         ("SimpsonCorp", 1372),
+        ("SimpsonCorp", 1375),
+        ("SimpsonCorp", 1376),
+        ("SimpsonCorp", 1371),
         ("SouthPark", 2598),
-        ("SouthPark", 2597),
     }
     assert (
         check_rels(
@@ -173,7 +185,6 @@ def test_cleanup_snipeit_assets(neo4j_session):
 
     # Assert: Expect unrelated data nodes remains
     expected_nodes_unrelated = {
-        (2597,),
         (2598,),
     }
 
