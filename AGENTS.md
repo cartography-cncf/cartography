@@ -133,6 +133,7 @@ The `get` function should be "dumb" - just fetch data and raise exceptions on fa
 
 ```python
 @timeit
+@aws_handle_regions  # Handles common AWS errors like region availability, only for AWS modules.
 def get(api_key: str, tenant_id: str) -> dict[str, Any]:
     """
     Fetch data from external API
@@ -153,12 +154,71 @@ def get(api_key: str, tenant_id: str) -> dict[str, Any]:
     return response.json()
 ```
 
+**Key Principles for `get()` Functions:**
+
+1. **Minimal Error Handling**: Avoid adding try/except blocks in `get()` functions. Let errors propagate up to the caller.
+   ```python
+   # ❌ DON'T: Add complex error handling in get()
+   def get_users(api_key: str) -> dict[str, Any]:
+       try:
+           response = requests.get(...)
+           response.raise_for_status()
+           return response.json()
+       except requests.exceptions.HTTPError as e:
+           if e.response.status_code == 401:
+               logger.error("Invalid API key")
+           elif e.response.status_code == 429:
+               logger.error("Rate limit exceeded")
+           raise
+       except requests.exceptions.RequestException as e:
+           logger.error(f"Network error: {e}")
+           raise
+
+   # ✅ DO: Keep it simple and let errors propagate
+   def get_users(api_key: str) -> dict[str, Any]:
+       response = requests.get(...)
+       response.raise_for_status()
+       return response.json()
+   ```
+
+2. **Use Decorators**: For AWS modules, use `@aws_handle_regions` to handle common AWS errors:
+   ```python
+   @timeit
+   @aws_handle_regions  # Handles region availability, throttling, etc.
+   def get_ec2_instances(boto3_session: boto3.session.Session, region: str) -> list[dict[str, Any]]:
+       client = boto3_session.client("ec2", region_name=region)
+       return client.describe_instances()["Reservations"]
+   ```
+
+3. **Fail Loudly**: If an error occurs, let it propagate up to the caller. This helps users identify and fix issues quickly:
+   ```python
+   # ❌ DON'T: Silently continue on error
+   def get_data() -> dict[str, Any]:
+       try:
+           return api.get_data()
+       except Exception:
+           return {}  # Silently continue with empty data
+
+   # ✅ DO: Let errors propagate
+   def get_data() -> dict[str, Any]:
+       return api.get_data()  # Let errors propagate to caller
+   ```
+
+4. **Timeout Configuration**: Set appropriate timeouts to avoid hanging:
+   ```python
+   # ✅ DO: Set timeouts
+   response = session.post(
+       "https://api.service.com/users",
+       json=payload,
+       timeout=(60, 60),  # (connect_timeout, read_timeout)
+   )
+   ```
+
 ### TRANSFORM: Shaping Data
 
 Transform data to make it easier to ingest. Handle required vs optional fields carefully:
 
 ```python
-@timeit
 def transform(api_result: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Transform API data for Neo4j ingestion
@@ -585,12 +645,23 @@ def transform_user(user_data: dict[str, Any]) -> dict[str, Any]:
         "name": user_data.get("display_name"),
         "phone": user_data.get("phone_number"),
 
-        # ✅ Complex optional field handling (but now that Neo4j has a native timestamp type, we can just use that instead of converting to int)
-        "last_login": (
-            int(dt_parse.parse(user_data["last_login"]).timestamp() * 1000)
-            if user_data.get("last_login") else None
-        ),
+        # ✅ Neo4j handles datetime objects natively - no need for manual parsing
+        "last_login": user_data.get("last_login"),  # AWS/API returns ISO 8601 dates
     }
+```
+
+### Date Handling
+
+Neo4j 4+ supports native Python datetime objects and ISO 8601 formatted strings. Avoid manual datetime parsing:
+
+```python
+# ❌ DON'T: Manually parse dates or convert to epoch timestamps
+"created_at": int(dt_parse.parse(user_data["created_at"]).timestamp() * 1000)
+"last_login": dict_date_to_epoch({"d": dt_parse.parse(data["last_login"])}, "d")
+
+# ✅ DO: Pass datetime values directly
+"created_at": user_data.get("created_at")  # AWS/API returns ISO 8601 dates
+"last_login": user_data.get("last_login")  # Neo4j handles these natively
 ```
 
 ## 🧪 Testing Your Module {#testing}
@@ -932,6 +1003,34 @@ Note though that if a field is referred to in a target node matcher, it will be 
 - **Core**: Understand `cartography/client/core/tx.py` for load function behavior
 
 ## 📝 Quick Reference Cheat Sheet {#quick-reference-cheat-sheet}
+
+### Type Hints Style Guide
+
+Use Python 3.9+ style type hints throughout your code:
+
+```python
+# ✅ DO: Use built-in type hints (Python 3.9+)
+def get_users(api_key: str) -> dict[str, Any]:
+    ...
+
+def transform(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    ...
+
+# ❌ DON'T: Use objects from typing module
+def get_users(api_key: str) -> Dict[str, Any]:
+    ...
+
+def transform(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    ...
+
+# ✅ DO: Use union operator for optional types
+def process_user(user_id: str | None) -> None:
+    ...
+
+# ❌ DON'T: Use Optional from typing
+def process_user(user_id: Optional[str]) -> None:
+    ...
+```
 
 ### Essential Imports
 ```python
