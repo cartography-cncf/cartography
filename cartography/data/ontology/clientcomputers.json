@@ -34,7 +34,19 @@
                 "model": "model",
                 "platform": "platform"
             }
-        }
+        },
+        "rels": [
+            {
+                "__comment__": "Link ClientComputer to User based on DuoUser-DuoPhone relationship",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_PHONE]-(:DuoPhone)<-[:HAS_OBSERVATION]-(d:ClientComputer) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "iterative": false
+            },
+            {
+                "__comment__": "Link ClientComputer to User based on DuoUser-DuoEndpoint relationship",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_ENDPOINT]-(:DuoEndpoint)<-[:HAS_OBSERVATION]-(d:ClientComputer) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "iterative": false
+            }
+        ]
     },
     "kandji": {
         "nodes": {
