@@ -8,6 +8,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
+from cartography.intel.ontology.utils import link_ontology_nodes
 from cartography.models.ontology.user import UserSchema
 from cartography.util import timeit
 
@@ -27,6 +28,7 @@ def sync(
         data,
         update_tag,
     )
+    link_ontology_nodes(neo4j_session, "users", update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
 

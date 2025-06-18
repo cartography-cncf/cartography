@@ -54,7 +54,14 @@
                 "serial_number": "serial",
                 "model": "model"
             }
-        }
+        },
+        "rels": [
+            {
+                "__comment__": "Link ClientComputer to User based on SnipeitUser-SnipeitAsset relationship",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:SnipeitUser)-[:HAS_CHECKED_OUT]-(:SnipeitAsset)<-[:HAS_OBSERVATION]-(d:ClientComputer) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "iterative": false
+            }
+        ]
     },
     "tailscale": {
         "nodes": {
@@ -62,6 +69,13 @@
                 "hostname": "hostname",
                 "os": "os"
             }
-        }
+        },
+        "rels": [
+            {
+                "__comment__": "Link ClientComputer to User based on TailscaleUser-TailscaleDevice relationship",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:HAS_OBSERVATION]-(d:ClientComputer) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "iterative": false
+            }
+        ]
     }
 }

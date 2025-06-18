@@ -5,6 +5,7 @@ from typing import Any
 
 import neo4j
 
+from cartography.graph.job import GraphJob
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -50,3 +51,26 @@ def get_source_nodes_from_graph(
                 }
                 results.append(result)
     return results
+
+
+@timeit
+def link_ontology_nodes(
+    neo4j_session: neo4j.Session,
+    module_name: str,
+    update_tag: int,
+) -> None:
+    # DOC
+    modules_mapping = load_ontology_mapping(module_name)
+    for source, mapping in modules_mapping.items():
+        if "rels" not in mapping:
+            continue
+        formated_json = {
+            "name": f"Linking ontology nodes for {module_name} for source {source}",
+            "statements": mapping["rels"],
+        }
+        GraphJob.run_from_json(
+            neo4j_session,
+            formated_json,
+            {"UPDATE_TAG": update_tag},
+            short_name=f"ontology.{module_name}.{source}.linking",
+        )

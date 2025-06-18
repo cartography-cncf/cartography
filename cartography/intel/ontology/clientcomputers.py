@@ -8,6 +8,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
+from cartography.intel.ontology.utils import link_ontology_nodes
 from cartography.models.ontology.clientcomputer import ClientComputerSchema
 from cartography.util import timeit
 
@@ -21,12 +22,15 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    data = get_source_nodes_from_graph(neo4j_session, source_of_truth, "clientcomputers")
+    data = get_source_nodes_from_graph(
+        neo4j_session, source_of_truth, "clientcomputers"
+    )
     load_clientcomputers(
         neo4j_session,
         data,
         update_tag,
     )
+    link_ontology_nodes(neo4j_session, "clientcomputers", update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
 
