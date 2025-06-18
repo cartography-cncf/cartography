@@ -31,7 +31,7 @@ Some nodes, such as IP addresses, are created regardless of the data source, ens
 
 **Example: User Nodes and Source of Truth**
 
-If you set the `--users-source-of-truth` parameter to `duo`, then a `User` node will be created for every account found in Duo. In contrast, for other integrations like Tailscale, only existing `User` nodes (those created by the source of truth) will be linked to Tailscale accounts. No new `User` nodes will be created from Tailscale data alone.
+If you set the `--ontology-users-source` parameter to `duo`, then a `User` node will be created for every account found in Duo. In contrast, for other integrations like Tailscale, only existing `User` nodes (those created by the source of truth) will be linked to Tailscale accounts. No new `User` nodes will be created from Tailscale data alone.
 
 ## Structure of Ontology JSON Files
 

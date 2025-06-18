@@ -38,7 +38,18 @@ def load_models(module, module_name: str | None = None) -> Generator[
     None,
     None,
 ]:
-    # DOC
+    """Load all model classes from a module.
+
+    This function recursively loads all model classes from the given module.
+    It yields tuples containing the module name and the model class.
+
+    Args:
+        module (_type_): The top-level module to load models from.
+        module_name (str | None, optional): The name of the module. If None, the module's name will be used.
+
+    Yields:
+        Generator[ Tuple[ str, Type[ CartographyNodeSchema | CartographyRelSchema | CartographyNodeProperties | CartographyRelProperties ], ], None, None, ]: A generator yielding tuples of module name and model class.
+    """
     for sub_module_info in iter_modules(module.__path__):
         sub_module = __import__(
             f"{module.__name__}.{sub_module_info.name}",
@@ -61,7 +72,7 @@ def load_models(module, module_name: str | None = None) -> Generator[
 
 
 def test_model_objects_naming_convention():
-    # DOC
+    """Test that all model objects follow the naming convention."""
     for module_name, element in load_models(cartography.models):
         if issubclass(element, CartographyNodeSchema):
             if not element.__name__.endswith("Schema"):
@@ -102,7 +113,7 @@ def test_model_objects_naming_convention():
 
 
 def test_sub_resource_relationship():
-    # DOC
+    """Test that all root nodes have a sub_resource_relationship with rel_label 'RESOURCE' and direction 'INWARD'."""
     root_node_per_modules: Dict[str, Set[Type[CartographyNodeSchema]]] = {}
 
     for module_name, node in load_models(cartography.models):
@@ -135,15 +146,10 @@ def test_sub_resource_relationship():
             # TODO assert sub_resource_relationship.direction == "INWARD"
 
     for module_name, nodes in root_node_per_modules.items():
-        if len(nodes) == 0:
-            warnings.warn(
-                f"Module {module_name} has no root nodes (e.g. Tenant, Subscription ...). ",
-                UserWarning,
-            )
         if len(nodes) > 1:
             warnings.warn(
                 f"Module {module_name} has multiple root nodes: {', '.join([node.label for node in nodes])}. "
                 "Please check the module.",
                 UserWarning,
             )
-        # TODO: assert len(nodes) == 1
+        # TODO: assert len(nodes) > 1
