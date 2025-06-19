@@ -297,6 +297,14 @@ def _perform_aws_analysis(
     )
 
     run_analysis_and_ensure_deps(
+        "aws_ecs_asset_exposure.json",
+        {"ecs", "ec2:instance"},
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    run_analysis_and_ensure_deps(
         "aws_foreign_accounts.json",
         set(),  # This job has no requirements
         requested_syncs_as_set,
