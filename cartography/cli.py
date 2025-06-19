@@ -638,6 +638,33 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--airbyte-client-id",
+            type=str,
+            default=None,
+            help=(
+                "The Airbyte client ID to use for authentication. "
+                "Required if you are using the Airbyte intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--airbyte-client-secret-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing the Airbyte client secret for authentication. "
+                "Required if you are using the Airbyte intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--airbyte-api-url",
+            type=str,
+            default="https://api.airbyte.com/v1",
+            help=(
+                "The base URL for the Airbyte API (default is the public Airbyte Cloud API). "
+                "Required if you are using the Airbyte intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
             "--trivy-s3-bucket",
             type=str,
             default=None,
@@ -972,6 +999,17 @@ class CLI:
             config.anthropic_apikey = os.environ.get(config.anthropic_apikey_env_var)
         else:
             config.anthropic_apikey = None
+
+        # Airbyte config
+        if config.airbyte_client_id and config.airbyte_client_secret_env_var:
+            logger.debug(
+                f"Reading Airbyte client secret from environment variable {config.airbyte_client_secret_env_var}",
+            )
+            config.airbyte_client_secret = os.environ.get(
+                config.airbyte_client_secret_env_var,
+            )
+        else:
+            config.airbyte_client_secret = None
 
         # Trivy config
         if config.trivy_s3_bucket:
