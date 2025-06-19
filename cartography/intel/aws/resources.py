@@ -3,6 +3,7 @@ from typing import Dict
 
 from cartography.intel.aws.ec2.route_tables import sync_route_tables
 
+from . import acm
 from . import apigateway
 from . import cloudtrail
 from . import cloudwatch
@@ -99,6 +100,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "sns": sns.sync,
     "sqs": sqs.sync,
     "ssm": ssm.sync,
+    "acm:certificate": acm.sync,
     "inspector": inspector.sync,
     "config": config.sync,
     "identitycenter": identitycenter.sync_identity_center_instances,

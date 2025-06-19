@@ -56,10 +56,10 @@ def test_sync_duo_users(neo4j_session):
         "DuoUser",
         ["id", "user_id", "username", "email"],
     ) == {
-        ("userid1", "userid1", "username1", "email1@example.com"),
-        ("userid2", "userid2", "username2", "email2@example.com"),
-        ("userid3", "userid3", "username3", "email3@example.com"),
-        ("userid4", "userid4", "username4", "email4@example.com"),
+        ("userid1", "userid1", "mbsimpson", "mbsimpson@simpson.corp"),
+        ("userid2", "userid2", "hjsimpson", "hjsimpson@simpson.corp"),
+        ("userid3", "userid3", "lmsimpson", "lmsimpson@simpson.corp"),
+        ("userid4", "userid4", "bjsimpson", "bjsimpson@simpson.corp"),
     }
 
     assert check_rels(
@@ -160,8 +160,8 @@ def test_sync_duo_users(neo4j_session):
         "IDENTITY_DUO",
         rel_direction_right=True,
     ) == {
-        ("email1@example.com", "email1@example.com"),
-        ("email2@example.com", "email2@example.com"),
-        ("email3@example.com", "email3@example.com"),
-        ("email4@example.com", "email4@example.com"),
+        ("mbsimpson@simpson.corp", "mbsimpson@simpson.corp"),
+        ("hjsimpson@simpson.corp", "hjsimpson@simpson.corp"),
+        ("lmsimpson@simpson.corp", "lmsimpson@simpson.corp"),
+        ("bjsimpson@simpson.corp", "bjsimpson@simpson.corp"),
     }
