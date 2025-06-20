@@ -34,11 +34,11 @@ import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.openai
+import cartography.intel.scaleway
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale
 import cartography.intel.trivy
-import cartography.intel.scaleway
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
