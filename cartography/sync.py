@@ -38,6 +38,7 @@ import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale
 import cartography.intel.trivy
+import cartography.intel.scaleway
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -68,6 +69,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
         "duo": cartography.intel.duo.start_duo_ingestion,
+        "scaleway": cartography.intel.scaleway.start_scaleway_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,

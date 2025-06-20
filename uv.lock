@@ -526,6 +526,7 @@ dependencies = [
     { name = "python-digitalocean" },
     { name = "pyyaml" },
     { name = "requests" },
+    { name = "scaleway" },
     { name = "statsd" },
     { name = "xmltodict" },
 ]
@@ -586,6 +587,7 @@ requires-dist = [
     { name = "python-digitalocean", specifier = ">=1.16.0" },
     { name = "pyyaml", specifier = ">=5.3.1" },
     { name = "requests", specifier = ">=2.22.0" },
+    { name = "scaleway", specifier = ">=2.9.0" },
     { name = "statsd" },
     { name = "xmltodict" },
 ]
@@ -2643,6 +2645,32 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/fc/9e/73b14aed38ee1f62cd30ab93cd0072dec7fb01f3033d116875ae3e7b8b44/s3transfer-0.12.0.tar.gz", hash = "sha256:8ac58bc1989a3fdb7c7f3ee0918a66b160d038a147c7b5db1500930a607e9a1c", size = 149178, upload-time = "2025-04-22T21:08:09.787Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/89/64/d2b49620039b82688aeebd510bd62ff4cdcdb86cbf650cc72ae42c5254a3/s3transfer-0.12.0-py3-none-any.whl", hash = "sha256:35b314d7d82865756edab59f7baebc6b477189e6ab4c53050e28c1de4d9cce18", size = 84773, upload-time = "2025-04-22T21:08:08.265Z" },
+]
+
+[[package]]
+name = "scaleway"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "scaleway-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/95/04/e4858858597e71248ab43b1d74eb24030e1afdad5af03de605064f52941f/scaleway-2.9.0.tar.gz", hash = "sha256:85427bae02366fb82b54da807cd8de6636f9d38af52b7d0325411a778ff1068d", size = 575964, upload-time = "2025-03-18T15:36:10.433Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d6/be/ace4ff6cfa412388d9e02dd1b2933af79acf8dfd19e1a17538a1a195eb1e/scaleway-2.9.0-py3-none-any.whl", hash = "sha256:bbb36811c5000d5c615dbb787cceeded3acbf377da2485399a7f90e473f972c0", size = 700676, upload-time = "2025-03-18T15:36:08.902Z" },
+]
+
+[[package]]
+name = "scaleway-core"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+    { name = "pyyaml" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/91/62/816f618ab8ac3a4c4c3fdd70597db6ff9872c4cbe29b105ea953d18698e7/scaleway_core-2.9.0.tar.gz", hash = "sha256:e53bf8c75bc20589a6aa1a3dc2b0c2b2a427e0b6de526b2fb1b45d526d0db34e", size = 27778, upload-time = "2025-03-18T15:34:33.267Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/b6/f041b06d1a0e0cdf97168fe5729087a05850e6c2b189b2f7d6b15970e814/scaleway_core-2.9.0-py3-none-any.whl", hash = "sha256:e577d65850b6bf97f9c76bdba866d5c911867732ed483ea2e1183c1d26e7dc2b", size = 34597, upload-time = "2025-03-18T15:34:31.983Z" },
 ]
 
 [[package]]

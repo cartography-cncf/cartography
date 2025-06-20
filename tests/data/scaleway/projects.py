@@ -1,0 +1,1 @@
+Project(id='3714a18c-8b9b-493e-b938-3ed3bb4aa874', name='default', organization_id='3714a18c-8b9b-493e-b938-3ed3bb4aa874', description='', created_at=datetime.datetime(2025, 3, 20, 7, 39, 54, 220004, tzinfo=tzutc()), updated_at=datetime.datetime(2025, 3, 20, 7, 39, 54, 220004, tzinfo=tzutc()))
