@@ -4,6 +4,7 @@ from typing import Any
 import neo4j
 import scaleway
 from scaleway.iam.v1alpha1 import IamV1Alpha1API
+from scaleway.iam.v1alpha1 import User
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -32,12 +33,12 @@ def sync(
 def get(
     client: scaleway.Client,
     org_id: str,
-) -> list[dict[str, Any]]:
+) -> list[User]:
     api = IamV1Alpha1API(client)
     return api.list_users_all(organization_id=org_id)
 
 
-def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_users(users: list[User]) -> list[dict[str, Any]]:
     formatted_users = []
     for user in users:
         formatted_users.append(scaleway_obj_to_dict(user))

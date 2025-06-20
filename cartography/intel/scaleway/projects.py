@@ -4,6 +4,7 @@ from typing import Any
 import neo4j
 import scaleway
 from scaleway.account.v3 import AccountV3ProjectAPI
+from scaleway.account.v3 import Project
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -34,12 +35,12 @@ def sync(
 def get(
     client: scaleway.Client,
     org_id: str,
-) -> list[dict[str, Any]]:
+) -> list[Project]:
     api = AccountV3ProjectAPI(client)
     return api.list_projects_all(organization_id=org_id)
 
 
-def transform_projects(projects: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_projects(projects: list[Project]) -> list[dict[str, Any]]:
     formatted_projects = []
     for project in projects:
         formatted_projects.append(scaleway_obj_to_dict(project))

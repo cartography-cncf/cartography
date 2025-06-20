@@ -4,6 +4,7 @@ from typing import Any
 import neo4j
 import scaleway
 from scaleway.instance.v1 import InstanceV1API
+from scaleway.instance.v1 import Snapshot
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -34,21 +35,18 @@ def sync(
 def get(
     client: scaleway.Client,
     org_id: str,
-) -> list[dict[str, Any]]:
+) -> list[Snapshot]:
     api = InstanceV1API(client)
     return api.list_snapshots_all(organization=org_id, zone=DEFAULT_ZONE)
 
 
 def transform_snapshots(
-    snapshots: list[dict[str, Any]],
+    snapshots: list[Snapshot],
 ) -> dict[str, list[dict[str, Any]]]:
     result: dict[str, list[dict[str, Any]]] = {}
     for snapshot in snapshots:
         project_id = snapshot.project
         formatted_snapshot = scaleway_obj_to_dict(snapshot)
-        formatted_snapshot["base_volume"] = (
-            scaleway_obj_to_dict(snapshot.base_volume) if snapshot.base_volume else None
-        )
         try:
             result[project_id].append(formatted_snapshot)
         except KeyError:

@@ -3,6 +3,7 @@ from typing import Any
 
 import neo4j
 import scaleway
+from scaleway.iam.v1alpha1 import Application
 from scaleway.iam.v1alpha1 import IamV1Alpha1API
 
 from cartography.client.core.tx import load
@@ -32,12 +33,12 @@ def sync(
 def get(
     client: scaleway.Client,
     org_id: str,
-) -> list[dict[str, Any]]:
+) -> list[Application]:
     api = IamV1Alpha1API(client)
     return api.list_applications_all(organization_id=org_id)
 
 
-def transform_applications(applications: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_applications(applications: list[Application]) -> list[dict[str, Any]]:
     formatted_applications = []
     for application in applications:
         formatted_applications.append(scaleway_obj_to_dict(application))

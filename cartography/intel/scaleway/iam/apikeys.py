@@ -3,6 +3,7 @@ from typing import Any
 
 import neo4j
 import scaleway
+from scaleway.iam.v1alpha1 import APIKey
 from scaleway.iam.v1alpha1 import IamV1Alpha1API
 
 from cartography.client.core.tx import load
@@ -32,12 +33,12 @@ def sync(
 def get(
     client: scaleway.Client,
     org_id: str,
-) -> list[dict[str, Any]]:
+) -> list[APIKey]:
     api = IamV1Alpha1API(client)
     return api.list_api_keys_all(organization_id=org_id)
 
 
-def transform_apikeys(apikeys: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_apikeys(apikeys: list[APIKey]) -> list[dict[str, Any]]:
     formatted_apikeys = []
     for apikey in apikeys:
         formatted_apikeys.append(scaleway_obj_to_dict(apikey))
