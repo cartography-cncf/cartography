@@ -7,10 +7,10 @@ from scaleway.account.v3 import AccountV3ProjectAPI
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.organization import ScalewayOrganizationSchema
 from cartography.models.scaleway.project import ScalewayProjectSchema
 from cartography.util import timeit
-from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 
 logger = logging.getLogger(__name__)
 

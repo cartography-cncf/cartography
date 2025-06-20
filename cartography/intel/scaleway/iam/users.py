@@ -7,9 +7,9 @@ from scaleway.iam.v1alpha1 import IamV1Alpha1API
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 from cartography.models.scaleway.iam.user import ScalewayUserSchema
 from cartography.util import timeit
-from cartography.intel.scaleway.utils import scaleway_obj_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,6 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
     formatted_users = []
     for user in users:
         formatted_users.append(scaleway_obj_to_dict(user))
-        print(user)
     return formatted_users
 
 

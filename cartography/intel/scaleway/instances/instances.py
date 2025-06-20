@@ -41,6 +41,7 @@ def transform_applications(applications: list[dict[str, Any]]) -> list[dict[str,
     formatted_applications = []
     for application in applications:
         formatted_applications.append(scaleway_obj_to_dict(application))
+        print(application)
     return formatted_applications
 
 

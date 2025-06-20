@@ -12,7 +12,6 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ScalewayUserNodeProperties(CartographyNodeProperties):
-    object: PropertyRef = PropertyRef("object")
     id: PropertyRef = PropertyRef("id")
     email: PropertyRef = PropertyRef("email", extra_index=True)
     username: PropertyRef = PropertyRef("username")
