@@ -83,7 +83,7 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     ) == [
         tests.data.semgrep.sca.VULN_ID,
         TEST_UPDATE_TAG,
-        "org/repository",
+        "simpsoncorp/sample_repo",
         "main",
         "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
         "moment:Denial-of-Service (DoS)",
@@ -97,7 +97,7 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         "moment|2.29.2",
         "moment|2.29.4",
         "package-lock.json",
-        "https: //github.com/org/repository/blob/commit_id/package-lock.json#L14373",
+        "https: //github.com/simpsoncorp/sample_repo/blob/commit_id/package-lock.json#L14373",
         [
             "https://nvd.nist.gov/vuln/detail/CVE-2022-31129",
         ],
@@ -124,7 +124,7 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             37,
             274,
             62,
-            "https: //github.com/org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
+            "https: //github.com/simpsoncorp/sample_repo/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
         ),
     }
 
@@ -166,7 +166,7 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         rel_direction_right=False,
     ) == {
         (
-            "org/repository",
+            "simpsoncorp/sample_repo",
             tests.data.semgrep.sca.VULN_ID,
         ),
     }

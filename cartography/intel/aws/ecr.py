@@ -107,9 +107,12 @@ def load_ecr_repositories(
 def transform_ecr_repository_images(repo_data: Dict) -> List[Dict]:
     """
     Ensure that we only load ECRImage nodes to the graph if they have a defined imageDigest field.
+    Process repositories in a consistent order to handle overlapping image digests deterministically.
     """
     repo_images_list = []
-    for repo_uri, repo_images in repo_data.items():
+    # Sort repository URIs to ensure consistent processing order
+    for repo_uri in sorted(repo_data.keys()):
+        repo_images = repo_data[repo_uri]
         for img in repo_images:
             if "imageDigest" in img and img["imageDigest"]:
                 img["repo_uri"] = repo_uri
@@ -214,7 +217,9 @@ def _get_image_data(
         )
         image_data[repo["repositoryUri"]] = repo_image_obj
 
-    to_synchronous(*[async_get_images(repo) for repo in repositories])
+    # Sort repositories by name to ensure consistent processing order
+    sorted_repos = sorted(repositories, key=lambda x: x["repositoryName"])
+    to_synchronous(*[async_get_images(repo) for repo in sorted_repos])
 
     return image_data
 
@@ -237,6 +242,7 @@ def sync(
         image_data = {}
         repositories = get_ecr_repositories(boto3_session, region)
         image_data = _get_image_data(boto3_session, region, repositories)
+        # len here should be 1!
         load_ecr_repositories(
             neo4j_session,
             repositories,

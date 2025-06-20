@@ -1,5 +1,8 @@
 import cartography.intel.aws.s3
+import cartography.intel.aws.sns
 import tests.data.aws.s3
+from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
@@ -208,3 +211,47 @@ def test_load_s3_bucket_ownership(neo4j_session, *args):
         for n in nodes
     }
     assert actual_nodes == expected_nodes
+
+
+def test_s3_sns_relationship(neo4j_session):
+    """Test that S3 bucket to SNS topic relationships are created correctly."""
+
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    cartography.intel.aws.s3.load_s3_buckets(
+        neo4j_session,
+        tests.data.aws.s3.LIST_BUCKETS,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.aws.sns.load_sns_topics(
+        neo4j_session,
+        tests.data.aws.s3.SNS_TOPICS,
+        "us-east-1",
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    parsed_notifications = cartography.intel.aws.s3.parse_notification_configuration(
+        "bucket-1",
+        tests.data.aws.s3.S3_NOTIFICATIONS,
+    )
+
+    cartography.intel.aws.s3._load_s3_notifications(
+        neo4j_session,
+        parsed_notifications,
+        TEST_UPDATE_TAG,
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "S3Bucket",
+        "id",
+        "SNSTopic",
+        "arn",
+        "NOTIFIES",
+        rel_direction_right=True,
+    ) == {
+        ("bucket-1", "arn:aws:sns:us-east-1:123456789012:test-topic"),
+    }

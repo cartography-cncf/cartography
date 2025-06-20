@@ -75,9 +75,9 @@ MOCK_ENTRA_USERS = [
         odata_type="#microsoft.graph.user",
         display_name="Homer Simpson",
         given_name="Homer",
-        mail="homer@example.com",
+        mail="hjsimpson@simpson.corp",
         surname="Simpson",
-        user_principal_name="homer@example.com",
+        user_principal_name="hjsimpson@simpson.corp",
     ),
     User(
         id="11dca63b-cb03-4e53-bb75-fa8060285550",

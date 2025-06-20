@@ -74,7 +74,7 @@ def load_lambda_functions(
         SET r.lastupdated = $aws_update_tag
         WITH lambda, lf
         MATCH (role:AWSPrincipal{arn: lf.Role})
-        MERGE (lambda)-[r:STS_ASSUME_ROLE_ALLOW]->(role)
+        MERGE (lambda)-[r:STS_ASSUMEROLE_ALLOW]->(role)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $aws_update_tag
     """

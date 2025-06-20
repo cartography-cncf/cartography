@@ -140,11 +140,21 @@ def get_sso_users(
     for page in paginator.paginate(IdentityStoreId=identity_store_id):
         user_page = page.get("Users", [])
         for user in user_page:
-            if user.get("ExternalIds", None):
-                user["ExternalId"] = user.get("ExternalIds")[0].get("Id")
             users.append(user)
 
     return users
+
+
+def transform_sso_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Transform SSO users to match the expected schema
+    """
+    transformed_users = []
+    for user in users:
+        if user.get("ExternalIds") is not None:
+            user["ExternalId"] = user["ExternalIds"][0].get("Id")
+        transformed_users.append(user)
+    return transformed_users
 
 
 @timeit
@@ -300,9 +310,10 @@ def sync_identity_center_instances(
             )
 
             users = get_sso_users(boto3_session, identity_store_id, region)
+            transformed_users = transform_sso_users(users)
             load_sso_users(
                 neo4j_session,
-                users,
+                transformed_users,
                 identity_store_id,
                 region,
                 current_aws_account_id,

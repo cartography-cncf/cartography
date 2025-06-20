@@ -2,6 +2,7 @@ import tests.data.aws.identitycenter
 from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
 from cartography.intel.aws.identitycenter import load_sso_users
+from cartography.intel.aws.identitycenter import transform_sso_users
 from tests.integration.util import check_nodes
 
 TEST_ACCOUNT_ID = "1234567890"
@@ -15,7 +16,7 @@ def test_load_sso_users(neo4j_session):
     # Load SSO users into the Neo4j session
     load_sso_users(
         neo4j_session,
-        users,
+        transform_sso_users(users),
         "d-1234567890",
         "us-west-2",
         TEST_ACCOUNT_ID,
@@ -23,7 +24,9 @@ def test_load_sso_users(neo4j_session):
     )
 
     # Use check_nodes to verify that the SSO users are correctly loaded
-    check_nodes(neo4j_session, "AWSSSOUser", ["id", "external_id"])
+    assert check_nodes(neo4j_session, "AWSSSOUser", ["id", "external_id"]) == {
+        ("aaaaaaaa-a0d1-aaac-5af0-59c813ec7671", "00aaaaabbbbb")
+    }
 
 
 def test_load_identity_center_instances(neo4j_session):
@@ -41,7 +44,11 @@ def test_load_identity_center_instances(neo4j_session):
     )
 
     # Verify that the instances are correctly loaded
-    check_nodes(neo4j_session, "AWSIdentityCenterInstance", ["id", "identity_store_id"])
+    assert check_nodes(
+        neo4j_session, "AWSIdentityCenter", ["id", "identity_store_id"]
+    ) == {
+        ("arn:aws:sso:::instance/ssoins-12345678901234567", "d-1234567890"),
+    }
 
 
 def test_load_permission_sets(neo4j_session):
@@ -60,4 +67,9 @@ def test_load_permission_sets(neo4j_session):
     )
 
     # Verify that the permission sets are correctly loaded
-    check_nodes(neo4j_session, "AWSPermissionSet", ["id", "name"])
+    assert check_nodes(neo4j_session, "AWSPermissionSet", ["id", "name"]) == {
+        (
+            "arn:aws:sso:::permissionSet/ssoins-12345678901234567/ps-12345678901234567",
+            "AdministratorAccess",
+        ),
+    }

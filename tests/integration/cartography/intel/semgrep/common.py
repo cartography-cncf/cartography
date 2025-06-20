@@ -3,9 +3,9 @@ from typing import List
 
 import neo4j
 
-TEST_REPO_ID = "https://github.com/org/repository"
-TEST_REPO_FULL_NAME = "org/repository"
-TEST_REPO_NAME = "repository"
+TEST_REPO_ID = "https://github.com/simpsoncorp/sample_repo"
+TEST_REPO_FULL_NAME = "simpsoncorp/sample_repo"
+TEST_REPO_NAME = "sample_repo"
 TEST_UPDATE_TAG = 123456789
 
 
