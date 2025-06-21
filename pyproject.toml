@@ -65,6 +65,7 @@ dependencies = [
     "xmltodict",
     "duo-client",
     "cloudflare (>=4.1.0,<5.0.0)",
+    "scaleway>=2.9.0",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]

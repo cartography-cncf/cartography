@@ -655,6 +655,33 @@ class CLI:
                 "Required if you are using the Trivy module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--scaleway-org",
+            type=str,
+            default=None,
+            help=(
+                "The Scaleway organization ID to sync. "
+                "Required if you are using the Scaleway intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--scaleway-access-key",
+            type=str,
+            default=None,
+            help=(
+                "The Scaleway access key to use for authentication. "
+                "Required if you are using the Scaleway intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--scaleway-secret-key-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing the Scaleway secret key for authentication. "
+                "Required if you are using the Scaleway intel module. Ignored otherwise."
+            ),
+        )
 
         return parser
 
@@ -979,6 +1006,15 @@ class CLI:
 
         if config.trivy_s3_prefix:
             logger.debug(f"Trivy S3 prefix: {config.trivy_s3_prefix}")
+
+        # Scaleway config
+        if config.scaleway_secret_key_env_var:
+            logger.debug(
+                f"Reading Scaleway secret key from environment variable {config.scaleway_secret_key_env_var}",
+            )
+            config.scaleway_secret_key = os.environ.get(
+                config.scaleway_secret_key_env_var,
+            )
 
         # Run cartography
         try:

@@ -141,6 +141,12 @@ class Config:
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
     :type trivy_s3_prefix: str
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
+    :type scaleway_access_key: str
+    :param scaleway_access_key: Scaleway access key. Optional.
+    :type scaleway_secret_key: str
+    :param scaleway_secret_key: Scaleway secret key. Optional.
+    :type scaleway_org: str
+    :param scaleway_org: Scaleway organization id. Optional.
     """
 
     def __init__(
@@ -215,6 +221,9 @@ class Config:
         anthropic_apikey=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
+        scaleway_access_key=None,
+        scaleway_secret_key=None,
+        scaleway_org=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -286,3 +295,6 @@ class Config:
         self.anthropic_apikey = anthropic_apikey
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
+        self.scaleway_access_key = None
+        self.scaleway_secret_key = None
+        self.scaleway_org = None
