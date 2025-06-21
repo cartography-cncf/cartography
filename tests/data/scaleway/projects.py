@@ -1,1 +1,15 @@
-Project(id='3714a18c-8b9b-493e-b938-3ed3bb4aa874', name='default', organization_id='3714a18c-8b9b-493e-b938-3ed3bb4aa874', description='', created_at=datetime.datetime(2025, 3, 20, 7, 39, 54, 220004, tzinfo=tzutc()), updated_at=datetime.datetime(2025, 3, 20, 7, 39, 54, 220004, tzinfo=tzutc()))
+from datetime import datetime
+
+from dateutil.tz import tzutc
+from scaleway.account.v3 import Project
+
+SCALEWAY_PROJECTS = [
+    Project(
+        id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        name="default",
+        organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        description="",
+        created_at=datetime(2025, 3, 20, 7, 39, 54, 220004, tzinfo=tzutc()),
+        updated_at=datetime(2025, 3, 20, 7, 39, 54, 220004, tzinfo=tzutc()),
+    )
+]

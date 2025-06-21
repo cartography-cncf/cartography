@@ -5,7 +5,7 @@ from typing import Any
 DEFAULT_ZONE = "fr-par-1"
 
 
-def scaleway_obj_to_dict(obj: dataclasses.dataclass) -> dict[str, Any]:
+def scaleway_obj_to_dict(obj: Any) -> dict[str, Any]:
     # DOC
     # Transform a Scaleway object (dataclass, dict, or list) into a dictionary.
     result: dict[str, Any] = obj.__dict__

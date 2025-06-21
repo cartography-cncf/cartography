@@ -41,6 +41,7 @@ class ScalewayInstanceProperties(CartographyNodeProperties):
     end_of_service: PropertyRef = PropertyRef("end_of_service")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
+
 @dataclass(frozen=True)
 class ScalewayInstanceToVolumeProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
