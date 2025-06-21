@@ -22,9 +22,6 @@ class ScalewayInstanceProperties(CartographyNodeProperties):
     routed_ip_enabled: PropertyRef = PropertyRef("routed_ip_enabled")
     enable_ipv6: PropertyRef = PropertyRef("enable_ipv6")
     hostname: PropertyRef = PropertyRef("hostname")
-
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    # extra_volumes ?
     private_ip: PropertyRef = PropertyRef("private_ip")
     mac_address: PropertyRef = PropertyRef("mac_address")
     modification_date: PropertyRef = PropertyRef("modification_date")
@@ -42,7 +39,7 @@ class ScalewayInstanceProperties(CartographyNodeProperties):
     private_nics: PropertyRef = PropertyRef("private_nics")
     zone: PropertyRef = PropertyRef("zone")
     end_of_service: PropertyRef = PropertyRef("end_of_service")
-
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 @dataclass(frozen=True)
 class ScalewayInstanceToVolumeProperties(CartographyRelProperties):

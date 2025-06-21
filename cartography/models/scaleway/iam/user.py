@@ -24,7 +24,6 @@ class ScalewayUserNodeProperties(CartographyNodeProperties):
     deletable: PropertyRef = PropertyRef("deletable")
     last_login_at: PropertyRef = PropertyRef("last_login_at")
     type: PropertyRef = PropertyRef("type")
-    two_factor_enabled: PropertyRef = PropertyRef("two_factor_enabled")
     status: PropertyRef = PropertyRef("status")
     mfa: PropertyRef = PropertyRef("mfa")
     account_root_user_id: PropertyRef = PropertyRef("account_root_user_id")

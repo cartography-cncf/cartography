@@ -20,7 +20,6 @@ class ScalewayApplicationNodeProperties(CartographyNodeProperties):
     editable: PropertyRef = PropertyRef("editable")
     deletable: PropertyRef = PropertyRef("deletable")
     managed: PropertyRef = PropertyRef("managed")
-    nb_api_keys: PropertyRef = PropertyRef("nb_api_keys")
     tags: PropertyRef = PropertyRef("tags")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
