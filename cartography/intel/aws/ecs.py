@@ -322,6 +322,7 @@ def load_ecs_tasks(
         data,
         ClusterArn=cluster_arn,
         Region=region,
+        AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
     )
 
@@ -331,6 +332,7 @@ def load_ecs_container_definitions(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
     region: str,
+    current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     load(
@@ -338,6 +340,7 @@ def load_ecs_container_definitions(
         ECSContainerDefinitionSchema(),
         data,
         Region=region,
+        AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
     )
 
@@ -347,6 +350,7 @@ def load_ecs_containers(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
     region: str,
+    current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     load(
@@ -354,6 +358,7 @@ def load_ecs_containers(
         ECSContainerSchema(),
         data,
         Region=region,
+        AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
     )
 
@@ -480,9 +485,10 @@ def _sync_ecs_task_and_container_defns(
         neo4j_session,
         containers,
         region,
+        current_aws_account_id,
         update_tag,
     )
-    
+
     task_definitions = get_ecs_task_definitions(
         boto3_session,
         region,
@@ -502,6 +508,7 @@ def _sync_ecs_task_and_container_defns(
         neo4j_session,
         container_defs,
         region,
+        current_aws_account_id,
         update_tag,
     )
 

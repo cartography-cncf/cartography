@@ -170,6 +170,7 @@ def test_load_ecs_tasks(neo4j_session, *args):
         neo4j_session,
         containers,
         TEST_REGION,
+        TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -255,6 +256,7 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
         neo4j_session,
         container_defs,
         TEST_REGION,
+        TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
