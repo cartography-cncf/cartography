@@ -309,6 +309,64 @@ class YourServiceUserSchema(CartographyNodeSchema):
     ])
 ```
 
+### Sub-Resource Relationships: Always Point to Tenant-Like Objects
+
+The `sub_resource_relationship` should **always** refer to a tenant-like object that represents the ownership or organizational boundary of the resource. This is crucial for proper data organization and cleanup operations.
+
+**✅ Correct Examples:**
+- **AWS Resources**: Point to `AWSAccount` (tenant = AWS account)
+- **Azure Resources**: Point to `AzureSubscription` (tenant = Azure subscription)
+- **GCP Resources**: Point to `GCPProject` (tenant = GCP project)
+- **SaaS Applications**: Point to `YourServiceTenant` (tenant = organization/company)
+- **GitHub Resources**: Point to `GitHubOrganization` (tenant = GitHub org)
+
+**❌ Incorrect Examples:**
+- Pointing to a parent resource that's not tenant-like (e.g., `ECSTaskDefinition` → `ECSTask`)
+- Pointing to infrastructure components (e.g., `ECSContainer` → `ECSTask`)
+- Pointing to logical groupings that aren't organizational boundaries
+
+**Example: AWS ECS Container Definitions**
+
+```python
+# ✅ CORRECT: Container definitions belong to AWS accounts
+@dataclass(frozen=True)
+class ECSContainerDefinitionSchema(CartographyNodeSchema):
+    label: str = "ECSContainerDefinition"
+    properties: ECSContainerDefinitionNodeProperties = ECSContainerDefinitionNodeProperties()
+    sub_resource_relationship: ECSContainerDefinitionToAWSAccountRel = ECSContainerDefinitionToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships([
+        ECSContainerDefinitionToTaskDefinitionRel(),  # Business relationship
+    ])
+
+# ✅ CORRECT: Relationship to AWS Account (tenant-like)
+@dataclass(frozen=True)
+class ECSContainerDefinitionToAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "id": PropertyRef("AWS_ID", set_in_kwargs=True),
+    })
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: ECSContainerDefinitionToAWSAccountRelProperties = ECSContainerDefinitionToAWSAccountRelProperties()
+
+# ✅ CORRECT: Business relationship to task definition (not tenant-like)
+@dataclass(frozen=True)
+class ECSContainerDefinitionToTaskDefinitionRel(CartographyRelSchema):
+    target_node_label: str = "ECSTaskDefinition"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "id": PropertyRef("_taskDefinitionArn"),
+    })
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_CONTAINER_DEFINITION"
+    properties: ECSContainerDefinitionToTaskDefinitionRelProperties = ECSContainerDefinitionToTaskDefinitionRelProperties()
+```
+
+**Why This Matters:**
+1. **Cleanup Operations**: Cartography uses the sub-resource relationship to determine which data to clean up during sync operations
+2. **Data Organization**: Tenant-like objects provide natural boundaries for data organization
+3. **Access Control**: Tenant relationships enable proper access control and data isolation
+4. **Consistency**: Following this pattern ensures consistent data modeling across all modules
+
 ### Relationships
 
 Define how your nodes connect to other nodes:
