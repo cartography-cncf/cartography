@@ -57,7 +57,7 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         org_id=config.scaleway_org,
         update_tag=config.update_tag,
     )
-    projects_id = [project.id for project in projects]
+    projects_id = [project["id"] for project in projects]
     cartography.intel.scaleway.iam.users.sync(
         neo4j_session,
         client,

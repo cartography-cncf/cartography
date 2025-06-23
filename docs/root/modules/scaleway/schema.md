@@ -85,7 +85,7 @@ Represents a User in Scaleway.
 | locale             | Locale of the user.                          |
 | created_at         | Date user was created.                       |
 | updated_at         | Date of last user update.                    |
-| deletable          | FDeletion status of user. Owners cannot be deleted. |
+| deletable          | Deletion status of user. Owners cannot be deleted. |
 | last_login_at      | Date of the last login.                      |
 | type               | Type of user (`unknown_type`, `guest`, `owner`, `member`)    |
 | status             | Status of user invitation (`unknown_status`, `invitation_pending`, `activated`) |

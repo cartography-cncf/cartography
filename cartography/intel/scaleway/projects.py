@@ -28,7 +28,7 @@ def sync(
     formatted_projects = transform_projects(projects)
     load_projects(neo4j_session, formatted_projects, org_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
-    return projects
+    return formatted_projects
 
 
 @timeit

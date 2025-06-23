@@ -1015,6 +1015,8 @@ class CLI:
             config.scaleway_secret_key = os.environ.get(
                 config.scaleway_secret_key_env_var,
             )
+        else:
+            config.scaleway_secret_key = None
 
         # Run cartography
         try:

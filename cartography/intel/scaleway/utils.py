@@ -7,7 +7,9 @@ DEFAULT_ZONE = "fr-par-1"
 
 def scaleway_obj_to_dict(obj: Any) -> dict[str, Any]:
     """Transform a Scaleway object (dataclass, dict, or list) into a dictionary."""
-    result: dict[str, Any] = obj.__dict__
+    if isinstance(obj, type) or not dataclasses.is_dataclass(obj):
+        raise TypeError(f"Expected a dataclass, got {type(obj).__name__} instead.")
+    result: dict[str, Any] = dataclasses.asdict(obj)
 
     for k in list(result.keys()):
         result[k] = _scaleway_element_sanitize(result[k])

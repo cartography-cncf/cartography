@@ -295,6 +295,6 @@ class Config:
         self.anthropic_apikey = anthropic_apikey
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
-        self.scaleway_access_key = None
-        self.scaleway_secret_key = None
-        self.scaleway_org = None
+        self.scaleway_access_key = scaleway_access_key
+        self.scaleway_secret_key = scaleway_secret_key
+        self.scaleway_org = scaleway_org
