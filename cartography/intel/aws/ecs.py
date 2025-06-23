@@ -18,7 +18,6 @@ from cartography.models.aws.ecs.services import ECSServiceSchema
 from cartography.models.aws.ecs.task_definitions import ECSTaskDefinitionSchema
 from cartography.models.aws.ecs.tasks import ECSTaskSchema
 from cartography.util import aws_handle_regions
-from cartography.util import camel_to_snake
 from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
 
@@ -61,20 +60,6 @@ def get_ecs_clusters(
     return clusters
 
 
-def transform_clusters(
-    clusters: List[Dict[str, Any]], region: str
-) -> List[Dict[str, Any]]:
-    transformed: List[Dict[str, Any]] = []
-    for cluster in clusters:
-        c = cluster.copy()
-        for setting in c.get("settings", []):
-            setting_name = camel_to_snake(setting["name"])
-            c[f"settings_{setting_name}"] = setting["value"]
-        c["Region"] = region
-        transformed.append(c)
-    return transformed
-
-
 @timeit
 @aws_handle_regions
 def get_ecs_container_instances(
@@ -102,20 +87,6 @@ def get_ecs_container_instances(
     return container_instances
 
 
-# TODO remove
-def transform_container_instances(
-    instances: List[Dict[str, Any]], region: str
-) -> List[Dict[str, Any]]:
-    transformed: List[Dict[str, Any]] = []
-    for inst in instances:
-        i = inst.copy()
-        # TODO remove
-        i["registeredAt"] = dict_date_to_epoch(i, "registeredAt")
-        i["Region"] = region
-        transformed.append(i)
-    return transformed
-
-
 @timeit
 @aws_handle_regions
 def get_ecs_services(
@@ -137,20 +108,6 @@ def get_ecs_services(
         )
         services.extend(service_chunk.get("services", []))
     return services
-
-
-# TODO remove
-def transform_services(
-    services: List[Dict[str, Any]], region: str
-) -> List[Dict[str, Any]]:
-    transformed: List[Dict[str, Any]] = []
-    for svc in services:
-        s = svc.copy()
-        # TODO remove
-        s["createdAt"] = dict_date_to_epoch(s, "createdAt")
-        s["Region"] = region
-        transformed.append(s)
-    return transformed
 
 
 @timeit
@@ -402,10 +359,11 @@ def _sync_ecs_cluster_arns(
     update_tag: int,
 ) -> None:
     clusters = get_ecs_clusters(boto3_session, region, cluster_arns)
-    clusters_transformed = transform_clusters(clusters, region)
+    if len(clusters) == 0:
+        return
     load_ecs_clusters(
         neo4j_session,
-        clusters_transformed,
+        clusters,
         region,
         current_aws_account_id,
         update_tag,
@@ -426,13 +384,10 @@ def _sync_ecs_container_instances(
         boto3_session,
         region,
     )
-    cluster_instances_transformed = transform_container_instances(
-        cluster_instances, region
-    )
     load_ecs_container_instances(
         neo4j_session,
         cluster_arn,
-        cluster_instances_transformed,
+        cluster_instances,
         region,
         current_aws_account_id,
         update_tag,
@@ -453,11 +408,10 @@ def _sync_ecs_services(
         boto3_session,
         region,
     )
-    services_transformed = transform_services(services, region)
     load_ecs_services(
         neo4j_session,
         cluster_arn,
-        services_transformed,
+        services,
         region,
         current_aws_account_id,
         update_tag,

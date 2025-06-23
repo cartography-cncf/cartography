@@ -34,9 +34,6 @@ class ECSClusterNodeProperties(CartographyNodeProperties):
     ecc_log_configuration_s3_key_prefix: PropertyRef = PropertyRef(
         "ecc_log_configuration_s3_key_prefix"
     )
-    settings_container_insights: PropertyRef = PropertyRef(
-        "settings_container_insights"
-    )
     capacity_providers: PropertyRef = PropertyRef("capacityProviders")
     attachments_status: PropertyRef = PropertyRef("attachmentsStatus")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
