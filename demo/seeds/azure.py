@@ -76,16 +76,19 @@ class AzureSeed(Seed):
             cartography.intel.azure.cosmosdb._load_database_account_write_locations(
                 self.neo4j_session,
                 database_account,
+                SUBSCRIPTION_ID,
                 self.update_tag,
             )
             cartography.intel.azure.cosmosdb._load_database_account_read_locations(
                 self.neo4j_session,
                 database_account,
+                SUBSCRIPTION_ID,
                 self.update_tag,
             )
             cartography.intel.azure.cosmosdb._load_database_account_associated_locations(
                 self.neo4j_session,
                 database_account,
+                SUBSCRIPTION_ID,
                 self.update_tag,
             )
             cartography.intel.azure.cosmosdb._load_cosmosdb_cors_policy(
@@ -112,39 +115,46 @@ class AzureSeed(Seed):
         cartography.intel.azure.cosmosdb._load_sql_databases(
             self.neo4j_session,
             tests.data.azure.cosmosdb.DESCRIBE_SQL_DATABASES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.cosmosdb._load_sql_containers(
             self.neo4j_session,
             tests.data.azure.cosmosdb.DESCRIBE_SQL_DATABASES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         # Cassandra
         cartography.intel.azure.cosmosdb._load_cassandra_keyspaces(
             self.neo4j_session,
             tests.data.azure.cosmosdb.DESCRIBE_CASSANDRA_KEYSPACES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.cosmosdb._load_cassandra_tables(
             self.neo4j_session,
             tests.data.azure.cosmosdb.DESCRIBE_CASSANDRA_TABLES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         # MongoDB
         cartography.intel.azure.cosmosdb._load_mongodb_databases(
             self.neo4j_session,
             tests.data.azure.cosmosdb.DESCRIBE_MONGODB_DATABASES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.cosmosdb._load_collections(
             self.neo4j_session,
             tests.data.azure.cosmosdb.DESCRIBE_MONGODB_COLLECTIONS,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         # Table
         cartography.intel.azure.cosmosdb._load_table_resources(
             self.neo4j_session,
             tests.data.azure.cosmosdb.DESCRIBE_TABLE_RESOURCES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
 
@@ -158,56 +168,67 @@ class AzureSeed(Seed):
         cartography.intel.azure.sql._load_server_dns_aliases(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_DNS_ALIASES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_server_ad_admins(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_AD_ADMINS,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_recoverable_databases(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_RECOVERABLE_DATABASES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_restorable_dropped_databases(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_RESTORABLE_DROPPED_DATABASES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_failover_groups(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_FAILOVER_GROUPS,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_elastic_pools(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_ELASTIC_POOLS,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_databases(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_DATABASES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_replication_links(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_REPLICATION_LINKS,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_db_threat_detection_policies(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_THREAT_DETECTION_POLICY,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_restore_points(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_RESTORE_POINTS,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.sql._load_transparent_data_encryptions(
             self.neo4j_session,
             tests.data.azure.sql.DESCRIBE_TRANSPARENT_DATA_ENCRYPTIONS,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
 
@@ -221,40 +242,48 @@ class AzureSeed(Seed):
         cartography.intel.azure.storage._load_queue_services(
             self.neo4j_session,
             tests.data.azure.storage.DESCRIBE_QUEUE_SERVICES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.storage._load_queues(
             self.neo4j_session,
             tests.data.azure.storage.DESCRIBE_QUEUE,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.storage._load_table_services(
             self.neo4j_session,
             tests.data.azure.storage.DESCRIBE_TABLE_SERVICES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.storage._load_tables(
             self.neo4j_session,
             tests.data.azure.storage.DESCRIBE_TABLES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.storage._load_file_services(
             self.neo4j_session,
             tests.data.azure.storage.DESCRIBE_FILE_SERVICES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.storage._load_shares(
             self.neo4j_session,
             tests.data.azure.storage.DESCRIBE_FILE_SHARES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.storage._load_blob_services(
             self.neo4j_session,
             tests.data.azure.storage.DESCRIBE_BLOB_SERVICES,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
         cartography.intel.azure.storage._load_blob_containers(
             self.neo4j_session,
             tests.data.azure.storage.DESCRIBE_BLOB_CONTAINERS,
+            SUBSCRIPTION_ID,
             self.update_tag,
         )
