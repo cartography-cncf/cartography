@@ -6,8 +6,7 @@ DEFAULT_ZONE = "fr-par-1"
 
 
 def scaleway_obj_to_dict(obj: Any) -> dict[str, Any]:
-    # DOC
-    # Transform a Scaleway object (dataclass, dict, or list) into a dictionary.
+    """Transform a Scaleway object (dataclass, dict, or list) into a dictionary."""
     result: dict[str, Any] = obj.__dict__
 
     for k in list(result.keys()):
@@ -16,8 +15,7 @@ def scaleway_obj_to_dict(obj: Any) -> dict[str, Any]:
 
 
 def _scaleway_element_sanitize(element: Any) -> Any:
-    # DOC
-    # Sanitize a Scaleway element by removing empty strings and lists.
+    """Sanitize a Scaleway element by removing empty strings and lists."""
     if isinstance(element, str) and element == "":
         return None
     elif isinstance(element, list):
