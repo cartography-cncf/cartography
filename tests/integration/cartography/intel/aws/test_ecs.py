@@ -158,15 +158,13 @@ def test_load_ecs_services(neo4j_session, *args):
 def test_load_ecs_tasks(neo4j_session, *args):
     # Arrange
     data = tests.data.aws.ecs.GET_ECS_TASKS
-    tasks_transformed, containers = cartography.intel.aws.ecs.transform_tasks(
-        data, TEST_REGION
-    )
+    containers = cartography.intel.aws.ecs._get_containers_from_tasks(data)
 
     # Act
     cartography.intel.aws.ecs.load_ecs_tasks(
         neo4j_session,
         CLUSTER_ARN,
-        tasks_transformed,
+        data,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -245,14 +243,14 @@ def test_load_ecs_tasks(neo4j_session, *args):
 def test_load_ecs_task_definitions(neo4j_session, *args):
     # Arrange
     data = tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS
-    task_defs_transformed, container_defs = (
-        cartography.intel.aws.ecs.transform_task_definitions(data, TEST_REGION)
+    container_defs = (
+        cartography.intel.aws.ecs._get_container_defs_from_task_definitions(data)
     )
 
     # Act
     cartography.intel.aws.ecs.load_ecs_task_definitions(
         neo4j_session,
-        task_defs_transformed,
+        data,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,

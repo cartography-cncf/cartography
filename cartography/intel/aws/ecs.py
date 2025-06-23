@@ -18,7 +18,6 @@ from cartography.models.aws.ecs.services import ECSServiceSchema
 from cartography.models.aws.ecs.task_definitions import ECSTaskDefinitionSchema
 from cartography.models.aws.ecs.tasks import ECSTaskSchema
 from cartography.util import aws_handle_regions
-from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -127,24 +126,17 @@ def get_ecs_task_definitions(
     return task_definitions
 
 
-def transform_task_definitions(
-    definitions: list[dict[str, Any]], region: str
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _get_container_defs_from_task_definitions(
+    definitions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     container_defs: list[dict[str, Any]] = []
-    transformed_defs: list[dict[str, Any]] = []
     for td in definitions:
-        t = td.copy()
-        t["registeredAt"] = dict_date_to_epoch(t, "registeredAt")
-        t["deregisteredAt"] = dict_date_to_epoch(t, "deregisteredAt")
-        t["Region"] = region
-        for container in t.get("containerDefinitions", []):
+        for container in td.get("containerDefinitions", []):
             c = container.copy()
-            c["_taskDefinitionArn"] = t["taskDefinitionArn"]
-            c["id"] = f"{t['taskDefinitionArn']}-{c['name']}"
-            c["Region"] = region
+            c["_taskDefinitionArn"] = td["taskDefinitionArn"]
+            c["id"] = f"{td['taskDefinitionArn']}-{c['name']}"
             container_defs.append(c)
-        transformed_defs.append(t)
-    return transformed_defs, container_defs
+    return container_defs
 
 
 @timeit
@@ -170,28 +162,11 @@ def get_ecs_tasks(
     return tasks
 
 
-def transform_tasks(
-    tasks: list[dict[str, Any]], region: str
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     containers: list[dict[str, Any]] = []
-    transformed_tasks: list[dict[str, Any]] = []
     for task in tasks:
-        t = task.copy()
-        for field in [
-            "connectivityAt",
-            "createdAt",
-            "executionStoppedAt",
-            "pullStartedAt",
-            "pullStoppedAt",
-            "startedAt",
-            "stoppedAt",
-            "stoppingAt",
-        ]:
-            t[field] = dict_date_to_epoch(t, field)
-        t["Region"] = region
-        containers.extend(t.get("containers", []))
-        transformed_tasks.append(t)
-    return transformed_tasks, containers
+        containers.extend(task.get("containers", []))
+    return containers
 
 
 @timeit
@@ -432,11 +407,11 @@ def _sync_ecs_task_and_container_defns(
         boto3_session,
         region,
     )
-    tasks_transformed, containers = transform_tasks(tasks, region)
+    containers = _get_containers_from_tasks(tasks)
     load_ecs_tasks(
         neo4j_session,
         cluster_arn,
-        tasks_transformed,
+        tasks,
         region,
         current_aws_account_id,
         update_tag,
@@ -454,12 +429,10 @@ def _sync_ecs_task_and_container_defns(
         region,
         tasks,
     )
-    task_defs_transformed, container_defs = transform_task_definitions(
-        task_definitions, region
-    )
+    container_defs = _get_container_defs_from_task_definitions(task_definitions)
     load_ecs_task_definitions(
         neo4j_session,
-        task_defs_transformed,
+        task_definitions,
         region,
         current_aws_account_id,
         update_tag,
