@@ -17,6 +17,16 @@ TEST_UPDATE_TAG = 123456789
 TEST_ORG = "simpson.corp"
 
 
+def _ensure_local_neo4j_has_test_devices(neo4j_session):
+    """Helper function to populate Neo4j with test Tailscale devices."""
+    cartography.intel.tailscale.devices.load_devices(
+        neo4j_session,
+        tests.data.tailscale.devices.TAILSCALE_DEVICES,
+        TEST_ORG,
+        TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.tailscale.devices,
     "get",

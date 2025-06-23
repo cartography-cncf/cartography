@@ -8,15 +8,28 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 logger = logging.getLogger(__name__)
+TEST_UPDATE_TAG = 1234
+TEST_SNIPEIT_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
+
+
+def _ensure_local_neo4j_has_test_snipeit_assets(neo4j_session):
+    """Helper function to populate Neo4j with test SnipeIt assets."""
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
+    }
+    cartography.intel.snipeit.asset.load_assets(
+        neo4j_session,
+        common_job_parameters,
+        tests.data.snipeit.assets.ASSETS["simpson_corp"],
+    )
 
 
 def test_load_snipeit_assets_relationship(neo4j_session):
     # Arrange
-    TEST_UPDATE_TAG = 1234
-    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
 
     # Load test users for the relationship
@@ -109,7 +122,7 @@ def test_load_snipeit_assets_relationship(neo4j_session):
     # Cleanup test data
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG + 1234,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
     cartography.intel.snipeit.asset.cleanup(
         neo4j_session,
@@ -119,11 +132,9 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
 def test_cleanup_snipeit_assets(neo4j_session):
     # Arrange
-    TEST_UPDATE_TAG = 1234
-    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
     data = tests.data.snipeit.assets.ASSETS["simpson_corp"]
 
@@ -176,7 +187,7 @@ def test_cleanup_snipeit_assets(neo4j_session):
     # Act: run the cleanup job to remove all nodes except the unrelated data
     common_job_parameters = {
         "UPDATE_TAG": UNRELATED_UPDATE_TAG,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
     cartography.intel.snipeit.asset.cleanup(
         neo4j_session,
@@ -200,7 +211,7 @@ def test_cleanup_snipeit_assets(neo4j_session):
     # Cleanup all test data
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG + 9999,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
     cartography.intel.snipeit.asset.cleanup(
         neo4j_session,

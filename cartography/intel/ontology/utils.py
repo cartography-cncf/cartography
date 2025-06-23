@@ -62,7 +62,7 @@ def get_source_nodes_from_graph(
                 "Source of truth '%s' is not supported for '%s'.", source, module_name
             )
             continue
-        for node_label, fields in modules_mapping[source]["nodes"].items():
+        for node_label, fields in modules_mapping[source].get("nodes", {}).items():
             if not isinstance(fields, dict):
                 logger.warning(
                     "Node fields for '%s' in '%s' are not a dictionary.",
