@@ -1,4 +1,3 @@
-# See: https://d3fend.mitre.org/dao/artifact/d3f:ClientComputer/
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
@@ -14,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class ClientComputerNodeProperties(CartographyNodeProperties):
+class DeviceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("hostname")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
@@ -26,101 +25,101 @@ class ClientComputerNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ClientComputerToNodeRelProperties(CartographyRelProperties):
+class DeviceToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:ClientComputer)-[:HAS_OBSERVATION]->(:DuoEndpoint)
-class ClientComputerToDuoEndpointRel(CartographyRelSchema):
+# (:Device)-[:HAS_OBSERVATION]->(:DuoEndpoint)
+class DeviceToDuoEndpointRel(CartographyRelSchema):
     target_node_label: str = "DuoEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"device_name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:ClientComputer)-[:HAS_OBSERVATION]->(:DuoPhone)
-class ClientComputerToDuoPhoneRel(CartographyRelSchema):
+# (:Device)-[:HAS_OBSERVATION]->(:DuoPhone)
+class DeviceToDuoPhoneRel(CartographyRelSchema):
     target_node_label: str = "DuoPhone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:ClientComputer)-[:HAS_OBSERVATION]->(:KandjiDevice)
-class ClientComputerToKandjiDeviceRel(CartographyRelSchema):
+# (:Device)-[:HAS_OBSERVATION]->(:KandjiDevice)
+class DeviceToKandjiDeviceRel(CartographyRelSchema):
     target_node_label: str = "KandjiDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"device_name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:ClientComputer)-[:HAS_OBSERVATION]->(:SnipeitAsset)
-class ClientComputerToSnipeitAssetRel(CartographyRelSchema):
+# (:Device)-[:HAS_OBSERVATION]->(:SnipeitAsset)
+class DeviceToSnipeitAssetRel(CartographyRelSchema):
     target_node_label: str = "SnipeitAsset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:ClientComputer)-[:HAS_OBSERVATION]->(:TailscaleDevice)
-class ClientComputerToTailscaleDeviceRel(CartographyRelSchema):
+# (:Device)-[:HAS_OBSERVATION]->(:TailscaleDevice)
+class DeviceToTailscaleDeviceRel(CartographyRelSchema):
     target_node_label: str = "TailscaleDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"hostname": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:ClientComputer)-[:HAS_OBSERVATION]->(:CrowdstrikeHost)
-class ClientComputerToCrowdstrikeHostRel(CartographyRelSchema):
+# (:Device)-[:HAS_OBSERVATION]->(:CrowdstrikeHost)
+class DeviceToCrowdstrikeHostRel(CartographyRelSchema):
     target_node_label: str = "CrowdstrikeHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"hostname": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_OBSERVATION"
-    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:ClientComputer)-[:RESOURCE]->(:BigfixComputer)
-class ClientComputerToBigfixComputerRel(CartographyRelSchema):
+# (:Device)-[:RESOURCE]->(:BigfixComputer)
+class DeviceToBigfixComputerRel(CartographyRelSchema):
     target_node_label: str = "BigfixComputer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"computername": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: ClientComputerToNodeRelProperties = ClientComputerToNodeRelProperties()
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
 @dataclass(frozen=True)
-class ClientComputerSchema(CartographyNodeSchema):
-    label: str = "ClientComputer"
+class DeviceSchema(CartographyNodeSchema):
+    label: str = "Device"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
-    properties: ClientComputerNodeProperties = ClientComputerNodeProperties()
+    properties: DeviceNodeProperties = DeviceNodeProperties()
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
-            ClientComputerToDuoEndpointRel(),
-            ClientComputerToDuoPhoneRel(),
-            ClientComputerToKandjiDeviceRel(),
-            ClientComputerToSnipeitAssetRel(),
-            ClientComputerToTailscaleDeviceRel(),
-            ClientComputerToCrowdstrikeHostRel(),
-            ClientComputerToBigfixComputerRel(),
+            DeviceToDuoEndpointRel(),
+            DeviceToDuoPhoneRel(),
+            DeviceToKandjiDeviceRel(),
+            DeviceToSnipeitAssetRel(),
+            DeviceToTailscaleDeviceRel(),
+            DeviceToCrowdstrikeHostRel(),
+            DeviceToBigfixComputerRel(),
         ],
     )

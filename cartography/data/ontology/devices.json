@@ -37,13 +37,13 @@
         },
         "rels": [
             {
-                "__comment__": "Link ClientComputer to User based on DuoUser-DuoPhone relationship",
-                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_PHONE]-(:DuoPhone)<-[:HAS_OBSERVATION]-(d:ClientComputer) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "__comment__": "Link Device to User based on DuoUser-DuoPhone relationship",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_PHONE]-(:DuoPhone)<-[:HAS_OBSERVATION]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
                 "iterative": false
             },
             {
-                "__comment__": "Link ClientComputer to User based on DuoUser-DuoEndpoint relationship",
-                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_ENDPOINT]-(:DuoEndpoint)<-[:HAS_OBSERVATION]-(d:ClientComputer) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "__comment__": "Link Device to User based on DuoUser-DuoEndpoint relationship",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_ENDPOINT]-(:DuoEndpoint)<-[:HAS_OBSERVATION]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
                 "iterative": false
             }
         ]
@@ -69,8 +69,8 @@
         },
         "rels": [
             {
-                "__comment__": "Link ClientComputer to User based on SnipeitUser-SnipeitAsset relationship",
-                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:SnipeitUser)-[:HAS_CHECKED_OUT]-(:SnipeitAsset)<-[:HAS_OBSERVATION]-(d:ClientComputer) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "__comment__": "Link Device to User based on SnipeitUser-SnipeitAsset relationship",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:SnipeitUser)-[:HAS_CHECKED_OUT]-(:SnipeitAsset)<-[:HAS_OBSERVATION]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
                 "iterative": false
             }
         ]
@@ -84,8 +84,8 @@
         },
         "rels": [
             {
-                "__comment__": "Link ClientComputer to User based on TailscaleUser-TailscaleDevice relationship",
-                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:HAS_OBSERVATION]-(d:ClientComputer) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "__comment__": "Link Device to User based on TailscaleUser-TailscaleDevice relationship",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:HAS_OBSERVATION]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
                 "iterative": false
             }
         ]

@@ -143,8 +143,8 @@ class Config:
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
     :type ontology_users_source: str
     :param ontology_users_source: Comma-separated list of sources of truth for user data in the ontology. Optional.
-    :type ontology_clientcomputers_source: str
-    :param ontology_clientcomputers_source: Comma-separated list of sources of truth for client computers data in the ontology.
+    :type ontology_devices_source: str
+    :param ontology_devices_source: Comma-separated list of sources of truth for client computers data in the ontology.
         Optional.
     """
 
@@ -221,7 +221,7 @@ class Config:
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
         ontology_users_source=None,
-        ontology_clientcomputers_source=None,
+        ontology_devices_source=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -294,4 +294,4 @@ class Config:
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
         self.ontology_users_source = ontology_users_source
-        self.ontology_clientcomputers_source = ontology_clientcomputers_source
+        self.ontology_devices_source = ontology_devices_source

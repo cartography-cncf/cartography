@@ -39,7 +39,7 @@ def main(force_flag: bool) -> None:
         neo4j_user=NEO4J_USER,
         neo4j_password=NEO4J_PASSWORD,
         ontology_users_source="duo",
-        ontology_clientcomputers_source="snipeit",
+        ontology_devices_source="snipeit",
     )
 
     # Check if the database is empty

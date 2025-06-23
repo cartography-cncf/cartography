@@ -666,12 +666,12 @@ class CLI:
             ),
         )
         parser.add_argument(
-            "--ontology-clientcomputers-source",
+            "--ontology-devices-source",
             type=str,
             default=None,
             help=(
                 "[EXPERIMENTAL!] Comma-separated list of sources of truth for client computer data in the ontology. "
-                "'ClientComputer' nodes will only be created for groups that exist in one of the sources. "
+                "'Device' nodes will only be created for groups that exist in one of the sources. "
                 "Required if you are using the ontology module. Ignored otherwise."
             ),
         )

@@ -48,7 +48,7 @@ Ontology files are located in `cartography/data/ontology/`. They use a structure
         "rels": [
             {
                 "__comment__": "These relationships are used to build links between ontology nodes to reflect observed nodes in the modules.",
-                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:HAS_OBSERVATION]-(d:ClientComputer) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:HAS_OBSERVATION]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
                 "iterative": false
             }
         ]
@@ -70,7 +70,7 @@ The ontology schema is defined in `cartography/models/ontology`.
 graph LR
 
 U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
-U -- OWNS --> CC(ClientComputer)
+U -- OWNS --> CC(Device)
 ```
 
 :::{note}
@@ -107,12 +107,12 @@ A user often has one or many user accounts.
     ```
     (:User)-[:HAS_ACCOUNT]->(:UserAccount)
     ```
-- `User` can own one or many `ClientComputer`:
+- `User` can own one or many `Device`:
     ```
-    (:User)-[:OWNS]->(:ClientComputer)
+    (:User)-[:OWNS]->(:Device)
     ```
 
-### ClientComputer
+### Device
 
 _Reference: [d3f:ClientComputer](https://d3fend.mitre.org/dao/artifact/d3f:ClientComputer/)_
 
@@ -133,11 +133,11 @@ A client computer can be a `DesktopComputer`, `LaptopComputer`, `TableComputer`,
 
 #### Relationships
 
-- `ClientComputer` is linked to one or many nodes that implements the notion into a module
+- `Device` is linked to one or many nodes that implements the notion into a module
     ```
     (:User)-[:HAS_REPRESENTATION]->(:*)
     ```
-- `User` can own one or many `ClientComputer`
+- `User` can own one or many `Device`
     ```
-    (:User)-[:OWNS]->(:ClientComputer)
+    (:User)-[:OWNS]->(:Device)
     ```
