@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -65,9 +66,32 @@ class ECSTaskDefinitionToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSTaskDefinitionToECSTaskRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSTaskDefinitionToECSTaskRel(CartographyRelSchema):
+    target_node_label: str = "ECSTask"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"task_definition_arn": PropertyRef("taskDefinitionArn")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_TASK_DEFINITION"
+    properties: ECSTaskDefinitionToECSTaskRelProperties = (
+        ECSTaskDefinitionToECSTaskRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECSTaskDefinitionSchema(CartographyNodeSchema):
     label: str = "ECSTaskDefinition"
     properties: ECSTaskDefinitionNodeProperties = ECSTaskDefinitionNodeProperties()
     sub_resource_relationship: ECSTaskDefinitionToAWSAccountRel = (
         ECSTaskDefinitionToAWSAccountRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ECSTaskDefinitionToECSTaskRel(),
+        ]
     )

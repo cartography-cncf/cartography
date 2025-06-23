@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -32,6 +33,24 @@ class ECSContainerNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class ECSContainerToAWSAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: ECSContainerToAWSAccountRelProperties = (
+        ECSContainerToAWSAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECSContainerToTaskRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -51,4 +70,11 @@ class ECSContainerToTaskRel(CartographyRelSchema):
 class ECSContainerSchema(CartographyNodeSchema):
     label: str = "ECSContainer"
     properties: ECSContainerNodeProperties = ECSContainerNodeProperties()
-    sub_resource_relationship: ECSContainerToTaskRel = ECSContainerToTaskRel()
+    sub_resource_relationship: ECSContainerToAWSAccountRel = (
+        ECSContainerToAWSAccountRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ECSContainerToTaskRel(),
+        ]
+    )

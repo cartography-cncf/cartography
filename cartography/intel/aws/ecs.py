@@ -102,12 +102,14 @@ def get_ecs_container_instances(
     return container_instances
 
 
+# TODO remove
 def transform_container_instances(
     instances: List[Dict[str, Any]], region: str
 ) -> List[Dict[str, Any]]:
     transformed: List[Dict[str, Any]] = []
     for inst in instances:
         i = inst.copy()
+        # TODO remove
         i["registeredAt"] = dict_date_to_epoch(i, "registeredAt")
         i["Region"] = region
         transformed.append(i)
@@ -137,12 +139,14 @@ def get_ecs_services(
     return services
 
 
+# TODO remove
 def transform_services(
     services: List[Dict[str, Any]], region: str
 ) -> List[Dict[str, Any]]:
     transformed: List[Dict[str, Any]] = []
     for svc in services:
         s = svc.copy()
+        # TODO remove
         s["createdAt"] = dict_date_to_epoch(s, "createdAt")
         s["Region"] = region
         transformed.append(s)
@@ -266,6 +270,7 @@ def load_ecs_container_instances(
         data,
         ClusterArn=cluster_arn,
         Region=region,
+        AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
     )
 
@@ -285,6 +290,7 @@ def load_ecs_services(
         data,
         ClusterArn=cluster_arn,
         Region=region,
+        AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
     )
 
@@ -544,7 +550,7 @@ def sync(
                 current_aws_account_id,
                 update_tag,
             )
-            _sync_ecs_services(
+            _sync_ecs_task_and_container_defns(
                 neo4j_session,
                 boto3_session,
                 cluster_arn,
@@ -552,7 +558,7 @@ def sync(
                 current_aws_account_id,
                 update_tag,
             )
-            _sync_ecs_task_and_container_defns(
+            _sync_ecs_services(
                 neo4j_session,
                 boto3_session,
                 cluster_arn,

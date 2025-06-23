@@ -67,24 +67,6 @@ class ECSTaskToECSClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class ECSTaskToTaskDefinitionRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class ECSTaskToTaskDefinitionRel(CartographyRelSchema):
-    target_node_label: str = "ECSTaskDefinition"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("taskDefinitionArn")}
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_TASK_DEFINITION"
-    properties: ECSTaskToTaskDefinitionRelProperties = (
-        ECSTaskToTaskDefinitionRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class ECSTaskToContainerInstanceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -103,13 +85,26 @@ class ECSTaskToContainerInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSTaskToAWSAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSTaskToAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: ECSTaskToAWSAccountRelProperties = ECSTaskToAWSAccountRelProperties()
+
+
+@dataclass(frozen=True)
 class ECSTaskSchema(CartographyNodeSchema):
     label: str = "ECSTask"
     properties: ECSTaskNodeProperties = ECSTaskNodeProperties()
-    sub_resource_relationship: ECSTaskToECSClusterRel = ECSTaskToECSClusterRel()
+    sub_resource_relationship: ECSTaskToAWSAccountRel = ECSTaskToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [
-            ECSTaskToTaskDefinitionRel(),
-            ECSTaskToContainerInstanceRel(),
-        ]
+        [ECSTaskToContainerInstanceRel(), ECSTaskToECSClusterRel()]
     )
