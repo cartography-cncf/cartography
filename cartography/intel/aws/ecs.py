@@ -391,14 +391,117 @@ def _sync_ecs_cluster_arns(
     update_tag: int,
 ) -> None:
     clusters = get_ecs_clusters(boto3_session, region, cluster_arns)
-    if len(clusters) == 0:
-        return
     clusters_transformed = transform_clusters(clusters, region)
     load_ecs_clusters(
         neo4j_session,
         clusters_transformed,
         region,
         current_aws_account_id,
+        update_tag,
+    )
+
+
+@timeit
+def _sync_ecs_container_instances(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    cluster_arn: str,
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    cluster_instances = get_ecs_container_instances(
+        cluster_arn,
+        boto3_session,
+        region,
+    )
+    cluster_instances_transformed = transform_container_instances(
+        cluster_instances, region
+    )
+    load_ecs_container_instances(
+        neo4j_session,
+        cluster_arn,
+        cluster_instances_transformed,
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
+
+
+@timeit
+def _sync_ecs_services(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    cluster_arn: str,
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    services = get_ecs_services(
+        cluster_arn,
+        boto3_session,
+        region,
+    )
+    services_transformed = transform_services(services, region)
+    load_ecs_services(
+        neo4j_session,
+        cluster_arn,
+        services_transformed,
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
+
+
+@timeit
+def _sync_ecs_task_and_container_defns(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    cluster_arn: str,
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    tasks = get_ecs_tasks(
+        cluster_arn,
+        boto3_session,
+        region,
+    )
+    tasks_transformed, containers = transform_tasks(tasks, region)
+    load_ecs_tasks(
+        neo4j_session,
+        cluster_arn,
+        tasks_transformed,
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
+    load_ecs_containers(
+        neo4j_session,
+        containers,
+        region,
+        update_tag,
+    )
+    
+    task_definitions = get_ecs_task_definitions(
+        boto3_session,
+        region,
+        tasks,
+    )
+    task_defs_transformed, container_defs = transform_task_definitions(
+        task_definitions, region
+    )
+    load_ecs_task_definitions(
+        neo4j_session,
+        task_defs_transformed,
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
+    load_ecs_container_definitions(
+        neo4j_session,
+        container_defs,
+        region,
         update_tag,
     )
 
@@ -414,9 +517,7 @@ def sync(
 ) -> None:
     for region in regions:
         logger.info(
-            "Syncing ECS for region '%s' in account '%s'.",
-            region,
-            current_aws_account_id,
+            f"Syncing ECS for region '{region}' in account '{current_aws_account_id}'.",
         )
         cluster_arns = get_ecs_cluster_arns(boto3_session, region)
         _sync_ecs_cluster_arns(
@@ -428,75 +529,28 @@ def sync(
             update_tag,
         )
         for cluster_arn in cluster_arns:
-            cluster_instances = get_ecs_container_instances(
-                cluster_arn,
-                boto3_session,
-                region,
-            )
-            cluster_instances_transformed = transform_container_instances(
-                cluster_instances, region
-            )
-            load_ecs_container_instances(
+            _sync_ecs_container_instances(
                 neo4j_session,
+                boto3_session,
                 cluster_arn,
-                cluster_instances_transformed,
                 region,
                 current_aws_account_id,
                 update_tag,
             )
-            services = get_ecs_services(
-                cluster_arn,
-                boto3_session,
-                region,
-            )
-            services_transformed = transform_services(services, region)
-            load_ecs_services(
+            _sync_ecs_services(
                 neo4j_session,
+                boto3_session,
                 cluster_arn,
-                services_transformed,
                 region,
                 current_aws_account_id,
                 update_tag,
             )
-            tasks = get_ecs_tasks(
-                cluster_arn,
-                boto3_session,
-                region,
-            )
-            tasks_transformed, containers = transform_tasks(tasks, region)
-            load_ecs_tasks(
+            _sync_ecs_task_and_container_defns(
                 neo4j_session,
+                boto3_session,
                 cluster_arn,
-                tasks_transformed,
                 region,
                 current_aws_account_id,
-                update_tag,
-            )
-            load_ecs_containers(
-                neo4j_session,
-                containers,
-                region,
-                update_tag,
-            )
-            task_definitions = get_ecs_task_definitions(
-                boto3_session,
-                region,
-                tasks,
-            )
-            task_defs_transformed, container_defs = transform_task_definitions(
-                task_definitions, region
-            )
-            load_ecs_task_definitions(
-                neo4j_session,
-                task_defs_transformed,
-                region,
-                current_aws_account_id,
-                update_tag,
-            )
-            load_ecs_container_definitions(
-                neo4j_session,
-                container_defs,
-                region,
                 update_tag,
             )
     cleanup_ecs(neo4j_session, common_job_parameters)
