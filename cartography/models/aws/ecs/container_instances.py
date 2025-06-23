@@ -1,14 +1,13 @@
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
-from cartography.models.core.relationships import (
-    CartographyRelProperties,
-    CartographyRelSchema,
-    LinkDirection,
-    make_target_node_matcher,
-    TargetNodeMatcher,
-)
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -20,7 +19,9 @@ class ECSContainerInstanceNodeProperties(CartographyNodeProperties):
     version: PropertyRef = PropertyRef("version")
     version_info_agent_version: PropertyRef = PropertyRef("versionInfo.agentVersion")
     version_info_agent_hash: PropertyRef = PropertyRef("versionInfo.agentHash")
-    version_info_agent_docker_version: PropertyRef = PropertyRef("versionInfo.dockerVersion")
+    version_info_agent_docker_version: PropertyRef = PropertyRef(
+        "versionInfo.dockerVersion"
+    )
     status: PropertyRef = PropertyRef("status")
     status_reason: PropertyRef = PropertyRef("statusReason")
     agent_connected: PropertyRef = PropertyRef("agentConnected")
@@ -38,14 +39,22 @@ class ECSContainerInstanceToECSClusterRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECSContainerInstanceToECSClusterRel(CartographyRelSchema):
     target_node_label: str = "ECSCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("ClusterArn", set_in_kwargs=True)})
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ClusterArn", set_in_kwargs=True)}
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_CONTAINER_INSTANCE"
-    properties: ECSContainerInstanceToECSClusterRelProperties = ECSContainerInstanceToECSClusterRelProperties()
+    properties: ECSContainerInstanceToECSClusterRelProperties = (
+        ECSContainerInstanceToECSClusterRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class ECSContainerInstanceSchema(CartographyNodeSchema):
     label: str = "ECSContainerInstance"
-    properties: ECSContainerInstanceNodeProperties = ECSContainerInstanceNodeProperties()
-    sub_resource_relationship: ECSContainerInstanceToECSClusterRel = ECSContainerInstanceToECSClusterRel()
+    properties: ECSContainerInstanceNodeProperties = (
+        ECSContainerInstanceNodeProperties()
+    )
+    sub_resource_relationship: ECSContainerInstanceToECSClusterRel = (
+        ECSContainerInstanceToECSClusterRel()
+    )

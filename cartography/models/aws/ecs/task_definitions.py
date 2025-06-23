@@ -1,15 +1,13 @@
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
-from cartography.models.core.relationships import (
-    CartographyRelProperties,
-    CartographyRelSchema,
-    LinkDirection,
-    make_target_node_matcher,
-    TargetNodeMatcher,
-    OtherRelationships,
-)
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -23,19 +21,27 @@ class ECSTaskDefinitionNodeProperties(CartographyNodeProperties):
     revision: PropertyRef = PropertyRef("revision")
     status: PropertyRef = PropertyRef("status")
     compatibilities: PropertyRef = PropertyRef("compatibilities")
-    runtime_platform_cpu_architecture: PropertyRef = PropertyRef("runtimePlatform.cpuArchitecture")
-    runtime_platform_operating_system_family: PropertyRef = PropertyRef("runtimePlatform.operatingSystemFamily")
+    runtime_platform_cpu_architecture: PropertyRef = PropertyRef(
+        "runtimePlatform.cpuArchitecture"
+    )
+    runtime_platform_operating_system_family: PropertyRef = PropertyRef(
+        "runtimePlatform.operatingSystemFamily"
+    )
     requires_compatibilities: PropertyRef = PropertyRef("requiresCompatibilities")
     cpu: PropertyRef = PropertyRef("cpu")
     memory: PropertyRef = PropertyRef("memory")
     pid_mode: PropertyRef = PropertyRef("pidMode")
     ipc_mode: PropertyRef = PropertyRef("ipcMode")
     proxy_configuration_type: PropertyRef = PropertyRef("proxyConfiguration.type")
-    proxy_configuration_container_name: PropertyRef = PropertyRef("proxyConfiguration.containerName")
+    proxy_configuration_container_name: PropertyRef = PropertyRef(
+        "proxyConfiguration.containerName"
+    )
     registered_at: PropertyRef = PropertyRef("registeredAt")
     deregistered_at: PropertyRef = PropertyRef("deregisteredAt")
     registered_by: PropertyRef = PropertyRef("registeredBy")
-    ephemeral_storage_size_in_gib: PropertyRef = PropertyRef("ephemeralStorage.sizeInGiB")
+    ephemeral_storage_size_in_gib: PropertyRef = PropertyRef(
+        "ephemeralStorage.sizeInGiB"
+    )
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -48,14 +54,20 @@ class ECSTaskDefinitionToAWSAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECSTaskDefinitionToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("AWS_ID", set_in_kwargs=True)})
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: ECSTaskDefinitionToAWSAccountRelProperties = ECSTaskDefinitionToAWSAccountRelProperties()
+    properties: ECSTaskDefinitionToAWSAccountRelProperties = (
+        ECSTaskDefinitionToAWSAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class ECSTaskDefinitionSchema(CartographyNodeSchema):
     label: str = "ECSTaskDefinition"
     properties: ECSTaskDefinitionNodeProperties = ECSTaskDefinitionNodeProperties()
-    sub_resource_relationship: ECSTaskDefinitionToAWSAccountRel = ECSTaskDefinitionToAWSAccountRel()
+    sub_resource_relationship: ECSTaskDefinitionToAWSAccountRel = (
+        ECSTaskDefinitionToAWSAccountRel()
+    )

@@ -1,15 +1,14 @@
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
-from cartography.models.core.relationships import (
-    CartographyRelProperties,
-    CartographyRelSchema,
-    LinkDirection,
-    make_target_node_matcher,
-    TargetNodeMatcher,
-    OtherRelationships,
-)
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -44,7 +43,9 @@ class ECSTaskNodeProperties(CartographyNodeProperties):
     stopping_at: PropertyRef = PropertyRef("stoppingAt")
     task_definition_arn: PropertyRef = PropertyRef("taskDefinitionArn")
     version: PropertyRef = PropertyRef("version")
-    ephemeral_storage_size_in_gib: PropertyRef = PropertyRef("ephemeralStorage.sizeInGiB")
+    ephemeral_storage_size_in_gib: PropertyRef = PropertyRef(
+        "ephemeralStorage.sizeInGiB"
+    )
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -57,7 +58,9 @@ class ECSTaskToECSClusterRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECSTaskToECSClusterRel(CartographyRelSchema):
     target_node_label: str = "ECSCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("ClusterArn", set_in_kwargs=True)})
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ClusterArn", set_in_kwargs=True)}
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_TASK"
     properties: ECSTaskToECSClusterRelProperties = ECSTaskToECSClusterRelProperties()
@@ -71,10 +74,14 @@ class ECSTaskToTaskDefinitionRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECSTaskToTaskDefinitionRel(CartographyRelSchema):
     target_node_label: str = "ECSTaskDefinition"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("taskDefinitionArn")})
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("taskDefinitionArn")}
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_TASK_DEFINITION"
-    properties: ECSTaskToTaskDefinitionRelProperties = ECSTaskToTaskDefinitionRelProperties()
+    properties: ECSTaskToTaskDefinitionRelProperties = (
+        ECSTaskToTaskDefinitionRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -85,10 +92,14 @@ class ECSTaskToContainerInstanceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECSTaskToContainerInstanceRel(CartographyRelSchema):
     target_node_label: str = "ECSContainerInstance"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("containerInstanceArn")})
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("containerInstanceArn")}
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_TASK"
-    properties: ECSTaskToContainerInstanceRelProperties = ECSTaskToContainerInstanceRelProperties()
+    properties: ECSTaskToContainerInstanceRelProperties = (
+        ECSTaskToContainerInstanceRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -96,8 +107,9 @@ class ECSTaskSchema(CartographyNodeSchema):
     label: str = "ECSTask"
     properties: ECSTaskNodeProperties = ECSTaskNodeProperties()
     sub_resource_relationship: ECSTaskToECSClusterRel = ECSTaskToECSClusterRel()
-    other_relationships: OtherRelationships = OtherRelationships([
-        ECSTaskToTaskDefinitionRel(),
-        ECSTaskToContainerInstanceRel(),
-    ])
-
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ECSTaskToTaskDefinitionRel(),
+            ECSTaskToContainerInstanceRel(),
+        ]
+    )

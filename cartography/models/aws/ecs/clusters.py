@@ -1,14 +1,13 @@
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
-from cartography.models.core.relationships import (
-    CartographyRelProperties,
-    CartographyRelSchema,
-    LinkDirection,
-    make_target_node_matcher,
-    TargetNodeMatcher,
-)
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -35,7 +34,9 @@ class ECSClusterNodeProperties(CartographyNodeProperties):
     ecc_log_configuration_s3_key_prefix: PropertyRef = PropertyRef(
         "ecc_log_configuration_s3_key_prefix"
     )
-    settings_container_insights: PropertyRef = PropertyRef("settings_container_insights")
+    settings_container_insights: PropertyRef = PropertyRef(
+        "settings_container_insights"
+    )
     capacity_providers: PropertyRef = PropertyRef("capacityProviders")
     attachments_status: PropertyRef = PropertyRef("attachmentsStatus")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -49,10 +50,14 @@ class ECSClusterToAWSAccountRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECSClusterToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("AWS_ID", set_in_kwargs=True)})
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: ECSClusterToAWSAccountRelProperties = ECSClusterToAWSAccountRelProperties()
+    properties: ECSClusterToAWSAccountRelProperties = (
+        ECSClusterToAWSAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)

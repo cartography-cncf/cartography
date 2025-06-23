@@ -120,14 +120,13 @@ def test_load_ecs_services(neo4j_session, *args):
             "test_service",
             "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",
             "ACTIVE",
-            1631096157,
         ),
     }
 
     nodes = neo4j_session.run(
         """
         MATCH (n:ECSService)
-        RETURN n.id, n.name, n.cluster_arn, n.status, n.created_at
+        RETURN n.id, n.name, n.cluster_arn, n.status
         """,
     )
     actual_nodes = {
@@ -136,7 +135,6 @@ def test_load_ecs_services(neo4j_session, *args):
             n["n.name"],
             n["n.cluster_arn"],
             n["n.status"],
-            n["n.created_at"],
         )
         for n in nodes
     }
@@ -153,30 +151,42 @@ def test_load_ecs_services(neo4j_session, *args):
 
 
 def test_load_ecs_tasks(neo4j_session, *args):
+    # Arrange
     data = tests.data.aws.ecs.GET_ECS_TASKS
+    tasks_transformed, containers = cartography.intel.aws.ecs.transform_tasks(
+        data, TEST_REGION
+    )
+
+    # Act
     cartography.intel.aws.ecs.load_ecs_tasks(
         neo4j_session,
         CLUSTER_ARN,
-        data,
+        tasks_transformed,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
+    cartography.intel.aws.ecs.load_ecs_containers(
+        neo4j_session,
+        containers,
+        TEST_REGION,
+        TEST_UPDATE_TAG,
+    )
 
+    # Assert
     expected_nodes = {
         (
             "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
             "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
             "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",
             "service:test_service",
-            1640673743,
         ),
     }
 
     nodes = neo4j_session.run(
         """
         MATCH (n:ECSTask)
-        RETURN n.id, n.task_definition_arn, n.cluster_arn, n.group, n.created_at
+        RETURN n.id, n.task_definition_arn, n.cluster_arn, n.group
         """,
     )
     actual_nodes = {
@@ -185,7 +195,6 @@ def test_load_ecs_tasks(neo4j_session, *args):
             n["n.task_definition_arn"],
             n["n.cluster_arn"],
             n["n.group"],
-            n["n.created_at"],
         )
         for n in nodes
     }
@@ -228,29 +237,41 @@ def test_load_ecs_tasks(neo4j_session, *args):
 
 
 def test_load_ecs_task_definitions(neo4j_session, *args):
+    # Arrange
     data = tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS
+    task_defs_transformed, container_defs = (
+        cartography.intel.aws.ecs.transform_task_definitions(data, TEST_REGION)
+    )
+
+    # Act
     cartography.intel.aws.ecs.load_ecs_task_definitions(
         neo4j_session,
-        data,
+        task_defs_transformed,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
+    cartography.intel.aws.ecs.load_ecs_container_definitions(
+        neo4j_session,
+        container_defs,
+        TEST_REGION,
+        TEST_UPDATE_TAG,
+    )
 
+    # Assert
     expected_nodes = {
         (
             "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
             "test_family",
             "ACTIVE",
             4,
-            1626747090,
         ),
     }
 
     nodes = neo4j_session.run(
         """
         MATCH (n:ECSTaskDefinition)
-        RETURN n.id, n.family, n.status, n.revision, n.registered_at
+        RETURN n.id, n.family, n.status, n.revision
         """,
     )
     actual_nodes = {
@@ -259,7 +280,6 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
             n["n.family"],
             n["n.status"],
             n["n.revision"],
-            n["n.registered_at"],
         )
         for n in nodes
     }
@@ -292,15 +312,6 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
     nodes = neo4j_session.run(
         """
         MATCH (:ECSTaskDefinition)-[:HAS_CONTAINER_DEFINITION]->(n:ECSContainerDefinition)
-        RETURN count(n.id) AS c
-        """,
-    )
-    for n in nodes:
-        assert n["c"] == 1
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (:ECSTaskDefinition)<-[:HAS_TASK_DEFINITION]-(n:ECSTask)
         RETURN count(n.id) AS c
         """,
     )

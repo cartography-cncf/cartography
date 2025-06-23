@@ -1,14 +1,13 @@
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
-from cartography.models.core.relationships import (
-    CartographyRelProperties,
-    CartographyRelSchema,
-    LinkDirection,
-    make_target_node_matcher,
-    TargetNodeMatcher,
-)
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -49,14 +48,22 @@ class ECSContainerDefinitionToTaskDefinitionRelProperties(CartographyRelProperti
 @dataclass(frozen=True)
 class ECSContainerDefinitionToTaskDefinitionRel(CartographyRelSchema):
     target_node_label: str = "ECSTaskDefinition"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("_taskDefinitionArn")})
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_taskDefinitionArn")}
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_CONTAINER_DEFINITION"
-    properties: ECSContainerDefinitionToTaskDefinitionRelProperties = ECSContainerDefinitionToTaskDefinitionRelProperties()
+    properties: ECSContainerDefinitionToTaskDefinitionRelProperties = (
+        ECSContainerDefinitionToTaskDefinitionRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class ECSContainerDefinitionSchema(CartographyNodeSchema):
     label: str = "ECSContainerDefinition"
-    properties: ECSContainerDefinitionNodeProperties = ECSContainerDefinitionNodeProperties()
-    sub_resource_relationship: ECSContainerDefinitionToTaskDefinitionRel = ECSContainerDefinitionToTaskDefinitionRel()
+    properties: ECSContainerDefinitionNodeProperties = (
+        ECSContainerDefinitionNodeProperties()
+    )
+    sub_resource_relationship: ECSContainerDefinitionToTaskDefinitionRel = (
+        ECSContainerDefinitionToTaskDefinitionRel()
+    )

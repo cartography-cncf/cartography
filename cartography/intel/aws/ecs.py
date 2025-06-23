@@ -1,6 +1,7 @@
 import logging
 from typing import Any
-from typing import Any, Dict, List
+from typing import Dict
+from typing import List
 
 import boto3
 import neo4j
@@ -11,9 +12,7 @@ from cartography.models.aws.ecs.clusters import ECSClusterSchema
 from cartography.models.aws.ecs.container_definitions import (
     ECSContainerDefinitionSchema,
 )
-from cartography.models.aws.ecs.container_instances import (
-    ECSContainerInstanceSchema,
-)
+from cartography.models.aws.ecs.container_instances import ECSContainerInstanceSchema
 from cartography.models.aws.ecs.containers import ECSContainerSchema
 from cartography.models.aws.ecs.services import ECSServiceSchema
 from cartography.models.aws.ecs.task_definitions import ECSTaskDefinitionSchema
@@ -62,7 +61,9 @@ def get_ecs_clusters(
     return clusters
 
 
-def transform_clusters(clusters: List[Dict[str, Any]], region: str) -> List[Dict[str, Any]]:
+def transform_clusters(
+    clusters: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
     transformed: List[Dict[str, Any]] = []
     for cluster in clusters:
         c = cluster.copy()
@@ -101,7 +102,9 @@ def get_ecs_container_instances(
     return container_instances
 
 
-def transform_container_instances(instances: List[Dict[str, Any]], region: str) -> List[Dict[str, Any]]:
+def transform_container_instances(
+    instances: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
     transformed: List[Dict[str, Any]] = []
     for inst in instances:
         i = inst.copy()
@@ -134,7 +137,9 @@ def get_ecs_services(
     return services
 
 
-def transform_services(services: List[Dict[str, Any]], region: str) -> List[Dict[str, Any]]:
+def transform_services(
+    services: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
     transformed: List[Dict[str, Any]] = []
     for svc in services:
         s = svc.copy()
@@ -161,9 +166,11 @@ def get_ecs_task_definitions(
     return task_definitions
 
 
-def transform_task_definitions(definitions: List[Dict[str, Any]], region: str) -> List[Dict[str, Any]]:
-    container_defs: List[Dict[str, Any]] = []
-    transformed_defs: List[Dict[str, Any]] = []
+def transform_task_definitions(
+    definitions: list[dict[str, Any]], region: str
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    container_defs: list[dict[str, Any]] = []
+    transformed_defs: list[dict[str, Any]] = []
     for td in definitions:
         t = td.copy()
         t["registeredAt"] = dict_date_to_epoch(t, "registeredAt")
@@ -202,9 +209,11 @@ def get_ecs_tasks(
     return tasks
 
 
-def transform_tasks(tasks: List[Dict[str, Any]], region: str) -> (List[Dict[str, Any]], List[Dict[str, Any]]):
-    containers: List[Dict[str, Any]] = []
-    transformed_tasks: List[Dict[str, Any]] = []
+def transform_tasks(
+    tasks: list[dict[str, Any]], region: str
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    containers: list[dict[str, Any]] = []
+    transformed_tasks: list[dict[str, Any]] = []
     for task in tasks:
         t = task.copy()
         for field in [
@@ -232,11 +241,10 @@ def load_ecs_clusters(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    clusters = transform_clusters(data, region)
     load(
         neo4j_session,
         ECSClusterSchema(),
-        clusters,
+        data,
         Region=region,
         AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
@@ -252,11 +260,10 @@ def load_ecs_container_instances(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    instances = transform_container_instances(data, region)
     load(
         neo4j_session,
         ECSContainerInstanceSchema(),
-        instances,
+        data,
         ClusterArn=cluster_arn,
         Region=region,
         lastupdated=aws_update_tag,
@@ -272,11 +279,10 @@ def load_ecs_services(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    services = transform_services(data, region)
     load(
         neo4j_session,
         ECSServiceSchema(),
-        services,
+        data,
         ClusterArn=cluster_arn,
         Region=region,
         lastupdated=aws_update_tag,
@@ -286,26 +292,18 @@ def load_ecs_services(
 @timeit
 def load_ecs_task_definitions(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    task_defs, container_defs = transform_task_definitions(data, region)
     load(
         neo4j_session,
         ECSTaskDefinitionSchema(),
-        task_defs,
+        data,
         Region=region,
         AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
-    )
-
-    load_ecs_container_definitions(
-        neo4j_session,
-        container_defs,
-        region,
-        aws_update_tag,
     )
 
 
@@ -318,20 +316,13 @@ def load_ecs_tasks(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    tasks_transformed, containers = transform_tasks(data, region)
     load(
         neo4j_session,
         ECSTaskSchema(),
-        tasks_transformed,
+        data,
         ClusterArn=cluster_arn,
         Region=region,
         lastupdated=aws_update_tag,
-    )
-    load_ecs_containers(
-        neo4j_session,
-        containers,
-        region,
-        aws_update_tag,
     )
 
 
@@ -369,13 +360,47 @@ def load_ecs_containers(
 
 @timeit
 def cleanup_ecs(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    GraphJob.from_node_schema(ECSContainerSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(ECSContainerSchema(), common_job_parameters).run(
+        neo4j_session
+    )
     GraphJob.from_node_schema(ECSTaskSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(ECSContainerInstanceSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(ECSServiceSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(ECSContainerDefinitionSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(ECSTaskDefinitionSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(ECSClusterSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(ECSContainerInstanceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ECSServiceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(
+        ECSContainerDefinitionSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(ECSTaskDefinitionSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ECSClusterSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def _sync_ecs_cluster_arns(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    cluster_arns: List[str],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    clusters = get_ecs_clusters(boto3_session, region, cluster_arns)
+    if len(clusters) == 0:
+        return
+    clusters_transformed = transform_clusters(clusters, region)
+    load_ecs_clusters(
+        neo4j_session,
+        clusters_transformed,
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
 
 
 @timeit
@@ -394,12 +419,10 @@ def sync(
             current_aws_account_id,
         )
         cluster_arns = get_ecs_cluster_arns(boto3_session, region)
-        clusters = get_ecs_clusters(boto3_session, region, cluster_arns)
-        if len(clusters) == 0:
-            continue
-        load_ecs_clusters(
+        _sync_ecs_cluster_arns(
             neo4j_session,
-            clusters,
+            boto3_session,
+            cluster_arns,
             region,
             current_aws_account_id,
             update_tag,
@@ -410,10 +433,13 @@ def sync(
                 boto3_session,
                 region,
             )
+            cluster_instances_transformed = transform_container_instances(
+                cluster_instances, region
+            )
             load_ecs_container_instances(
                 neo4j_session,
                 cluster_arn,
-                cluster_instances,
+                cluster_instances_transformed,
                 region,
                 current_aws_account_id,
                 update_tag,
@@ -423,10 +449,11 @@ def sync(
                 boto3_session,
                 region,
             )
+            services_transformed = transform_services(services, region)
             load_ecs_services(
                 neo4j_session,
                 cluster_arn,
-                services,
+                services_transformed,
                 region,
                 current_aws_account_id,
                 update_tag,
@@ -436,12 +463,19 @@ def sync(
                 boto3_session,
                 region,
             )
+            tasks_transformed, containers = transform_tasks(tasks, region)
             load_ecs_tasks(
                 neo4j_session,
                 cluster_arn,
-                tasks,
+                tasks_transformed,
                 region,
                 current_aws_account_id,
+                update_tag,
+            )
+            load_ecs_containers(
+                neo4j_session,
+                containers,
+                region,
                 update_tag,
             )
             task_definitions = get_ecs_task_definitions(
@@ -449,11 +483,20 @@ def sync(
                 region,
                 tasks,
             )
+            task_defs_transformed, container_defs = transform_task_definitions(
+                task_definitions, region
+            )
             load_ecs_task_definitions(
                 neo4j_session,
-                task_definitions,
+                task_defs_transformed,
                 region,
                 current_aws_account_id,
+                update_tag,
+            )
+            load_ecs_container_definitions(
+                neo4j_session,
+                container_defs,
+                region,
                 update_tag,
             )
     cleanup_ecs(neo4j_session, common_job_parameters)

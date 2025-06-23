@@ -1,14 +1,13 @@
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
-from cartography.models.core.relationships import (
-    CartographyRelProperties,
-    CartographyRelSchema,
-    LinkDirection,
-    make_target_node_matcher,
-    TargetNodeMatcher,
-)
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -40,7 +39,9 @@ class ECSContainerToTaskRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class ECSContainerToTaskRel(CartographyRelSchema):
     target_node_label: str = "ECSTask"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"id": PropertyRef("taskArn")})
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("taskArn")}
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_CONTAINER"
     properties: ECSContainerToTaskRelProperties = ECSContainerToTaskRelProperties()
