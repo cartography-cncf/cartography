@@ -1,12 +1,8 @@
-"""
-Integration tests for ontology users module
-"""
-
 from unittest.mock import patch
 
 import cartography.intel.ontology.users
+import tests.data.duo.users
 from cartography.intel.duo.users import _transform_users
-from tests.data.duo.users import GET_USERS_RESPONSE as DUO_USERS_RESPONSE
 from tests.integration.cartography.intel.duo.test_users import (
     _ensure_local_neo4j_has_test_users as _ensure_local_neo4j_has_test_duo_users,
 )
@@ -17,7 +13,7 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-EXISTING_DUO_USERS = _transform_users(DUO_USERS_RESPONSE)
+EXISTING_DUO_USERS = _transform_users(tests.data.duo.users.GET_USERS_RESPONSE)
 
 
 def test_sync_with_empty_source_list(neo4j_session):
