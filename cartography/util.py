@@ -353,7 +353,7 @@ def dict_date_to_epoch(obj: Dict, key: str) -> Optional[int]:
 
 def dict_date_to_datetime(obj: Dict, key: str) -> Optional[Union[datetime, str]]:
     """
-    Convert the date referenced by the key in the dict to a datetime string, if it exists, and return it. If it
+    Convert the date referenced by the key in the dict to a datetime object, if it exists, and return it. If it
     doesn't exist, return None.
     If the value is not a valid date, it will log a warning and return the original value as a string.
     """
