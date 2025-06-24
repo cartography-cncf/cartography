@@ -72,10 +72,6 @@ def transform(
     transformed_devices: List[Dict[str, Any]] = []
     # Transform the raw data into the format expected by the load function
     for device in raw_data:
-        device["created"] = dict_date_to_datetime(device, "created")
-        device["last_seen"] = dict_date_to_datetime(device, "last_seen")
-        device["expires"] = dict_date_to_datetime(device, "expires")
-        transformed_devices.append(device)
         for raw_tag in device.get("tags", []):
             if raw_tag not in transformed_tags:
                 transformed_tags[raw_tag] = {
@@ -85,6 +81,13 @@ def transform(
                 }
             else:
                 transformed_tags[raw_tag]["devices"].append(device["nodeId"])
+        for k in list(device.keys()):
+            if k in ["created", "last_seen", "expires"]:
+                device[k] = dict_date_to_datetime(device, k)
+            elif device[k] == "":
+                device.pop(k)
+        transformed_devices.append(device)
+
     return transformed_devices, list(transformed_tags.values())
 
 

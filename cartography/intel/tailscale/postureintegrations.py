@@ -60,10 +60,11 @@ def get(
 def transform(api_result: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     for integration in api_result:
-        integration["config_updated"] = dict_date_to_datetime(integration, "created_at")
-        integration["status_last_sync"] = dict_date_to_datetime(
-            integration, "status_last_sync"
-        )
+        for key in list(integration.keys()):
+            if key in ("config_updated", "status_last_sync"):
+                integration[key] = dict_date_to_datetime(integration, key)
+            elif integration[key] == "":
+                integration.pop(key)
         result.append(integration)
     return result
 

@@ -9,6 +9,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.tailscale.user import TailscaleUserSchema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -23,11 +24,12 @@ def sync(
     common_job_parameters: Dict[str, Any],
     org: str,
 ) -> List[Dict]:
-    users = get(
+    data = get(
         api_session,
         common_job_parameters["BASE_URL"],
         org,
     )
+    users = transform(data)
     load_users(
         neo4j_session,
         users,
@@ -52,6 +54,21 @@ def get(
     req.raise_for_status()
     results = req.json()["users"]
     return results
+
+
+def transform(api_result: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Transform the API result into a format suitable for loading into Neo4j.
+    """
+    transformed_data = []
+    for item in api_result:
+        for key in list(item.keys()):
+            if key in ["created", "lastSeen"]:
+                item[key] = dict_date_to_datetime(item, key)
+            elif item[key] == "":
+                item.pop(key)
+        transformed_data.append(item)
+    return transformed_data
 
 
 @timeit
