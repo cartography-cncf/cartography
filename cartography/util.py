@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from datetime import datetime
 from functools import partial
 from functools import wraps
 from importlib.resources import open_binary
@@ -24,6 +25,7 @@ import backoff
 import boto3
 import botocore
 import neo4j
+from dateutil import parser as dt_parse
 
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
@@ -345,6 +347,27 @@ def dict_date_to_epoch(obj: Dict, key: str) -> Optional[int]:
     value = obj.get(key)
     if value is not None:
         return int(value.timestamp())
+    else:
+        return None
+
+
+def dict_date_to_datetime(obj: Dict, key: str) -> Optional[Union[datetime, str]]:
+    """
+    Convert the date referenced by the key in the dict to a datetime string, if it exists, and return it. If it
+    doesn't exist, return None.
+    If the value is not a valid date, it will log a warning and return the original value as a string.
+    """
+    value = obj.get(key)
+    if value is not None:
+        try:
+            return dt_parse.parse(value)
+        # Catching a broad exception here, as the value could be in a variety of formats.
+        # Generally not a good practice, but in this case we want to be resilient
+        # to unexpected formats and just log a warning.
+        # If the value is not a valid date, we will return the original value.
+        except Exception as e:
+            logger.warning("Failed to parse date for `%s`: %s", key, e)
+            return str(value)
     else:
         return None
 

@@ -2,6 +2,7 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Tuple
 
 import neo4j
 import requests
@@ -10,6 +11,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.tailscale.device import TailscaleDeviceSchema
 from cartography.models.tailscale.tag import TailscaleTagSchema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -24,12 +26,12 @@ def sync(
     common_job_parameters: Dict[str, Any],
     org: str,
 ) -> List[Dict]:
-    devices = get(
+    data = get(
         api_session,
         common_job_parameters["BASE_URL"],
         org,
     )
-    tags = transform(devices)
+    devices, tags = transform(data)
     load_devices(
         neo4j_session,
         devices,
@@ -64,11 +66,16 @@ def get(
 
 def transform(
     raw_data: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
-    """Extracts tags from the raw data and returns a list of dictionaries"""
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Format devices and extracts tags from the raw data and returns a list of dictionaries"""
     transformed_tags: Dict[str, Dict[str, Any]] = {}
+    transformed_devices: List[Dict[str, Any]] = []
     # Transform the raw data into the format expected by the load function
     for device in raw_data:
+        device["created"] = dict_date_to_datetime(device, "created")
+        device["last_seen"] = dict_date_to_datetime(device, "last_seen")
+        device["expires"] = dict_date_to_datetime(device, "expires")
+        transformed_devices.append(device)
         for raw_tag in device.get("tags", []):
             if raw_tag not in transformed_tags:
                 transformed_tags[raw_tag] = {
@@ -78,7 +85,7 @@ def transform(
                 }
             else:
                 transformed_tags[raw_tag]["devices"].append(device["nodeId"])
-    return list(transformed_tags.values())
+    return transformed_devices, list(transformed_tags.values())
 
 
 @timeit

@@ -14,6 +14,7 @@ from cartography.graph.job import GraphJob
 from cartography.models.semgrep.findings import SemgrepSCAFindingSchema
 from cartography.models.semgrep.locations import SemgrepSCALocationSchema
 from cartography.stats import get_stats_client
+from cartography.util import dict_date_to_datetime
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
@@ -172,7 +173,7 @@ def transform_sca_vulns(
             fix = vuln["fix_recommendations"][0]
             dep_fix = f"{fix['package']}|{fix['version']}"
             sca_vuln["closestSafeDependency"] = dep_fix
-        sca_vuln["openedAt"] = vuln["created_at"]
+        sca_vuln["openedAt"] = dict_date_to_datetime(vuln, "created_at")
         sca_vuln["fixStatus"] = vuln["status"]
         sca_vuln["triageStatus"] = vuln["triage_state"]
         sca_vuln["confidence"] = vuln["confidence"]

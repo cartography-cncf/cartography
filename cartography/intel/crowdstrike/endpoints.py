@@ -8,6 +8,7 @@ from falconpy.oauth2 import OAuth2
 
 from cartography.client.core.tx import load
 from cartography.models.crowdstrike.hosts import CrowdstrikeHostSchema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,9 @@ def sync_hosts(
     all_ids = get_host_ids(client)
     for ids in all_ids:
         host_data = get_hosts(client, ids)
+        for host in host_data:
+            host["first_seen"] = dict_date_to_datetime(host, "first_seen")
+            host["last_seen"] = dict_date_to_datetime(host, "last_seen")
         load_host_data(neo4j_session, host_data, update_tag)
 
 

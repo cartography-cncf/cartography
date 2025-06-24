@@ -9,6 +9,7 @@ from digitalocean import Manager
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.digitalocean.project import DOProjectSchema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,8 @@ def transform_projects(project_res: list) -> list:
             "created_at": p.created_at,
             "updated_at": p.updated_at,
         }
+        project["created_at"] = dict_date_to_datetime(project, "created_at")
+        project["updated_at"] = dict_date_to_datetime(project, "updated_at")
         result.append(project)
     return result
 

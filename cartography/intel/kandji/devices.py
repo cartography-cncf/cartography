@@ -10,6 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.kandji.device import KandjiDeviceSchema
 from cartography.models.kandji.tenant import KandjiTenantSchema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -60,9 +61,9 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
 def transform(api_result: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     for device in api_result:
-        n_device = device
-        n_device["id"] = device["device_id"]
-        result.append(n_device)
+        device["id"] = device["device_id"]
+        device["last_check_in"] = dict_date_to_datetime(device, "last_check_in")
+        result.append(device)
     return result
 
 

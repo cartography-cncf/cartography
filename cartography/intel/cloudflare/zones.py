@@ -9,6 +9,7 @@ from cloudflare import Cloudflare
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.cloudflare.zone import CloudflareZoneSchema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,8 @@ def sync(
     common_job_parameters: Dict[str, Any],
     account_id: str,
 ) -> List[Dict]:
-    zones = get(client, account_id)
+    data = get(client, account_id)
+    zones = transform(data)
     load_zones(
         neo4j_session,
         zones,
@@ -40,6 +42,17 @@ def get(
     return [zone.to_dict() for zone in client.zones.list(account=account_id)]
 
 
+def transform(api_result: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    result: List[Dict[str, Any]] = []
+    for zone in api_result:
+        zone["created_on"] = dict_date_to_datetime(zone, "created_on")
+        zone["modified_on"] = dict_date_to_datetime(zone, "modified_on")
+        zone["activated_on"] = dict_date_to_datetime(zone, "activated_on")
+        result.append(zone)
+    return result
+
+
+@timeit
 def load_zones(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
@@ -56,6 +69,7 @@ def load_zones(
     )
 
 
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:

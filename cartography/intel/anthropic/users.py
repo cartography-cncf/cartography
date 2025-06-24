@@ -10,6 +10,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.anthropic.util import paginated_get
 from cartography.models.anthropic.organization import AnthropicOrganizationSchema
 from cartography.models.anthropic.user import AnthropicUserSchema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,10 @@ def sync(
         common_job_parameters["BASE_URL"],
     )
     common_job_parameters["ORG_ID"] = org_id
-    load_users(neo4j_session, users, org_id, common_job_parameters["UPDATE_TAG"])
+    transformed_users = transform(users)
+    load_users(
+        neo4j_session, transformed_users, org_id, common_job_parameters["UPDATE_TAG"]
+    )
     cleanup(neo4j_session, common_job_parameters)
     return org_id
 
@@ -41,6 +45,14 @@ def get(
     return paginated_get(
         api_session, f"{base_url}/organizations/users", timeout=_TIMEOUT
     )
+
+
+def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for user in api_result:
+        user["added_at"] = dict_date_to_datetime(user, "added_at")
+        result.append(user)
+    return result
 
 
 @timeit
