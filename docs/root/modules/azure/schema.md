@@ -13,7 +13,7 @@ Representation of an [Azure Tenant](https://docs.microsoft.com/en-us/rest/api/re
 #### Relationships
 
 - Azure Principal is part of the Azure Account.
-    
+
     ```cypher
     (AzureTenant)-[RESOURCE]->(AzurePrincipal)
     ```
@@ -827,7 +827,9 @@ Representation of an [AzureCosmosDBAccount](https://docs.microsoft.com/en-us/res
     ```cypher
     (AzureCosmosDBAccount)-[CAN_WRITE_FROM]->(AzureCosmosDBLocation)
     ```
+    ```cypher
     (AzureCosmosDBAccount)-[CAN_READ_FROM]->(AzureCosmosDBLocation)
+    ```
     ```cypher
     (AzureCosmosDBAccount)-[ASSOCIATED_WITH]->(AzureCosmosDBLocation)
     ```
