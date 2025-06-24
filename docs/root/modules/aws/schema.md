@@ -213,7 +213,7 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 | Field | Description | Required|
 |-------|-------------|------|
 |**arn**|The AWS ARN|yes|
-|id|Uses the format of `name|arch|version|release|epoch` to uniqulely identify packages|yes|
+|id|Uses the format of `name\|arch\|version\|release\|epoch` to uniqulely identify packages|yes|
 |region|AWS region the finding is from|yes|
 |awsaccount|AWS account the finding is from|yes|
 |findingarn|The AWS ARN for a related finding|yes|
@@ -3623,7 +3623,7 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
-|**id**| The ID of the route, formatted as `route_table_id|destination_cidr|target_components` where target components are prefixed with their type (e.g., gw-, nat-, pcx-) and joined with underscores.|
+|**id**| The ID of the route, formatted as `route_table_id\|destination_cidr\|target_components` where target components are prefixed with their type (e.g., gw-, nat-, pcx-) and joined with underscores.|
 |route_id| The ID of the route (same as id)|
 |target|The ID of the route association's target -- either 'Main', or a subnet ID or a gateway ID. This is an invented field that we created to have an ID because the underlying EC2 route association is a "union" data structure of many different possible targets.|
 |destination_cidr_block| The IPv4 CIDR block used for the destination match|
