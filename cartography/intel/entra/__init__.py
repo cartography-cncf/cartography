@@ -7,6 +7,7 @@ from cartography.config import Config
 from cartography.intel.entra.groups import sync_entra_groups
 from cartography.intel.entra.ou import sync_entra_ous
 from cartography.intel.entra.users import sync_entra_users
+from cartography.intel.entra.applications import sync_entra_applications
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,16 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
         # Run OU sync
         await sync_entra_ous(
+            neo4j_session,
+            config.entra_tenant_id,
+            config.entra_client_id,
+            config.entra_client_secret,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+        # Run application sync
+        await sync_entra_applications(
             neo4j_session,
             config.entra_tenant_id,
             config.entra_client_id,
