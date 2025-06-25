@@ -30,7 +30,7 @@ class KubernetesNamespaceToKubernetesClusterProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 # (:KubernetesNamespace)<-[:RESOURCE]-(:KubernetesCluster)
-class KubernetesNamespaceToKubernetesCluster(CartographyRelSchema):
+class KubernetesNamespaceToKubernetesClusterRel(CartographyRelSchema):
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)},
@@ -46,6 +46,6 @@ class KubernetesNamespaceToKubernetesCluster(CartographyRelSchema):
 class KubernetesNamespaceSchema(CartographyNodeSchema):
     label: str = "KubernetesNamespace"
     properties: KubernetesNamespaceNodeProperties = KubernetesNamespaceNodeProperties()
-    sub_resource_relationship: KubernetesNamespaceToKubernetesCluster = (
-        KubernetesNamespaceToKubernetesCluster()
+    sub_resource_relationship: KubernetesNamespaceToKubernetesClusterRel = (
+        KubernetesNamespaceToKubernetesClusterRel()
     )

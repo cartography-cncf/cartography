@@ -24,4 +24,4 @@ class KubernetesClusterNodeProperties(CartographyNodeProperties):
 class KubernetesClusterSchema(CartographyNodeSchema):
     label: str = "KubernetesCluster"
     properties: KubernetesClusterNodeProperties = KubernetesClusterNodeProperties()
-    sub_resource_relationship = None
+    scoped_cleanup: bool = False

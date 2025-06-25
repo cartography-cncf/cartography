@@ -41,7 +41,7 @@ class KubernetesContainerToKubernetesPodProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:KubernetesContainer)<-[:CONTAINS]-(:KubernetesNamespace)
-class KubernetesContainerToKubernetesNamespace(CartographyRelSchema):
+class KubernetesContainerToKubernetesNamespaceRel(CartographyRelSchema):
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -58,7 +58,7 @@ class KubernetesContainerToKubernetesNamespace(CartographyRelSchema):
 
 @dataclass(frozen=True)
 # (:KubernetesContainer)<-[:CONTAINS]-(:KubernetesPod)
-class KubernetesContainerToKubernetesPod(CartographyRelSchema):
+class KubernetesContainerToKubernetesPodRel(CartographyRelSchema):
     target_node_label: str = "KubernetesPod"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -81,7 +81,7 @@ class KubernetesContainerToKubernetesClusterProperties(CartographyRelProperties)
 
 @dataclass(frozen=True)
 # (:KubernetesContainer)<-[:RESOURCE]-(:KubernetesCluster)
-class KubernetesContainerToKubernetesCluster(CartographyRelSchema):
+class KubernetesContainerToKubernetesClusterRel(CartographyRelSchema):
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -97,12 +97,12 @@ class KubernetesContainerToKubernetesCluster(CartographyRelSchema):
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
     properties: KubernetesContainerNodeProperties = KubernetesContainerNodeProperties()
-    sub_resource_relationship: KubernetesContainerToKubernetesCluster = (
-        KubernetesContainerToKubernetesCluster()
+    sub_resource_relationship: KubernetesContainerToKubernetesClusterRel = (
+        KubernetesContainerToKubernetesClusterRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            KubernetesContainerToKubernetesNamespace(),
-            KubernetesContainerToKubernetesPod(),
+            KubernetesContainerToKubernetesNamespaceRel(),
+            KubernetesContainerToKubernetesPodRel(),
         ]
     )

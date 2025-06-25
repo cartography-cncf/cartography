@@ -33,7 +33,7 @@ class KubernetesSecretToKubernetesNamespaceProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:KubernetesSecret)<-[:CONTAINS]-(:KubernetesNamespace)
-class KubernetesSecretToKubernetesNamespace(CartographyRelSchema):
+class KubernetesSecretToKubernetesNamespaceRel(CartographyRelSchema):
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -55,7 +55,7 @@ class KubernetesSecretToKubernetesClusterProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:KubernetesSecret)<-[:RESOURCE]-(:KubernetesCluster)
-class KubernetesSecretToKubernetesCluster(CartographyRelSchema):
+class KubernetesSecretToKubernetesClusterRel(CartographyRelSchema):
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
@@ -71,9 +71,9 @@ class KubernetesSecretToKubernetesCluster(CartographyRelSchema):
 class KubernetesSecretSchema(CartographyNodeSchema):
     label: str = "KubernetesSecret"
     properties: KubernetesSecretNodeProperties = KubernetesSecretNodeProperties()
-    sub_resource_relationship: KubernetesSecretToKubernetesCluster = (
-        KubernetesSecretToKubernetesCluster()
+    sub_resource_relationship: KubernetesSecretToKubernetesClusterRel = (
+        KubernetesSecretToKubernetesClusterRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [KubernetesSecretToKubernetesNamespace()]
+        [KubernetesSecretToKubernetesNamespaceRel()]
     )
