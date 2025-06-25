@@ -28,7 +28,7 @@ class KubernetesPodNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class KubernetesPodToKubernetesNamespaceProperties(CartographyRelProperties):
+class KubernetesPodToKubernetesNamespaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -44,13 +44,13 @@ class KubernetesPodToKubernetesNamespaceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: KubernetesPodToKubernetesNamespaceProperties = (
-        KubernetesPodToKubernetesNamespaceProperties()
+    properties: KubernetesPodToKubernetesNamespaceRelProperties = (
+        KubernetesPodToKubernetesNamespaceRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class KubernetesPodToKubernetesClusterProperties(CartographyRelProperties):
+class KubernetesPodToKubernetesClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -63,8 +63,8 @@ class KubernetesPodToKubernetesClusterRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: KubernetesPodToKubernetesClusterProperties = (
-        KubernetesPodToKubernetesClusterProperties()
+    properties: KubernetesPodToKubernetesClusterRelProperties = (
+        KubernetesPodToKubernetesClusterRelProperties()
     )
 
 

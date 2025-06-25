@@ -27,7 +27,7 @@ class KubernetesSecretNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class KubernetesSecretToKubernetesNamespaceProperties(CartographyRelProperties):
+class KubernetesSecretToKubernetesNamespaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -43,13 +43,13 @@ class KubernetesSecretToKubernetesNamespaceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: KubernetesSecretToKubernetesNamespaceProperties = (
-        KubernetesSecretToKubernetesNamespaceProperties()
+    properties: KubernetesSecretToKubernetesNamespaceRelProperties = (
+        KubernetesSecretToKubernetesNamespaceRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class KubernetesSecretToKubernetesClusterProperties(CartographyRelProperties):
+class KubernetesSecretToKubernetesClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -62,8 +62,8 @@ class KubernetesSecretToKubernetesClusterRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: KubernetesSecretToKubernetesClusterProperties = (
-        KubernetesSecretToKubernetesClusterProperties()
+    properties: KubernetesSecretToKubernetesClusterRelProperties = (
+        KubernetesSecretToKubernetesClusterRelProperties()
     )
 
 

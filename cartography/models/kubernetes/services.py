@@ -30,7 +30,7 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class KubernetesServiceToKubernetesClusterProperties(CartographyRelProperties):
+class KubernetesServiceToKubernetesClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -43,13 +43,13 @@ class KubernetesServiceToKubernetesClusterRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: KubernetesServiceToKubernetesClusterProperties = (
-        KubernetesServiceToKubernetesClusterProperties()
+    properties: KubernetesServiceToKubernetesClusterRelProperties = (
+        KubernetesServiceToKubernetesClusterRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class KubernetesServiceToKubernetesNamespaceProperties(CartographyRelProperties):
+class KubernetesServiceToKubernetesNamespaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -65,13 +65,13 @@ class KubernetesServiceToKubernetesNamespaceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: KubernetesServiceToKubernetesNamespaceProperties = (
-        KubernetesServiceToKubernetesNamespaceProperties()
+    properties: KubernetesServiceToKubernetesNamespaceRelProperties = (
+        KubernetesServiceToKubernetesNamespaceRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class KubernetesServiceToKubernetesPodProperties(CartographyRelProperties):
+class KubernetesServiceToKubernetesPodRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -88,8 +88,8 @@ class KubernetesServiceToKubernetesPodRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "TARGET"
-    properties: KubernetesServiceToKubernetesPodProperties = (
-        KubernetesServiceToKubernetesPodProperties()
+    properties: KubernetesServiceToKubernetesPodRelProperties = (
+        KubernetesServiceToKubernetesPodRelProperties()
     )
 
 

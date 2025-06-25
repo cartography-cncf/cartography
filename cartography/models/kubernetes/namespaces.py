@@ -24,7 +24,7 @@ class KubernetesNamespaceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class KubernetesNamespaceToKubernetesClusterProperties(CartographyRelProperties):
+class KubernetesNamespaceToKubernetesClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -37,8 +37,8 @@ class KubernetesNamespaceToKubernetesClusterRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: KubernetesNamespaceToKubernetesClusterProperties = (
-        KubernetesNamespaceToKubernetesClusterProperties()
+    properties: KubernetesNamespaceToKubernetesClusterRelProperties = (
+        KubernetesNamespaceToKubernetesClusterRelProperties()
     )
 
 

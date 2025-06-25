@@ -30,12 +30,12 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class KubernetesContainerToKubernetesNamespaceProperties(CartographyRelProperties):
+class KubernetesContainerToKubernetesNamespaceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class KubernetesContainerToKubernetesPodProperties(CartographyRelProperties):
+class KubernetesContainerToKubernetesPodRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -51,8 +51,8 @@ class KubernetesContainerToKubernetesNamespaceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: KubernetesContainerToKubernetesNamespaceProperties = (
-        KubernetesContainerToKubernetesNamespaceProperties()
+    properties: KubernetesContainerToKubernetesNamespaceRelProperties = (
+        KubernetesContainerToKubernetesNamespaceRelProperties()
     )
 
 
@@ -69,13 +69,13 @@ class KubernetesContainerToKubernetesPodRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: KubernetesContainerToKubernetesPodProperties = (
-        KubernetesContainerToKubernetesPodProperties()
+    properties: KubernetesContainerToKubernetesPodRelProperties = (
+        KubernetesContainerToKubernetesPodRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class KubernetesContainerToKubernetesClusterProperties(CartographyRelProperties):
+class KubernetesContainerToKubernetesClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -88,8 +88,8 @@ class KubernetesContainerToKubernetesClusterRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: KubernetesContainerToKubernetesClusterProperties = (
-        KubernetesContainerToKubernetesClusterProperties()
+    properties: KubernetesContainerToKubernetesClusterRelProperties = (
+        KubernetesContainerToKubernetesClusterRelProperties()
     )
 
 
