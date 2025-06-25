@@ -34,7 +34,12 @@ async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_ses
     Ensure that applications actually get loaded and connected to tenant, 
     and both user-app and group-app relationships exist
     """
-    # Setup - Create mock users and groups first for the relationships
+    # Setup - Clean up any existing applications and create mock users/groups
+    neo4j_session.run("""
+        // Clean up existing applications and relationships
+        MATCH (app:EntraApplication) DETACH DELETE app
+    """)
+    
     neo4j_session.run("""
         CREATE (u1:EntraUser {id: 'ae4ac864-4433-4ba6-96a6-20f8cffdadcb', display_name: 'Test User 1'})
         CREATE (u2:EntraUser {id: '11dca63b-cb03-4e53-bb75-fa8060285550', display_name: 'Test User 2'})
