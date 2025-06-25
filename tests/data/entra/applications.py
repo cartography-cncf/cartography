@@ -33,6 +33,24 @@ MOCK_ENTRA_APPLICATIONS = [
     ),
 ]
 
+# New dict-based mock data for the refactored API functions
+MOCK_ENTRA_APPLICATIONS_DICT = [
+    {
+        "id": "11111111-1111-1111-1111-111111111111",
+        "app_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "display_name": "Finance Tracker",
+        "publisher_domain": "example.com",
+        "sign_in_audience": "AzureADMyOrg",
+    },
+    {
+        "id": "22222222-2222-2222-2222-222222222222",
+        "app_id": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
+        "display_name": "HR Portal",
+        "publisher_domain": "example.org",
+        "sign_in_audience": "AzureADMultipleOrgs",
+    },
+]
+
 MOCK_APP_ROLE_ASSIGNMENTS = [
     AppRoleAssignment(
         id="assignment-1",
@@ -86,4 +104,40 @@ MOCK_APP_ROLE_ASSIGNMENTS = [
         resource_display_name="HR Portal",
         created_date_time=datetime(2025, 5, 4, 14, 30, 0, tzinfo=timezone.utc),
     ),
+]
+
+# New dict-based mock data for the refactored API functions
+MOCK_APP_ROLE_ASSIGNMENTS_DICT = [
+    {
+        "id": "assignment-1",
+        "app_role_id": "00000000-0000-0000-0000-000000000000",
+        "created_date_time": datetime(2025, 5, 1, 12, 0, 0, tzinfo=timezone.utc),
+        "principal_display_name": "Test User 1",
+        "principal_type": "User",
+        "resource_display_name": "Finance Tracker",
+    },
+    {
+        "id": "assignment-2",
+        "app_role_id": "00000000-0000-0000-0000-000000000000",
+        "created_date_time": datetime(2025, 5, 2, 8, 30, 0, tzinfo=timezone.utc),
+        "principal_display_name": "Test User 2",
+        "principal_type": "User",
+        "resource_display_name": "HR Portal",
+    },
+    {
+        "id": "assignment-3",
+        "app_role_id": "00000000-0000-0000-0000-000000000000",
+        "created_date_time": datetime(2025, 5, 3, 10, 0, 0, tzinfo=timezone.utc),
+        "principal_display_name": "Finance Team",
+        "principal_type": "Group",
+        "resource_display_name": "Finance Tracker",
+    },
+    {
+        "id": "assignment-4",
+        "app_role_id": "00000000-0000-0000-0000-000000000000",
+        "created_date_time": datetime(2025, 5, 4, 14, 30, 0, tzinfo=timezone.utc),
+        "principal_display_name": "HR Team",
+        "principal_type": "Group",
+        "resource_display_name": "HR Portal",
+    },
 ]
