@@ -99,7 +99,10 @@ def load_load_balancer_v2s(
     SET r.lastupdated = $update_tag
     """
     for lb in data:
-        load_balancer_id = lb["DNSName"]
+        load_balancer_id = lb.get("DNSName")
+        if not load_balancer_id:
+            logger.warning("Skipping load balancer entry with missing DNSName: %r", lb)
+            continue
 
         neo4j_session.run(
             ingest_load_balancer_v2,

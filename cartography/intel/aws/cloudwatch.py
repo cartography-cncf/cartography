@@ -22,7 +22,7 @@ def get_cloudwatch_log_groups(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
     client = boto3_session.client(
-        "cloudwatch", region_name=region, config=get_botocore_config()
+        "logs", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("describe_log_groups")
     logGroups = []

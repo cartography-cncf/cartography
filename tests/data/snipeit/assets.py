@@ -1,5 +1,5 @@
 ASSETS = {
-    "company_a": [
+    "simpson_corp": [
         {
             "id": 1373,
             "name": "",
@@ -53,7 +53,7 @@ ASSETS = {
                 "last_name": "User",
                 "username": "admin",
                 "employee_num": "12832",
-                "email": "mcarter@example.net",
+                "email": "mbsimpson@simpson.corp",
                 "type": "user",
             },
             "warranty_months": None,
@@ -174,7 +174,7 @@ ASSETS = {
             },
         },
     ],
-    "company_b": [
+    "south_park": [
         {
             "id": 2598,
             "name": "sink",

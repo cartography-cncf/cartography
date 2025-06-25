@@ -14,6 +14,7 @@ from neo4j import GraphDatabase
 from statsd import StatsClient
 
 import cartography.intel.analysis
+import cartography.intel.anthropic
 import cartography.intel.aws
 import cartography.intel.azure
 import cartography.intel.bigfix
@@ -36,6 +37,7 @@ import cartography.intel.openai
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale
+import cartography.intel.trivy
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -47,6 +49,7 @@ logger = logging.getLogger(__name__)
 TOP_LEVEL_MODULES = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
         "create-indexes": cartography.intel.create_indexes.run,
+        "anthropic": cartography.intel.anthropic.start_anthropic_ingestion,
         "aws": cartography.intel.aws.start_aws_ingestion,
         "azure": cartography.intel.azure.start_azure_ingestion,
         "entra": cartography.intel.entra.start_entra_ingestion,
@@ -68,6 +71,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
+        "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "analysis": cartography.intel.analysis.run,
     }
 )

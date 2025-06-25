@@ -40,8 +40,8 @@ def test_transform_and_load_repositories(neo4j_session):
     )
     actual_nodes = {n["repo.id"] for n in nodes}
     expected_nodes = {
-        "https://github.com/example_org/sample_repo",
-        "https://github.com/example_org/SampleRepo2",
+        "https://github.com/simpsoncorp/sample_repo",
+        "https://github.com/simpsoncorp/SampleRepo2",
         "https://github.com/cartography-cncf/cartography",
     }
     assert actual_nodes == expected_nodes
@@ -66,7 +66,7 @@ def test_transform_and_load_repository_owners(neo4j_session):
     )
     actual_nodes = {n["owner.id"] for n in nodes}
     expected_nodes = {
-        "https://github.com/example_org",
+        "https://github.com/simpsoncorp",
     }
     assert actual_nodes == expected_nodes
 
@@ -105,7 +105,7 @@ def test_repository_to_owners(neo4j_session):
     MATCH(owner:GitHubOrganization)<-[:OWNER]-(repo:GitHubRepository{id:$RepositoryId})
     RETURN owner.username, repo.id, repo.name
     """
-    expected_repository_id = "https://github.com/example_org/SampleRepo2"
+    expected_repository_id = "https://github.com/simpsoncorp/SampleRepo2"
     nodes = neo4j_session.run(
         query,
         RepositoryId=expected_repository_id,
@@ -121,8 +121,8 @@ def test_repository_to_owners(neo4j_session):
 
     expected_nodes = {
         (
-            "example_org",
-            "https://github.com/example_org/SampleRepo2",
+            "SimpsonCorp",
+            "https://github.com/simpsoncorp/SampleRepo2",
             "SampleRepo2",
         ),
     }
@@ -138,7 +138,7 @@ def test_repository_to_branches(neo4j_session):
     MATCH(branch:GitHubBranch)<-[:BRANCH]-(repo:GitHubRepository{id:$RepositoryId})
     RETURN branch.name, repo.id, repo.name
     """
-    expected_repository_id = "https://github.com/example_org/sample_repo"
+    expected_repository_id = "https://github.com/simpsoncorp/sample_repo"
     nodes = neo4j_session.run(
         query,
         RepositoryId=expected_repository_id,
@@ -155,7 +155,7 @@ def test_repository_to_branches(neo4j_session):
     expected_nodes = {
         (
             "master",
-            "https://github.com/example_org/sample_repo",
+            "https://github.com/simpsoncorp/sample_repo",
             "sample_repo",
         ),
     }
@@ -171,7 +171,7 @@ def test_repository_to_languages(neo4j_session):
     MATCH(lang:ProgrammingLanguage)<-[:LANGUAGE]-(repo:GitHubRepository{id:$RepositoryId})
     RETURN lang.name, repo.id, repo.name
     """
-    expected_repository_id = "https://github.com/example_org/SampleRepo2"
+    expected_repository_id = "https://github.com/simpsoncorp/SampleRepo2"
     nodes = neo4j_session.run(
         query,
         RepositoryId=expected_repository_id,
@@ -188,7 +188,7 @@ def test_repository_to_languages(neo4j_session):
     expected_nodes = {
         (
             "Python",
-            "https://github.com/example_org/SampleRepo2",
+            "https://github.com/simpsoncorp/SampleRepo2",
             "SampleRepo2",
         ),
     }

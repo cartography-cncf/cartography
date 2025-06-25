@@ -50,7 +50,7 @@ def test_load_openai_adminapikeys(mock_api, neo4j_session):
         == expected_nodes
     )
 
-    # Assert users are linked to the correct org
+    # Assert AdminApiKeys are linked to the correct org
     expected_rels = {
         ("key_abc", TEST_ORG_ID),
     }

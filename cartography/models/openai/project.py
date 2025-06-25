@@ -59,6 +59,25 @@ class OpenAIProjectToUserRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class OpenAIProjectToUserAdminRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:OpenAIUser)-[:ADMIN_OF]->(:OpenAIProject)
+class OpenAIProjectToUserAdminRel(CartographyRelSchema):
+    target_node_label: str = "OpenAIUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("admins", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "ADMIN_OF"
+    properties: OpenAIProjectToUserAdminRelProperties = (
+        OpenAIProjectToUserAdminRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class OpenAIProjectSchema(CartographyNodeSchema):
     label: str = "OpenAIProject"
     properties: OpenAIProjectNodeProperties = OpenAIProjectNodeProperties()
@@ -66,5 +85,5 @@ class OpenAIProjectSchema(CartographyNodeSchema):
         OpenAIProjectToOrganizationRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [OpenAIProjectToUserRel()],
+        [OpenAIProjectToUserRel(), OpenAIProjectToUserAdminRel()],
     )
