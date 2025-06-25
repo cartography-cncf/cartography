@@ -14,6 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class EfsFileSystemNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("FileSystemId")
     arn: PropertyRef = PropertyRef("FileSystemArn", extra_index=True)
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     owner_id: PropertyRef = PropertyRef("OwnerId")
     creation_token: PropertyRef = PropertyRef("CreationToken")
     creation_time: PropertyRef = PropertyRef("CreationTime")

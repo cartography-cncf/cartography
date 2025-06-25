@@ -15,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class EfsMountTargetNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("MountTargetId")
     arn: PropertyRef = PropertyRef("MountTargetId", extra_index=True)
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     fileSystem_id: PropertyRef = PropertyRef("FileSystemId")
     lifecycle_state: PropertyRef = PropertyRef("LifeCycleState")
     mount_target_id: PropertyRef = PropertyRef("MountTargetId")

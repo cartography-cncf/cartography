@@ -69,25 +69,15 @@ def transform_efs_file_systems(
 
 @timeit
 @aws_handle_regions
-def get_efs_file_system_ids(
-    fileSystems: List[Dict[str, Any]], boto3_session: boto3.Session, region: str
-) -> List[str]:
-    file_system_ids = []
-    for file_system in fileSystems:
-        file_system_ids.append(file_system["FileSystemId"])
-
-    return file_system_ids
-
-
-@timeit
-@aws_handle_regions
 def get_efs_mount_targets(
     fileSystems: List[Dict[str, Any]], boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
     client = boto3_session.client(
         "efs", region_name=region, config=get_botocore_config()
     )
-    file_system_ids = get_efs_file_system_ids(fileSystems, boto3_session, region)
+    file_system_ids = []
+    for file_system in fileSystems:
+        file_system_ids.append(file_system["FileSystemId"])
     paginator = client.get_paginator("describe_mount_targets")
     mountTargets = []
     for fs_id in file_system_ids:
