@@ -1,8 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime
+from datetime import timezone
 from uuid import UUID
 
-from msgraph.generated.models.application import Application
 from msgraph.generated.models.app_role_assignment import AppRoleAssignment
+from msgraph.generated.models.application import Application
 from msgraph.generated.models.web_application import WebApplication
 
 TEST_TENANT_ID = "02b2b7cc-fb03-4324-bf6b-eb207b39c479"
@@ -36,20 +37,28 @@ MOCK_APP_ROLE_ASSIGNMENTS = [
     AppRoleAssignment(
         id="assignment-1",
         app_role_id=UUID("00000000-0000-0000-0000-000000000000"),
-        principal_id=UUID("ae4ac864-4433-4ba6-96a6-20f8cffdadcb"),  # matches existing user
+        principal_id=UUID(
+            "ae4ac864-4433-4ba6-96a6-20f8cffdadcb"
+        ),  # matches existing user
         principal_display_name="Test User 1",
         principal_type="User",
-        resource_id=UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),  # matches first app's app_id
+        resource_id=UUID(
+            "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        ),  # matches first app's app_id
         resource_display_name="Finance Tracker",
         created_date_time=datetime(2025, 5, 1, 12, 0, 0, tzinfo=timezone.utc),
     ),
     AppRoleAssignment(
         id="assignment-2",
         app_role_id=UUID("00000000-0000-0000-0000-000000000000"),
-        principal_id=UUID("11dca63b-cb03-4e53-bb75-fa8060285550"),  # matches existing user
+        principal_id=UUID(
+            "11dca63b-cb03-4e53-bb75-fa8060285550"
+        ),  # matches existing user
         principal_display_name="Test User 2",
         principal_type="User",
-        resource_id=UUID("ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb"),  # matches second app's app_id
+        resource_id=UUID(
+            "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb"
+        ),  # matches second app's app_id
         resource_display_name="HR Portal",
         created_date_time=datetime(2025, 5, 2, 8, 30, 0, tzinfo=timezone.utc),
     ),
@@ -59,7 +68,9 @@ MOCK_APP_ROLE_ASSIGNMENTS = [
         principal_id=UUID("11111111-2222-3333-4444-555555555555"),  # group ID
         principal_display_name="Finance Team",
         principal_type="Group",
-        resource_id=UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),  # matches first app's app_id
+        resource_id=UUID(
+            "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        ),  # matches first app's app_id
         resource_display_name="Finance Tracker",
         created_date_time=datetime(2025, 5, 3, 10, 0, 0, tzinfo=timezone.utc),
     ),
@@ -69,7 +80,9 @@ MOCK_APP_ROLE_ASSIGNMENTS = [
         principal_id=UUID("22222222-3333-4444-5555-666666666666"),  # group ID
         principal_display_name="HR Team",
         principal_type="Group",
-        resource_id=UUID("ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb"),  # matches second app's app_id
+        resource_id=UUID(
+            "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb"
+        ),  # matches second app's app_id
         resource_display_name="HR Portal",
         created_date_time=datetime(2025, 5, 4, 14, 30, 0, tzinfo=timezone.utc),
     ),

@@ -4,10 +4,10 @@ import logging
 import neo4j
 
 from cartography.config import Config
+from cartography.intel.entra.applications import sync_entra_applications
 from cartography.intel.entra.groups import sync_entra_groups
 from cartography.intel.entra.ou import sync_entra_ous
 from cartography.intel.entra.users import sync_entra_users
-from cartography.intel.entra.applications import sync_entra_applications
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

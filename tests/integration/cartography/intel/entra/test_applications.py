@@ -1,17 +1,17 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import patch
 
 import pytest
 
 import cartography.intel.entra.applications
 from cartography.intel.entra.applications import sync_entra_applications
-from tests.data.entra.applications import (
-    MOCK_ENTRA_APPLICATIONS,
-    MOCK_APP_ROLE_ASSIGNMENTS,
-    TEST_CLIENT_ID,
-    TEST_CLIENT_SECRET,
-    TEST_TENANT_ID,
-)
-from tests.integration.util import check_nodes, check_rels
+from tests.data.entra.applications import MOCK_APP_ROLE_ASSIGNMENTS
+from tests.data.entra.applications import MOCK_ENTRA_APPLICATIONS
+from tests.data.entra.applications import TEST_CLIENT_ID
+from tests.data.entra.applications import TEST_CLIENT_SECRET
+from tests.data.entra.applications import TEST_TENANT_ID
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 1234567890
 
@@ -31,22 +31,26 @@ TEST_UPDATE_TAG = 1234567890
 @pytest.mark.asyncio
 async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_session):
     """
-    Ensure that applications actually get loaded and connected to tenant, 
+    Ensure that applications actually get loaded and connected to tenant,
     and both user-app and group-app relationships exist
     """
     # Setup - Clean up any existing applications and create mock users/groups
-    neo4j_session.run("""
+    neo4j_session.run(
+        """
         // Clean up existing applications and relationships
         MATCH (app:EntraApplication) DETACH DELETE app
-    """)
-    
-    neo4j_session.run("""
+    """
+    )
+
+    neo4j_session.run(
+        """
         CREATE (u1:EntraUser {id: 'ae4ac864-4433-4ba6-96a6-20f8cffdadcb', display_name: 'Test User 1'})
         CREATE (u2:EntraUser {id: '11dca63b-cb03-4e53-bb75-fa8060285550', display_name: 'Test User 2'})
         CREATE (g1:EntraGroup {id: '11111111-2222-3333-4444-555555555555', display_name: 'Finance Team'})
         CREATE (g2:EntraGroup {id: '22222222-3333-4444-5555-666666666666', display_name: 'HR Team'})
-    """)
-    
+    """
+    )
+
     # Act
     await sync_entra_applications(
         neo4j_session,
@@ -87,8 +91,14 @@ async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_ses
 
     # Assert User-Application relationships exist
     expected_user_app_rels = {
-        ("ae4ac864-4433-4ba6-96a6-20f8cffdadcb", "11111111-1111-1111-1111-111111111111"),
-        ("11dca63b-cb03-4e53-bb75-fa8060285550", "22222222-2222-2222-2222-222222222222"),
+        (
+            "ae4ac864-4433-4ba6-96a6-20f8cffdadcb",
+            "11111111-1111-1111-1111-111111111111",
+        ),
+        (
+            "11dca63b-cb03-4e53-bb75-fa8060285550",
+            "22222222-2222-2222-2222-222222222222",
+        ),
     }
     assert (
         check_rels(
@@ -104,8 +114,14 @@ async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_ses
 
     # Assert Group-Application relationships exist
     expected_group_app_rels = {
-        ("11111111-2222-3333-4444-555555555555", "11111111-1111-1111-1111-111111111111"),
-        ("22222222-3333-4444-5555-666666666666", "22222222-2222-2222-2222-222222222222"),
+        (
+            "11111111-2222-3333-4444-555555555555",
+            "11111111-1111-1111-1111-111111111111",
+        ),
+        (
+            "22222222-3333-4444-5555-666666666666",
+            "22222222-2222-2222-2222-222222222222",
+        ),
     }
     assert (
         check_rels(

@@ -3,9 +3,9 @@ from typing import Any
 
 import neo4j
 from azure.identity import ClientSecretCredential
-from msgraph.graph_service_client import GraphServiceClient
-from msgraph.generated.models.application import Application
 from msgraph.generated.models.app_role_assignment import AppRoleAssignment
+from msgraph.generated.models.application import Application
+from msgraph.graph_service_client import GraphServiceClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -21,7 +21,9 @@ async def get_entra_applications(client: GraphServiceClient) -> list[Application
     """Get all applications from Microsoft Graph API with pagination."""
     all_apps: list[Application] = []
     request_configuration = client.applications.ApplicationsRequestBuilderGetRequestConfiguration(
-        query_parameters=client.applications.ApplicationsRequestBuilderGetQueryParameters(top=999)
+        query_parameters=client.applications.ApplicationsRequestBuilderGetQueryParameters(
+            top=999
+        )
     )
     page = await client.applications.get(request_configuration=request_configuration)
     while page:
@@ -34,13 +36,15 @@ async def get_entra_applications(client: GraphServiceClient) -> list[Application
 
 
 @timeit
-async def get_app_role_assignments(client: GraphServiceClient) -> list[AppRoleAssignment]:
+async def get_app_role_assignments(
+    client: GraphServiceClient,
+) -> list[AppRoleAssignment]:
     """Get all app role assignments from Microsoft Graph API with pagination."""
     all_assignments: list[AppRoleAssignment] = []
-    
+
     # Get all users and their app role assignments
     users_page = await client.users.get()
-    
+
     while users_page:
         if users_page.value:
             for user in users_page.value:
@@ -48,26 +52,31 @@ async def get_app_role_assignments(client: GraphServiceClient) -> list[AppRoleAs
                     continue
                 try:
                     # Get app role assignments for this user
-                    assignments_page = await client.users.by_user_id(user.id).app_role_assignments.get()
+                    assignments_page = await client.users.by_user_id(
+                        user.id
+                    ).app_role_assignments.get()
                     if assignments_page and assignments_page.value:
                         # Filter for assignments where principalType is User
                         user_assignments = [
-                            assignment for assignment in assignments_page.value 
+                            assignment
+                            for assignment in assignments_page.value
                             if assignment.principal_type == "User"
                         ]
                         all_assignments.extend(user_assignments)
                 except Exception as e:
-                    logger.warning(f"Could not fetch app role assignments for user {user.id}: {e}")
+                    logger.warning(
+                        f"Could not fetch app role assignments for user {user.id}: {e}"
+                    )
                     continue
-        
+
         # Handle pagination for users
         if not users_page.odata_next_link:
             break
         users_page = await client.users.with_url(users_page.odata_next_link).get()
-    
+
     # Get all groups and their app role assignments
     groups_page = await client.groups.get()
-    
+
     while groups_page:
         if groups_page.value:
             for group in groups_page.value:
@@ -75,23 +84,28 @@ async def get_app_role_assignments(client: GraphServiceClient) -> list[AppRoleAs
                     continue
                 try:
                     # Get app role assignments for this group
-                    assignments_page = await client.groups.by_group_id(group.id).app_role_assignments.get()
+                    assignments_page = await client.groups.by_group_id(
+                        group.id
+                    ).app_role_assignments.get()
                     if assignments_page and assignments_page.value:
                         # Filter for assignments where principalType is Group
                         group_assignments = [
-                            assignment for assignment in assignments_page.value 
+                            assignment
+                            for assignment in assignments_page.value
                             if assignment.principal_type == "Group"
                         ]
                         all_assignments.extend(group_assignments)
                 except Exception as e:
-                    logger.warning(f"Could not fetch app role assignments for group {group.id}: {e}")
+                    logger.warning(
+                        f"Could not fetch app role assignments for group {group.id}: {e}"
+                    )
                     continue
-        
+
         # Handle pagination for groups
         if not groups_page.odata_next_link:
             break
         groups_page = await client.groups.with_url(groups_page.odata_next_link).get()
-    
+
     return all_assignments
 
 
@@ -114,17 +128,25 @@ def transform_applications(apps: list[Application]) -> list[dict[str, Any]]:
 
 
 @timeit
-def transform_app_role_assignments(assignments: list[AppRoleAssignment]) -> list[dict[str, Any]]:
+def transform_app_role_assignments(
+    assignments: list[AppRoleAssignment],
+) -> list[dict[str, Any]]:
     """Transform app role assignments into dictionaries for ingestion."""
     result: list[dict[str, Any]] = []
     for assignment in assignments:
         transformed = {
             "id": assignment.id,
-            "app_role_id": str(assignment.app_role_id) if assignment.app_role_id else None,
-            "principal_id": str(assignment.principal_id) if assignment.principal_id else None,  # User ID
+            "app_role_id": (
+                str(assignment.app_role_id) if assignment.app_role_id else None
+            ),
+            "principal_id": (
+                str(assignment.principal_id) if assignment.principal_id else None
+            ),  # User ID
             "principal_display_name": assignment.principal_display_name,
             "principal_type": assignment.principal_type,
-            "resource_id": str(assignment.resource_id) if assignment.resource_id else None,  # Service Principal ID of the app
+            "resource_id": (
+                str(assignment.resource_id) if assignment.resource_id else None
+            ),  # Service Principal ID of the app
             "resource_display_name": assignment.resource_display_name,
             "created_date_time": assignment.created_date_time,
         }
@@ -157,7 +179,7 @@ def load_app_role_assignments(
 ) -> None:
     """Load app role assignments as relationships between users/groups and applications."""
     logger.info(f"Loading {len(assignments)} app role assignments")
-    
+
     # Create relationships between users and applications
     user_query = """
     UNWIND $assignments AS assignment
@@ -173,7 +195,7 @@ def load_app_role_assignments(
         r.lastupdated = $update_tag
     RETURN count(r) as relationships_created
     """
-    
+
     # Create relationships between groups and applications
     group_query = """
     UNWIND $assignments AS assignment
@@ -189,18 +211,24 @@ def load_app_role_assignments(
         r.lastupdated = $update_tag
     RETURN count(r) as relationships_created
     """
-    
+
     # Execute both queries
-    user_result = neo4j_session.run(user_query, assignments=assignments, update_tag=update_tag)
+    user_result = neo4j_session.run(
+        user_query, assignments=assignments, update_tag=update_tag
+    )
     user_summary = user_result.single()
-    user_count = user_summary['relationships_created'] if user_summary else 0
-    
-    group_result = neo4j_session.run(group_query, assignments=assignments, update_tag=update_tag)
+    user_count = user_summary["relationships_created"] if user_summary else 0
+
+    group_result = neo4j_session.run(
+        group_query, assignments=assignments, update_tag=update_tag
+    )
     group_summary = group_result.single()
-    group_count = group_summary['relationships_created'] if group_summary else 0
-    
+    group_count = group_summary["relationships_created"] if group_summary else 0
+
     total_count = user_count + group_count
-    logger.info(f"Created {user_count} user-application and {group_count} group-application relationships ({total_count} total)")
+    logger.info(
+        f"Created {user_count} user-application and {group_count} group-application relationships ({total_count} total)"
+    )
 
 
 @timeit
@@ -213,9 +241,7 @@ def cleanup_applications(
 
 
 @timeit
-def cleanup_app_role_assignments(
-    neo4j_session: neo4j.Session, update_tag: int
-) -> None:
+def cleanup_app_role_assignments(neo4j_session: neo4j.Session, update_tag: int) -> None:
     """Clean up old app role assignment relationships."""
     query = """
     MATCH ()-[r:HAS_APP_ROLE]->()
@@ -254,7 +280,7 @@ async def sync_entra_applications(
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
     load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
     load_app_role_assignments(neo4j_session, transformed_assignments, update_tag)
-    
+
     # Cleanup
     cleanup_applications(neo4j_session, common_job_parameters)
     cleanup_app_role_assignments(neo4j_session, update_tag)

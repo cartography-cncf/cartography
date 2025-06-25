@@ -1,18 +1,17 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
-from cartography.intel.entra.applications import (
-    cleanup_applications,
-    cleanup_app_role_assignments,
-    load_applications,
-    load_app_role_assignments,
-    sync_entra_applications,
-    transform_applications,
-    transform_app_role_assignments,
-)
+from cartography.intel.entra.applications import cleanup_applications
+from cartography.intel.entra.applications import load_applications
+from cartography.intel.entra.applications import sync_entra_applications
+from cartography.intel.entra.applications import transform_app_role_assignments
+from cartography.intel.entra.applications import transform_applications
 from cartography.models.entra.application import EntraApplicationSchema
-from tests.data.entra.applications import MOCK_ENTRA_APPLICATIONS, MOCK_APP_ROLE_ASSIGNMENTS
+from tests.data.entra.applications import MOCK_APP_ROLE_ASSIGNMENTS
+from tests.data.entra.applications import MOCK_ENTRA_APPLICATIONS
 
 
 def test_transform_applications():
@@ -35,7 +34,7 @@ def test_transform_app_role_assignments():
     assert assignment1["principal_display_name"] == "Test User 1"
     assert assignment1["resource_display_name"] == "Finance Tracker"
     assert assignment1["principal_type"] == "User"
-    
+
     # Test group assignment
     assignment3 = next(a for a in result if a["id"] == "assignment-3")
     assert assignment3["principal_display_name"] == "Finance Team"
@@ -118,10 +117,10 @@ async def test_sync_entra_applications(
     )
     mock_get.assert_called_with(mock_graph.return_value)
     mock_get_assignments.assert_called_with(mock_graph.return_value)
-    
+
     expected_apps = transform_applications(MOCK_ENTRA_APPLICATIONS)
     expected_assignments = transform_app_role_assignments(MOCK_APP_ROLE_ASSIGNMENTS)
-    
+
     mock_load_tenant.assert_called_with(session, {"id": "tid"}, 1)
     mock_load_apps.assert_called_with(session, expected_apps, 1, "tid")
     mock_load_assignments.assert_called_with(session, expected_assignments, 1)

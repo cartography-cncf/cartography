@@ -22,7 +22,6 @@ class EntraApplicationNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-
 @dataclass(frozen=True)
 class EntraApplicationToTenantRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -31,16 +30,22 @@ class EntraApplicationToTenantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class EntraApplicationToTenantRel(CartographyRelSchema):
     target_node_label: str = "EntraTenant"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("TENANT_ID", set_in_kwargs=True),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("TENANT_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EntraApplicationToTenantRelProperties = EntraApplicationToTenantRelProperties()
+    properties: EntraApplicationToTenantRelProperties = (
+        EntraApplicationToTenantRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class EntraApplicationSchema(CartographyNodeSchema):
     label: str = "EntraApplication"
     properties: EntraApplicationNodeProperties = EntraApplicationNodeProperties()
-    sub_resource_relationship: EntraApplicationToTenantRel = EntraApplicationToTenantRel()
+    sub_resource_relationship: EntraApplicationToTenantRel = (
+        EntraApplicationToTenantRel()
+    )
