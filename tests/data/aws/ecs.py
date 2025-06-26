@@ -148,7 +148,7 @@ GET_ECS_SERVICES = [
         "pendingCount": 0,
         "launchType": "FARGATE",
         "platformVersion": "LATEST",
-        "taskDefinition": "arn:aws:ecs:us-east-1:000000000000:task-definition/test-definition:0",
+        "taskDefinition": "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
         "deploymentConfiguration": {
             "deploymentCircuitBreaker": {
                 "enable": False,
@@ -161,7 +161,7 @@ GET_ECS_SERVICES = [
             {
                 "id": "ecs-svc/0000000000000000000",
                 "status": "PRIMARY",
-                "taskDefinition": "arn:aws:ecs:us-east-1:000000000000:task-definition/test-definition:0",
+                "taskDefinition": "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
                 "desiredCount": 1,
                 "pendingCount": 0,
                 "runningCount": 1,
@@ -358,6 +358,7 @@ GET_ECS_TASKS = [
             78000,
             tzinfo=tz.utc,
         ),
+        "containerInstanceArn": "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
         "containers": [
             {
                 "containerArn": "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",  # noqa:E501
