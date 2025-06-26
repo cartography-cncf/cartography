@@ -3,198 +3,234 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+import httpx
 import neo4j
 from azure.identity import ClientSecretCredential
+from kiota_abstractions.api_error import APIError
 from msgraph.graph_service_client import GraphServiceClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.entra.users import load_tenant
+from cartography.models.entra.app_role_assignment import EntraAppRoleAssignmentSchema
 from cartography.models.entra.application import EntraApplicationSchema
-from cartography.models.entra.application import EntraAppRoleAssignmentSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# Configurable constants for API pagination
+# Microsoft Graph API recommends page sizes up to 999 for most resources
+# Set to 999 by default, but can be adjusted if needed
+#
+# Adjust these values if:
+# - You have performance issues (decrease values)
+# - You want to minimize API calls (increase values up to 999)
+# - You're hitting rate limits (decrease values)
+APPLICATIONS_PAGE_SIZE = 999
+APP_ROLE_ASSIGNMENTS_PAGE_SIZE = (
+    999  # Currently not used, but reserved for future pagination improvements
+)
+
+# Warning thresholds for potential data completeness issues
+# Log warnings when individual users/groups have more assignments than this threshold
+HIGH_ASSIGNMENT_COUNT_THRESHOLD = 100
+
 
 @timeit
-async def get_entra_applications(client: GraphServiceClient) -> List[Dict[str, Any]]:
+async def get_entra_applications(client: GraphServiceClient) -> List[Any]:
     """
     Gets Entra applications using the Microsoft Graph API.
 
     :param client: GraphServiceClient
-    :return: List of Entra application data
+    :return: List of raw Application objects from Microsoft Graph
     """
     applications = []
 
     # Get all applications with pagination
     request_configuration = client.applications.ApplicationsRequestBuilderGetRequestConfiguration(
         query_parameters=client.applications.ApplicationsRequestBuilderGetQueryParameters(
-            top=999
+            top=APPLICATIONS_PAGE_SIZE
         )
     )
     page = await client.applications.get(request_configuration=request_configuration)
 
     while page:
         if page.value:
-            for app in page.value:
-                app_data = {
-                    "id": app.id,
-                    "app_id": app.app_id,
-                    "display_name": app.display_name,
-                    "publisher_domain": getattr(app, "publisher_domain", None),
-                    "sign_in_audience": app.sign_in_audience,
-                }
-                applications.append(app_data)
+            # Log a warning if we're hitting the page size limit which might indicate incomplete data
+            if len(page.value) == APPLICATIONS_PAGE_SIZE:
+                logger.warning(
+                    f"Retrieved {len(page.value)} applications (maximum page size). "
+                    f"There may be more applications that require additional API calls. "
+                    f"Consider adjusting APPLICATIONS_PAGE_SIZE if you expect more applications."
+                )
+
+            # Add raw application objects to the list
+            applications.extend(page.value)
 
         if not page.odata_next_link:
             break
         page = await client.applications.with_url(page.odata_next_link).get()
 
+    logger.info(f"Retrieved {len(applications)} Entra applications total")
     return applications
 
 
 @timeit
-async def get_app_role_assignments(client: GraphServiceClient) -> List[Dict[str, Any]]:
+async def get_app_role_assignments(
+    client: GraphServiceClient, applications: List[Any]
+) -> List[Any]:
     """
-    Gets app role assignments for both users and groups using the Microsoft Graph API.
+    Gets app role assignments efficiently by querying each application's service principal.
 
     :param client: GraphServiceClient
-    :return: List of app role assignment data
+    :param applications: List of Application objects (from get_entra_applications)
+    :return: List of raw app role assignment objects from Microsoft Graph
     """
     assignments = []
 
-    # Get all users and their app role assignments
-    users_page = await client.users.get()
+    for app in applications:
+        if not app.app_id:
+            logger.warning(f"Application {app.id} has no app_id, skipping")
+            continue
 
-    while users_page:
-        if users_page.value:
-            for user in users_page.value:
-                if not user.id:
-                    continue
-                try:
-                    # Get app role assignments for this user
-                    assignments_page = await client.users.by_user_id(
-                        user.id
-                    ).app_role_assignments.get()
-                    if assignments_page and assignments_page.value:
-                        # Filter for assignments where principalType is User
-                        user_assignments = [
-                            assignment
-                            for assignment in assignments_page.value
-                            if assignment.principal_type == "User"
-                        ]
-                        for assignment in user_assignments:
-                            assignment_data = {
-                                "id": assignment.id,
-                                "app_role_id": (
-                                    str(assignment.app_role_id)
-                                    if assignment.app_role_id
-                                    else None
-                                ),
-                                "created_date_time": assignment.created_date_time,
-                                "principal_display_name": assignment.principal_display_name,
-                                "principal_type": assignment.principal_type,
-                                "resource_display_name": assignment.resource_display_name,
-                            }
-                            assignments.append(assignment_data)
-                except Exception as e:
-                    logger.warning(
-                        f"Could not fetch app role assignments for user {user.id}: {e}"
+        try:
+            # First, get the service principal for this application
+            # The service principal represents the app in the directory
+            service_principals_page = await client.service_principals.get(
+                request_configuration=client.service_principals.ServicePrincipalsRequestBuilderGetRequestConfiguration(
+                    query_parameters=client.service_principals.ServicePrincipalsRequestBuilderGetQueryParameters(
+                        filter=f"appId eq '{app.app_id}'"
                     )
-                    continue
+                )
+            )
 
-        # Handle pagination for users
-        if not users_page.odata_next_link:
-            break
-        users_page = await client.users.with_url(users_page.odata_next_link).get()
+            if not service_principals_page or not service_principals_page.value:
+                logger.debug(
+                    f"No service principal found for application {app.app_id} ({app.display_name})"
+                )
+                continue
 
-    # Get all groups and their app role assignments
-    groups_page = await client.groups.get()
+            service_principal = service_principals_page.value[0]
 
-    while groups_page:
-        if groups_page.value:
-            for group in groups_page.value:
-                if not group.id:
-                    continue
-                try:
-                    # Get app role assignments for this group
-                    assignments_page = await client.groups.by_group_id(
-                        group.id
-                    ).app_role_assignments.get()
-                    if assignments_page and assignments_page.value:
-                        # Filter for assignments where principalType is Group
-                        group_assignments = [
-                            assignment
-                            for assignment in assignments_page.value
-                            if assignment.principal_type == "Group"
-                        ]
-                        for assignment in group_assignments:
-                            assignment_data = {
-                                "id": assignment.id,
-                                "app_role_id": (
-                                    str(assignment.app_role_id)
-                                    if assignment.app_role_id
-                                    else None
-                                ),
-                                "created_date_time": assignment.created_date_time,
-                                "principal_display_name": assignment.principal_display_name,
-                                "principal_type": assignment.principal_type,
-                                "resource_display_name": assignment.resource_display_name,
-                            }
-                            assignments.append(assignment_data)
-                except Exception as e:
-                    logger.warning(
-                        f"Could not fetch app role assignments for group {group.id}: {e}"
-                    )
-                    continue
+            # Ensure service principal has an ID
+            if not service_principal.id:
+                logger.warning(
+                    f"Service principal for application {app.app_id} ({app.display_name}) has no ID, skipping"
+                )
+                continue
 
-        # Handle pagination for groups
-        if not groups_page.odata_next_link:
-            break
-        groups_page = await client.groups.with_url(groups_page.odata_next_link).get()
+            # Get all assignments for this service principal (users, groups, service principals)
+            assignments_page = await client.service_principals.by_service_principal_id(
+                service_principal.id
+            ).app_role_assigned_to.get()
 
+            app_assignments = []
+            while assignments_page:
+                if assignments_page.value:
+                    app_assignments.extend(assignments_page.value)
+
+                if not assignments_page.odata_next_link:
+                    break
+                assignments_page = await client.service_principals.with_url(
+                    assignments_page.odata_next_link
+                ).get()
+
+            # Log warning if a single application has many assignments (potential pagination issues)
+            if len(app_assignments) >= HIGH_ASSIGNMENT_COUNT_THRESHOLD:
+                logger.warning(
+                    f"Application {app.display_name} ({app.app_id}) has {len(app_assignments)} role assignments. "
+                    f"If this seems unexpectedly high, there may be pagination limits affecting data completeness."
+                )
+
+            assignments.extend(app_assignments)
+            logger.debug(
+                f"Retrieved {len(app_assignments)} assignments for application {app.display_name}"
+            )
+
+        except APIError as e:
+            # Handle Microsoft Graph API errors (403 Forbidden, 404 Not Found, etc.)
+            if e.response_status_code == 403:
+                logger.warning(
+                    f"Access denied when fetching app role assignments for application {app.app_id} ({app.display_name}). "
+                    f"This application may not have sufficient permissions or may not exist."
+                )
+            elif e.response_status_code == 404:
+                logger.warning(
+                    f"Application {app.app_id} ({app.display_name}) not found when fetching app role assignments. "
+                    f"Application may have been deleted or does not exist."
+                )
+            elif e.response_status_code == 429:
+                logger.warning(
+                    f"Rate limit hit when fetching app role assignments for application {app.app_id} ({app.display_name}). "
+                    f"Consider reducing APPLICATIONS_PAGE_SIZE or implementing retry logic."
+                )
+            else:
+                logger.warning(
+                    f"Microsoft Graph API error when fetching app role assignments for application {app.app_id} ({app.display_name}): "
+                    f"Status {e.response_status_code}, Error: {str(e)}"
+                )
+            continue
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
+            # Handle network-related errors
+            logger.warning(
+                f"Network error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}"
+            )
+            continue
+        except Exception as e:
+            # Only catch truly unexpected errors - these should be rare
+            logger.error(
+                f"Unexpected error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}",
+                exc_info=True,
+            )
+            continue
+
+    logger.info(f"Retrieved {len(assignments)} app role assignments total")
     return assignments
 
 
-def transform_applications(applications: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def transform_applications(applications: List[Any]) -> List[Dict[str, Any]]:
     """
     Transform application data for graph loading.
 
-    :param applications: Raw application data from API
-    :return: Transformed application data
+    :param applications: Raw Application objects from Microsoft Graph API
+    :return: Transformed application data for graph loading
     """
     result = []
     for app in applications:
         transformed = {
-            "id": app["id"],
-            "app_id": app["app_id"],
-            "display_name": app["display_name"],
-            "publisher_domain": app["publisher_domain"],
-            "sign_in_audience": app["sign_in_audience"],
+            "id": app.id,
+            "app_id": app.app_id,
+            "display_name": app.display_name,
+            "publisher_domain": getattr(app, "publisher_domain", None),
+            "sign_in_audience": app.sign_in_audience,
         }
         result.append(transformed)
     return result
 
 
 def transform_app_role_assignments(
-    assignments: List[Dict[str, Any]],
+    assignments: List[Any],
 ) -> List[Dict[str, Any]]:
     """
     Transform app role assignment data for graph loading.
 
-    :param assignments: Raw assignment data from API
-    :return: Transformed assignment data
+    :param assignments: Raw app role assignment objects from Microsoft Graph API
+    :return: Transformed assignment data for graph loading
     """
     result = []
     for assignment in assignments:
         transformed = {
-            "id": assignment["id"],
-            "app_role_id": assignment["app_role_id"],
-            "created_date_time": assignment["created_date_time"],
-            "principal_display_name": assignment["principal_display_name"],
-            "principal_type": assignment["principal_type"],
-            "resource_display_name": assignment["resource_display_name"],
+            "id": assignment.id,
+            "app_role_id": (
+                str(assignment.app_role_id) if assignment.app_role_id else None
+            ),
+            "created_date_time": assignment.created_date_time,
+            "principal_id": (
+                str(assignment.principal_id) if assignment.principal_id else None
+            ),
+            "principal_display_name": assignment.principal_display_name,
+            "principal_type": assignment.principal_type,
+            "resource_display_name": assignment.resource_display_name,
         }
         result.append(transformed)
     return result
@@ -317,7 +353,7 @@ async def sync_entra_applications(
     transformed_applications = transform_applications(applications_data)
 
     # Get and transform app role assignments data
-    assignments_data = await get_app_role_assignments(client)
+    assignments_data = await get_app_role_assignments(client, applications_data)
     transformed_assignments = transform_app_role_assignments(assignments_data)
 
     # Load applications and assignments

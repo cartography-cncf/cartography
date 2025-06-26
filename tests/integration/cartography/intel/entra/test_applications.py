@@ -5,8 +5,8 @@ import pytest
 
 import cartography.intel.entra.applications
 from cartography.intel.entra.applications import sync_entra_applications
-from tests.data.entra.applications import MOCK_APP_ROLE_ASSIGNMENTS_DICT
-from tests.data.entra.applications import MOCK_ENTRA_APPLICATIONS_DICT
+from tests.data.entra.applications import MOCK_APP_ROLE_ASSIGNMENTS
+from tests.data.entra.applications import MOCK_ENTRA_APPLICATIONS
 from tests.data.entra.applications import TEST_CLIENT_ID
 from tests.data.entra.applications import TEST_CLIENT_SECRET
 from tests.data.entra.applications import TEST_TENANT_ID
@@ -16,17 +16,31 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 1234567890
 
 
+def _ensure_local_neo4j_has_test_users(neo4j_session):
+    """
+    Create test users and groups for integration tests that need them.
+    """
+    neo4j_session.run(
+        """
+        CREATE (u1:EntraUser {id: 'ae4ac864-4433-4ba6-96a6-20f8cffdadcb', display_name: 'Test User 1'})
+        CREATE (u2:EntraUser {id: '11dca63b-cb03-4e53-bb75-fa8060285550', display_name: 'Test User 2'})
+        CREATE (g1:EntraGroup {id: '11111111-2222-3333-4444-555555555555', display_name: 'Finance Team'})
+        CREATE (g2:EntraGroup {id: '22222222-3333-4444-5555-666666666666', display_name: 'HR Team'})
+        """
+    )
+
+
 @patch.object(
     cartography.intel.entra.applications,
     "get_app_role_assignments",
     new_callable=AsyncMock,
-    return_value=MOCK_APP_ROLE_ASSIGNMENTS_DICT,
+    return_value=MOCK_APP_ROLE_ASSIGNMENTS,
 )
 @patch.object(
     cartography.intel.entra.applications,
     "get_entra_applications",
     new_callable=AsyncMock,
-    return_value=MOCK_ENTRA_APPLICATIONS_DICT,
+    return_value=MOCK_ENTRA_APPLICATIONS,
 )
 @pytest.mark.asyncio
 async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_session):
@@ -34,26 +48,8 @@ async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_ses
     Ensure that applications actually get loaded and connected to tenant,
     and both user-app and group-app relationships exist
     """
-    # Setup - Clean up any existing applications and relationships
-    neo4j_session.run(
-        """
-        MATCH (app:EntraApplication) DETACH DELETE app
-        """
-    )
-    neo4j_session.run(
-        """
-        MATCH (assignment:EntraAppRoleAssignment) DETACH DELETE assignment
-        """
-    )
-
-    neo4j_session.run(
-        """
-        CREATE (u1:EntraUser {id: 'ae4ac864-4433-4ba6-96a6-20f8cffdadcb', display_name: 'Test User 1'})
-        CREATE (u2:EntraUser {id: '11dca63b-cb03-4e53-bb75-fa8060285550', display_name: 'Test User 2'})
-        CREATE (g1:EntraGroup {id: '11111111-2222-3333-4444-555555555555', display_name: 'Finance Team'})
-        CREATE (g2:EntraGroup {id: '22222222-3333-4444-5555-666666666666', display_name: 'HR Team'})
-    """
-    )
+    # Setup test data - create users and groups for relationship testing
+    _ensure_local_neo4j_has_test_users(neo4j_session)
 
     # Act
     await sync_entra_applications(
