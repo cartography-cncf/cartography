@@ -111,4 +111,4 @@ class EntraAppRoleAssignmentSchema(CartographyNodeSchema):
             EntraAppRoleAssignmentToUserRel(),
             EntraAppRoleAssignmentToGroupRel(),
         ],
-    ) 
+    )
