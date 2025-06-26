@@ -1,8 +1,8 @@
 LASTPASS_USERS = {
     "Users": {
         123456: {
-            "username": "john.doe@domain.tld",
-            "fullname": "John Doe",
+            "username": "mbsimpson@simpson.corp",
+            "fullname": "Marge Simpson",
             "mpstrength": "100",
             "created": "2022-08-31 04:45:15",
             "last_pw_change": "2022-08-31 06:03:16",
@@ -12,7 +12,7 @@ LASTPASS_USERS = {
             "admin": True,
             "totalscore": "83.2",
             "multifactor": "lastpassauth",
-            "duousername": "john.doe@domain.tld",
+            "duousername": "mbsimpson@simpson.corp",
             "sites": 25,
             "notes": 1,
             "formfills": 0,
@@ -21,8 +21,8 @@ LASTPASS_USERS = {
             "password_reset_required": False,
         },
         234567: {
-            "username": "jane.smith@domain.tld",
-            "fullname": "Jane Smith",
+            "username": "hjsimpson@simpson.corp",
+            "fullname": "Homer Simpson",
             "mpstrength": "60",
             "created": "2023-03-18 12:42:03",
             "last_pw_change": "2023-03-18 12:42:03",
@@ -32,7 +32,7 @@ LASTPASS_USERS = {
             "admin": False,
             "totalscore": "16.4",
             "multifactor": "lastpassauth",
-            "duousername": "jane.smith@domain.tld",
+            "duousername": "hjsimpson@simpson.corp",
             "sites": 12,
             "notes": 0,
             "formfills": 0,

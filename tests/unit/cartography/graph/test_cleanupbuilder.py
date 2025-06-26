@@ -23,6 +23,9 @@ from tests.data.graph.querybuilder.sample_models.interesting_asset import (
 from tests.data.graph.querybuilder.sample_models.interesting_asset import (
     InterestingAssetToSubResourceRel,
 )
+from tests.data.graph.querybuilder.sample_models.invalid_unscoped import (
+    InvalidUnscopedNodeSchema,
+)
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
 from tests.unit.cartography.graph.helpers import clean_query_list
 
@@ -188,3 +191,21 @@ def test_build_cleanup_rel_query_no_sub_resource_raises_on_sub_resource():
 
     with pytest.raises(ValueError, match="Expected InterestingAsset to not exist"):
         _build_cleanup_rel_query_no_sub_resource(node_schema, rel_schema)
+
+
+def test_build_cleanup_queries_raises_error_for_invalid_unscoped():
+    """
+    Test that build_cleanup_queries raises a ValueError when a node schema has both
+    sub_resource_relationship and scoped_cleanup=False.
+    """
+    node_schema = InvalidUnscopedNodeSchema()
+    with pytest.raises(ValueError) as excinfo:
+        build_cleanup_queries(node_schema)
+
+    expected_error = (
+        f"This is not expected: {node_schema.label} has a sub_resource_relationship but scoped_cleanup=False."
+        "Please check the class definition for this node schema. It doesn't make sense for a node to have a "
+        "sub resource relationship and an unscoped cleanup. Doing this will cause all stale nodes of this type "
+        "to be deleted regardless of the sub resource they are attached to."
+    )
+    assert str(excinfo.value) == expected_error

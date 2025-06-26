@@ -91,8 +91,6 @@ class SecretsManagerSecretVersionToKMSKeyRel(CartographyRelSchema):
     properties: SecretsManagerSecretVersionRelProperties = (
         SecretsManagerSecretVersionRelProperties()
     )
-    # Only create this relationship if KmsKeyId exists
-    conditional_match_property: str = "KmsKeyId"
 
 
 @dataclass(frozen=True)
