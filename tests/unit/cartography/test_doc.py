@@ -4,7 +4,11 @@ from cartography.sync import Sync
 
 
 def test_schema_doc():
-    # DOC
+    """Test that the schema documentation includes all modules.
+    This test checks that the schema documentation file includes all modules
+    that are present in the codebase, ensuring that the documentation is up-to-date
+    with the current implementation of the modules.
+    """
     include_regex = re.compile(r"{include} ../modules/(\w+)/schema.md")
 
     with open("./docs/root/usage/schema.md") as f:
