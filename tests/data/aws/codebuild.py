@@ -1,8 +1,3 @@
-GET_PROJECT_NAMES = [
-    "frontend-build",
-    "backend-deploy",
-]
-
 GET_PROJECTS = [
     {
         "name": "frontend-build",

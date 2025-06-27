@@ -18,33 +18,29 @@ logger = logging.getLogger(__name__)
 
 @timeit
 @aws_handle_regions
-def get_codebuild_project_names(boto3_session: boto3.Session, region: str) -> List[str]:
+def get_all_codebuild_projects(
+    boto3_session: boto3.Session, region: str
+) -> List[Dict[str, Any]]:
+
     client = boto3_session.client(
         "codebuild", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("list_projects")
-    project_names = []
+
+    all_projects = []
+
     for page in paginator.paginate():
-        project_names.extend(page.get("projects", []))
-    return project_names
+        project_names = page.get("projects", [])
+        if not project_names:
+            continue
 
-
-@timeit
-@aws_handle_regions
-def get_codebuild_projects(
-    boto3_session: boto3.Session, project_names: List[str], region: str
-) -> List[Dict[str, Any]]:
-
-    if not project_names:
-        logger.debug(
-            f"No CodeBuild projects found in region '{region}', skipping batch_get_projects call."
-        )
-        return []
-    client = boto3_session.client(
-        "codebuild", region_name=region, config=get_botocore_config()
-    )
-    response = client.batch_get_projects(names=project_names)
-    return response.get("projects", [])
+        # AWS batch_get_projects accepts up to 100 project names per call as per AWS documentation.
+        for i in range(0, len(project_names), 100):
+            batch = project_names[i : i + 100]
+            response = client.batch_get_projects(names=batch)
+            projects = response.get("projects", [])
+            all_projects.extend(projects)
+    return all_projects
 
 
 def transform_codebuild_projects(
@@ -53,25 +49,25 @@ def transform_codebuild_projects(
     """
     Transform CodeBuild project data for ingestion into Neo4j.
 
-    - Only include environment variables of type 'PLAINTEXT'.
-    - Other types (e.g., 'PARAMETER_STORE', 'SECRETS_MANAGER') are skipped to avoid leaking secrets.
+    - Includes all environment variable names.
+    - Variables of type 'PLAINTEXT' retain their values.
+    - Other types (e.g., 'PARAMETER_STORE', 'SECRETS_MANAGER') have their values redacted.
     """
-    transform_codebuild_projects = []
+    transformed_codebuild_projects = []
     for project in projects:
         env_vars = project.get("environment", {}).get("environmentVariables", [])
         env_var_strings = [
-            f"{var.get('name')}={var.get('value')}"
+            f"{var.get('name')}={var.get('value') if var.get('type') == 'PLAINTEXT' else '<REDACTED>'}"
             for var in env_vars
-            if var.get("type") == "PLAINTEXT"
         ]
         transformed_project = {
             "arn": project["arn"],
             "created": project.get("created"),
             "environmentVariables": env_var_strings,
         }
-        transform_codebuild_projects.append(transformed_project)
+        transformed_codebuild_projects.append(transformed_project)
 
-    return transform_codebuild_projects
+    return transformed_codebuild_projects
 
 
 @timeit
@@ -120,8 +116,7 @@ def sync(
             f"Syncing CodeBuild for region '{region}' in account '{current_aws_account_id}'.",
         )
 
-        project_names = get_codebuild_project_names(boto3_session, region)
-        projects = get_codebuild_projects(boto3_session, project_names, region)
+        projects = get_all_codebuild_projects(boto3_session, region)
         transformed_projects = transform_codebuild_projects(projects, region)
 
         load_codebuild_projects(

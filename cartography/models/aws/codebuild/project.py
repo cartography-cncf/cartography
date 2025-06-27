@@ -14,6 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class CodeBuildProjectNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("arn")
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     created: PropertyRef = PropertyRef("created")
     environment_variables: PropertyRef = PropertyRef("environmentVariables")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
