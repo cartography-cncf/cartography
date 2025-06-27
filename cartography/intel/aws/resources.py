@@ -7,6 +7,7 @@ from . import acm
 from . import apigateway
 from . import cloudtrail
 from . import cloudwatch
+from . import codebuild
 from . import config
 from . import dynamodb
 from . import ecr
@@ -108,4 +109,5 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "cloudtrail": cloudtrail.sync,
     "cloudwatch": cloudwatch.sync,
     "efs": efs.sync,
+    "codebuild": codebuild.sync,
 }
