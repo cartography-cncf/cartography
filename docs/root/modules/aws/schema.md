@@ -3310,6 +3310,65 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
     ```
     (ECSTask)-[HAS_CONTAINER]->(ECSContainer)
     ```
+
+### EfsFileSystem
+Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/latest/ug/API_FileSystemDescription.html)
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ID of the file system, assigned by Amazon EFS |
+| arn | Amazon Resource Name (ARN) for the EFS file system |
+| region | The region of the file system |
+| owner_id | The AWS account that created the file system |
+| creation_token | The opaque string specified in the request |
+| creation_time | The time that the file system was created, in seconds |
+| lifecycle_state | The lifecycle phase of the file system |
+| name | If the file system has a name tag, Amazon EFS returns the value in this field |
+| number_of_mount_targets | The current number of mount targets that the file system has |
+| size_in_bytes_value | Latest known metered size (in bytes) of data stored in the file system |
+| size_in_bytes_timestamp | Time at which that size was determined |
+| performance_mode | The performance mode of the file system |
+| encrypted | A Boolean value that, if true, indicates that the file system is encrypted |
+| kms_key_id | The ID of an AWS KMS key used to protect the encrypted file system |
+| throughput_mode | Displays the file system's throughput mode |
+| availability_zone_name | Describes the AWS Availability Zone in which the file system is located |
+| availability_zone_id | The unique and consistent identifier of the Availability Zone in which the file system is located |
+| file_system_protection | Describes the protection on the file system |
+
+#### Relationships
+- EfsFileSystem are a resource under the AWS Account.
+   ```
+   (AWSAccount)-[RESOURCE]->(EfsFileSystem)
+   ```
+
+### EfsMountTarget
+Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/latest/ug/API_MountTargetDescription.html)
+| Field | Description |
+|-------|-------------|
+| **id** | System-assigned mount target ID |
+| arn | System-assigned mount target ID |
+| region | The region of the mount target |
+| fileSystem_id | The ID of the file system for which the mount target is intended |
+| lifecycle_state | Lifecycle state of the mount target |
+| mount_target_id | System-assigned mount target ID |
+| subnet_id | The ID of the mount target's subnet |
+| availability_zone_id | The unique and consistent identifier of the Availability Zone that the mount target resides in |
+| availability_zone_name | The name of the Availability Zone in which the mount target is located |
+| ip_address | Address at which the file system can be mounted by using the mount target |
+| network_interface_id | The ID of the network interface that Amazon EFS created when it created the mount target |
+| owner_id | AWS account ID that owns the resource |
+| vpc_id | The virtual private cloud (VPC) ID that the mount target is configured in |
+#### Relationships
+- Efs MountTargets are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EfsMountTarget)
+    ```
+- Efs MountTargets are attached to Efs FileSystems.
+    ```
+    (EfsMountTarget)-[ATTACHED_TO]->(EfsFileSystem)
+    ```
+
 ### SNSTopic
 Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
 | Field | Description |
