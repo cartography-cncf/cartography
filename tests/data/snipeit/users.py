@@ -1,12 +1,12 @@
 USERS = {
-    "company_a": [
+    "simpson_corp": [
         {
             "id": 1,
             "avatar": "https://develop.snipeitapp.com/uploads/avatars/1.jpg",
-            "name": "Admin User",
-            "first_name": "Admin",
-            "last_name": "User",
-            "username": "admin",
+            "name": "Marge Simpson",
+            "first_name": "Marge",
+            "last_name": "Simpson",
+            "username": "mbsimpson",
             "remote": False,
             "locale": "en-US",
             "employee_num": "12832",
@@ -20,7 +20,7 @@ USERS = {
             "state": "MT",
             "country": "Tajikistan",
             "zip": "22367",
-            "email": "mcarter@example.net",
+            "email": "mbsimpson@simpson.corp",
             "department": {
                 "id": 3,
                 "name": "Marketing",
@@ -67,10 +67,10 @@ USERS = {
         {
             "id": 2,
             "avatar": "https://develop.snipeitapp.com/uploads/avatars/2.jpg",
-            "name": "Snipe E. Head",
-            "first_name": "Snipe E.",
-            "last_name": "Head",
-            "username": "snipe",
+            "name": "Homer Simpson",
+            "first_name": "Homer",
+            "last_name": "Simpson",
+            "username": "hjsimpson",
             "remote": False,
             "locale": "en-US",
             "employee_num": "30845",
@@ -84,7 +84,7 @@ USERS = {
             "state": "ND",
             "country": "Gambia",
             "zip": "67260-1176",
-            "email": "snipe@snipe.net",
+            "email": "hjsimpson@simpson.corp",
             "department": {
                 "id": 6,
                 "name": "Dept of Silly Walks",
@@ -129,14 +129,14 @@ USERS = {
             "groups": None,
         },
     ],
-    "company_b": [
+    "south_park": [
         {
             "id": 3,
             "avatar": "https://develop.snipeitapp.com/uploads/avatars/3.jpg",
-            "name": "Alison Gianotto",
-            "first_name": "Alison",
-            "last_name": "Gianotto",
-            "username": "agianotto@grokability.com",
+            "name": "Kyle Broflovski",
+            "first_name": "Kyle",
+            "last_name": "Broflovski",
+            "username": "kbroflovski",
             "remote": False,
             "locale": "en-US",
             "employee_num": "9280",
@@ -150,7 +150,7 @@ USERS = {
             "state": "NV",
             "country": "Mongolia",
             "zip": "15923-4319",
-            "email": "agianotto@grokability.com",
+            "email": "kbroflovski@south.park",
             "department": {
                 "id": 6,
                 "name": "Dept of Silly Walks",
@@ -197,10 +197,10 @@ USERS = {
         {
             "id": 4,
             "avatar": "https://develop.snipeitapp.com/uploads/avatars/4.jpg",
-            "name": "Afton Kris",
-            "first_name": "Afton",
-            "last_name": "Kris",
-            "username": "boehm.sid",
+            "name": "Eric Cartman",
+            "first_name": "Eric",
+            "last_name": "Cartman",
+            "username": "ecartman",
             "remote": False,
             "locale": "en-US",
             "employee_num": "7457",
@@ -214,7 +214,7 @@ USERS = {
             "state": "AK",
             "country": "Rwanda",
             "zip": "88727-2261",
-            "email": "sparisian@example.net",
+            "email": "ecartman@south.park",
             "department": {
                 "id": 6,
                 "name": "Dept of Silly Walks",
