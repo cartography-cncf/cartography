@@ -204,12 +204,16 @@ def timeit(method: F) -> F:
     return cast(F, timed)
 
 
+DEFAULT_MAX_PAGES = 1000
+
+
 def aws_paginate(
     client: boto3.client,
     method_name: str,
     object_name: str,
+    max_pages: int = DEFAULT_MAX_PAGES,
     **kwargs: Any,
-) -> List[Dict]:
+) -> tuple[List[Dict], Optional[str]]:
     """
     Helper method for boilerplate boto3 pagination
     The **kwargs will be forwarded to the paginator
@@ -217,17 +221,22 @@ def aws_paginate(
     paginator = client.get_paginator(method_name)
     items = []
     i = 0
+    next_token = None
     for i, page in enumerate(paginator.paginate(**kwargs), start=1):
         if i % 100 == 0:
             logger.info(f"fetching page number {i}")
         if object_name in page:
             items.extend(page[object_name])
+            next_token = page.get("nextToken")
         else:
             logger.warning(
                 f"""aws_paginate: Key "{object_name}" is not present, check if this is a typo.
 If not, then the AWS datatype somehow does not have this key.""",
             )
-    return items
+        if i >= max_pages:
+            logger.warning(f"Reached max batch size of {max_pages} pages")
+            break
+    return items, next_token
 
 
 AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable])
