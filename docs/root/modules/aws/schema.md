@@ -808,6 +808,7 @@ Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebui
 | lastupdated | Timestamp of the last time the node was updated |
 | id | The ARN of the CodeBuild Project |
 | arn | The Amazon Resource Name (ARN) of the CodeBuild Project |
+| region | The region of the codebuild project |
 | created | The creation time of the CodeBuild Project |
 | environment_variables | A set of environment variables to make available to builds for this build project |
 #### Relationships
