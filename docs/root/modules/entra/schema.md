@@ -86,6 +86,12 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
     (:EntraUser)-[:MEMBER_OF]->(:EntraGroup)
     ```
 
+- Entra users can have app role assignments to applications
+
+    ```cypher
+    (:EntraUser)-[:HAS_APP_ROLE]->(:EntraApplication)
+    ```
+
 
 ### EntraOU
 Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/administrativeunit-get?view=graph-rest-1.0&tabs=http).
@@ -146,3 +152,51 @@ Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/g
     ```cypher
     (:EntraGroup)-[:MEMBER_OF]->(:EntraGroup)
     ```
+
+- Entra groups can have app role assignments to applications
+
+    ```cypher
+    (:EntraGroup)-[:HAS_APP_ROLE]->(:EntraApplication)
+    ```
+
+### EntraApplication
+
+Representation of an Entra [Application](https://learn.microsoft.com/en-us/graph/api/application-get?view=graph-rest-1.0&tabs=http).
+
+|Field | Description|
+|-------|-------------|
+|id | Entra Application ID (GUID)|
+|app_id | Application (client) ID - the unique identifier for the application|
+|display_name | Display name of the application|
+|publisher_domain | Publisher domain of the application|
+|sign_in_audience | Audience that can sign in to the application|
+|created_date_time | Date and time when the application was created|
+|web_redirect_uris | List of redirect URIs for web applications|
+|lastupdated | Timestamp of when this node was last updated in Cartography|
+
+#### Relationships
+
+- All Entra applications are linked to an Entra Tenant
+
+    ```cypher
+    (:EntraApplication)-[:RESOURCE]->(:EntraTenant)
+    ```
+
+- Entra users can have app role assignments to applications
+
+    ```cypher
+    (:EntraUser)-[:HAS_APP_ROLE]->(:EntraApplication)
+    ```
+
+- Entra groups can have app role assignments to applications
+
+    ```cypher
+    (:EntraGroup)-[:HAS_APP_ROLE]->(:EntraApplication)
+    ```
+
+The `HAS_APP_ROLE` relationship contains the following properties:
+- `app_role_id`: The ID of the app role assigned
+- `assignment_id`: Unique identifier for the assignment
+- `resource_id`: The service principal ID of the resource
+- `created_date_time`: When the assignment was created
+- `lastupdated`: Timestamp of when this relationship was last updated in Cartography
