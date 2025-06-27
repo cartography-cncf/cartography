@@ -11,6 +11,7 @@ from cartography.graph.job import GraphJob
 from cartography.models.tailscale.postureintegration import (
     TailscalePostureIntegrationSchema,
 )
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -25,11 +26,12 @@ def sync(
     common_job_parameters: Dict[str, Any],
     org: str,
 ) -> None:
-    postureintegrations = get(
+    data = get(
         api_session,
         common_job_parameters["BASE_URL"],
         org,
     )
+    postureintegrations = transform(data)
     load_postureintegrations(
         neo4j_session,
         postureintegrations,
@@ -53,6 +55,18 @@ def get(
     req.raise_for_status()
     results = req.json()["integrations"]
     return results
+
+
+def transform(api_result: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    result: List[Dict[str, Any]] = []
+    for integration in api_result:
+        for key in list(integration.keys()):
+            if key in ("config_updated", "status_last_sync"):
+                integration[key] = dict_date_to_datetime(integration, key)
+            elif integration[key] == "":
+                integration.pop(key)
+        result.append(integration)
+    return result
 
 
 @timeit

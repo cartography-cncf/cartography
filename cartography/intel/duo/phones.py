@@ -9,6 +9,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.duo.phone import DuoPhoneSchema as Schema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ def _transform(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "encrypted": datum["encrypted"],
             "extension": datum["extension"],
             "fingerprint": datum["fingerprint"],
-            "last_seen": datum["last_seen"],
+            "last_seen": dict_date_to_datetime(datum, "last_seen"),
             "model": datum["model"],
             "name": datum["name"],
             "phone_id": datum["phone_id"],
