@@ -3288,6 +3288,7 @@ Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/lates
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The ID of the file system, assigned by Amazon EFS |
 | arn | Amazon Resource Name (ARN) for the EFS file system |
+| region | The region of the file system |
 | owner_id | The AWS account that created the file system |
 | creation_token | The opaque string specified in the request |
 | creation_time | The time that the file system was created, in seconds |
@@ -3316,6 +3317,7 @@ Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/late
 |-------|-------------|
 | **id** | System-assigned mount target ID |
 | arn | System-assigned mount target ID |
+| region | The region of the mount target |
 | fileSystem_id | The ID of the file system for which the mount target is intended |
 | lifecycle_state | Lifecycle state of the mount target |
 | mount_target_id | System-assigned mount target ID |
