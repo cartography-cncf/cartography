@@ -69,6 +69,17 @@ class S3ObjectToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class S3ObjectToAWSPrincipalRel(CartographyRelSchema):
+    target_node_label: str = "AWSPrincipal"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("OwnerId")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "OWNS"
+    properties: S3ObjectRelProperties = S3ObjectRelProperties()
+
+
+@dataclass(frozen=True)
 class S3ObjectSchema(CartographyNodeSchema):
     label: str = "S3Object"
     properties: S3ObjectNodeProperties = S3ObjectNodeProperties()
@@ -76,5 +87,6 @@ class S3ObjectSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             S3ObjectToS3BucketRel(),
+            S3ObjectToAWSPrincipalRel(),
         ],
     )

@@ -179,21 +179,6 @@ def load_s3_objects(
             AWS_ID=aws_account_id,
         )
 
-    # Create owner relationships if owner information is present
-    owner_query = """
-    MATCH (o:S3Object{lastupdated: $update_tag})
-    WHERE o.owner_id IS NOT NULL
-    WITH o
-    MERGE (owner:AWSPrincipal{id: o.owner_id})
-    ON CREATE SET owner.firstseen = timestamp()
-    SET owner.lastupdated = $update_tag,
-        owner.display_name = o.owner_display_name
-    MERGE (owner)-[r:OWNS]->(o)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-    """
-    neo4j_session.run(owner_query, update_tag=update_tag)
-
 
 @timeit
 def cleanup_s3_objects(

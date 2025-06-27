@@ -147,10 +147,14 @@ def test_sync_s3_objects_glacier_restore(mock_get_data, neo4j_session):
     return_value=_mock_transform_objects(SINGLE_OBJECT_WITH_OWNER),
 )
 def test_sync_s3_objects_with_owner(mock_get_data, neo4j_session):
-    """Test S3 object with owner information creates AWSPrincipal relationship."""
+    """
+    Test S3 object with owner information.
+    Following Alex's guidance: "This is fine, just run the graph sync twice and the owner will exist then"
+    """
     _ensure_neo4j_has_test_buckets(neo4j_session)
     boto3_session = MagicMock()
 
+    # First sync - S3 objects are created with owner properties
     sync(
         neo4j_session,
         boto3_session,
@@ -160,6 +164,7 @@ def test_sync_s3_objects_with_owner(mock_get_data, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
+    # Verify owner information is stored as properties
     result = neo4j_session.run(
         """
         MATCH (o:S3Object{key: 'images/logo.png'})
@@ -170,13 +175,44 @@ def test_sync_s3_objects_with_owner(mock_get_data, neo4j_session):
     assert result["owner_id"] == "owner-id-123"
     assert result["owner_display_name"] == "test-owner"
 
+    # Verify that no OWNS relationship exists yet (AWSPrincipal doesn't exist)
+    owner_rel_count = neo4j_session.run(
+        """
+        MATCH (p:AWSPrincipal{id: 'owner-id-123'})-[r:OWNS]->(o:S3Object{key: 'images/logo.png'})
+        RETURN count(r) as count
+        """
+    ).single()["count"]
+
+    assert owner_rel_count == 0
+
+    # Simulate AWSPrincipal being synced by another module
+    neo4j_session.run(
+        """
+        MERGE (p:AWSPrincipal{id: 'owner-id-123'})
+        SET p.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Second sync - now the OWNS relationship should be created
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG + 1,
+        {"UPDATE_TAG": TEST_UPDATE_TAG + 1, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Verify the OWNS relationship now exists
     owner_result = neo4j_session.run(
         """
         MATCH (p:AWSPrincipal{id: 'owner-id-123'})-[r:OWNS]->(o:S3Object{key: 'images/logo.png'})
-        RETURN p.id as id, p.display_name as display_name
+        RETURN p.id as id
         """
     ).single()
 
+    assert owner_result is not None
     assert owner_result["id"] == "owner-id-123"
 
 
