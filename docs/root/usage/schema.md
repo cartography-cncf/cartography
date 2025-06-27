@@ -86,6 +86,9 @@
 ```{include} ../modules/pagerduty/schema.md
 ```
 
+```{include} ../modules/scaleway/schema.md
+```
+
 ```{include} ../modules/semgrep/schema.md
 ```
 
