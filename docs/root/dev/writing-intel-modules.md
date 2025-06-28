@@ -372,6 +372,12 @@ class MyResourceProperties(CartographyNodeProperties):
 
 When auto-formatting fails, the system logs a warning and falls back to the string representation of the value, ensuring that data quality issues don't cause complete sync failures.
 
+```{warning}
+The `auto_format` function modifies the input data dictionary *in place*. This can lead to unexpected behavior in tests if the same test data is reused across multiple test cases.
+To avoid side effects, consider working on a copy of the test data.
+Note: This in-place transformation is intentional in production to minimize memory usage.
+```
+
 #### Data cleaning and sanitization
 
 Cartography provides built-in data cleaning through the `cartography.graph.sanitizer` module. The `data_dict_cleanup()` function automatically:

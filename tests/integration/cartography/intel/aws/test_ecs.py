@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import cartography.intel.aws.ecs
 import tests.data.aws.ecs
@@ -13,7 +14,7 @@ CLUSTER_ARN = "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster"
 
 
 def test_load_ecs_clusters(neo4j_session, *args):
-    data = tests.data.aws.ecs.GET_ECS_CLUSTERS
+    data = tests.data.aws.ecs.GET_ECS_CLUSTERS.copy()
     cartography.intel.aws.ecs.load_ecs_clusters(
         neo4j_session,
         data,
@@ -332,27 +333,27 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
 @patch.object(
     cartography.intel.aws.ecs,
     "get_ecs_clusters",
-    return_value=tests.data.aws.ecs.GET_ECS_CLUSTERS,
+    return_value=tests.data.aws.ecs.GET_ECS_CLUSTERS.copy(),
 )
 @patch.object(
     cartography.intel.aws.ecs,
     "get_ecs_container_instances",
-    return_value=tests.data.aws.ecs.GET_ECS_CONTAINER_INSTANCES,
+    return_value=tests.data.aws.ecs.GET_ECS_CONTAINER_INSTANCES.copy(),
 )
 @patch.object(
     cartography.intel.aws.ecs,
     "get_ecs_services",
-    return_value=tests.data.aws.ecs.GET_ECS_SERVICES,
+    return_value=tests.data.aws.ecs.GET_ECS_SERVICES.copy(),
 )
 @patch.object(
     cartography.intel.aws.ecs,
     "get_ecs_tasks",
-    return_value=tests.data.aws.ecs.GET_ECS_TASKS,
+    return_value=tests.data.aws.ecs.GET_ECS_TASKS.copy(),
 )
 @patch.object(
     cartography.intel.aws.ecs,
     "get_ecs_task_definitions",
-    return_value=tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS,
+    return_value=tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS.copy(),
 )
 def test_sync_ecs_comprehensive(
     mock_get_task_definitions,
@@ -368,8 +369,6 @@ def test_sync_ecs_comprehensive(
     Tests all relationships using check_rels() style as recommended in AGENTS.md.
     """
     # Arrange
-    from unittest.mock import MagicMock
-
     boto3_session = MagicMock()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
