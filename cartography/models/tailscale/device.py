@@ -29,7 +29,9 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     authorized: PropertyRef = PropertyRef("authorized", auto_format=bool)
     is_external: PropertyRef = PropertyRef("isExternal", auto_format=bool)
     node_key: PropertyRef = PropertyRef("nodeKey", auto_format=str)
-    blocks_incoming_connections: PropertyRef = PropertyRef("blocksIncomingConnections", auto_format=bool)
+    blocks_incoming_connections: PropertyRef = PropertyRef(
+        "blocksIncomingConnections", auto_format=bool
+    )
     client_connectivity_endpoints: PropertyRef = PropertyRef(
         "clientConnectivity.endpoints"
     )
@@ -39,10 +41,11 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     tailnet_lock_error: PropertyRef = PropertyRef("tailnetLockError", auto_format=str)
     tailnet_lock_key: PropertyRef = PropertyRef("tailnetLockKey", auto_format=str)
     posture_identity_serial_numbers: PropertyRef = PropertyRef(
-        "postureIdentity.serialNumbers",
-        auto_format=str
+        "postureIdentity.serialNumbers", auto_format=str
     )
-    posture_identity_disabled: PropertyRef = PropertyRef("postureIdentity.disabled", auto_format=bool)
+    posture_identity_disabled: PropertyRef = PropertyRef(
+        "postureIdentity.disabled", auto_format=bool
+    )
 
 
 @dataclass(frozen=True)
