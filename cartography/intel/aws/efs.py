@@ -9,6 +9,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.models.aws.efs.access_point import EfsAccessPointSchema
 from cartography.models.aws.efs.file_system import EfsFileSystemSchema
 from cartography.models.aws.efs.mount_target import EfsMountTargetSchema
 from cartography.util import aws_handle_regions
@@ -88,6 +89,48 @@ def get_efs_mount_targets(
 
 
 @timeit
+@aws_handle_regions
+def get_efs_access_points(
+    boto3_session: boto3.Session, region: str
+) -> List[Dict[str, Any]]:
+    client = boto3_session.client(
+        "efs", region_name=region, config=get_botocore_config()
+    )
+
+    paginator = client.get_paginator("describe_access_points")
+    accessPoints = []
+    for page in paginator.paginate():
+        accessPoints.extend(page.get("AccessPoints", []))
+
+    return accessPoints
+
+
+def transform_efs_access_points(
+    accessPoints: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
+    """
+    Transform Efs Access Points data for ingestion
+    """
+    transformed = []
+    for ap in accessPoints:
+        transformed.append(
+            {
+                "AccessPointArn": ap["AccessPointArn"],
+                "AccessPointId": ap["AccessPointId"],
+                "FileSystemId": ap["FileSystemId"],
+                "Name": ap.get("Name"),
+                "LifeCycleState": ap.get("LifeCycleState"),
+                "OwnerId": ap.get("OwnerId"),
+                "Uid": ap.get("PosixUser", {}).get("Uid"),
+                "Gid": ap.get("PosixUser", {}).get("Gid"),
+                "RootDirectoryPath": ap.get("RootDirectory", {}).get("Path"),
+            }
+        )
+
+    return transformed
+
+
+@timeit
 def load_efs_mount_targets(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
@@ -130,6 +173,27 @@ def load_efs_file_systems(
 
 
 @timeit
+def load_efs_access_points(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        f"Loading Efs {len(data)} access points for region '{region}' into graph.",
+    )
+    load(
+        neo4j_session,
+        EfsAccessPointSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -139,6 +203,9 @@ def cleanup(
         neo4j_session
     )
     GraphJob.from_node_schema(EfsFileSystemSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(EfsAccessPointSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -173,6 +240,17 @@ def sync(
         load_efs_mount_targets(
             neo4j_session,
             mountTargets,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+        accessPoints = get_efs_access_points(boto3_session, region)
+        accessPoints_transformed = transform_efs_access_points(accessPoints, region)
+
+        load_efs_access_points(
+            neo4j_session,
+            accessPoints_transformed,
             region,
             current_aws_account_id,
             update_tag,

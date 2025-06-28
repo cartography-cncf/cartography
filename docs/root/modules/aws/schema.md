@@ -3369,6 +3369,33 @@ Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/late
     (EfsMountTarget)-[ATTACHED_TO]->(EfsFileSystem)
     ```
 
+### EfsAccessPoint
+Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/latest/ug/API_AccessPointDescription.html)
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | System-assigned access point ARN |
+| arn | The unique Amazon Resource Name (ARN) associated with the access point |
+| region | The region of the access point |
+|access_point_id | The ID of the access point, assigned by Amazon EFS |
+| file_system_id | The ID of the EFS file system that the access point applies to |
+| lifecycle_state | Identifies the lifecycle phase of the access point |
+| name | The name of the access point |
+| owner_id | AWS account ID that owns the resource |
+| posix_gid | The POSIX group ID used for all file system operations using this access point |
+| posix_uid | The POSIX user ID used for all file system operations using this access point |
+| root_directory_path | Specifies the path on the EFS file system to expose as the root directory to NFS clients using the access point to access the EFS file system |
+#### Relationships
+- Efs AccessPoints are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EfsAccessPoint)
+    ```
+- EFS Access Points are entry points into EFS File Systems.
+    ```
+    (EfsAccessPoint)-[ACCESS_POINT_OF]->(EfsFileSystem)
+    ```
+
 ### SNSTopic
 Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
 | Field | Description |
