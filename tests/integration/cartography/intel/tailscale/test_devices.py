@@ -20,7 +20,7 @@ TEST_ORG = "simpson.corp"
 @patch.object(
     cartography.intel.tailscale.devices,
     "get",
-    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES,
+    return_value=tests.data.tailscale.devices.TAILSCALE_DEVICES.copy(),
 )
 def test_load_tailscale_devices(mock_api, neo4j_session):
     """
