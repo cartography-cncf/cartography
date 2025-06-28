@@ -117,9 +117,9 @@ def _auto_format_field(p_ref: PropertyRef, value: Any) -> Any:
             return parse_date(value)
         if p_ref.auto_format == bool:
             if isinstance(value, str):
-                if value.lower() in ('true', '1', 'yes'):
+                if value.lower() in ("true", "1", "yes"):
                     return True
-                if value.lower() in ('false', '0', 'no'):
+                if value.lower() in ("false", "0", "no"):
                     return False
                 return value
             if isinstance(value, bool):
