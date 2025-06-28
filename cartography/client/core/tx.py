@@ -11,6 +11,7 @@ from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.util import batch
+from cartography.graph.sanitizer import data_dict_cleanup
 
 
 def read_list_of_values_tx(
@@ -275,4 +276,8 @@ def load(
         return
     ensure_indexes(neo4j_session, node_schema)
     ingestion_query = build_ingestion_query(node_schema)
-    load_graph_data(neo4j_session, ingestion_query, dict_list, **kwargs)
+    # TODO: We should probably do this sanitization in batch to avoid memory overhead.
+    # But to do so we need a change of definition in load_graph_data() as we currently
+    # not support passing the node_schema to it.
+    sanitized_dict_list = [data_dict_cleanup(node_schema, data) for data in dict_list]
+    load_graph_data(neo4j_session, ingestion_query, sanitized_dict_list, **kwargs)
