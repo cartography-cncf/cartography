@@ -87,3 +87,51 @@ GET_EFS_MOUNT_TARGETS = [
         "VpcId": "vpc-abc123def456ghi78",
     },
 ]
+
+
+GET_EFS_ACCESS_POINTS = [
+    {
+        "ClientToken": "client-token-001",
+        "Name": "AccessPoint1",
+        "Tags": [
+            {"Key": "Environment", "Value": "Dev"},
+            {"Key": "Project", "Value": "TestProject1"},
+        ],
+        "AccessPointId": "fsap-111aaa222bbb333cc",
+        "AccessPointArn": "arn:aws:elasticfilesystem:us-west-2:123456789012:access-point/fsap-111aaa222bbb333cc",
+        "FileSystemId": "fs-abc12345",
+        "PosixUser": {
+            "Uid": 1001,
+            "Gid": 1001,
+            "SecondaryGids": [1002, 1003],
+        },
+        "RootDirectory": {
+            "Path": "/app/data1",
+            "CreationInfo": {"OwnerUid": 1001, "OwnerGid": 1001, "Permissions": "755"},
+        },
+        "OwnerId": "123456789012",
+        "LifeCycleState": "available",
+    },
+    {
+        "ClientToken": "client-token-002",
+        "Name": "AccessPoint2",
+        "Tags": [
+            {"Key": "Environment", "Value": "Prod"},
+            {"Key": "Project", "Value": "TestProject2"},
+        ],
+        "AccessPointId": "fsap-444ddd555eee666ff",
+        "AccessPointArn": "arn:aws:elasticfilesystem:us-west-2:123456789012:access-point/fsap-444ddd555eee666ff",
+        "FileSystemId": "fs-def67890",
+        "PosixUser": {
+            "Uid": 2001,
+            "Gid": 2001,
+            "SecondaryGids": [2002],
+        },
+        "RootDirectory": {
+            "Path": "/app/data2",
+            "CreationInfo": {"OwnerUid": 2001, "OwnerGid": 2001, "Permissions": "700"},
+        },
+        "OwnerId": "123456789012",
+        "LifeCycleState": "updating",
+    },
+]
