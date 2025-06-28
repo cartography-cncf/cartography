@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
@@ -16,31 +17,32 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     # We use nodeId because the old property `id` is deprecated
     id: PropertyRef = PropertyRef("nodeId")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name")
-    hostname: PropertyRef = PropertyRef("hostname")
-    client_version: PropertyRef = PropertyRef("clientVersion")
-    update_available: PropertyRef = PropertyRef("updateAvailable")
-    os: PropertyRef = PropertyRef("os")
-    created: PropertyRef = PropertyRef("created")
-    last_seen: PropertyRef = PropertyRef("lastSeen")
+    name: PropertyRef = PropertyRef("name", auto_format=str)
+    hostname: PropertyRef = PropertyRef("hostname", auto_format=str)
+    client_version: PropertyRef = PropertyRef("clientVersion", auto_format=str)
+    update_available: PropertyRef = PropertyRef("updateAvailable", auto_format=bool)
+    os: PropertyRef = PropertyRef("os", auto_format=str)
+    created: PropertyRef = PropertyRef("created", auto_format=datetime)
+    last_seen: PropertyRef = PropertyRef("lastSeen", auto_format=datetime)
     key_expiry_disabled: PropertyRef = PropertyRef("keyExpiryDisabled")
-    expires: PropertyRef = PropertyRef("expires")
-    authorized: PropertyRef = PropertyRef("authorized")
-    is_external: PropertyRef = PropertyRef("isExternal")
-    node_key: PropertyRef = PropertyRef("nodeKey")
-    blocks_incoming_connections: PropertyRef = PropertyRef("blocksIncomingConnections")
+    expires: PropertyRef = PropertyRef("expires", auto_format=datetime)
+    authorized: PropertyRef = PropertyRef("authorized", auto_format=bool)
+    is_external: PropertyRef = PropertyRef("isExternal", auto_format=bool)
+    node_key: PropertyRef = PropertyRef("nodeKey", auto_format=str)
+    blocks_incoming_connections: PropertyRef = PropertyRef("blocksIncomingConnections", auto_format=bool)
     client_connectivity_endpoints: PropertyRef = PropertyRef(
         "clientConnectivity.endpoints"
     )
     client_connectivity_mapping_varies_by_dest_ip: PropertyRef = PropertyRef(
         "clientConnectivity.mappingVariesByDestIP"
     )
-    tailnet_lock_error: PropertyRef = PropertyRef("tailnetLockError")
-    tailnet_lock_key: PropertyRef = PropertyRef("tailnetLockKey")
+    tailnet_lock_error: PropertyRef = PropertyRef("tailnetLockError", auto_format=str)
+    tailnet_lock_key: PropertyRef = PropertyRef("tailnetLockKey", auto_format=str)
     posture_identity_serial_numbers: PropertyRef = PropertyRef(
-        "postureIdentity.serialNumbers"
+        "postureIdentity.serialNumbers",
+        auto_format=str
     )
-    posture_identity_disabled: PropertyRef = PropertyRef("postureIdentity.disabled")
+    posture_identity_disabled: PropertyRef = PropertyRef("postureIdentity.disabled", auto_format=bool)
 
 
 @dataclass(frozen=True)
