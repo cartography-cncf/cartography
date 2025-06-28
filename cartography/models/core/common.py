@@ -96,7 +96,7 @@ class PropertyRef:
                 f'Error setting PropertyRef "{self.name}": one_to_many cannot be used together with '
                 "`ignore_case` or `fuzzy_and_ignore_case`.",
             )
-        
+
         if self.auto_format not in (None, str, int, float, dict, list, datetime):
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": auto_format must be None, str, int, float, dict, list, datetime.',

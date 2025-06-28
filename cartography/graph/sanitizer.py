@@ -1,8 +1,9 @@
-from typing import Any
-from datetime import datetime
-from dateutil.parser import parse as parse_date
-from dataclasses import asdict
 import logging
+from dataclasses import asdict
+from datetime import datetime
+from typing import Any
+
+from dateutil.parser import parse as parse_date
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -10,8 +11,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 logger = logging.getLogger(__name__)
 
 
-def data_dict_cleanup(node_schema: CartographyNodeSchema, data: dict[str, Any]) -> dict[str, Any]:
-    """ This function cleans up a data dictionary based on the provided node schema.
+def data_dict_cleanup(
+    node_schema: CartographyNodeSchema, data: dict[str, Any]
+) -> dict[str, Any]:
+    """This function cleans up a data dictionary based on the provided node schema.
 
     This function will remove any keys that are not defined in the node schema,
     and will also auto-format the values according to the `auto_format` specified in the
@@ -30,9 +33,9 @@ def data_dict_cleanup(node_schema: CartographyNodeSchema, data: dict[str, Any]) 
 
 
 def _recursive_cleanup(data: dict, keys: dict[str, PropertyRef]) -> dict:
-    """ This function recursively cleans up a data dictionary based on the provided keys. """
+    """This function recursively cleans up a data dictionary based on the provided keys."""
     cleaned_data = {}
-    sub_dicts_keys = {}
+    sub_dicts_keys: dict[str, dict[str, PropertyRef]] = {}
 
     for key, p_ref in keys.items():
         if p_ref.set_in_kwargs:
@@ -56,8 +59,10 @@ def _recursive_cleanup(data: dict, keys: dict[str, PropertyRef]) -> dict:
     return cleaned_data
 
 
-def _node_schema_to_property_refs(node_schema: CartographyNodeSchema) -> dict[str, PropertyRef]:
-    """ This function extracts property references from a CartographyNodeSchema.
+def _node_schema_to_property_refs(
+    node_schema: CartographyNodeSchema,
+) -> dict[str, PropertyRef]:
+    """This function extracts property references from a CartographyNodeSchema.
     It collects all properties defined in the node schema, including those in sub-resource relationships
     and other relationships, and returns them as a dictionary where the keys are property names
     and the values are PropertyRef instances."""
@@ -69,7 +74,9 @@ def _node_schema_to_property_refs(node_schema: CartographyNodeSchema) -> dict[st
     if node_schema.sub_resource_relationship:
         for p_ref in asdict(node_schema.sub_resource_relationship.properties).values():
             results[p_ref.name] = p_ref
-        for p_ref in asdict(node_schema.sub_resource_relationship.target_node_matcher).values():
+        for p_ref in asdict(
+            node_schema.sub_resource_relationship.target_node_matcher
+        ).values():
             results[p_ref.name] = p_ref
 
     if node_schema.other_relationships:
@@ -82,9 +89,8 @@ def _node_schema_to_property_refs(node_schema: CartographyNodeSchema) -> dict[st
     return results
 
 
-
 def _auto_format_field(p_ref: PropertyRef, value: Any) -> Any:
-    """ This function auto-formats a field based on the PropertyRef's auto_format type. """
+    """This function auto-formats a field based on the PropertyRef's auto_format type."""
     try:
         if value is None:
             return None

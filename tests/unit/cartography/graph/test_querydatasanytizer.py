@@ -1,11 +1,19 @@
+import math
 from dataclasses import dataclass
 from datetime import datetime
-import math
 
+from cartography.graph.sanitizer import _auto_format_field
+from cartography.graph.sanitizer import _node_schema_to_property_refs
+from cartography.graph.sanitizer import data_dict_cleanup
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeSchema, CartographyNodeProperties
-from cartography.models.core.relationships import CartographyRelSchema, OtherRelationships, CartographyRelProperties, TargetNodeMatcher, LinkDirection, make_target_node_matcher
-from cartography.graph.sanitizer import _node_schema_to_property_refs, _auto_format_field, data_dict_cleanup
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -18,7 +26,7 @@ class FakeToParentRelProperties(CartographyRelProperties):
 class FakeToParentRel(CartographyRelSchema):
     rel_label: str = "FAKE_TO_PARENT"
     target_node_label: str = "FakeParentNode"
-    target_node_matcher: dict[str, PropertyRef] = make_target_node_matcher(
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PARENT_ID", set_in_kwargs=True)}
     )
     properties: FakeToParentRelProperties = FakeToParentRelProperties()
@@ -52,6 +60,7 @@ class FakeProperties(CartographyNodeProperties):
     lastseen: PropertyRef = PropertyRef("lastseen", auto_format=datetime)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
+
 @dataclass(frozen=True)
 class FakeNodeSchema(CartographyNodeSchema):
     label: str = "FakeNode"
@@ -63,7 +72,7 @@ class FakeNodeSchema(CartographyNodeSchema):
 
 
 def test_node_schema_to_property_refs():
-    """ This test cover the extraction of all needed field in the data dict from the NodeSchema."""
+    """This test cover the extraction of all needed field in the data dict from the NodeSchema."""
     # Create a node schema instance
     node_schema = FakeNodeSchema()
 
@@ -73,97 +82,84 @@ def test_node_schema_to_property_refs():
     # Check if the properties are correctly extracted
     assert isinstance(property_refs, dict)
     assert list(property_refs.keys()) == [
-        'id',
-        'lastupdated',
-        'name',
-        'nested.number',
-        'multi_nested.deep.float',
-        'dict_value',
-        'list_value',
-        'lastseen',
-        'rel_property',
-        'PARENT_ID',
-        'others_id',
+        "id",
+        "lastupdated",
+        "name",
+        "nested.number",
+        "multi_nested.deep.float",
+        "dict_value",
+        "list_value",
+        "lastseen",
+        "rel_property",
+        "PARENT_ID",
+        "others_id",
     ]
 
 
 def test_auto_format_propertyref():
-    """ This test cover the auto_format functionality of PropertyRef."""
+    """This test cover the auto_format functionality of PropertyRef."""
     # Test without auto_format flag
-    no_format = PropertyRef('fake')
+    no_format = PropertyRef("fake")
     assert _auto_format_field(no_format, 42) == 42
     # Check with auto_format flag set to str
-    str_format = PropertyRef('fake', auto_format=str)
+    str_format = PropertyRef("fake", auto_format=str)
     assert _auto_format_field(str_format, None) is None
-    assert _auto_format_field(str_format, 'foo') == 'foo'
-    assert _auto_format_field(str_format, 42) == '42'
-    assert _auto_format_field(str_format, '') is None
+    assert _auto_format_field(str_format, "foo") == "foo"
+    assert _auto_format_field(str_format, 42) == "42"
+    assert _auto_format_field(str_format, "") is None
     # Check with auto_format flag set to int
-    int_format = PropertyRef('fake', auto_format=int)
+    int_format = PropertyRef("fake", auto_format=int)
     assert _auto_format_field(int_format, 42) == 42
     assert _auto_format_field(int_format, "42") == 42
-    assert _auto_format_field(int_format, "foo") == "foo" # Should failsafe as string
+    assert _auto_format_field(int_format, "foo") == "foo"  # Should failsafe as string
     # Check with auto_format flag set to float
-    float_format = PropertyRef('fake', auto_format=float)
+    float_format = PropertyRef("fake", auto_format=float)
     assert math.isclose(_auto_format_field(float_format, 42.42), 42.42)
     assert math.isclose(_auto_format_field(float_format, "42.42"), 42.42)
-    assert _auto_format_field(float_format, "foo") == "foo" # Should failsafe as string
+    assert _auto_format_field(float_format, "foo") == "foo"  # Should failsafe as string
     # Check with auto_format flag set to dict
-    dict_format = PropertyRef('fake', auto_format=dict)
-    assert _auto_format_field(dict_format, {'foo': 'bar'}) == {'foo': 'bar'}
+    dict_format = PropertyRef("fake", auto_format=dict)
+    assert _auto_format_field(dict_format, {"foo": "bar"}) == {"foo": "bar"}
     assert _auto_format_field(dict_format, {}) is None
     # Check with auto_format flag set to list
-    list_format = PropertyRef('fake', auto_format=list)
-    assert _auto_format_field(list_format, ['foo']) == ['foo']
+    list_format = PropertyRef("fake", auto_format=list)
+    assert _auto_format_field(list_format, ["foo"]) == ["foo"]
     assert _auto_format_field(list_format, []) is None
     # Check with auto_format flag set to datetime
-    datetime_format = PropertyRef('fake', auto_format=datetime)
+    datetime_format = PropertyRef("fake", auto_format=datetime)
     now = datetime.now()
     assert _auto_format_field(datetime_format, now) == now
     assert _auto_format_field(datetime_format, now.isoformat()) == now
-    assert _auto_format_field(datetime_format, 'foo') == 'foo' # Should failsafe as string
+    assert (
+        _auto_format_field(datetime_format, "foo") == "foo"
+    )  # Should failsafe as string
     assert _auto_format_field(datetime_format, now.timestamp()) == now
 
 
 def test_data_dict_cleanup():
-    """ This test cover the data_dict_cleanup function."""
+    """This test cover the data_dict_cleanup function."""
     # Create a node schema instance
     node_schema = FakeNodeSchema()
 
     # Create a test data dict
     test_data = {
-        "nested": {
-            "number": "42",
-            "junk": "qux"
-        },
+        "nested": {"number": "42", "junk": "qux"},
         "name": "keep this",
         "junk": "not that",
         "multi_nested": {
             "deep": {
                 "float": "42.42",
                 "junk": "do not keep that",
-                "not": "that neither"
+                "not": "that neither",
             },
         },
-        "dict_value": {
-            "keep": "this",
-            "and": "this"
-        },
+        "dict_value": {"keep": "this", "and": "this"},
     }
     expected_cleaned_data = {
-        "nested": {
-            "number": 42
-        },
+        "nested": {"number": 42},
         "name": "keep this",
-        "multi_nested": {
-            "deep": {
-                "float": 42.42
-            }
-        },
-        "dict_value": {
-            "keep": "this",
-            "and": "this"
-        },
+        "multi_nested": {"deep": {"float": 42.42}},
+        "dict_value": {"keep": "this", "and": "this"},
     }
 
     # Clean the data dict
