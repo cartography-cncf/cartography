@@ -279,5 +279,8 @@ def load(
     # TODO: We should probably do this sanitization in batch to avoid memory overhead.
     # But to do so we need a change of definition in load_graph_data() as we currently
     # not support passing the node_schema to it.
-    sanitized_dict_list = [data_dict_cleanup(node_schema, data) for data in dict_list]
-    load_graph_data(neo4j_session, ingestion_query, sanitized_dict_list, **kwargs)
+    # This two line will not allow to use generator until we change the definition of
+    # load_graph_data() to accept node_schema as an argument.
+    for i in range(len(dict_list)):
+        dict_list[i] = data_dict_cleanup(node_schema, dict_list[i])
+    load_graph_data(neo4j_session, ingestion_query, dict_list, **kwargs)

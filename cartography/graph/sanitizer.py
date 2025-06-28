@@ -130,6 +130,6 @@ def _auto_format_field(p_ref: PropertyRef, value: Any) -> Any:
     # Handling broad exceptions is generally discouraged, but here we log the error
     # and return a string representation of the value to avoid breaking the data flow.
     except Exception as e:
-        logger.warning(f"Error formatting field '{p_ref}': {e}. Value: {value}")
+        logger.warning("Error formatting field '%s': %s.", p_ref, e)
         # If any error occurs, we fallback to string representation
         return str(value)
