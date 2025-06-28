@@ -40,6 +40,11 @@ to make it easier to ingest to the graph. `transform` functions are sometimes om
 
 We have some best practices on handling transforms:
 
+```{hint}
+Before implementing a tranform method, check if that can not be done with the `auto_format` option of the PropertyRef.
+See [Auto-format section](#auto-format)
+```
+
 #### Handling required versus optional fields
 
 We should directly access dicts in cases where not having the data should cause a sync to fail.
@@ -350,6 +355,7 @@ Supported auto-format types:
 - **`datetime`**: Parses datetime strings or timestamps into `datetime` objects. Supports ISO format strings and Unix timestamps.
 - **`dict`**: Preserves dictionary values. Empty dictionaries become `None`.
 - **`list`**: Preserves list values. Empty lists become `None`.
+- **`bool`**: Converts common boolean representation (True/true/yes/1) to `boolean`.
 
 Example usage:
 

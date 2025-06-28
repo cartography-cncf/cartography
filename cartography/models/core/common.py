@@ -97,9 +97,9 @@ class PropertyRef:
                 "`ignore_case` or `fuzzy_and_ignore_case`.",
             )
 
-        if self.auto_format not in (None, str, int, float, dict, list, datetime):
+        if self.auto_format not in (None, str, int, float, dict, list, datetime, bool):
             raise ValueError(
-                f'Error setting PropertyRef "{self.name}": auto_format must be None, str, int, float, dict, list, datetime.',
+                f'Error setting PropertyRef "{self.name}": auto_format must be None, str, int, float, dict, list, datetime, bool.',
             )
 
     def _parameterize_name(self) -> str:

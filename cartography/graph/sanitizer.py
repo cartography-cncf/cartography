@@ -48,7 +48,7 @@ def _recursive_cleanup(data: dict, keys: dict[str, PropertyRef]) -> dict:
         else:
             # If it's a nested key, split it into prefix and suffix
             prefix, suffix = key.split(".", 1)
-            if prefix not in data:
+            if data.get(prefix) is None:
                 continue
             sub_dicts_keys.setdefault(prefix, {})[suffix] = p_ref
     # Now we can handle the sub-dictionaries
@@ -115,6 +115,18 @@ def _auto_format_field(p_ref: PropertyRef, value: Any) -> Any:
             if isinstance(value, int) or isinstance(value, float):
                 return datetime.fromtimestamp(value)
             return parse_date(value)
+        if p_ref.auto_format == bool:
+            if isinstance(value, str):
+                if value.lower() in ('true', '1', 'yes'):
+                    return True
+                if value.lower() in ('false', '0', 'no'):
+                    return False
+                return value
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, int):
+                return bool(value)
+            raise ValueError(f"Cannot convert {value} to bool")
     # Handling broad exceptions is generally discouraged, but here we log the error
     # and return a string representation of the value to avoid breaking the data flow.
     except Exception as e:
