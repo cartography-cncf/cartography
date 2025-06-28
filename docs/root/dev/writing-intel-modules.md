@@ -371,7 +371,7 @@ When auto-formatting fails, the system logs a warning and falls back to the stri
 Cartography provides built-in data cleaning through the `cartography.graph.sanitizer` module. The `data_dict_cleanup()` function automatically:
 
 1. **Filters data** - Removes keys not defined in your node schema
-2. **Auto-formats values** - Applies `auto_format` rules from your `PropertyRef` definitions  
+2. **Auto-formats values** - Applies `auto_format` rules from your `PropertyRef` definitions
 3. **Handles nested data** - Recursively processes nested dictionaries
 
 This helper is called when you use the `load` function.
