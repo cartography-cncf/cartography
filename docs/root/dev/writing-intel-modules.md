@@ -40,6 +40,11 @@ to make it easier to ingest to the graph. `transform` functions are sometimes om
 
 We have some best practices on handling transforms:
 
+```{hint}
+Before implementing a transform method, check if that can not be done with the `auto_format` option of the PropertyRef.
+See [Auto-format section](#auto-format)
+```
+
 #### Handling required versus optional fields
 
 We should directly access dicts in cases where not having the data should cause a sync to fail.
@@ -338,6 +343,52 @@ Here's how to represent this in the Cartography data model:
         to look for AWSRoles in the graph where their `arn` field is in the list pointed to by the `Roles` key on the data dict.
 
 Now we can use the same steps described above in this doc to finish data ingestion.
+
+#### Auto format
+
+The `auto_format` parameter in `PropertyRef` provides automatic data type conversion and validation. When specified, it ensures that property values are converted to the correct data type before being stored in the graph.
+
+Supported auto-format types:
+- **`str`**: Converts values to strings. Empty strings become `None`.
+- **`int`**: Converts values to integers. Falls back to string representation if conversion fails.
+- **`float`**: Converts values to floats. Falls back to string representation if conversion fails.
+- **`datetime`**: Parses datetime strings or timestamps into `datetime` objects. Supports ISO format strings and Unix timestamps.
+- **`dict`**: Preserves dictionary values. Empty dictionaries become `None`.
+- **`list`**: Preserves list values. Empty lists become `None`.
+- **`bool`**: Converts common boolean representation (True/true/yes/1) to `boolean`.
+
+Example usage:
+
+```python
+@dataclass(frozen=True)
+class MyResourceProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef('id')  # No formatting
+    name: PropertyRef = PropertyRef('name', auto_format=str)
+    port: PropertyRef = PropertyRef('port', auto_format=int)
+    created_at: PropertyRef = PropertyRef('metadata.created_at', auto_format=datetime)
+    config: PropertyRef = PropertyRef('config', auto_format=dict)
+    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
+```
+
+When auto-formatting fails, the system logs a warning and falls back to the string representation of the value, ensuring that data quality issues don't cause complete sync failures.
+
+```{warning}
+The `auto_format` function modifies the input data dictionary *in place*. This can lead to unexpected behavior in tests if the same test data is reused across multiple test cases.
+To avoid side effects, consider working on a copy of the test data.
+Note: This in-place transformation is intentional in production to minimize memory usage.
+```
+
+#### Data cleaning and sanitization
+
+Cartography provides built-in data cleaning through the `cartography.graph.sanitizer` module. The `data_dict_cleanup()` function automatically:
+
+1. **Filters data** - Removes keys not defined in your node schema
+2. **Auto-formats values** - Applies `auto_format` rules from your `PropertyRef` definitions
+3. **Handles nested data** - Recursively processes nested dictionaries
+
+This helper is called when you use the `load` function.
+
+This approach ensures data integrity, type safety, and consistency across all intel modules. This also ensure that non needed data (including senstive ones) are not sent to the database.
 
 ### Cleanup
 

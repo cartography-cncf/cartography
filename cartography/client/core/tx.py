@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_ingestion_query
+from cartography.graph.sanitizer import data_dict_cleanup
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.util import batch
 
@@ -275,4 +276,11 @@ def load(
         return
     ensure_indexes(neo4j_session, node_schema)
     ingestion_query = build_ingestion_query(node_schema)
+    # TODO: We should probably do this sanitization in batch to avoid memory overhead.
+    # But to do so we need a change of definition in load_graph_data() as we currently
+    # not support passing the node_schema to it.
+    # This two line will not allow to use generator until we change the definition of
+    # load_graph_data() to accept node_schema as an argument.
+    for idx, data_dict in enumerate(dict_list):
+        dict_list[idx] = data_dict_cleanup(node_schema, data_dict)
     load_graph_data(neo4j_session, ingestion_query, dict_list, **kwargs)
