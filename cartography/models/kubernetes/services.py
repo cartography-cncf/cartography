@@ -87,7 +87,7 @@ class KubernetesServiceToKubernetesPodRel(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "TARGET"
+    rel_label: str = "TARGETS"
     properties: KubernetesServiceToKubernetesPodRelProperties = (
         KubernetesServiceToKubernetesPodRelProperties()
     )
