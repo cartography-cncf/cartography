@@ -45,6 +45,7 @@ def transform_efs_file_systems(
         transformed_file_system = {
             "FileSystemId": file_system["FileSystemId"],
             "FileSystemArn": file_system["FileSystemArn"],
+            "Region": region,
             "OwnerId": file_system.get("OwnerId"),
             "CreationToken": file_system.get("CreationToken"),
             "CreationTime": file_system.get("CreationTime"),
@@ -117,6 +118,7 @@ def transform_efs_access_points(
             {
                 "AccessPointArn": ap["AccessPointArn"],
                 "AccessPointId": ap["AccessPointId"],
+                "Region": region,
                 "FileSystemId": ap["FileSystemId"],
                 "Name": ap.get("Name"),
                 "LifeCycleState": ap.get("LifeCycleState"),

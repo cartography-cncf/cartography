@@ -31,7 +31,7 @@ TEST_UPDATE_TAG = 123456789
     return_value=GET_EFS_FILE_SYSTEMS,
 )
 def test_sync_efs(
-    moct_get_efs_access_points,
+    mock_get_efs_access_points,
     mock_get_file_systems,
     mock_get_mount_targets,
     neo4j_session,
