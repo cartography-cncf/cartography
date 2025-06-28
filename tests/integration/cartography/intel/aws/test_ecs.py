@@ -1,5 +1,5 @@
-from unittest.mock import patch
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.aws.ecs
 import tests.data.aws.ecs
