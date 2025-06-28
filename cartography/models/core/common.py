@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class PropertyRef:
     """
     PropertyRefs represent properties on cartography nodes and relationships.
@@ -16,6 +19,7 @@ class PropertyRef:
         ignore_case=False,
         fuzzy_and_ignore_case=False,
         one_to_many=False,
+        auto_format=None,
     ):
         """
         :param name: The name of the property
@@ -63,6 +67,15 @@ class PropertyRef:
             ```
             This means that as we create AWSInstanceProfile nodes, we will search for AWSRoles to attach to, and we do
             this by checking if each role's `arn` field is in the `Roles` list of the data dict.
+        :param auto_format: Optional. If provided, this will auto-format the value of this property
+            when it is set. The value can be one of the following types: None, str, int, float, dict, list, datetime.
+            If None, no auto-formatting is applied, and the value is used as-is.
+            This is useful for ensuring that the data is in the correct format before it is stored in the graph.
+            For example, if you want to ensure that a property is always stored as a string, you can set
+            `auto_format=str`.
+            Auto-fornatting also parse datetime strings into datetime objects and remove empty strings or lists/dicts.
+            If the value is an empty string, list, or dict, it will be set to None.
+            If the value cannot be formatted, a warning is logged, and the value is set to its string representation.
         """
         self.name = name
         self.set_in_kwargs = set_in_kwargs
@@ -70,6 +83,7 @@ class PropertyRef:
         self.ignore_case = ignore_case
         self.fuzzy_and_ignore_case = fuzzy_and_ignore_case
         self.one_to_many = one_to_many
+        self.auto_format = auto_format
 
         if self.fuzzy_and_ignore_case and self.ignore_case:
             raise ValueError(
@@ -81,6 +95,11 @@ class PropertyRef:
             raise ValueError(
                 f'Error setting PropertyRef "{self.name}": one_to_many cannot be used together with '
                 "`ignore_case` or `fuzzy_and_ignore_case`.",
+            )
+        
+        if self.auto_format not in (None, str, int, float, dict, list, datetime):
+            raise ValueError(
+                f'Error setting PropertyRef "{self.name}": auto_format must be None, str, int, float, dict, list, datetime.',
             )
 
     def _parameterize_name(self) -> str:
