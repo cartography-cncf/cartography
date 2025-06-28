@@ -281,6 +281,6 @@ def load(
     # not support passing the node_schema to it.
     # This two line will not allow to use generator until we change the definition of
     # load_graph_data() to accept node_schema as an argument.
-    for i in range(len(dict_list)):
-        dict_list[i] = data_dict_cleanup(node_schema, dict_list[i])
+    for idx, data_dict in enumerate(dict_list):
+        dict_list[idx] = data_dict_cleanup(node_schema, data_dict)
     load_graph_data(neo4j_session, ingestion_query, dict_list, **kwargs)
