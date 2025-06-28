@@ -56,6 +56,8 @@ On the other hand, we should use `data.get('SomeField')` if `SomeField` is somet
 
 For the sake of consistency, if a field does not exist, set it to `None` and not `""`.
 
+Neo4j handles fields in `datetime` format, so when a date is returned as a string, it's best to parse it to enable the use of operators during querying.
+
 ### Load
 
 [As seen in our AWS EMR example](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L113-L132), the `load` function ingests a list of dicts to Neo4j by calling [cartography.client.core.tx.load()](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/client/core/tx.py#L191-L212):
@@ -76,9 +78,15 @@ def load_emr_clusters(
         Region=region,
         AWS_ID=current_aws_account_id,
     )
-
 ```
 
+```{tip}
+When defining nodes and properties, please follow the naming convention below:
+- **Node classes** should end with `Schema`
+- **Relationship classes** should end with `Rel`
+- **Node property classes** should end with `Properties`
+- **Relationship property classes** should end with `RelProperties`
+```
 
 #### Defining a node
 
@@ -168,6 +176,74 @@ This class is best described by explaining how it is processed: `build_ingestion
 class EMRClusterToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 ```
+
+```{important}
+**Relationship Naming Guidelines**
+
+When naming relationships in Cartography:
+- Prefer clear verbs (e.g., OWNS, CONTAINS)
+- Avoid ambiguous or passive phrasing (e.g., IS, CAN)
+- Use direct and active forms
+    - Prefer OWNS over OWNED_BY
+    - Prefer CONTAINS over BELONGS_TO
+
+Consistent, action-oriented naming improves graph readability and makes Cypher queries more intuitive.
+```
+
+### Sub-Resources relationship
+
+A *sub-resource* is a specific type of composition relationship in which a node "belongs to" a higher-level entity such as an Account, Subscription, etc.
+
+Examples:
+
+* In **AWS**, the parent is typically an `AWSAccount`.
+* In **Azure**, it's a `Tenant` or `Subscription`.
+* In **GCP**, it's a `GCPProject`.
+
+To define a sub-resource relationship, use the `sub_resource_relationship` property on the node class. It must follow these constraints:
+
+* The target node matcher must have `set_in_kwargs=True` (required for auto-cleanup functionality).
+* All `sub_resource_relationship`s must:
+
+  * Use the label `RESOURCE`
+  * Have the direction set to `INWARD`
+* Each module:
+
+  * **Must have at least one root node** (a node without a `sub_resource_relationship`)
+  * **Must have at most one root node**
+
+#### Common Relationship Types
+
+While you're free to define custom relationships, using standardized types improves maintainability and facilitates querying and analysis.
+
+**Composition**
+
+* `(:Parent)-[:CONTAINS]->(:Child)`
+* `(:Parent)-[:HAS]->(:Child)`
+
+**Tagging**
+
+* `(:Entity)-[:TAGGED]->(:Tag)`
+
+**Group Membership**
+
+* `(:Element)-[:MEMBER_OF]->(:Group)`
+* `(:Element)-[:ADMIN_OF]->(:Group)`
+    ```{note}
+    If an element is an admin, both relationships (`MEMBER_OF` and `ADMIN_OF`) should be present for consistency.
+    ```
+
+**Ownership**
+
+* `(:Entity)-[:OWNS]->(:OtherEntity)`
+
+**Permissions (ACL)**
+
+* `(:Actor)-[:CAN_ACCESS]->(:Entity)`
+* `(:Actor)-[:CAN_READ]->(:Entity)`
+* `(:Actor)-[:CAN_WRITE]->(:Entity)`
+* `(:Actor)-[:CAN_ADD]->(:Entity)`
+* `(:Actor)-[:CAN_DELETE]->(:Entity)`
 
 #### The result
 
