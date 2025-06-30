@@ -229,7 +229,9 @@ class Config:
         self.aws_sync_all_profiles = aws_sync_all_profiles
         self.aws_regions = aws_regions
         self.aws_best_effort_mode = aws_best_effort_mode
-        self.aws_cloudtrail_management_events_lookback_hours = aws_cloudtrail_management_events_lookback_hours
+        self.aws_cloudtrail_management_events_lookback_hours = (
+            aws_cloudtrail_management_events_lookback_hours
+        )
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id

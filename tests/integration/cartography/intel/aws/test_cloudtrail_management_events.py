@@ -1,12 +1,11 @@
-from unittest.mock import MagicMock, patch
 import datetime
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.aws.cloudtrail_management_events
 import cartography.intel.aws.iam
 from cartography.intel.aws.cloudtrail_management_events import sync
-from tests.data.aws.cloudtrail_management_events import EXPECTED_TRANSFORMED_ROLE_ASSUMPTIONS
 from tests.integration.cartography.intel.aws.common import create_test_account
-from tests.integration.util import check_nodes, check_rels
 
 TEST_ACCOUNT_ID = "123456789012"
 TEST_REGION = "us-east-1"
@@ -33,7 +32,7 @@ TEST_IAM_USERS = [
         "Arn": "arn:aws:iam::123456789012:user/alice",
         "Path": "/",
         "CreateDate": datetime.datetime(2024, 1, 1, 10, 0, 0),
-    }
+    },
 ]
 
 # Test IAM Roles data
@@ -49,12 +48,10 @@ TEST_IAM_ROLES = [
             "Statement": [
                 {
                     "Effect": "Allow",
-                    "Principal": {
-                        "AWS": "arn:aws:iam::123456789012:root"
-                    },
-                    "Action": "sts:AssumeRole"
+                    "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
+                    "Action": "sts:AssumeRole",
                 }
-            ]
+            ],
         },
     },
     {
@@ -71,9 +68,9 @@ TEST_IAM_ROLES = [
                     "Principal": {
                         "Federated": "arn:aws:iam::123456789012:saml-provider/CompanySAML"
                     },
-                    "Action": "sts:AssumeRoleWithSAML"
+                    "Action": "sts:AssumeRoleWithSAML",
                 }
-            ]
+            ],
         },
     },
     {
@@ -90,11 +87,11 @@ TEST_IAM_ROLES = [
                     "Principal": {
                         "Federated": "arn:aws:iam::123456789012:oidc-provider/example.com"
                     },
-                    "Action": "sts:AssumeRoleWithWebIdentity"
+                    "Action": "sts:AssumeRoleWithWebIdentity",
                 }
-            ]
+            ],
         },
-    }
+    },
 ]
 
 
@@ -109,7 +106,7 @@ def _ensure_local_neo4j_has_test_iam_data(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    
+
     # Load test roles
     cartography.intel.aws.iam.load_roles(
         neo4j_session,
@@ -117,7 +114,7 @@ def _ensure_local_neo4j_has_test_iam_data(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    
+
     # Create cross-account role manually since it's in a different account
     neo4j_session.run(
         """
@@ -144,27 +141,27 @@ def _ensure_local_neo4j_has_test_iam_data(neo4j_session):
     return_value=[
         # User john.doe assumes cross-account role
         {
-            'SourcePrincipal': 'arn:aws:iam::123456789012:user/john.doe',
-            'DestinationPrincipal': 'arn:aws:iam::987654321098:role/CrossAccountRole',
-            'Action': 'AssumeRole',
-            'EventId': 'test-event-1',
-            'EventTime': '2024-01-15T10:30:15.123000',
+            "SourcePrincipal": "arn:aws:iam::123456789012:user/john.doe",
+            "DestinationPrincipal": "arn:aws:iam::987654321098:role/CrossAccountRole",
+            "Action": "AssumeRole",
+            "EventId": "test-event-1",
+            "EventTime": "2024-01-15T10:30:15.123000",
         },
-        # User alice assumes SAMLRole  
+        # User alice assumes SAMLRole
         {
-            'SourcePrincipal': 'arn:aws:iam::123456789012:user/alice',
-            'DestinationPrincipal': 'arn:aws:iam::123456789012:role/SAMLRole',
-            'Action': 'AssumeRole',
-            'EventId': 'test-event-2',
-            'EventTime': '2024-01-15T11:15:30.456000',
+            "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+            "DestinationPrincipal": "arn:aws:iam::123456789012:role/SAMLRole",
+            "Action": "AssumeRole",
+            "EventId": "test-event-2",
+            "EventTime": "2024-01-15T11:15:30.456000",
         },
         # User alice also assumes WebIdentityRole
         {
-            'SourcePrincipal': 'arn:aws:iam::123456789012:user/alice',
-            'DestinationPrincipal': 'arn:aws:iam::123456789012:role/WebIdentityRole',
-            'Action': 'AssumeRole',
-            'EventId': 'test-event-3',
-            'EventTime': '2024-01-15T12:45:00.789000',
+            "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+            "DestinationPrincipal": "arn:aws:iam::123456789012:role/WebIdentityRole",
+            "Action": "AssumeRole",
+            "EventId": "test-event-3",
+            "EventTime": "2024-01-15T12:45:00.789000",
         },
     ],
 )
@@ -180,7 +177,7 @@ def test_sync_cloudtrail_management_events_creates_assumed_role_relationships(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_iam_data(neo4j_session)
-    
+
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AWS_ID": TEST_ACCOUNT_ID,
@@ -201,7 +198,7 @@ def test_sync_cloudtrail_management_events_creates_assumed_role_relationships(
     assumed_role_rels = neo4j_session.run(
         """
         MATCH (source)-[rel:ASSUMED_ROLE]->(dest:AWSRole)
-        RETURN source.arn as source_arn, dest.arn as dest_arn, 
+        RETURN source.arn as source_arn, dest.arn as dest_arn,
                rel.times_used as times_used, rel.lastused as lastused,
                rel.first_seen as first_seen, rel.last_seen as last_seen
         """
@@ -209,27 +206,44 @@ def test_sync_cloudtrail_management_events_creates_assumed_role_relationships(
 
     # Should have 3 relationships from our test data
     assert len(assumed_role_rels) == 3
-    
+
     # Verify each relationship has the expected properties
-    rels_by_source_dest = {(rel['source_arn'], rel['dest_arn']): rel for rel in assumed_role_rels}
-    
+    rels_by_source_dest = {
+        (rel["source_arn"], rel["dest_arn"]): rel for rel in assumed_role_rels
+    }
+
     # Check john.doe -> CrossAccountRole relationship
-    john_rel = rels_by_source_dest.get(('arn:aws:iam::123456789012:user/john.doe', 'arn:aws:iam::987654321098:role/CrossAccountRole'))
+    john_rel = rels_by_source_dest.get(
+        (
+            "arn:aws:iam::123456789012:user/john.doe",
+            "arn:aws:iam::987654321098:role/CrossAccountRole",
+        )
+    )
     assert john_rel is not None
-    assert john_rel['times_used'] == 1
-    assert john_rel['lastused'] is not None
-    assert john_rel['first_seen'] is not None
-    assert john_rel['last_seen'] is not None
-    
-    # Check alice -> SAMLRole relationship  
-    alice_saml_rel = rels_by_source_dest.get(('arn:aws:iam::123456789012:user/alice', 'arn:aws:iam::123456789012:role/SAMLRole'))
+    assert john_rel["times_used"] == 1
+    assert john_rel["lastused"] is not None
+    assert john_rel["first_seen"] is not None
+    assert john_rel["last_seen"] is not None
+
+    # Check alice -> SAMLRole relationship
+    alice_saml_rel = rels_by_source_dest.get(
+        (
+            "arn:aws:iam::123456789012:user/alice",
+            "arn:aws:iam::123456789012:role/SAMLRole",
+        )
+    )
     assert alice_saml_rel is not None
-    assert alice_saml_rel['times_used'] == 1
-    
+    assert alice_saml_rel["times_used"] == 1
+
     # Check alice -> WebIdentityRole relationship
-    alice_web_rel = rels_by_source_dest.get(('arn:aws:iam::123456789012:user/alice', 'arn:aws:iam::123456789012:role/WebIdentityRole'))
+    alice_web_rel = rels_by_source_dest.get(
+        (
+            "arn:aws:iam::123456789012:user/alice",
+            "arn:aws:iam::123456789012:role/WebIdentityRole",
+        )
+    )
     assert alice_web_rel is not None
-    assert alice_web_rel['times_used'] == 1
+    assert alice_web_rel["times_used"] == 1
 
 
 @patch.object(
@@ -253,7 +267,7 @@ def test_sync_cloudtrail_management_events_with_no_events(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_iam_data(neo4j_session)
-    
+
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AWS_ID": TEST_ACCOUNT_ID,
@@ -276,12 +290,14 @@ def test_sync_cloudtrail_management_events_with_no_events(
         MATCH ()-[rel:ASSUMED_ROLE]->()
         RETURN count(rel) as count
         """
-    ).single()['count']
-    
+    ).single()["count"]
+
     assert assumed_role_rels == 0
 
 
-def test_sync_cloudtrail_management_events_skipped_when_no_lookback_hours(neo4j_session):
+def test_sync_cloudtrail_management_events_skipped_when_no_lookback_hours(
+    neo4j_session,
+):
     """
     Test that the sync is skipped when no lookback hours are configured.
     """
@@ -289,7 +305,7 @@ def test_sync_cloudtrail_management_events_skipped_when_no_lookback_hours(neo4j_
     _cleanup_neo4j(neo4j_session)
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-    
+
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AWS_ID": TEST_ACCOUNT_ID,
@@ -298,8 +314,7 @@ def test_sync_cloudtrail_management_events_skipped_when_no_lookback_hours(neo4j_
 
     # Act
     with patch.object(
-        cartography.intel.aws.cloudtrail_management_events,
-        "get_cloudtrail_events"
+        cartography.intel.aws.cloudtrail_management_events, "get_cloudtrail_events"
     ) as mock_get_events:
         sync(
             neo4j_session,
@@ -309,7 +324,7 @@ def test_sync_cloudtrail_management_events_skipped_when_no_lookback_hours(neo4j_
             TEST_UPDATE_TAG,
             common_job_parameters,
         )
-        
+
         # Assert - get_cloudtrail_events should not be called
         mock_get_events.assert_not_called()
 
@@ -324,24 +339,28 @@ def test_sync_cloudtrail_management_events_skipped_when_no_lookback_hours(neo4j_
     "transform_cloudtrail_events_to_role_assumptions",
     side_effect=[
         # First region succeeds
-        [{
-            'SourcePrincipal': 'arn:aws:iam::123456789012:user/john.doe',
-            'DestinationPrincipal': 'arn:aws:iam::987654321098:role/CrossAccountRole',
-            'Action': 'AssumeRole',
-            'EventId': 'test-event-1',
-            'EventTime': '2024-01-15T10:30:15.123000',
-        }],
+        [
+            {
+                "SourcePrincipal": "arn:aws:iam::123456789012:user/john.doe",
+                "DestinationPrincipal": "arn:aws:iam::987654321098:role/CrossAccountRole",
+                "Action": "AssumeRole",
+                "EventId": "test-event-1",
+                "EventTime": "2024-01-15T10:30:15.123000",
+            }
+        ],
         # Second region fails
         Exception("Access denied"),
         # Third region succeeds
-        [{
-            'SourcePrincipal': 'arn:aws:iam::123456789012:user/alice',
-            'DestinationPrincipal': 'arn:aws:iam::123456789012:role/SAMLRole',
-            'Action': 'AssumeRole',
-            'EventId': 'test-event-2',
-            'EventTime': '2024-01-15T11:15:30.456000',
-        }],
-    ]
+        [
+            {
+                "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+                "DestinationPrincipal": "arn:aws:iam::123456789012:role/SAMLRole",
+                "Action": "AssumeRole",
+                "EventId": "test-event-2",
+                "EventTime": "2024-01-15T11:15:30.456000",
+            }
+        ],
+    ],
 )
 def test_sync_cloudtrail_management_events_continues_on_region_failure(
     mock_transform, mock_get_events, neo4j_session
@@ -354,7 +373,7 @@ def test_sync_cloudtrail_management_events_continues_on_region_failure(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_iam_data(neo4j_session)
-    
+
     regions = ["us-east-1", "us-west-2", "eu-west-1"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -378,15 +397,15 @@ def test_sync_cloudtrail_management_events_continues_on_region_failure(
         MATCH ()-[rel:ASSUMED_ROLE]->()
         RETURN count(rel) as count
         """
-    ).single()['count']
-    
+    ).single()["count"]
+
     # Should have 2 relationships from the 2 successful regions
     assert assumed_role_rels == 2
 
 
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
-    "get_cloudtrail_events", 
+    "get_cloudtrail_events",
     return_value=[],
 )
 @patch.object(
@@ -395,27 +414,27 @@ def test_sync_cloudtrail_management_events_continues_on_region_failure(
     return_value=[
         # Simulate multiple events for the same (source, destination) pair
         {
-            'SourcePrincipal': 'arn:aws:iam::123456789012:user/alice',
-            'DestinationPrincipal': 'arn:aws:iam::123456789012:role/SAMLRole',
-            'EventTime': '2024-01-15T09:00:00.000000',
-            'Action': 'AssumeRole',
-            'EventId': 'event-1'
+            "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+            "DestinationPrincipal": "arn:aws:iam::123456789012:role/SAMLRole",
+            "EventTime": "2024-01-15T09:00:00.000000",
+            "Action": "AssumeRole",
+            "EventId": "event-1",
         },
         {
-            'SourcePrincipal': 'arn:aws:iam::123456789012:user/alice',
-            'DestinationPrincipal': 'arn:aws:iam::123456789012:role/SAMLRole',
-            'EventTime': '2024-01-15T14:00:00.000000',
-            'Action': 'AssumeRole',
-            'EventId': 'event-2'
+            "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+            "DestinationPrincipal": "arn:aws:iam::123456789012:role/SAMLRole",
+            "EventTime": "2024-01-15T14:00:00.000000",
+            "Action": "AssumeRole",
+            "EventId": "event-2",
         },
         {
-            'SourcePrincipal': 'arn:aws:iam::123456789012:user/alice',
-            'DestinationPrincipal': 'arn:aws:iam::123456789012:role/SAMLRole',
-            'EventTime': '2024-01-15T17:00:00.000000',
-            'Action': 'AssumeRole', 
-            'EventId': 'event-3'
-        }
-    ]
+            "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+            "DestinationPrincipal": "arn:aws:iam::123456789012:role/SAMLRole",
+            "EventTime": "2024-01-15T17:00:00.000000",
+            "Action": "AssumeRole",
+            "EventId": "event-3",
+        },
+    ],
 )
 def test_sync_cloudtrail_management_events_aggregates_multiple_events(
     mock_transform, mock_get_events, neo4j_session
@@ -428,7 +447,7 @@ def test_sync_cloudtrail_management_events_aggregates_multiple_events(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_iam_data(neo4j_session)
-    
+
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AWS_ID": TEST_ACCOUNT_ID,
@@ -451,16 +470,16 @@ def test_sync_cloudtrail_management_events_aggregates_multiple_events(
         MATCH (source {arn: 'arn:aws:iam::123456789012:user/alice'})
               -[rel:ASSUMED_ROLE]->
               (dest {arn: 'arn:aws:iam::123456789012:role/SAMLRole'})
-        RETURN rel.times_used as times_used, rel.first_seen as first_seen, 
+        RETURN rel.times_used as times_used, rel.first_seen as first_seen,
                rel.last_seen as last_seen, rel.lastused as lastused
         """
     ).single()
 
     assert assumed_role_rel is not None
-    assert assumed_role_rel['times_used'] == 3  # Aggregated from 3 events
-    assert assumed_role_rel['first_seen'] is not None
-    assert assumed_role_rel['last_seen'] is not None
-    assert assumed_role_rel['lastused'] == assumed_role_rel['last_seen']
+    assert assumed_role_rel["times_used"] == 3  # Aggregated from 3 events
+    assert assumed_role_rel["first_seen"] is not None
+    assert assumed_role_rel["last_seen"] is not None
+    assert assumed_role_rel["lastused"] == assumed_role_rel["last_seen"]
 
 
 def test_sync_cloudtrail_management_events_cross_account_relationships(neo4j_session):
@@ -472,16 +491,16 @@ def test_sync_cloudtrail_management_events_cross_account_relationships(neo4j_ses
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_iam_data(neo4j_session)
-    
+
     # Use only the cross-account assumption from our test data
     cross_account_assumption = {
-        'SourcePrincipal': 'arn:aws:iam::123456789012:user/john.doe',
-        'DestinationPrincipal': 'arn:aws:iam::987654321098:role/CrossAccountRole',
-        'Action': 'AssumeRole',
-        'EventId': 'test-cross-account-event',
-        'EventTime': '2024-01-15T10:30:15.123000',
+        "SourcePrincipal": "arn:aws:iam::123456789012:user/john.doe",
+        "DestinationPrincipal": "arn:aws:iam::987654321098:role/CrossAccountRole",
+        "Action": "AssumeRole",
+        "EventId": "test-cross-account-event",
+        "EventTime": "2024-01-15T10:30:15.123000",
     }
-    
+
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AWS_ID": TEST_ACCOUNT_ID,
@@ -489,14 +508,17 @@ def test_sync_cloudtrail_management_events_cross_account_relationships(neo4j_ses
     }
 
     # Act
-    with patch.object(
-        cartography.intel.aws.cloudtrail_management_events,
-        "get_cloudtrail_events",
-        return_value=[],
-    ), patch.object(
-        cartography.intel.aws.cloudtrail_management_events,
-        "transform_cloudtrail_events_to_role_assumptions",
-        return_value=[cross_account_assumption],
+    with (
+        patch.object(
+            cartography.intel.aws.cloudtrail_management_events,
+            "get_cloudtrail_events",
+            return_value=[],
+        ),
+        patch.object(
+            cartography.intel.aws.cloudtrail_management_events,
+            "transform_cloudtrail_events_to_role_assumptions",
+            return_value=[cross_account_assumption],
+        ),
     ):
         sync(
             neo4j_session,
@@ -518,6 +540,9 @@ def test_sync_cloudtrail_management_events_cross_account_relationships(neo4j_ses
     ).single()
 
     assert cross_account_rel is not None
-    assert cross_account_rel['times_used'] == 1
-    assert cross_account_rel['source_arn'] == 'arn:aws:iam::123456789012:user/john.doe'
-    assert cross_account_rel['dest_arn'] == 'arn:aws:iam::987654321098:role/CrossAccountRole' 
+    assert cross_account_rel["times_used"] == 1
+    assert cross_account_rel["source_arn"] == "arn:aws:iam::123456789012:user/john.doe"
+    assert (
+        cross_account_rel["dest_arn"]
+        == "arn:aws:iam::987654321098:role/CrossAccountRole"
+    )
