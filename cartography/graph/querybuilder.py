@@ -426,6 +426,7 @@ def filter_selected_relationships(
 def build_ingestion_query(
     node_schema: CartographyNodeSchema,
     selected_relationships: Optional[Set[CartographyRelSchema]] = None,
+    skip_source_merge: bool = False,
 ) -> str:
     """
     Generates a Neo4j query from the given CartographyNodeSchema to ingest the specified nodes and relationships so that
@@ -437,6 +438,9 @@ def build_ingestion_query(
     If selected_relationships is None (default), then we create a query using all RelSchema specified in
     node_schema.sub_resource_relationship + node_schema.other_relationships.
     If selected_relationships is the empty set, we create a query with no relationship attachments at all.
+    :param skip_source_merge: If True, generate a query that MATCH-es existing source nodes instead of MERGE-ing them
+        This makes it possible to ingest relationships that originate from log/telemetry data without the risk of polluting
+        the graph with partial source nodes.  Default is False to preserve existing behavior.
     :return: An optimized Neo4j query that can be used to ingest nodes and relationships.
     Important notes:
     - The resulting query uses the UNWIND + MERGE pattern (see
@@ -446,16 +450,29 @@ def build_ingestion_query(
     - The query sets `firstseen` attributes on all the nodes and relationships that it creates.
     - The query is intended to be supplied as input to cartography.core.client.tx.load_graph_data().
     """
-    query_template = Template(
-        """
-        UNWIND $DictList AS item
-            MERGE (i:$node_label{id: $dict_id_field})
-            ON CREATE SET i.firstseen = timestamp()
-            SET
-                $set_node_properties_statement
-            $attach_relationships_statement
-        """,
-    )
+    if skip_source_merge:
+        # Only attach relationships to existing nodes – don't create new ones.
+        query_template = Template(
+            """
+            UNWIND $DictList AS item
+                MATCH (i:$node_label{id: $dict_id_field})
+                WITH i, item
+                SET
+                    $set_node_properties_statement
+                $attach_relationships_statement
+            """,
+        )
+    else:
+        query_template = Template(
+            """
+            UNWIND $DictList AS item
+                MERGE (i:$node_label{id: $dict_id_field})
+                ON CREATE SET i.firstseen = timestamp()
+                SET
+                    $set_node_properties_statement
+                $attach_relationships_statement
+            """,
+        )
 
     node_props: CartographyNodeProperties = node_schema.properties
     node_props_as_dict: Dict[str, PropertyRef] = asdict(node_props)

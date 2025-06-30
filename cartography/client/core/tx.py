@@ -259,14 +259,19 @@ def load(
     neo4j_session: neo4j.Session,
     node_schema: CartographyNodeSchema,
     dict_list: List[Dict[str, Any]],
+    skip_source_merge: bool = False,
     **kwargs,
 ) -> None:
     """
     Main entrypoint for intel modules to write data to the graph. Ensures that indexes exist for the datatypes loaded
     to the graph and then performs the load operation.
+
     :param neo4j_session: The Neo4j session
     :param node_schema: The CartographyNodeSchema object to create indexes for and generate a query.
     :param dict_list: The data to load to the graph represented as a list of dicts.
+    :param skip_source_merge: If True, generate a query that MATCH-es existing source nodes instead of MERGE-ing them
+        This makes it possible to ingest relationships that originate from log/telemetry data without the risk of
+        polluting the graph with partial source nodes.  Default is False to preserve existing behavior.
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
@@ -274,5 +279,12 @@ def load(
         # If there is no data to load, save some time.
         return
     ensure_indexes(neo4j_session, node_schema)
-    ingestion_query = build_ingestion_query(node_schema)
+
+    # Build the ingestion query with or without the source MERGE clause depending on caller preference.
+    ingestion_query = build_ingestion_query(
+        node_schema,
+        selected_relationships=None,
+        skip_source_merge=skip_source_merge,
+    )
+
     load_graph_data(neo4j_session, ingestion_query, dict_list, **kwargs)
