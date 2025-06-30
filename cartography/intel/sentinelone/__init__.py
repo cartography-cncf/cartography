@@ -21,7 +21,7 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
     :return: None
     """
     if not config.sentinelone_api_token or not config.sentinelone_api_url:
-        logger.info('SentinelOne API configuration not found - skipping this module.')
+        logger.info("SentinelOne API configuration not found - skipping this module.")
         return
 
     common_job_parameters = {
@@ -39,37 +39,12 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
     # Add account_id to common job parameters
     common_job_parameters["ACCOUNT_ID"] = account_id
 
-    # Sync SentinelOne data
-    # sync_applications(
-    #     neo4j_session,
-    #     config.sentinelone_api_url,
-    #     config.sentinelone_api_token,
-    #     config.update_tag,
-    #     common_job_parameters,
-    # )
-
-    # sync_endpoints(
-    #     neo4j_session,
-    #     config.sentinelone_api_url,
-    #     config.sentinelone_api_token,
-    #     config.update_tag,
-    #     common_job_parameters,
-    # )
-
-    # sync_cves(
-    #     neo4j_session,
-    #     config.sentinelone_api_url,
-    #     config.sentinelone_api_token,
-    #     config.update_tag,
-    #     common_job_parameters,
-    # )
-
     # Record that the sync is complete
     merge_module_sync_metadata(
         neo4j_session,
-        group_type='SentinelOne',
-        group_id='sentinelone',
-        synced_type='SentinelOneData',
+        group_type="SentinelOne",
+        group_id="sentinelone",
+        synced_type="SentinelOneData",
         update_tag=config.update_tag,
         stat_handler=stat_handler,
     )
