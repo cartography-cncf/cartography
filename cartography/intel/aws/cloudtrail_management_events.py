@@ -257,7 +257,9 @@ def _aggregate_role_assumptions(
         event_time = assumption.get("EventTime")
 
         if not source_arn or not dest_arn or not event_time:
-            logger.warning(f"Skipping incomplete assumption record: due to missing required fields")
+            logger.warning(
+                "Skipping incomplete assumption record: due to missing required fields"
+            )
             continue
 
         # Create aggregation key
