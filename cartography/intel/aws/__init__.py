@@ -5,6 +5,7 @@ from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Union
 
 import boto3
 import botocore.exceptions
@@ -53,7 +54,7 @@ def _sync_one_account(
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
-    regions: list[str] | None = None,
+    regions: Union[List[str], None] = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
 ) -> None:
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
@@ -177,7 +178,7 @@ def _sync_multiple_accounts(
     common_job_parameters: Dict[str, Any],
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
-    regions: list[str] | None = None,
+    regions: Union[List[str], None] = None,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
@@ -310,6 +311,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
+        "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
     }
     try:
         boto3_session = boto3.Session()

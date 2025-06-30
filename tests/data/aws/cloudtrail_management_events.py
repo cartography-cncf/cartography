@@ -287,4 +287,142 @@ MALFORMED_EVENT = {
     'EventId': 'malformed-event-id',
     # Missing EventName and other critical fields
     'EventSource': 'sts.amazonaws.com',
+}
+
+# Test data for aggregation scenarios
+MULTIPLE_ASSUME_ROLE_EVENTS_SAME_PAIR = [
+    {
+        'SourcePrincipal': 'arn:aws:iam::123456789012:user/alice',
+        'DestinationPrincipal': 'arn:aws:iam::123456789012:role/DataScientist',
+        'Action': 'AssumeRole',
+        'EventId': 'alice-ds-event-1',
+        'EventTime': datetime(2024, 1, 15, 9, 0, 0),
+        'SourceIPAddress': '192.168.1.100',
+        'UserAgent': 'aws-cli/2.0.0',
+        'AwsRegion': 'us-east-1',
+        'AccountId': '123456789012',
+        'AssumedRoleArn': 'arn:aws:iam::123456789012:role/DataScientist',
+        'PrincipalArn': 'arn:aws:iam::123456789012:user/alice',
+    },
+    {
+        'SourcePrincipal': 'arn:aws:iam::123456789012:user/alice',
+        'DestinationPrincipal': 'arn:aws:iam::123456789012:role/DataScientist',
+        'Action': 'AssumeRole',
+        'EventId': 'alice-ds-event-2',
+        'EventTime': datetime(2024, 1, 15, 13, 30, 0),
+        'SourceIPAddress': '192.168.1.100',
+        'UserAgent': 'aws-cli/2.0.0',
+        'AwsRegion': 'us-east-1',
+        'AccountId': '123456789012',
+        'AssumedRoleArn': 'arn:aws:iam::123456789012:role/DataScientist',
+        'PrincipalArn': 'arn:aws:iam::123456789012:user/alice',
+    },
+    {
+        'SourcePrincipal': 'arn:aws:iam::123456789012:user/alice',
+        'DestinationPrincipal': 'arn:aws:iam::123456789012:role/DataScientist',
+        'Action': 'AssumeRole',
+        'EventId': 'alice-ds-event-3',
+        'EventTime': datetime(2024, 1, 15, 17, 15, 0),
+        'SourceIPAddress': '192.168.1.100',
+        'UserAgent': 'aws-cli/2.0.0',
+        'AwsRegion': 'us-east-1',
+        'AccountId': '123456789012',
+        'AssumedRoleArn': 'arn:aws:iam::123456789012:role/DataScientist',
+        'PrincipalArn': 'arn:aws:iam::123456789012:user/alice',
+    }
+]
+
+# Expected aggregation result for the above events
+EXPECTED_AGGREGATED_ALICE_DATASCIENTIST = {
+    'source_principal_arn': 'arn:aws:iam::123456789012:user/alice',
+    'destination_principal_arn': 'arn:aws:iam::123456789012:role/DataScientist',
+    'times_used': 3,
+    'first_seen': datetime(2024, 1, 15, 9, 0, 0),
+    'last_seen': datetime(2024, 1, 15, 17, 15, 0),
+    'lastused': datetime(2024, 1, 15, 17, 15, 0),
+}
+
+# Test data for different source types (User, Role, Principal)
+CROSS_ACCOUNT_ROLE_ASSUMPTION_EVENTS = [
+    {
+        'SourcePrincipal': 'arn:aws:iam::123456789012:user/service-account',
+        'DestinationPrincipal': 'arn:aws:iam::987654321098:role/CrossAccountRole',
+        'Action': 'AssumeRole',
+        'EventId': 'cross-account-event-1',
+        'EventTime': datetime(2024, 1, 15, 10, 0, 0),
+        'SourceIPAddress': '10.0.1.100',
+        'UserAgent': 'boto3/1.26.0',
+        'AwsRegion': 'us-west-2',
+        'AccountId': '123456789012',
+        'AssumedRoleArn': 'arn:aws:iam::987654321098:role/CrossAccountRole',
+        'PrincipalArn': 'arn:aws:iam::123456789012:user/service-account',
+    },
+    {
+        'SourcePrincipal': 'arn:aws:iam::123456789012:role/ApplicationRole',
+        'DestinationPrincipal': 'arn:aws:iam::123456789012:role/DataAccessRole',
+        'Action': 'AssumeRole',
+        'EventId': 'role-to-role-event-1',
+        'EventTime': datetime(2024, 1, 15, 11, 0, 0),
+        'SourceIPAddress': '172.16.1.50',
+        'UserAgent': 'aws-sdk-java/1.12.0',
+        'AwsRegion': 'us-east-1',
+        'AccountId': '123456789012',
+        'AssumedRoleArn': 'arn:aws:iam::123456789012:role/DataAccessRole',
+        'PrincipalArn': 'arn:aws:iam::123456789012:role/ApplicationRole',
+    },
+    {
+        'SourcePrincipal': 'arn:aws:sts::123456789012:federated-user/external-user',
+        'DestinationPrincipal': 'arn:aws:iam::123456789012:role/FederatedRole',
+        'Action': 'AssumeRoleWithSAML',
+        'EventId': 'federated-event-1',
+        'EventTime': datetime(2024, 1, 15, 12, 0, 0),
+        'SourceIPAddress': '203.0.113.100',
+        'UserAgent': 'Mozilla/5.0',
+        'AwsRegion': 'eu-west-1',
+        'AccountId': '123456789012',
+        'AssumedRoleArn': 'arn:aws:iam::123456789012:role/FederatedRole',
+        'PrincipalArn': 'arn:aws:sts::123456789012:federated-user/external-user',
+    }
+]
+
+# Events with incomplete data for testing error handling
+INCOMPLETE_ROLE_ASSUMPTION_EVENTS = [
+    {
+        'SourcePrincipal': 'arn:aws:iam::123456789012:user/incomplete-user',
+        # Missing DestinationPrincipal
+        'Action': 'AssumeRole',
+        'EventId': 'incomplete-event-1',
+        'EventTime': datetime(2024, 1, 15, 10, 0, 0),
+    },
+    {
+        # Missing SourcePrincipal
+        'DestinationPrincipal': 'arn:aws:iam::123456789012:role/IncompleteRole',
+        'Action': 'AssumeRole',
+        'EventId': 'incomplete-event-2',
+        'EventTime': datetime(2024, 1, 15, 11, 0, 0),
+    },
+    {
+        'SourcePrincipal': 'arn:aws:iam::123456789012:user/no-time-user',
+        'DestinationPrincipal': 'arn:aws:iam::123456789012:role/NoTimeRole',
+        'Action': 'AssumeRole',
+        'EventId': 'incomplete-event-3',
+        # Missing EventTime
+    }
+]
+
+# Expected Cypher query patterns for testing
+EXPECTED_CYPHER_QUERY_PATTERNS = {
+    'unwind': 'UNWIND $assumptions AS assumption',
+    'arn_conversion': 'Convert assumed role ARNs to IAM role ARNs for source matching',
+    'union_call': 'CALL {',
+    'aws_user_match': 'MATCH (source:AWSUser {arn: source_role_arn})',
+    'aws_role_match': 'MATCH (source:AWSRole {arn: source_role_arn})',
+    'aws_principal_match': 'MATCH (source:AWSPrincipal {arn: source_role_arn})',
+    'destination_merge': 'MERGE (dest:AWSRole {arn: assumption.destination_principal_arn})',
+    'relationship_merge': 'MERGE (source_node)-[rel:ASSUMED_ROLE]->(dest)',
+    'times_used_aggregation': 'rel.times_used = COALESCE(rel.times_used, 0) + assumption.times_used',
+    'first_seen_aggregation': 'CASE WHEN assumption.first_seen <',
+    'last_seen_aggregation': 'CASE WHEN assumption.last_seen >',
+    'lastused_aggregation': 'CASE WHEN assumption.last_seen >',
+    'lastupdated_set': 'rel.lastupdated = $aws_update_tag'
 } 

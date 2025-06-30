@@ -6,7 +6,9 @@ from typing import Any, Dict, List, Optional
 import boto3
 import neo4j
 
+from cartography.client.core.tx import load
 from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.models.aws.cloudtrail.management_events import AssumedRoleRel
 from cartography.util import aws_handle_regions, timeit
 
 logger = logging.getLogger(__name__)
@@ -76,7 +78,7 @@ def get_cloudtrail_events(
         logger.warning(
             f"Failed to retrieve CloudTrail management events for region '{region}': {str(e)}"
         )
-        
+    print(events)
     return events
 
 
@@ -115,6 +117,169 @@ def transform_cloudtrail_events_to_role_assumptions(
     
     logger.info(f"Successfully transformed {len(role_assumptions)} role assumptions from {len(events)} events")
     return role_assumptions
+
+
+@timeit
+def load_role_assumptions(
+    neo4j_session: neo4j.Session,
+    role_assumptions: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load role assumption relationships into Neo4j using hybrid approach:
+    - Uses AssumedRoleRel schema for structure and indexes  
+    - Uses raw Cypher for complex aggregation logic
+    
+    Creates direct ASSUMED_ROLE relationships with aggregated properties:
+    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {lastused, times_used, first_seen, last_seen}]->(AWSRole)
+    
+    :type neo4j_session: neo4j.Session
+    :param neo4j_session: The Neo4j session to use for database operations
+    :type role_assumptions: List[Dict[str, Any]]
+    :param role_assumptions: List of role assumption records from transform function
+    :type region: str
+    :param region: The AWS region where events were retrieved from
+    :type current_aws_account_id: str
+    :param current_aws_account_id: The AWS account ID being synced
+    :type aws_update_tag: int
+    :param aws_update_tag: Timestamp tag for tracking data freshness
+    :rtype: None
+    """
+    if not role_assumptions:
+        logger.info("No role assumption events to load")
+        return
+    
+    # Aggregate role assumptions by (source, destination) pairs
+    aggregated_assumptions = _aggregate_role_assumptions(role_assumptions)
+    
+    logger.info(f"Loading {len(aggregated_assumptions)} aggregated role assumption relationships")
+    
+    # Use raw Cypher for complex aggregation logic that cartography's query builder can't handle
+    query = """
+    UNWIND $assumptions AS assumption
+    
+    // Convert assumed role ARNs to IAM role ARNs for source matching
+    WITH assumption,
+         CASE 
+            WHEN assumption.source_principal_arn CONTAINS ':sts:' AND assumption.source_principal_arn CONTAINS 'assumed-role'
+            THEN 'arn:aws:iam::' + split(assumption.source_principal_arn, ':')[4] + ':role/' + split(split(assumption.source_principal_arn, '/')[1], '/')[0]
+            ELSE assumption.source_principal_arn
+         END as source_role_arn
+    
+    // Find the source principal node (could be AWSUser, AWSRole, or AWSPrincipal)
+    CALL {
+        WITH source_role_arn
+        MATCH (source:AWSUser {arn: source_role_arn})
+        RETURN source as source_node
+        UNION
+        WITH source_role_arn
+        MATCH (source:AWSRole {arn: source_role_arn})
+        RETURN source as source_node
+        UNION
+        WITH source_role_arn
+        MATCH (source:AWSPrincipal {arn: source_role_arn})
+        RETURN source as source_node
+    }
+    
+    // Find or create the destination role (handles cross-account roles)
+    MERGE (dest:AWSRole {arn: assumption.destination_principal_arn})
+    ON CREATE SET 
+        dest.name = split(split(assumption.destination_principal_arn, '/')[1], '/')[0],
+        dest.accountid = split(assumption.destination_principal_arn, ':')[4],
+        dest.created_time = datetime(),
+        dest.lastupdated = $aws_update_tag
+    ON MATCH SET
+        dest.lastupdated = $aws_update_tag
+    
+    // Create or update the ASSUMED_ROLE relationship with aggregated properties
+    MERGE (source_node)-[rel:ASSUMED_ROLE]->(dest)
+    SET rel.lastused = COALESCE(
+        CASE WHEN assumption.last_seen > COALESCE(rel.lastused, datetime('1970-01-01T00:00:00Z'))
+        THEN assumption.last_seen 
+        ELSE rel.lastused END, 
+        assumption.last_seen
+    ),
+    rel.times_used = COALESCE(rel.times_used, 0) + assumption.times_used,
+    rel.first_seen = COALESCE(
+        CASE WHEN assumption.first_seen < COALESCE(rel.first_seen, datetime('2099-12-31T23:59:59Z'))
+        THEN assumption.first_seen
+        ELSE rel.first_seen END,
+        assumption.first_seen
+    ),
+    rel.last_seen = COALESCE(
+        CASE WHEN assumption.last_seen > COALESCE(rel.last_seen, datetime('1970-01-01T00:00:00Z'))
+        THEN assumption.last_seen
+        ELSE rel.last_seen END,
+        assumption.last_seen
+    ),
+    rel.lastupdated = $aws_update_tag
+    """
+    
+    """Executes the query"""
+    neo4j_session.run(
+        query,
+        assumptions=aggregated_assumptions,
+        aws_update_tag=aws_update_tag,
+    )
+    
+    logger.info(f"Successfully loaded {len(aggregated_assumptions)} role assumption relationships")
+
+
+def _aggregate_role_assumptions(role_assumptions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Aggregate role assumption events by (source_principal, destination_principal) pairs.
+    
+    This creates the aggregated data needed for direct ASSUMED_ROLE relationships with
+    properties like times_used, first_seen, last_seen, and lastused.
+    
+    :type role_assumptions: List[Dict[str, Any]]
+    :param role_assumptions: List of individual role assumption records
+    :rtype: List[Dict[str, Any]]
+    :return: List of aggregated role assumption relationships
+    """
+    aggregated = {}
+    
+    for assumption in role_assumptions:
+        source_arn = assumption.get('SourcePrincipal')
+        dest_arn = assumption.get('DestinationPrincipal')
+        event_time = assumption.get('EventTime')
+        
+        if not source_arn or not dest_arn or not event_time:
+            logger.warning(f"Skipping incomplete assumption record: {assumption}")
+            continue
+        
+        # Create aggregation key
+        key = (source_arn, dest_arn)
+        
+        if key not in aggregated:
+            aggregated[key] = {
+                'source_principal_arn': source_arn,
+                'destination_principal_arn': dest_arn,
+                'times_used': 1,
+                'first_seen': event_time,
+                'last_seen': event_time,
+            }
+        else:
+            # Update aggregated values
+            agg_data = aggregated[key]
+            agg_data['times_used'] += 1
+            
+            # Update temporal bounds
+            if event_time < agg_data['first_seen']:
+                agg_data['first_seen'] = event_time
+            if event_time > agg_data['last_seen']:
+                agg_data['last_seen'] = event_time
+    
+    # Convert to list and ensure lastused equals last_seen
+    result = []
+    for agg_data in aggregated.values():
+        agg_data['lastused'] = agg_data['last_seen']
+        result.append(agg_data)
+    
+    logger.info(f"Aggregated {len(role_assumptions)} events into {len(result)} unique role assumption relationships")
+    return result
 
 
 def _extract_role_assumption_from_event(
@@ -202,6 +367,28 @@ def _extract_source_principal(event: Dict[str, Any]) -> Optional[str]:
     if user_name:
         return user_name
     
+    # For AWS service role assumptions, UserIdentity is often empty
+    # Try to extract source from CloudTrail event JSON
+    cloudtrail_event = _parse_cloudtrail_event_json(event.get('CloudTrailEvent'))
+    if cloudtrail_event:
+        # Check for source identity in userIdentity field of CloudTrail JSON
+        ct_user_identity = cloudtrail_event.get('userIdentity', {})
+        if ct_user_identity.get('arn'):
+            return ct_user_identity['arn']
+        
+        # For AWS service calls, the source is often the service itself
+        if ct_user_identity.get('type') == 'AWSService':
+            service_name = ct_user_identity.get('invokedBy')
+            if service_name:
+                # Return the service as the source principal
+                return f"service:{service_name}"
+        
+        # Check if this is a service-linked role assumption
+        # In this case, we can use the account root as the source
+        account_id = cloudtrail_event.get('recipientAccountId')
+        if account_id and ct_user_identity.get('type') in ['Root', 'AWSAccount']:
+            return f"arn:aws:iam::{account_id}:root"
+    
     return None
 
 
@@ -273,3 +460,88 @@ def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
     
     # Return original ARN if conversion fails
     return assumed_role_arn
+
+
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Sync CloudTrail management events to create ASSUMED_ROLE relationships.
+    
+    This function orchestrates the complete process:
+    1. Fetch CloudTrail management events from all regions
+    2. Transform events into role assumption records  
+    3. Load aggregated role assumption relationships into Neo4j
+    
+    The resulting graph contains direct relationships like:
+    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(AWSRole)
+    
+    :type neo4j_session: neo4j.Session
+    :param neo4j_session: The Neo4j session
+    :type boto3_session: boto3.Session
+    :param boto3_session: The boto3 session to use for API calls
+    :type regions: List[str]
+    :param regions: List of AWS regions to sync
+    :type current_aws_account_id: str
+    :param current_aws_account_id: The AWS account ID being synced
+    :type aws_update_tag: int
+    :param aws_update_tag: Timestamp tag for tracking data freshness
+    :rtype: None
+    """
+    # Extract lookback hours from common_job_parameters (set by CLI parameter)
+    lookback_hours = common_job_parameters.get('aws_cloudtrail_management_events_lookback_hours')
+    
+    if not lookback_hours:
+        logger.info("CloudTrail management events sync skipped - no lookback period specified")
+        return
+    
+    logger.info(f"Starting CloudTrail management events sync for account {current_aws_account_id}")
+    logger.info(f"Syncing {len(regions)} regions with {lookback_hours} hour lookback period")
+    
+    all_role_assumptions = []
+    
+    # Fetch events from all regions
+    for region in regions:
+        try:
+            # Get raw CloudTrail events
+            events = get_cloudtrail_events(
+                boto3_session=boto3_session,
+                region=region,
+                lookback_hours=lookback_hours,
+            )
+            
+            # Transform to role assumptions
+            role_assumptions = transform_cloudtrail_events_to_role_assumptions(
+                events=events,
+                region=region,
+                current_aws_account_id=current_aws_account_id,
+            )
+            
+            all_role_assumptions.extend(role_assumptions)
+            
+        except Exception as e:
+            logger.warning(f"Failed to process CloudTrail events for region {region}: {str(e)}")
+            continue
+    
+    # Load all role assumptions into Neo4j
+    if all_role_assumptions:
+        load_role_assumptions(
+            neo4j_session=neo4j_session,
+            role_assumptions=all_role_assumptions,
+            region="all",  # Indicates cross-region aggregation
+            current_aws_account_id=current_aws_account_id,
+            aws_update_tag=update_tag,
+        )
+        
+        logger.info(
+            f"CloudTrail management events sync completed successfully. "
+            f"Processed {len(all_role_assumptions)} role assumption events."
+        )
+    else:
+        logger.info("CloudTrail management events sync completed - no role assumptions found")
