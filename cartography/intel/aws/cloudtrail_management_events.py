@@ -78,7 +78,7 @@ def get_cloudtrail_events(
         logger.warning(
             f"Failed to retrieve CloudTrail management events for region '{region}': {str(e)}"
         )
-    print(events)
+    
     return events
 
 
