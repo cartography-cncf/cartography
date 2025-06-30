@@ -29,14 +29,14 @@ def _transform_accounts(accounts_data: list[dict]) -> list[S1Account]:
     transformed_accounts_data: list[S1Account] = []
     for account in accounts_data:
         transformed_account: S1Account = {
-            'id': account.get('id', ''),
-            'account_type': account.get('accountType', ''),
-            'active_agents': account.get('activeAgents'),
-            'created_at': account.get('createdAt', ''),
-            'expiration': account.get('expiration', ''),
-            'name': account.get('name', ''),
-            'number_of_sites': account.get('numberOfSites'),
-            'state': account.get('state', ''),
+            "id": account.get("id", ""),
+            "account_type": account.get("accountType", ""),
+            "active_agents": account.get("activeAgents"),
+            "created_at": account.get("createdAt", ""),
+            "expiration": account.get("expiration", ""),
+            "name": account.get("name", ""),
+            "number_of_sites": account.get("numberOfSites"),
+            "state": account.get("state", ""),
         }
         transformed_accounts_data.append(transformed_account)
 
@@ -44,7 +44,9 @@ def _transform_accounts(accounts_data: list[dict]) -> list[S1Account]:
 
 
 @timeit
-def _fetch_accounts(api_url: str, api_token: str, account_ids: list[str] | None = None) -> list[dict]:
+def _fetch_accounts(
+    api_url: str, api_token: str, account_ids: list[str] | None = None
+) -> list[dict]:
     """
     Get account data from SentinelOne API
     :param api_url: The SentinelOne API URL
@@ -61,15 +63,19 @@ def _fetch_accounts(api_url: str, api_token: str, account_ids: list[str] | None 
         api_token=api_token,
     )
 
-    accounts_data = response.get('data', [])
+    accounts_data = response.get("data", [])
 
     # Filter accounts by ID if specified
     if account_ids:
-        accounts_data = [account for account in accounts_data if account.get('id') in account_ids]
+        accounts_data = [
+            account for account in accounts_data if account.get("id") in account_ids
+        ]
         logger.info(f"Filtered accounts data to {len(accounts_data)} matching accounts")
 
     if accounts_data:
-        logger.info(f"Retrieved SentinelOne account data: {len(accounts_data)} accounts")
+        logger.info(
+            f"Retrieved SentinelOne account data: {len(accounts_data)} accounts"
+        )
     else:
         logger.warning("No SentinelOne accounts retrieved")
 
@@ -134,6 +140,6 @@ def sync_accounts(
     accounts_raw_data = _fetch_accounts(api_url, api_token, account_ids)
     s1_accounts = _transform_accounts(accounts_raw_data)
     load_accounts(neo4j_session, s1_accounts, update_tag)
-    synced_account_ids = [account['id'] for account in s1_accounts]
+    synced_account_ids = [account["id"] for account in s1_accounts]
     logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
     return synced_account_ids
