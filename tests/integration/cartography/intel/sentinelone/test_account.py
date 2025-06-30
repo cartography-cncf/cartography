@@ -13,16 +13,16 @@ def test_sync_account(neo4j_session, mocker):
     and returns a list of account IDs.
     """
     mocker.patch(
-        'cartography.intel.sentinelone.account.call_sentinelone_api',
+        "cartography.intel.sentinelone.account.call_sentinelone_api",
         return_value={
-            'data': ACCOUNTS_DATA,
+            "data": ACCOUNTS_DATA,
         },
     )
     account_ids = [ACCOUNT_ID, ACCOUNT_ID_2]
     synced_account_ids = sync_accounts(
         neo4j_session,
-        'https://test-api.sentinelone.net',
-        'test-api-token',
+        "https://test-api.sentinelone.net",
+        "test-api-token",
         TEST_UPDATE_TAG,
         account_ids,
     )
@@ -34,30 +34,39 @@ def test_sync_account(neo4j_session, mocker):
     expected_nodes = {
         (
             ACCOUNT_ID,
-            ACCOUNTS_DATA[0]['name'],
-            ACCOUNTS_DATA[0]['accountType'],
-            ACCOUNTS_DATA[0]['activeAgents'],
-            ACCOUNTS_DATA[0]['createdAt'],
-            ACCOUNTS_DATA[0]['expiration'],
-            ACCOUNTS_DATA[0]['numberOfSites'],
-            ACCOUNTS_DATA[0]['state'],
+            ACCOUNTS_DATA[0]["name"],
+            ACCOUNTS_DATA[0]["accountType"],
+            ACCOUNTS_DATA[0]["activeAgents"],
+            ACCOUNTS_DATA[0]["createdAt"],
+            ACCOUNTS_DATA[0]["expiration"],
+            ACCOUNTS_DATA[0]["numberOfSites"],
+            ACCOUNTS_DATA[0]["state"],
         ),
         (
             ACCOUNT_ID_2,
-            ACCOUNTS_DATA[1]['name'],
-            ACCOUNTS_DATA[1]['accountType'],
-            ACCOUNTS_DATA[1]['activeAgents'],
-            ACCOUNTS_DATA[1]['createdAt'],
-            ACCOUNTS_DATA[1]['expiration'],
-            ACCOUNTS_DATA[1]['numberOfSites'],
-            ACCOUNTS_DATA[1]['state'],
+            ACCOUNTS_DATA[1]["name"],
+            ACCOUNTS_DATA[1]["accountType"],
+            ACCOUNTS_DATA[1]["activeAgents"],
+            ACCOUNTS_DATA[1]["createdAt"],
+            ACCOUNTS_DATA[1]["expiration"],
+            ACCOUNTS_DATA[1]["numberOfSites"],
+            ACCOUNTS_DATA[1]["state"],
         ),
     }
 
     actual_nodes = check_nodes(
         neo4j_session,
         "S1Account",
-        ["id", "name", "account_type", "active_agents", "created_at", "expiration", "number_of_sites", "state"],
+        [
+            "id",
+            "name",
+            "account_type",
+            "active_agents",
+            "created_at",
+            "expiration",
+            "number_of_sites",
+            "state",
+        ],
     )
 
     assert actual_nodes == expected_nodes

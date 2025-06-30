@@ -18,7 +18,7 @@ def call_sentinelone_api(
     api_url: str,
     endpoint: str,
     api_token: str,
-    method: str = 'GET',
+    method: str = "GET",
     params: Optional[Dict] = None,
     data: Optional[Dict] = None,
 ) -> Dict[str, Any]:
@@ -35,14 +35,16 @@ def call_sentinelone_api(
     full_url = f"{api_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
     headers = {
-        'Accept': 'application/json',
-        'Authorization': f'ApiToken {api_token}',
-        'Content-Type': 'application/json',
+        "Accept": "application/json",
+        "Authorization": f"ApiToken {api_token}",
+        "Content-Type": "application/json",
     }
 
     try:
         logger.debug(
-            "SentinelOne: %s %s", method, full_url,
+            "SentinelOne: %s %s",
+            method,
+            full_url,
         )
 
         response = requests.request(
@@ -85,15 +87,15 @@ def get_paginated_results(
         params = {}
 
     # Set default pagination parameters if not provided
-    if 'limit' not in params:
-        params['limit'] = 100
+    if "limit" not in params:
+        params["limit"] = 100
 
     # Start with page 1
     current_page = 1
     total_items = []
 
     while True:
-        params['page'] = current_page
+        params["page"] = current_page
 
         response = call_sentinelone_api(
             api_url=api_url,
@@ -103,8 +105,8 @@ def get_paginated_results(
         )
 
         # Extract the data from the response
-        data = response.get('data', {})
-        items = data.get('items', [])
+        data = response.get("data", {})
+        items = data.get("items", [])
 
         if not items:
             break
@@ -112,8 +114,8 @@ def get_paginated_results(
         total_items.extend(items)
 
         # Check if there are more pages
-        pagination = data.get('pagination', {})
-        if current_page >= pagination.get('totalPages', 1):
+        pagination = data.get("pagination", {})
+        if current_page >= pagination.get("totalPages", 1):
             break
 
         current_page += 1
