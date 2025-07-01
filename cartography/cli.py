@@ -729,7 +729,7 @@ class CLI:
         parser.add_argument(
             "--sentinelone-api-token-env-var",
             type=str,
-            default=None,
+            default="SENTINELONE_API_TOKEN",
             help=(
                 "The name of an environment variable containing the SentinelOne API token. "
                 "Required if you are using the SentinelOne intel module. Ignored otherwise."
