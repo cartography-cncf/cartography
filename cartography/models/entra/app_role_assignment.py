@@ -11,7 +11,6 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
-# App Role Assignment Schema
 @dataclass(frozen=True)
 class EntraAppRoleAssignmentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
@@ -21,6 +20,8 @@ class EntraAppRoleAssignmentNodeProperties(CartographyNodeProperties):
     principal_display_name: PropertyRef = PropertyRef("principal_display_name")
     principal_type: PropertyRef = PropertyRef("principal_type")
     resource_display_name: PropertyRef = PropertyRef("resource_display_name")
+    resource_id: PropertyRef = PropertyRef("resource_id")
+    application_app_id: PropertyRef = PropertyRef("application_app_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -51,7 +52,7 @@ class EntraAppRoleAssignmentToApplicationRelProperties(CartographyRelProperties)
 class EntraAppRoleAssignmentToApplicationRel(CartographyRelSchema):
     target_node_label: str = "EntraApplication"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"display_name": PropertyRef("resource_display_name")},
+        {"app_id": PropertyRef("application_app_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSIGNED_TO"

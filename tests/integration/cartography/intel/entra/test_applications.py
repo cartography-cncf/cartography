@@ -30,11 +30,31 @@ def _ensure_local_neo4j_has_test_users(neo4j_session):
     )
 
 
+def _prepare_mock_assignments():
+    """
+    Prepare mock app role assignments with the application_app_id attribute.
+    This simulates what our get_app_role_assignments function does.
+    """
+    assignments = []
+    app_id_mapping = {
+        "Finance Tracker": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "HR Portal": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
+    }
+
+    for assignment in MOCK_APP_ROLE_ASSIGNMENTS:
+        # Add the application_app_id attribute that our code expects
+        assignment.application_app_id = app_id_mapping.get(
+            assignment.resource_display_name
+        )
+        assignments.append(assignment)
+
+    return assignments
+
+
 @patch.object(
     cartography.intel.entra.applications,
     "get_app_role_assignments",
     new_callable=AsyncMock,
-    return_value=MOCK_APP_ROLE_ASSIGNMENTS,
 )
 @patch.object(
     cartography.intel.entra.applications,
@@ -48,6 +68,9 @@ async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_ses
     Ensure that applications actually get loaded and connected to tenant,
     and both user-app and group-app relationships exist
     """
+    # Setup mock data with application_app_id
+    mock_get_assignments.return_value = _prepare_mock_assignments()
+
     # Setup test data - create users and groups for relationship testing
     _ensure_local_neo4j_has_test_users(neo4j_session)
 

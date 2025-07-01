@@ -116,6 +116,8 @@ MOCK_APP_ROLE_ASSIGNMENTS_DICT = [
         "principal_display_name": "Test User 1",
         "principal_type": "User",
         "resource_display_name": "Finance Tracker",
+        "resource_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "application_app_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     },
     {
         "id": "assignment-2",
@@ -125,6 +127,8 @@ MOCK_APP_ROLE_ASSIGNMENTS_DICT = [
         "principal_display_name": "Test User 2",
         "principal_type": "User",
         "resource_display_name": "HR Portal",
+        "resource_id": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
+        "application_app_id": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
     },
     {
         "id": "assignment-3",
@@ -134,6 +138,8 @@ MOCK_APP_ROLE_ASSIGNMENTS_DICT = [
         "principal_display_name": "Finance Team",
         "principal_type": "Group",
         "resource_display_name": "Finance Tracker",
+        "resource_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "application_app_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     },
     {
         "id": "assignment-4",
@@ -143,5 +149,7 @@ MOCK_APP_ROLE_ASSIGNMENTS_DICT = [
         "principal_display_name": "HR Team",
         "principal_type": "Group",
         "resource_display_name": "HR Portal",
+        "resource_id": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
+        "application_app_id": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
     },
 ]

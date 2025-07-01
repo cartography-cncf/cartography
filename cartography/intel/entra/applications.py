@@ -56,15 +56,6 @@ async def get_entra_applications(client: GraphServiceClient) -> List[Any]:
 
     while page:
         if page.value:
-            # Log a warning if we're hitting the page size limit which might indicate incomplete data
-            if len(page.value) == APPLICATIONS_PAGE_SIZE:
-                logger.warning(
-                    f"Retrieved {len(page.value)} applications (maximum page size). "
-                    f"There may be more applications that require additional API calls. "
-                    f"Consider adjusting APPLICATIONS_PAGE_SIZE if you expect more applications."
-                )
-
-            # Add raw application objects to the list
             applications.extend(page.value)
 
         if not page.odata_next_link:
@@ -127,6 +118,10 @@ async def get_app_role_assignments(
             app_assignments = []
             while assignments_page:
                 if assignments_page.value:
+                    # Add application context to each assignment
+                    for assignment in assignments_page.value:
+                        # Add the application app_id to the assignment for relationship matching
+                        assignment.application_app_id = app.app_id
                     app_assignments.extend(assignments_page.value)
 
                 if not assignments_page.odata_next_link:
@@ -231,6 +226,10 @@ def transform_app_role_assignments(
             "principal_display_name": assignment.principal_display_name,
             "principal_type": assignment.principal_type,
             "resource_display_name": assignment.resource_display_name,
+            "resource_id": (
+                str(assignment.resource_id) if assignment.resource_id else None
+            ),
+            "application_app_id": getattr(assignment, "application_app_id", None),
         }
         result.append(transformed)
     return result

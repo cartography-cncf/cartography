@@ -86,10 +86,10 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
     (:EntraUser)-[:MEMBER_OF]->(:EntraGroup)
     ```
 
-- Entra users can have app role assignments to applications
+- Entra users can have app role assignments
 
     ```cypher
-    (:EntraUser)-[:HAS_APP_ROLE]->(:EntraApplication)
+    (:EntraUser)-[:HAS_APP_ROLE]->(:EntraAppRoleAssignment)
     ```
 
 
@@ -153,12 +153,6 @@ Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/g
     (:EntraGroup)-[:MEMBER_OF]->(:EntraGroup)
     ```
 
-- Entra groups can have app role assignments to applications
-
-    ```cypher
-    (:EntraGroup)-[:HAS_APP_ROLE]->(:EntraApplication)
-    ```
-
 ### EntraApplication
 
 Representation of an Entra [Application](https://learn.microsoft.com/en-us/graph/api/application-get?view=graph-rest-1.0&tabs=http).
@@ -182,21 +176,81 @@ Representation of an Entra [Application](https://learn.microsoft.com/en-us/graph
     (:EntraApplication)-[:RESOURCE]->(:EntraTenant)
     ```
 
-- Entra users can have app role assignments to applications
+- App role assignments link to applications
 
     ```cypher
-    (:EntraUser)-[:HAS_APP_ROLE]->(:EntraApplication)
+    (:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(:EntraApplication)
     ```
 
-- Entra groups can have app role assignments to applications
+### EntraAppRoleAssignment
+
+Representation of an Entra [App Role Assignment](https://learn.microsoft.com/en-us/graph/api/resources/approleassignment).
+
+|Field | Description|
+|-------|-------------|
+|id | Unique identifier for the app role assignment|
+|app_role_id | The ID of the app role assigned|
+|created_date_time | Date and time when the assignment was created|
+|principal_id | The ID of the user, group, or service principal assigned the role|
+|principal_display_name | Display name of the assigned principal|
+|principal_type | Type of principal (User, Group, or ServicePrincipal)|
+|resource_display_name | Display name of the resource application|
+|resource_id | The service principal ID of the resource application|
+|application_app_id | The application ID used for linking to EntraApplication|
+|lastupdated | Timestamp of when this node was last updated in Cartography|
+
+#### Relationships
+
+- All app role assignments are linked to an Entra Tenant
 
     ```cypher
-    (:EntraGroup)-[:HAS_APP_ROLE]->(:EntraApplication)
+    (:EntraAppRoleAssignment)-[:RESOURCE]->(:EntraTenant)
     ```
 
-The `HAS_APP_ROLE` relationship contains the following properties:
-- `app_role_id`: The ID of the app role assigned
-- `assignment_id`: Unique identifier for the assignment
-- `resource_id`: The service principal ID of the resource
-- `created_date_time`: When the assignment was created
-- `lastupdated`: Timestamp of when this relationship was last updated in Cartography
+- Users can have app role assignments
+
+    ```cypher
+    (:EntraUser)-[:HAS_APP_ROLE]->(:EntraAppRoleAssignment)
+    ```
+
+- Groups can have app role assignments
+
+    ```cypher
+    (:EntraGroup)-[:HAS_APP_ROLE]->(:EntraAppRoleAssignment)
+    ```
+
+- App role assignments are linked to applications
+
+    ```cypher
+    (:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(:EntraApplication)
+    ```
+
+## Example Queries
+
+Here are some common query patterns for working with Entra applications and access management:
+
+### Application Access Analysis
+
+**Find all users with access to a specific application:**
+```cypher
+MATCH (u:EntraUser)-[:HAS_APP_ROLE]->(ara:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(app:EntraApplication)
+WHERE app.display_name = "Finance Tracker"
+RETURN u.display_name, u.user_principal_name, ara.created_date_time
+ORDER BY ara.created_date_time DESC
+```
+
+**Find all applications a user has access to:**
+```cypher
+MATCH (u:EntraUser)-[:HAS_APP_ROLE]->(ara:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(app:EntraApplication)
+WHERE u.user_principal_name = "john.doe@example.com"
+RETURN app.display_name, app.app_id, ara.app_role_id, ara.created_date_time
+ORDER BY app.display_name
+```
+
+**Find users with access via group membership:**
+```cypher
+MATCH (u:EntraUser)-[:MEMBER_OF]->(g:EntraGroup)-[:HAS_APP_ROLE]->(ara:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(app:EntraApplication)
+WHERE app.display_name = "HR Portal"
+RETURN u.display_name, u.user_principal_name, g.display_name as group_name, ara.created_date_time
+ORDER BY u.display_name
+```
