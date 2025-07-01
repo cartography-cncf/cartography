@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import Tuple
 
@@ -13,11 +14,14 @@ from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
+from cartography.util import batch
 from cartography.util import timeit
+from cartography.util import to_asynchronous
+from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 
-# As of 7/22/24, Inspector is only available in the below regions. We will need to update this hardcoded list here over
+# As of 7/1/25, Inspector is only available in the below regions. We will need to update this hardcoded list here over
 # time. :\ https://docs.aws.amazon.com/general/latest/gr/inspector2.html
 AWS_INSPECTOR_REGIONS = {
     "us-east-2",
@@ -43,7 +47,25 @@ AWS_INSPECTOR_REGIONS = {
     "eu-central-2",
     "me-south-1",
     "sa-east-1",
+    "us-gov-east-1",
+    "us-gov-west-1",
 }
+
+BATCH_SIZE = 1000
+
+
+@aws_handle_regions
+def get_member_accounts(
+    session: boto3.session.Session,
+    region: str,
+) -> List[str]:
+    """
+    List all the accounts that have delegated access to the account specified by current_aws_account_id.
+    """
+    client = session.client("inspector2", region_name=region)
+    members = list(aws_paginate(client, "list_members", "members"))
+    accounts = [m["accountId"] for m in members]
+    return accounts
 
 
 @timeit
@@ -51,46 +73,38 @@ AWS_INSPECTOR_REGIONS = {
 def get_inspector_findings(
     session: boto3.session.Session,
     region: str,
-    current_aws_account_id: str,
-) -> List[Dict[str, Any]]:
+    account_id: str,
+) -> Iterator[List[Dict[str, Any]]]:
     """
-    We must list_findings by filtering the request, otherwise the request could tiemout.
+    Query inspector2.list_findings by filtering the request, otherwise the request could timeout.
     First, we filter by account_id. And since there may be millions of CLOSED findings that may never go away,
-    we will only fetch those in ACTIVE or SUPPRESSED statuses.
-    list_members will get us all the accounts that
-    have delegated access to the account specified by current_aws_account_id.
+    only fetch those in ACTIVE or SUPPRESSED statuses.
+    Run the query in batches of 1000 findings and return an iterator to fetch the results.
     """
     client = session.client("inspector2", region_name=region)
-
-    members = aws_paginate(client, "list_members", "members")
-    # the current host account may not be considered a "member", but we still fetch its findings
-    accounts = [current_aws_account_id] + [m["accountId"] for m in members]
-
-    findings = []
-    for account in accounts:
-        logger.info(f"Getting findings for member account {account} in region {region}")
-        findings.extend(
-            aws_paginate(
-                client,
-                "list_findings",
-                "findings",
-                filterCriteria={
-                    "awsAccountId": [
-                        {
-                            "comparison": "EQUALS",
-                            "value": account,
-                        },
-                    ],
-                    "findingStatus": [
-                        {
-                            "comparison": "NOT_EQUALS",
-                            "value": "CLOSED",
-                        },
-                    ],
+    logger.info(
+        f"Getting findings in batches of {BATCH_SIZE} for account {account_id} in region {region}"
+    )
+    aws_args: Dict[str, Any] = {
+        "filterCriteria": {
+            "awsAccountId": [
+                {
+                    "comparison": "EQUALS",
+                    "value": account_id,
                 },
-            ),
-        )
-    return findings
+            ],
+            "findingStatus": [
+                {
+                    "comparison": "NOT_EQUALS",
+                    "value": "CLOSED",
+                },
+            ],
+        }
+    }
+    findings_batches = batch(
+        aws_paginate(client, "list_findings", "findings", None, **aws_args), BATCH_SIZE
+    )
+    yield from findings_batches
 
 
 def transform_inspector_findings(
@@ -260,26 +274,24 @@ def cleanup(
     )
 
 
-@timeit
-def sync(
+def _sync_findings_for_account(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
-    current_aws_account_id: str,
+    region: str,
+    account_id: str,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    current_aws_account_id: str,
 ) -> None:
-    inspector_regions = [
-        region for region in regions if region in AWS_INSPECTOR_REGIONS
-    ]
-
-    for region in inspector_regions:
-        logger.info(
-            f"Syncing AWS Inspector findings for account {current_aws_account_id} and region {region}",
-        )
-        findings = get_inspector_findings(boto3_session, region, current_aws_account_id)
-        finding_data, package_data = transform_inspector_findings(findings)
-        logger.info(f"Loading {len(finding_data)} findings")
+    """
+    Syncs the findings for a given account in a given region.
+    """
+    findings = get_inspector_findings(boto3_session, region, account_id)
+    if not findings:
+        logger.info(f"No findings to sync for account {account_id} in region {region}")
+        return
+    for f_batch in findings:
+        finding_data, package_data = transform_inspector_findings(f_batch)
+        logger.info(f"Loading {len(finding_data)} findings from account {account_id}")
         load_inspector_findings(
             neo4j_session,
             finding_data,
@@ -295,4 +307,45 @@ def sync(
             update_tag,
             current_aws_account_id,
         )
-        cleanup(neo4j_session, common_job_parameters)
+
+
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    inspector_regions = [
+        region for region in regions if region in AWS_INSPECTOR_REGIONS
+    ]
+
+    for region in inspector_regions:
+        logger.info(
+            f"Syncing AWS Inspector findings delegated to account {current_aws_account_id} and region {region}",
+        )
+        member_accounts = get_member_accounts(boto3_session, region)
+        # the current host account may not be considered a "member", but we still fetch its findings
+        member_accounts.append(current_aws_account_id)
+
+        async def async_ingest_findings_for_account(account_id: str) -> None:
+            await to_asynchronous(
+                _sync_findings_for_account,
+                neo4j_session,
+                boto3_session,
+                region,
+                account_id,
+                update_tag,
+                current_aws_account_id,
+            )
+
+        to_synchronous(
+            *[
+                async_ingest_findings_for_account(account_id)
+                for account_id in member_accounts
+            ]
+        )
+
+    cleanup(neo4j_session, common_job_parameters)
