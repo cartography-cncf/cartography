@@ -27,6 +27,7 @@ from . import redshift
 from . import resourcegroupstaggingapi
 from . import route53
 from . import s3
+from . import s3_objects
 from . import s3accountpublicaccessblock
 from . import secretsmanager
 from . import securityhub
@@ -97,6 +98,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "apigateway": apigateway.sync,
     "secretsmanager": secretsmanager.sync,
     "securityhub": securityhub.sync,
+    "s3_objects": s3_objects.sync,
     "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
     "sns": sns.sync,
     "sqs": sqs.sync,
