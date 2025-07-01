@@ -5,6 +5,7 @@ from functools import partial
 from functools import wraps
 from importlib.resources import open_binary
 from importlib.resources import read_text
+from itertools import islice
 from string import Template
 from typing import Any
 from typing import Awaitable
@@ -37,6 +38,7 @@ STATUS_SUCCESS = 0
 STATUS_FAILURE = 1
 STATUS_KEYBOARD_INTERRUPT = 130
 DEFAULT_BATCH_SIZE = 1000
+DEFAULT_MAX_PAGES = 10000
 
 
 def run_analysis_job(
@@ -204,39 +206,32 @@ def timeit(method: F) -> F:
     return cast(F, timed)
 
 
-DEFAULT_MAX_PAGES = 1000
-
-
 def aws_paginate(
     client: boto3.client,
     method_name: str,
     object_name: str,
-    max_pages: int = DEFAULT_MAX_PAGES,
+    max_pages: int | None = DEFAULT_MAX_PAGES,
     **kwargs: Any,
-) -> tuple[List[Dict], Optional[str]]:
+) -> Iterable[Dict]:
     """
     Helper method for boilerplate boto3 pagination
     The **kwargs will be forwarded to the paginator
     """
     paginator = client.get_paginator(method_name)
-    items = []
-    i = 0
-    next_token = None
     for i, page in enumerate(paginator.paginate(**kwargs), start=1):
         if i % 100 == 0:
             logger.info(f"fetching page number {i}")
         if object_name in page:
-            items.extend(page[object_name])
-            next_token = page.get("nextToken")
+            items = page[object_name]
+            yield from items
         else:
             logger.warning(
                 f"""aws_paginate: Key "{object_name}" is not present, check if this is a typo.
 If not, then the AWS datatype somehow does not have this key.""",
             )
-        if i >= max_pages:
+        if max_pages and i >= max_pages:
             logger.warning(f"Reached max batch size of {max_pages} pages")
             break
-    return items, next_token
 
 
 AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable])
@@ -362,17 +357,21 @@ def camel_to_snake(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
-def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> List[List]:
+def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> Iterable[List[Any]]:
     """
-    Takes an Iterable of items and returns a list of lists of the same items,
+    Takes an Iterable of items and returns an Iterator of lists of the same items,
      batched into chunks of the provided `size`.
 
     Use:
     x = [1,2,3,4,5,6,7,8]
-    batch(x, size=3) -> [[1, 2, 3], [4, 5, 6], [7, 8]]
+    batch(x, size=3) -> Iterator yielding [1, 2, 3], [4, 5, 6], [7, 8]
     """
-    items = list(items)
-    return [items[i : i + size] for i in range(0, len(items), size)]
+    it = iter(items)
+    while True:
+        chunk = list(islice(it, size))
+        if not chunk:
+            return
+        yield chunk
 
 
 def is_throttling_exception(exc: Exception) -> bool:

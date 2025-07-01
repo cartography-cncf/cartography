@@ -222,7 +222,7 @@ def load_graph_data(
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
-    for data_batch in batch(dict_list, size=10000):
+    for data_batch in list(batch(dict_list, size=10000)):
         neo4j_session.write_transaction(
             write_list_of_dicts_tx,
             query,

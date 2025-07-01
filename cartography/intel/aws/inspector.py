@@ -1,8 +1,8 @@
 import logging
 from typing import Any
 from typing import Dict
+from typing import Iterator
 from typing import List
-from typing import Optional
 from typing import Tuple
 
 import boto3
@@ -14,6 +14,7 @@ from cartography.models.aws.inspector.findings import AWSInspectorFindingSchema
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
+from cartography.util import batch
 from cartography.util import timeit
 from cartography.util import to_asynchronous
 from cartography.util import to_synchronous
@@ -58,12 +59,9 @@ def get_member_accounts(
     List all the accounts that have delegated access to the account specified by current_aws_account_id.
     """
     client = session.client("inspector2", region_name=region)
-    members, _ = aws_paginate(client, "list_members", "members")
+    members = list(aws_paginate(client, "list_members", "members"))
     accounts = [m["accountId"] for m in members]
     return accounts
-
-
-MAX_PAGES = 100
 
 
 @timeit
@@ -72,17 +70,17 @@ def get_inspector_findings(
     session: boto3.session.Session,
     region: str,
     account_id: str,
-    prev_token: Optional[str],
-) -> tuple[List[Dict[str, Any]], Optional[str]]:
+) -> Iterator[List[Dict[str, Any]]]:
     """
-    We must list_findings by filtering the request, otherwise the request could tiemout.
+    Query inspector2.list_findings by filtering the request, otherwise the request could tiemout.
     First, we filter by account_id. And since there may be millions of CLOSED findings that may never go away,
-    we will only fetch those in ACTIVE or SUPPRESSED statuses.
-    We will also fetch the next_token from the previous request to continue fetching the next batch of findings.
+    only fetch those in ACTIVE or SUPPRESSED statuses.
+    Run the query in batches of 1000 findings and return an iterator to fetch the results.
     """
+    batch_size = 1000
     client = session.client("inspector2", region_name=region)
     logger.info(
-        f"Getting a batch of findings for account {account_id} in region {region}"
+        f"Getting findings in batches of {batch_size} for account {account_id} in region {region}"
     )
     aws_args: Dict[str, Any] = {
         "filterCriteria": {
@@ -100,17 +98,10 @@ def get_inspector_findings(
             ],
         }
     }
-    if prev_token:
-        aws_args["nextToken"] = prev_token
-    findings, next_token = aws_paginate(
-        client,
-        "list_findings",
-        "findings",
-        max_pages=MAX_PAGES,
-        **aws_args,
+    findings_batches = batch(
+        aws_paginate(client, "list_findings", "findings", None, **aws_args), batch_size
     )
-
-    return findings, next_token
+    yield from findings_batches
 
 
 def transform_inspector_findings(
@@ -291,17 +282,12 @@ def _sync_findings_for_account(
     """
     Syncs the findings for a given account in a given region.
     """
-    next_token = None
-    while True:
-        findings, next_token = get_inspector_findings(
-            boto3_session, region, account_id, next_token
-        )
-        if not findings:
-            logger.info(
-                f"No findings to sync for account {account_id} in region {region}"
-            )
-            break
-        finding_data, package_data = transform_inspector_findings(findings)
+    findings = get_inspector_findings(boto3_session, region, account_id)
+    if not findings:
+        logger.info(f"No findings to sync for account {account_id} in region {region}")
+        return
+    for f_batch in findings:
+        finding_data, package_data = transform_inspector_findings(f_batch)
         logger.info(f"Loading {len(finding_data)} findings from account {account_id}")
         load_inspector_findings(
             neo4j_session,
@@ -318,8 +304,6 @@ def _sync_findings_for_account(
             update_tag,
             current_aws_account_id,
         )
-        if not next_token:
-            break
 
 
 @timeit
@@ -361,4 +345,4 @@ def sync(
             ]
         )
 
-        cleanup(neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters)
