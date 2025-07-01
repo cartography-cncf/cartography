@@ -15,6 +15,55 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# Full list of user properties to request from Graph so fields are not null
+USER_SELECT_FIELDS = [
+    "id",
+    "displayName",
+    "givenName",
+    "surname",
+    "userPrincipalName",
+    "mail",
+    "otherMails",
+    "preferredLanguage",
+    "preferredName",
+    "state",
+    "usageLocation",
+    "userType",
+    "showInAddressList",
+    "signInSessionsValidFromDateTime",
+    "onPremisesSecurityIdentifier",
+    "accountEnabled",
+    "ageGroup",
+    "businessPhones",
+    "city",
+    "companyName",
+    "consentProvidedForMinor",
+    "country",
+    "createdDateTime",
+    "creationType",
+    "deletedDateTime",
+    "department",
+    "employeeId",
+    "employeeType",
+    "externalUserState",
+    "externalUserStateChangeDateTime",
+    "hireDate",
+    "isManagementRestricted",
+    "isResourceAccount",
+    "jobTitle",
+    "lastPasswordChangeDateTime",
+    "mailNickname",
+    "mobilePhone",
+    "officeLocation",
+    "onPremisesDistinguishedName",
+    "onPremisesDomainName",
+    "onPremisesImmutableId",
+    "onPremisesLastSyncDateTime",
+    "onPremisesSamAccountName",
+    "onPremisesSyncEnabled",
+    "onPremisesUserPrincipalName",
+]
+
 
 @timeit
 async def get_tenant(client: GraphServiceClient) -> Organization:
@@ -32,17 +81,8 @@ async def get_users(client: GraphServiceClient) -> list[User]:
     request_configuration = client.users.UsersRequestBuilderGetRequestConfiguration(
         query_parameters=client.users.UsersRequestBuilderGetQueryParameters(
             top=999,
-            # Request department and job title which are not returned by default
-            select=[
-                "id",
-                "displayName",
-                "givenName",
-                "surname",
-                "userPrincipalName",
-                "mail",
-                "department",
-                "jobTitle",
-            ],
+            # Request additional fields so values like department aren't null
+            select=USER_SELECT_FIELDS,
         ),
     )
 
