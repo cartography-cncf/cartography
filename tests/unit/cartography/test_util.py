@@ -105,7 +105,6 @@ def test_batch(mocker):
     ]
     # Act
     actual = list(batch(x, 5))
-    print(actual)
     # Assert
     assert actual == expected
     # Also check for empty input

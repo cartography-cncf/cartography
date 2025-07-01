@@ -229,7 +229,7 @@ def aws_paginate(
                 f"""aws_paginate: Key "{object_name}" is not present, check if this is a typo.
 If not, then the AWS datatype somehow does not have this key.""",
             )
-        if max_pages and i >= max_pages:
+        if max_pages is not None and i >= max_pages:
             logger.warning(f"Reached max batch size of {max_pages} pages")
             break
 
@@ -359,7 +359,7 @@ def camel_to_snake(name: str) -> str:
 
 def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> Iterable[List[Any]]:
     """
-    Takes an Iterable of items and returns an Iterator of lists of the same items,
+    Takes an Iterable of items and returns a Generator of lists of the same items,
      batched into chunks of the provided `size`.
 
     Use:
@@ -367,10 +367,7 @@ def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> Iterable[List[Any]
     batch(x, size=3) -> Iterator yielding [1, 2, 3], [4, 5, 6], [7, 8]
     """
     it = iter(items)
-    while True:
-        chunk = list(islice(it, size))
-        if not chunk:
-            return
+    while chunk := list(islice(it, size)):
         yield chunk
 
 

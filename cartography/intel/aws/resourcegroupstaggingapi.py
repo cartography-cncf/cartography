@@ -235,7 +235,7 @@ def load_tags(
     if len(tag_data) == 0:
         # If there is no data to load, save some time.
         return
-    for tag_data_batch in list(batch(tag_data, size=100)):
+    for tag_data_batch in batch(tag_data, size=100):
         neo4j_session.write_transaction(
             _load_tags_tx,
             tag_data=tag_data_batch,

@@ -21,7 +21,7 @@ from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 
-# As of 7/22/24, Inspector is only available in the below regions. We will need to update this hardcoded list here over
+# As of 7/1/25, Inspector is only available in the below regions. We will need to update this hardcoded list here over
 # time. :\ https://docs.aws.amazon.com/general/latest/gr/inspector2.html
 AWS_INSPECTOR_REGIONS = {
     "us-east-2",
@@ -47,7 +47,11 @@ AWS_INSPECTOR_REGIONS = {
     "eu-central-2",
     "me-south-1",
     "sa-east-1",
+    "us-gov-east-1",
+    "us-gov-west-1",
 }
+
+BATCH_SIZE = 1000
 
 
 @aws_handle_regions
@@ -72,15 +76,14 @@ def get_inspector_findings(
     account_id: str,
 ) -> Iterator[List[Dict[str, Any]]]:
     """
-    Query inspector2.list_findings by filtering the request, otherwise the request could tiemout.
+    Query inspector2.list_findings by filtering the request, otherwise the request could timeout.
     First, we filter by account_id. And since there may be millions of CLOSED findings that may never go away,
     only fetch those in ACTIVE or SUPPRESSED statuses.
     Run the query in batches of 1000 findings and return an iterator to fetch the results.
     """
-    batch_size = 1000
     client = session.client("inspector2", region_name=region)
     logger.info(
-        f"Getting findings in batches of {batch_size} for account {account_id} in region {region}"
+        f"Getting findings in batches of {BATCH_SIZE} for account {account_id} in region {region}"
     )
     aws_args: Dict[str, Any] = {
         "filterCriteria": {
@@ -99,7 +102,7 @@ def get_inspector_findings(
         }
     }
     findings_batches = batch(
-        aws_paginate(client, "list_findings", "findings", None, **aws_args), batch_size
+        aws_paginate(client, "list_findings", "findings", None, **aws_args), BATCH_SIZE
     )
     yield from findings_batches
 
