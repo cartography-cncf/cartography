@@ -39,6 +39,7 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     creation_type: PropertyRef = PropertyRef("creation_type")
     deleted_date_time: PropertyRef = PropertyRef("deleted_date_time")
     department: PropertyRef = PropertyRef("department")
+    manager_id: PropertyRef = PropertyRef("manager_id")
     employee_id: PropertyRef = PropertyRef("employee_id")
     employee_type: PropertyRef = PropertyRef("employee_type")
     external_user_state: PropertyRef = PropertyRef("external_user_state")

@@ -71,6 +71,7 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 |on_premises_security_identifier | Security identifier in on-premises directory|
 |on_premises_sync_enabled | Whether on-premises directory sync is enabled|
 |on_premises_user_principal_name | User Principal Name in on-premises directory|
+|manager_id | ID of the user's manager|
 
 #### Relationships
 

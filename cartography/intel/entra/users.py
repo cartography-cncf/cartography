@@ -27,14 +27,22 @@ async def get_tenant(client: GraphServiceClient) -> Organization:
 
 @timeit
 async def get_users(client: GraphServiceClient) -> list[User]:
-    """
-    Get all users from Microsoft Graph API with pagination support
-    """
+    """Fetch all users from Microsoft Graph API with pagination."""
     all_users: list[User] = []
     request_configuration = client.users.UsersRequestBuilderGetRequestConfiguration(
         query_parameters=client.users.UsersRequestBuilderGetQueryParameters(
-            # Request more items per page to reduce number of API calls
             top=999,
+            # Request department and job title which are not returned by default
+            select=[
+                "id",
+                "displayName",
+                "givenName",
+                "surname",
+                "userPrincipalName",
+                "mail",
+                "department",
+                "jobTitle",
+            ],
         ),
     )
 
@@ -49,7 +57,18 @@ async def get_users(client: GraphServiceClient) -> list[User]:
 
 
 @timeit
-def transform_users(users: list[User]) -> list[dict[str, Any]]:
+async def get_user_manager_id(client: GraphServiceClient, user_id: str) -> str | None:
+    """Return the manager ID for the given user."""
+    try:
+        manager = await client.users.by_user_id(user_id).manager.get()
+        return manager.id if hasattr(manager, "id") else None
+    except Exception as e:
+        logger.warning(f"Could not fetch manager for user {user_id}: {e}")
+        return None
+
+
+@timeit
+def transform_users(users: list[User], manager_map: dict[str, str | None]) -> list[dict[str, Any]]:
     """
     Transform the API response into the format expected by our schema
     """
@@ -82,6 +101,7 @@ def transform_users(users: list[User]) -> list[dict[str, Any]]:
             "creation_type": user.creation_type,
             "deleted_date_time": user.deleted_date_time,
             "department": user.department,
+            "manager_id": manager_map.get(user.id),
             "employee_id": user.employee_id,
             "employee_type": user.employee_type,
             "external_user_state": user.external_user_state,
@@ -202,7 +222,16 @@ async def sync_entra_users(
     tenant = await get_tenant(client)
     users = await get_users(client)
 
-    transformed_users = transform_users(users)
+    manager_map: dict[str, str | None] = {}
+    for user in users:
+        try:
+            manager = await get_user_manager_id(client, user.id)
+            manager_map[user.id] = manager
+        except Exception as e:
+            logger.error(f"Failed to fetch manager for user {user.id}: {e}")
+            manager_map[user.id] = None
+
+    transformed_users = transform_users(users, manager_map)
     transformed_tenant = transform_tenant(tenant, tenant_id)
 
     load_tenant(neo4j_session, transformed_tenant, update_tag)
