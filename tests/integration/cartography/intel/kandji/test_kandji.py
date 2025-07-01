@@ -32,10 +32,13 @@ def test_load_kandji_devices_relationship(neo4j_session):
     expected_nodes = {
         ("SimpsonCorp",),
     }
-    check_nodes(
-        neo4j_session,
-        "KandjiTenant",
-        ["id"],
+    assert (
+        check_nodes(
+            neo4j_session,
+            "KandjiTenant",
+            ["id"],
+        )
+        == expected_nodes
     )
 
     # Make sure the expected Devices are created
