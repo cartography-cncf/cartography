@@ -60,6 +60,12 @@ Representation of an [Azure Tenant](https://docs.microsoft.com/en-us/rest/api/re
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The Azure Tenant ID number|
 
+#### Relationships
+
+- Azure Principal is part of the Azure Account.
+    ```cypher
+    (AzureTenant)-[RESOURCE]->(AzurePrincipal)
+    ```
 
 ### AzurePrincipal
 
@@ -74,10 +80,9 @@ Representation of an [Azure Principal](https://docs.microsoft.com/en-us/graph/ap
 #### Relationships
 
 - Azure Principal is part of the Azure Account.
-
-        ```
-        (AzurePrincipal)-[RESOURCE]->(AzureTenant)
-        ```
+    ```cypher
+    (AzurePrincipal)-[RESOURCE]->(AzureTenant)
+    ```
 
 ### AzureSubscription
 
@@ -95,10 +100,9 @@ Representation of an [Azure Subscription](https://docs.microsoft.com/en-us/rest/
 #### Relationships
 
 - Azure Tenant contains one or more Subscriptions.
-
-        ```
-        (AzureTenant)-[RESOURCE]->(AzureSubscription)
-        ```
+    ```cypher
+    (AzureTenant)-[RESOURCE]->(AzureSubscription)
+    ```
 
 ### VirtualMachine
 
@@ -126,10 +130,9 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
 #### Relationships
 
 - Azure Subscription contains one or more Virtual Machines.
-
-        ```
-        (AzureSubscription)-[RESOURCE]->(VirtualMachine)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(VirtualMachine)
+    ```
 
 ### AzureDataDisk
 
@@ -153,16 +156,14 @@ Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api
 #### Relationships
 
 - Azure Virtual Machines are attached to Data Disks.
-
-        ```
-        (VirtualMachine)-[ATTACHED_TO]->(AzureDataDisk)
-        ```
+    ```cypher
+    (VirtualMachine)-[ATTACHED_TO]->(AzureDataDisk)
+    ```
 
 - Azure Data Disks belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureDataDisk)
-        ```
+    ```
 
 ### AzureDisk
 
@@ -189,10 +190,9 @@ Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/comp
 #### Relationships
 
 - Azure Subscription contains one or more Disks.
-
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureDisk)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureDisk)
+    ```
 
 ### AzureSnapshot
 
@@ -220,10 +220,9 @@ Representation of an [Azure Snapshot](https://docs.microsoft.com/en-us/rest/api/
 #### Relationships
 
 - Azure Subscription contains one or more Snapshots.
-
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureSnapshot)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureSnapshot)
+    ```
 
 ### AzureSQLServer
 
@@ -244,45 +243,37 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
 #### Relationships
 
 - Azure Subscription contains one or more SQL Servers.
-
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureSQLServer)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureSQLServer)
+    ```
 - Azure SQL Server can be used by one or more Azure Server DNS Aliases.
-
-        ```
-        (AzureSQLServer)-[USED_BY]->(AzureServerDNSAlias)
-        ```
+    ```cypher
+    (AzureSQLServer)-[USED_BY]->(AzureServerDNSAlias)
+    ```
 - Azure SQL Server can be administered by one or more Azure Server AD Administrators.
-
-        ```
-        (AzureSQLServer)-[ADMINISTERED_BY]->(AzureServerADAdministrator)
-        ```
+    ```cypher
+    (AzureSQLServer)-[ADMINISTERED_BY]->(AzureServerADAdministrator)
+    ```
 - Azure SQL Server has one or more Azure Recoverable Database.
-
-        ```
-        (AzureSQLServer)-[CONTAINS]->(AzureRecoverableDatabase)
-        ```
+    ```
+    (AzureSQLServer)-[CONTAINS]->(AzureRecoverableDatabase)
+    ```
 - Azure SQL Server has one or more Azure Restorable Dropped Database.
-
-        ```
-        (AzureSQLServer)-[CONTAINS]->(AzureRestorableDroppedDatabase)
-        ```
+    ```
+    (AzureSQLServer)-[CONTAINS]->(AzureRestorableDroppedDatabase)
+    ```
 - Azure SQL Server has one or more Azure Failover Group.
-
-        ```
-        (AzureSQLServer)-[CONTAINS]->(AzureFailoverGroup)
-        ```
+    ```
+    (AzureSQLServer)-[CONTAINS]->(AzureFailoverGroup)
+    ```
 - Azure SQL Server has one or more Azure Elastic Pool.
-
-        ```
-        (AzureSQLServer)-[CONTAINS]->(AzureElasticPool)
-        ```
+    ```
+    (AzureSQLServer)-[CONTAINS]->(AzureElasticPool)
+    ```
 - Azure SQL Server has one or more Azure SQL Database.
-
-        ```
-        (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
-        ```
+    ```
+    (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
+    ```
 
 ### AzureServerDNSAlias
 
@@ -299,16 +290,14 @@ Representation of an [AzureServerDNSAlias](https://docs.microsoft.com/en-us/rest
 #### Relationships
 
 - Azure SQL Server can be used by one or more Azure Server DNS Aliases.
-
-        ```
-        (AzureSQLServer)-[USED_BY]->(AzureServerDNSAlias)
-        ```
+    ```cypher
+    (AzureSQLServer)-[USED_BY]->(AzureServerDNSAlias)
+    ```
 
 - Azure DNS Aliases belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureServerDNSAlias)
-        ```
+    ```
 
 ### AzureServerADAdministrator
 
@@ -326,16 +315,14 @@ Representation of an [AzureServerADAdministrator](https://docs.microsoft.com/en-
 #### Relationships
 
 - Azure SQL Server can be administered by one or more Azure Server AD Administrators.
-
-        ```
-        (AzureSQLServer)-[ADMINISTERED_BY]->(AzureServerADAdministrator)
-        ```
+    ```cypher
+    (AzureSQLServer)-[ADMINISTERED_BY]->(AzureServerADAdministrator)
+    ```
 
 - Azure Server AD Administrators belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureServerADAdministrator)
-        ```
+    ```
 
 ### AzureRecoverableDatabase
 
@@ -354,16 +341,14 @@ Representation of an [AzureRecoverableDatabase](https://docs.microsoft.com/en-us
 #### Relationships
 
 - Azure SQL Server has one or more Azure Recoverable Database.
-
-        ```
+    ```
         (AzureSQLServer)-[CONTAINS]->(AzureRecoverableDatabase)
-        ```
+    ```
 
 - Azure Recoverable Database belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureRecoverableDatabase)
-        ```
+    ```
 
 ### AzureRestorableDroppedDatabase
 
@@ -387,16 +372,14 @@ Representation of an [AzureRestorableDroppedDatabase](https://docs.microsoft.com
 #### Relationships
 
 - Azure SQL Server has one or more Azure Restorable Dropped Database.
-
-        ```
+    ```
         (AzureSQLServer)-[CONTAINS]->(AzureRestorableDroppedDatabase)
-        ```
+    ```
 
 - Azure Restorable Dropped Database belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureRestorableDroppedDatabase)
-        ```
+    ```
 
 ### AzureFailoverGroup
 
@@ -415,16 +398,14 @@ Representation of an [AzureFailoverGroup](https://docs.microsoft.com/en-us/rest/
 #### Relationships
 
 - Azure SQL Server has one or more Azure Failover Group.
-
-        ```
+    ```
         (AzureSQLServer)-[CONTAINS]->(AzureFailoverGroup)
-        ```
+    ```
 
 - Azure Failover Group belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureFailoverGroup)
-        ```
+    ```
 
 ### AzureElasticPool
 
@@ -447,16 +428,14 @@ Representation of an [AzureElasticPool](https://docs.microsoft.com/en-us/rest/ap
 #### Relationships
 
 - Azure SQL Server has one or more Azure Elastic Pool.
-
-        ```
+    ```
         (AzureSQLServer)-[CONTAINS]->(AzureElasticPool)
-        ```
+    ```
 
 - Azure Elastic Pool belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureElasticPool)
-        ```
+    ```
 
 ### AzureSQLDatabase
 
@@ -485,35 +464,29 @@ Representation of an [AzureSQLDatabase](https://docs.microsoft.com/en-us/rest/ap
 #### Relationships
 
 - Azure SQL Server has one or more Azure SQL Database.
-
-        ```
+    ```
         (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
-        ```
+    ```
 - Azure SQL Database contains one or more Azure Replication Links.
-
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureReplicationLink)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureReplicationLink)
+    ```
 - Azure SQL Database contains a Database Threat Detection Policy.
-
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureDatabaseThreatDetectionPolicy)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureDatabaseThreatDetectionPolicy)
+    ```
 - Azure SQL Database contains one or more Restore Points.
-
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureRestorePoint)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureRestorePoint)
+    ```
 - Azure SQL Database contains Transparent Data Encryption.
-
-        ```
+    ```
         (AzureSQLDatabase)-[CONTAINS]->(AzureTransparentDataEncryption)
-        ```
+    ```
 - Azure SQL Database belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureSQLDatabase)
-        ```
+    ```
 
 ### AzureReplicationLink
 
@@ -540,15 +513,13 @@ Representation of an [AzureReplicationLink](https://docs.microsoft.com/en-us/res
 #### Relationships
 
 - Azure SQL Database contains one or more Azure Replication Links.
-
-        ```
+    ```
         (AzureSQLDatabase)-[CONTAINS]->(AzureReplicationLink)
-        ```
+    ```
 - Azure Replication Links belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureReplicationLink)
-        ```
+    ```
 
 
 ### AzureDatabaseThreatDetectionPolicy
@@ -574,15 +545,13 @@ Representation of an [AzureDatabaseThreatDetectionPolicy](https://docs.microsoft
 #### Relationships
 
 - Azure SQL Database contains a Database Threat Detection Policy.
-
-        ```
+    ```
         (AzureSQLDatabase)-[CONTAINS]->(AzureDatabaseThreatDetectionPolicy)
-        ```
+    ```
 - Azure Database Threat Detection Policy belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureDatabaseThreatDetectionPolicy)
-        ```
+    ```
 
 
 ### AzureRestorePoint
@@ -603,15 +572,13 @@ Representation of an [AzureRestorePoint](https://docs.microsoft.com/en-us/rest/a
 #### Relationships
 
 - Azure SQL Database contains one or more Restore Points.
-
-        ```
+    ```
         (AzureSQLDatabase)-[CONTAINS]->(AzureRestorePoint)
-        ```
+    ```
 - Azure Restore Points belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureRestorePoint)
-        ```
+    ```
 
 ### AzureTransparentDataEncryption
 
@@ -629,15 +596,13 @@ Representation of an [AzureTransparentDataEncryption](https://docs.microsoft.com
 #### Relationships
 
 - Azure SQL Database contains Transparent Data Encryption.
-
-        ```
+    ```
         (AzureSQLDatabase)-[CONTAINS]->(AzureTransparentDataEncryption)
-        ```
+    ```
 - Azure Transparent Data Encryption belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureTransparentDataEncryption)
-        ```
+    ```
 
 ### AzureStorageAccount
 
@@ -665,30 +630,25 @@ Representation of an [AzureStorageAccount](https://docs.microsoft.com/en-us/rest
 #### Relationships
 
 - Azure Subscription contains one or more Storage Accounts.
-
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureStorageAccount)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureStorageAccount)
+    ```
 - Azure Storage Accounts uses one or more Queue Services.
-
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageQueueService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageQueueService)
+    ```
 - Azure Storage Accounts uses one or more Table Services.
-
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageTableService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageTableService)
+    ```
 - Azure Storage Accounts uses one or more File Services.
-
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageFileService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageFileService)
+    ```
 - Azure Storage Accounts uses one or more Blob Services.
-
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
+    ```
 
 ### AzureStorageQueueService
 
@@ -705,20 +665,17 @@ Representation of an [AzureStorageQueueService](https://docs.microsoft.com/en-us
 #### Relationships
 
 - Azure Storage Accounts uses one or more Queue Services.
-
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageQueueService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageQueueService)
+    ```
 - Queue Service contains one or more queues.
-
-        ```
+    ```
         (AzureStorageQueueService)-[CONTAINS]->(AzureStorageQueue)
-        ```
+    ```
 - Queue Services belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureStorageQueueService)
-        ```
+    ```
 
 ### AzureStorageTableService
 
@@ -735,20 +692,17 @@ Representation of an [AzureStorageTableService](https://docs.microsoft.com/en-us
 #### Relationships
 
 - Azure Storage Accounts uses one or more Table Services.
-
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageTableService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageTableService)
+    ```
 - Table Service contains one or more tables.
-
-        ```
+    ```
         (AzureStorageTableService)-[CONTAINS]->(AzureStorageTable)
-        ```
+    ```
 - Table Service belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureStorageTableService)
-        ```
+    ```
 
 ### AzureStorageFileService
 
@@ -765,20 +719,17 @@ Representation of an [AzureStorageFileService](https://docs.microsoft.com/en-us/
 #### Relationships
 
 - Azure Storage Accounts uses one or more File Services.
-
-        ```
+    ```
         (AzureStorageAccount)-[USES]->(AzureStorageFileService)
-        ```
+    ```
 - File Service contains one or more file shares.
-
-        ```
+    ```
         (AzureStorageFileService)-[CONTAINS]->(AzureStorageFileShare)
-        ```
+    ```
 - File Service belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureStorageFileService)
-        ```
+    ```
 
 ### AzureStorageBlobService
 
@@ -795,20 +746,17 @@ Representation of an [AzureStorageBlobService](https://docs.microsoft.com/en-us/
 #### Relationships
 
 - Azure Storage Accounts uses one or more Blob Services.
-
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
+    ```
 - Blob Service contains one or more blob containers.
-
-        ```
+    ```
         (AzureStorageBlobService)-[CONTAINS]->(AzureStorageBlobContainer)
-        ```
+    ```
 - Blob Service belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureStorageBlobService)
-        ```
+    ```
 
 ### AzureStorageQueue
 
@@ -825,15 +773,13 @@ Representation of an [AzureStorageQueue](https://docs.microsoft.com/en-us/rest/a
 #### Relationships
 
 - Queue Service contains one or more queues.
-
-        ```
+    ```
         (AzureStorageQueueService)-[CONTAINS]->(AzureStorageQueue)
-        ```
+    ```
 - Queue belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureStorageQueue)
-        ```
+    ```
 
 ### AzureStorageTable
 
@@ -851,15 +797,13 @@ Representation of an [AzureStorageTable](https://docs.microsoft.com/en-us/rest/a
 #### Relationships
 
 - Table Service contains one or more tables.
-
-        ```
+    ```
         (AzureStorageTableService)-[CONTAINS]->(AzureStorageTable)
-        ```
+    ```
 - Table belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureStorageTable)
-        ```
+    ```
 
 ### AzureStorageFileShare
 
@@ -887,15 +831,13 @@ Representation of an [AzureStorageFileShare](https://docs.microsoft.com/en-us/re
 #### Relationships
 
 - File Service contains one or more file shares.
-
-        ```
+    ```
         (AzureStorageTableService)-[CONTAINS]->(AzureStorageFileShare)
-        ```
+    ```
 - File share belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureStorageFileShare)
-        ```
+    ```
 
 ### AzureStorageBlobContainer
 
@@ -924,15 +866,13 @@ Representation of an [AzureStorageBlobContainer](https://docs.microsoft.com/en-u
 #### Relationships
 
 - Blob Service contains one or more blob containers.
-
-        ```
+    ```
         (AzureStorageBlobService)-[CONTAINS]->(AzureStorageBlobContainer)
-        ```
+    ```
 - Blob container belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureStorageBlobContainer)
-        ```
+    ```
 
 ### AzureCosmosDBAccount
 
@@ -970,59 +910,47 @@ Representation of an [AzureCosmosDBAccount](https://docs.microsoft.com/en-us/res
 #### Relationships
 
 - Azure Subscription contains one or more database accounts.
-
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureCosmosDBAccount)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureCosmosDBAccount)
+    ```
 - Azure Database Account can be read from, written from and is associated with Azure CosmosDB Locations.
-
-        ```
-        (AzureCosmosDBAccount)-[CAN_WRITE_FROM]->(AzureCosmosDBLocation)
-        ```
-        (AzureCosmosDBAccount)-[CAN_READ_FROM]->(AzureCosmosDBLocation)
-        ```
-        (AzureCosmosDBAccount)-[ASSOCIATED_WITH]->(AzureCosmosDBLocation)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CAN_WRITE_FROM]->(AzureCosmosDBLocation)
+    (AzureCosmosDBAccount)-[CAN_READ_FROM]->(AzureCosmosDBLocation)
+    (AzureCosmosDBAccount)-[ASSOCIATED_WITH]->(AzureCosmosDBLocation)
+    ```
 - Azure Database Account contains one or more Cors Policy.
-
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCorsPolicy)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCorsPolicy)
+    ```
 - Azure Database Account contains one or more failover policies.
-
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBAccountFailoverPolicy)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBAccountFailoverPolicy)
+    ```
 - Azure Database Account is configured with one or more private endpoint connections.
-
-        ```
-        (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCDBPrivateEndpointConnection)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCDBPrivateEndpointConnection)
+    ```
 - Azure Database Account is configured with one or more virtual network rules.
-
-        ```
-        (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCosmosDBVirtualNetworkRule)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCosmosDBVirtualNetworkRule)
+    ```
 - Azure Database Account contains one or more SQL databases.
-
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBSqlDatabase)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBSqlDatabase)
+    ```
 - Azure Database Account contains one or more Cassandra keyspace.
-
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCassandraKeyspace)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCassandraKeyspace)
+    ```
 - Azure Database Account contains one or more MongoDB Database.
-
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBMongoDBDatabase)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBMongoDBDatabase)
+    ```
 - Azure Database Account contains one or more table resource.
-
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
+    ```
 
 ### AzureCosmosDBLocation
 
@@ -1042,19 +970,15 @@ Representation of an [Azure CosmosDB Location](https://docs.microsoft.com/en-us/
 #### Relationships
 
 - Azure Database Account has write permissions from, read permissions from and is associated with Azure CosmosDB Locations.
-
-        ```
+    ```
         (AzureCosmosDBAccount)-[CAN_WRITE_FROM]->(AzureCosmosDBLocation)
-        ```
         (AzureCosmosDBAccount)-[CAN_READ_FROM]->(AzureCosmosDBLocation)
-        ```
         (AzureCosmosDBAccount)-[ASSOCIATED_WITH]->(AzureCosmosDBLocation)
-        ```
+    ```
 - CosmosDB Locations belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBLocation)
-        ```
+    ```
 
 ### AzureCosmosDBCorsPolicy
 
@@ -1074,15 +998,13 @@ Representation of an [Azure Cosmos DB Cors Policy](https://docs.microsoft.com/en
 #### Relationships
 
 - Azure Database Account contains one or more Cors Policy.
-
-        ```
+    ```
         (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCorsPolicy)
-        ```
+    ```
 - CosmosDB Cors Policy belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBCorsPolicy)
-        ```
+    ```
 
 ### AzureCosmosDBAccountFailoverPolicy
 
@@ -1099,15 +1021,13 @@ Representation of an Azure Database Account [Failover Policy](https://docs.micro
 #### Relationships
 
 - Azure Database Account contains one or more failover policies.
-
-        ```
+    ```
         (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBAccountFailoverPolicy)
-        ```
+    ```
 - CosmosDB Failover Policy belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBAccountFailoverPolicy)
-        ```
+    ```
 
 ### AzureCDBPrivateEndpointConnection
 
@@ -1126,15 +1046,13 @@ Representation of an Azure Cosmos DB [Private Endpoint Connection](https://docs.
 #### Relationships
 
 - Azure Database Account is configured with one or more private endpoint connections.
-
-        ```
+    ```
         (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCDBPrivateEndpointConnection)
-        ```
+    ```
 - Private endpoint connection belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCDBPrivateEndpointConnection)
-        ```
+    ```
 
 ### AzureCosmosDBVirtualNetworkRule
 
@@ -1150,15 +1068,13 @@ Representation of an Azure Cosmos DB [Virtual Network Rule](https://docs.microso
 #### Relationships
 
 - Azure Database Account is configured with one or more virtual network rules.
-
-        ```
+    ```
         (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCosmosDBVirtualNetworkRule)
-        ```
+    ```
 - Virtual network rule belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBVirtualNetworkRule)
-        ```
+    ```
 
 ### AzureCosmosDBSqlDatabase
 
@@ -1178,20 +1094,17 @@ Representation of an [AzureCosmosDBSqlDatabase](https://docs.microsoft.com/en-us
 #### Relationships
 
 - Azure Database Account contains one or more SQL databases.
-
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBSqlDatabase)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBSqlDatabase)
+    ```
 - SQL Databases contain one or more SQL containers.
-
-        ```
+    ```
         (AzureCosmosDBSqlDatabase)-[CONTAINS]->(AzureCosmosDBSqlContainer)
-        ```
+    ```
 - SQL database belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBSqlDatabase)
-        ```
+    ```
 
 ### AzureCosmosDBCassandraKeyspace
 
@@ -1211,20 +1124,17 @@ Representation of an [AzureCosmosDBCassandraKeyspace](https://docs.microsoft.com
 #### Relationships
 
 - Azure Database Account contains one or more Cassandra keyspace.
-
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCassandraKeyspace)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCassandraKeyspace)
+    ```
 - Cassandra Keyspace contains one or more Cassandra tables.
-
-        ```
+    ```
         (AzureCosmosDBCassandraKeyspace)-[CONTAINS]->(AzureCosmosDBCassandraTable)
-        ```
+    ```
 - Cassandra keyspace belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBCassandraKeyspace)
-        ```
+    ```
 
 ### AzureCosmosDBMongoDBDatabase
 
@@ -1244,20 +1154,17 @@ Representation of an [AzureCosmosDBMongoDBDatabase](https://docs.microsoft.com/e
 #### Relationships
 
 - Azure Database Account contains one or more MongoDB Database.
-
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBMongoDBDatabase)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBMongoDBDatabase)
+    ```
 - MongoDB database contains one or more MongoDB collections.
-
-        ```
+    ```
         (AzureCosmosDBMongoDBDatabase)-[CONTAINS]->(AzureCosmosDBMongoDBCollection)
-        ```
+    ```
 - MongoDB database belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBMongoDBDatabase)
-        ```
+    ```
 
 ### AzureCosmosDBTableResource
 
@@ -1277,15 +1184,13 @@ Representation of an [AzureCosmosDBTableResource](https://docs.microsoft.com/en-
 #### Relationships
 
 - Azure Database Account contains one or more table resource.
-
-        ```
+    ```
         (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
-        ```
+    ```
 - CosmosDB table belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBTableResource)
-        ```
+    ```
 
 ### AzureCosmosDBSqlContainer
 
@@ -1311,15 +1216,13 @@ Representation of an [AzureCosmosDBSqlContainer](https://docs.microsoft.com/en-u
 #### Relationships
 
 - SQL Databases contain one or more SQL containers.
-
-        ```
+    ```
         (AzureCosmosDBSqlDatabase)-[CONTAINS]->(AzureCosmosDBSqlContainer)
-        ```
+    ```
 - CosmosDB SQL Container belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBSqlContainer)
-        ```
+    ```
 
 ### AzureCosmosDBCassandraTable
 
@@ -1342,15 +1245,13 @@ Representation of an [AzureCosmosDBCassandraTable](https://docs.microsoft.com/en
 #### Relationships
 
 - Cassandra Keyspace contains one or more Cassandra tables.
-
-        ```
+    ```
         (AzureCosmosDBCassandraKeyspace)-[CONTAINS]->(AzureCosmosDBCassandraTable)
-        ```
+    ```
 - Cassandra table belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBCassandraTable)
-        ```
+    ```
 
 ### AzureCosmosDBMongoDBCollection
 
@@ -1372,12 +1273,10 @@ Representation of an [AzureCosmosDBMongoDBCollection](https://docs.microsoft.com
 #### Relationships
 
 - MongoDB database contains one or more MongoDB collections.
-
-        ```
+    ```
         (AzureCosmosDBMongoDBDatabase)-[CONTAINS]->(AzureCosmosDBMongoDBCollection)
-        ```
+    ```
 - MongoDB collection belongs to a Subscription.
-
-        ```
+    ```
         (AzureSubscription)-[RESOURCE]->(AzureCosmosDBMongoDBCollection)
-        ```
+    ```
