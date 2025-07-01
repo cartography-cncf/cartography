@@ -1006,7 +1006,7 @@ class CLI:
         if config.trivy_s3_prefix:
             logger.debug(f"Trivy S3 prefix: {config.trivy_s3_prefix}")
 
-        # Parse SentinelOne account IDs if provided
+        # SentinelOne config
         if config.sentinelone_account_ids:
             config.sentinelone_account_ids = [
                 id.strip() for id in config.sentinelone_account_ids.split(",")
@@ -1017,7 +1017,6 @@ class CLI:
         else:
             config.sentinelone_account_ids = None
 
-        # SentinelOne config
         if config.sentinelone_api_url and config.sentinelone_api_token_env_var:
             logger.debug(
                 f"Reading API token for SentinelOne from environment variable {config.sentinelone_api_token_env_var}",
@@ -1025,12 +1024,6 @@ class CLI:
             config.sentinelone_api_token = os.environ.get(
                 config.sentinelone_api_token_env_var
             )
-        else:
-            if config.sentinelone_api_url and not config.sentinelone_api_token_env_var:
-                logger.warning(
-                    "A SentinelOne API URL was provided but an API token environment variable was not."
-                )
-            config.sentinelone_api_token = None
 
         # Run cartography
         try:
