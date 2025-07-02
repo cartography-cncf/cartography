@@ -9,7 +9,6 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
-
 # The user resource in Microsoft Graph exposes hundreds of properties but, in
 # practice, only a small subset is populated in most tenants.  We deliberately
 # model *just* the commonly-used attributes to keep the graph lean.

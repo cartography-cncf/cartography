@@ -2,9 +2,9 @@ import datetime
 import uuid
 
 from msgraph.generated.models.assigned_plan import AssignedPlan
+from msgraph.generated.models.directory_object import DirectoryObject
 from msgraph.generated.models.organization import Organization
 from msgraph.generated.models.user import User
-from msgraph.generated.models.directory_object import DirectoryObject
 from msgraph.generated.models.verified_domain import VerifiedDomain
 
 # some fake tenant guid
