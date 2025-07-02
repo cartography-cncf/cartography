@@ -141,6 +141,12 @@ class Config:
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
     :type trivy_s3_prefix: str
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
+    :type sentinelone_api_url: string
+    :param sentinelone_api_url: SentinelOne API URL. Optional.
+    :type sentinelone_api_token: string
+    :param sentinelone_api_token: SentinelOne API token for authentication. Optional.
+    :type sentinelone_account_ids: list[str]
+    :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
     """
 
     def __init__(
@@ -215,6 +221,9 @@ class Config:
         anthropic_apikey=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
+        sentinelone_api_url=None,
+        sentinelone_api_token=None,
+        sentinelone_account_ids=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -286,3 +295,6 @@ class Config:
         self.anthropic_apikey = anthropic_apikey
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
+        self.sentinelone_api_url = sentinelone_api_url
+        self.sentinelone_api_token = sentinelone_api_token
+        self.sentinelone_account_ids = sentinelone_account_ids
