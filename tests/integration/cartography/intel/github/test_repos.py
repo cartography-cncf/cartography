@@ -386,3 +386,121 @@ def test_python_library_in_multiple_requirements_files(neo4j_session):
     node_ids = {n["lib_ids"] for n in nodes}
     assert len(node_ids) == 2
     assert node_ids == {"okta", "okta|0.9.0"}
+
+
+def test_transform_and_load_github_dependencies(neo4j_session):
+    """
+    Test that we can correctly transform and load multi-ecosystem Dependency nodes to Neo4j.
+    """
+    repos_data = cartography.intel.github.repos.transform(
+        GET_REPOS,
+        DIRECT_COLLABORATORS,
+        OUTSIDE_COLLABORATORS,
+    )
+    cartography.intel.github.repos.load_github_dependencies(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        repos_data["dependencies"],
+    )
+
+    # Check that specific Dependency nodes were created with ecosystem property
+    # (filtering out PythonLibrary dependencies that don't have ecosystem)
+    nodes = neo4j_session.run(
+        "MATCH(dep:Dependency) WHERE dep.ecosystem IS NOT NULL RETURN dep.id, dep.name, dep.ecosystem",
+    )
+    actual_nodes = {(n["dep.id"], n["dep.name"], n["dep.ecosystem"]) for n in nodes}
+    expected_nodes = {
+        ("react|18.2.0", "react", "npm"),
+        ("lodash", "lodash", "npm"),
+        ("django|4.2.0", "django", "pip"),
+    }
+    assert actual_nodes == expected_nodes
+
+
+def test_repository_to_github_dependencies(neo4j_session):
+    """
+    Ensure that repositories are connected to dependencies from GitHub's dependency graph.
+    """
+    _ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # Test NPM dependency with exact version
+    query = """
+    MATCH (repo:GitHubRepository{name:'cartography'})-[r:REQUIRES]->(dep:Dependency{name:'react'})
+    RETURN dep.id, dep.version, dep.ecosystem, r.requirements, r.manifest_path
+    """
+    nodes = neo4j_session.run(query)
+    actual_nodes = {
+        (
+            n["dep.id"],
+            n["dep.version"],
+            n["dep.ecosystem"],
+            n["r.requirements"],
+            n["r.manifest_path"],
+        )
+        for n in nodes
+    }
+    expected_nodes = {
+        (
+            "react|18.2.0",
+            "18.2.0",
+            "npm",
+            "18.2.0",
+            "/package.json",
+        ),
+    }
+    assert actual_nodes == expected_nodes
+
+
+def test_github_dependency_with_complex_version(neo4j_session):
+    """
+    Ensure that dependencies with complex version constraints are handled correctly.
+    """
+    _ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # Test NPM dependency with complex version (no pinned version)
+    query = """
+    MATCH (repo:GitHubRepository{name:'cartography'})-[r:REQUIRES]->(dep:Dependency{name:'lodash'})
+    RETURN dep.id, dep.version, dep.ecosystem, r.requirements
+    """
+    nodes = neo4j_session.run(query)
+    actual_nodes = {
+        (
+            n["dep.id"],
+            n["dep.version"],
+            n["dep.ecosystem"],
+            n["r.requirements"],
+        )
+        for n in nodes
+    }
+    expected_nodes = {
+        (
+            "lodash",
+            None,  # No pinned version for ^4.17.21
+            "npm",
+            "^4.17.21",
+        ),
+    }
+    assert actual_nodes == expected_nodes
+
+
+def test_github_dependency_multi_ecosystem(neo4j_session):
+    """
+    Ensure that both NPM and Python dependencies from dependency graph are properly loaded.
+    """
+    _ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # Count dependencies by ecosystem - only count dependencies that have an ecosystem property
+    # (this excludes the old PythonLibrary:Dependency nodes which don't have ecosystem)
+    query = """
+    MATCH (repo:GitHubRepository{name:'cartography'})-[:REQUIRES]->(dep:Dependency)
+    WHERE dep.ecosystem IS NOT NULL
+    RETURN dep.ecosystem, count(dep) as dep_count
+    """
+    nodes = neo4j_session.run(query)
+    actual_counts = {n["dep.ecosystem"]: n["dep_count"] for n in nodes}
+
+    expected_counts = {
+        "npm": 2,  # react and lodash
+        "pip": 1,  # Django
+    }
+    assert actual_counts == expected_counts

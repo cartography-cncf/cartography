@@ -131,6 +131,39 @@ GET_REPOS: List[dict[str, Any]] = [
             """,
             ),
         },
+        "dependencyGraphManifests": {
+            "nodes": [
+                {
+                    "blobPath": "/package.json",
+                    "dependencies": {
+                        "nodes": [
+                            {
+                                "packageName": "react",
+                                "requirements": "18.2.0",
+                                "packageManager": "NPM",
+                            },
+                            {
+                                "packageName": "lodash",
+                                "requirements": "^4.17.21",
+                                "packageManager": "NPM",
+                            },
+                        ],
+                    },
+                },
+                {
+                    "blobPath": "/requirements.txt",
+                    "dependencies": {
+                        "nodes": [
+                            {
+                                "packageName": "Django",
+                                "requirements": "==4.2.0",
+                                "packageManager": "PIP",
+                            },
+                        ],
+                    },
+                },
+            ],
+        },
     },
 ]
 
@@ -256,5 +289,107 @@ DIRECT_COLLABORATORS: dict[str, List[UserAffiliationAndRepoPermission]] = {
             permission="MAINTAIN",
             affiliation="DIRECT",
         ),
+    ],
+}
+
+
+# Dependency graph test data for unit tests
+DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
+    "nodes": [
+        {
+            "blobPath": "/package.json",
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "react",
+                        "requirements": "18.2.0",
+                        "packageManager": "NPM",
+                    },
+                    {
+                        "packageName": "lodash",
+                        "requirements": "^4.17.21",
+                        "packageManager": "NPM",
+                    },
+                ],
+            },
+        },
+        {
+            "blobPath": "/requirements.txt",
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "Django",
+                        "requirements": "==4.2.0",
+                        "packageManager": "PIP",
+                    },
+                ],
+            },
+        },
+        {
+            "blobPath": "/pom.xml",
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "org.springframework:spring-core",
+                        "requirements": "5.3.21",
+                        "packageManager": "MAVEN",
+                    },
+                ],
+            },
+        },
+    ],
+}
+
+DEPENDENCY_GRAPH_WITH_MISSING_FIELDS = {
+    "nodes": [
+        {
+            "blobPath": "/package.json",
+            "dependencies": {
+                "nodes": [
+                    {
+                        # Missing packageName - should be skipped
+                        "requirements": "1.0.0",
+                        "packageManager": "NPM",
+                    },
+                    {
+                        "packageName": "valid-package",
+                        # Missing requirements - should use None
+                        "packageManager": "NPM",
+                    },
+                    {
+                        "packageName": "another-package",
+                        "requirements": "",  # Empty requirements
+                        # Missing packageManager - should default to unknown
+                    },
+                ],
+            },
+        },
+        {
+            # Missing blobPath - should use empty string
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "test-package",
+                        "requirements": "2.0.0",
+                        "packageManager": "UNKNOWN",
+                    },
+                ],
+            },
+        },
+    ],
+}
+
+DEPENDENCY_GRAPH_EMPTY_MANIFESTS: dict[str, list] = {"nodes": []}
+
+DEPENDENCY_GRAPH_NO_DEPENDENCIES = {
+    "nodes": [
+        {
+            "blobPath": "/package.json",
+            "dependencies": {"nodes": []},  # Empty dependencies
+        },
+        {
+            "blobPath": "/requirements.txt",
+            # Missing dependencies field
+        },
     ],
 }

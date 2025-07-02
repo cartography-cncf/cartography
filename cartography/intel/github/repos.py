@@ -93,6 +93,18 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                             text
                         }
                     }
+                    dependencyGraphManifests(first: 10) {
+                        nodes {
+                            blobPath
+                            dependencies(first: 100) {
+                                nodes {
+                                    packageName
+                                    requirements
+                                    packageManager
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -291,7 +303,7 @@ def transform(
     :param outside_collaborators: dict of repo URL to list of outside collaborators.
         See tests.data.github.repos.OUTSIDE_COLLABORATORS for data shape.
     :return: Dict containing the repos, repo->language mapping, owners->repo mapping, outside collaborators->repo
-    mapping, and Python requirements files (if any) in a repo.
+    mapping, Python requirements files (if any) in a repo, and all dependencies from GitHub's dependency graph.
     """
     transformed_repo_list: List[Dict] = []
     transformed_repo_languages: List[Dict] = []
@@ -312,6 +324,7 @@ def transform(
         "WRITE": [],
     }
     transformed_requirements_files: List[Dict] = []
+    transformed_dependencies: List[Dict] = []
     for repo_object in repos_json:
         _transform_repo_languages(
             repo_object["url"],
@@ -350,6 +363,11 @@ def transform(
             repo_url,
             transformed_requirements_files,
         )
+        _transform_dependency_graph(
+            repo_object.get("dependencyGraphManifests"),
+            repo_url,
+            transformed_dependencies,
+        )
     results = {
         "repos": transformed_repo_list,
         "repo_languages": transformed_repo_languages,
@@ -357,6 +375,7 @@ def transform(
         "repo_outside_collaborators": transformed_outside_collaborators,
         "repo_direct_collaborators": transformed_direct_collaborators,
         "python_requirements": transformed_requirements_files,
+        "dependencies": transformed_dependencies,
     }
     return results
 
@@ -531,6 +550,119 @@ def _transform_setup_cfg_requirements(
         return
     requirements_list = parse_setup_cfg(setup_cfg)
     _transform_python_requirements(requirements_list, repo_url, out_requirements_files)
+
+
+def _transform_dependency_graph(
+    dependency_manifests: Optional[Dict],
+    repo_url: str,
+    out_dependencies_list: List[Dict],
+) -> None:
+    """
+    Transform GitHub dependency graph manifests into cartography dependency format.
+    :param dependency_manifests: dependencyGraphManifests from GitHub GraphQL API
+    :param repo_url: The URL of the GitHub repo
+    :param out_dependencies_list: Output array to append transformed results to
+    :return: Nothing
+    """
+    if not dependency_manifests or not dependency_manifests.get("nodes"):
+        return
+
+    for manifest in dependency_manifests["nodes"]:
+        dependencies = manifest.get("dependencies", {})
+        if not dependencies.get("nodes"):
+            continue
+
+        manifest_path = manifest.get("blobPath", "")
+
+        for dep in dependencies["nodes"]:
+            package_name = dep.get("packageName")
+            if not package_name:
+                continue
+
+            requirements = dep.get("requirements", "")
+            package_manager = dep.get("packageManager", "").upper()
+
+            # Extract version from requirements string if available
+            pinned_version = _extract_version_from_requirements(requirements)
+
+            # Create ecosystem-specific canonical name
+            canonical_name = _canonicalize_dependency_name(
+                package_name, package_manager
+            )
+
+            # Create unique ID for the dependency
+            dependency_id = (
+                f"{canonical_name}|{pinned_version}"
+                if pinned_version
+                else canonical_name
+            )
+
+            # Normalize requirements field (prefer None over empty string)
+            normalized_requirements = requirements if requirements else None
+
+            out_dependencies_list.append(
+                {
+                    "id": dependency_id,
+                    "name": canonical_name,
+                    "original_name": package_name,  # Keep original for reference
+                    "version": pinned_version,
+                    "requirements": normalized_requirements,
+                    "ecosystem": (
+                        package_manager.lower() if package_manager else "unknown"
+                    ),
+                    "package_manager": package_manager,
+                    "manifest_path": manifest_path,
+                    "repo_url": repo_url,
+                }
+            )
+
+
+def _extract_version_from_requirements(requirements: Optional[str]) -> Optional[str]:
+    """
+    Extract a pinned version from a requirements string if it exists.
+    Examples: "1.2.3" -> "1.2.3", "^1.2.3" -> None, ">=1.0,<2.0" -> None
+    """
+    if not requirements or not requirements.strip():
+        return None
+
+    # Handle exact version specifications (no operators)
+    if requirements and not any(
+        op in requirements for op in ["^", "~", ">", "<", "=", "*"]
+    ):
+        stripped = requirements.strip()
+        return stripped if stripped else None
+
+    # Handle == specifications
+    if "==" in requirements:
+        parts = requirements.split("==")
+        if len(parts) == 2:
+            version = parts[1].strip()
+            # Remove any trailing constraints
+            version = version.split(",")[0].split(" ")[0]
+            return version if version else None
+
+    return None
+
+
+def _canonicalize_dependency_name(name: str, package_manager: Optional[str]) -> str:
+    """
+    Canonicalize dependency names based on ecosystem conventions.
+    """
+    if not name:
+        return name
+
+    # For Python packages, use existing canonicalization
+    if package_manager in ["PIP", "CONDA"]:
+        try:
+            from packaging.utils import canonicalize_name
+
+            return str(canonicalize_name(name))
+        except ImportError:
+            # Fallback if packaging not available
+            return name.lower().replace("_", "-")
+
+    # For other ecosystems, use lowercase
+    return name.lower()
 
 
 def _transform_python_requirements(
@@ -786,6 +918,73 @@ def load_collaborators(
 
 
 @timeit
+def load_python_requirements(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    requirements_objects: List[Dict],
+) -> None:
+    query = """
+    UNWIND $Requirements AS req
+        MERGE (lib:PythonLibrary:Dependency{id: req.id})
+        ON CREATE SET lib.firstseen = timestamp(),
+        lib.name = req.name
+        SET lib.lastupdated = $UpdateTag,
+        lib.version = req.version
+
+        WITH lib, req
+        MATCH (repo:GitHubRepository{id: req.repo_url})
+        MERGE (repo)-[r:REQUIRES]->(lib)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UpdateTag,
+        r.specifier = req.specifier
+    """
+    neo4j_session.run(
+        query,
+        Requirements=requirements_objects,
+        UpdateTag=update_tag,
+    )
+
+
+@timeit
+def load_github_dependencies(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    dependencies: List[Dict],
+) -> None:
+    """
+    Ingest GitHub dependency data into Neo4j
+    :param neo4j_session: Neo4J session object for server communication
+    :param update_tag: Timestamp used to determine data freshness
+    :param dependencies: List of dependency objects from GitHub's dependency graph
+    :return: Nothing
+    """
+    query = """
+    UNWIND $Dependencies AS dep
+        MERGE (lib:Dependency{id: dep.id})
+        ON CREATE SET lib.firstseen = timestamp(),
+        lib.name = dep.name
+        SET lib.lastupdated = $UpdateTag,
+        lib.original_name = dep.original_name,
+        lib.version = dep.version,
+        lib.ecosystem = dep.ecosystem,
+        lib.package_manager = dep.package_manager
+
+        WITH lib, dep
+        MATCH (repo:GitHubRepository{id: dep.repo_url})
+        MERGE (repo)-[r:REQUIRES]->(lib)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UpdateTag,
+        r.requirements = dep.requirements,
+        r.manifest_path = dep.manifest_path
+    """
+    neo4j_session.run(
+        query,
+        Dependencies=dependencies,
+        UpdateTag=update_tag,
+    )
+
+
+@timeit
 def load(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
@@ -823,33 +1022,10 @@ def load(
         common_job_parameters["UPDATE_TAG"],
         repo_data["python_requirements"],
     )
-
-
-@timeit
-def load_python_requirements(
-    neo4j_session: neo4j.Session,
-    update_tag: int,
-    requirements_objects: List[Dict],
-) -> None:
-    query = """
-    UNWIND $Requirements AS req
-        MERGE (lib:PythonLibrary:Dependency{id: req.id})
-        ON CREATE SET lib.firstseen = timestamp(),
-        lib.name = req.name
-        SET lib.lastupdated = $UpdateTag,
-        lib.version = req.version
-
-        WITH lib, req
-        MATCH (repo:GitHubRepository{id: req.repo_url})
-        MERGE (repo)-[r:REQUIRES]->(lib)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $UpdateTag,
-        r.specifier = req.specifier
-    """
-    neo4j_session.run(
-        query,
-        Requirements=requirements_objects,
-        UpdateTag=update_tag,
+    load_github_dependencies(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["dependencies"],
     )
 
 
