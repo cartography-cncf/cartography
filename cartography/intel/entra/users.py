@@ -72,13 +72,20 @@ async def get_tenant(client: GraphServiceClient) -> Organization:
 
 @timeit
 async def get_users(client: GraphServiceClient) -> list[User]:
-    """Fetch all users from Microsoft Graph API with pagination."""
+    """Fetch all users with their manager reference in as few requests as possible.
+
+    We leverage `$expand=manager($select=id)` so the manager's *id* is hydrated
+    alongside every user record.  This avoids making a second round-trip per
+    user – vastly reducing latency and eliminating the noisy 404s that occur
+    when a user has no manager assigned.
+    """
+
     all_users: list[User] = []
     request_configuration = client.users.UsersRequestBuilderGetRequestConfiguration(
         query_parameters=client.users.UsersRequestBuilderGetQueryParameters(
             top=999,
-            # Request additional fields so values like department aren't null
             select=USER_SELECT_FIELDS,
+            expand=["manager($select=id)"],
         ),
     )
 
@@ -89,20 +96,14 @@ async def get_users(client: GraphServiceClient) -> list[User]:
             break
 
         try:
-            # NOTE: The Graph service occasionally returns an @odata.nextLink that
-            # uses a SharePoint style `?$filter=id in (...)` construct which then
-            # triggers a 400 InvalidClientQueryException on follow-up requests
-            # (see https://github.com/link for details).  Rather than failing the
-            # entire sync we log the error and stop paginating – the first page
-            # usually already contains a representative sample (>999 users).
             page = await client.users.with_url(page.odata_next_link).get()
         except Exception as e:
             logger.error(
-                "Failed to fetch next page of Entra ID users – "
-                "stopping pagination early: %s", e,
+                "Failed to fetch next page of Entra ID users – stopping pagination early: %s",
+                e,
             )
             break
-    print(all_users)
+
     return all_users
 
 
@@ -118,12 +119,18 @@ async def get_user_manager_id(client: GraphServiceClient, user_id: str) -> str |
 
 
 @timeit
-def transform_users(users: list[User], manager_map: dict[str, str | None]) -> list[dict[str, Any]]:
-    """
-    Transform the API response into the format expected by our schema
-    """
+# The manager reference is now embedded in the user objects courtesy of the
+# `$expand` we added above, so we no longer need a separate `manager_map`.
+def transform_users(users: list[User]) -> list[dict[str, Any]]:
+    """Convert MS Graph SDK `User` models into dicts matching our schema."""
+
     result: list[dict[str, Any]] = []
     for user in users:
+        manager_id: str | None = None
+        if getattr(user, "manager", None) is not None:
+            # The SDK materialises `manager` as a DirectoryObject (or subclass)
+            manager_id = getattr(user.manager, "id", None)
+
         transformed_user = {
             "id": user.id,
             "user_principal_name": user.user_principal_name,
@@ -151,7 +158,7 @@ def transform_users(users: list[User], manager_map: dict[str, str | None]) -> li
             "creation_type": user.creation_type,
             "deleted_date_time": user.deleted_date_time,
             "department": user.department,
-            "manager_id": manager_map.get(user.id),
+            "manager_id": manager_id,
             "employee_id": user.employee_id,
             "employee_type": user.employee_type,
             "external_user_state": user.external_user_state,
@@ -174,6 +181,7 @@ def transform_users(users: list[User], manager_map: dict[str, str | None]) -> li
             "on_premises_user_principal_name": user.on_premises_user_principal_name,
         }
         result.append(transformed_user)
+
     return result
 
 
@@ -269,20 +277,11 @@ async def sync_entra_users(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
 
-    # Get tenant information
+    # Fetch tenant and users (with manager reference already populated by `$expand`)
     tenant = await get_tenant(client)
     users = await get_users(client)
 
-    manager_map: dict[str, str | None] = {}
-    for user in users:
-        try:
-            manager = await get_user_manager_id(client, user.id)
-            manager_map[user.id] = manager
-        except Exception as e:
-            logger.error(f"Failed to fetch manager for user {user.id}: {e}")
-            manager_map[user.id] = None
-
-    transformed_users = transform_users(users, manager_map)
+    transformed_users = transform_users(users)
     transformed_tenant = transform_tenant(tenant, tenant_id)
 
     load_tenant(neo4j_session, transformed_tenant, update_tag)

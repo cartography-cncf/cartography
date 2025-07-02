@@ -49,12 +49,7 @@ async def test_sync_entra_groups(mock_get_members, mock_get_groups, neo4j_sessio
     # Load users first for membership relationships
     load_users(
         neo4j_session,
-        transform_users(
-            MOCK_ENTRA_USERS,
-            {
-                u.id: None for u in MOCK_ENTRA_USERS
-            },
-        ),
+        transform_users(MOCK_ENTRA_USERS),
         TEST_TENANT_ID,
         TEST_UPDATE_TAG,
     )
