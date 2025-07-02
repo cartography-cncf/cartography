@@ -548,3 +548,128 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> List[str]:
         ],
     )
     return result
+
+
+def build_create_index_queries_for_relschema(
+    rel_schema: CartographyRelSchema,
+) -> list[str]:
+    """
+    Generate queries to create indexes for the given CartographyRelSchema and all node types attached to it via its
+    relationships.
+    :param rel_schema: The CartographyRelSchema object
+    :return: A list of queries of the form `CREATE INDEX IF NOT EXISTS FOR (n:$TargetNodeLabel) ON (n.$TargetAttribute)`
+    """
+    if not rel_schema.source_node_matcher:
+        logger.warning(
+            f"No source node matcher found for {rel_schema.rel_label}; returning empty list."
+            "Please note that build_create_index_queries_for_relschema is only used for load_rels() where we match on "
+            "and connect existing nodes in the graph."
+        )
+        return []
+
+    index_template = Template(
+        "CREATE INDEX IF NOT EXISTS FOR (n:$NodeLabel) ON (n.$NodeAttribute);",
+    )
+
+    result = []
+    for source_key in asdict(rel_schema.source_node_matcher).keys():
+        result.append(
+            index_template.safe_substitute(
+                NodeLabel=rel_schema.source_node_label,
+                NodeAttribute=source_key,
+            ),
+        )
+    for target_key in asdict(rel_schema.target_node_matcher).keys():
+        result.append(
+            index_template.safe_substitute(
+                NodeLabel=rel_schema.target_node_label,
+                NodeAttribute=target_key,
+            ),
+        )
+
+    # Create a composite index for the relationship between the source and target nodes.
+    # https://neo4j.com/docs/cypher-manual/4.3/indexes-for-search-performance/#administration-indexes-create-a-composite-index-for-relationships
+    rel_index_template = Template(
+        "CREATE INDEX IF NOT EXISTS FOR ()$rel_direction[r:$RelLabel]$rel_direction_end() "
+        "ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id);",
+    )
+    if rel_schema.direction == LinkDirection.INWARD:
+        result.append(
+            rel_index_template.safe_substitute(
+                RelLabel=rel_schema.rel_label,
+                rel_direction="<-",
+                rel_direction_end="-",
+            )
+        )
+    else:
+        result.append(
+            rel_index_template.safe_substitute(
+                RelLabel=rel_schema.rel_label,
+                rel_direction="-",
+                rel_direction_end="->",
+            )
+        )
+    return result
+
+
+def build_link_query(rel_schema: CartographyRelSchema) -> str:
+    """
+    Generate a Neo4j query to link two existing nodes.
+    :param rel_schema: The CartographyRelSchema object to generate a query.
+    :return: A Neo4j query that can be used to link two existing nodes.
+    """
+    # source_match = f"MATCH (from:{rel_schema.source_node_label} {{{rel_schema.source_node_id_field}: item.{rel_schema.source_node_id_field}}})"
+    source_match = Template(
+        "MATCH (from:$source_node_label{$match_clause})"
+    ).safe_substitute(
+        source_node_label=rel_schema.source_node_label,
+        match_clause=_build_match_clause(rel_schema.source_node_matcher),
+    )
+
+    target_match = Template(
+        "MATCH (to:$target_node_label{$match_clause})"
+    ).safe_substitute(
+        target_node_label=rel_schema.target_node_label,
+        match_clause=_build_match_clause(rel_schema.target_node_matcher),
+    )
+
+    if rel_schema.direction == LinkDirection.INWARD:
+        rel = f"(from)<-[r:{rel_schema.rel_label}]-(to)"
+    else:
+        rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
+
+    rel_props_as_dict = _asdict_with_validate_relprops(rel_schema)
+
+    # These are needed for the cleanup query
+    if "_sub_resource_label" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_label to be defined on {rel_schema.properties.__class__.__name__}"
+            "Please include `_sub_resource_label: PropertyRef = PropertyRef('_sub_resource_label', set_in_kwargs=True)`"
+        )
+    if "_sub_resource_id" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_id to be defined on {rel_schema.properties.__class__.__name__}"
+            "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
+        )
+
+    set_rel_properties_statement = _build_rel_properties_statement(
+        "r",
+        rel_props_as_dict,
+    )
+
+    link_query_template = Template(
+        """
+        UNWIND $DictList as item
+        $source_match
+        $target_match
+        MERGE $rel
+        SET $set_rel_properties_statement
+        """
+    )
+
+    return link_query_template.safe_substitute(
+        source_match=source_match,
+        target_match=target_match,
+        rel=rel,
+        set_rel_properties_statement=set_rel_properties_statement,
+    )

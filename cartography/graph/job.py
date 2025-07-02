@@ -13,9 +13,11 @@ from typing import Union
 import neo4j
 
 from cartography.graph.cleanupbuilder import build_cleanup_queries
+from cartography.graph.cleanupbuilder import build_cleanup_query_for_link
 from cartography.graph.statement import get_job_shortname
 from cartography.graph.statement import GraphStatement
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelSchema
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +176,51 @@ class GraphJob:
             f"Cleanup {node_schema.label}",
             statements,
             node_schema.label,
+        )
+
+    @classmethod
+    def from_rel_schema(
+        cls,
+        rel_schema: CartographyRelSchema,
+        parameters: dict[str, Any],
+    ) -> "GraphJob":
+        """
+        Create a cleanup job from a CartographyRelSchema object.
+        This is used for cleaning up stale links between nodes created by load_rels(). Do not use for other purposes.
+
+        Other notes:
+        - For a given rel_schema, the fields used in the rel_schema.properties._sub_resource_label.name and
+        rel_schema.properties._sub_resource_id.name must be provided as keys and values in the params dict.
+        - The rel_schema must have a source_node_matcher and target_node_matcher.
+        """
+        cleanup_link_query = build_cleanup_query_for_link(rel_schema)
+        logger.debug(f"Cleanup query: {cleanup_link_query}")
+
+        # Get the list of parameters that are expected in the cleanup query.
+        expected_param_keys: set[str] = get_parameters([cleanup_link_query])
+        actual_param_keys: set[str] = set(parameters.keys())
+        # Hacky, but LIMIT_SIZE is specified by default in cartography.graph.statement, so we exclude it from validation
+        actual_param_keys.add("LIMIT_SIZE")
+        missing_params: set[str] = expected_param_keys - actual_param_keys
+
+        if missing_params:
+            raise ValueError(
+                f'GraphJob is missing the following expected query parameters: "{missing_params}". Please check the '
+                f"value passed to `parameters`.",
+            )
+
+        statement = GraphStatement(
+            cleanup_link_query,
+            parameters=parameters,
+            iterative=True,
+            iterationsize=100,
+            parent_job_name=rel_schema.rel_label,
+        )
+
+        return cls(
+            f"Cleanup {rel_schema.rel_label} between {rel_schema.source_node_label} and {rel_schema.target_node_label}",
+            [statement],
+            rel_schema.rel_label,
         )
 
     @classmethod

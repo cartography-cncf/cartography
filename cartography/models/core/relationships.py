@@ -91,6 +91,25 @@ def make_target_node_matcher(key_ref_dict: Dict[str, PropertyRef]) -> TargetNode
 
 
 @dataclass(frozen=True)
+class SourceNodeMatcher:
+    """
+    Same as TargetNodeMatcher, but for the source node. See `make_source_node_matcher()`.
+    This object is used only for load_rels() where we match on and connect existing nodes.
+    This is not used for CartographyNodeSchema objects.
+    """
+
+    pass
+
+
+def make_source_node_matcher(key_ref_dict: Dict[str, PropertyRef]) -> SourceNodeMatcher:
+    """
+    :param key_ref_dict: A Dict mapping keys present on the node to PropertyRef objects.
+    :return: A SourceNodeMatcher used for CartographyRelSchema to match with other nodes.
+    """
+    return make_target_node_matcher(key_ref_dict)
+
+
+@dataclass(frozen=True)
 class CartographyRelSchema(abc.ABC):
     """
     Abstract base dataclass that represents a cartography relationship.
@@ -138,6 +157,34 @@ class CartographyRelSchema(abc.ABC):
         :return: The LinkDirection of the query. Please see the `LinkDirection` docs for a detailed explanation.
         """
         pass
+
+    @property
+    @abc.abstractmethod
+    def source_node_label(self) -> str | None:
+        """
+        :return: Optional. Only used for load_rels(). The source node label to use for the relationship.
+        This does not affect CartographyRelSchema that are included in CartographyNodeSchema objects.
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def source_node_matcher(self) -> SourceNodeMatcher | None:
+        """
+        :return: Optional. Only used for load_rels(). A SourceNodeMatcher object used to find what node(s) to attach the relationship to.
+        This does not affect CartographyRelSchema that are included in CartographyNodeSchema objects.
+        """
+        pass
+
+    # @property
+    # @abc.abstractmethod
+    # def source_node_id_field(self) -> str | None:
+    #     """
+    #     :return: Optional. Only used for load_rels(). The source node id field to use for the relationship.
+    #     This does not affect CartographyRelSchema that are included in CartographyNodeSchema objects.
+    #     Assumption: there is already an index on the source node id field.
+    #     """
+    #     pass
 
 
 @dataclass(frozen=True)
