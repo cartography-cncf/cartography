@@ -31,6 +31,8 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     )
     security_identifier: PropertyRef = PropertyRef("security_identifier")
     account_enabled: PropertyRef = PropertyRef("account_enabled")
+    age_group: PropertyRef = PropertyRef("age_group")
+    business_phones: PropertyRef = PropertyRef("business_phones")
     city: PropertyRef = PropertyRef("city")
     company_name: PropertyRef = PropertyRef("company_name")
     consent_provided_for_minor: PropertyRef = PropertyRef("consent_provided_for_minor")
@@ -54,6 +56,7 @@ class EntraUserNodeProperties(CartographyNodeProperties):
         "last_password_change_date_time"
     )
     mail_nickname: PropertyRef = PropertyRef("mail_nickname")
+    mobile_phone: PropertyRef = PropertyRef("mobile_phone")
     office_location: PropertyRef = PropertyRef("office_location")
     on_premises_distinguished_name: PropertyRef = PropertyRef(
         "on_premises_distinguished_name"

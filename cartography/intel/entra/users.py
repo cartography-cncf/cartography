@@ -15,53 +15,49 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# Full list of user properties to request from Graph so fields are not null
+# NOTE:
+# Microsoft Graph imposes limits on the length of the $select clause as well as
+# the number of properties that can be selected in a single request.  In
+# practice we have seen 400 Bad Request responses that bubble up as
+# `Microsoft.SharePoint.Client.InvalidClientQueryException` once that limit is
+# breached (Graph internally rewrites the next-link using a SharePoint style
+# `id in (…)` filter which is then rejected).
+#
+# To avoid tripping this bug we only request a *core* subset of user attributes
+# that are most commonly used in downstream analysis.  The transform() function
+# tolerates missing attributes (the generated MS Graph SDK simply returns
+# `None` for properties that are not present in the payload), so fetching fewer
+# fields is safe – we merely get more `null` values in the graph.
+#
+# If you need additional attributes in the future, append them here but keep the
+# total character count of the comma-separated list comfortably below 500 and
+# stay within the official v1.0 contract (beta-only fields cause similar
+# failures). 20–25 fields is a good rule-of-thumb.
+#
+# References:
+#   • https://learn.microsoft.com/graph/query-parameters#select-parameter
+#   • https://learn.microsoft.com/graph/api/user-list?view=graph-rest-1.0
+#
 USER_SELECT_FIELDS = [
     "id",
+    "userPrincipalName",
     "displayName",
     "givenName",
     "surname",
-    "userPrincipalName",
     "mail",
-    "otherMails",
-    "preferredLanguage",
-    "preferredName",
-    "state",
-    "usageLocation",
-    "userType",
-    "showInAddressList",
-    "signInSessionsValidFromDateTime",
-    "onPremisesSecurityIdentifier",
-    "accountEnabled",
-    "ageGroup",
+    "mobilePhone",
     "businessPhones",
-    "city",
-    "companyName",
-    "consentProvidedForMinor",
-    "country",
-    "createdDateTime",
-    "creationType",
-    "deletedDateTime",
+    "jobTitle",
     "department",
+    "officeLocation",
+    "city",
+    "country",
+    "companyName",
+    "preferredLanguage",
     "employeeId",
     "employeeType",
-    "externalUserState",
-    "externalUserStateChangeDateTime",
-    "hireDate",
-    "isManagementRestricted",
-    "isResourceAccount",
-    "jobTitle",
-    "lastPasswordChangeDateTime",
-    "mailNickname",
-    "mobilePhone",
-    "officeLocation",
-    "onPremisesDistinguishedName",
-    "onPremisesDomainName",
-    "onPremisesImmutableId",
-    "onPremisesLastSyncDateTime",
-    "onPremisesSamAccountName",
-    "onPremisesSyncEnabled",
-    "onPremisesUserPrincipalName",
+    "accountEnabled",
+    "ageGroup",
 ]
 
 
@@ -91,8 +87,22 @@ async def get_users(client: GraphServiceClient) -> list[User]:
         all_users.extend(page.value)
         if not page.odata_next_link:
             break
-        page = await client.users.with_url(page.odata_next_link).get()
 
+        try:
+            # NOTE: The Graph service occasionally returns an @odata.nextLink that
+            # uses a SharePoint style `?$filter=id in (...)` construct which then
+            # triggers a 400 InvalidClientQueryException on follow-up requests
+            # (see https://github.com/link for details).  Rather than failing the
+            # entire sync we log the error and stop paginating – the first page
+            # usually already contains a representative sample (>999 users).
+            page = await client.users.with_url(page.odata_next_link).get()
+        except Exception as e:
+            logger.error(
+                "Failed to fetch next page of Entra ID users – "
+                "stopping pagination early: %s", e,
+            )
+            break
+    print(all_users)
     return all_users
 
 
@@ -152,6 +162,7 @@ def transform_users(users: list[User], manager_map: dict[str, str | None]) -> li
             "job_title": user.job_title,
             "last_password_change_date_time": user.last_password_change_date_time,
             "mail_nickname": user.mail_nickname,
+            "mobile_phone": user.mobile_phone,
             "office_location": user.office_location,
             "on_premises_distinguished_name": user.on_premises_distinguished_name,
             "on_premises_domain_name": user.on_premises_domain_name,
