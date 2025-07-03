@@ -42,6 +42,11 @@ class CartographyRelProperties(abc.ABC):
     Abstract class that represents the properties on a CartographyRelSchema. This is intended to enforce that all
     subclasses will have a lastupdated field defined on their resulting relationships. These fields are assigned to the
     relationship in the `SET` clause.
+
+    If the CartographyRelSchema is used as a MatchLink, the following properties are required to be defined here:
+    - lastupdated: A PropertyRef to the update tag of the relationship.
+    - _sub_resource_label: A PropertyRef to the label of the sub-resource that the relationship is associated with.
+    - _sub_resource_id: A PropertyRef to the id of the sub-resource that the relationship is associated with.
     """
 
     lastupdated: PropertyRef = field(init=False)
@@ -93,9 +98,9 @@ def make_target_node_matcher(key_ref_dict: Dict[str, PropertyRef]) -> TargetNode
 @dataclass(frozen=True)
 class SourceNodeMatcher:
     """
-    Same as TargetNodeMatcher, but for the source node. See `make_source_node_matcher()`.
-    This object is used only for load_rels() where we match on and connect existing nodes.
-    This is not used for CartographyNodeSchema objects.
+    Same as TargetNodeMatcher, but for the source node; see `make_source_node_matcher()`.
+    This object is used only for load_matchlinks() where we match on and connect existing nodes.
+    This has no effect on CartographyRelSchema objects that are included in CartographyNodeSchema.
     """
 
     pass
@@ -165,7 +170,7 @@ class CartographyRelSchema(abc.ABC):
     @property
     def source_node_label(self) -> str | None:
         """
-        :return: Optional. Only used for load_rels(). The source node label to use for the relationship.
+        :return: Optional. Only used for load_matchlinks(). The source node label to use for the relationship.
         This does not affect CartographyRelSchema that are included in CartographyNodeSchema objects.
         """
         return None
@@ -173,7 +178,7 @@ class CartographyRelSchema(abc.ABC):
     @property
     def source_node_matcher(self) -> SourceNodeMatcher | None:
         """
-        :return: Optional. Only used for load_rels(). A SourceNodeMatcher object used to find what node(s) to attach the relationship to.
+        :return: Optional. Only used for load_matchlinks(). A SourceNodeMatcher object used to find what node(s) to attach the relationship to.
         This does not affect CartographyRelSchema that are included in CartographyNodeSchema objects.
         """
         return None
