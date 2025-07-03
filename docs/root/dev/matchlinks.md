@@ -26,14 +26,6 @@ Let's say we have the following data that maps principals with the S3Buckets the
 
 1. Define the MatchLink relationship between the AWSPrincipal and the S3Bucket
     ```python
-    from cartography.models.core.relationships import (
-        CartographyRelProperties,
-        CartographyRelSchema,
-        LinkDirection,
-        SourceNodeMatcher,
-        TargetNodeMatcher,
-    )
-
     @dataclass(frozen=True)
     class S3AccessMatchLink(CartographyRelSchema):
         rel_label: str = "CAN_ACCESS"
@@ -121,16 +113,10 @@ from cartography.models.core.relationships import (
 class S3AccessRelProps(CartographyRelProperties):
     # <Mandatory fields for MatchLinks>
     lastupdated: PropertyRef = PropertyRef("UPDATE_TAG", set_in_kwargs=True)
-
-    # Cartography syncs objects account-by-account (or "sub-resource"-by-"sub-resource")
-    # We store the sub-resource label and id on the relationship itself so that we can
-    # clean up stale relationships without deleting relationships defined in other accounts.
     _sub_resource_label: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
     # </Mandatory fields for MatchLinks>
 
-    # Add in extra properties that we want to define for the relationship
-    # For example, we can add a `permission_action` property to the relationship to track the action that the principal has on the bucket, e.g. 's3:GetObject'
     permission_action: PropertyRef = PropertyRef("permission_action")
 
 @dataclass(frozen=True)
@@ -142,8 +128,6 @@ class S3AccessMatchLink(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {'name': PropertyRef('bucket_name')},
     )
-
-    # These are the additional fields that we need to define for a MatchLink
     source_node_label: str = "AWSPrincipal"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {'principal_arn': PropertyRef('principal_arn')},
