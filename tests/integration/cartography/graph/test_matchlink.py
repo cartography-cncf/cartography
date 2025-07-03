@@ -8,7 +8,7 @@ import neo4j
 import pytest
 
 from cartography.client.core.tx import load_matchlinks
-from cartography.graph.cleanupbuilder import build_cleanup_query_for_matchlink
+from cartography.graph.job import GraphJob
 from tests.data.graph.matchlink.iam_permissions import PrincipalToS3BucketPermissionRel
 from tests.integration.util import check_rels
 
@@ -90,7 +90,7 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
     4. Load relationships for account 1 at time t2 (different permissions)
     5. Verify that account 2 relationships remain unchanged
     """
-    rel_schema = PrincipalToS3BucketPermissionRel()
+    matchlink = PrincipalToS3BucketPermissionRel()
 
     # Arrange: Set up initial test data
     _setup_test_data(neo4j_session, TEST_UPDATE_TAG_1)
@@ -114,7 +114,7 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
         "_sub_resource_id": TEST_ACCOUNT_1,
     }
     load_matchlinks(
-        neo4j_session, rel_schema, mapping_data_acc1_t1, **common_job_parameters_acc1_t1
+        neo4j_session, matchlink, mapping_data_acc1_t1, **common_job_parameters_acc1_t1
     )
 
     # Assert
@@ -146,7 +146,7 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
         "_sub_resource_id": TEST_ACCOUNT_2,
     }
     load_matchlinks(
-        neo4j_session, rel_schema, mapping_data_acc2_t1, **common_job_parameters_acc2_t1
+        neo4j_session, matchlink, mapping_data_acc2_t1, **common_job_parameters_acc2_t1
     )
 
     # Assert
@@ -185,20 +185,14 @@ def test_load_rels_and_cleanup_integration(neo4j_session):
         "_sub_resource_id": TEST_ACCOUNT_1,
     }
     load_matchlinks(
-        neo4j_session, rel_schema, mapping_data_acc1_t2, **common_job_parameters_acc1_t2
+        neo4j_session, matchlink, mapping_data_acc1_t2, **common_job_parameters_acc1_t2
     )
 
     # Act: Run cleanup for account 1 at t2
-    cleanup_query = build_cleanup_query_for_matchlink(rel_schema)
-    neo4j_session.run(
-        cleanup_query,
-        {
-            "UPDATE_TAG": TEST_UPDATE_TAG_2,
-            "_sub_resource_label": "AWSAccount",
-            "_sub_resource_id": TEST_ACCOUNT_1,
-            "LIMIT_SIZE": 1000,
-        },
+    cleanup_job = GraphJob.from_matchlink(
+        matchlink, "AWSAccount", TEST_ACCOUNT_1, TEST_UPDATE_TAG_2
     )
+    cleanup_job.run(neo4j_session)
 
     # Assert: Account 1 should only have the new relationships from t2, and account 2 should still have its relationships (unchanged)
     assert check_rels(

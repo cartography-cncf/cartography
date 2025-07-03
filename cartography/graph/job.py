@@ -179,13 +179,15 @@ class GraphJob:
         )
 
     @classmethod
-    def from_rel_schema(
+    def from_matchlink(
         cls,
         rel_schema: CartographyRelSchema,
-        parameters: dict[str, Any],
+        sub_resource_label: str,
+        sub_resource_id: str,
+        update_tag: int,
     ) -> "GraphJob":
         """
-        Create a cleanup job from a CartographyRelSchema object.
+        Create a cleanup job from a CartographyRelSchema object (specifically, a MatchLink).
         This is used for cleaning up stale links between nodes created by load_rels(). Do not use for other purposes.
 
         Other notes:
@@ -196,18 +198,11 @@ class GraphJob:
         cleanup_link_query = build_cleanup_query_for_matchlink(rel_schema)
         logger.debug(f"Cleanup query: {cleanup_link_query}")
 
-        # Get the list of parameters that are expected in the cleanup query.
-        expected_param_keys: set[str] = get_parameters([cleanup_link_query])
-        actual_param_keys: set[str] = set(parameters.keys())
-        # Hacky, but LIMIT_SIZE is specified by default in cartography.graph.statement, so we exclude it from validation
-        actual_param_keys.add("LIMIT_SIZE")
-        missing_params: set[str] = expected_param_keys - actual_param_keys
-
-        if missing_params:
-            raise ValueError(
-                f'GraphJob is missing the following expected query parameters: "{missing_params}". Please check the '
-                f"value passed to `parameters`.",
-            )
+        parameters = {
+            "UPDATE_TAG": update_tag,
+            "_sub_resource_label": sub_resource_label,
+            "_sub_resource_id": sub_resource_id,
+        }
 
         statement = GraphStatement(
             cleanup_link_query,
