@@ -159,32 +159,20 @@ class CartographyRelSchema(abc.ABC):
         pass
 
     @property
-    @abc.abstractmethod
     def source_node_label(self) -> str | None:
         """
         :return: Optional. Only used for load_rels(). The source node label to use for the relationship.
         This does not affect CartographyRelSchema that are included in CartographyNodeSchema objects.
         """
-        pass
+        return None
 
     @property
-    @abc.abstractmethod
     def source_node_matcher(self) -> SourceNodeMatcher | None:
         """
         :return: Optional. Only used for load_rels(). A SourceNodeMatcher object used to find what node(s) to attach the relationship to.
         This does not affect CartographyRelSchema that are included in CartographyNodeSchema objects.
         """
-        pass
-
-    # @property
-    # @abc.abstractmethod
-    # def source_node_id_field(self) -> str | None:
-    #     """
-    #     :return: Optional. Only used for load_rels(). The source node id field to use for the relationship.
-    #     This does not affect CartographyRelSchema that are included in CartographyNodeSchema objects.
-    #     Assumption: there is already an index on the source node id field.
-    #     """
-    #     pass
+        return None
 
 
 @dataclass(frozen=True)
