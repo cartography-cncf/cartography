@@ -339,7 +339,11 @@ def _validate_target_node_matcher_for_cleanup_job(tgm: TargetNodeMatcher):
 
 def build_cleanup_query_for_matchlink(rel_schema: CartographyRelSchema) -> str:
     """
-    Generates a cleanup query for a link relationship.
+    Generates a cleanup query for a matchlink relationship.
+    :param rel_schema: The CartographyRelSchema object to generate a query. This CartographyRelSchema object
+    - Must have a source_node_matcher and source_node_label defined
+    - Must have a CartographyRelProperties object where _sub_resource_label and _sub_resource_id are defined
+    :return: A Neo4j query used to clean up stale matchlink relationships.
     """
     if not rel_schema.source_node_matcher:
         raise ValueError(

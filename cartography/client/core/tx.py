@@ -275,7 +275,7 @@ def ensure_indexes_for_matchlinks(
     for query in queries:
         if not query.startswith("CREATE INDEX IF NOT EXISTS"):
             raise ValueError(
-                'Query provided to `ensure_indexes_for_relschema()` does not start with "CREATE INDEX IF NOT EXISTS".',
+                'Query provided to `ensure_indexes_for_matchlinks()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
         neo4j_session.run(query)
 

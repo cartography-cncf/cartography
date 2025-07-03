@@ -563,7 +563,7 @@ def build_create_index_queries_for_matchlink(
     if not rel_schema.source_node_matcher:
         logger.warning(
             f"No source node matcher found for {rel_schema.rel_label}; returning empty list."
-            "Please note that build_create_index_queries_for_relschema is only used for load_rels() where we match on "
+            "Please note that build_create_index_queries_for_matchlink() is only used for load_matchlinks() where we match on "
             "and connect existing nodes in the graph."
         )
         return []
@@ -615,8 +615,11 @@ def build_create_index_queries_for_matchlink(
 
 def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
     """
-    Generate a Neo4j query to link two existing nodes.
-    :param rel_schema: The CartographyRelSchema object to generate a query.
+    Generate a Neo4j query to link two existing nodes when given a CartographyRelSchema object.
+    This is only used for load_matchlinks().
+    :param rel_schema: The CartographyRelSchema object to generate a query. This CartographyRelSchema object
+    - Must have a source_node_matcher and source_node_label defined
+    - Must have a CartographyRelProperties object where _sub_resource_label and _sub_resource_id are defined
     :return: A Neo4j query that can be used to link two existing nodes.
     """
     if not rel_schema.source_node_matcher or not rel_schema.source_node_label:
@@ -625,7 +628,32 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
             "MatchLink relationships require a source_node_matcher and source_node_label to be defined."
         )
 
-    # source_match = f"MATCH (from:{rel_schema.source_node_label} {{{rel_schema.source_node_id_field}: item.{rel_schema.source_node_id_field}}})"
+    rel_props_as_dict = _asdict_with_validate_relprops(rel_schema)
+
+    # These are needed for the cleanup query
+    if "_sub_resource_label" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_label to be defined on {rel_schema.properties.__class__.__name__}"
+            "Please include `_sub_resource_label: PropertyRef = PropertyRef('_sub_resource_label', set_in_kwargs=True)`"
+        )
+    if "_sub_resource_id" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_id to be defined on {rel_schema.properties.__class__.__name__}"
+            "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
+        )
+
+    matchlink_query_template = Template(
+        """
+        UNWIND $DictList as item
+            $source_match
+            $target_match
+            MERGE $rel
+            ON CREATE SET r.firstseen = timestamp()
+            SET
+                $set_rel_properties_statement;
+        """
+    )
+
     source_match = Template(
         "MATCH (from:$source_node_label{$match_clause})"
     ).safe_substitute(
@@ -645,40 +673,12 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
     else:
         rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
 
-    rel_props_as_dict = _asdict_with_validate_relprops(rel_schema)
-
-    # These are needed for the cleanup query
-    if "_sub_resource_label" not in rel_props_as_dict:
-        raise ValueError(
-            f"Expected _sub_resource_label to be defined on {rel_schema.properties.__class__.__name__}"
-            "Please include `_sub_resource_label: PropertyRef = PropertyRef('_sub_resource_label', set_in_kwargs=True)`"
-        )
-    if "_sub_resource_id" not in rel_props_as_dict:
-        raise ValueError(
-            f"Expected _sub_resource_id to be defined on {rel_schema.properties.__class__.__name__}"
-            "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
-        )
-
-    set_rel_properties_statement = _build_rel_properties_statement(
-        "r",
-        rel_props_as_dict,
-    )
-
-    link_query_template = Template(
-        """
-        UNWIND $DictList as item
-        $source_match
-        $target_match
-        MERGE $rel
-        ON CREATE SET r.firstseen = timestamp()
-        SET
-        $set_rel_properties_statement;
-        """
-    )
-
-    return link_query_template.safe_substitute(
+    return matchlink_query_template.safe_substitute(
         source_match=source_match,
         target_match=target_match,
         rel=rel,
-        set_rel_properties_statement=set_rel_properties_statement,
+        set_rel_properties_statement=_build_rel_properties_statement(
+            "r",
+            rel_props_as_dict,
+        ),
     )
