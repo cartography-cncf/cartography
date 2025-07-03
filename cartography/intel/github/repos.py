@@ -970,26 +970,43 @@ def load_github_dependencies(
     :param dependencies: List of dependency objects from GitHub's dependency graph
     :return: Nothing
     """
-    load_data(
-        neo4j_session,
-        GitHubDependencySchema(),
-        dependencies,
-        lastupdated=update_tag,
-    )
+    # Group dependencies by repository URL for schema-based loading
+    from collections import defaultdict
+    dependencies_by_repo = defaultdict(list)
+    
+    for dep in dependencies:
+        repo_url = dep["repo_url"]
+        # Remove repo_url from the dependency object since we'll pass it as kwarg
+        dep_without_repo = {k: v for k, v in dep.items() if k != "repo_url"}
+        dependencies_by_repo[repo_url].append(dep_without_repo)
+    
+    # Load dependencies for each repository separately
+    for repo_url, repo_dependencies in dependencies_by_repo.items():
+        load_data(
+            neo4j_session,
+            GitHubDependencySchema(),
+            repo_dependencies,
+            lastupdated=update_tag,
+            repo_url=repo_url,
+        )
 
 
 @timeit
 def cleanup_github_dependencies(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any], repo_urls: List[str]
 ) -> None:
     """
     Delete GitHub dependencies and their relationships from the graph if they were not updated in the last sync.
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
+    :param repo_urls: List of repository URLs to clean up dependencies for
     """
-    GraphJob.from_node_schema(GitHubDependencySchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    # Run cleanup for each repository separately
+    for repo_url in repo_urls:
+        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
+        GraphJob.from_node_schema(GitHubDependencySchema(), cleanup_params).run(
+            neo4j_session
+        )
 
 
 @timeit
@@ -1081,4 +1098,7 @@ def sync(
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     load(neo4j_session, common_job_parameters, repo_data)
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)
-    cleanup_github_dependencies(neo4j_session, common_job_parameters)
+    
+    # Collect repository URLs that have dependencies for cleanup
+    repo_urls_with_dependencies = list(set(dep["repo_url"] for dep in repo_data["dependencies"]))
+    cleanup_github_dependencies(neo4j_session, common_job_parameters, repo_urls_with_dependencies)

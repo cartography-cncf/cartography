@@ -13,6 +13,7 @@ U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
+R -- REQUIRES --> D(Dependency)
 T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
@@ -284,6 +285,32 @@ Representation of a single Programming Language [language object](https://develo
     (ProgrammingLanguage)<-[LANGUAGE]-(GitHubRepository)
     ```
 
+
+### Dependency
+
+Representation of a software dependency as discovered through GitHub's dependency graph API. This covers dependencies from all supported ecosystems including NPM, PyPI, Maven, Go modules, GitHub Actions, and more.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The unique identifier for the dependency, constructed from the canonical name and ecosystem |
+| name | The canonical name of the dependency (normalized per ecosystem conventions) |
+| original_name | The original name as it appears in the manifest file |
+| version | The version of the dependency (if specified in the manifest) |
+| ecosystem | The package ecosystem (e.g., npm, pypi, maven, go, github-actions) |
+| package_manager | The package manager used for this dependency |
+
+#### Relationships
+
+- GitHubRepositories require Dependencies across all supported ecosystems.
+
+    ```
+    (GitHubRepository)-[:REQUIRES{requirements, manifest_path}]->(Dependency)
+    ```
+
+    - requirements: The original requirement string as it appears in the manifest (e.g., "^1.0.0", ">=2.0.0")
+    - manifest_path: The path to the manifest file where this dependency was declared (e.g., "package.json", "requirements.txt")
 
 ### Dependency::PythonLibrary
 

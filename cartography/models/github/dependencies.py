@@ -32,7 +32,7 @@ class GitHubDependencyToRepositoryRelProperties(CartographyRelProperties):
 class GitHubDependencyToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url")}
+        {"id": PropertyRef("repo_url", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REQUIRES"
