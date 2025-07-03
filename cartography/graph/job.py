@@ -13,7 +13,7 @@ from typing import Union
 import neo4j
 
 from cartography.graph.cleanupbuilder import build_cleanup_queries
-from cartography.graph.cleanupbuilder import build_cleanup_query_for_link
+from cartography.graph.cleanupbuilder import build_cleanup_query_for_matchlink
 from cartography.graph.statement import get_job_shortname
 from cartography.graph.statement import GraphStatement
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -193,7 +193,7 @@ class GraphJob:
         rel_schema.properties._sub_resource_id.name must be provided as keys and values in the params dict.
         - The rel_schema must have a source_node_matcher and target_node_matcher.
         """
-        cleanup_link_query = build_cleanup_query_for_link(rel_schema)
+        cleanup_link_query = build_cleanup_query_for_matchlink(rel_schema)
         logger.debug(f"Cleanup query: {cleanup_link_query}")
 
         # Get the list of parameters that are expected in the cleanup query.

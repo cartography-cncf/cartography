@@ -9,9 +9,9 @@ from typing import Union
 import neo4j
 
 from cartography.graph.querybuilder import build_create_index_queries
-from cartography.graph.querybuilder import build_create_index_queries_for_relschema
+from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_ingestion_query
-from cartography.graph.querybuilder import build_link_query
+from cartography.graph.querybuilder import build_matchlink_query
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.util import batch
@@ -261,7 +261,7 @@ def ensure_indexes(
         neo4j_session.run(query)
 
 
-def ensure_indexes_for_relschema(
+def ensure_indexes_for_matchlinks(
     neo4j_session: neo4j.Session,
     rel_schema: CartographyRelSchema,
 ) -> None:
@@ -270,7 +270,7 @@ def ensure_indexes_for_relschema(
     This is only used for load_rels() where we match on and connect existing nodes.
     This is not used for CartographyNodeSchema objects.
     """
-    queries = build_create_index_queries_for_relschema(rel_schema)
+    queries = build_create_index_queries_for_matchlink(rel_schema)
     logger.debug(f"CREATE INDEX queries for {rel_schema.rel_label}: {queries}")
     for query in queries:
         if not query.startswith("CREATE INDEX IF NOT EXISTS"):
@@ -303,7 +303,7 @@ def load(
     load_graph_data(neo4j_session, ingestion_query, dict_list, **kwargs)
 
 
-def load_rels(
+def load_matchlinks(
     neo4j_session: neo4j.Session,
     rel_schema: CartographyRelSchema,
     dict_list: list[dict[str, Any]],
@@ -334,7 +334,7 @@ def load_rels(
             "This is needed for cleanup queries."
         )
 
-    ensure_indexes_for_relschema(neo4j_session, rel_schema)
-    link_query = build_link_query(rel_schema)
-    logger.debug(f"Link query: {link_query}")
-    load_graph_data(neo4j_session, link_query, dict_list, **kwargs)
+    ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
+    matchlink_query = build_matchlink_query(rel_schema)
+    logger.debug(f"Matchlink query: {matchlink_query}")
+    load_graph_data(neo4j_session, matchlink_query, dict_list, **kwargs)

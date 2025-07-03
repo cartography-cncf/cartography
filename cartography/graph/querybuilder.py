@@ -550,7 +550,7 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> List[str]:
     return result
 
 
-def build_create_index_queries_for_relschema(
+def build_create_index_queries_for_matchlink(
     rel_schema: CartographyRelSchema,
 ) -> list[str]:
     """
@@ -612,7 +612,7 @@ def build_create_index_queries_for_relschema(
     return result
 
 
-def build_link_query(rel_schema: CartographyRelSchema) -> str:
+def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
     """
     Generate a Neo4j query to link two existing nodes.
     :param rel_schema: The CartographyRelSchema object to generate a query.
@@ -663,7 +663,9 @@ def build_link_query(rel_schema: CartographyRelSchema) -> str:
         $source_match
         $target_match
         MERGE $rel
-        SET $set_rel_properties_statement
+        ON CREATE SET r.firstseen = timestamp()
+        SET
+        $set_rel_properties_statement;
         """
     )
 

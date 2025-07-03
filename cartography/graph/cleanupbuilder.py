@@ -336,7 +336,7 @@ def _validate_target_node_matcher_for_cleanup_job(tgm: TargetNodeMatcher):
             )
 
 
-def build_cleanup_query_for_link(rel_schema: CartographyRelSchema) -> str:
+def build_cleanup_query_for_matchlink(rel_schema: CartographyRelSchema) -> str:
     """
     Generates a cleanup query for a link relationship.
     """
