@@ -619,6 +619,12 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
     :param rel_schema: The CartographyRelSchema object to generate a query.
     :return: A Neo4j query that can be used to link two existing nodes.
     """
+    if not rel_schema.source_node_matcher or not rel_schema.source_node_label:
+        raise ValueError(
+            f"No source node matcher or source node label found for {rel_schema.rel_label}. "
+            "MatchLink relationships require a source_node_matcher and source_node_label to be defined."
+        )
+
     # source_match = f"MATCH (from:{rel_schema.source_node_label} {{{rel_schema.source_node_id_field}: item.{rel_schema.source_node_id_field}}})"
     source_match = Template(
         "MATCH (from:$source_node_label{$match_clause})"
