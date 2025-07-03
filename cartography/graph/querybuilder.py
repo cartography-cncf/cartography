@@ -14,6 +14,7 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 logger = logging.getLogger(__name__)
@@ -109,10 +110,10 @@ def _build_rel_properties_statement(
     return set_clause
 
 
-def _build_match_clause(matcher: TargetNodeMatcher) -> str:
+def _build_match_clause(matcher: TargetNodeMatcher | SourceNodeMatcher) -> str:
     """
     Generate a Neo4j match statement on one or more keys and values for a given node.
-    :param matcher: A TargetNodeMatcher object
+    :param matcher: A TargetNodeMatcher or SourceNodeMatcher object
     :return: a Neo4j match clause
     """
     match = Template("$Key: $PropRef")

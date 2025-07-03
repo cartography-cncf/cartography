@@ -3,6 +3,7 @@ from string import Template
 from typing import Dict
 from typing import List
 
+from cartography.graph.querybuilder import _asdict_with_validate_relprops
 from cartography.graph.querybuilder import _build_match_clause
 from cartography.graph.querybuilder import rel_present_on_node_schema
 from cartography.models.core.common import PropertyRef
@@ -364,12 +365,15 @@ def build_cleanup_query_for_matchlink(rel_schema: CartographyRelSchema) -> str:
         rel_direction = "-"
         rel_direction_end = "->"
 
+    # Small hack: avoid type-checking errors by converting the rel_schema to a dict.
+    rel_props_as_dict = _asdict_with_validate_relprops(rel_schema)
+
     return query_template.safe_substitute(
         source_node_label=rel_schema.source_node_label,
         target_node_label=rel_schema.target_node_label,
         rel_label=rel_schema.rel_label,
         rel_direction=rel_direction,
         rel_direction_end=rel_direction_end,
-        sub_resource_label=rel_schema.properties._sub_resource_label,
-        sub_resource_id=rel_schema.properties._sub_resource_id,
+        sub_resource_label=rel_props_as_dict["_sub_resource_label"],
+        sub_resource_id=rel_props_as_dict["_sub_resource_id"],
     )
