@@ -390,6 +390,11 @@ This helper is called when you use the `load` function.
 
 This approach ensures data integrity, type safety, and consistency across all intel modules. This also ensure that non needed data (including senstive ones) are not sent to the database.
 
+### MatchLinks
+
+See [the MatchLinks documentation](matchlinks) on how to connect existing nodes in the graph together using Cartography's data model.
+
+
 ### Cleanup
 
 We have just added new nodes and relationships to the graph, and we have also updated previously-added ones

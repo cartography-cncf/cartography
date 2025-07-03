@@ -67,6 +67,7 @@ class PropertyRef:
             ```
             This means that as we create AWSInstanceProfile nodes, we will search for AWSRoles to attach to, and we do
             this by checking if each role's `arn` field is in the `Roles` list of the data dict.
+        Note that one_to_many has no effect on matchlinks.
         :param auto_format: Optional. If provided, this will auto-format the value of this property
             when it is set. The value can be one of the following types: None, str, int, float, dict, list, datetime.
             If None, no auto-formatting is applied, and the value is used as-is.
