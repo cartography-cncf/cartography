@@ -394,7 +394,10 @@ TEST_REPOS_WITH_DEPENDENCIES: List[dict[str, Any]] = [
         "description": "A tool for mapping dependencies",
         "updatedAt": "2023-01-01T00:00:00Z",
         "homepageUrl": "https://cartography.io",
-        "languages": {"totalCount": 2, "nodes": [{"name": "Python"}, {"name": "Makefile"}]},
+        "languages": {
+            "totalCount": 2,
+            "nodes": [{"name": "Python"}, {"name": "Makefile"}],
+        },
         "defaultBranchRef": {"name": "master", "id": "branch123"},
         "isPrivate": False,
         "isArchived": False,

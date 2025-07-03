@@ -625,7 +625,7 @@ def _transform_dependency_graph(
             dependencies_added += 1
 
     if dependencies_added > 0:
-        repo_name = repo_url.split('/')[-1] if repo_url else "repository"
+        repo_name = repo_url.split("/")[-1] if repo_url else "repository"
         logger.info(f"Found {dependencies_added} dependencies in {repo_name}")
 
 
@@ -980,8 +980,7 @@ def load_github_dependencies(
 
 @timeit
 def cleanup_github_dependencies(
-    neo4j_session: neo4j.Session, 
-    common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
     """
     Delete GitHub dependencies and their relationships from the graph if they were not updated in the last sync.

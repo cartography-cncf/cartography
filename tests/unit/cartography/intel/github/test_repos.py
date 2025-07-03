@@ -1,8 +1,6 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest
-
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import load_github_dependencies
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
@@ -21,9 +19,7 @@ def test_transform_dependency_converts_to_expected_format():
 
     # Act
     _transform_dependency_graph(
-        DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS, 
-        repo_url, 
-        output_list
+        DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS, repo_url, output_list
     )
 
     # Assert: Check that 4 dependencies were transformed
@@ -33,9 +29,9 @@ def test_transform_dependency_converts_to_expected_format():
     dependency_ids = {dep["id"] for dep in output_list}
     expected_ids = {
         "react|18.2.0",
-        "lodash", 
+        "lodash",
         "django|4.2.0",
-        "org.springframework:spring-core|5.3.21"
+        "org.springframework:spring-core|5.3.21",
     }
     assert dependency_ids == expected_ids
 

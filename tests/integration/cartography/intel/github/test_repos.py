@@ -419,12 +419,12 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     # Assert - Test that dependencies are correctly tagged with their ecosystems
     expected_ecosystem_tags = {
         ("react|18.2.0", "npm"),
-        ("lodash", "npm"), 
+        ("lodash", "npm"),
         ("django|4.2.0", "pip"),
     }
     actual_ecosystem_tags = check_nodes(
         neo4j_session,
-        "Dependency", 
+        "Dependency",
         ["id", "ecosystem"],
     )
     assert actual_ecosystem_tags is not None
@@ -445,9 +445,9 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
         "REQUIRES",
     )
     assert actual_repo_dependency_relationships is not None
-    assert expected_github_repo_dependency_relationships.issubset(actual_repo_dependency_relationships)
-
-
+    assert expected_github_repo_dependency_relationships.issubset(
+        actual_repo_dependency_relationships
+    )
 
     # Assert - Test that both NPM and Python ecosystems are supported
     expected_github_npm_deps = {
@@ -457,28 +457,51 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     expected_github_python_deps = {
         ("django|4.2.0", "pip"),
     }
-    
+
     actual_ecosystem_nodes = check_nodes(
         neo4j_session,
         "Dependency",
         ["id", "ecosystem"],
     )
     assert actual_ecosystem_nodes is not None
-    
-    npm_nodes = {(dep_id, ecosystem) for dep_id, ecosystem in actual_ecosystem_nodes if ecosystem == "npm"}
-    python_nodes = {(dep_id, ecosystem) for dep_id, ecosystem in actual_ecosystem_nodes if ecosystem == "pip"}
-    
+
+    npm_nodes = {
+        (dep_id, ecosystem)
+        for dep_id, ecosystem in actual_ecosystem_nodes
+        if ecosystem == "npm"
+    }
+    python_nodes = {
+        (dep_id, ecosystem)
+        for dep_id, ecosystem in actual_ecosystem_nodes
+        if ecosystem == "pip"
+    }
+
     # Check that our expected GitHub dependencies are present (subset check)
     assert expected_github_npm_deps.issubset(npm_nodes)
     assert expected_github_python_deps.issubset(python_nodes)
 
     # Assert - Test that GitHub dependency relationship properties are preserved
     expected_github_relationship_props = {
-        ("https://github.com/cartography-cncf/cartography", "react|18.2.0", "18.2.0", "/package.json"),
-        ("https://github.com/cartography-cncf/cartography", "lodash", "^4.17.21", "/package.json"),
-        ("https://github.com/cartography-cncf/cartography", "django|4.2.0", "==4.2.0", "/requirements.txt"),  # Preserves original requirements format
+        (
+            "https://github.com/cartography-cncf/cartography",
+            "react|18.2.0",
+            "18.2.0",
+            "/package.json",
+        ),
+        (
+            "https://github.com/cartography-cncf/cartography",
+            "lodash",
+            "^4.17.21",
+            "/package.json",
+        ),
+        (
+            "https://github.com/cartography-cncf/cartography",
+            "django|4.2.0",
+            "==4.2.0",
+            "/requirements.txt",
+        ),  # Preserves original requirements format
     }
-    
+
     # Query only GitHub dependency graph relationships (those with manifest_path)
     result = neo4j_session.run(
         """
@@ -488,13 +511,15 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
         ORDER BY repo.id, dep.id
         """
     )
-    
+
     actual_github_relationship_props = {
-        (record["repo_id"], record["dep_id"], record["requirements"], record["manifest_path"])
+        (
+            record["repo_id"],
+            record["dep_id"],
+            record["requirements"],
+            record["manifest_path"],
+        )
         for record in result
     }
-    
+
     assert actual_github_relationship_props == expected_github_relationship_props
-
-
-

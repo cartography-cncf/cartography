@@ -36,11 +36,15 @@ class GitHubDependencyToRepositoryRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REQUIRES"
-    properties: GitHubDependencyToRepositoryRelProperties = GitHubDependencyToRepositoryRelProperties()
+    properties: GitHubDependencyToRepositoryRelProperties = (
+        GitHubDependencyToRepositoryRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class GitHubDependencySchema(CartographyNodeSchema):
     label: str = "Dependency"
     properties: GitHubDependencyNodeProperties = GitHubDependencyNodeProperties()
-    sub_resource_relationship: GitHubDependencyToRepositoryRel = GitHubDependencyToRepositoryRel() 
+    sub_resource_relationship: GitHubDependencyToRepositoryRel = (
+        GitHubDependencyToRepositoryRel()
+    )
