@@ -972,14 +972,15 @@ def load_github_dependencies(
     """
     # Group dependencies by repository URL for schema-based loading
     from collections import defaultdict
+
     dependencies_by_repo = defaultdict(list)
-    
+
     for dep in dependencies:
         repo_url = dep["repo_url"]
         # Remove repo_url from the dependency object since we'll pass it as kwarg
         dep_without_repo = {k: v for k, v in dep.items() if k != "repo_url"}
         dependencies_by_repo[repo_url].append(dep_without_repo)
-    
+
     # Load dependencies for each repository separately
     for repo_url, repo_dependencies in dependencies_by_repo.items():
         load_data(
@@ -993,7 +994,9 @@ def load_github_dependencies(
 
 @timeit
 def cleanup_github_dependencies(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any], repo_urls: List[str]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+    repo_urls: List[str],
 ) -> None:
     """
     Delete GitHub dependencies and their relationships from the graph if they were not updated in the last sync.
@@ -1098,7 +1101,11 @@ def sync(
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     load(neo4j_session, common_job_parameters, repo_data)
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)
-    
+
     # Collect repository URLs that have dependencies for cleanup
-    repo_urls_with_dependencies = list(set(dep["repo_url"] for dep in repo_data["dependencies"]))
-    cleanup_github_dependencies(neo4j_session, common_job_parameters, repo_urls_with_dependencies)
+    repo_urls_with_dependencies = list(
+        {dep["repo_url"] for dep in repo_data["dependencies"]}
+    )
+    cleanup_github_dependencies(
+        neo4j_session, common_job_parameters, repo_urls_with_dependencies
+    )

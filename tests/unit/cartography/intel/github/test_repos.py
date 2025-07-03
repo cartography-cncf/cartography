@@ -79,5 +79,27 @@ def test_load_github_dependencies_calls_data_model_correctly(mock_load):
     assert call_args[0][0] == mock_neo4j_session  # neo4j_session
     # GitHubDependencySchema should be the second argument - check the type
     assert call_args[0][1].__class__.__name__ == "GitHubDependencySchema"
-    assert call_args[0][2] == dependencies  # dependencies data
-    assert call_args[1]["lastupdated"] == TEST_UPDATE_TAG  # keyword arg
+
+    # The function removes repo_url from each dependency before passing to load_data
+    expected_dependencies = [
+        {
+            "id": "test-package|1.0.0",
+            "name": "test-package",
+            "original_name": "Test-Package",
+            "version": "1.0.0",
+            "requirements": "1.0.0",
+            "ecosystem": "npm",
+            "package_manager": "NPM",
+            "manifest_path": "/package.json",
+            # Note: repo_url is removed from the dependency object
+        }
+    ]
+    assert (
+        call_args[0][2] == expected_dependencies
+    )  # dependencies data (without repo_url)
+
+    # Check keyword arguments
+    assert call_args[1]["lastupdated"] == TEST_UPDATE_TAG
+    assert (
+        call_args[1]["repo_url"] == "https://github.com/test/repo"
+    )  # repo_url passed as kwarg
