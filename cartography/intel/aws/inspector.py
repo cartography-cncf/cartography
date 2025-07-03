@@ -16,8 +16,6 @@ from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
 from cartography.util import batch
 from cartography.util import timeit
-from cartography.util import to_asynchronous
-from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 
@@ -329,10 +327,9 @@ def sync(
         member_accounts = get_member_accounts(boto3_session, region)
         # the current host account may not be considered a "member", but we still fetch its findings
         member_accounts.append(current_aws_account_id)
-
-        async def async_ingest_findings_for_account(account_id: str) -> None:
-            await to_asynchronous(
-                _sync_findings_for_account,
+        logger.info(f"Member accounts to be synced: {member_accounts}")
+        for account_id in member_accounts:
+            _sync_findings_for_account(
                 neo4j_session,
                 boto3_session,
                 region,
@@ -340,12 +337,5 @@ def sync(
                 update_tag,
                 current_aws_account_id,
             )
-
-        to_synchronous(
-            *[
-                async_ingest_findings_for_account(account_id)
-                for account_id in member_accounts
-            ]
-        )
 
     cleanup(neo4j_session, common_job_parameters)
