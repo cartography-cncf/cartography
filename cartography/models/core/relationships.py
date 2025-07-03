@@ -106,7 +106,11 @@ def make_source_node_matcher(key_ref_dict: Dict[str, PropertyRef]) -> SourceNode
     :param key_ref_dict: A Dict mapping keys present on the node to PropertyRef objects.
     :return: A SourceNodeMatcher used for CartographyRelSchema to match with other nodes.
     """
-    return make_target_node_matcher(key_ref_dict)
+    fields = [
+        (key, PropertyRef, field(default=prop_ref))
+        for key, prop_ref in key_ref_dict.items()
+    ]
+    return make_dataclass(SourceNodeMatcher.__name__, fields, frozen=True)()
 
 
 @dataclass(frozen=True)
