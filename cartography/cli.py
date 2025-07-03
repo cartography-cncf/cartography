@@ -183,6 +183,14 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--aws-cloudtrail-management-events-lookback-hours",
+            type=int,
+            default=None,
+            help=(
+                "Number of hours back to retrieve CloudTrail management events from. If not specified, CloudTrail management events will not be retrieved."
+            ),
+        )
+        parser.add_argument(
             "--oci-sync-all-profiles",
             action="store_true",
             help=(
