@@ -381,6 +381,127 @@ DEPENDENCY_GRAPH_WITH_MISSING_FIELDS = {
 
 DEPENDENCY_GRAPH_EMPTY_MANIFESTS: dict[str, list] = {"nodes": []}
 
+
+# Test repository data for GitHub Dependencies unit tests
+TEST_REPOS_WITH_DEPENDENCIES: List[dict[str, Any]] = [
+    {
+        "name": "cartography",
+        "nameWithOwner": "cartography-cncf/cartography",
+        "primaryLanguage": {"name": "Python"},
+        "url": "https://github.com/cartography-cncf/cartography",
+        "sshUrl": "git@github.com:cartography-cncf/cartography.git",
+        "createdAt": "2018-05-01T00:00:00Z",
+        "description": "A tool for mapping dependencies",
+        "updatedAt": "2023-01-01T00:00:00Z",
+        "homepageUrl": "https://cartography.io",
+        "languages": {"totalCount": 2, "nodes": [{"name": "Python"}, {"name": "Makefile"}]},
+        "defaultBranchRef": {"name": "master", "id": "branch123"},
+        "isPrivate": False,
+        "isArchived": False,
+        "isDisabled": False,
+        "isLocked": False,
+        "owner": {
+            "url": "https://github.com/cartography-cncf",
+            "login": "cartography-cncf",
+            "__typename": "Organization",
+        },
+        "directCollaborators": {"totalCount": 0},
+        "outsideCollaborators": {"totalCount": 0},
+        "requirements": None,
+        "setupCfg": None,
+        "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
+    },
+    {
+        "name": "test-repo",
+        "nameWithOwner": "test-org/test-repo",
+        "primaryLanguage": None,
+        "url": "https://github.com/test-org/test-repo",
+        "sshUrl": "git@github.com:test-org/test-repo.git",
+        "createdAt": "2023-01-01T00:00:00Z",
+        "description": "Test repository",
+        "updatedAt": "2023-01-01T00:00:00Z",
+        "homepageUrl": None,
+        "languages": {"totalCount": 0, "nodes": []},
+        "defaultBranchRef": {"name": "main", "id": "branch456"},
+        "isPrivate": True,
+        "isArchived": False,
+        "isDisabled": False,
+        "isLocked": False,
+        "owner": {
+            "url": "https://github.com/test-org",
+            "login": "test-org",
+            "__typename": "Organization",
+        },
+        "directCollaborators": {"totalCount": 0},
+        "outsideCollaborators": {"totalCount": 0},
+        "requirements": None,
+        "setupCfg": None,
+        "dependencyGraphManifests": DEPENDENCY_GRAPH_EMPTY_MANIFESTS,
+    },
+]
+
+# Test repository data for empty dependencies test
+TEST_REPOS_EMPTY_DEPENDENCIES: List[dict[str, Any]] = [
+    {
+        "name": "empty-repo",
+        "nameWithOwner": "test-org/empty-repo",
+        "primaryLanguage": None,
+        "url": "https://github.com/test-org/empty-repo",
+        "sshUrl": "git@github.com:test-org/empty-repo.git",
+        "createdAt": "2023-01-01T00:00:00Z",
+        "description": "Empty test repository",
+        "updatedAt": "2023-01-01T00:00:00Z",
+        "homepageUrl": None,
+        "languages": {"totalCount": 0, "nodes": []},
+        "defaultBranchRef": {"name": "main", "id": "branch789"},
+        "isPrivate": False,
+        "isArchived": False,
+        "isDisabled": False,
+        "isLocked": False,
+        "owner": {
+            "url": "https://github.com/test-org",
+            "login": "test-org",
+            "__typename": "Organization",
+        },
+        "directCollaborators": {"totalCount": 0},
+        "outsideCollaborators": {"totalCount": 0},
+        "requirements": None,
+        "setupCfg": None,
+        "dependencyGraphManifests": DEPENDENCY_GRAPH_EMPTY_MANIFESTS,
+    }
+]
+
+# Test repository data for malformed dependencies test
+TEST_REPOS_MALFORMED_DEPENDENCIES: List[dict[str, Any]] = [
+    {
+        "name": "malformed-repo",
+        "nameWithOwner": "test-org/malformed-repo",
+        "primaryLanguage": None,
+        "url": "https://github.com/test-org/malformed-repo",
+        "sshUrl": "git@github.com:test-org/malformed-repo.git",
+        "createdAt": "2023-01-01T00:00:00Z",
+        "description": "Repo with malformed dependencies",
+        "updatedAt": "2023-01-01T00:00:00Z",
+        "homepageUrl": None,
+        "languages": {"totalCount": 0, "nodes": []},
+        "defaultBranchRef": {"name": "main", "id": "branchXYZ"},
+        "isPrivate": False,
+        "isArchived": False,
+        "isDisabled": False,
+        "isLocked": False,
+        "owner": {
+            "url": "https://github.com/test-org",
+            "login": "test-org",
+            "__typename": "Organization",
+        },
+        "directCollaborators": {"totalCount": 0},
+        "outsideCollaborators": {"totalCount": 0},
+        "requirements": None,
+        "setupCfg": None,
+        "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MISSING_FIELDS,
+    }
+]
+
 DEPENDENCY_GRAPH_NO_DEPENDENCIES = {
     "nodes": [
         {

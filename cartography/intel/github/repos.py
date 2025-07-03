@@ -12,8 +12,11 @@ from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
+from cartography.client.core.tx import load as load_data
+from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import PaginatedGraphqlData
+from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.util import backoff_handler
 from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
@@ -305,6 +308,7 @@ def transform(
     :return: Dict containing the repos, repo->language mapping, owners->repo mapping, outside collaborators->repo
     mapping, Python requirements files (if any) in a repo, and all dependencies from GitHub's dependency graph.
     """
+    logger.info(f"Processing {len(repos_json)} GitHub repositories")
     transformed_repo_list: List[Dict] = []
     transformed_repo_languages: List[Dict] = []
     transformed_repo_owners: List[Dict] = []
@@ -377,6 +381,7 @@ def transform(
         "python_requirements": transformed_requirements_files,
         "dependencies": transformed_dependencies,
     }
+
     return results
 
 
@@ -567,6 +572,8 @@ def _transform_dependency_graph(
     if not dependency_manifests or not dependency_manifests.get("nodes"):
         return
 
+    dependencies_added = 0
+
     for manifest in dependency_manifests["nodes"]:
         dependencies = manifest.get("dependencies", {})
         if not dependencies.get("nodes"):
@@ -615,6 +622,11 @@ def _transform_dependency_graph(
                     "repo_url": repo_url,
                 }
             )
+            dependencies_added += 1
+
+    if dependencies_added > 0:
+        repo_name = repo_url.split('/')[-1] if repo_url else "repository"
+        logger.info(f"Found {dependencies_added} dependencies in {repo_name}")
 
 
 def _extract_version_from_requirements(requirements: Optional[str]) -> Optional[str]:
@@ -952,35 +964,32 @@ def load_github_dependencies(
     dependencies: List[Dict],
 ) -> None:
     """
-    Ingest GitHub dependency data into Neo4j
+    Ingest GitHub dependency data into Neo4j using the new data model
     :param neo4j_session: Neo4J session object for server communication
     :param update_tag: Timestamp used to determine data freshness
     :param dependencies: List of dependency objects from GitHub's dependency graph
     :return: Nothing
     """
-    query = """
-    UNWIND $Dependencies AS dep
-        MERGE (lib:Dependency{id: dep.id})
-        ON CREATE SET lib.firstseen = timestamp(),
-        lib.name = dep.name
-        SET lib.lastupdated = $UpdateTag,
-        lib.original_name = dep.original_name,
-        lib.version = dep.version,
-        lib.ecosystem = dep.ecosystem,
-        lib.package_manager = dep.package_manager
+    load_data(
+        neo4j_session,
+        GitHubDependencySchema(),
+        dependencies,
+        lastupdated=update_tag,
+    )
 
-        WITH lib, dep
-        MATCH (repo:GitHubRepository{id: dep.repo_url})
-        MERGE (repo)-[r:REQUIRES]->(lib)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $UpdateTag,
-        r.requirements = dep.requirements,
-        r.manifest_path = dep.manifest_path
+
+@timeit
+def cleanup_github_dependencies(
+    neo4j_session: neo4j.Session, 
+    common_job_parameters: Dict[str, Any]
+) -> None:
     """
-    neo4j_session.run(
-        query,
-        Dependencies=dependencies,
-        UpdateTag=update_tag,
+    Delete GitHub dependencies and their relationships from the graph if they were not updated in the last sync.
+    :param neo4j_session: Neo4j session
+    :param common_job_parameters: Common job parameters containing UPDATE_TAG
+    """
+    GraphJob.from_node_schema(GitHubDependencySchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
@@ -1073,3 +1082,4 @@ def sync(
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     load(neo4j_session, common_job_parameters, repo_data)
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)
+    cleanup_github_dependencies(neo4j_session, common_job_parameters)
