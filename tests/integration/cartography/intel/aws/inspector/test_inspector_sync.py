@@ -16,7 +16,7 @@ TEST_ACC_ID_2 = "123456789012"
 @patch.object(
     cartography.intel.aws.inspector,
     "get_inspector_findings",
-    return_value=LIST_FINDINGS_NETWORK,
+    return_value=[LIST_FINDINGS_NETWORK],
 )
 def test_sync_inspector_network_findings(mock_get, neo4j_session):
     # Arrange
@@ -75,7 +75,7 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
 @patch.object(
     cartography.intel.aws.inspector,
     "get_inspector_findings",
-    return_value=LIST_FINDINGS_EC2_PACKAGE,
+    return_value=[LIST_FINDINGS_EC2_PACKAGE],
 )
 def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
     # Arrange
