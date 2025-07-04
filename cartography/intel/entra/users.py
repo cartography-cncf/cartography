@@ -108,17 +108,6 @@ async def get_users(client: GraphServiceClient) -> list[User]:
 
 
 @timeit
-async def get_user_manager_id(client: GraphServiceClient, user_id: str) -> str | None:
-    """Return the manager ID for the given user."""
-    try:
-        manager = await client.users.by_user_id(user_id).manager.get()
-        return manager.id if hasattr(manager, "id") else None
-    except Exception as e:
-        logger.warning(f"Could not fetch manager for user {user_id}: {e}")
-        return None
-
-
-@timeit
 # The manager reference is now embedded in the user objects courtesy of the
 # `$expand` we added above, so we no longer need a separate `manager_map`.
 def transform_users(users: list[User]) -> list[dict[str, Any]]:
