@@ -9,6 +9,10 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
+# The user resource in Microsoft Graph exposes hundreds of properties but, in
+# practice, only a small subset is populated in most tenants.  We deliberately
+# model *just* the commonly-used attributes to keep the graph lean.
+
 
 @dataclass(frozen=True)
 class EntraUserNodeProperties(CartographyNodeProperties):
@@ -17,61 +21,23 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     display_name: PropertyRef = PropertyRef("display_name")
     given_name: PropertyRef = PropertyRef("given_name")
     surname: PropertyRef = PropertyRef("surname")
-    # The underlying datatype calls this 'mail' but everything else in cartography uses 'email'
+    # The SDK calls this `mail`; we surface it as `email` like the rest of Cartography
     email: PropertyRef = PropertyRef("mail", extra_index=True)
-    other_mails: PropertyRef = PropertyRef("other_mails")
-    preferred_language: PropertyRef = PropertyRef("preferred_language")
-    preferred_name: PropertyRef = PropertyRef("preferred_name")
-    state: PropertyRef = PropertyRef("state")
-    usage_location: PropertyRef = PropertyRef("usage_location")
-    user_type: PropertyRef = PropertyRef("user_type")
-    show_in_address_list: PropertyRef = PropertyRef("show_in_address_list")
-    sign_in_sessions_valid_from_date_time: PropertyRef = PropertyRef(
-        "sign_in_sessions_valid_from_date_time"
-    )
-    security_identifier: PropertyRef = PropertyRef("security_identifier")
-    account_enabled: PropertyRef = PropertyRef("account_enabled")
-    city: PropertyRef = PropertyRef("city")
-    company_name: PropertyRef = PropertyRef("company_name")
-    consent_provided_for_minor: PropertyRef = PropertyRef("consent_provided_for_minor")
-    country: PropertyRef = PropertyRef("country")
-    created_date_time: PropertyRef = PropertyRef("created_date_time")
-    creation_type: PropertyRef = PropertyRef("creation_type")
-    deleted_date_time: PropertyRef = PropertyRef("deleted_date_time")
+    mobile_phone: PropertyRef = PropertyRef("mobile_phone")
+    business_phones: PropertyRef = PropertyRef("business_phones")
+    job_title: PropertyRef = PropertyRef("job_title")
     department: PropertyRef = PropertyRef("department")
+    company_name: PropertyRef = PropertyRef("company_name")
+    office_location: PropertyRef = PropertyRef("office_location")
     employee_id: PropertyRef = PropertyRef("employee_id")
     employee_type: PropertyRef = PropertyRef("employee_type")
-    external_user_state: PropertyRef = PropertyRef("external_user_state")
-    external_user_state_change_date_time: PropertyRef = PropertyRef(
-        "external_user_state_change_date_time"
-    )
-    hire_date: PropertyRef = PropertyRef("hire_date")
-    is_management_restricted: PropertyRef = PropertyRef("is_management_restricted")
-    is_resource_account: PropertyRef = PropertyRef("is_resource_account")
-    job_title: PropertyRef = PropertyRef("job_title")
-    last_password_change_date_time: PropertyRef = PropertyRef(
-        "last_password_change_date_time"
-    )
-    mail_nickname: PropertyRef = PropertyRef("mail_nickname")
-    office_location: PropertyRef = PropertyRef("office_location")
-    on_premises_distinguished_name: PropertyRef = PropertyRef(
-        "on_premises_distinguished_name"
-    )
-    on_premises_domain_name: PropertyRef = PropertyRef("on_premises_domain_name")
-    on_premises_immutable_id: PropertyRef = PropertyRef("on_premises_immutable_id")
-    on_premises_last_sync_date_time: PropertyRef = PropertyRef(
-        "on_premises_last_sync_date_time"
-    )
-    on_premises_sam_account_name: PropertyRef = PropertyRef(
-        "on_premises_sam_account_name"
-    )
-    on_premises_security_identifier: PropertyRef = PropertyRef(
-        "on_premises_security_identifier"
-    )
-    on_premises_sync_enabled: PropertyRef = PropertyRef("on_premises_sync_enabled")
-    on_premises_user_principal_name: PropertyRef = PropertyRef(
-        "on_premises_user_principal_name"
-    )
+    city: PropertyRef = PropertyRef("city")
+    state: PropertyRef = PropertyRef("state")
+    country: PropertyRef = PropertyRef("country")
+    preferred_language: PropertyRef = PropertyRef("preferred_language")
+    account_enabled: PropertyRef = PropertyRef("account_enabled")
+    age_group: PropertyRef = PropertyRef("age_group")
+    manager_id: PropertyRef = PropertyRef("manager_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

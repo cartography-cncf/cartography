@@ -27,7 +27,11 @@ TEST_UPDATE_TAG = 1234567890
     return_value=MOCK_ENTRA_USERS,
 )
 @pytest.mark.asyncio
-async def test_sync_entra_users(mock_get_users, mock_get_tenant, neo4j_session):
+async def test_sync_entra_users(
+    mock_get_users,
+    mock_get_tenant,
+    neo4j_session,
+):
     """
     Ensure that tenant and users actually get loaded
     """
@@ -47,22 +51,28 @@ async def test_sync_entra_users(mock_get_users, mock_get_tenant, neo4j_session):
     }
     assert check_nodes(neo4j_session, "EntraTenant", ["id"]) == expected_nodes
 
-    # Assert Users exist
+    # Assert Users exist with department and manager_id
     expected_nodes = {
         (
             "ae4ac864-4433-4ba6-96a6-20f8cffdadcb",
             "Homer Simpson",
             "hjsimpson@simpson.corp",
+            "Operations",
+            "11dca63b-cb03-4e53-bb75-fa8060285550",
         ),
         (
             "11dca63b-cb03-4e53-bb75-fa8060285550",
             "Entra Test User 1",
             "entra-test-user-1@mycompany.onmicrosoft.com",
+            "Engineering",
+            None,
         ),
     }
     assert (
         check_nodes(
-            neo4j_session, "EntraUser", ["id", "display_name", "user_principal_name"]
+            neo4j_session,
+            "EntraUser",
+            ["id", "display_name", "user_principal_name", "department", "manager_id"],
         )
         == expected_nodes
     )
