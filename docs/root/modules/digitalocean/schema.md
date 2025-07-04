@@ -1,5 +1,12 @@
 ## DigitalOcean Schema
 
+```mermaid
+graph LR
+A(DOAccount) -- RESOURCE --> P(DOProject)
+P(DOProject) -- RESOURCE --> D(DODroplet)
+```
+
+
 ### DOAccount
 Representation of a DigitalOcean [Account](https://developers.digitalocean.com/documentation/v2/#account) object.
 
@@ -18,7 +25,7 @@ Representation of a DigitalOcean [Account](https://developers.digitalocean.com/d
 - DOAccount contains DOProjects.
 
     ```
-    (DOAccount)-[RESOURCE]->(DOProjects)
+    (DOAccount)-[RESOURCE]->(DOProject)
     ```
 
 ### DOProject

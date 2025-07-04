@@ -53,6 +53,9 @@
 ```{include} ../modules/duo/schema.md
 ```
 
+```{include} ../modules/entra/schema.md
+```
+
 ```{include} ../modules/gcp/schema.md
 ```
 
@@ -93,4 +96,7 @@
 ```
 
 ```{include} ../modules/tailscale/schema.md
+```
+
+```{include} ../modules/trivy/schema.md
 ```
