@@ -1,47 +1,113 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest
+from cartography.intel.github.repos import _transform_dependency_graph
+from cartography.intel.github.repos import load_github_dependencies
+from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 
-from cartography.intel.github.repos import _get_repo_collaborators_for_multiple_repos
+TEST_UPDATE_TAG = 123456789
 
 
-@patch("time.sleep", return_value=None)
-@patch("cartography.intel.github.repos._get_repo_collaborators")
-@patch("cartography.intel.github.repos.backoff_handler", spec=True)
-def test_get_team_users_github_returns_none(
-    mock_backoff_handler,
-    mock_get_team_collaborators,
-    mock_sleep,
-):
+def test_transform_dependency_converts_to_expected_format():
     """
-    This test happens to use 'OUTSIDE' affiliation, but it's irrelevant for the test, it just needs either valid value.
+    Test that the dependency transformation function correctly processes GitHub API data
+    into the format expected for loading into the database.
     """
     # Arrange
-    repo_data = [
+    repo_url = "https://github.com/test-org/test-repo"
+    output_list = []
+
+    # Act
+    _transform_dependency_graph(
+        DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS, repo_url, output_list
+    )
+
+    # Assert: Check that 4 dependencies were transformed
+    assert len(output_list) == 4
+
+    # Assert: Check that expected dependency IDs are present
+    dependency_ids = {dep["id"] for dep in output_list}
+    expected_ids = {
+        f"{repo_url}#/package.json#npm#react|18.2.0",
+        f"{repo_url}#/package.json#npm#lodash",
+        f"{repo_url}#/requirements.txt#pip#django|4.2.0",
+        f"{repo_url}#/pom.xml#maven#org.springframework:spring-core|5.3.21",
+    }
+    assert dependency_ids == expected_ids
+
+    # Assert: Check that a specific dependency has expected properties
+    react_dep = next(dep for dep in output_list if dep["original_name"] == "react")
+    assert react_dep["id"] == f"{repo_url}#/package.json#npm#react|18.2.0"
+    assert react_dep["name"] == "react"
+    assert react_dep["version"] == "18.2.0"
+    assert react_dep["requirements"] == "18.2.0"
+    assert react_dep["ecosystem"] == "npm"
+    assert react_dep["package_manager"] == "NPM"
+    assert react_dep["manifest_path"] == "/package.json"
+    assert react_dep["repo_url"] == repo_url
+    assert react_dep["base_id"] == "react|18.2.0"
+    assert react_dep["repo_name"] == "test-repo"
+    assert react_dep["manifest_file"] == "package.json"
+
+
+@patch("cartography.intel.github.repos.load_data")
+def test_load_github_dependencies_calls_data_model_correctly(mock_load):
+    """
+    Test that the load function calls the new data model load function with correct parameters.
+    """
+    # Arrange
+    mock_neo4j_session = MagicMock()
+    repo_url = "https://github.com/test/repo"
+    dependencies = [
         {
-            "name": "repo1",
-            "url": "https://github.com/repo1",
-            "outsideCollaborators": {"totalCount": 1},
-        },
+            "id": f"{repo_url}#/package.json#npm#test-package|1.0.0",
+            "name": "test-package",
+            "original_name": "Test-Package",
+            "version": "1.0.0",
+            "requirements": "1.0.0",
+            "ecosystem": "npm",
+            "package_manager": "NPM",
+            "manifest_path": "/package.json",
+            "repo_url": repo_url,
+            "base_id": "test-package|1.0.0",
+            "repo_name": "repo",
+            "manifest_file": "package.json",
+        }
     ]
-    mock_repo_collabs = MagicMock()
-    # Set up the condition where GitHub returns a None url and None edge as in #1334.
-    mock_repo_collabs.nodes = [None]
-    mock_repo_collabs.edges = [None]
-    mock_get_team_collaborators.return_value = mock_repo_collabs
 
-    # Assert we raise an exception
-    with pytest.raises(TypeError):
-        _get_repo_collaborators_for_multiple_repos(
-            repo_data,
-            "OUTSIDE",
-            "test-org",
-            "https://api.github.com",
-            "test-token",
-        )
+    # Act
+    load_github_dependencies(mock_neo4j_session, TEST_UPDATE_TAG, dependencies)
 
-    # Assert that we retry and give up
-    assert mock_sleep.call_count == 4
-    assert mock_get_team_collaborators.call_count == 5
-    assert mock_backoff_handler.call_count == 4
+    # Assert: Check that the data model load function was called correctly
+    mock_load.assert_called_once()
+    call_args = mock_load.call_args
+
+    # Verify the function was called with correct arguments
+    assert call_args[0][0] == mock_neo4j_session  # neo4j_session
+    # GitHubDependencySchema should be the second argument - check the type
+    assert call_args[0][1].__class__.__name__ == "GitHubDependencySchema"
+
+    # The function removes repo_url from each dependency before passing to load_data
+    expected_dependencies = [
+        {
+            "id": f"{repo_url}#/package.json#npm#test-package|1.0.0",
+            "name": "test-package",
+            "original_name": "Test-Package",
+            "version": "1.0.0",
+            "requirements": "1.0.0",
+            "ecosystem": "npm",
+            "package_manager": "NPM",
+            "manifest_path": "/package.json",
+            "base_id": "test-package|1.0.0",
+            "repo_name": "repo",
+            "manifest_file": "package.json",
+            # Note: repo_url is removed from the dependency object
+        }
+    ]
+    assert (
+        call_args[0][2] == expected_dependencies
+    )  # dependencies data (without repo_url)
+
+    # Check keyword arguments
+    assert call_args[1]["lastupdated"] == TEST_UPDATE_TAG
+    assert call_args[1]["repo_url"] == repo_url  # repo_url passed as kwarg

@@ -13,6 +13,7 @@ U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
+R -- REQUIRES --> D(Dependency)
 T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
@@ -284,6 +285,30 @@ Representation of a single Programming Language [language object](https://develo
     (ProgrammingLanguage)<-[LANGUAGE]-(GitHubRepository)
     ```
 
+
+### Dependency
+
+Represents a software dependency from GitHub's dependency graph manifests.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier: `{repo_url}#{manifest_path}#{ecosystem}#{base_id}` to prevent collisions |
+| **name** | Canonical name of the dependency (ecosystem-specific normalization) |
+| **original_name** | Original name as specified in the manifest file |
+| **version** | Pinned version if specified, otherwise null |
+| **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
+| **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
+| **base_id** | Base dependency identifier without context (`{name}|{version}` or `{name}`) |
+| **repo_name** | Repository name extracted from repo URL |
+| **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
+
+#### Relationships
+
+- **GitHubRepository** via **REQUIRES** relationship
+  - **requirements**: Original requirement string from manifest
+  - **manifest_path**: Path to manifest file in repository
 
 ### Dependency::PythonLibrary
 
