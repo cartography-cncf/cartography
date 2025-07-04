@@ -288,29 +288,27 @@ Representation of a single Programming Language [language object](https://develo
 
 ### Dependency
 
-Representation of a software dependency as discovered through GitHub's dependency graph API. This covers dependencies from all supported ecosystems including NPM, PyPI, Maven, Go modules, GitHub Actions, and more.
+Represents a software dependency from GitHub's dependency graph manifests.
 
 | Field | Description |
 |-------|-------------|
-| firstseen| Timestamp of when a sync job first created this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| id | The unique identifier for the dependency, constructed from the canonical name and ecosystem |
-| name | The canonical name of the dependency (normalized per ecosystem conventions) |
-| original_name | The original name as it appears in the manifest file |
-| version | The version of the dependency (if specified in the manifest) |
-| ecosystem | The package ecosystem (e.g., npm, pypi, maven, go, github-actions) |
-| package_manager | The package manager used for this dependency |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier: `{repo_url}#{manifest_path}#{ecosystem}#{base_id}` to prevent collisions |
+| **name** | Canonical name of the dependency (ecosystem-specific normalization) |
+| **original_name** | Original name as specified in the manifest file |
+| **version** | Pinned version if specified, otherwise null |
+| **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
+| **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
+| **base_id** | Base dependency identifier without context (`{name}|{version}` or `{name}`) |
+| **repo_name** | Repository name extracted from repo URL |
+| **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
 
 #### Relationships
 
-- GitHubRepositories require Dependencies across all supported ecosystems.
-
-    ```
-    (GitHubRepository)-[:REQUIRES{requirements, manifest_path}]->(Dependency)
-    ```
-
-    - requirements: The original requirement string as it appears in the manifest (e.g., "^1.0.0", ">=2.0.0")
-    - manifest_path: The path to the manifest file where this dependency was declared (e.g., "package.json", "requirements.txt")
+- **GitHubRepository** via **REQUIRES** relationship
+  - **requirements**: Original requirement string from manifest
+  - **manifest_path**: Path to manifest file in repository
 
 ### Dependency::PythonLibrary
 

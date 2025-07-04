@@ -28,16 +28,16 @@ def test_transform_dependency_converts_to_expected_format():
     # Assert: Check that expected dependency IDs are present
     dependency_ids = {dep["id"] for dep in output_list}
     expected_ids = {
-        "react|18.2.0",
-        "lodash",
-        "django|4.2.0",
-        "org.springframework:spring-core|5.3.21",
+        f"{repo_url}#/package.json#npm#react|18.2.0",
+        f"{repo_url}#/package.json#npm#lodash",
+        f"{repo_url}#/requirements.txt#pip#django|4.2.0",
+        f"{repo_url}#/pom.xml#maven#org.springframework:spring-core|5.3.21",
     }
     assert dependency_ids == expected_ids
 
     # Assert: Check that a specific dependency has expected properties
     react_dep = next(dep for dep in output_list if dep["original_name"] == "react")
-    assert react_dep["id"] == "react|18.2.0"
+    assert react_dep["id"] == f"{repo_url}#/package.json#npm#react|18.2.0"
     assert react_dep["name"] == "react"
     assert react_dep["version"] == "18.2.0"
     assert react_dep["requirements"] == "18.2.0"
@@ -45,6 +45,9 @@ def test_transform_dependency_converts_to_expected_format():
     assert react_dep["package_manager"] == "NPM"
     assert react_dep["manifest_path"] == "/package.json"
     assert react_dep["repo_url"] == repo_url
+    assert react_dep["base_id"] == "react|18.2.0"
+    assert react_dep["repo_name"] == "test-repo"
+    assert react_dep["manifest_file"] == "package.json"
 
 
 @patch("cartography.intel.github.repos.load_data")
@@ -54,9 +57,10 @@ def test_load_github_dependencies_calls_data_model_correctly(mock_load):
     """
     # Arrange
     mock_neo4j_session = MagicMock()
+    repo_url = "https://github.com/test/repo"
     dependencies = [
         {
-            "id": "test-package|1.0.0",
+            "id": f"{repo_url}#/package.json#npm#test-package|1.0.0",
             "name": "test-package",
             "original_name": "Test-Package",
             "version": "1.0.0",
@@ -64,7 +68,10 @@ def test_load_github_dependencies_calls_data_model_correctly(mock_load):
             "ecosystem": "npm",
             "package_manager": "NPM",
             "manifest_path": "/package.json",
-            "repo_url": "https://github.com/test/repo",
+            "repo_url": repo_url,
+            "base_id": "test-package|1.0.0",
+            "repo_name": "repo",
+            "manifest_file": "package.json",
         }
     ]
 
@@ -83,7 +90,7 @@ def test_load_github_dependencies_calls_data_model_correctly(mock_load):
     # The function removes repo_url from each dependency before passing to load_data
     expected_dependencies = [
         {
-            "id": "test-package|1.0.0",
+            "id": f"{repo_url}#/package.json#npm#test-package|1.0.0",
             "name": "test-package",
             "original_name": "Test-Package",
             "version": "1.0.0",
@@ -91,6 +98,9 @@ def test_load_github_dependencies_calls_data_model_correctly(mock_load):
             "ecosystem": "npm",
             "package_manager": "NPM",
             "manifest_path": "/package.json",
+            "base_id": "test-package|1.0.0",
+            "repo_name": "repo",
+            "manifest_file": "package.json",
             # Note: repo_url is removed from the dependency object
         }
     ]
@@ -100,6 +110,4 @@ def test_load_github_dependencies_calls_data_model_correctly(mock_load):
 
     # Check keyword arguments
     assert call_args[1]["lastupdated"] == TEST_UPDATE_TAG
-    assert (
-        call_args[1]["repo_url"] == "https://github.com/test/repo"
-    )  # repo_url passed as kwarg
+    assert call_args[1]["repo_url"] == repo_url  # repo_url passed as kwarg

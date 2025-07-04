@@ -401,12 +401,18 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     # _ensure_local_neo4j_has_test_data has already called sync, now we test that the sync worked. Mock GitHub API data should
     # be transofrmed and in the Neo4j database.
 
+    # Create expected IDs with format: repo_url#manifest_path#ecosystem#base_id
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    react_id = f"{repo_url}#/package.json#npm#react|18.2.0"
+    lodash_id = f"{repo_url}#/package.json#npm#lodash"
+    django_id = f"{repo_url}#/requirements.txt#pip#django|4.2.0"
+
     # Assert - Test that new GitHub dependency graph nodes were created
     # Note: Database also contains legacy Python dependencies, so we check subset
     expected_github_dependency_nodes = {
-        ("react|18.2.0", "react", "18.2.0", "npm"),
-        ("lodash", "lodash", None, "npm"),
-        ("django|4.2.0", "django", "4.2.0", "pip"),
+        (react_id, "react", "18.2.0", "npm"),
+        (lodash_id, "lodash", None, "npm"),
+        (django_id, "django", "4.2.0", "pip"),
     }
     actual_dependency_nodes = check_nodes(
         neo4j_session,
@@ -418,9 +424,9 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
 
     # Assert - Test that dependencies are correctly tagged with their ecosystems
     expected_ecosystem_tags = {
-        ("react|18.2.0", "npm"),
-        ("lodash", "npm"),
-        ("django|4.2.0", "pip"),
+        (react_id, "npm"),
+        (lodash_id, "npm"),
+        (django_id, "pip"),
     }
     actual_ecosystem_tags = check_nodes(
         neo4j_session,
@@ -432,9 +438,9 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
 
     # Assert - Test that repositories are connected to new GitHub dependencies
     expected_github_repo_dependency_relationships = {
-        ("https://github.com/cartography-cncf/cartography", "react|18.2.0"),
-        ("https://github.com/cartography-cncf/cartography", "lodash"),
-        ("https://github.com/cartography-cncf/cartography", "django|4.2.0"),
+        (repo_url, react_id),
+        (repo_url, lodash_id),
+        (repo_url, django_id),
     }
     actual_repo_dependency_relationships = check_rels(
         neo4j_session,
@@ -451,11 +457,11 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
 
     # Assert - Test that both NPM and Python ecosystems are supported
     expected_github_npm_deps = {
-        ("react|18.2.0", "npm"),
-        ("lodash", "npm"),
+        (react_id, "npm"),
+        (lodash_id, "npm"),
     }
     expected_github_python_deps = {
-        ("django|4.2.0", "pip"),
+        (django_id, "pip"),
     }
 
     actual_ecosystem_nodes = check_nodes(
@@ -483,20 +489,20 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     # Assert - Test that GitHub dependency relationship properties are preserved
     expected_github_relationship_props = {
         (
-            "https://github.com/cartography-cncf/cartography",
-            "react|18.2.0",
+            repo_url,
+            react_id,
             "18.2.0",
             "/package.json",
         ),
         (
-            "https://github.com/cartography-cncf/cartography",
-            "lodash",
+            repo_url,
+            lodash_id,
             "^4.17.21",
             "/package.json",
         ),
         (
-            "https://github.com/cartography-cncf/cartography",
-            "django|4.2.0",
+            repo_url,
+            django_id,
             "==4.2.0",
             "/requirements.txt",
         ),  # Preserves original requirements format
