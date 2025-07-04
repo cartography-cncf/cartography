@@ -3,6 +3,7 @@ from string import Template
 from typing import Dict
 from typing import List
 
+from cartography.graph.querybuilder import _asdict_with_validate_relprops
 from cartography.graph.querybuilder import _build_match_clause
 from cartography.graph.querybuilder import rel_present_on_node_schema
 from cartography.models.core.common import PropertyRef
@@ -334,3 +335,49 @@ def _validate_target_node_matcher_for_cleanup_job(tgm: TargetNodeMatcher):
                 f"{key} has set_in_kwargs=False, please check by reviewing the full stack trace to know which object"
                 f"this message was raised from. Debug information: PropertyRef name = {prop_ref.name}.",
             )
+
+
+def build_cleanup_query_for_matchlink(rel_schema: CartographyRelSchema) -> str:
+    """
+    Generates a cleanup query for a matchlink relationship.
+    :param rel_schema: The CartographyRelSchema object to generate a query. This CartographyRelSchema object
+    - Must have a source_node_matcher and source_node_label defined
+    - Must have a CartographyRelProperties object where _sub_resource_label and _sub_resource_id are defined
+    :return: A Neo4j query used to clean up stale matchlink relationships.
+    """
+    if not rel_schema.source_node_matcher:
+        raise ValueError(
+            f"No source node matcher found for {rel_schema.rel_label}; returning empty list."
+        )
+
+    query_template = Template(
+        """
+        MATCH (from:$source_node_label)$rel_direction[r:$rel_label]$rel_direction_end(to:$target_node_label)
+        WHERE r.lastupdated <> $UPDATE_TAG
+            AND r._sub_resource_label = $sub_resource_label
+            AND r._sub_resource_id = $sub_resource_id
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
+        """
+    )
+
+    # Determine which way to point the arrow. INWARD is toward the source, otherwise we go toward the target.
+    if rel_schema.direction == LinkDirection.INWARD:
+        rel_direction = "<-"
+        rel_direction_end = "-"
+    else:
+        rel_direction = "-"
+        rel_direction_end = "->"
+
+    # Small hack: avoid type-checking errors by converting the rel_schema to a dict.
+    rel_props_as_dict = _asdict_with_validate_relprops(rel_schema)
+
+    return query_template.safe_substitute(
+        source_node_label=rel_schema.source_node_label,
+        target_node_label=rel_schema.target_node_label,
+        rel_label=rel_schema.rel_label,
+        rel_direction=rel_direction,
+        rel_direction_end=rel_direction_end,
+        sub_resource_label=rel_props_as_dict["_sub_resource_label"],
+        sub_resource_id=rel_props_as_dict["_sub_resource_id"],
+    )
