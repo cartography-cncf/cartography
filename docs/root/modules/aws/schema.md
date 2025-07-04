@@ -2805,6 +2805,39 @@ Representation of the configuration of AWS [Security Hub](https://docs.aws.amazo
     (AWSAccount)-[RESOURCE]->(SecurityHub)
     ```
 
+### AWSGuardDutyFinding
+
+Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The AWS finding ID |
+| arn | The ARN of the finding |
+| title | The finding title |
+| description | The finding description |
+| type | The finding type |
+| severity | Numeric severity |
+| resource_type | Type of the affected resource |
+| resource_id | Identifier of the affected resource |
+| region | AWS region where the finding was recorded |
+
+#### Relationships
+
+- GuardDuty findings are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSGuardDutyFinding)
+    ```
+- Findings may affect EC2 instances.
+    ```
+    (AWSGuardDutyFinding)-[:AFFECTS]->(EC2Instance)
+    ```
+- Findings may affect S3 buckets.
+    ```
+    (AWSGuardDutyFinding)-[:AFFECTS]->(S3Bucket)
+    ```
+
 ### AWSConfigurationRecorder
 
 Representation of an AWS [Config Configuration Recorder](https://docs.aws.amazon.com/config/latest/APIReference/API_ConfigurationRecorder.html)
