@@ -377,6 +377,30 @@ def test_sync_ecs_comprehensive(
     }
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
+    # Create AWSRole nodes for task and execution roles
+    neo4j_session.run(
+        """
+        MERGE (role:AWSPrincipal:AWSRole{arn: $RoleArn})
+        ON CREATE SET role.firstseen = timestamp()
+        SET role.lastupdated = $aws_update_tag, role.roleid = $RoleId, role.name = $RoleName
+        """,
+        RoleArn="arn:aws:iam::000000000000:role/test-ecs_task_execution",
+        RoleId="test-ecs_task_execution",
+        RoleName="test-ecs_task_execution",
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Create ECRImage node for the container image
+    neo4j_session.run(
+        """
+        MERGE (img:ECRImage{id: $ImageDigest})
+        ON CREATE SET img.firstseen = timestamp()
+        SET img.lastupdated = $aws_update_tag, img.digest = $ImageDigest
+        """,
+        ImageDigest="sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
     # Act
     cartography.intel.aws.ecs.sync(
         neo4j_session,
@@ -625,6 +649,54 @@ def test_sync_ecs_comprehensive(
             "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
         ),
     }, "ECSServices to AWSAccount"
+
+    # 16. ECSTaskDefinitions to AWSRole (HAS_TASK_ROLE relationship)
+    assert check_rels(
+        neo4j_session,
+        "ECSTaskDefinition",
+        "id",
+        "AWSRole",
+        "arn",
+        "HAS_TASK_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
+            "arn:aws:iam::000000000000:role/test-ecs_task_execution",
+        ),
+    }, "ECSTaskDefinitions to AWSRole (HAS_TASK_ROLE)"
+
+    # 17. ECSTaskDefinitions to AWSRole (HAS_EXECUTION_ROLE relationship)
+    assert check_rels(
+        neo4j_session,
+        "ECSTaskDefinition",
+        "id",
+        "AWSRole",
+        "arn",
+        "HAS_EXECUTION_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
+            "arn:aws:iam::000000000000:role/test-ecs_task_execution",
+        ),
+    }, "ECSTaskDefinitions to AWSRole (HAS_EXECUTION_ROLE)"
+
+    # 18. ECSContainers to ECRImage (HAS_IMAGE relationship)
+    assert check_rels(
+        neo4j_session,
+        "ECSContainer",
+        "id",
+        "ECRImage",
+        "id",
+        "HAS_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+    }, "ECSContainers to ECRImage (HAS_IMAGE)"
 
     # Verify that all expected nodes were created
     assert check_nodes(
