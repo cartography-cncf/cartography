@@ -608,6 +608,16 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSAccount)-[RESOURCE]->(AWSRole)
     ```
 
+- ECSTaskDefinitions have task roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
+    ```
+
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
 
@@ -1479,6 +1489,11 @@ ECRRepositoryImage.
 
     ```
     (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
+    ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
 
@@ -3055,7 +3070,7 @@ Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/lat
 
 - ECSClusters are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSCluster)
+    (:AWSAccount)-[:RESOURCE]->(:ECSCluster)
     ```
 
 ### ECSContainerInstance
@@ -3085,12 +3100,12 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 ### ECSService
@@ -3130,12 +3145,12 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 - An ECSCluster has ECSService
     ```
-    (ECSCluster)-[HAS_SERVICE]->(ECSService)
+    (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
     ```
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 ### ECSTaskDefinition
@@ -3173,12 +3188,22 @@ Representation of an AWS ECS [Task Definition](https://docs.aws.amazon.com/Amazo
 
 - ECSTaskDefinition are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSTaskDefinition)
+    (:AWSAccount)-[:RESOURCE]->(:ECSTaskDefinition)
     ```
 
 - An ECSTask has an ECSTaskDefinition.
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTaskDefinitions have task roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
 ### ECSContainerDefinition
@@ -3218,7 +3243,7 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 - ECSTaskDefinitions have ECSContainerDefinitions
     ```
-    (ECSTaskDefinition)-[HAS_CONTAINER_DEFINITION]->(ECSContainerDefinition)
+    (:ECSTaskDefinition)-[:HAS_CONTAINER_DEFINITION]->(:ECSContainerDefinition)
     ```
 
 ### ECSTask
@@ -3266,17 +3291,17 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 
 - ECSClusters have ECSTasks
     ```
-    (ECSCluster)-[HAS_TASK]->(ECSTask)
+    (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSTasks have ECSTaskDefinitions
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
     ```
 
 ### ECSContainer
@@ -3308,7 +3333,12 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 
 - ECSTasks have ECSContainers
     ```
-    (ECSTask)-[HAS_CONTAINER]->(ECSContainer)
+    (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
+    ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
 ### EfsFileSystem

@@ -67,6 +67,24 @@ class ECSContainerToTaskRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSContainerToECRImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToECRImageRel(CartographyRelSchema):
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("imageDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: ECSContainerToECRImageRelProperties = (
+        ECSContainerToECRImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
     label: str = "ECSContainer"
     properties: ECSContainerNodeProperties = ECSContainerNodeProperties()
@@ -76,5 +94,6 @@ class ECSContainerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECSContainerToTaskRel(),
+            ECSContainerToECRImageRel(),
         ]
     )
