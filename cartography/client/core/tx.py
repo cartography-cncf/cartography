@@ -11,8 +11,8 @@ import neo4j
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_ingestion_query
-from cartography.graph.sanitizer import data_dict_cleanup
 from cartography.graph.querybuilder import build_matchlink_query
+from cartography.graph.sanitizer import data_dict_cleanup
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.util import batch
