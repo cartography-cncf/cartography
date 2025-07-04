@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.anthropic.util import paginated_get
 from cartography.models.anthropic.workspace import AnthropicWorkspaceSchema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,8 @@ def sync(
     )
     common_job_parameters["ORG_ID"] = org_id
     for workspace in workspaces:
+        workspace["created_at"] = dict_date_to_datetime(workspace, "created_at")
+        workspace["archived_at"] = dict_date_to_datetime(workspace, "archived_at")
         workspace["users"] = []
         workspace["admins"] = []
         for user in get_workspace_users(

@@ -10,6 +10,7 @@ from digitalocean import Manager
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.digitalocean.droplet import DODropletSchema
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,7 @@ def transform_droplets(
             "account_id": account_id,
             "project_id": _get_project_id_for_droplet(d.id, projects_resources),
         }
+        droplet["created_at"] = dict_date_to_datetime(droplet, "created_at")
         droplets_by_project[project_id].append(droplet)
     return droplets_by_project
 

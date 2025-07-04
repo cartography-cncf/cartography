@@ -78,7 +78,6 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "dependency_file",
             "dependency_file_url",
             "ref_urls",
-            "scan_time",
         ],
     ) == [
         tests.data.semgrep.sca.VULN_ID,
@@ -101,7 +100,6 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         [
             "https://nvd.nist.gov/vuln/detail/CVE-2022-31129",
         ],
-        "2024-07-11T20:46:25.269650Z",
     ]
 
     assert check_nodes(

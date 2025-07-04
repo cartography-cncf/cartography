@@ -6,6 +6,7 @@ import neo4j
 from falconpy.oauth2 import OAuth2
 from falconpy.spotlight_vulnerabilities import Spotlight_Vulnerabilities
 
+from cartography.util import dict_date_to_datetime
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -58,16 +59,14 @@ def load_vulnerability_data(
     cves = []
     for item in data:
         vuln = {}
+        for key in ["id", "aid", "cid", "status"]:
+            vuln[key] = item.get(key)
         for key in [
-            "id",
-            "aid",
-            "cid",
-            "status",
             "created_timestamp",
             "closed_timestamp",
             "updated_timestamp",
         ]:
-            vuln[key] = item.get(key)
+            vuln[key] = dict_date_to_datetime(vuln, key)
         vuln["remediation_ids"] = item.get("remediation", {}).get("ids", [])
         vuln["app_product_name_version"] = item.get("app", {}).get(
             "product_name_version",
