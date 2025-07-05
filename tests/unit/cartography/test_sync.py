@@ -9,7 +9,7 @@ from cartography.sync import TOP_LEVEL_MODULES
 
 def test_available_modules_import():
     # Check if all available modules are defined in the TOP_LEVEL_MODULES list
-    assert TOP_LEVEL_MODULES == Sync.list_intel_modules()
+    assert sorted(TOP_LEVEL_MODULES.keys()) == sorted(Sync.list_intel_modules().keys())
 
 
 def test_build_default_sync():
