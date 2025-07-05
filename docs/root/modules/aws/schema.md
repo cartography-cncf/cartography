@@ -809,6 +809,26 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
     ```
 
+### CodeBuildProject
+Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The ARN of the CodeBuild Project |
+| arn | The Amazon Resource Name (ARN) of the CodeBuild Project |
+| region | The region of the codebuild project |
+| created | The creation time of the CodeBuild Project |
+| environment_variables | A set of environment variables to make available to builds for this build project |
+| source_type | The type of repository that contains the source code to be built |
+| source_location | Information about the location of the source code to be built |
+#### Relationships
+- CodeBuild Projects are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CodeBuildProject)
+    ```
+
 ### DBSubnetGroup
 
 Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSubnetGroup.html).  For more information on how RDS instances interact with these, please see [this article](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html).
