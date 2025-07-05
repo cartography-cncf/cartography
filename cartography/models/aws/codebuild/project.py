@@ -17,6 +17,8 @@ class CodeBuildProjectNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     created: PropertyRef = PropertyRef("created")
     environment_variables: PropertyRef = PropertyRef("environmentVariables")
+    source_type: PropertyRef = PropertyRef("sourceType")
+    source_location: PropertyRef = PropertyRef("sourceLocation")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

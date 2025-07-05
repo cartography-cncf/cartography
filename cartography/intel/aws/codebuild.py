@@ -64,6 +64,8 @@ def transform_codebuild_projects(
             "arn": project["arn"],
             "created": project.get("created"),
             "environmentVariables": env_var_strings,
+            "sourceType": project.get("source", {}).get("type"),
+            "sourceLocation": project.get("source", {}).get("location"),
         }
         transformed_codebuild_projects.append(transformed_project)
 

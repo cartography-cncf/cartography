@@ -811,6 +811,8 @@ Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebui
 | region | The region of the codebuild project |
 | created | The creation time of the CodeBuild Project |
 | environment_variables | A set of environment variables to make available to builds for this build project |
+| source_type | The type of repository that contains the source code to be built |
+| source_location | Information about the location of the source code to be built |
 #### Relationships
 - CodeBuild Projects are a resource under the AWS Account.
     ```
