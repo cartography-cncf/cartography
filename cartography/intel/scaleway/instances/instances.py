@@ -53,12 +53,7 @@ def transform_instances(
         formatted_instance["volumes_id"] = [
             volume["id"] for volume in formatted_instance.get("volumes", {}).values()
         ]
-        try:
-            result[project_id].append(formatted_instance)
-        except KeyError:
-            result[project_id] = [
-                formatted_instance,
-            ]
+        result.setdefault(project_id, []).append(formatted_instance)
     return result
 
 

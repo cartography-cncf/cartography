@@ -36,8 +36,8 @@ import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.openai
-import cartography.intel.scaleway
 import cartography.intel.pagerduty
+import cartography.intel.scaleway
 import cartography.intel.semgrep
 import cartography.intel.snipeit
 import cartography.intel.tailscale

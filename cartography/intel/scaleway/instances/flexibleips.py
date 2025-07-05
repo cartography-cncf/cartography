@@ -47,12 +47,7 @@ def transform_flexibleips(
     for flexibleip in flexibleips:
         project_id = flexibleip.project
         formatted_flexibleip = scaleway_obj_to_dict(flexibleip)
-        try:
-            result[project_id].append(formatted_flexibleip)
-        except KeyError:
-            result[project_id] = [
-                formatted_flexibleip,
-            ]
+        result.setdefault(project_id, []).append(formatted_flexibleip)
     return result
 
 

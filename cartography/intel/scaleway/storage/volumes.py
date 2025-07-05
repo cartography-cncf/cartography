@@ -45,12 +45,7 @@ def transform_volumes(volumes: list[Volume]) -> dict[str, list[dict[str, Any]]]:
     for volume in volumes:
         project_id = volume.project
         formatted_volume = scaleway_obj_to_dict(volume)
-        try:
-            result[project_id].append(formatted_volume)
-        except KeyError:
-            result[project_id] = [
-                formatted_volume,
-            ]
+        result.setdefault(project_id, []).append(formatted_volume)
     return result
 
 
@@ -82,8 +77,8 @@ def cleanup(
     common_job_parameters: dict[str, Any],
 ) -> None:
     for project_id in projects_id:
-        scopped_job_parameters = common_job_parameters.copy()
-        scopped_job_parameters["PROJECT_ID"] = project_id
-        GraphJob.from_node_schema(ScalewayVolumeSchema(), scopped_job_parameters).run(
+        scoped_job_parameters = common_job_parameters.copy()
+        scoped_job_parameters["PROJECT_ID"] = project_id
+        GraphJob.from_node_schema(ScalewayVolumeSchema(), scoped_job_parameters).run(
             neo4j_session
         )

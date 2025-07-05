@@ -47,12 +47,7 @@ def transform_snapshots(
     for snapshot in snapshots:
         project_id = snapshot.project
         formatted_snapshot = scaleway_obj_to_dict(snapshot)
-        try:
-            result[project_id].append(formatted_snapshot)
-        except KeyError:
-            result[project_id] = [
-                formatted_snapshot,
-            ]
+        result.setdefault(project_id, []).append(formatted_snapshot)
     return result
 
 
@@ -84,8 +79,8 @@ def cleanup(
     common_job_parameters: dict[str, Any],
 ) -> None:
     for project_id in projects_id:
-        scopped_job_parameters = common_job_parameters.copy()
-        scopped_job_parameters["PROJECT_ID"] = project_id
+        scoped_job_parameters = common_job_parameters.copy()
+        scoped_job_parameters["PROJECT_ID"] = project_id
         GraphJob.from_node_schema(
-            ScalewayVolumeSnapshotSchema(), scopped_job_parameters
+            ScalewayVolumeSnapshotSchema(), scoped_job_parameters
         ).run(neo4j_session)
