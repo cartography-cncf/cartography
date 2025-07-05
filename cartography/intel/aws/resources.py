@@ -16,6 +16,7 @@ from . import eks
 from . import elasticache
 from . import elasticsearch
 from . import emr
+from . import guardduty
 from . import iam
 from . import identitycenter
 from . import inspector
@@ -102,6 +103,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "sqs": sqs.sync,
     "ssm": ssm.sync,
     "acm:certificate": acm.sync,
+    "guardduty": guardduty.sync,
     "inspector": inspector.sync,
     "config": config.sync,
     "identitycenter": identitycenter.sync_identity_center_instances,
