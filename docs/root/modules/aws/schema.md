@@ -3462,7 +3462,7 @@ Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sn
 | topic_arn | The topic ARN that the subscription is associated with |
 | endpoint | The subscription's endpoint |
 | owner | The subscription's owner |
-| protocol | The subscription's protocal for messages |
+| protocol | The subscription's protocol for messages |
 #### Relationships
 - SNS Topic Subscriptions are a resource under the AWS Account.
     ```
