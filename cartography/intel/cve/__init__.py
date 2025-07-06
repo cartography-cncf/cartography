@@ -9,15 +9,14 @@ from urllib3 import Retry
 from cartography.config import Config
 from cartography.intel.cve import feed
 from cartography.stats import get_stats_client
-from cartography.util import merge_module_sync_metadata
-from cartography.util import timeit
+from cartography.util import merge_module_sync_metadata, timeit, build_session
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 
 def _retryable_session() -> Session:
-    session = Session()
+    session = build_session()
     retry_policy = Retry(
         total=8,
         connect=1,

@@ -1,7 +1,6 @@
 import logging
 
 import neo4j
-import requests
 
 import cartography.intel.openai.adminapikeys
 import cartography.intel.openai.apikeys
@@ -9,7 +8,7 @@ import cartography.intel.openai.projects
 import cartography.intel.openai.serviceaccounts
 import cartography.intel.openai.users
 from cartography.config import Config
-from cartography.util import timeit
+from cartography.util import timeit, build_session
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         return
 
     # Create requests sessions
-    api_session = requests.session()
+    api_session = build_session()
     api_session.headers.update(
         {
             "Authorization": f"Bearer {config.openai_apikey}",
