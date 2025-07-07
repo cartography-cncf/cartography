@@ -71,8 +71,8 @@ class CLI:
             default="bolt://localhost:7687",
             help=(
                 "A valid Neo4j URI to sync against. See "
-                "https://neo4j.com/docs/api/python-driver/current/ for complete documentation on the "
-                "structure of a Neo4j URI."
+                "https://neo4j.com/docs/browser-manual/current/operations/dbms-connection/#uri-scheme for complete "
+                "documentation on the structure of a Neo4j URI."
             ),
         )
         parser.add_argument(
