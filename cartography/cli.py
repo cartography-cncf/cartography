@@ -598,7 +598,7 @@ class CLI:
             default=None,
             help=(
                 "The name of the Tailscale organization to sync. "
-                "Required if you are using the Tailscale intel module. Ignored otherwise."
+                "Optional when using an OAuth token (tskey-client-*)."
             ),
         )
         parser.add_argument(
