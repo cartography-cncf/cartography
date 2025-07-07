@@ -81,8 +81,9 @@ TOP_LEVEL_MODULES = OrderedDict(
         "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
-        "analysis": cartography.intel.analysis.run,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
+        # Analysis should be the last stage
+        "analysis": cartography.intel.analysis.run,
     }
 )
 

@@ -4,7 +4,6 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from cartography.intel.sentinelone.utils import call_sentinelone_api
 from cartography.models.sentinelone.account import S1AccountSchema
 from cartography.util import timeit
@@ -103,22 +102,6 @@ def load_accounts(
     logger.info(f"Loaded {len(accounts_data)} SentinelOne account nodes")
 
 
-def cleanup_accounts(
-    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
-) -> None:
-    """
-    Remove stale SentinelOne account data
-    :param neo4j_session: Neo4j session
-    :param common_job_parameters: Job parameters for cleanup
-    """
-    logger.debug("Running SentinelOne account cleanup job")
-
-    # Use GraphJob to clean up stale account data
-    GraphJob.from_node_schema(S1AccountSchema(), common_job_parameters).run(
-        neo4j_session
-    )
-
-
 @timeit
 def sync_accounts(
     neo4j_session: neo4j.Session,
@@ -146,9 +129,6 @@ def sync_accounts(
 
     # 3. LOAD - Ingest to Neo4j using data model
     load_accounts(neo4j_session, transformed_accounts, update_tag)
-
-    # 4. CLEANUP - Remove stale data
-    cleanup_accounts(neo4j_session, common_job_parameters)
 
     synced_account_ids = [account["id"] for account in transformed_accounts]
     logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
