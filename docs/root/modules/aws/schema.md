@@ -1768,27 +1768,34 @@ Represents a generic IP rule.  The creation of this node is currently derived fr
     ```
 
 
-### IpRule::IpPermissionInbound
+### IpRule::IpPermissionInbound and IpPermissionEgress
 
-An IpPermissionInbound node is a specific type of IpRule.  It represents a generic inbound IP-based rules.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+An IpRule node represents an inbound or outbound security group rule. These nodes are created from AWS [EC2 Security Group](#ec2securitygroup) rules using the `describe_security_group_rules` API. The node is labeled as:
+- `IpPermissionInbound` for rules where `IsEgress` is `false` (traffic coming into the security group)
+- `IpPermissionEgress` for rules where `IsEgress` is `true` (traffic going out from the security group)
 
 | Field | Description |
 |-------|-------------|
-| **ruleid** | `{group_id}/{rule_type}/{from_port}{to_port}{protocol}` |
-| groupid |  The groupid of the EC2 Security Group that this was derived from |
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| protocol | The protocol this rule applies to |
-| fromport | Lowest port in the range defined by this rule|
-| toport | Highest port in the range defined by this rule|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| ruleid | The unique identifier of the security group rule (SecurityGroupRuleId, e.g., 'sgr-01234567890abcdef') |
+| protocol | The IP protocol (tcp, udp, icmp, or a protocol number) |
+| fromport | Start of port range for the TCP and UDP protocols, or an ICMP/ICMPv6 type number |
+| toport | End of port range for the TCP and UDP protocols, or an ICMP/ICMPv6 code |
 
 #### Relationships
 
-- IpPermissionInbound rules are defined from EC2SecurityGroups.
+- IpRules belong to EC2SecurityGroups:
+    ```cypher
+    (rule:IpRule)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(group:EC2SecurityGroup)
+    ```
+
+- IpRules can have associated IpRanges:
+    ```cypher
+    (range:IpRange)-[:MEMBER_OF_IP_RULE]->(rule:IpRule)
     ```
     (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
-
 
 ### LoadBalancer
 

@@ -36,16 +36,31 @@ def get_ec2_security_group_data(
         security_groups.extend(page["SecurityGroups"])
     return security_groups
 
+@timeit
+def get_ec2_security_group_rules(
+    boto3_session: boto3.session.Session,
+    region: str,
+    group_id: str,
+) -> List[Dict]:
+    client = boto3_session.client(
+        "ec2",
+        region_name=region,
+        config=get_botocore_config()
+    )
+    paginator = client.get_paginator("describe_security_group_rules")
+    rules = []
+    for page in paginator.paginate(Filters=[{'Name': 'group-id', 'Values': [group_id]}]):
+        rules.extend(page.get('SecurityGroupRules', []))
+    return rules
 
 @timeit
 def load_ec2_security_group_rule(
     neo4j_session: neo4j.Session,
     group: Dict,
-    rule_type: str,
+    rules: List[Dict],
     update_tag: int,
 ) -> None:
-    INGEST_RULE_TEMPLATE = Template(
-        """
+    INGEST_RULE_TEMPLATE = Template("""
     MERGE (rule:$rule_label{ruleid: $RuleId})
     ON CREATE SET rule :IpRule, rule.firstseen = timestamp(), rule.fromport = $FromPort, rule.toport = $ToPort,
     rule.protocol = $Protocol
@@ -55,8 +70,7 @@ def load_ec2_security_group_rule(
     MERGE (group)<-[r:MEMBER_OF_EC2_SECURITY_GROUP]-(rule)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $update_tag;
-    """,
-    )
+    """)
 
     ingest_rule_group_pair = """
     MERGE (group:EC2SecurityGroup{id: $GroupId})
@@ -81,52 +95,45 @@ def load_ec2_security_group_rule(
     """
 
     group_id = group["GroupId"]
-    rule_type_map = {
-        "IpPermissions": "IpPermissionInbound",
-        "IpPermissionsEgress": "IpPermissionEgress",
-    }
+    
+    for rule in rules:
+        is_egress = rule.get("IsEgress", False)
+        rule_type = "IpPermissionEgress" if is_egress else "IpPermissionInbound"
+        protocol = rule.get("IpProtocol", "all")
+        from_port = rule.get("FromPort")
+        to_port = rule.get("ToPort")
+        rule_id = rule["SecurityGroupRuleId"]
 
-    if group.get(rule_type):
-        for rule in group[rule_type]:
-            protocol = rule.get("IpProtocol", "all")
-            from_port = rule.get("FromPort")
-            to_port = rule.get("ToPort")
+        neo4j_session.run(
+            INGEST_RULE_TEMPLATE.safe_substitute(rule_label=rule_type),
+            RuleId=rule_id,
+            FromPort=from_port,
+            ToPort=to_port,
+            Protocol=protocol,
+            GroupId=group_id,
+            update_tag=update_tag,
+        )
 
-            ruleid = f"{group_id}/{rule_type}/{from_port}{to_port}{protocol}"
-            # NOTE Cypher query syntax is incompatible with Python string formatting, so we have to do this awkward
-            # NOTE manual formatting instead.
+        neo4j_session.run(
+            ingest_rule_group_pair,
+            GroupId=group_id,
+            RuleId=rule_id,
+            update_tag=update_tag,
+        )
+
+        if rule.get("CidrIpv4"):
             neo4j_session.run(
-                INGEST_RULE_TEMPLATE.safe_substitute(
-                    rule_label=rule_type_map[rule_type],
-                ),
-                RuleId=ruleid,
-                FromPort=from_port,
-                ToPort=to_port,
-                Protocol=protocol,
-                GroupId=group_id,
+                ingest_range,
+                RangeId=rule["CidrIpv4"],
+                RuleId=rule_id,
                 update_tag=update_tag,
             )
-
-            neo4j_session.run(
-                ingest_rule_group_pair,
-                GroupId=group_id,
-                RuleId=ruleid,
-                update_tag=update_tag,
-            )
-
-            for ip_range in rule["IpRanges"]:
-                range_id = ip_range["CidrIp"]
-                neo4j_session.run(
-                    ingest_range,
-                    RangeId=range_id,
-                    RuleId=ruleid,
-                    update_tag=update_tag,
-                )
 
 
 @timeit
 def load_ec2_security_groupinfo(
     neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
     data: List[Dict],
     region: str,
     current_aws_account_id: str,
@@ -161,15 +168,8 @@ def load_ec2_security_groupinfo(
             AWS_ACCOUNT_ID=current_aws_account_id,
             update_tag=update_tag,
         )
-
-        load_ec2_security_group_rule(neo4j_session, group, "IpPermissions", update_tag)
-        load_ec2_security_group_rule(
-            neo4j_session,
-            group,
-            "IpPermissionsEgress",
-            update_tag,
-        )
-
+        rules = get_ec2_security_group_rules(boto3_session, region, group_id)
+        load_ec2_security_group_rule(neo4j_session, group, rules, update_tag)
 
 @timeit
 def cleanup_ec2_security_groupinfo(
@@ -205,9 +205,10 @@ def sync_ec2_security_groupinfo(
         data = get_ec2_security_group_data(boto3_session, region)
         load_ec2_security_groupinfo(
             neo4j_session,
+            boto3_session,
             data,
             region,
             current_aws_account_id,
-            update_tag,
+            update_tag
         )
     cleanup_ec2_security_groupinfo(neo4j_session, common_job_parameters)
