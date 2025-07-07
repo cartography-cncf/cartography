@@ -608,6 +608,16 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSAccount)-[RESOURCE]->(AWSRole)
     ```
 
+- ECSTaskDefinitions have task roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
+    ```
+
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
 
@@ -1499,6 +1509,11 @@ ECRRepositoryImage.
 
     ```
     (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
+    ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
 
@@ -3075,7 +3090,7 @@ Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/lat
 
 - ECSClusters are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSCluster)
+    (:AWSAccount)-[:RESOURCE]->(:ECSCluster)
     ```
 
 ### ECSContainerInstance
@@ -3105,12 +3120,12 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 ### ECSService
@@ -3150,12 +3165,12 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 - An ECSCluster has ECSService
     ```
-    (ECSCluster)-[HAS_SERVICE]->(ECSService)
+    (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
     ```
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 ### ECSTaskDefinition
@@ -3193,12 +3208,22 @@ Representation of an AWS ECS [Task Definition](https://docs.aws.amazon.com/Amazo
 
 - ECSTaskDefinition are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSTaskDefinition)
+    (:AWSAccount)-[:RESOURCE]->(:ECSTaskDefinition)
     ```
 
 - An ECSTask has an ECSTaskDefinition.
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTaskDefinitions have task roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
 ### ECSContainerDefinition
@@ -3238,7 +3263,7 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 - ECSTaskDefinitions have ECSContainerDefinitions
     ```
-    (ECSTaskDefinition)-[HAS_CONTAINER_DEFINITION]->(ECSContainerDefinition)
+    (:ECSTaskDefinition)-[:HAS_CONTAINER_DEFINITION]->(:ECSContainerDefinition)
     ```
 
 ### ECSTask
@@ -3286,17 +3311,17 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 
 - ECSClusters have ECSTasks
     ```
-    (ECSCluster)-[HAS_TASK]->(ECSTask)
+    (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSTasks have ECSTaskDefinitions
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
     ```
 
 ### ECSContainer
@@ -3328,7 +3353,12 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 
 - ECSTasks have ECSContainers
     ```
-    (ECSTask)-[HAS_CONTAINER]->(ECSContainer)
+    (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
+    ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
 ### EfsFileSystem
@@ -3387,6 +3417,33 @@ Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/late
 - Efs MountTargets are attached to Efs FileSystems.
     ```
     (EfsMountTarget)-[ATTACHED_TO]->(EfsFileSystem)
+    ```
+
+### EfsAccessPoint
+Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/latest/ug/API_AccessPointDescription.html)
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | System-assigned access point ARN |
+| arn | The unique Amazon Resource Name (ARN) associated with the access point |
+| region | The region of the access point |
+|access_point_id | The ID of the access point, assigned by Amazon EFS |
+| file_system_id | The ID of the EFS file system that the access point applies to |
+| lifecycle_state | Identifies the lifecycle phase of the access point |
+| name | The name of the access point |
+| owner_id | AWS account ID that owns the resource |
+| posix_gid | The POSIX group ID used for all file system operations using this access point |
+| posix_uid | The POSIX user ID used for all file system operations using this access point |
+| root_directory_path | Specifies the path on the EFS file system to expose as the root directory to NFS clients using the access point to access the EFS file system |
+#### Relationships
+- Efs AccessPoints are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EfsAccessPoint)
+    ```
+- EFS Access Points are entry points into EFS File Systems.
+    ```
+    (EfsAccessPoint)-[ACCESS_POINT_OF]->(EfsFileSystem)
     ```
 
 ### SNSTopic

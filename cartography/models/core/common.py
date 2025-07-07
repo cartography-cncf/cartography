@@ -63,6 +63,7 @@ class PropertyRef:
             ```
             This means that as we create AWSInstanceProfile nodes, we will search for AWSRoles to attach to, and we do
             this by checking if each role's `arn` field is in the `Roles` list of the data dict.
+        Note that one_to_many has no effect on matchlinks.
         """
         self.name = name
         self.set_in_kwargs = set_in_kwargs
