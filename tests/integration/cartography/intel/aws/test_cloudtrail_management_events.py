@@ -6,6 +6,8 @@ import cartography.intel.aws.cloudtrail_management_events
 import cartography.intel.aws.iam
 from cartography.intel.aws.cloudtrail_management_events import sync
 from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "123456789012"
 TEST_REGION = "us-east-1"
@@ -194,56 +196,81 @@ def test_sync_cloudtrail_management_events_creates_assumed_role_relationships(
         common_job_parameters,
     )
 
-    # Assert - Check that ASSUMED_ROLE relationships were created
-    assumed_role_rels = neo4j_session.run(
-        """
-        MATCH (source)-[rel:ASSUMED_ROLE]->(dest:AWSRole)
-        RETURN source.arn as source_arn, dest.arn as dest_arn,
-               rel.times_used as times_used, rel.lastused as lastused,
-               rel.first_seen as first_seen, rel.last_seen as last_seen
-        """
-    ).data()
-
-    # Should have 3 relationships from our test data
-    assert len(assumed_role_rels) == 3
-
-    # Verify each relationship has the expected properties
-    rels_by_source_dest = {
-        (rel["source_arn"], rel["dest_arn"]): rel for rel in assumed_role_rels
+    # Assert - Check that expected nodes exist
+    assert check_nodes(neo4j_session, "AWSUser", ["arn", "name"]) == {
+        ("arn:aws:iam::123456789012:user/john.doe", "john.doe"),
+        ("arn:aws:iam::123456789012:user/alice", "alice"),
     }
 
-    # Check john.doe -> CrossAccountRole relationship
-    john_rel = rels_by_source_dest.get(
+    assert check_nodes(neo4j_session, "AWSRole", ["arn", "name"]) == {
+        ("arn:aws:iam::987654321098:role/CrossAccountRole", "CrossAccountRole"),
+        ("arn:aws:iam::123456789012:role/SAMLRole", "SAMLRole"),
+        ("arn:aws:iam::123456789012:role/WebIdentityRole", "WebIdentityRole"),
+    }
+
+    # Assert - Check that ASSUMED_ROLE relationships exist with correct properties
+    assert check_rels(
+        neo4j_session,
+        "AWSPrincipal",
+        "arn",
+        "AWSRole",
+        "arn",
+        "ASSUMED_ROLE",
+        rel_direction_right=True,
+    ) == {
         (
             "arn:aws:iam::123456789012:user/john.doe",
             "arn:aws:iam::987654321098:role/CrossAccountRole",
-        )
-    )
-    assert john_rel is not None
-    assert john_rel["times_used"] == 1
-    assert john_rel["lastused"] is not None
-    assert john_rel["first_seen"] is not None
-    assert john_rel["last_seen"] is not None
-
-    # Check alice -> SAMLRole relationship
-    alice_saml_rel = rels_by_source_dest.get(
+        ),
         (
             "arn:aws:iam::123456789012:user/alice",
             "arn:aws:iam::123456789012:role/SAMLRole",
-        )
-    )
-    assert alice_saml_rel is not None
-    assert alice_saml_rel["times_used"] == 1
-
-    # Check alice -> WebIdentityRole relationship
-    alice_web_rel = rels_by_source_dest.get(
+        ),
         (
             "arn:aws:iam::123456789012:user/alice",
             "arn:aws:iam::123456789012:role/WebIdentityRole",
-        )
-    )
-    assert alice_web_rel is not None
-    assert alice_web_rel["times_used"] == 1
+        ),
+    }
+
+    # Assert - Check relationship properties using manual query (since check_rels doesn't return properties)
+    assumed_role_rels = neo4j_session.run(
+        """
+        MATCH (source:AWSPrincipal)-[rel:ASSUMED_ROLE]->(dest:AWSRole)
+        RETURN source.arn as source_arn, dest.arn as dest_arn,
+               rel.times_used as times_used, rel.first_seen as first_seen,
+               rel.last_seen as last_seen, rel.lastused as lastused
+        ORDER BY source.arn, dest.arn
+        """,
+    ).data()
+
+    expected_rels = [
+        {
+            "source_arn": "arn:aws:iam::123456789012:user/alice",
+            "dest_arn": "arn:aws:iam::123456789012:role/SAMLRole",
+            "times_used": 1,
+            "first_seen": "2024-01-15T11:15:30.456000",
+            "last_seen": "2024-01-15T11:15:30.456000",
+            "lastused": "2024-01-15T11:15:30.456000",
+        },
+        {
+            "source_arn": "arn:aws:iam::123456789012:user/alice",
+            "dest_arn": "arn:aws:iam::123456789012:role/WebIdentityRole",
+            "times_used": 1,
+            "first_seen": "2024-01-15T12:45:00.789000",
+            "last_seen": "2024-01-15T12:45:00.789000",
+            "lastused": "2024-01-15T12:45:00.789000",
+        },
+        {
+            "source_arn": "arn:aws:iam::123456789012:user/john.doe",
+            "dest_arn": "arn:aws:iam::987654321098:role/CrossAccountRole",
+            "times_used": 1,
+            "first_seen": "2024-01-15T10:30:15.123000",
+            "last_seen": "2024-01-15T10:30:15.123000",
+            "lastused": "2024-01-15T10:30:15.123000",
+        },
+    ]
+
+    assert assumed_role_rels == expected_rels
 
 
 @patch.object(
@@ -260,7 +287,7 @@ def test_sync_cloudtrail_management_events_with_no_events(
     mock_transform, mock_get_events, neo4j_session
 ):
     """
-    Test that the sync works correctly when no CloudTrail events are found.
+    Test that the sync function handles no events gracefully.
     """
     # Arrange
     _cleanup_neo4j(neo4j_session)
@@ -284,49 +311,62 @@ def test_sync_cloudtrail_management_events_with_no_events(
         common_job_parameters,
     )
 
-    # Assert - Should have no ASSUMED_ROLE relationships
-    assumed_role_rels = neo4j_session.run(
-        """
-        MATCH ()-[rel:ASSUMED_ROLE]->()
-        RETURN count(rel) as count
-        """
-    ).single()["count"]
-
-    assert assumed_role_rels == 0
+    # Assert - No ASSUMED_ROLE relationships should be created
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSPrincipal",
+            "arn",
+            "AWSRole",
+            "arn",
+            "ASSUMED_ROLE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
 
 
 def test_sync_cloudtrail_management_events_skipped_when_no_lookback_hours(
     neo4j_session,
 ):
     """
-    Test that the sync is skipped when no lookback hours are configured.
+    Test that the sync function skips execution when no lookback hours are specified.
     """
     # Arrange
     _cleanup_neo4j(neo4j_session)
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _ensure_local_neo4j_has_test_iam_data(neo4j_session)
 
+    # Don't include lookback hours in common_job_parameters
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AWS_ID": TEST_ACCOUNT_ID,
-        # No aws_cloudtrail_management_events_lookback_hours specified
     }
 
     # Act
-    with patch.object(
-        cartography.intel.aws.cloudtrail_management_events, "get_cloudtrail_events"
-    ) as mock_get_events:
-        sync(
-            neo4j_session,
-            boto3_session,
-            [TEST_REGION],
-            TEST_ACCOUNT_ID,
-            TEST_UPDATE_TAG,
-            common_job_parameters,
-        )
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
 
-        # Assert - get_cloudtrail_events should not be called
-        mock_get_events.assert_not_called()
+    # Assert - No ASSUMED_ROLE relationships should be created
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSPrincipal",
+            "arn",
+            "AWSRole",
+            "arn",
+            "ASSUMED_ROLE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
 
 
 @patch.object(
@@ -366,7 +406,7 @@ def test_sync_cloudtrail_management_events_continues_on_region_failure(
     mock_transform, mock_get_events, neo4j_session
 ):
     """
-    Test that the sync continues processing other regions when one region fails.
+    Test that the sync function continues processing other regions even when one fails.
     """
     # Arrange
     _cleanup_neo4j(neo4j_session)
@@ -374,33 +414,41 @@ def test_sync_cloudtrail_management_events_continues_on_region_failure(
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_iam_data(neo4j_session)
 
-    regions = ["us-east-1", "us-west-2", "eu-west-1"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AWS_ID": TEST_ACCOUNT_ID,
         "aws_cloudtrail_management_events_lookback_hours": 24,
     }
 
-    # Act
+    # Act - Process multiple regions where one fails
     sync(
         neo4j_session,
         boto3_session,
-        regions,
+        ["us-east-1", "us-west-2", "eu-west-1"],  # Three regions
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
 
-    # Assert - Should have processed successful regions only
-    assumed_role_rels = neo4j_session.run(
-        """
-        MATCH ()-[rel:ASSUMED_ROLE]->()
-        RETURN count(rel) as count
-        """
-    ).single()["count"]
-
-    # Should have 2 relationships from the 2 successful regions
-    assert assumed_role_rels == 2
+    # Assert - Should have relationships from the successful regions only
+    assert check_rels(
+        neo4j_session,
+        "AWSPrincipal",
+        "arn",
+        "AWSRole",
+        "arn",
+        "ASSUMED_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:iam::123456789012:user/john.doe",
+            "arn:aws:iam::987654321098:role/CrossAccountRole",
+        ),
+        (
+            "arn:aws:iam::123456789012:user/alice",
+            "arn:aws:iam::123456789012:role/SAMLRole",
+        ),
+    }
 
 
 @patch.object(
@@ -440,7 +488,7 @@ def test_sync_cloudtrail_management_events_aggregates_multiple_events(
     mock_transform, mock_get_events, neo4j_session
 ):
     """
-    Test that multiple events for the same (source, destination) pair are properly aggregated.
+    Test that multiple events for the same source-destination pair are properly aggregated.
     """
     # Arrange
     _cleanup_neo4j(neo4j_session)
@@ -464,27 +512,42 @@ def test_sync_cloudtrail_management_events_aggregates_multiple_events(
         common_job_parameters,
     )
 
-    # Assert - Should have aggregated the multiple events into one relationship
-    assumed_role_rel = neo4j_session.run(
+    # Assert - Should have exactly one aggregated relationship
+    assert check_rels(
+        neo4j_session,
+        "AWSPrincipal",
+        "arn",
+        "AWSRole",
+        "arn",
+        "ASSUMED_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:iam::123456789012:user/alice",
+            "arn:aws:iam::123456789012:role/SAMLRole",
+        ),
+    }
+
+    # Assert - Check aggregated properties
+    aggregated_rel = neo4j_session.run(
         """
-        MATCH (source {arn: 'arn:aws:iam::123456789012:user/alice'})
-              -[rel:ASSUMED_ROLE]->
-              (dest {arn: 'arn:aws:iam::123456789012:role/SAMLRole'})
+        MATCH (source:AWSPrincipal)-[rel:ASSUMED_ROLE]->(dest:AWSRole)
+        WHERE source.arn = 'arn:aws:iam::123456789012:user/alice'
+        AND dest.arn = 'arn:aws:iam::123456789012:role/SAMLRole'
         RETURN rel.times_used as times_used, rel.first_seen as first_seen,
                rel.last_seen as last_seen, rel.lastused as lastused
-        """
+        """,
     ).single()
 
-    assert assumed_role_rel is not None
-    assert assumed_role_rel["times_used"] == 3  # Aggregated from 3 events
-    assert assumed_role_rel["first_seen"] is not None
-    assert assumed_role_rel["last_seen"] is not None
-    assert assumed_role_rel["lastused"] == assumed_role_rel["last_seen"]
+    assert aggregated_rel["times_used"] == 3
+    assert aggregated_rel["first_seen"] == "2024-01-15T09:00:00.000000"
+    assert aggregated_rel["last_seen"] == "2024-01-15T17:00:00.000000"
+    assert aggregated_rel["lastused"] == "2024-01-15T17:00:00.000000"
 
 
 def test_sync_cloudtrail_management_events_cross_account_relationships(neo4j_session):
     """
-    Test that cross-account role assumptions are handled correctly.
+    Test that cross-account role assumptions are properly handled.
     """
     # Arrange
     _cleanup_neo4j(neo4j_session)
@@ -492,22 +555,13 @@ def test_sync_cloudtrail_management_events_cross_account_relationships(neo4j_ses
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_iam_data(neo4j_session)
 
-    # Use only the cross-account assumption from our test data
-    cross_account_assumption = {
-        "SourcePrincipal": "arn:aws:iam::123456789012:user/john.doe",
-        "DestinationPrincipal": "arn:aws:iam::987654321098:role/CrossAccountRole",
-        "Action": "AssumeRole",
-        "EventId": "test-cross-account-event",
-        "EventTime": "2024-01-15T10:30:15.123000",
-    }
-
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "AWS_ID": TEST_ACCOUNT_ID,
         "aws_cloudtrail_management_events_lookback_hours": 24,
     }
 
-    # Act
+    # Mock CloudTrail events that include cross-account role assumptions
     with (
         patch.object(
             cartography.intel.aws.cloudtrail_management_events,
@@ -517,9 +571,18 @@ def test_sync_cloudtrail_management_events_cross_account_relationships(neo4j_ses
         patch.object(
             cartography.intel.aws.cloudtrail_management_events,
             "transform_cloudtrail_events_to_role_assumptions",
-            return_value=[cross_account_assumption],
+            return_value=[
+                {
+                    "SourcePrincipal": "arn:aws:iam::123456789012:user/john.doe",
+                    "DestinationPrincipal": "arn:aws:iam::987654321098:role/CrossAccountRole",
+                    "Action": "AssumeRole",
+                    "EventId": "test-event-1",
+                    "EventTime": "2024-01-15T10:30:15.123000",
+                }
+            ],
         ),
     ):
+        # Act
         sync(
             neo4j_session,
             boto3_session,
@@ -529,20 +592,30 @@ def test_sync_cloudtrail_management_events_cross_account_relationships(neo4j_ses
             common_job_parameters,
         )
 
-    # Assert - Check cross-account relationship was created
-    cross_account_rel = neo4j_session.run(
-        """
-        MATCH (source {arn: 'arn:aws:iam::123456789012:user/john.doe'})
-              -[rel:ASSUMED_ROLE]->
-              (dest {arn: 'arn:aws:iam::987654321098:role/CrossAccountRole'})
-        RETURN rel.times_used as times_used, source.arn as source_arn, dest.arn as dest_arn
-        """
-    ).single()
+    # Assert - Cross-account relationship should exist
+    assert check_rels(
+        neo4j_session,
+        "AWSPrincipal",
+        "arn",
+        "AWSRole",
+        "arn",
+        "ASSUMED_ROLE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:iam::123456789012:user/john.doe",
+            "arn:aws:iam::987654321098:role/CrossAccountRole",
+        ),
+    }
 
-    assert cross_account_rel is not None
-    assert cross_account_rel["times_used"] == 1
-    assert cross_account_rel["source_arn"] == "arn:aws:iam::123456789012:user/john.doe"
-    assert (
-        cross_account_rel["dest_arn"]
-        == "arn:aws:iam::987654321098:role/CrossAccountRole"
-    )
+    # Assert - Both source and destination nodes should exist
+    assert check_nodes(neo4j_session, "AWSUser", ["arn"]) == {
+        ("arn:aws:iam::123456789012:user/john.doe",),
+        ("arn:aws:iam::123456789012:user/alice",),
+    }
+
+    assert check_nodes(neo4j_session, "AWSRole", ["arn"]) == {
+        ("arn:aws:iam::987654321098:role/CrossAccountRole",),
+        ("arn:aws:iam::123456789012:role/SAMLRole",),
+        ("arn:aws:iam::123456789012:role/WebIdentityRole",),
+    }

@@ -10,7 +10,10 @@ from typing import Optional
 import boto3
 import neo4j
 
+from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.models.aws.cloudtrail.management_events import AssumedRoleMatchLink
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -132,12 +135,12 @@ def load_role_assumptions(
     aws_update_tag: int,
 ) -> None:
     """
-    Load role assumption relationships into Neo4j using hybrid approach:
-    - Uses AssumedRoleRel schema for structure and indexes
-    - Uses raw Cypher for complex aggregation logic
+    Load role assumption relationships into Neo4j using MatchLink pattern.
 
     Creates direct ASSUMED_ROLE relationships with aggregated properties:
     (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {lastused, times_used, first_seen, last_seen}]->(AWSRole)
+
+    Assumes that both source principals and destination roles already exist in the graph.
 
     :type neo4j_session: neo4j.Session
     :param neo4j_session: The Neo4j session to use for database operations
@@ -162,72 +165,16 @@ def load_role_assumptions(
         f"Loading {len(aggregated_assumptions)} aggregated role assumption relationships"
     )
 
-    # Use raw Cypher for complex aggregation logic that cartography's query builder can't handle
-    query = """
-    UNWIND $assumptions AS assumption
+    # Use MatchLink to create relationships between existing nodes
+    matchlink_schema = AssumedRoleMatchLink()
 
-    // Convert assumed role ARNs to IAM role ARNs for source matching
-    WITH assumption,
-         CASE
-            WHEN assumption.source_principal_arn CONTAINS ':sts:' AND assumption.source_principal_arn CONTAINS 'assumed-role'
-            THEN 'arn:aws:iam::' + split(assumption.source_principal_arn, ':')[4] + ':role/' + split(split(assumption.source_principal_arn, '/')[1], '/')[0]
-            ELSE assumption.source_principal_arn
-         END as source_role_arn
-
-    // Find the source principal node (could be AWSUser, AWSRole, or AWSPrincipal)
-    CALL {
-        WITH source_role_arn
-        MATCH (source:AWSUser {arn: source_role_arn})
-        RETURN source as source_node
-        UNION
-        WITH source_role_arn
-        MATCH (source:AWSRole {arn: source_role_arn})
-        RETURN source as source_node
-        UNION
-        WITH source_role_arn
-        MATCH (source:AWSPrincipal {arn: source_role_arn})
-        RETURN source as source_node
-    }
-
-    // Find or create the destination role (handles cross-account roles)
-    MERGE (dest:AWSRole {arn: assumption.destination_principal_arn})
-    ON CREATE SET
-        dest.name = split(split(assumption.destination_principal_arn, '/')[1], '/')[0],
-        dest.accountid = split(assumption.destination_principal_arn, ':')[4],
-        dest.created_time = datetime(),
-        dest.lastupdated = $aws_update_tag
-    ON MATCH SET
-        dest.lastupdated = $aws_update_tag
-
-    // Create or update the ASSUMED_ROLE relationship with aggregated properties
-    MERGE (source_node)-[rel:ASSUMED_ROLE]->(dest)
-    SET rel.lastused = COALESCE(
-        CASE WHEN assumption.last_seen > COALESCE(rel.lastused, datetime('1970-01-01T00:00:00Z'))
-        THEN assumption.last_seen
-        ELSE rel.lastused END,
-        assumption.last_seen
-    ),
-    rel.times_used = COALESCE(rel.times_used, 0) + assumption.times_used,
-    rel.first_seen = COALESCE(
-        CASE WHEN assumption.first_seen < COALESCE(rel.first_seen, datetime('2099-12-31T23:59:59Z'))
-        THEN assumption.first_seen
-        ELSE rel.first_seen END,
-        assumption.first_seen
-    ),
-    rel.last_seen = COALESCE(
-        CASE WHEN assumption.last_seen > COALESCE(rel.last_seen, datetime('1970-01-01T00:00:00Z'))
-        THEN assumption.last_seen
-        ELSE rel.last_seen END,
-        assumption.last_seen
-    ),
-    rel.lastupdated = $aws_update_tag
-    """
-
-    """Executes the query"""
-    neo4j_session.run(
-        query,
-        assumptions=aggregated_assumptions,
-        aws_update_tag=aws_update_tag,
+    load_matchlinks(
+        neo4j_session,
+        matchlink_schema,
+        aggregated_assumptions,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_account_id,
     )
 
     logger.info(
@@ -262,12 +209,15 @@ def _aggregate_role_assumptions(
             )
             continue
 
+        # Convert STS assumed-role ARNs to IAM role ARNs for source matching
+        normalized_source_arn = _convert_assumed_role_arn_to_role_arn(source_arn)
+
         # Create aggregation key
-        key = (source_arn, dest_arn)
+        key = (normalized_source_arn, dest_arn)
 
         if key not in aggregated:
             aggregated[key] = {
-                "source_principal_arn": source_arn,
+                "source_principal_arn": normalized_source_arn,
                 "destination_principal_arn": dest_arn,
                 "times_used": 1,
                 "first_seen": event_time,
@@ -573,7 +523,7 @@ def sync(
             )
             continue
 
-    # Load all role assumptions into Neo4j
+    # Load all role assumptions into Neo4j and run cleanup
     if all_role_assumptions:
         load_role_assumptions(
             neo4j_session=neo4j_session,
@@ -582,6 +532,16 @@ def sync(
             current_aws_account_id=current_aws_account_id,
             aws_update_tag=update_tag,
         )
+
+        # Run cleanup for stale relationships
+        matchlink_schema = AssumedRoleMatchLink()
+        cleanup_job = GraphJob.from_matchlink(
+            matchlink_schema,
+            "AWSAccount",
+            current_aws_account_id,
+            update_tag,
+        )
+        cleanup_job.run(neo4j_session)
 
         logger.info(
             f"CloudTrail management events sync completed successfully. "
