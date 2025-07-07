@@ -196,10 +196,10 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
             ⚠️ For local testing, you might want to turn off authentication via property `dbms.security.auth_enabled` in file NEO4J_PATH/conf/neo4j.conf
 
             💡 If you leave authentication enabled, Neo4j uses the default credentials:
-            
+
             - **Username**: `neo4j`
             - **Password**: `neo4j` (you will be prompted to change it on first login)
-            
+
             You can also provide credentials to Cartography via command-line flags or environment variables. For example:
 
             ```bash
