@@ -8,10 +8,12 @@ from . import apigateway
 from . import cloudtrail
 from . import cloudtrail_management_events
 from . import cloudwatch
+from . import codebuild
 from . import config
 from . import dynamodb
 from . import ecr
 from . import ecs
+from . import efs
 from . import eks
 from . import elasticache
 from . import elasticsearch
@@ -108,4 +110,6 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "cloudtrail": cloudtrail.sync,
     "cloudtrail_management_events": cloudtrail_management_events.sync,
     "cloudwatch": cloudwatch.sync,
+    "efs": efs.sync,
+    "codebuild": codebuild.sync,
 }

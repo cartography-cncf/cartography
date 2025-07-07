@@ -71,8 +71,8 @@ class CLI:
             default="bolt://localhost:7687",
             help=(
                 "A valid Neo4j URI to sync against. See "
-                "https://neo4j.com/docs/api/python-driver/current/driver.html#uri for complete documentation on the "
-                "structure of a Neo4j URI."
+                "https://neo4j.com/docs/browser-manual/current/operations/dbms-connection/#uri-scheme for complete "
+                "documentation on the structure of a Neo4j URI."
             ),
         )
         parser.add_argument(
@@ -646,6 +646,33 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--airbyte-client-id",
+            type=str,
+            default=None,
+            help=(
+                "The Airbyte client ID to use for authentication. "
+                "Required if you are using the Airbyte intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--airbyte-client-secret-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing the Airbyte client secret for authentication. "
+                "Required if you are using the Airbyte intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--airbyte-api-url",
+            type=str,
+            default="https://api.airbyte.com/v1",
+            help=(
+                "The base URL for the Airbyte API (default is the public Airbyte Cloud API). "
+                "Required if you are using the Airbyte intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
             "--trivy-s3-bucket",
             type=str,
             default=None,
@@ -661,6 +688,33 @@ class CLI:
             help=(
                 "The S3 prefix path containing Trivy scan results. "
                 "Required if you are using the Trivy module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--scaleway-org",
+            type=str,
+            default=None,
+            help=(
+                "The Scaleway organization ID to sync. "
+                "Required if you are using the Scaleway intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--scaleway-access-key",
+            type=str,
+            default=None,
+            help=(
+                "The Scaleway access key to use for authentication. "
+                "Required if you are using the Scaleway intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--scaleway-secret-key-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing the Scaleway secret key for authentication. "
+                "Required if you are using the Scaleway intel module. Ignored otherwise."
             ),
         )
 
@@ -981,12 +1035,34 @@ class CLI:
         else:
             config.anthropic_apikey = None
 
+        # Airbyte config
+        if config.airbyte_client_id and config.airbyte_client_secret_env_var:
+            logger.debug(
+                f"Reading Airbyte client secret from environment variable {config.airbyte_client_secret_env_var}",
+            )
+            config.airbyte_client_secret = os.environ.get(
+                config.airbyte_client_secret_env_var,
+            )
+        else:
+            config.airbyte_client_secret = None
+
         # Trivy config
         if config.trivy_s3_bucket:
             logger.debug(f"Trivy S3 bucket: {config.trivy_s3_bucket}")
 
         if config.trivy_s3_prefix:
             logger.debug(f"Trivy S3 prefix: {config.trivy_s3_prefix}")
+
+        # Scaleway config
+        if config.scaleway_secret_key_env_var:
+            logger.debug(
+                f"Reading Scaleway secret key from environment variable {config.scaleway_secret_key_env_var}",
+            )
+            config.scaleway_secret_key = os.environ.get(
+                config.scaleway_secret_key_env_var,
+            )
+        else:
+            config.scaleway_secret_key = None
 
         # Run cartography
         try:

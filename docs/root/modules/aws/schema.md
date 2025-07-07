@@ -213,7 +213,7 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 | Field | Description | Required|
 |-------|-------------|------|
 |**arn**|The AWS ARN|yes|
-|id|Uses the format of `name|arch|version|release|epoch` to uniqulely identify packages|yes|
+|id|Uses the format of `name\|arch\|version\|release\|epoch` to uniqulely identify packages|yes|
 |region|AWS region the finding is from|yes|
 |awsaccount|AWS account the finding is from|yes|
 |findingarn|The AWS ARN for a related finding|yes|
@@ -608,6 +608,16 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSAccount)-[RESOURCE]->(AWSRole)
     ```
 
+- ECSTaskDefinitions have task roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
+    ```
+
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
 
@@ -797,6 +807,26 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 - CLoudWatch LogGroups are a resource under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
+
+### CodeBuildProject
+Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The ARN of the CodeBuild Project |
+| arn | The Amazon Resource Name (ARN) of the CodeBuild Project |
+| region | The region of the codebuild project |
+| created | The creation time of the CodeBuild Project |
+| environment_variables | A list of environment variables used in the build environment. Each variable is represented as a string in the format `<NAME>=<VALUE>`. Variables of type `PLAINTEXT` retain their values (e.g., `ENV=prod`), while variables of type `PARAMETER_STORE`, `SECRETS_MANAGER`, etc., have values redacted as `<REDACTED>` (e.g., `SECRET_TOKEN=<REDACTED>`) |
+| source_type | The type of repository that contains the source code to be built |
+| source_location | Information about the location of the source code to be built |
+#### Relationships
+- CodeBuild Projects are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CodeBuildProject)
     ```
 
 ### DBSubnetGroup
@@ -1479,6 +1509,11 @@ ECRRepositoryImage.
 
     ```
     (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
+    ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
 
@@ -3055,7 +3090,7 @@ Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/lat
 
 - ECSClusters are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSCluster)
+    (:AWSAccount)-[:RESOURCE]->(:ECSCluster)
     ```
 
 ### ECSContainerInstance
@@ -3085,12 +3120,12 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 ### ECSService
@@ -3130,12 +3165,12 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 - An ECSCluster has ECSService
     ```
-    (ECSCluster)-[HAS_SERVICE]->(ECSService)
+    (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
     ```
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 ### ECSTaskDefinition
@@ -3173,12 +3208,22 @@ Representation of an AWS ECS [Task Definition](https://docs.aws.amazon.com/Amazo
 
 - ECSTaskDefinition are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSTaskDefinition)
+    (:AWSAccount)-[:RESOURCE]->(:ECSTaskDefinition)
     ```
 
 - An ECSTask has an ECSTaskDefinition.
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTaskDefinitions have task roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
 ### ECSContainerDefinition
@@ -3218,7 +3263,7 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 - ECSTaskDefinitions have ECSContainerDefinitions
     ```
-    (ECSTaskDefinition)-[HAS_CONTAINER_DEFINITION]->(ECSContainerDefinition)
+    (:ECSTaskDefinition)-[:HAS_CONTAINER_DEFINITION]->(:ECSContainerDefinition)
     ```
 
 ### ECSTask
@@ -3266,17 +3311,17 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 
 - ECSClusters have ECSTasks
     ```
-    (ECSCluster)-[HAS_TASK]->(ECSTask)
+    (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSTasks have ECSTaskDefinitions
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
     ```
 
 ### ECSContainer
@@ -3308,8 +3353,99 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 
 - ECSTasks have ECSContainers
     ```
-    (ECSTask)-[HAS_CONTAINER]->(ECSContainer)
+    (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
     ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    ```
+
+### EfsFileSystem
+Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/latest/ug/API_FileSystemDescription.html)
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ID of the file system, assigned by Amazon EFS |
+| arn | Amazon Resource Name (ARN) for the EFS file system |
+| region | The region of the file system |
+| owner_id | The AWS account that created the file system |
+| creation_token | The opaque string specified in the request |
+| creation_time | The time that the file system was created, in seconds |
+| lifecycle_state | The lifecycle phase of the file system |
+| name | If the file system has a name tag, Amazon EFS returns the value in this field |
+| number_of_mount_targets | The current number of mount targets that the file system has |
+| size_in_bytes_value | Latest known metered size (in bytes) of data stored in the file system |
+| size_in_bytes_timestamp | Time at which that size was determined |
+| performance_mode | The performance mode of the file system |
+| encrypted | A Boolean value that, if true, indicates that the file system is encrypted |
+| kms_key_id | The ID of an AWS KMS key used to protect the encrypted file system |
+| throughput_mode | Displays the file system's throughput mode |
+| availability_zone_name | Describes the AWS Availability Zone in which the file system is located |
+| availability_zone_id | The unique and consistent identifier of the Availability Zone in which the file system is located |
+| file_system_protection | Describes the protection on the file system |
+
+#### Relationships
+- EfsFileSystem are a resource under the AWS Account.
+   ```
+   (AWSAccount)-[RESOURCE]->(EfsFileSystem)
+   ```
+
+### EfsMountTarget
+Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/latest/ug/API_MountTargetDescription.html)
+| Field | Description |
+|-------|-------------|
+| **id** | System-assigned mount target ID |
+| arn | System-assigned mount target ID |
+| region | The region of the mount target |
+| fileSystem_id | The ID of the file system for which the mount target is intended |
+| lifecycle_state | Lifecycle state of the mount target |
+| mount_target_id | System-assigned mount target ID |
+| subnet_id | The ID of the mount target's subnet |
+| availability_zone_id | The unique and consistent identifier of the Availability Zone that the mount target resides in |
+| availability_zone_name | The name of the Availability Zone in which the mount target is located |
+| ip_address | Address at which the file system can be mounted by using the mount target |
+| network_interface_id | The ID of the network interface that Amazon EFS created when it created the mount target |
+| owner_id | AWS account ID that owns the resource |
+| vpc_id | The virtual private cloud (VPC) ID that the mount target is configured in |
+#### Relationships
+- Efs MountTargets are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EfsMountTarget)
+    ```
+- Efs MountTargets are attached to Efs FileSystems.
+    ```
+    (EfsMountTarget)-[ATTACHED_TO]->(EfsFileSystem)
+    ```
+
+### EfsAccessPoint
+Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/latest/ug/API_AccessPointDescription.html)
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | System-assigned access point ARN |
+| arn | The unique Amazon Resource Name (ARN) associated with the access point |
+| region | The region of the access point |
+|access_point_id | The ID of the access point, assigned by Amazon EFS |
+| file_system_id | The ID of the EFS file system that the access point applies to |
+| lifecycle_state | Identifies the lifecycle phase of the access point |
+| name | The name of the access point |
+| owner_id | AWS account ID that owns the resource |
+| posix_gid | The POSIX group ID used for all file system operations using this access point |
+| posix_uid | The POSIX user ID used for all file system operations using this access point |
+| root_directory_path | Specifies the path on the EFS file system to expose as the root directory to NFS clients using the access point to access the EFS file system |
+#### Relationships
+- Efs AccessPoints are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EfsAccessPoint)
+    ```
+- EFS Access Points are entry points into EFS File Systems.
+    ```
+    (EfsAccessPoint)-[ACCESS_POINT_OF]->(EfsFileSystem)
+    ```
+
 ### SNSTopic
 Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
 | Field | Description |
@@ -3623,7 +3759,7 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
-|**id**| The ID of the route, formatted as `route_table_id|destination_cidr|target_components` where target components are prefixed with their type (e.g., gw-, nat-, pcx-) and joined with underscores.|
+|**id**| The ID of the route, formatted as `route_table_id\|destination_cidr\|target_components` where target components are prefixed with their type (e.g., gw-, nat-, pcx-) and joined with underscores.|
 |route_id| The ID of the route (same as id)|
 |target|The ID of the route association's target -- either 'Main', or a subnet ID or a gateway ID. This is an invented field that we created to have an ID because the underlying EC2 route association is a "union" data structure of many different possible targets.|
 |destination_cidr_block| The IPv4 CIDR block used for the destination match|
