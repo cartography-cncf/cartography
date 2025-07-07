@@ -35,6 +35,7 @@ import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
+import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.pagerduty
 import cartography.intel.scaleway
@@ -80,6 +81,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
+        "ontology": cartography.intel.ontology.run,
         "analysis": cartography.intel.analysis.run,
     }
 )
@@ -207,6 +209,7 @@ class Sync:
                         intel_module_info.name,
                     )
                 available_modules[intel_module_info.name] = v
+        available_modules["ontology"] = cartography.intel.ontology.run
         available_modules["analysis"] = cartography.intel.analysis.run
         return available_modules
 
