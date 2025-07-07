@@ -195,6 +195,18 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
             ⚠️ For local testing, you might want to turn off authentication via property `dbms.security.auth_enabled` in file NEO4J_PATH/conf/neo4j.conf
 
+            💡 If you leave authentication enabled, Neo4j uses the default credentials:
+
+            - **Username**: `neo4j`
+            - **Password**: `neo4j` (you will be prompted to change it on first login)
+
+            You can also provide credentials to Cartography via command-line flags or environment variables. For example:
+
+            ```bash
+            export NEO4J_PASSWORD="your-password"
+            cartography --neo4j-uri bolt://localhost:7687 --neo4j-user neo4j --neo4j-password-env-var NEO4J_PASSWORD
+            ```
+
 1. **Install cartography to the current Python virtual environment with `pip install cartography`.**
 
     We recommend creating a separate venv for just Cartography and its dependencies. You can read about venvs [here](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments), and searching on how to use tools like pyenv and pyenv-virtualenv.

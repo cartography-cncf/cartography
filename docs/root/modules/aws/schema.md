@@ -608,6 +608,16 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSAccount)-[RESOURCE]->(AWSRole)
     ```
 
+- ECSTaskDefinitions have task roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
+    ```
+
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
 
@@ -797,6 +807,26 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 - CLoudWatch LogGroups are a resource under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
+
+### CodeBuildProject
+Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The ARN of the CodeBuild Project |
+| arn | The Amazon Resource Name (ARN) of the CodeBuild Project |
+| region | The region of the codebuild project |
+| created | The creation time of the CodeBuild Project |
+| environment_variables | A list of environment variables used in the build environment. Each variable is represented as a string in the format `<NAME>=<VALUE>`. Variables of type `PLAINTEXT` retain their values (e.g., `ENV=prod`), while variables of type `PARAMETER_STORE`, `SECRETS_MANAGER`, etc., have values redacted as `<REDACTED>` (e.g., `SECRET_TOKEN=<REDACTED>`) |
+| source_type | The type of repository that contains the source code to be built |
+| source_location | Information about the location of the source code to be built |
+#### Relationships
+- CodeBuild Projects are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CodeBuildProject)
     ```
 
 ### DBSubnetGroup
@@ -1479,6 +1509,11 @@ ECRRepositoryImage.
 
     ```
     (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
+    ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
 
@@ -3055,7 +3090,7 @@ Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/lat
 
 - ECSClusters are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSCluster)
+    (:AWSAccount)-[:RESOURCE]->(:ECSCluster)
     ```
 
 ### ECSContainerInstance
@@ -3085,12 +3120,12 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 ### ECSService
@@ -3130,12 +3165,12 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 - An ECSCluster has ECSService
     ```
-    (ECSCluster)-[HAS_SERVICE]->(ECSService)
+    (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
     ```
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 ### ECSTaskDefinition
@@ -3173,12 +3208,22 @@ Representation of an AWS ECS [Task Definition](https://docs.aws.amazon.com/Amazo
 
 - ECSTaskDefinition are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSTaskDefinition)
+    (:AWSAccount)-[:RESOURCE]->(:ECSTaskDefinition)
     ```
 
 - An ECSTask has an ECSTaskDefinition.
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTaskDefinitions have task roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
 ### ECSContainerDefinition
@@ -3218,7 +3263,7 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 - ECSTaskDefinitions have ECSContainerDefinitions
     ```
-    (ECSTaskDefinition)-[HAS_CONTAINER_DEFINITION]->(ECSContainerDefinition)
+    (:ECSTaskDefinition)-[:HAS_CONTAINER_DEFINITION]->(:ECSContainerDefinition)
     ```
 
 ### ECSTask
@@ -3266,17 +3311,17 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 
 - ECSClusters have ECSTasks
     ```
-    (ECSCluster)-[HAS_TASK]->(ECSTask)
+    (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSTasks have ECSTaskDefinitions
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
     ```
 
 ### ECSContainer
@@ -3308,7 +3353,12 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 
 - ECSTasks have ECSContainers
     ```
-    (ECSTask)-[HAS_CONTAINER]->(ECSContainer)
+    (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
+    ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
 ### EfsFileSystem
