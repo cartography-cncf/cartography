@@ -18,12 +18,19 @@ def test_sync_account(neo4j_session, mocker):
             "data": ACCOUNTS_DATA,
         },
     )
+
+    # Create common job parameters required by the new sync function
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+    }
+
     account_ids = [ACCOUNT_ID, ACCOUNT_ID_2]
     synced_account_ids = sync_accounts(
         neo4j_session,
         "https://test-api.sentinelone.net",
         "test-api-token",
         TEST_UPDATE_TAG,
+        common_job_parameters,
         account_ids,
     )
 

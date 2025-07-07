@@ -1,52 +1,21 @@
 import logging
-from typing import TypedDict
+from typing import Any
 
 import neo4j
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.intel.sentinelone.utils import call_sentinelone_api
+from cartography.models.sentinelone.account import S1AccountSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
-class S1Account(TypedDict):
-    id: str
-    account_type: str
-    active_agents: int | None
-    created_at: str
-    expiration: str
-    name: str
-    number_of_sites: int | None
-    state: str
-
-
-def _transform_accounts(accounts_data: list[dict]) -> list[S1Account]:
-    """
-    Transform raw account data into standardized S1Account format
-    :param accounts_data: Raw account data from API
-    :return: List of transformed S1Account objects
-    """
-    transformed_accounts_data: list[S1Account] = []
-    for account in accounts_data:
-        transformed_account: S1Account = {
-            "id": account.get("id", ""),
-            "account_type": account.get("accountType", ""),
-            "active_agents": account.get("activeAgents"),
-            "created_at": account.get("createdAt", ""),
-            "expiration": account.get("expiration", ""),
-            "name": account.get("name", ""),
-            "number_of_sites": account.get("numberOfSites"),
-            "state": account.get("state", ""),
-        }
-        transformed_accounts_data.append(transformed_account)
-
-    return transformed_accounts_data
-
-
 @timeit
-def _fetch_accounts(
+def get_accounts(
     api_url: str, api_token: str, account_ids: list[str] | None = None
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Get account data from SentinelOne API
     :param api_url: The SentinelOne API URL
@@ -82,42 +51,72 @@ def _fetch_accounts(
     return accounts_data
 
 
-@timeit
+def transform_accounts(accounts_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Transform raw account data into standardized format for Neo4j ingestion
+    :param accounts_data: Raw account data from API
+    :return: List of transformed account data
+    """
+    result: list[dict[str, Any]] = []
+
+    for account in accounts_data:
+        transformed_account = {
+            # Required fields - use direct access (will raise KeyError if missing)
+            "id": account["id"],
+            # Optional fields - use .get() with None default
+            "name": account.get("name"),
+            "account_type": account.get("accountType"),
+            "active_agents": account.get("activeAgents"),
+            "created_at": account.get("createdAt"),
+            "expiration": account.get("expiration"),
+            "number_of_sites": account.get("numberOfSites"),
+            "state": account.get("state"),
+        }
+        result.append(transformed_account)
+
+    return result
+
+
 def load_accounts(
     neo4j_session: neo4j.Session,
-    accounts_data: list[S1Account],
+    accounts_data: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
     """
-    Create or update S1Account nodes in Neo4j for multiple accounts
+    Load SentinelOne account data into Neo4j using the data model
     :param neo4j_session: Neo4j session
-    :param accounts_data: List of account data to process
-    :param update_tag: Update tag
+    :param accounts_data: List of account data to load
+    :param update_tag: Update tag for tracking data freshness
     """
     if not accounts_data:
-        logger.warning("No account data provided to ensure_account_nodes")
+        logger.warning("No account data provided to load_accounts")
         return
 
-    query = """
-    UNWIND $accounts as account
-    MERGE (a:S1Account {id: account.id})
-    ON CREATE SET a.firstseen = timestamp()
-    SET a.name = account.name,
-        a.account_type = account.account_type,
-        a.active_agents = account.active_agents,
-        a.created_at = account.created_at,
-        a.expiration = account.expiration,
-        a.number_of_sites = account.number_of_sites,
-        a.state = account.state,
-        a.lastupdated = $update_tag
-    """
-    neo4j_session.run(
-        query,
-        accounts=accounts_data,
-        update_tag=update_tag,
+    load(
+        neo4j_session,
+        S1AccountSchema(),
+        accounts_data,
+        lastupdated=update_tag,
+        firstseen=update_tag,
     )
 
-    logger.info(f"Created or updated {len(accounts_data)} SentinelOne account nodes")
+    logger.info(f"Loaded {len(accounts_data)} SentinelOne account nodes")
+
+
+def cleanup_accounts(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    """
+    Remove stale SentinelOne account data
+    :param neo4j_session: Neo4j session
+    :param common_job_parameters: Job parameters for cleanup
+    """
+    logger.debug("Running SentinelOne account cleanup job")
+
+    # Use GraphJob to clean up stale account data
+    GraphJob.from_node_schema(S1AccountSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -126,20 +125,31 @@ def sync_accounts(
     api_url: str,
     api_token: str,
     update_tag: int,
+    common_job_parameters: dict[str, Any],
     account_ids: list[str] | None = None,
 ) -> list[str]:
     """
-    Sync SentinelOne account data
+    Sync SentinelOne account data using the modern sync pattern
     :param neo4j_session: Neo4j session
     :param api_url: SentinelOne API URL
     :param api_token: SentinelOne API token
-    :param update_tag: Update tag
+    :param update_tag: Update tag for tracking data freshness
+    :param common_job_parameters: Job parameters for cleanup
     :param account_ids: Optional list of account IDs to filter for
     :return: List of synced account IDs
     """
-    accounts_raw_data = _fetch_accounts(api_url, api_token, account_ids)
-    s1_accounts = _transform_accounts(accounts_raw_data)
-    load_accounts(neo4j_session, s1_accounts, update_tag)
-    synced_account_ids = [account["id"] for account in s1_accounts]
+    # 1. GET - Fetch data from API
+    accounts_raw_data = get_accounts(api_url, api_token, account_ids)
+
+    # 2. TRANSFORM - Shape data for ingestion
+    transformed_accounts = transform_accounts(accounts_raw_data)
+
+    # 3. LOAD - Ingest to Neo4j using data model
+    load_accounts(neo4j_session, transformed_accounts, update_tag)
+
+    # 4. CLEANUP - Remove stale data
+    cleanup_accounts(neo4j_session, common_job_parameters)
+
+    synced_account_ids = [account["id"] for account in transformed_accounts]
     logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
     return synced_account_ids

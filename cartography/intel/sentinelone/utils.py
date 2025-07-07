@@ -1,8 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 
 import requests
 
@@ -19,9 +16,9 @@ def call_sentinelone_api(
     endpoint: str,
     api_token: str,
     method: str = "GET",
-    params: Optional[Dict] = None,
-    data: Optional[Dict] = None,
-) -> Dict[str, Any]:
+    params: dict | None = None,
+    data: dict | None = None,
+) -> dict[str, Any]:
     """
     Call the SentinelOne API
     :param api_url: The base URL for the SentinelOne API
@@ -73,8 +70,8 @@ def get_paginated_results(
     api_url: str,
     endpoint: str,
     api_token: str,
-    params: Optional[Dict] = None,
-) -> List[Dict]:
+    params: dict | None = None,
+) -> list[dict]:
     """
     Handle pagination for SentinelOne API requests
     :param api_url: The base URL for the SentinelOne API
