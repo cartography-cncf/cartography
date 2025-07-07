@@ -421,3 +421,303 @@ EXPECTED_CYPHER_QUERY_PATTERNS = {
     "lastused_aggregation": "CASE WHEN assumption.last_seen >",
     "lastupdated_set": "rel.lastupdated = $aws_update_tag",
 }
+
+# =============================================================================
+# UNIT TEST MOCK DATA
+# =============================================================================
+# Clean, focused mock data for unit tests that focus on core functionality
+# rather than extensive edge cases.
+
+# Simple CloudTrail event for basic transformation testing
+UNIT_TEST_ASSUME_ROLE_EVENT = {
+    "EventId": "test-event-123",
+    "EventName": "AssumeRole",
+    "EventTime": "2024-01-15T10:30:15.123000",
+    "UserIdentity": {
+        "type": "User",
+        "arn": "arn:aws:iam::123456789012:user/john.doe",
+    },
+    "CloudTrailEvent": json.dumps(
+        {
+            "requestParameters": {
+                "roleArn": "arn:aws:iam::987654321098:role/ApplicationRole",
+                "roleSessionName": "ApplicationSession",
+            },
+            "responseElements": {
+                "assumedRoleUser": {
+                    "arn": "arn:aws:sts::987654321098:assumed-role/ApplicationRole/ApplicationSession"
+                }
+            },
+        }
+    ),
+}
+
+# CloudTrail events for different STS event types
+UNIT_TEST_MULTIPLE_STS_EVENTS = [
+    {
+        "EventName": "AssumeRole",
+        "EventId": "assume-role-event",
+        "EventTime": "2024-01-15T10:00:00.000000",
+        "UserIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"},
+        "CloudTrailEvent": json.dumps(
+            {"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}
+        ),
+    },
+    {
+        "EventName": "AssumeRoleWithSAML",
+        "EventId": "saml-event",
+        "EventTime": "2024-01-15T11:00:00.000000",
+        "UserIdentity": {"arn": "arn:aws:iam::123456789012:saml-user/saml-user"},
+        "CloudTrailEvent": json.dumps(
+            {
+                "requestParameters": {
+                    "roleArn": "arn:aws:iam::123456789012:role/SAMLRole"
+                }
+            }
+        ),
+    },
+    {
+        "EventName": "AssumeRoleWithWebIdentity",
+        "EventId": "web-identity-event",
+        "EventTime": "2024-01-15T12:00:00.000000",
+        "UserIdentity": {"arn": "arn:aws:iam::123456789012:web-identity-user/web-user"},
+        "CloudTrailEvent": json.dumps(
+            {"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/WebRole"}}
+        ),
+    },
+]
+
+# Multiple events for the same principal/role pair (aggregation testing)
+UNIT_TEST_AGGREGATION_EVENTS = [
+    {
+        "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+        "DestinationPrincipal": "arn:aws:iam::123456789012:role/AppRole",
+        "EventTime": "2024-01-15T09:00:00.000000",
+    },
+    {
+        "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+        "DestinationPrincipal": "arn:aws:iam::123456789012:role/AppRole",
+        "EventTime": "2024-01-15T14:00:00.000000",
+    },
+    {
+        "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+        "DestinationPrincipal": "arn:aws:iam::123456789012:role/AppRole",
+        "EventTime": "2024-01-15T17:00:00.000000",
+    },
+]
+
+# Expected aggregated result for the above events
+UNIT_TEST_EXPECTED_AGGREGATED_RESULT = {
+    "source_principal_arn": "arn:aws:iam::123456789012:user/alice",
+    "destination_principal_arn": "arn:aws:iam::123456789012:role/AppRole",
+    "times_used": 3,
+    "first_seen": "2024-01-15T09:00:00.000000",
+    "last_seen": "2024-01-15T17:00:00.000000",
+    "lastused": "2024-01-15T17:00:00.000000",
+}
+
+# Different principal/role pairs for testing separate aggregation
+UNIT_TEST_DIFFERENT_PAIRS_EVENTS = [
+    {
+        "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+        "DestinationPrincipal": "arn:aws:iam::123456789012:role/AppRole",
+        "EventTime": "2024-01-15T10:00:00.000000",
+    },
+    {
+        "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+        "DestinationPrincipal": "arn:aws:iam::987654321098:role/CrossAccountRole",
+        "EventTime": "2024-01-15T11:00:00.000000",
+    },
+    {
+        "SourcePrincipal": "arn:aws:iam::123456789012:user/bob",
+        "DestinationPrincipal": "arn:aws:iam::123456789012:role/AppRole",
+        "EventTime": "2024-01-15T12:00:00.000000",
+    },
+]
+
+# Expected pairs for different principal/role combinations
+UNIT_TEST_EXPECTED_DIFFERENT_PAIRS = {
+    ("arn:aws:iam::123456789012:user/alice", "arn:aws:iam::123456789012:role/AppRole"),
+    (
+        "arn:aws:iam::123456789012:user/alice",
+        "arn:aws:iam::987654321098:role/CrossAccountRole",
+    ),
+    ("arn:aws:iam::123456789012:user/bob", "arn:aws:iam::123456789012:role/AppRole"),
+}
+
+# Simple role assumption for MatchLink testing
+UNIT_TEST_SIMPLE_ROLE_ASSUMPTION = {
+    "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+    "DestinationPrincipal": "arn:aws:iam::123456789012:role/AppRole",
+    "EventTime": "2024-01-15T10:00:00.000000",
+}
+
+# Mock data for sync orchestration testing
+UNIT_TEST_MOCK_EVENTS = [{"EventName": "AssumeRole", "EventId": "test-event"}]
+UNIT_TEST_MOCK_ASSUMPTIONS = [
+    {"SourcePrincipal": "arn:aws:iam::123456789012:user/alice"}
+]
+
+# =============================================================================
+# INTEGRATION TEST MOCK DATA
+# =============================================================================
+# Mock data for integration tests that work with real Neo4j database
+# Each test uses different account IDs and ARNs to prevent data isolation issues
+
+# Test data for basic relationships test
+INTEGRATION_TEST_BASIC_ACCOUNT_ID = "123456789012"
+INTEGRATION_TEST_BASIC_IAM_USERS = [
+    {
+        "UserName": "john.doe",
+        "UserId": "AIDACKCEVSQ6C2EXAMPLE",
+        "Arn": "arn:aws:iam::123456789012:user/john.doe",
+        "Path": "/",
+        "CreateDate": datetime(2024, 1, 1, 10, 0, 0),
+    },
+    {
+        "UserName": "alice",
+        "UserId": "AIDACKCEVSQ6C2ALICE",
+        "Arn": "arn:aws:iam::123456789012:user/alice",
+        "Path": "/",
+        "CreateDate": datetime(2024, 1, 1, 10, 0, 0),
+    },
+]
+
+INTEGRATION_TEST_BASIC_IAM_ROLES = [
+    {
+        "RoleName": "ApplicationRole",
+        "RoleId": "AROA00000000000000001",
+        "Arn": "arn:aws:iam::123456789012:role/ApplicationRole",
+        "Path": "/",
+        "CreateDate": datetime(2024, 1, 1, 10, 0, 0),
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
+                    "Action": "sts:AssumeRole",
+                }
+            ],
+        },
+    },
+]
+
+INTEGRATION_TEST_BASIC_ROLE_ASSUMPTIONS = [
+    {
+        "SourcePrincipal": "arn:aws:iam::123456789012:user/john.doe",
+        "DestinationPrincipal": "arn:aws:iam::123456789012:role/ApplicationRole",
+        "Action": "AssumeRole",
+        "EventId": "event-1",
+        "EventTime": "2024-01-15T10:30:15.123000",
+    },
+    {
+        "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
+        "DestinationPrincipal": "arn:aws:iam::987654321098:role/CrossAccountRole",
+        "Action": "AssumeRole",
+        "EventId": "event-2",
+        "EventTime": "2024-01-15T11:15:30.456000",
+    },
+]
+
+# Test data for aggregation test - different account to prevent conflicts
+INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID = "111111111111"
+INTEGRATION_TEST_AGGREGATION_IAM_USERS = [
+    {
+        "UserName": "test-user",
+        "UserId": "AIDACKCEVSQ6C2TESTUSER",
+        "Arn": "arn:aws:iam::111111111111:user/test-user",
+        "Path": "/",
+        "CreateDate": datetime(2024, 1, 1, 10, 0, 0),
+    },
+]
+
+INTEGRATION_TEST_AGGREGATION_IAM_ROLES = [
+    {
+        "RoleName": "TestRole",
+        "RoleId": "AROA00000000000000002",
+        "Arn": "arn:aws:iam::111111111111:role/TestRole",
+        "Path": "/",
+        "CreateDate": datetime(2024, 1, 1, 10, 0, 0),
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"AWS": "arn:aws:iam::111111111111:root"},
+                    "Action": "sts:AssumeRole",
+                }
+            ],
+        },
+    },
+]
+
+INTEGRATION_TEST_AGGREGATION_ROLE_ASSUMPTIONS = [
+    {
+        "SourcePrincipal": "arn:aws:iam::111111111111:user/test-user",
+        "DestinationPrincipal": "arn:aws:iam::111111111111:role/TestRole",
+        "EventTime": "2024-01-15T09:00:00.000000",
+        "Action": "AssumeRole",
+        "EventId": "event-1",
+    },
+    {
+        "SourcePrincipal": "arn:aws:iam::111111111111:user/test-user",
+        "DestinationPrincipal": "arn:aws:iam::111111111111:role/TestRole",
+        "EventTime": "2024-01-15T14:00:00.000000",
+        "Action": "AssumeRole",
+        "EventId": "event-2",
+    },
+    {
+        "SourcePrincipal": "arn:aws:iam::111111111111:user/test-user",
+        "DestinationPrincipal": "arn:aws:iam::111111111111:role/TestRole",
+        "EventTime": "2024-01-15T17:00:00.000000",
+        "Action": "AssumeRole",
+        "EventId": "event-3",
+    },
+]
+
+# Test data for cross-account test - different account to prevent conflicts
+INTEGRATION_TEST_CROSS_ACCOUNT_ID = "222222222222"
+INTEGRATION_TEST_CROSS_ACCOUNT_IAM_USERS = [
+    {
+        "UserName": "cross-user",
+        "UserId": "AIDACKCEVSQ6C2CROSSUSER",
+        "Arn": "arn:aws:iam::222222222222:user/cross-user",
+        "Path": "/",
+        "CreateDate": datetime(2024, 1, 1, 10, 0, 0),
+    },
+]
+
+INTEGRATION_TEST_CROSS_ACCOUNT_IAM_ROLES = [
+    {
+        "RoleName": "ExternalRole",
+        "RoleId": "AROA00000000000000003",
+        "Arn": "arn:aws:iam::333333333333:role/ExternalRole",
+        "Path": "/",
+        "CreateDate": datetime(2024, 1, 1, 10, 0, 0),
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"AWS": "arn:aws:iam::222222222222:root"},
+                    "Action": "sts:AssumeRole",
+                }
+            ],
+        },
+    },
+]
+
+INTEGRATION_TEST_CROSS_ACCOUNT_ROLE_ASSUMPTIONS = [
+    {
+        "SourcePrincipal": "arn:aws:iam::222222222222:user/cross-user",
+        "DestinationPrincipal": "arn:aws:iam::333333333333:role/ExternalRole",
+        "Action": "AssumeRole",
+        "EventId": "cross-account-event",
+        "EventTime": "2024-01-15T10:30:15.123000",
+    }
+]
+
+# Legacy data for backward compatibility - keeping these for any existing usage
+INTEGRATION_TEST_IAM_USERS = INTEGRATION_TEST_BASIC_IAM_USERS
+INTEGRATION_TEST_IAM_ROLES = INTEGRATION_TEST_BASIC_IAM_ROLES
