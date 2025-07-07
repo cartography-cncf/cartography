@@ -26,6 +26,13 @@
 ```{include} ../modules/_cartography-metadata/schema.md
 ```
 
+```{include} ../modules/airbyte/schema.md
+```
+
+
+```{include} ../modules/anthropic/schema.md
+```
+
 ```{include} ../modules/aws/schema.md
 ```
 
@@ -33,6 +40,9 @@
 ```
 
 ```{include} ../modules/bigfix/schema.md
+```
+
+```{include} ../modules/cloudflare/schema.md
 ```
 
 ```{include} ../modules/crowdstrike/schema.md
@@ -74,11 +84,20 @@
 ```{include} ../modules/okta/schema.md
 ```
 
+```{include} ../modules/openai/schema.md
+```
+
 ```{include} ../modules/pagerduty/schema.md
+```
+
+```{include} ../modules/scaleway/schema.md
 ```
 
 ```{include} ../modules/semgrep/schema.md
 ```
 
 ```{include} ../modules/snipeit/schema.md
+```
+
+```{include} ../modules/tailscale/schema.md
 ```

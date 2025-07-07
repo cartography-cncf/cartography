@@ -123,6 +123,36 @@ class Config:
     :param snipeit_token: Token used to authenticate to the SnipeIT data provider. Optional.
     :type snipeit_tenant_id: string
     :param snipeit_tenant_id: Token used to authenticate to the SnipeIT data provider. Optional.
+    :type tailscale_token: str
+    :param tailscale_token: Tailscale API token. Optional.
+    :type tailscale_org: str
+    :param tailscale_org: Tailscale organization name. Optional.
+    :type tailscale_base_url: str
+    :param tailscale_base_url: Tailscale API base URL. Optional.
+    :type cloudflare_token: string
+    :param cloudflare_token: Cloudflare API key. Optional.
+    :type openai_apikey: string
+    :param openai_apikey: OpenAI API key. Optional.
+    :type openai_org_id: string
+    :param openai_org_id: OpenAI organization id. Optional.
+    :type anthropic_apikey: string
+    :param anthropic_apikey: Anthropic API key. Optional.
+    :type airbyte_client_id: str
+    :param airbyte_client_id: Airbyte client ID for API authentication. Optional.
+    :type airbyte_client_secret: str
+    :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
+    :type airbyte_api_url: str
+    :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
+    :type trivy_s3_bucket: str
+    :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
+    :type trivy_s3_prefix: str
+    :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
+    :type scaleway_access_key: str
+    :param scaleway_access_key: Scaleway access key. Optional.
+    :type scaleway_secret_key: str
+    :param scaleway_secret_key: Scaleway secret key. Optional.
+    :type scaleway_org: str
+    :param scaleway_org: Scaleway organization id. Optional.
     """
 
     def __init__(
@@ -188,6 +218,21 @@ class Config:
         snipeit_base_uri=None,
         snipeit_token=None,
         snipeit_tenant_id=None,
+        tailscale_token=None,
+        tailscale_org=None,
+        tailscale_base_url=None,
+        cloudflare_token=None,
+        openai_apikey=None,
+        openai_org_id=None,
+        anthropic_apikey=None,
+        airbyte_client_id=None,
+        airbyte_client_secret=None,
+        airbyte_api_url=None,
+        trivy_s3_bucket=None,
+        trivy_s3_prefix=None,
+        scaleway_access_key=None,
+        scaleway_secret_key=None,
+        scaleway_org=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -250,3 +295,18 @@ class Config:
         self.snipeit_base_uri = snipeit_base_uri
         self.snipeit_token = snipeit_token
         self.snipeit_tenant_id = snipeit_tenant_id
+        self.tailscale_token = tailscale_token
+        self.tailscale_org = tailscale_org
+        self.tailscale_base_url = tailscale_base_url
+        self.cloudflare_token = cloudflare_token
+        self.openai_apikey = openai_apikey
+        self.openai_org_id = openai_org_id
+        self.anthropic_apikey = anthropic_apikey
+        self.airbyte_client_id = airbyte_client_id
+        self.airbyte_client_secret = airbyte_client_secret
+        self.airbyte_api_url = airbyte_api_url
+        self.trivy_s3_bucket = trivy_s3_bucket
+        self.trivy_s3_prefix = trivy_s3_prefix
+        self.scaleway_access_key = scaleway_access_key
+        self.scaleway_secret_key = scaleway_secret_key
+        self.scaleway_org = scaleway_org

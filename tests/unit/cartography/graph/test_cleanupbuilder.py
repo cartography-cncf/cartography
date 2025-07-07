@@ -6,13 +6,13 @@ from cartography.graph.cleanupbuilder import _build_cleanup_node_and_rel_queries
 from cartography.graph.cleanupbuilder import _build_cleanup_rel_query_no_sub_resource
 from cartography.graph.cleanupbuilder import build_cleanup_queries
 from cartography.graph.job import get_parameters
-from cartography.models.aws.emr import EMRClusterToAWSAccount
+from cartography.models.aws.emr import EMRClusterToAWSAccountRel
 from cartography.models.github.users import GitHubOrganizationUserSchema
 from tests.data.graph.querybuilder.sample_models.asset_with_non_kwargs_tgm import (
     FakeEC2InstanceSchema,
 )
 from tests.data.graph.querybuilder.sample_models.asset_with_non_kwargs_tgm import (
-    FakeEC2InstanceToAWSAccount,
+    FakeEC2InstanceToAWSAccountRel,
 )
 from tests.data.graph.querybuilder.sample_models.interesting_asset import (
     InterestingAssetSchema,
@@ -22,6 +22,9 @@ from tests.data.graph.querybuilder.sample_models.interesting_asset import (
 )
 from tests.data.graph.querybuilder.sample_models.interesting_asset import (
     InterestingAssetToSubResourceRel,
+)
+from tests.data.graph.querybuilder.sample_models.invalid_unscoped import (
+    InvalidUnscopedNodeSchema,
 )
 from tests.data.graph.querybuilder.sample_models.simple_node import SimpleNodeSchema
 from tests.unit.cartography.graph.helpers import clean_query_list
@@ -84,11 +87,11 @@ def test_cleanup_with_invalid_selected_rel_raises_exc():
     Test that we raise a ValueError if we try to cleanup a node and provide a specified rel but the rel doesn't exist on
     the node schema.
     """
-    exc_msg = "EMRClusterToAWSAccount is not defined on CartographyNodeSchema type InterestingAssetSchema"
+    exc_msg = "EMRClusterToAWSAccountRel is not defined on CartographyNodeSchema type InterestingAssetSchema"
     with pytest.raises(ValueError, match=exc_msg):
         _build_cleanup_node_and_rel_queries(
             InterestingAssetSchema(),
-            EMRClusterToAWSAccount(),
+            EMRClusterToAWSAccountRel(),
         )
 
 
@@ -143,7 +146,7 @@ def test_build_cleanup_node_and_rel_queries_sub_res_tgm_not_validated_raises_exc
     with pytest.raises(ValueError, match="must have set_in_kwargs=True"):
         _build_cleanup_node_and_rel_queries(
             FakeEC2InstanceSchema(),
-            FakeEC2InstanceToAWSAccount(),
+            FakeEC2InstanceToAWSAccountRel(),
         )
 
 
@@ -188,3 +191,21 @@ def test_build_cleanup_rel_query_no_sub_resource_raises_on_sub_resource():
 
     with pytest.raises(ValueError, match="Expected InterestingAsset to not exist"):
         _build_cleanup_rel_query_no_sub_resource(node_schema, rel_schema)
+
+
+def test_build_cleanup_queries_raises_error_for_invalid_unscoped():
+    """
+    Test that build_cleanup_queries raises a ValueError when a node schema has both
+    sub_resource_relationship and scoped_cleanup=False.
+    """
+    node_schema = InvalidUnscopedNodeSchema()
+    with pytest.raises(ValueError) as excinfo:
+        build_cleanup_queries(node_schema)
+
+    expected_error = (
+        f"This is not expected: {node_schema.label} has a sub_resource_relationship but scoped_cleanup=False."
+        "Please check the class definition for this node schema. It doesn't make sense for a node to have a "
+        "sub resource relationship and an unscoped cleanup. Doing this will cause all stale nodes of this type "
+        "to be deleted regardless of the sub resource they are attached to."
+    )
+    assert str(excinfo.value) == expected_error

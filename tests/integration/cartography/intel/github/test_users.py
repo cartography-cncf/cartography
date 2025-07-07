@@ -65,10 +65,10 @@ def test_sync(mock_owners, mock_users, neo4j_session):
         """,
     )
     expected_nodes = {
-        ("https://example.com/hjsimpson",),
-        ("https://example.com/lmsimpson",),
-        ("https://example.com/mbsimpson",),
-        ("https://example.com/kbroflovski",),
+        ("https://github.com/hjsimpson",),
+        ("https://github.com/lmsimpson",),
+        ("https://github.com/mbsimpson",),
+        ("https://github.com/kbroflovski",),
     }
     actual_nodes = {(n["g.id"],) for n in nodes}
     assert actual_nodes == expected_nodes
@@ -90,29 +90,29 @@ def test_sync(mock_owners, mock_users, neo4j_session):
     }
     expected_nodes = {
         (
-            "https://example.com/hjsimpson",
+            "https://github.com/hjsimpson",
             "MEMBER_OF",
-            "https://example.com/my_org",
+            "https://github.com/simpsoncorp",
         ),
         (
-            "https://example.com/lmsimpson",
+            "https://github.com/lmsimpson",
             "MEMBER_OF",
-            "https://example.com/my_org",
+            "https://github.com/simpsoncorp",
         ),
         (
-            "https://example.com/mbsimpson",
+            "https://github.com/mbsimpson",
             "MEMBER_OF",
-            "https://example.com/my_org",
+            "https://github.com/simpsoncorp",
         ),
         (
-            "https://example.com/mbsimpson",
+            "https://github.com/mbsimpson",
             "ADMIN_OF",
-            "https://example.com/my_org",
+            "https://github.com/simpsoncorp",
         ),
         (
-            "https://example.com/kbroflovski",
+            "https://github.com/kbroflovski",
             "UNAFFILIATED",
-            "https://example.com/my_org",
+            "https://github.com/simpsoncorp",
         ),
     }
     assert actual_nodes == expected_nodes
@@ -124,10 +124,10 @@ def test_sync(mock_owners, mock_users, neo4j_session):
         """,
     )
     expected_nodes = {
-        ("https://example.com/hjsimpson", False),
-        ("https://example.com/lmsimpson", True),
-        ("https://example.com/mbsimpson", True),
-        ("https://example.com/kbroflovski", True),
+        ("https://github.com/hjsimpson", False),
+        ("https://github.com/lmsimpson", True),
+        ("https://github.com/mbsimpson", True),
+        ("https://github.com/kbroflovski", True),
     }
     actual_nodes = {
         (
@@ -145,10 +145,10 @@ def test_sync(mock_owners, mock_users, neo4j_session):
         """,
     )
     expected_nodes = {
-        ("https://example.com/hjsimpson", None),
-        ("https://example.com/lmsimpson", None),
-        ("https://example.com/mbsimpson", True),
-        ("https://example.com/kbroflovski", None),
+        ("https://github.com/hjsimpson", None),
+        ("https://github.com/lmsimpson", None),
+        ("https://github.com/mbsimpson", True),
+        ("https://github.com/kbroflovski", None),
     }
     actual_nodes = {
         (
@@ -189,7 +189,7 @@ def test_sync_with_cleanups(mock_owners, mock_users, neo4j_session):
         "id",
         "ADMIN_OF",
     ) == {
-        ("https://example.com/mbsimpson", "https://example.com/my_org"),
+        ("https://github.com/mbsimpson", "https://github.com/simpsoncorp"),
     }
 
     # Act: Sync a second time
@@ -209,5 +209,5 @@ def test_sync_with_cleanups(mock_owners, mock_users, neo4j_session):
         "id",
         "ADMIN_OF",
     ) == {
-        ("https://example.com/hjsimpson", "https://example.com/my_org"),
+        ("https://github.com/hjsimpson", "https://github.com/simpsoncorp"),
     }

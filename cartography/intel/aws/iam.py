@@ -507,7 +507,7 @@ def sync_assumerole_relationships(
     common_job_parameters: Dict,
 ) -> None:
     # Must be called after load_role
-    # Computes and syncs the STS_ASSUME_ROLE allow relationship
+    # Computes and syncs the STS_ASSUMEROLE_ALLOW relationship
     logger.info(
         "Syncing assume role mappings for account '%s'.",
         current_aws_account_id,

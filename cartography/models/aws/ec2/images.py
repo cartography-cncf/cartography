@@ -41,23 +41,25 @@ class EC2ImageNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class EC2ImageToAwsAccountRelProperties(CartographyRelProperties):
+class EC2ImageToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class EC2ImageToAWSAccount(CartographyRelSchema):
+class EC2ImageToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: EC2ImageToAwsAccountRelProperties = EC2ImageToAwsAccountRelProperties()
+    properties: EC2ImageToAWSAccountRelRelProperties = (
+        EC2ImageToAWSAccountRelRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class EC2ImageSchema(CartographyNodeSchema):
     label: str = "EC2Image"
     properties: EC2ImageNodeProperties = EC2ImageNodeProperties()
-    sub_resource_relationship: EC2ImageToAWSAccount = EC2ImageToAWSAccount()
+    sub_resource_relationship: EC2ImageToAWSAccountRel = EC2ImageToAWSAccountRel()

@@ -263,7 +263,8 @@ def get_rds_snapshot_data(
     Create an RDS boto3 client and grab all the DBSnapshots.
     """
     client = boto3_session.client("rds", region_name=region)
-    return aws_paginate(client, "describe_db_snapshots", "DBSnapshots")
+    snapshots = list(aws_paginate(client, "describe_db_snapshots", "DBSnapshots"))
+    return snapshots
 
 
 @timeit

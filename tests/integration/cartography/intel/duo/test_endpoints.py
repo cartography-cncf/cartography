@@ -34,10 +34,10 @@ def test_sync_duo_endpoints(neo4j_session):
         "DuoEndpoint",
         ["id", "epkey", "os_family", "email", "username"],
     ) == {
-        ("epkey1", "epkey1", "iOS", "email1@example.com", "username1"),
-        ("epkey2", "epkey2", "iOS", "email2@example.com", "username2"),
-        ("epkey3", "epkey3", "iOS", "email3@example.com", "username3"),
-        ("epkey4", "epkey4", "iOS", "email4@example.com", "username4"),
+        ("epkey1", "epkey1", "iOS", "mbsimpson@simpson.corp", "mbsimpson"),
+        ("epkey2", "epkey2", "iOS", "hjsimpson@simpson.corp", "hjsimpson"),
+        ("epkey3", "epkey3", "iOS", "lmsimpson@simpson.corp", "lmsimpson"),
+        ("epkey4", "epkey4", "iOS", "bjsimpson@simpson.corp", "bjsimpson"),
         ("epkey5", "epkey5", "iOS", "email5@example.com", "username5"),
     }
 

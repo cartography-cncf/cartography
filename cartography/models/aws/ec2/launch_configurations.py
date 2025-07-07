@@ -33,20 +33,20 @@ class LaunchConfigurationNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class LaunchConfigurationToAwsAccountRelProperties(CartographyRelProperties):
+class LaunchConfigurationToAwsAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class LaunchConfigurationToAwsAccount(CartographyRelSchema):
+class LaunchConfigurationToAwsAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: LaunchConfigurationToAwsAccountRelProperties = (
-        LaunchConfigurationToAwsAccountRelProperties()
+    properties: LaunchConfigurationToAwsAccountRelRelProperties = (
+        LaunchConfigurationToAwsAccountRelRelProperties()
     )
 
 
@@ -54,6 +54,6 @@ class LaunchConfigurationToAwsAccount(CartographyRelSchema):
 class LaunchConfigurationSchema(CartographyNodeSchema):
     label: str = "LaunchConfiguration"
     properties: LaunchConfigurationNodeProperties = LaunchConfigurationNodeProperties()
-    sub_resource_relationship: LaunchConfigurationToAwsAccount = (
-        LaunchConfigurationToAwsAccount()
+    sub_resource_relationship: LaunchConfigurationToAwsAccountRel = (
+        LaunchConfigurationToAwsAccountRel()
     )
