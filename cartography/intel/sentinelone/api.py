@@ -1,5 +1,8 @@
 import logging
 from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import requests
 
@@ -16,9 +19,9 @@ def call_sentinelone_api(
     endpoint: str,
     api_token: str,
     method: str = "GET",
-    params: dict | None = None,
-    data: dict | None = None,
-) -> dict[str, Any]:
+    params: Optional[Dict] = None,
+    data: Optional[Dict] = None,
+) -> Dict[str, Any]:
     """
     Call the SentinelOne API
     :param api_url: The base URL for the SentinelOne API
@@ -70,10 +73,10 @@ def get_paginated_results(
     api_url: str,
     endpoint: str,
     api_token: str,
-    params: dict | None = None,
-) -> list[dict]:
+    params: Optional[Dict] = None,
+) -> List[Dict]:
     """
-    Handle pagination for SentinelOne API requests
+    Handle cursor-based pagination for SentinelOne API requests
     :param api_url: The base URL for the SentinelOne API
     :param endpoint: The API endpoint to call
     :param api_token: The API token for authentication
@@ -87,12 +90,12 @@ def get_paginated_results(
     if "limit" not in params:
         params["limit"] = 100
 
-    # Start with page 1
-    current_page = 1
+    next_cursor = None
     total_items = []
 
     while True:
-        params["page"] = current_page
+        if next_cursor:
+            params["cursor"] = next_cursor
 
         response = call_sentinelone_api(
             api_url=api_url,
@@ -101,20 +104,14 @@ def get_paginated_results(
             params=params,
         )
 
-        # Extract the data from the response
-        data = response.get("data", {})
-        items = data.get("items", [])
-
+        items = response.get("data", [])
         if not items:
             break
 
         total_items.extend(items)
-
-        # Check if there are more pages
-        pagination = data.get("pagination", {})
-        if current_page >= pagination.get("totalPages", 1):
+        pagination = response.get("pagination", {})
+        next_cursor = pagination.get("nextCursor")
+        if not next_cursor:
             break
-
-        current_page += 1
 
     return total_items
