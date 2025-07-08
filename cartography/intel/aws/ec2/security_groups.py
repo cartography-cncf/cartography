@@ -37,6 +37,7 @@ def get_ec2_security_group_data(
     return security_groups
 
 @timeit
+@aws_handle_regions
 def get_ec2_security_group_rules(
     boto3_session: boto3.session.Session,
     region: str,
