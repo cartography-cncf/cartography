@@ -19,7 +19,7 @@ def call_sentinelone_api(
     endpoint: str,
     api_token: str,
     method: str = "GET",
-    params: Optional[Dict] = None,
+    params: Optional[Dict[str, Any]] = None,
     data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
