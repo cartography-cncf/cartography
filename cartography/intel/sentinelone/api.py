@@ -20,7 +20,7 @@ def call_sentinelone_api(
     api_token: str,
     method: str = "GET",
     params: Optional[Dict] = None,
-    data: Optional[Dict] = None,
+    data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Call the SentinelOne API
