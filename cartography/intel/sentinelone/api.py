@@ -1,8 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 
 import requests
 
@@ -19,9 +16,9 @@ def call_sentinelone_api(
     endpoint: str,
     api_token: str,
     method: str = "GET",
-    params: Optional[Dict[str, Any]] = None,
-    data: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    params: dict[str, Any] | None = None,
+    data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Call the SentinelOne API
     :param api_url: The base URL for the SentinelOne API
@@ -73,8 +70,8 @@ def get_paginated_results(
     api_url: str,
     endpoint: str,
     api_token: str,
-    params: Optional[Dict] = None,
-) -> List[Dict]:
+    params: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """
     Handle cursor-based pagination for SentinelOne API requests
     :param api_url: The base URL for the SentinelOne API
@@ -83,25 +80,24 @@ def get_paginated_results(
     :param params: Query parameters to include in the request
     :return: A list of all items from all pages
     """
-    if params is None:
-        params = {}
+    query_params = params or {}
 
     # Set default pagination parameters if not provided
-    if "limit" not in params:
-        params["limit"] = 100
+    if "limit" not in query_params:
+        query_params["limit"] = 100
 
     next_cursor = None
     total_items = []
 
     while True:
         if next_cursor:
-            params["cursor"] = next_cursor
+            query_params["cursor"] = next_cursor
 
         response = call_sentinelone_api(
             api_url=api_url,
             endpoint=endpoint,
             api_token=api_token,
-            params=params,
+            params=query_params,
         )
 
         items = response.get("data", [])
