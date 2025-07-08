@@ -20,23 +20,15 @@ def test_transform_agents():
     agent1 = result[0]
     assert agent1["id"] == AGENT_ID
     assert agent1["uuid"] == "uuid-123-456-789"
-    assert (
-        agent1["computer_name"] == "test-computer-01"
-    )  # Field mapping: computerName -> computer_name
-    assert agent1["firewall_enabled"] is True  # Field mapping and boolean type
-    assert agent1["os_name"] == "Windows 10"  # Field mapping: osName -> os_name
-    assert agent1["os_revision"] == "1909"  # Field mapping: osRevision -> os_revision
+    assert agent1["computer_name"] == "test-computer-01"
+    assert agent1["firewall_enabled"] is True
+    assert agent1["os_name"] == "Windows 10"
+    assert agent1["os_revision"] == "1909"
     assert agent1["domain"] == "test.local"
-    assert (
-        agent1["last_active"] == "2023-12-01T10:00:00Z"
-    )  # Field mapping: lastActiveDate -> last_active
-    assert agent1["last_successful_scan"] == "2023-12-01T09:00:00Z"  # Field mapping
-    assert (
-        agent1["scan_status"] == "finished"
-    )  # Field mapping: scanStatus -> scan_status
-    assert (
-        agent1["serial_number"] == "SN123456"
-    )  # Field mapping: serialNumber -> serial_number
+    assert agent1["last_active"] == "2023-12-01T10:00:00Z"
+    assert agent1["last_successful_scan"] == "2023-12-01T09:00:00Z"
+    assert agent1["scan_status"] == "finished"
+    assert agent1["serial_number"] == "SN123456"
 
     # Test second agent (Linux with different values)
     agent2 = result[1]
