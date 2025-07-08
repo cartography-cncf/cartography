@@ -26,15 +26,15 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
+        "API_URL": config.sentinelone_api_url,
+        "API_TOKEN": config.sentinelone_api_token,
     }
 
     # Sync SentinelOne account data (needs to be done first to establish the account node)
     sync_accounts(
         neo4j_session,
-        config.sentinelone_api_url,
-        config.sentinelone_api_token,
-        config.update_tag,
         common_job_parameters,
+        config.sentinelone_account_ids,
     )
 
     # Record that the sync is complete

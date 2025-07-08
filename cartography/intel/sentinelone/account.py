@@ -4,7 +4,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.intel.sentinelone.utils import call_sentinelone_api
+from cartography.intel.sentinelone.api import call_sentinelone_api
 from cartography.models.sentinelone.account import S1AccountSchema
 from cartography.util import timeit
 
@@ -105,9 +105,6 @@ def load_accounts(
 @timeit
 def sync_accounts(
     neo4j_session: neo4j.Session,
-    api_url: str,
-    api_token: str,
-    update_tag: int,
     common_job_parameters: dict[str, Any],
     account_ids: list[str] | None = None,
 ) -> list[str]:
@@ -122,13 +119,21 @@ def sync_accounts(
     :return: List of synced account IDs
     """
     # 1. GET - Fetch data from API
-    accounts_raw_data = get_accounts(api_url, api_token, account_ids)
+    accounts_raw_data = get_accounts(
+        common_job_parameters["API_URL"],
+        common_job_parameters["API_TOKEN"],
+        account_ids,
+    )
 
     # 2. TRANSFORM - Shape data for ingestion
     transformed_accounts = transform_accounts(accounts_raw_data)
 
     # 3. LOAD - Ingest to Neo4j using data model
-    load_accounts(neo4j_session, transformed_accounts, update_tag)
+    load_accounts(
+        neo4j_session,
+        transformed_accounts,
+        common_job_parameters["UPDATE_TAG"],
+    )
 
     synced_account_ids = [account["id"] for account in transformed_accounts]
     logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
