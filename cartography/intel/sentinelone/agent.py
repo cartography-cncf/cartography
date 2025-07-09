@@ -90,7 +90,7 @@ def load_agents(
         S1AgentSchema(),
         data,
         lastupdated=update_tag,
-        ACCOUNT_ID=account_id,
+        S1_ACCOUNT_ID=account_id,
     )
 
 

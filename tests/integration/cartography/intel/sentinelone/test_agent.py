@@ -27,7 +27,7 @@ def test_sync_agents(neo4j_session, mocker):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "API_URL": TEST_API_URL,
         "API_TOKEN": TEST_API_TOKEN,
-        "ACCOUNT_ID": TEST_ACCOUNT_ID,
+        "S1_ACCOUNT_ID": TEST_ACCOUNT_ID,
     }
 
     # First, we need to create the account node for the relationship
@@ -151,7 +151,7 @@ def test_sync_agents_empty_response(neo4j_session, mocker):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "API_URL": TEST_API_URL,
         "API_TOKEN": TEST_API_TOKEN,
-        "ACCOUNT_ID": TEST_ACCOUNT_ID,
+        "S1_ACCOUNT_ID": TEST_ACCOUNT_ID,
     }
 
     # Run the sync
@@ -197,7 +197,7 @@ def test_sync_agents_cleanup(neo4j_session, mocker):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "API_URL": TEST_API_URL,
         "API_TOKEN": TEST_API_TOKEN,
-        "ACCOUNT_ID": TEST_ACCOUNT_ID,
+        "S1_ACCOUNT_ID": TEST_ACCOUNT_ID,
     }
 
     # Run the sync
