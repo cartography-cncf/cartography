@@ -151,6 +151,7 @@ LIST_FINDINGS_EC2_PACKAGE = [
                     "packageManager": "OS",
                     "release": "6.29.amzn1",
                     "version": "4.9.17",
+                    "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
                 },
                 {
                     "arch": "X86_64",
@@ -159,6 +160,7 @@ LIST_FINDINGS_EC2_PACKAGE = [
                     "packageManager": "OS",
                     "release": "6.29.amzn1",
                     "version": "4.9.17",
+                    "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
                 },
             ],
         },
