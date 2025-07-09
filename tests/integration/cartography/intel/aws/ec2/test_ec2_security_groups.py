@@ -75,7 +75,7 @@ def test_load_security_groups_relationships(mock_get_rules, neo4j_session):
 
     # Filter only relationships for sg-028e2522c72719996
     sg_rels = {rel for rel in rels if rel[0] == "sg-028e2522c72719996"}
-    
+
     # Assert that we have all expected relationships
     assert sg_rels == {
         ("sg-028e2522c72719996", "sgr-01234567890abcdef"),
@@ -121,7 +121,7 @@ def test_security_group_rules(mock_get_rules, neo4j_session):
         WHERE r.ruleid = $rule_id
         RETURN r.fromport, r.toport, r.protocol
     """, rule_id="sgr-01234567890abcdef")
-    
+
     rule = result.single()
     assert rule["r.fromport"] == 80
     assert rule["r.toport"] == 80
@@ -133,6 +133,6 @@ def test_security_group_rules(mock_get_rules, neo4j_session):
         WHERE r.ruleid = $rule_id
         RETURN range.range
     """, rule_id="sgr-01234567890abcdef")
-    
+
     range_data = result.single()
     assert range_data["range.range"] == "203.0.113.0/24"

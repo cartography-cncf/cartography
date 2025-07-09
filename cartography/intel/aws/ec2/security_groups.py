@@ -36,6 +36,7 @@ def get_ec2_security_group_data(
         security_groups.extend(page["SecurityGroups"])
     return security_groups
 
+
 @timeit
 @aws_handle_regions
 def get_ec2_security_group_rules(
@@ -53,6 +54,7 @@ def get_ec2_security_group_rules(
     for page in paginator.paginate(Filters=[{'Name': 'group-id', 'Values': [group_id]}]):
         rules.extend(page.get('SecurityGroupRules', []))
     return rules
+
 
 @timeit
 def load_ec2_security_group_rule(
@@ -96,7 +98,7 @@ def load_ec2_security_group_rule(
     """
 
     group_id = group["GroupId"]
-    
+
     for rule in rules:
         is_egress = rule.get("IsEgress", False)
         rule_type = "IpPermissionEgress" if is_egress else "IpPermissionInbound"
@@ -171,6 +173,7 @@ def load_ec2_security_groupinfo(
         )
         rules = get_ec2_security_group_rules(boto3_session, region, group_id)
         load_ec2_security_group_rule(neo4j_session, group, rules, update_tag)
+
 
 @timeit
 def cleanup_ec2_security_groupinfo(
