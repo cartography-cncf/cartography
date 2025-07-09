@@ -401,11 +401,11 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     # _ensure_local_neo4j_has_test_data has already called sync, now we test that the sync worked. Mock GitHub API data should
     # be transofrmed and in the Neo4j database.
 
-    # Create expected IDs with format: repo_url#manifest_path#ecosystem#base_id
+    # Create expected IDs with simple format: canonical_name|version
     repo_url = "https://github.com/cartography-cncf/cartography"
-    react_id = f"{repo_url}#/package.json#npm#react|18.2.0"
-    lodash_id = f"{repo_url}#/package.json#npm#lodash"
-    django_id = f"{repo_url}#/requirements.txt#pip#django|4.2.0"
+    react_id = "react|18.2.0"
+    lodash_id = "lodash"
+    django_id = "django|4.2.0"
 
     # Assert - Test that new GitHub dependency graph nodes were created
     # Note: Database also contains legacy Python dependencies, so we check subset

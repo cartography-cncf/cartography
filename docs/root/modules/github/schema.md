@@ -294,13 +294,12 @@ Represents a software dependency from GitHub's dependency graph manifests.
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Unique identifier: `{repo_url}#{manifest_path}#{ecosystem}#{base_id}` to prevent collisions |
+| **id** | Simple identifier: `{canonical_name}|{version}` or `{canonical_name}` - same dependency shared across repos |
 | **name** | Canonical name of the dependency (ecosystem-specific normalization) |
 | **original_name** | Original name as specified in the manifest file |
 | **version** | Pinned version if specified, otherwise null |
 | **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
 | **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
-| **base_id** | Base dependency identifier without context (`{name}|{version}` or `{name}`) |
 | **repo_name** | Repository name extracted from repo URL |
 | **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
 

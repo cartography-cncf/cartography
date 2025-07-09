@@ -600,13 +600,13 @@ def _transform_dependency_graph(
             # Create ecosystem identifier
             ecosystem = package_manager.lower() if package_manager else "unknown"
 
-            # Create unique ID for the dependency by including repo_url, manifest_path, and ecosystem
-            base_dep_id = (
+            # Create simple dependency ID using canonical name and version
+            # This allows the same dependency to be shared across multiple repos
+            dependency_id = (
                 f"{canonical_name}|{pinned_version}"
                 if pinned_version
                 else canonical_name
             )
-            dependency_id = f"{repo_url}#{manifest_path}#{ecosystem}#{base_dep_id}"
 
             # Normalize requirements field (prefer None over empty string)
             normalized_requirements = requirements if requirements else None
@@ -623,7 +623,6 @@ def _transform_dependency_graph(
                     "manifest_path": manifest_path,
                     "repo_url": repo_url,
                     # Add separate fields for easier querying
-                    "base_id": base_dep_id,  # The dependency name|version without context
                     "repo_name": repo_url.split("/")[-1] if repo_url else "",
                     "manifest_file": (
                         manifest_path.split("/")[-1] if manifest_path else ""
