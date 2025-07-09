@@ -25,10 +25,9 @@ class AssumedRoleRelProperties(CartographyRelProperties):
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
     # CloudTrail-specific relationship properties
-    lastused: PropertyRef = PropertyRef("lastused")
+    last_used: PropertyRef = PropertyRef("last_used")
     times_used: PropertyRef = PropertyRef("times_used")
     first_seen: PropertyRef = PropertyRef("first_seen")
-    last_seen: PropertyRef = PropertyRef("last_seen")
 
 
 @dataclass(frozen=True)

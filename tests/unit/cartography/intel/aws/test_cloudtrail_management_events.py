@@ -21,7 +21,6 @@ from tests.data.aws.cloudtrail_management_events import (
 from tests.data.aws.cloudtrail_management_events import UNIT_TEST_MOCK_ASSUMPTIONS
 from tests.data.aws.cloudtrail_management_events import UNIT_TEST_MOCK_EVENTS
 from tests.data.aws.cloudtrail_management_events import UNIT_TEST_MULTIPLE_STS_EVENTS
-from tests.data.aws.cloudtrail_management_events import UNIT_TEST_SIMPLE_ROLE_ASSUMPTION
 
 
 class TestCloudTrailEventTransformation:
@@ -29,63 +28,67 @@ class TestCloudTrailEventTransformation:
 
     def test_transforms_assume_role_events_to_standardized_format(self):
         """
-        Tests Raw CloudTrail AssumeRole events are converted to standardized
+        Tests Raw CloudTrail AssumeRole events are converted to aggregated
         role assumption records with all required fields.
         """
         # Arrange: CloudTrail event from lookup_events API
         cloudtrail_events = [UNIT_TEST_ASSUME_ROLE_EVENT]
 
-        # Act: Transform CloudTrail events to role assumptions
-        role_assumptions = transform_cloudtrail_events_to_role_assumptions(
+        # Act: Transform CloudTrail events to aggregated role assumptions
+        aggregated_assumptions = transform_cloudtrail_events_to_role_assumptions(
             events=cloudtrail_events,
             region="us-east-1",
             current_aws_account_id="123456789012",
         )
 
-        # Assert: Properly structured role assumption record created
-        assert len(role_assumptions) == 1
-        assumption = role_assumptions[0]
+        # Assert: Properly structured aggregated role assumption record created
+        assert len(aggregated_assumptions) == 1
+        assumption = aggregated_assumptions[0]
 
         assert (
-            assumption["SourcePrincipal"] == "arn:aws:iam::123456789012:user/john.doe"
+            assumption["source_principal_arn"]
+            == "arn:aws:iam::123456789012:user/john.doe"
         )
         assert (
-            assumption["DestinationPrincipal"]
+            assumption["destination_principal_arn"]
             == "arn:aws:iam::987654321098:role/ApplicationRole"
         )
-        assert assumption["Action"] == "AssumeRole"
-        assert assumption["EventTime"] == "2024-01-15T10:30:15.123000"
-        assert assumption["EventId"] == "test-event-123"
+        assert assumption["times_used"] == 1
+        assert assumption["first_seen"] == "2024-01-15T10:30:15.123000"
+        assert assumption["last_used"] == "2024-01-15T10:30:15.123000"
 
     def test_handles_different_sts_event_types(self):
         """
         Test that all STS role assumption event types (AssumeRole, AssumeRoleWithSAML,
-        AssumeRoleWithWebIdentity) are properly transformed.
+        AssumeRoleWithWebIdentity) are properly transformed and aggregated.
         """
         # Arrange: Different types of STS events
         cloudtrail_events = UNIT_TEST_MULTIPLE_STS_EVENTS
 
-        # Act: Transform all event types
-        role_assumptions = transform_cloudtrail_events_to_role_assumptions(
+        # Act: Transform all event types to aggregated role assumptions
+        aggregated_assumptions = transform_cloudtrail_events_to_role_assumptions(
             events=cloudtrail_events,
             region="us-east-1",
             current_aws_account_id="123456789012",
         )
 
-        # Assert: All event types properly transformed
-        assert len(role_assumptions) == 3
+        # Assert: All event types properly transformed and aggregated
+        assert len(aggregated_assumptions) == 3
 
-        actions = [assumption["Action"] for assumption in role_assumptions]
-        assert "AssumeRole" in actions
-        assert "AssumeRoleWithSAML" in actions
-        assert "AssumeRoleWithWebIdentity" in actions
-
+        # Check that all expected destination roles are present
         destinations = [
-            assumption["DestinationPrincipal"] for assumption in role_assumptions
+            assumption["destination_principal_arn"]
+            for assumption in aggregated_assumptions
         ]
         assert "arn:aws:iam::123456789012:role/AppRole" in destinations
         assert "arn:aws:iam::123456789012:role/SAMLRole" in destinations
         assert "arn:aws:iam::123456789012:role/WebRole" in destinations
+
+        # Check that all records have aggregation properties
+        for assumption in aggregated_assumptions:
+            assert assumption["times_used"] == 1  # Each is a single event
+            assert "first_seen" in assumption
+            assert "last_used" in assumption
 
 
 class TestRoleAssumptionAggregation:
@@ -114,8 +117,7 @@ class TestRoleAssumptionAggregation:
         )
         assert agg_record["times_used"] == expected["times_used"]
         assert agg_record["first_seen"] == expected["first_seen"]
-        assert agg_record["last_seen"] == expected["last_seen"]
-        assert agg_record["lastused"] == expected["lastused"]
+        assert agg_record["last_used"] == expected["last_used"]
 
     def test_preserves_separate_records_for_different_principal_role_pairs(self):
         """
@@ -153,15 +155,23 @@ class TestMatchLinkIntegration:
         with correct schema and parameters.
         """
         # Arrange: Aggregated role assumption data
-        role_assumptions = [UNIT_TEST_SIMPLE_ROLE_ASSUMPTION]
+        role_assumptions = [
+            {
+                "source_principal_arn": "arn:aws:iam::123456789012:user/alice",
+                "destination_principal_arn": "arn:aws:iam::123456789012:role/AppRole",
+                "times_used": 1,
+                "first_seen": "2024-01-15T10:00:00.000000",
+                "last_seen": "2024-01-15T10:00:00.000000",
+                "lastused": "2024-01-15T10:00:00.000000",
+            }
+        ]
 
         mock_session = MagicMock()
 
         # Act: Load role assumptions
         load_role_assumptions(
             neo4j_session=mock_session,
-            role_assumptions=role_assumptions,
-            region="us-east-1",
+            aggregated_role_assumptions=role_assumptions,
             current_aws_account_id="123456789012",
             aws_update_tag=1234567890,
         )
@@ -195,18 +205,18 @@ class TestMatchLinkIntegration:
 class TestSyncOrchestration:
     """Test the main sync function orchestrates the complete workflow."""
 
+    @patch("cartography.intel.aws.cloudtrail_management_events.cleanup")
     @patch("cartography.intel.aws.cloudtrail_management_events.load_role_assumptions")
     @patch(
         "cartography.intel.aws.cloudtrail_management_events.transform_cloudtrail_events_to_role_assumptions"
     )
     @patch("cartography.intel.aws.cloudtrail_management_events.get_cloudtrail_events")
-    @patch("cartography.graph.job.GraphJob.from_matchlink")
     def test_orchestrates_complete_cloudtrail_to_graph_workflow(
         self,
-        mock_cleanup_job,
         mock_get_events,
         mock_transform,
         mock_load,
+        mock_cleanup,
     ):
         """
         OUTCOME: The sync function orchestrates the complete workflow from
@@ -218,9 +228,6 @@ class TestSyncOrchestration:
 
         mock_get_events.return_value = mock_events
         mock_transform.return_value = mock_assumptions
-
-        mock_cleanup_instance = MagicMock()
-        mock_cleanup_job.return_value = mock_cleanup_instance
 
         mock_session = MagicMock()
         mock_boto3_session = MagicMock()
@@ -256,12 +263,14 @@ class TestSyncOrchestration:
         # 3. Role assumptions loaded via MatchLink
         mock_load.assert_called_once_with(
             neo4j_session=mock_session,
-            role_assumptions=mock_assumptions,
-            region="all",
+            aggregated_role_assumptions=mock_assumptions,
             current_aws_account_id="123456789012",
             aws_update_tag=1234567890,
         )
 
-        # 4. Cleanup job executed
-        mock_cleanup_job.assert_called_once()
-        mock_cleanup_instance.run.assert_called_once_with(mock_session)
+        # 4. Cleanup function executed
+        mock_cleanup.assert_called_once_with(
+            mock_session,
+            "123456789012",
+            1234567890,
+        )

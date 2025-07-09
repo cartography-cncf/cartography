@@ -512,8 +512,7 @@ UNIT_TEST_EXPECTED_AGGREGATED_RESULT = {
     "destination_principal_arn": "arn:aws:iam::123456789012:role/AppRole",
     "times_used": 3,
     "first_seen": "2024-01-15T09:00:00.000000",
-    "last_seen": "2024-01-15T17:00:00.000000",
-    "lastused": "2024-01-15T17:00:00.000000",
+    "last_used": "2024-01-15T17:00:00.000000",
 }
 
 # Different principal/role pairs for testing separate aggregation
@@ -605,18 +604,18 @@ INTEGRATION_TEST_BASIC_IAM_ROLES = [
 
 INTEGRATION_TEST_BASIC_ROLE_ASSUMPTIONS = [
     {
-        "SourcePrincipal": "arn:aws:iam::123456789012:user/john.doe",
-        "DestinationPrincipal": "arn:aws:iam::123456789012:role/ApplicationRole",
-        "Action": "AssumeRole",
-        "EventId": "event-1",
-        "EventTime": "2024-01-15T10:30:15.123000",
+        "source_principal_arn": "arn:aws:iam::123456789012:user/john.doe",
+        "destination_principal_arn": "arn:aws:iam::123456789012:role/ApplicationRole",
+        "times_used": 1,
+        "first_seen": "2024-01-15T10:30:15.123000",
+        "last_used": "2024-01-15T10:30:15.123000",
     },
     {
-        "SourcePrincipal": "arn:aws:iam::123456789012:user/alice",
-        "DestinationPrincipal": "arn:aws:iam::987654321098:role/CrossAccountRole",
-        "Action": "AssumeRole",
-        "EventId": "event-2",
-        "EventTime": "2024-01-15T11:15:30.456000",
+        "source_principal_arn": "arn:aws:iam::123456789012:user/alice",
+        "destination_principal_arn": "arn:aws:iam::987654321098:role/CrossAccountRole",
+        "times_used": 1,
+        "first_seen": "2024-01-15T11:15:30.456000",
+        "last_used": "2024-01-15T11:15:30.456000",
     },
 ]
 
@@ -654,25 +653,11 @@ INTEGRATION_TEST_AGGREGATION_IAM_ROLES = [
 
 INTEGRATION_TEST_AGGREGATION_ROLE_ASSUMPTIONS = [
     {
-        "SourcePrincipal": "arn:aws:iam::111111111111:user/test-user",
-        "DestinationPrincipal": "arn:aws:iam::111111111111:role/TestRole",
-        "EventTime": "2024-01-15T09:00:00.000000",
-        "Action": "AssumeRole",
-        "EventId": "event-1",
-    },
-    {
-        "SourcePrincipal": "arn:aws:iam::111111111111:user/test-user",
-        "DestinationPrincipal": "arn:aws:iam::111111111111:role/TestRole",
-        "EventTime": "2024-01-15T14:00:00.000000",
-        "Action": "AssumeRole",
-        "EventId": "event-2",
-    },
-    {
-        "SourcePrincipal": "arn:aws:iam::111111111111:user/test-user",
-        "DestinationPrincipal": "arn:aws:iam::111111111111:role/TestRole",
-        "EventTime": "2024-01-15T17:00:00.000000",
-        "Action": "AssumeRole",
-        "EventId": "event-3",
+        "source_principal_arn": "arn:aws:iam::111111111111:user/test-user",
+        "destination_principal_arn": "arn:aws:iam::111111111111:role/TestRole",
+        "times_used": 3,
+        "first_seen": "2024-01-15T09:00:00.000000",
+        "last_used": "2024-01-15T17:00:00.000000",
     },
 ]
 
@@ -710,11 +695,11 @@ INTEGRATION_TEST_CROSS_ACCOUNT_IAM_ROLES = [
 
 INTEGRATION_TEST_CROSS_ACCOUNT_ROLE_ASSUMPTIONS = [
     {
-        "SourcePrincipal": "arn:aws:iam::222222222222:user/cross-user",
-        "DestinationPrincipal": "arn:aws:iam::333333333333:role/ExternalRole",
-        "Action": "AssumeRole",
-        "EventId": "cross-account-event",
-        "EventTime": "2024-01-15T10:30:15.123000",
+        "source_principal_arn": "arn:aws:iam::222222222222:user/cross-user",
+        "destination_principal_arn": "arn:aws:iam::333333333333:role/ExternalRole",
+        "times_used": 1,
+        "first_seen": "2024-01-15T10:30:15.123000",
+        "last_used": "2024-01-15T10:30:15.123000",
     }
 ]
 

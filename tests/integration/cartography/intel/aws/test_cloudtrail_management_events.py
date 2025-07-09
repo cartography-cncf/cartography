@@ -153,7 +153,7 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
     graph relationships that show actual role usage patterns.
     """
     # Arrange: Clean database and set up AWS account with IAM users and roles
-    # _cleanup_neo4j(neo4j_session)
+    _cleanup_neo4j(neo4j_session)
     create_test_account(
         neo4j_session, INTEGRATION_TEST_BASIC_ACCOUNT_ID, TEST_UPDATE_TAG
     )
@@ -189,20 +189,19 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
         ),
     }
 
-    # Assert: Relationship properties are populated correctly
-    role_usage = neo4j_session.run(
+    # Assert: Verify that all role assumptions have usage count of 1
+    role_usage_results = neo4j_session.run(
         """
         MATCH (p:AWSPrincipal)-[r:ASSUMED_ROLE]->(role:AWSRole)
         WHERE p.arn STARTS WITH 'arn:aws:iam::123456789012:'
-        RETURN p.arn as principal, role.arn as role,
-               r.times_used as times_used, r.lastused as lastused
-        ORDER BY p.arn
+        RETURN r.times_used as times_used, r.last_used as last_used
         """
     ).data()
 
-    assert len(role_usage) == 2
-    assert all(usage["times_used"] == 1 for usage in role_usage)
-    assert all(usage["lastused"] is not None for usage in role_usage)
+    assert len(role_usage_results) == 2
+    for usage in role_usage_results:
+        assert usage["times_used"] == 1
+        assert usage["last_used"] is not None
 
 
 @patch.object(
@@ -265,14 +264,13 @@ def test_cloudtrail_management_events_aggregates_multiple_role_assumptions(
               -[r:ASSUMED_ROLE]->
               (role:AWSRole {arn: 'arn:aws:iam::111111111111:role/TestRole'})
         RETURN r.times_used as times_used, r.first_seen as first_seen,
-               r.last_seen as last_seen, r.lastused as lastused
+               r.last_used as last_used
         """
     ).single()
 
     assert aggregated_usage["times_used"] == 3
     assert aggregated_usage["first_seen"] == "2024-01-15T09:00:00.000000"
-    assert aggregated_usage["last_seen"] == "2024-01-15T17:00:00.000000"
-    assert aggregated_usage["lastused"] == "2024-01-15T17:00:00.000000"
+    assert aggregated_usage["last_used"] == "2024-01-15T17:00:00.000000"
 
 
 @patch.object(

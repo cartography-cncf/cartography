@@ -5,7 +5,6 @@ from datetime import timedelta
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Optional
 
 import boto3
 import neo4j
@@ -26,7 +25,10 @@ def get_cloudtrail_events(
     boto3_session: boto3.Session, region: str, lookback_hours: int = 24
 ) -> List[Dict[str, Any]]:
     """
-    Fetch CloudTrail management events from the specified time period.
+    Fetch CloudTrail role assumption events from the specified time period.
+
+    Makes separate API calls for each role assumption event type to minimize
+    data transfer and processing overhead.
 
     :type boto3_session: boto3.Session
     :param boto3_session: The boto3 session to use for API calls
@@ -35,7 +37,7 @@ def get_cloudtrail_events(
     :type lookback_hours: int
     :param lookback_hours: Number of hours back to retrieve events from
     :rtype: List[Dict[str, Any]]
-    :return: List of CloudTrail events
+    :return: List of CloudTrail role assumption events
     """
     client = boto3_session.client(
         "cloudtrail", region_name=region, config=get_botocore_config()
@@ -46,19 +48,27 @@ def get_cloudtrail_events(
     start_time = end_time - timedelta(hours=lookback_hours)
 
     logger.info(
-        f"Fetching CloudTrail management events for region '{region}' "
+        f"Fetching CloudTrail role assumption events for region '{region}' "
         f"from {start_time} to {end_time} ({lookback_hours} hours)"
     )
 
-    events = []
+    # Specific STS events for role assumptions
+    role_assumption_events = [
+        "AssumeRole",
+        "AssumeRoleWithSAML",
+        "AssumeRoleWithWebIdentity",
+    ]
 
-    try:
-        # Focus on STS events for role assumptions
-        paginator = client.get_paginator("lookup_events")
+    all_events = []
+    paginator = client.get_paginator("lookup_events")
+
+    # Make separate API calls for each event type
+    for event_name in role_assumption_events:
+        logger.debug(f"Fetching {event_name} events for region '{region}'")
 
         page_iterator = paginator.paginate(
             LookupAttributes=[
-                {"AttributeKey": "EventSource", "AttributeValue": "sts.amazonaws.com"}
+                {"AttributeKey": "EventName", "AttributeValue": event_name}
             ],
             StartTime=start_time,
             EndTime=end_time,
@@ -68,19 +78,20 @@ def get_cloudtrail_events(
             },
         )
 
+        events_for_type = []
         for page in page_iterator:
-            events.extend(page.get("Events", []))
+            events_for_type.extend(page.get("Events", []))
 
-        logger.info(
-            f"Retrieved {len(events)} CloudTrail management events from region '{region}'"
+        logger.debug(
+            f"Retrieved {len(events_for_type)} {event_name} events from region '{region}'"
         )
+        all_events.extend(events_for_type)
 
-    except Exception as e:
-        logger.warning(
-            f"Failed to retrieve CloudTrail management events for region '{region}': {str(e)}"
-        )
+    logger.info(
+        f"Retrieved {len(all_events)} total role assumption events from region '{region}'"
+    )
 
-    return events
+    return all_events
 
 
 @timeit
@@ -90,7 +101,12 @@ def transform_cloudtrail_events_to_role_assumptions(
     current_aws_account_id: str,
 ) -> List[Dict[str, Any]]:
     """
-    Transform raw CloudTrail events into role assumption relationships.
+    Transform raw CloudTrail events into aggregated role assumption relationships.
+
+    This function performs the complete transformation pipeline:
+    1. Extract role assumption events from CloudTrail data
+    2. Aggregate events by (source_principal, destination_principal) pairs
+    3. Return aggregated relationships ready for loading
 
     :type events: List[Dict[str, Any]]
     :param events: List of raw CloudTrail events from lookup_events API
@@ -99,7 +115,7 @@ def transform_cloudtrail_events_to_role_assumptions(
     :type current_aws_account_id: str
     :param current_aws_account_id: The AWS account ID being synced
     :rtype: List[Dict[str, Any]]
-    :return: List of role assumption records in standardized format
+    :return: List of aggregated role assumption relationships ready for loading
     """
     role_assumptions = []
 
@@ -108,34 +124,107 @@ def transform_cloudtrail_events_to_role_assumptions(
     )
 
     for event in events:
-        try:
-            assumption = _extract_role_assumption_from_event(
-                event, region, current_aws_account_id
-            )
-            if assumption:
-                role_assumptions.append(assumption)
-        except Exception as e:
-            logger.warning(
-                f"Failed to transform CloudTrail event {event.get('EventId', 'unknown')}: {str(e)}"
+        # Extract role assumption details from CloudTrail event
+        event_name = event.get("EventName")
+        if not event_name:
+            logger.debug(
+                f"Event missing EventName field: {event.get('EventId', 'unknown')}"
             )
             continue
+
+        # Parse CloudTrail event JSON once
+        cloudtrail_event = None
+        if event.get("CloudTrailEvent"):
+            try:
+                cloudtrail_event = json.loads(event["CloudTrailEvent"])
+            except (json.JSONDecodeError, TypeError):
+                logger.debug(
+                    f"Failed to parse CloudTrail JSON for event {event.get('EventId', 'unknown')}"
+                )
+
+        # Simple source principal extraction
+        user_identity = event.get("UserIdentity", {})
+        source_principal = (
+            user_identity.get("arn")
+            or user_identity.get("principalId")
+            or event.get("UserName")
+            or (
+                cloudtrail_event and cloudtrail_event.get("userIdentity", {}).get("arn")
+            )
+        )
+
+        if not source_principal:
+            logger.debug(
+                f"Could not extract source principal from event {event.get('EventId', 'unknown')}"
+            )
+            continue
+
+        # Simple destination principal extraction
+        destination_principal = None
+        if cloudtrail_event:
+            # Try request parameters first
+            destination_principal = cloudtrail_event.get("requestParameters", {}).get(
+                "roleArn"
+            )
+
+            # Fallback: try response elements
+            if not destination_principal:
+                assumed_role_arn = (
+                    cloudtrail_event.get("responseElements", {})
+                    .get("assumedRoleUser", {})
+                    .get("arn")
+                )
+                if assumed_role_arn:
+                    destination_principal = _convert_assumed_role_arn_to_role_arn(
+                        assumed_role_arn
+                    )
+
+        if not destination_principal:
+            logger.debug(
+                f"Could not extract destination principal from event {event.get('EventId', 'unknown')}"
+            )
+            continue
+
+        # Create standardized role assumption record
+        assumption = {
+            "SourcePrincipal": source_principal,
+            "DestinationPrincipal": destination_principal,
+            "Action": event_name,
+            "EventId": event.get("EventId"),
+            "EventTime": event.get("EventTime"),
+            "SourceIPAddress": event.get("SourceIPAddress"),
+            "UserAgent": event.get("UserAgent"),
+            "AwsRegion": event.get("AwsRegion", region),
+            "AccountId": current_aws_account_id,
+            "AssumedRoleArn": destination_principal,  # For relationship targeting
+            "PrincipalArn": source_principal,  # For relationship targeting
+            "SessionName": cloudtrail_event
+            and cloudtrail_event.get("requestParameters", {}).get("roleSessionName"),
+            "RequestId": cloudtrail_event and cloudtrail_event.get("requestID"),
+            "RecipientAccountId": cloudtrail_event
+            and cloudtrail_event.get("recipientAccountId"),
+        }
+        role_assumptions.append(assumption)
 
     logger.info(
         f"Successfully transformed {len(role_assumptions)} role assumptions from {len(events)} events"
     )
-    return role_assumptions
+
+    # Aggregate role assumptions by (source, destination) pairs
+    aggregated_assumptions = _aggregate_role_assumptions(role_assumptions)
+
+    return aggregated_assumptions
 
 
 @timeit
 def load_role_assumptions(
     neo4j_session: neo4j.Session,
-    role_assumptions: List[Dict[str, Any]],
-    region: str,
+    aggregated_role_assumptions: List[Dict[str, Any]],
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     """
-    Load role assumption relationships into Neo4j using MatchLink pattern.
+    Load aggregated role assumption relationships into Neo4j using MatchLink pattern.
 
     Creates direct ASSUMED_ROLE relationships with aggregated properties:
     (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {lastused, times_used, first_seen, last_seen}]->(AWSRole)
@@ -144,41 +233,28 @@ def load_role_assumptions(
 
     :type neo4j_session: neo4j.Session
     :param neo4j_session: The Neo4j session to use for database operations
-    :type role_assumptions: List[Dict[str, Any]]
-    :param role_assumptions: List of role assumption records from transform function
-    :type region: str
-    :param region: The AWS region where events were retrieved from
+    :type aggregated_role_assumptions: List[Dict[str, Any]]
+    :param aggregated_role_assumptions: List of aggregated role assumption relationships from transform function
     :type current_aws_account_id: str
     :param current_aws_account_id: The AWS account ID being synced
     :type aws_update_tag: int
     :param aws_update_tag: Timestamp tag for tracking data freshness
     :rtype: None
     """
-    if not role_assumptions:
-        logger.info("No role assumption events to load")
-        return
-
-    # Aggregate role assumptions by (source, destination) pairs
-    aggregated_assumptions = _aggregate_role_assumptions(role_assumptions)
-
-    logger.info(
-        f"Loading {len(aggregated_assumptions)} aggregated role assumption relationships"
-    )
-
     # Use MatchLink to create relationships between existing nodes
     matchlink_schema = AssumedRoleMatchLink()
 
     load_matchlinks(
         neo4j_session,
         matchlink_schema,
-        aggregated_assumptions,
+        aggregated_role_assumptions,
         lastupdated=aws_update_tag,
         _sub_resource_label="AWSAccount",
         _sub_resource_id=current_aws_account_id,
     )
 
     logger.info(
-        f"Successfully loaded {len(aggregated_assumptions)} role assumption relationships"
+        f"Successfully loaded {len(aggregated_role_assumptions)} role assumption relationships"
     )
 
 
@@ -186,44 +262,44 @@ def _aggregate_role_assumptions(
     role_assumptions: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     """
-    Aggregate role assumption events by (source_principal, destination_principal) pairs.
+    Aggregate role assumption events by (source_arn, destination_arn) pairs.
 
-    This creates the aggregated data needed for direct ASSUMED_ROLE relationships with
-    properties like times_used, first_seen, last_seen, and lastused.
+    Combines multiple assumption events between the same source and destination
+    into a single record.
 
-    :type role_assumptions: List[Dict[str, Any]]
-    :param role_assumptions: List of individual role assumption records
-    :rtype: List[Dict[str, Any]]
-    :return: List of aggregated role assumption relationships
+    :param role_assumptions: List of role assumption events
+    :return: List of aggregated role assumption records
     """
-    aggregated = {}
+    aggregated: Dict[tuple, Dict[str, Any]] = {}
 
     for assumption in role_assumptions:
         source_arn = assumption.get("SourcePrincipal")
         dest_arn = assumption.get("DestinationPrincipal")
         event_time = assumption.get("EventTime")
 
-        if not source_arn or not dest_arn or not event_time:
+        missing_fields = []
+        if not source_arn:
+            missing_fields.append("SourcePrincipal")
+        if not dest_arn:
+            missing_fields.append("DestinationPrincipal")
+        if not event_time:
+            missing_fields.append("EventTime")
+
+        if missing_fields:
             logger.warning(
-                "Skipping incomplete assumption record: due to missing required fields"
+                f"Skipping incomplete assumption record missing: {', '.join(missing_fields)}"
             )
             continue
 
+        # MyPy check is forcing this assert check because it thinks source_arn could be None. Could do a more explicit check above if this is a problem.
+        assert source_arn is not None
         # Convert STS assumed-role ARNs to IAM role ARNs for source matching
         normalized_source_arn = _convert_assumed_role_arn_to_role_arn(source_arn)
 
         # Create aggregation key
         key = (normalized_source_arn, dest_arn)
 
-        if key not in aggregated:
-            aggregated[key] = {
-                "source_principal_arn": normalized_source_arn,
-                "destination_principal_arn": dest_arn,
-                "times_used": 1,
-                "first_seen": event_time,
-                "last_seen": event_time,
-            }
-        else:
+        if key in aggregated:
             # Update aggregated values
             agg_data = aggregated[key]
             agg_data["times_used"] += 1
@@ -231,187 +307,18 @@ def _aggregate_role_assumptions(
             # Update temporal bounds
             if event_time < agg_data["first_seen"]:
                 agg_data["first_seen"] = event_time
-            if event_time > agg_data["last_seen"]:
-                agg_data["last_seen"] = event_time
-
-    # Convert to list and ensure lastused equals last_seen
-    result = []
-    for agg_data in aggregated.values():
-        agg_data["lastused"] = agg_data["last_seen"]
-        result.append(agg_data)
-
-    logger.info(
-        f"Aggregated {len(role_assumptions)} events into {len(result)} unique role assumption relationships"
-    )
-    return result
-
-
-def _extract_role_assumption_from_event(
-    event: Dict[str, Any],
-    region: str,
-    current_aws_account_id: str,
-) -> Optional[Dict[str, Any]]:
-    """
-    Extract role assumption details from a single CloudTrail event.
-
-    :type event: Dict[str, Any]
-    :param event: Single CloudTrail event from lookup_events API
-    :type region: str
-    :param region: The AWS region where the event occurred
-    :type current_aws_account_id: str
-    :param current_aws_account_id: The AWS account ID being synced
-    :rtype: Optional[Dict[str, Any]]
-    :return: Role assumption record or None if event is not a role assumption
-    """
-    event_name = event.get("EventName")
-
-    # Only process STS role assumption events
-    if event_name not in [
-        "AssumeRole",
-        "AssumeRoleWithSAML",
-        "AssumeRoleWithWebIdentity",
-    ]:
-        return None
-
-    # Extract source principal (who is assuming the role)
-    source_principal = _extract_source_principal(event)
-    if not source_principal:
-        logger.debug(
-            f"Could not extract source principal from event {event.get('EventId')}"
-        )
-        return None
-
-    # Extract destination principal (role being assumed)
-    destination_principal = _extract_destination_principal(event)
-    if not destination_principal:
-        logger.debug(
-            f"Could not extract destination principal from event {event.get('EventId')}"
-        )
-        return None
-
-    # Build the standardized role assumption record
-    assumption = {
-        "SourcePrincipal": source_principal,
-        "DestinationPrincipal": destination_principal,
-        "Action": event_name,
-        "EventId": event.get("EventId"),
-        "EventTime": event.get("EventTime"),
-        "SourceIPAddress": event.get("SourceIPAddress"),
-        "UserAgent": event.get("UserAgent"),
-        "AwsRegion": event.get("AwsRegion", region),
-        "AccountId": current_aws_account_id,
-        "AssumedRoleArn": destination_principal,  # For relationship targeting
-        "PrincipalArn": source_principal,  # For relationship targeting
-    }
-
-    # Add additional context from CloudTrail event JSON
-    cloudtrail_event = _parse_cloudtrail_event_json(event.get("CloudTrailEvent"))
-    if cloudtrail_event:
-        assumption.update(
-            {
-                "SessionName": _extract_session_name(cloudtrail_event, event_name),
-                "RequestId": cloudtrail_event.get("requestID"),
-                "RecipientAccountId": cloudtrail_event.get("recipientAccountId"),
+            if event_time > agg_data["last_used"]:
+                agg_data["last_used"] = event_time
+        else:
+            aggregated[key] = {
+                "source_principal_arn": normalized_source_arn,
+                "destination_principal_arn": dest_arn,
+                "times_used": 1,
+                "first_seen": event_time,
+                "last_used": event_time,
             }
-        )
 
-    return assumption
-
-
-def _extract_source_principal(event: Dict[str, Any]) -> Optional[str]:
-    """Extract the source principal (who is assuming the role) from a CloudTrail event."""
-    user_identity = event.get("UserIdentity", {})
-
-    # Try to get ARN from UserIdentity
-    if user_identity.get("arn"):
-        return user_identity["arn"]
-
-    # For SAML users, construct ARN from available info
-    if user_identity.get("type") == "SAMLUser":
-        principal_id = user_identity.get("principalId")
-        if principal_id:
-            return principal_id
-
-    # For Web Identity users, use the assumed role ARN if available
-    if user_identity.get("type") == "WebIdentityUser":
-        return user_identity.get("arn")
-
-    # Fallback to UserName if available
-    user_name = event.get("UserName")
-    if user_name:
-        return user_name
-
-    # For AWS service role assumptions, UserIdentity is often empty
-    # Try to extract source from CloudTrail event JSON
-    cloudtrail_event = _parse_cloudtrail_event_json(event.get("CloudTrailEvent"))
-    if cloudtrail_event:
-        # Check for source identity in userIdentity field of CloudTrail JSON
-        ct_user_identity = cloudtrail_event.get("userIdentity", {})
-        if ct_user_identity.get("arn"):
-            return ct_user_identity["arn"]
-
-        # For AWS service calls, the source is often the service itself
-        if ct_user_identity.get("type") == "AWSService":
-            service_name = ct_user_identity.get("invokedBy")
-            if service_name:
-                # Return the service as the source principal
-                return f"service:{service_name}"
-
-        # Check if this is a service-linked role assumption
-        # In this case, we can use the account root as the source
-        account_id = cloudtrail_event.get("recipientAccountId")
-        if account_id and ct_user_identity.get("type") in ["Root", "AWSAccount"]:
-            return f"arn:aws:iam::{account_id}:root"
-
-    return None
-
-
-def _extract_destination_principal(event: Dict[str, Any]) -> Optional[str]:
-    """Extract the destination principal (role being assumed) from a CloudTrail event."""
-    # Parse the CloudTrail event JSON for detailed information
-    cloudtrail_event = _parse_cloudtrail_event_json(event.get("CloudTrailEvent"))
-    if not cloudtrail_event:
-        return None
-
-    # Extract role ARN from request parameters
-    request_params = cloudtrail_event.get("requestParameters", {})
-    role_arn = request_params.get("roleArn")
-
-    if role_arn:
-        return role_arn
-
-    # Fallback: try to extract from response elements for some STS calls
-    response_elements = cloudtrail_event.get("responseElements", {})
-    assumed_role_user = response_elements.get("assumedRoleUser", {})
-    if assumed_role_user.get("arn"):
-        # Convert assumed role ARN back to role ARN
-        # e.g., "arn:aws:sts::123456789012:assumed-role/MyRole/session" -> "arn:aws:iam::123456789012:role/MyRole"
-        assumed_role_arn = assumed_role_user["arn"]
-        return _convert_assumed_role_arn_to_role_arn(assumed_role_arn)
-
-    return None
-
-
-def _extract_session_name(
-    cloudtrail_event: Dict[str, Any], event_name: str
-) -> Optional[str]:
-    """Extract the role session name from CloudTrail event details."""
-    request_params = cloudtrail_event.get("requestParameters", {})
-    return request_params.get("roleSessionName")
-
-
-def _parse_cloudtrail_event_json(
-    cloudtrail_event_str: Optional[str],
-) -> Optional[Dict[str, Any]]:
-    """Parse the CloudTrail event JSON string into a dictionary."""
-    if not cloudtrail_event_str:
-        return None
-
-    try:
-        return json.loads(cloudtrail_event_str)
-    except (json.JSONDecodeError, TypeError) as e:
-        logger.debug(f"Failed to parse CloudTrail event JSON: {str(e)}")
-        return None
+    return list(aggregated.values())
 
 
 def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
@@ -447,6 +354,33 @@ def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
 
 
 @timeit
+def cleanup(
+    neo4j_session: neo4j.Session, current_aws_account_id: str, update_tag: int
+) -> None:
+    """
+    Run CloudTrail management events cleanup job to remove stale ASSUMED_ROLE relationships.
+
+    :type neo4j_session: neo4j.Session
+    :param neo4j_session: The Neo4j session to use for database operations
+    :type current_aws_account_id: str
+    :param current_aws_account_id: The AWS account ID being synced
+    :type update_tag: int
+    :param update_tag: Timestamp tag for tracking data freshness
+    :rtype: None
+    """
+    logger.debug("Running CloudTrail management events cleanup job.")
+
+    matchlink_schema = AssumedRoleMatchLink()
+    cleanup_job = GraphJob.from_matchlink(
+        matchlink_schema,
+        "AWSAccount",
+        current_aws_account_id,
+        update_tag,
+    )
+    cleanup_job.run(neo4j_session)
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
@@ -459,12 +393,13 @@ def sync(
     Sync CloudTrail management events to create ASSUMED_ROLE relationships.
 
     This function orchestrates the complete process:
-    1. Fetch CloudTrail management events from all regions
-    2. Transform events into role assumption records
-    3. Load aggregated role assumption relationships into Neo4j
+    1. Fetch CloudTrail management events region by region
+    2. Transform events into role assumption records per region
+    3. Load role assumption relationships into Neo4j for each region
+    4. Run cleanup after processing all regions
 
     The resulting graph contains direct relationships like:
-    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(AWSRole)
+    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_used, lastused}]->(AWSRole)
 
     :type neo4j_session: neo4j.Session
     :param neo4j_session: The Neo4j session
@@ -496,58 +431,42 @@ def sync(
         f"Syncing {len(regions)} regions with {lookback_hours} hour lookback period"
     )
 
-    all_role_assumptions = []
+    total_role_assumptions = 0
 
-    # Fetch events from all regions
+    # Process events region by region
     for region in regions:
-        try:
-            # Get raw CloudTrail events
-            events = get_cloudtrail_events(
-                boto3_session=boto3_session,
-                region=region,
-                lookback_hours=lookback_hours,
-            )
+        logger.info(f"Processing CloudTrail events for region {region}")
 
-            # Transform to role assumptions
-            role_assumptions = transform_cloudtrail_events_to_role_assumptions(
-                events=events,
-                region=region,
-                current_aws_account_id=current_aws_account_id,
-            )
+        # Get raw CloudTrail events
+        events = get_cloudtrail_events(
+            boto3_session=boto3_session,
+            region=region,
+            lookback_hours=lookback_hours,
+        )
 
-            all_role_assumptions.extend(role_assumptions)
+        # Transform to role assumptions
+        role_assumptions = transform_cloudtrail_events_to_role_assumptions(
+            events=events,
+            region=region,
+            current_aws_account_id=current_aws_account_id,
+        )
 
-        except Exception as e:
-            logger.warning(
-                f"Failed to process CloudTrail events for region {region}: {str(e)}"
-            )
-            continue
-
-    # Load all role assumptions into Neo4j and run cleanup
-    if all_role_assumptions:
+        # Load role assumptions for this region
         load_role_assumptions(
             neo4j_session=neo4j_session,
-            role_assumptions=all_role_assumptions,
-            region="all",  # Indicates cross-region aggregation
+            aggregated_role_assumptions=role_assumptions,
             current_aws_account_id=current_aws_account_id,
             aws_update_tag=update_tag,
         )
-
-        # Run cleanup for stale relationships
-        matchlink_schema = AssumedRoleMatchLink()
-        cleanup_job = GraphJob.from_matchlink(
-            matchlink_schema,
-            "AWSAccount",
-            current_aws_account_id,
-            update_tag,
-        )
-        cleanup_job.run(neo4j_session)
-
+        total_role_assumptions += len(role_assumptions)
         logger.info(
-            f"CloudTrail management events sync completed successfully. "
-            f"Processed {len(all_role_assumptions)} role assumption events."
+            f"Loaded {len(role_assumptions)} role assumptions for region {region}"
         )
-    else:
-        logger.info(
-            "CloudTrail management events sync completed - no role assumptions found"
-        )
+
+    # Run cleanup for stale relationships after processing all regions
+    cleanup(neo4j_session, current_aws_account_id, update_tag)
+
+    logger.info(
+        f"CloudTrail management events sync completed successfully. "
+        f"Processed {total_role_assumptions} total role assumption events across {len(regions)} regions."
+    )
