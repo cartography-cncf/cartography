@@ -42,7 +42,7 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
     # Sync agents for each account
     for account_id in synced_account_ids:
         # Add account-specific parameter
-        common_job_parameters["ACCOUNT_ID"] = account_id
+        common_job_parameters["S1_ACCOUNT_ID"] = account_id
 
         cartography.intel.sentinelone.agent.sync(
             neo4j_session,
@@ -50,7 +50,7 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
         )
 
         # Clean up account-specific parameter
-        del common_job_parameters["ACCOUNT_ID"]
+        del common_job_parameters["S1_ACCOUNT_ID"]
 
     # Record that the sync is complete
     merge_module_sync_metadata(

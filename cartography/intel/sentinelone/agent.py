@@ -82,10 +82,6 @@ def load_agents(
     :param update_tag: Update tag for tracking data freshness
     :return: None
     """
-    if not data:
-        logger.warning(f"No agent data provided for account {account_id}")
-        return
-
     logger.info(
         f"Loading {len(data)} SentinelOne agents into Neo4j for account {account_id}"
     )
@@ -120,12 +116,12 @@ def sync(
     """
     Sync SentinelOne agents using the standard sync pattern
     :param neo4j_session: Neo4j session
-    :param common_job_parameters: Common job parameters containing API_URL, API_TOKEN, ACCOUNT_ID, UPDATE_TAG
+    :param common_job_parameters: Common job parameters containing API_URL, API_TOKEN, S1_ACCOUNT_ID, UPDATE_TAG
     :return: None
     """
     api_url = common_job_parameters["API_URL"]
     api_token = common_job_parameters["API_TOKEN"]
-    account_id = common_job_parameters["ACCOUNT_ID"]
+    account_id = common_job_parameters["S1_ACCOUNT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
 
     logger.info(f"Syncing SentinelOne agent data for account {account_id}")
