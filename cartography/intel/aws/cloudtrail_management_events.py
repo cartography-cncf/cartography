@@ -73,7 +73,6 @@ def get_assume_role_events(
 
     return all_events
 
-
 @timeit
 def transform_assume_role_events_to_role_assumptions(
     events: List[Dict[str, Any]],
@@ -107,13 +106,12 @@ def transform_assume_role_events_to_role_assumptions(
 
     for event in events:
 
-        # Extract source and destination principals
         cloudtrail_event = json.loads(event["CloudTrailEvent"])
 
-        # Extract source principal with error handling (UserIdentity may be missing in some events)
-        try:
+        if cloudtrail_event.get("userIdentity", {}).get("arn"):
             source_principal = cloudtrail_event["userIdentity"]["arn"]
-        except KeyError:
+            destination_principal = cloudtrail_event["requestParameters"]["roleArn"]
+        else:
             logger.debug(
                 f"Skipping CloudTrail AssumeRole event due to missing UserIdentity.arn. Event: {event.get('EventId', 'unknown')}"
             )
@@ -130,13 +128,19 @@ def transform_assume_role_events_to_role_assumptions(
         event_time = event.get("EventTime")
 
         key = (normalized_source_principal, normalized_destination_principal)
+       
         if key in aggregated:
             aggregated[key]["times_used"] += 1
             aggregated[key]["assume_role_count"] += 1  # All events are AssumeRole
-            if event_time < aggregated[key]["first_seen_in_time_window"]:
-                aggregated[key]["first_seen_in_time_window"] = event_time
-            if event_time > aggregated[key]["last_used"]:
-                aggregated[key]["last_used"] = event_time
+            # Handle None values safely for time comparisons
+            if event_time:
+                existing_first = aggregated[key]["first_seen_in_time_window"]
+                existing_last = aggregated[key]["last_used"]
+                
+                if existing_first is None or event_time < existing_first:
+                    aggregated[key]["first_seen_in_time_window"] = event_time
+                if existing_last is None or event_time > existing_last:
+                    aggregated[key]["last_used"] = event_time
         else:
             aggregated[key] = {
                 "source_principal_arn": normalized_source_principal,
@@ -151,7 +155,6 @@ def transform_assume_role_events_to_role_assumptions(
             }
 
     return list(aggregated.values())
-
 
 @timeit
 def load_role_assumptions(
@@ -247,7 +250,7 @@ def cleanup(
 
 
 @timeit
-def sync(
+def sync_assume_role_events(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
     regions: List[str],
@@ -291,9 +294,6 @@ def sync(
         return
 
     logger.info(
-        f"Starting CloudTrail management events sync for account {current_aws_account_id}"
-    )
-    logger.info(
         f"Syncing {len(regions)} regions with {lookback_hours} hour lookback period"
     )
 
@@ -336,4 +336,26 @@ def sync(
     logger.info(
         f"CloudTrail management events sync completed successfully. "
         f"Processed {total_role_assumptions} total role assumption events across {len(regions)} regions."
+    )
+
+# Main sync function for when we decide to add more event types
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Main sync function for CloudTrail management events.
+    """
+    sync_assume_role_events(
+        neo4j_session=neo4j_session,
+        boto3_session=boto3_session,
+        regions=regions,
+        current_aws_account_id=current_aws_account_id,
+        update_tag=update_tag,
+        common_job_parameters=common_job_parameters,
     )
