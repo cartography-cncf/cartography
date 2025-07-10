@@ -332,7 +332,7 @@ EXPECTED_AGGREGATED_ALICE_DATASCIENTIST = {
     "source_principal_arn": "arn:aws:iam::123456789012:user/alice",
     "destination_principal_arn": "arn:aws:iam::123456789012:role/DataScientist",
     "times_used": 3,
-    "first_seen": datetime(2024, 1, 15, 9, 0, 0),
+    "first_seen_in_time_window": datetime(2024, 1, 15, 9, 0, 0),
     "last_seen": datetime(2024, 1, 15, 17, 15, 0),
     "lastused": datetime(2024, 1, 15, 17, 15, 0),
 }
@@ -416,7 +416,7 @@ EXPECTED_CYPHER_QUERY_PATTERNS = {
     "destination_merge": "MERGE (dest:AWSRole {arn: assumption.destination_principal_arn})",
     "relationship_merge": "MERGE (source_node)-[rel:ASSUMED_ROLE]->(dest)",
     "times_used_aggregation": "rel.times_used = COALESCE(rel.times_used, 0) + assumption.times_used",
-    "first_seen_aggregation": "CASE WHEN assumption.first_seen <",
+    "first_seen_in_time_window_aggregation": "CASE WHEN assumption.first_seen_in_time_window <",
     "last_seen_aggregation": "CASE WHEN assumption.last_seen >",
     "lastused_aggregation": "CASE WHEN assumption.last_seen >",
     "lastupdated_set": "rel.lastupdated = $aws_update_tag",
@@ -437,6 +437,13 @@ UNIT_TEST_ASSUME_ROLE_EVENT = {
         "type": "User",
         "arn": "arn:aws:iam::123456789012:user/john.doe",
     },
+    "Resources": [
+        {
+            "ResourceType": "AWS::IAM::Role",
+            "ResourceName": "arn:aws:iam::987654321098:role/ApplicationRole",
+            "AccountId": "987654321098",
+        }
+    ],
     "CloudTrailEvent": json.dumps(
         {
             "requestParameters": {
@@ -459,6 +466,13 @@ UNIT_TEST_MULTIPLE_STS_EVENTS = [
         "EventId": "assume-role-event",
         "EventTime": "2024-01-15T10:00:00.000000",
         "UserIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"},
+        "Resources": [
+            {
+                "ResourceType": "AWS::IAM::Role",
+                "ResourceName": "arn:aws:iam::123456789012:role/AppRole",
+                "AccountId": "123456789012",
+            }
+        ],
         "CloudTrailEvent": json.dumps(
             {"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}
         ),
@@ -468,6 +482,13 @@ UNIT_TEST_MULTIPLE_STS_EVENTS = [
         "EventId": "saml-event",
         "EventTime": "2024-01-15T11:00:00.000000",
         "UserIdentity": {"arn": "arn:aws:iam::123456789012:saml-user/saml-user"},
+        "Resources": [
+            {
+                "ResourceType": "AWS::IAM::Role",
+                "ResourceName": "arn:aws:iam::123456789012:role/SAMLRole",
+                "AccountId": "123456789012",
+            }
+        ],
         "CloudTrailEvent": json.dumps(
             {
                 "requestParameters": {
@@ -481,6 +502,13 @@ UNIT_TEST_MULTIPLE_STS_EVENTS = [
         "EventId": "web-identity-event",
         "EventTime": "2024-01-15T12:00:00.000000",
         "UserIdentity": {"arn": "arn:aws:iam::123456789012:web-identity-user/web-user"},
+        "Resources": [
+            {
+                "ResourceType": "AWS::IAM::Role",
+                "ResourceName": "arn:aws:iam::123456789012:role/WebRole",
+                "AccountId": "123456789012",
+            }
+        ],
         "CloudTrailEvent": json.dumps(
             {"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/WebRole"}}
         ),
@@ -511,7 +539,7 @@ UNIT_TEST_EXPECTED_AGGREGATED_RESULT = {
     "source_principal_arn": "arn:aws:iam::123456789012:user/alice",
     "destination_principal_arn": "arn:aws:iam::123456789012:role/AppRole",
     "times_used": 3,
-    "first_seen": "2024-01-15T09:00:00.000000",
+    "first_seen_in_time_window": "2024-01-15T09:00:00.000000",
     "last_used": "2024-01-15T17:00:00.000000",
 }
 
@@ -607,14 +635,14 @@ INTEGRATION_TEST_BASIC_ROLE_ASSUMPTIONS = [
         "source_principal_arn": "arn:aws:iam::123456789012:user/john.doe",
         "destination_principal_arn": "arn:aws:iam::123456789012:role/ApplicationRole",
         "times_used": 1,
-        "first_seen": "2024-01-15T10:30:15.123000",
+        "first_seen_in_time_window": "2024-01-15T10:30:15.123000",
         "last_used": "2024-01-15T10:30:15.123000",
     },
     {
         "source_principal_arn": "arn:aws:iam::123456789012:user/alice",
         "destination_principal_arn": "arn:aws:iam::987654321098:role/CrossAccountRole",
         "times_used": 1,
-        "first_seen": "2024-01-15T11:15:30.456000",
+        "first_seen_in_time_window": "2024-01-15T11:15:30.456000",
         "last_used": "2024-01-15T11:15:30.456000",
     },
 ]
@@ -656,7 +684,7 @@ INTEGRATION_TEST_AGGREGATION_ROLE_ASSUMPTIONS = [
         "source_principal_arn": "arn:aws:iam::111111111111:user/test-user",
         "destination_principal_arn": "arn:aws:iam::111111111111:role/TestRole",
         "times_used": 3,
-        "first_seen": "2024-01-15T09:00:00.000000",
+        "first_seen_in_time_window": "2024-01-15T09:00:00.000000",
         "last_used": "2024-01-15T17:00:00.000000",
     },
 ]
@@ -698,7 +726,7 @@ INTEGRATION_TEST_CROSS_ACCOUNT_ROLE_ASSUMPTIONS = [
         "source_principal_arn": "arn:aws:iam::222222222222:user/cross-user",
         "destination_principal_arn": "arn:aws:iam::333333333333:role/ExternalRole",
         "times_used": 1,
-        "first_seen": "2024-01-15T10:30:15.123000",
+        "first_seen_in_time_window": "2024-01-15T10:30:15.123000",
         "last_used": "2024-01-15T10:30:15.123000",
     }
 ]

@@ -14,16 +14,10 @@ from tests.data.aws.cloudtrail_management_events import (
     INTEGRATION_TEST_AGGREGATION_IAM_USERS,
 )
 from tests.data.aws.cloudtrail_management_events import (
-    INTEGRATION_TEST_AGGREGATION_ROLE_ASSUMPTIONS,
-)
-from tests.data.aws.cloudtrail_management_events import (
     INTEGRATION_TEST_BASIC_ACCOUNT_ID,
 )
 from tests.data.aws.cloudtrail_management_events import INTEGRATION_TEST_BASIC_IAM_ROLES
 from tests.data.aws.cloudtrail_management_events import INTEGRATION_TEST_BASIC_IAM_USERS
-from tests.data.aws.cloudtrail_management_events import (
-    INTEGRATION_TEST_BASIC_ROLE_ASSUMPTIONS,
-)
 from tests.data.aws.cloudtrail_management_events import (
     INTEGRATION_TEST_CROSS_ACCOUNT_IAM_ROLES,
 )
@@ -32,9 +26,6 @@ from tests.data.aws.cloudtrail_management_events import (
 )
 from tests.data.aws.cloudtrail_management_events import (
     INTEGRATION_TEST_CROSS_ACCOUNT_ID,
-)
-from tests.data.aws.cloudtrail_management_events import (
-    INTEGRATION_TEST_CROSS_ACCOUNT_ROLE_ASSUMPTIONS,
 )
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -135,15 +126,35 @@ def _ensure_local_neo4j_has_cross_account_test_data(neo4j_session):
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
     "get_cloudtrail_events",
-    return_value=[],
-)
-@patch.object(
-    cartography.intel.aws.cloudtrail_management_events,
-    "transform_cloudtrail_events_to_role_assumptions",
-    return_value=INTEGRATION_TEST_BASIC_ROLE_ASSUMPTIONS,
+    return_value=[
+        {
+            "EventName": "AssumeRole",
+            "EventTime": "2024-01-15T10:30:15.123000",
+            "UserIdentity": {"arn": "arn:aws:iam::123456789012:user/john.doe"},
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::123456789012:role/ApplicationRole",
+                    "AccountId": "123456789012",
+                }
+            ],
+        },
+        {
+            "EventName": "AssumeRole",
+            "EventTime": "2024-01-15T11:15:30.456000",
+            "UserIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"},
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::987654321098:role/CrossAccountRole",
+                    "AccountId": "987654321098",
+                }
+            ],
+        },
+    ],
 )
 def test_cloudtrail_management_events_creates_assumed_role_relationships(
-    mock_transform, mock_get_events, neo4j_session
+    mock_get_events, neo4j_session
 ):
     """
     OUTCOME: CloudTrail management events sync creates ASSUMED_ROLE relationships
@@ -207,15 +218,47 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
     "get_cloudtrail_events",
-    return_value=[],
-)
-@patch.object(
-    cartography.intel.aws.cloudtrail_management_events,
-    "transform_cloudtrail_events_to_role_assumptions",
-    return_value=INTEGRATION_TEST_AGGREGATION_ROLE_ASSUMPTIONS,
+    return_value=[
+        {
+            "EventName": "AssumeRole",
+            "EventTime": "2024-01-15T09:00:00.000000",
+            "UserIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"},
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::111111111111:role/TestRole",
+                    "AccountId": "111111111111",
+                }
+            ],
+        },
+        {
+            "EventName": "AssumeRole",
+            "EventTime": "2024-01-15T14:00:00.000000",
+            "UserIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"},
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::111111111111:role/TestRole",
+                    "AccountId": "111111111111",
+                }
+            ],
+        },
+        {
+            "EventName": "AssumeRole",
+            "EventTime": "2024-01-15T17:00:00.000000",
+            "UserIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"},
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::111111111111:role/TestRole",
+                    "AccountId": "111111111111",
+                }
+            ],
+        },
+    ],
 )
 def test_cloudtrail_management_events_aggregates_multiple_role_assumptions(
-    mock_transform, mock_get_events, neo4j_session
+    mock_get_events, neo4j_session
 ):
     """
     OUTCOME: Multiple CloudTrail events for the same principal/role pair
@@ -263,28 +306,36 @@ def test_cloudtrail_management_events_aggregates_multiple_role_assumptions(
         MATCH (p:AWSPrincipal {arn: 'arn:aws:iam::111111111111:user/test-user'})
               -[r:ASSUMED_ROLE]->
               (role:AWSRole {arn: 'arn:aws:iam::111111111111:role/TestRole'})
-        RETURN r.times_used as times_used, r.first_seen as first_seen,
+        RETURN r.times_used as times_used, r.first_seen_in_time_window as first_seen_in_time_window,
                r.last_used as last_used
         """
     ).single()
 
     assert aggregated_usage["times_used"] == 3
-    assert aggregated_usage["first_seen"] == "2024-01-15T09:00:00.000000"
+    assert aggregated_usage["first_seen_in_time_window"] == "2024-01-15T09:00:00.000000"
     assert aggregated_usage["last_used"] == "2024-01-15T17:00:00.000000"
 
 
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
     "get_cloudtrail_events",
-    return_value=[],
-)
-@patch.object(
-    cartography.intel.aws.cloudtrail_management_events,
-    "transform_cloudtrail_events_to_role_assumptions",
-    return_value=INTEGRATION_TEST_CROSS_ACCOUNT_ROLE_ASSUMPTIONS,
+    return_value=[
+        {
+            "EventName": "AssumeRole",
+            "EventTime": "2024-01-15T10:30:15.123000",
+            "UserIdentity": {"arn": "arn:aws:iam::222222222222:user/cross-user"},
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::333333333333:role/ExternalRole",
+                    "AccountId": "333333333333",
+                }
+            ],
+        },
+    ],
 )
 def test_cloudtrail_management_events_handles_cross_account_relationships(
-    mock_transform, mock_get_events, neo4j_session
+    mock_get_events, neo4j_session
 ):
     """
     OUTCOME: CloudTrail events create ASSUMED_ROLE relationships even when

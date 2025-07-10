@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 @timeit
 @aws_handle_regions
 def get_cloudtrail_events(
-    boto3_session: boto3.Session, region: str, lookback_hours: int = 24
+    boto3_session: boto3.Session, region: str, lookback_hours: int
 ) -> List[Dict[str, Any]]:
     """
     Fetch CloudTrail role assumption events from the specified time period.
@@ -117,103 +117,68 @@ def transform_cloudtrail_events_to_role_assumptions(
     :rtype: List[Dict[str, Any]]
     :return: List of aggregated role assumption relationships ready for loading
     """
-    role_assumptions = []
-
+    aggregated: Dict[tuple, Dict[str, Any]] = {}
     logger.info(
         f"Transforming {len(events)} CloudTrail events to role assumptions for region '{region}'"
     )
 
     for event in events:
-        # Extract role assumption details from CloudTrail event
-        event_name = event.get("EventName")
-        if not event_name:
-            logger.debug(
-                f"Event missing EventName field: {event.get('EventId', 'unknown')}"
-            )
-            continue
 
-        # Parse CloudTrail event JSON once
-        cloudtrail_event = None
-        if event.get("CloudTrailEvent"):
-            try:
-                cloudtrail_event = json.loads(event["CloudTrailEvent"])
-            except (json.JSONDecodeError, TypeError):
-                logger.debug(
-                    f"Failed to parse CloudTrail JSON for event {event.get('EventId', 'unknown')}"
-                )
+        # Extract source and destination principals with error handling
+        try:
+            # Parse the CloudTrailEvent JSON to get UserIdentity
+            cloudtrail_event = json.loads(event["CloudTrailEvent"])
+            source_principal = cloudtrail_event["userIdentity"]["arn"]
 
-        # Simple source principal extraction
-        user_identity = event.get("UserIdentity", {})
-        source_principal = (
-            user_identity.get("arn")
-            or user_identity.get("principalId")
-            or event.get("UserName")
-            or (
-                cloudtrail_event and cloudtrail_event.get("userIdentity", {}).get("arn")
-            )
-        )
+            # Find the IAM role resource (destination of the assumption)
+            destination_principal = None
+            for resource in event["Resources"]:
+                if resource["ResourceType"] == "AWS::IAM::Role":
+                    destination_principal = resource["ResourceName"]
+                    break
 
-        if not source_principal:
-            logger.debug(
-                f"Could not extract source principal from event {event.get('EventId', 'unknown')}"
-            )
-            continue
-
-        # Simple destination principal extraction
-        destination_principal = None
-        if cloudtrail_event:
-            # Try request parameters first
-            destination_principal = cloudtrail_event.get("requestParameters", {}).get(
-                "roleArn"
-            )
-
-            # Fallback: try response elements
             if not destination_principal:
-                assumed_role_arn = (
-                    cloudtrail_event.get("responseElements", {})
-                    .get("assumedRoleUser", {})
-                    .get("arn")
+                resource_types = [
+                    resource.get("ResourceType", "unknown")
+                    for resource in event["Resources"]
+                ]
+                logger.debug(
+                    f"Skipping event {event.get('EventId', 'unknown')} - no AWS::IAM::Role resource found. "
+                    f"Available resource types: {resource_types}"
                 )
-                if assumed_role_arn:
-                    destination_principal = _convert_assumed_role_arn_to_role_arn(
-                        assumed_role_arn
-                    )
+                continue
 
-        if not destination_principal:
+        except (KeyError, IndexError, json.JSONDecodeError) as e:
             logger.debug(
-                f"Could not extract destination principal from event {event.get('EventId', 'unknown')}"
+                f"Skipping CloudTrail event due to missing required fields: {e}. Event: {event.get('EventId', 'unknown')}"
             )
             continue
 
-        # Create standardized role assumption record
-        assumption = {
-            "SourcePrincipal": source_principal,
-            "DestinationPrincipal": destination_principal,
-            "Action": event_name,
-            "EventId": event.get("EventId"),
-            "EventTime": event.get("EventTime"),
-            "SourceIPAddress": event.get("SourceIPAddress"),
-            "UserAgent": event.get("UserAgent"),
-            "AwsRegion": event.get("AwsRegion", region),
-            "AccountId": current_aws_account_id,
-            "AssumedRoleArn": destination_principal,  # For relationship targeting
-            "PrincipalArn": source_principal,  # For relationship targeting
-            "SessionName": cloudtrail_event
-            and cloudtrail_event.get("requestParameters", {}).get("roleSessionName"),
-            "RequestId": cloudtrail_event and cloudtrail_event.get("requestID"),
-            "RecipientAccountId": cloudtrail_event
-            and cloudtrail_event.get("recipientAccountId"),
-        }
-        role_assumptions.append(assumption)
+        normalized_source_principal = _convert_assumed_role_arn_to_role_arn(
+            source_principal
+        )
+        normalized_destination_principal = _convert_assumed_role_arn_to_role_arn(
+            destination_principal
+        )
+        event_time = event.get("EventTime")
 
-    logger.info(
-        f"Successfully transformed {len(role_assumptions)} role assumptions from {len(events)} events"
-    )
+        key = (normalized_source_principal, normalized_destination_principal)
+        if key in aggregated:
+            aggregated[key]["times_used"] += 1
+            if event_time < aggregated[key]["first_seen_in_time_window"]:
+                aggregated[key]["first_seen_in_time_window"] = event_time
+            if event_time > aggregated[key]["last_used"]:
+                aggregated[key]["last_used"] = event_time
+        else:
+            aggregated[key] = {
+                "source_principal_arn": normalized_source_principal,
+                "destination_principal_arn": normalized_destination_principal,
+                "times_used": 1,
+                "first_seen_in_time_window": event_time,
+                "last_used": event_time,
+            }
 
-    # Aggregate role assumptions by (source, destination) pairs
-    aggregated_assumptions = _aggregate_role_assumptions(role_assumptions)
-
-    return aggregated_assumptions
+    return list(aggregated.values())
 
 
 @timeit
@@ -227,7 +192,7 @@ def load_role_assumptions(
     Load aggregated role assumption relationships into Neo4j using MatchLink pattern.
 
     Creates direct ASSUMED_ROLE relationships with aggregated properties:
-    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {lastused, times_used, first_seen, last_seen}]->(AWSRole)
+    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {lastused, times_used, first_seen_in_time_window, last_seen}]->(AWSRole)
 
     Assumes that both source principals and destination roles already exist in the graph.
 
@@ -258,69 +223,6 @@ def load_role_assumptions(
     )
 
 
-def _aggregate_role_assumptions(
-    role_assumptions: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
-    """
-    Aggregate role assumption events by (source_arn, destination_arn) pairs.
-
-    Combines multiple assumption events between the same source and destination
-    into a single record.
-
-    :param role_assumptions: List of role assumption events
-    :return: List of aggregated role assumption records
-    """
-    aggregated: Dict[tuple, Dict[str, Any]] = {}
-
-    for assumption in role_assumptions:
-        source_arn = assumption.get("SourcePrincipal")
-        dest_arn = assumption.get("DestinationPrincipal")
-        event_time = assumption.get("EventTime")
-
-        missing_fields = []
-        if not source_arn:
-            missing_fields.append("SourcePrincipal")
-        if not dest_arn:
-            missing_fields.append("DestinationPrincipal")
-        if not event_time:
-            missing_fields.append("EventTime")
-
-        if missing_fields:
-            logger.warning(
-                f"Skipping incomplete assumption record missing: {', '.join(missing_fields)}"
-            )
-            continue
-
-        # MyPy check is forcing this assert check because it thinks source_arn could be None. Could do a more explicit check above if this is a problem.
-        assert source_arn is not None
-        # Convert STS assumed-role ARNs to IAM role ARNs for source matching
-        normalized_source_arn = _convert_assumed_role_arn_to_role_arn(source_arn)
-
-        # Create aggregation key
-        key = (normalized_source_arn, dest_arn)
-
-        if key in aggregated:
-            # Update aggregated values
-            agg_data = aggregated[key]
-            agg_data["times_used"] += 1
-
-            # Update temporal bounds
-            if event_time < agg_data["first_seen"]:
-                agg_data["first_seen"] = event_time
-            if event_time > agg_data["last_used"]:
-                agg_data["last_used"] = event_time
-        else:
-            aggregated[key] = {
-                "source_principal_arn": normalized_source_arn,
-                "destination_principal_arn": dest_arn,
-                "times_used": 1,
-                "first_seen": event_time,
-                "last_used": event_time,
-            }
-
-    return list(aggregated.values())
-
-
 def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
     """
     Convert an assumed role ARN to the original role ARN.
@@ -329,25 +231,17 @@ def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
     Input:  "arn:aws:sts::123456789012:assumed-role/MyRole/session-name"
     Output: "arn:aws:iam::123456789012:role/MyRole"
     """
-    try:
-        # Split the ARN into parts
-        arn_parts = assumed_role_arn.split(":")
-        if (
-            len(arn_parts) >= 6
-            and arn_parts[2] == "sts"
-            and "assumed-role" in arn_parts[5]
-        ):
-            # Extract account ID and role name
-            account_id = arn_parts[4]
-            resource_part = arn_parts[5]  # "assumed-role/MyRole/session-name"
-            role_name = resource_part.split("/")[1]  # Extract "MyRole"
 
-            # Construct the IAM role ARN
-            return f"arn:aws:iam::{account_id}:role/{role_name}"
-    except (IndexError, AttributeError):
-        logger.debug(
-            f"Could not convert assumed role ARN to role ARN: {assumed_role_arn}"
-        )
+    # Split the ARN into parts
+    arn_parts = assumed_role_arn.split(":")
+    if len(arn_parts) >= 6 and arn_parts[2] == "sts" and "assumed-role" in arn_parts[5]:
+        # Extract account ID and role name
+        account_id = arn_parts[4]
+        resource_part = arn_parts[5]  # "assumed-role/MyRole/session-name"
+        role_name = resource_part.split("/")[1]  # Extract "MyRole"
+
+        # Construct the IAM role ARN
+        return f"arn:aws:iam::{account_id}:role/{role_name}"
 
     # Return original ARN if conversion fails
     return assumed_role_arn
@@ -399,7 +293,7 @@ def sync(
     4. Run cleanup after processing all regions
 
     The resulting graph contains direct relationships like:
-    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_used, lastused}]->(AWSRole)
+    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen_in_time_window, last_used, lastused}]->(AWSRole)
 
     :type neo4j_session: neo4j.Session
     :param neo4j_session: The Neo4j session

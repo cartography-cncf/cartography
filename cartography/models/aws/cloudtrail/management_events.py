@@ -27,7 +27,7 @@ class AssumedRoleRelProperties(CartographyRelProperties):
     # CloudTrail-specific relationship properties
     last_used: PropertyRef = PropertyRef("last_used")
     times_used: PropertyRef = PropertyRef("times_used")
-    first_seen: PropertyRef = PropertyRef("first_seen")
+    first_seen_in_time_window: PropertyRef = PropertyRef("first_seen_in_time_window")
 
 
 @dataclass(frozen=True)
@@ -49,25 +49,6 @@ class AssumedRoleMatchLink(CartographyRelSchema):
     )
 
     # Standard CartographyRelSchema fields
-    target_node_label: str = "AWSRole"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"arn": PropertyRef("destination_principal_arn")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "ASSUMED_ROLE"
-    properties: AssumedRoleRelProperties = AssumedRoleRelProperties()
-
-
-# Legacy schema for backward compatibility and index creation (Potential for removal if MatchLink is working)
-@dataclass(frozen=True)
-class AssumedRoleRel(CartographyRelSchema):
-    """
-    Legacy relationship schema for role assumptions from any AWS Principal to AWSRole.
-
-    This schema is maintained for backward compatibility and index creation.
-    The actual loading now uses AssumedRoleMatchLink with load_matchlinks().
-    """
-
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("destination_principal_arn")},
