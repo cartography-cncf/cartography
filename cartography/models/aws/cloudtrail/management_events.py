@@ -29,6 +29,12 @@ class AssumedRoleRelProperties(CartographyRelProperties):
     times_used: PropertyRef = PropertyRef("times_used")
     first_seen_in_time_window: PropertyRef = PropertyRef("first_seen_in_time_window")
 
+    # Event type tracking properties
+    event_types: PropertyRef = PropertyRef("event_types")
+    assume_role_count: PropertyRef = PropertyRef("assume_role_count")
+    saml_count: PropertyRef = PropertyRef("saml_count")
+    web_identity_count: PropertyRef = PropertyRef("web_identity_count")
+
 
 @dataclass(frozen=True)
 class AssumedRoleMatchLink(CartographyRelSchema):

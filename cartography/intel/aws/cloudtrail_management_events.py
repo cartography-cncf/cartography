@@ -21,14 +21,13 @@ logger = logging.getLogger(__name__)
 
 @timeit
 @aws_handle_regions
-def get_cloudtrail_events(
+def get_assume_role_events(
     boto3_session: boto3.Session, region: str, lookback_hours: int
 ) -> List[Dict[str, Any]]:
     """
-    Fetch CloudTrail role assumption events from the specified time period.
+    Fetch CloudTrail AssumeRole events from the specified time period.
 
-    Makes separate API calls for each role assumption event type to minimize
-    data transfer and processing overhead.
+    Focuses specifically on standard AssumeRole events, excluding SAML and WebIdentity variants.
 
     :type boto3_session: boto3.Session
     :param boto3_session: The boto3 session to use for API calls
@@ -37,7 +36,7 @@ def get_cloudtrail_events(
     :type lookback_hours: int
     :param lookback_hours: Number of hours back to retrieve events from
     :rtype: List[Dict[str, Any]]
-    :return: List of CloudTrail role assumption events
+    :return: List of CloudTrail AssumeRole events
     """
     client = boto3_session.client(
         "cloudtrail", region_name=region, config=get_botocore_config()
@@ -48,68 +47,52 @@ def get_cloudtrail_events(
     start_time = end_time - timedelta(hours=lookback_hours)
 
     logger.info(
-        f"Fetching CloudTrail role assumption events for region '{region}' "
+        f"Fetching CloudTrail AssumeRole events for region '{region}' "
         f"from {start_time} to {end_time} ({lookback_hours} hours)"
     )
 
-    # Specific STS events for role assumptions
-    role_assumption_events = [
-        "AssumeRole",
-        "AssumeRoleWithSAML",
-        "AssumeRoleWithWebIdentity",
-    ]
-
-    all_events = []
     paginator = client.get_paginator("lookup_events")
 
-    # Make separate API calls for each event type
-    for event_name in role_assumption_events:
-        logger.debug(f"Fetching {event_name} events for region '{region}'")
-
-        page_iterator = paginator.paginate(
-            LookupAttributes=[
-                {"AttributeKey": "EventName", "AttributeValue": event_name}
-            ],
-            StartTime=start_time,
-            EndTime=end_time,
-            PaginationConfig={
-                "MaxItems": 10000,  # Reasonable limit to prevent excessive API calls
-                "PageSize": 50,  # CloudTrail API limit per page
-            },
-        )
-
-        events_for_type = []
-        for page in page_iterator:
-            events_for_type.extend(page.get("Events", []))
-
-        logger.debug(
-            f"Retrieved {len(events_for_type)} {event_name} events from region '{region}'"
-        )
-        all_events.extend(events_for_type)
-
-    logger.info(
-        f"Retrieved {len(all_events)} total role assumption events from region '{region}'"
+    page_iterator = paginator.paginate(
+        LookupAttributes=[
+            {"AttributeKey": "EventName", "AttributeValue": "AssumeRole"}
+        ],
+        StartTime=start_time,
+        EndTime=end_time,
+        PaginationConfig={
+            "MaxItems": 10000,  # Reasonable limit to prevent excessive API calls
+            "PageSize": 50,  # CloudTrail API limit per page
+        },
     )
+
+    all_events = []
+    for page in page_iterator:
+        all_events.extend(page.get("Events", []))
+
+    logger.info(f"Retrieved {len(all_events)} AssumeRole events from region '{region}'")
 
     return all_events
 
 
 @timeit
-def transform_cloudtrail_events_to_role_assumptions(
+def transform_assume_role_events_to_role_assumptions(
     events: List[Dict[str, Any]],
     region: str,
     current_aws_account_id: str,
 ) -> List[Dict[str, Any]]:
     """
-    Transform raw CloudTrail events into aggregated role assumption relationships.
+    Transform raw CloudTrail AssumeRole events into aggregated role assumption relationships.
+
+    Focuses specifically on standard AssumeRole events, providing optimized processing
+    for the most common role assumption scenario.
 
     This function performs the complete transformation pipeline:
-    1. Extract role assumption events from CloudTrail data
+    1. Extract role assumption events from CloudTrail AssumeRole data
     2. Aggregate events by (source_principal, destination_principal) pairs
     3. Return aggregated relationships ready for loading
 
     :type events: List[Dict[str, Any]]
-    :param events: List of raw CloudTrail events from lookup_events API
+    :param events: List of raw CloudTrail AssumeRole events from lookup_events API
     :type region: str
     :param region: The AWS region where events were retrieved from
     :type current_aws_account_id: str
@@ -119,40 +102,24 @@ def transform_cloudtrail_events_to_role_assumptions(
     """
     aggregated: Dict[tuple, Dict[str, Any]] = {}
     logger.info(
-        f"Transforming {len(events)} CloudTrail events to role assumptions for region '{region}'"
+        f"Transforming {len(events)} CloudTrail AssumeRole events to role assumptions for region '{region}'"
     )
 
     for event in events:
 
-        # Extract source and destination principals with error handling
+        # Extract source and destination principals
+        cloudtrail_event = json.loads(event["CloudTrailEvent"])
+
+        # Extract source principal with error handling (UserIdentity may be missing in some events)
         try:
-            # Parse the CloudTrailEvent JSON to get UserIdentity
-            cloudtrail_event = json.loads(event["CloudTrailEvent"])
             source_principal = cloudtrail_event["userIdentity"]["arn"]
-
-            # Find the IAM role resource (destination of the assumption)
-            destination_principal = None
-            for resource in event["Resources"]:
-                if resource["ResourceType"] == "AWS::IAM::Role":
-                    destination_principal = resource["ResourceName"]
-                    break
-
-            if not destination_principal:
-                resource_types = [
-                    resource.get("ResourceType", "unknown")
-                    for resource in event["Resources"]
-                ]
-                logger.debug(
-                    f"Skipping event {event.get('EventId', 'unknown')} - no AWS::IAM::Role resource found. "
-                    f"Available resource types: {resource_types}"
-                )
-                continue
-
-        except (KeyError, IndexError, json.JSONDecodeError) as e:
+        except KeyError:
             logger.debug(
-                f"Skipping CloudTrail event due to missing required fields: {e}. Event: {event.get('EventId', 'unknown')}"
+                f"Skipping CloudTrail AssumeRole event due to missing UserIdentity.arn. Event: {event.get('EventId', 'unknown')}"
             )
             continue
+
+        destination_principal = cloudtrail_event["requestParameters"]["roleArn"]
 
         normalized_source_principal = _convert_assumed_role_arn_to_role_arn(
             source_principal
@@ -165,6 +132,7 @@ def transform_cloudtrail_events_to_role_assumptions(
         key = (normalized_source_principal, normalized_destination_principal)
         if key in aggregated:
             aggregated[key]["times_used"] += 1
+            aggregated[key]["assume_role_count"] += 1  # All events are AssumeRole
             if event_time < aggregated[key]["first_seen_in_time_window"]:
                 aggregated[key]["first_seen_in_time_window"] = event_time
             if event_time > aggregated[key]["last_used"]:
@@ -176,6 +144,10 @@ def transform_cloudtrail_events_to_role_assumptions(
                 "times_used": 1,
                 "first_seen_in_time_window": event_time,
                 "last_used": event_time,
+                "event_types": ["AssumeRole"],
+                "assume_role_count": 1,
+                "saml_count": 0,
+                "web_identity_count": 0,
             }
 
     return list(aggregated.values())
@@ -262,7 +234,7 @@ def cleanup(
     :param update_tag: Timestamp tag for tracking data freshness
     :rtype: None
     """
-    logger.debug("Running CloudTrail management events cleanup job.")
+    logger.info("Running CloudTrail management events cleanup job.")
 
     matchlink_schema = AssumedRoleMatchLink()
     cleanup_job = GraphJob.from_matchlink(
@@ -331,30 +303,31 @@ def sync(
     for region in regions:
         logger.info(f"Processing CloudTrail events for region {region}")
 
-        # Get raw CloudTrail events
-        events = get_cloudtrail_events(
+        # Process AssumeRole events specifically
+        logger.info(f"Fetching AssumeRole events specifically for region {region}")
+        assume_role_events = get_assume_role_events(
             boto3_session=boto3_session,
             region=region,
             lookback_hours=lookback_hours,
         )
 
-        # Transform to role assumptions
-        role_assumptions = transform_cloudtrail_events_to_role_assumptions(
-            events=events,
+        # Transform AssumeRole events to role assumptions
+        assume_role_assumptions = transform_assume_role_events_to_role_assumptions(
+            events=assume_role_events,
             region=region,
             current_aws_account_id=current_aws_account_id,
         )
 
-        # Load role assumptions for this region
+        # Load AssumeRole assumptions for this region
         load_role_assumptions(
             neo4j_session=neo4j_session,
-            aggregated_role_assumptions=role_assumptions,
+            aggregated_role_assumptions=assume_role_assumptions,
             current_aws_account_id=current_aws_account_id,
             aws_update_tag=update_tag,
         )
-        total_role_assumptions += len(role_assumptions)
+        total_role_assumptions += len(assume_role_assumptions)
         logger.info(
-            f"Loaded {len(role_assumptions)} role assumptions for region {region}"
+            f"Loaded {len(assume_role_assumptions)} AssumeRole assumptions for region {region}"
         )
 
     # Run cleanup for stale relationships after processing all regions

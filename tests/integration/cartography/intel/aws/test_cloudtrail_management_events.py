@@ -125,7 +125,7 @@ def _ensure_local_neo4j_has_cross_account_test_data(neo4j_session):
 
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
-    "get_cloudtrail_events",
+    "get_assume_role_events",
     return_value=[
         {
             "EventName": "AssumeRole",
@@ -219,7 +219,7 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
 
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
-    "get_cloudtrail_events",
+    "get_assume_role_events",
     return_value=[
         {
             "EventName": "AssumeRole",
@@ -323,7 +323,7 @@ def test_cloudtrail_management_events_aggregates_multiple_role_assumptions(
 
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
-    "get_cloudtrail_events",
+    "get_assume_role_events",
     return_value=[
         {
             "EventName": "AssumeRole",
