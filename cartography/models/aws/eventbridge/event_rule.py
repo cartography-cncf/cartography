@@ -28,22 +28,7 @@ class EventRuleNodeProperties(CartographyNodeProperties):
     managed_by: PropertyRef = PropertyRef("ManagedBy")
     created_by: PropertyRef = PropertyRef("CreatedBy")
 
-    # Target ARN lists - ALL fields created in transform() must be defined here
-    lambda_functions_arns: PropertyRef = PropertyRef("lambda_functions_arns")
-    sns_topics_arns: PropertyRef = PropertyRef("sns_topics_arns")
-    sqs_queues_arns: PropertyRef = PropertyRef("sqs_queues_arns")
-    kinesis_streams_arns: PropertyRef = PropertyRef("kinesis_streams_arns")
-    ecs_clusters_arns: PropertyRef = PropertyRef("ecs_clusters_arns")
-    step_functions_arns: PropertyRef = PropertyRef("step_functions_arns")
-    cloudwatch_log_groups_arns: PropertyRef = PropertyRef("cloudwatch_log_groups_arns")
-    batch_job_queues_arns: PropertyRef = PropertyRef("batch_job_queues_arns")
-    sagemaker_pipelines_arns: PropertyRef = PropertyRef("sagemaker_pipelines_arns")
-    firehose_delivery_streams_arns: PropertyRef = PropertyRef("firehose_delivery_streams_arns")
-    redshift_clusters_arns: PropertyRef = PropertyRef("redshift_clusters_arns")
-    codebuild_projects_arns: PropertyRef = PropertyRef("codebuild_projects_arns")
-    codepipelines_arns: PropertyRef = PropertyRef("codepipelines_arns")
-    api_gateways_arns: PropertyRef = PropertyRef("api_gateways_arns")
-    unknown_target_arns: PropertyRef = PropertyRef("unknown_target_arns")
+    # removed target arn lists
 
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
 
@@ -265,23 +250,5 @@ class EventRuleSchema(CartographyNodeSchema):
     label: str = "EventRule"
     properties: EventRuleNodeProperties = EventRuleNodeProperties()
     sub_resource_relationship: EventRuleToAWSAccountRel = EventRuleToAWSAccountRel()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            EventRuleToIAMRoleRel(),
-            EventRuleToLambdaFunctionRel(),
-            EventRuleToSNSTopicRel(),
-            EventRuleToSQSQueueRel(),
-            EventRuleToKinesisStreamRel(),
-            EventRuleToECSClusterRel(),
-            EventRuleToStepFunctionRel(),
-            EventRuleToCloudWatchLogGroupRel(),
-            EventRuleToBatchJobQueueRel(),
-            EventRuleToSageMakerPipelineRel(),
-            EventRuleToFirehoseDeliveryStreamRel(),
-            EventRuleToRedshiftClusterRel(),
-            EventRuleToCodeBuildProjectRel(),
-            EventRuleToCodePipelineRel(),
-            EventRuleToAPIGatewayRel(),
-        ]
-    ) 
+    other_relationships: OtherRelationships = OtherRelationships([EventRuleToIAMRoleRel()]) 
 

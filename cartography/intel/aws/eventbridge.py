@@ -1,7 +1,5 @@
 import logging
-from typing import Any
-from typing import Dict
-from typing import Tuple
+from typing import Any, Dict, Tuple, List
 
 import boto3
 import neo4j
@@ -10,15 +8,13 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.eventbridge.event_rule import EventRuleSchema
+from cartography.models.aws.eventbridge.event_target import EventTargetSchema
 from cartography.stats import get_stats_client
-from cartography.util import aws_handle_regions
-from cartography.util import merge_module_sync_metadata
-from cartography.util import timeit
+from cartography.util import aws_handle_regions, merge_module_sync_metadata, timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
-# Map of target type name -> matcher function that returns True if an ARN matches the target type.
 SUPPORTED_TARGET_TYPES: Dict[str, Any] = {
     "lambda_functions": lambda arn: ":lambda:" in arn and ":function:" in arn,
     "sns_topics": lambda arn: ":sns:" in arn,
@@ -38,87 +34,35 @@ SUPPORTED_TARGET_TYPES: Dict[str, Any] = {
 
 @timeit
 @aws_handle_regions
-def get_event_rules(
-    boto3_session: boto3.session.Session,
-    region: str,
-) -> dict[str, Any]:
-    """Fetch EventBridge / CloudWatch Event rules and their targets for a single region.
-
-    Required IAM permissions:
-      - events:ListRules
-      - events:ListTargetsByRule
-    """
-    client = boto3_session.client(
-        "events", region_name=region, config=get_botocore_config()
-    )
-
-    rules: list[dict[str, Any]] = []
-    targets_by_rule: dict[str, list[dict[str, Any]]] = {}
-
-    paginator = client.get_paginator("list_rules")
-    for page in paginator.paginate():
+def get_event_rules(session: boto3.session.Session, region: str) -> dict[str, Any]:
+    client = session.client("events", region_name=region, config=get_botocore_config())
+    rules: List[Dict[str, Any]] = []
+    targets_by_rule: Dict[str, List[Dict[str, Any]]] = {}
+    for page in client.get_paginator("list_rules").paginate():
         rules.extend(page.get("Rules", []))
-
     for rule in rules:
         rule_name = rule["Name"]
-        targets: list[dict[str, Any]] = []
-
-        target_paginator = client.get_paginator("list_targets_by_rule")
-        for page in target_paginator.paginate(Rule=rule_name):
+        targets: List[Dict[str, Any]] = []
+        for page in client.get_paginator("list_targets_by_rule").paginate(Rule=rule_name):
             targets.extend(page.get("Targets", []))
-
         if targets:
             targets_by_rule[rule_name] = targets
-
     return {"Rules": rules, "Targets": targets_by_rule}
 
 def classify_target_arn(arn: str) -> Tuple[str, str]:
-    """Return a tuple of (target_type, arn). Unknown types are labelled 'unknown'."""
-    for target_type, matcher in SUPPORTED_TARGET_TYPES.items():
-        if matcher(arn):
-            return target_type, arn
+    for t, f in SUPPORTED_TARGET_TYPES.items():
+        if f(arn):
+            return t, arn
     return "unknown", arn
 
-def classify_and_group_targets(targets: list[dict[str, Any]]) -> dict[str, list[str]]:
-    """Classify a list of EventBridge targets and group their ARNs by type.
-
-    Only non-empty groups are returned.
-    """
-    groups: dict[str, list[str]] = {}
-    unknown_targets: list[str] = []
-
-    for target in targets:
-        raw_arn = target.get("Arn", "").strip()
-        if not raw_arn:
-            continue
-
-        target_type, arn = classify_target_arn(raw_arn)
-
-        if target_type == "unknown":
-            unknown_targets.append(arn)
-            logger.debug("Unknown target type for ARN: %s", arn)
-            continue
-
-        field_name = f"{target_type}_arns"
-        groups.setdefault(field_name, []).append(arn)
-
-    if unknown_targets:
-        groups["unknown_target_arns"] = unknown_targets
-
-    return groups
-
-def transform_event_rules(data: dict[str, Any], region: str) -> list[dict[str, Any]]:
-    """Transform the raw AWS API response into the shape expected by EventRuleSchema.
-
-    Target ARN lists are only included if non-empty.
-    """
-    transformed: list[dict[str, Any]] = []
-
+def transform(data: dict[str, Any], region: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    rules_out: List[Dict[str, Any]] = []
+    targets_out: List[Dict[str, Any]] = []
     for rule in data["Rules"]:
         rule_name = rule["Name"]
-
-        item: dict[str, Any] = {
-            "Arn": rule["Arn"],
+        rule_arn = rule["Arn"]
+        rules_out.append({
+            "Arn": rule_arn,
             "Name": rule_name,
             "State": rule.get("State"),
             "Description": rule.get("Description"),
@@ -129,104 +73,82 @@ def transform_event_rules(data: dict[str, Any], region: str) -> list[dict[str, A
             "ManagedBy": rule.get("ManagedBy"),
             "CreatedBy": rule.get("CreatedBy"),
             "Region": region,
-        }
+        })
+        for tgt in data["Targets"].get(rule_name, []):
+            targets_out.append({
+                "id": f"{rule_arn}#{tgt['Id']}",
+                "Id": tgt["Id"],
+                "Arn": tgt["Arn"],
+                "RuleArn": rule_arn,
+                "RoleArn": tgt.get("RoleArn"),
+                "Input": tgt.get("Input"),
+                "InputPath": tgt.get("InputPath"),
+                "Region": region,
+            })
+    return rules_out, targets_out
 
-        targets = data["Targets"].get(rule_name, [])
-        if targets:
-            target_groups = classify_and_group_targets(targets)
-            for field_name, arns in target_groups.items():
-                item[field_name] = arns
+def _create_service_rels(sess: neo4j.Session, targets: List[Dict[str, Any]], tag: int) -> None:
+    mapping = {
+        "lambda_functions": ("AWSLambda", "id"),
+        "sns_topics": ("SNSTopic", "arn"),
+        "sqs_queues": ("SQSQueue", "arn"),
+        "kinesis_streams": ("KinesisStream", "arn"),
+        "ecs_clusters": ("ECSCluster", "arn"),
+        "step_functions": ("StepFunction", "arn"),
+        "cloudwatch_log_groups": ("CloudWatchLogGroup", "arn"),
+        "batch_job_queues": ("BatchJobQueue", "arn"),
+        "sagemaker_pipelines": ("SageMakerPipeline", "arn"),
+        "firehose_delivery_streams": ("FirehoseDeliveryStream", "arn"),
+        "redshift_clusters": ("RedshiftCluster", "arn"),
+        "codebuild_projects": ("CodeBuildProject", "arn"),
+        "codepipelines": ("CodePipeline", "arn"),
+        "api_gateways": ("APIGatewayRestAPI", "id"),
+    }
+    rel_labels = {
+        "lambda_functions": "TRIGGERS",
+        "sns_topics": "PUBLISHES_TO",
+        "sqs_queues": "SENDS_TO",
+        "kinesis_streams": "SENDS_TO",
+        "ecs_clusters": "TARGETS",
+        "step_functions": "EXECUTES",
+        "cloudwatch_log_groups": "LOGS_TO",
+        "batch_job_queues": "SUBMITS_TO",
+        "sagemaker_pipelines": "STARTS_PIPELINE",
+        "firehose_delivery_streams": "DELIVERS_TO",
+        "redshift_clusters": "TARGETS",
+        "codebuild_projects": "TRIGGERS_BUILD",
+        "codepipelines": "STARTS_PIPELINE",
+        "api_gateways": "INVOKES_API",
+    }
+    grouped: Dict[str, List[Dict[str, str]]] = {}
+    for t in targets:
+        t_type, _ = classify_target_arn(t["Arn"])
+        if t_type in mapping:
+            grouped.setdefault(t_type, []).append({"rarn": t["RuleArn"], "sarn": t["Arn"]})
+    for t_type, pairs in grouped.items():
+        label, field = mapping[t_type]
+        rel = rel_labels[t_type]
+        sess.run(
+            f"UNWIND $pairs as p MATCH (er:EventRule {{arn: p.rarn}}) MATCH (s:{label} {{{field}: p.sarn}}) MERGE (er)-[r:{rel} {{lastupdated:$tag}}]->(s)",
+            pairs=pairs,
+            tag=tag,
+        )
 
-            total_targets = len(targets)
-            classified_targets = sum(
-                len(arns)
-                for key, arns in target_groups.items()
-                if key != "unknown_target_arns"
-            )
-            if total_targets > classified_targets:
-                stat_handler.incr(
-                    "eventbridge.unknown_targets", total_targets - classified_targets
-                )
+def load_data(sess: neo4j.Session, rules: List[Dict[str, Any]], targets: List[Dict[str, Any]], region: str, aid: str, tag: int) -> None:
+    load(sess, EventRuleSchema(), rules, lastupdated=tag, Region=region, AWS_ID=aid)
+    load(sess, EventTargetSchema(), targets, lastupdated=tag, Region=region, AWS_ID=aid)
+    _create_service_rels(sess, targets, tag)
 
-        transformed.append(item)
-
-    return transformed
-
-def load_event_rules(
-    neo4j_session: neo4j.Session,
-    data: list[dict[str, Any]],
-    region: str,
-    aws_account_id: str,
-    update_tag: int,
-) -> None:
-    """Load EventBridge rules into Neo4j using the generic load() helper."""
-    logger.info(
-        "Loading %d CloudWatch Event rules for region %s into graph.",
-        len(data),
-        region,
-    )
-
-    stat_handler.incr("eventbridge.rules.loaded", len(data))
-
-    rules_with_targets = sum(
-        1 for rule in data if any(key.endswith("_arns") for key in rule.keys())
-    )
-    stat_handler.incr("eventbridge.rules_with_targets", rules_with_targets)
-
-    load(
-        neo4j_session,
-        EventRuleSchema(),
-        data,
-        lastupdated=update_tag,
-        Region=region,
-        AWS_ID=aws_account_id,
-    )
-
-def cleanup_event_rules(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
-) -> None:
-    """Remove stale EventRule nodes from the graph."""
-    logger.debug("Running CloudWatch Event rule cleanup job.")
-    GraphJob.from_node_schema(EventRuleSchema(), common_job_parameters).run(neo4j_session)
+def cleanup(sess: neo4j.Session, params: Dict[str, Any]) -> None:
+    GraphJob.from_node_schema(EventRuleSchema(), params).run(sess)
+    GraphJob.from_node_schema(EventTargetSchema(), params).run(sess)
 
 @timeit
-def sync(
-    neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
-    regions: list[str],
-    current_aws_account_id: str,
-    update_tag: int,
-    common_job_parameters: dict[str, Any],
-) -> None:
-    """Entry-point called by the AWS ingestion pipeline."""
+def sync(neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str, update_tag: int, common_job_parameters: Dict[str, Any]) -> None:
     for region in regions:
-        logger.info(
-            "Syncing CloudWatch Event rules for region %s in account %s.",
-            region,
-            current_aws_account_id,
-        )
-
-        raw_rules = get_event_rules(boto3_session, region)
-        transformed_rules = transform_event_rules(raw_rules, region)
-
-        load_event_rules(
-            neo4j_session,
-            transformed_rules,
-            region,
-            current_aws_account_id,
-            update_tag,
-        )
-
-  
-    cleanup_event_rules(neo4j_session, common_job_parameters)
-
-    merge_module_sync_metadata(
-        neo4j_session,
-        group_type="AWSAccount",
-        group_id=current_aws_account_id,
-        synced_type="EventRule",
-        update_tag=update_tag,
-        stat_handler=stat_handler,
-    ) 
+        raw = get_event_rules(boto3_session, region)
+        rules, targets = transform(raw, region)
+        load_data(neo4j_session, rules, targets, region, current_aws_account_id, update_tag)
+    cleanup(neo4j_session, common_job_parameters)
+    merge_module_sync_metadata(neo4j_session, group_type="AWSAccount", group_id=current_aws_account_id, synced_type="EventRule", update_tag=update_tag, stat_handler=stat_handler) 
 
