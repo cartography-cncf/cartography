@@ -236,7 +236,7 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 |-------|-------------|------|
 |filepath|Path to the file or package|
 |sourcelayerhash|Source layer hash for container images|
-|sourcelambdalayerArn|ARN of the AWS Lambda function affected|
+|sourcelambdalayerarn|ARN of the AWS Lambda function affected|
 |fixedinversion|Version the related finding was fixed in|
 |remediation|Remediation steps|
 
