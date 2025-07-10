@@ -152,6 +152,7 @@ LIST_FINDINGS_EC2_PACKAGE = [
                     "release": "6.29.amzn1",
                     "version": "4.9.17",
                     "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
+                    "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
                 },
                 {
                     "arch": "X86_64",
@@ -161,6 +162,7 @@ LIST_FINDINGS_EC2_PACKAGE = [
                     "release": "6.29.amzn1",
                     "version": "4.9.17",
                     "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
+                    "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
                 },
             ],
         },

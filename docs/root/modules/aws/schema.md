@@ -213,19 +213,13 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 | Field | Description | Required|
 |-------|-------------|------|
 |**arn**|The AWS ARN|yes|
-|id|Uses the format of `name\|arch\|version\|release\|epoch` to uniqulely identify packages|yes|
-|region|AWS region the finding is from|yes|
-|awsaccount|AWS account the finding is from|yes|
-|findingarn|The AWS ARN for a related finding|yes|
+|id|Uses the format of `name|epoch:version-release.arch` to uniquely identify packages|yes|
 |name|The finding name|
 |arch|Architecture for the package|
 |version|Version of the package|
 |release|Release of the package
 |epoch|Package epoch|
 |manager|Related package manager|
-|filepath|Path to the file or package|
-|fixedinversion|Version the related finding was fixed in|
-|sourcelayerhash|Source layer hash for container images|
 
 
 #### Relationships
@@ -234,7 +228,18 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 
     ```cypher
     (:AWSInspectorFindings)-[:HAS]->(:AWSInspectorPackages)
+
     ```
+    - `HAS` attributes
+
+| Field | Description | Required|
+|-------|-------------|------|
+|filepath|Path to the file or package|
+|sourcelayerhash|Source layer hash for container images|
+|sourcelambdalayerArn|ARN of the AWS Lambda function affected|
+|fixedinversion|Version the related finding was fixed in|
+|remediation|Remediation steps|
+
 
 - AWSInspectorPackages belong to AWSAccounts.
 

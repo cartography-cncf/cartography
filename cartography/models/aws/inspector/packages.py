@@ -13,16 +13,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AWSInspectorPackageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
-    awsaccount: PropertyRef = PropertyRef("AWS_ID", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", extra_index=True)
     version: PropertyRef = PropertyRef("version", extra_index=True)
     release: PropertyRef = PropertyRef("release", extra_index=True)
     arch: PropertyRef = PropertyRef("arch")
     epoch: PropertyRef = PropertyRef("epoch")
-    fixedinversion: PropertyRef = PropertyRef("fixedInVersion")
     manager: PropertyRef = PropertyRef("packageManager")
-    remediation: PropertyRef = PropertyRef("remediation")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

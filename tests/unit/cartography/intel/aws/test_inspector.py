@@ -110,6 +110,7 @@ def test_transform_inspector_findings_package():
             "name": "kernel-tools",
             "release": "6.29.amzn1",
             "version": "4.9.17",
+            "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
         },
         {
             "arch": "X86_64",
@@ -120,6 +121,7 @@ def test_transform_inspector_findings_package():
             "name": "kernel",
             "release": "6.29.amzn1",
             "version": "4.9.17",
+            "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
         },
         {
             "arch": "X86_64",
@@ -138,16 +140,31 @@ def test_transform_inspector_findings_package():
     )
     expected_finding_to_package_map = [
         {
+            "filePath": None,
             "findingarn": "arn:aws:test456",
             "packageid": "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
+            "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
+            "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
+            "sourceLambdaLayerArn": None,
+            "sourceLayerHash": None,
         },
         {
+            "filePath": None,
             "findingarn": "arn:aws:test456",
             "packageid": "kernel|0:4.9.17-6.29.amzn1.X86_64",
+            "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
+            "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
+            "sourceLambdaLayerArn": None,
+            "sourceLayerHash": None,
         },
         {
+            "filePath": None,
             "findingarn": "arn:aws:test789",
             "packageid": "openssl|0:1.0.2k-1.amzn2.X86_64",
+            "remediation": None,
+            "fixedInVersion": None,
+            "sourceLambdaLayerArn": None,
+            "sourceLayerHash": None,
         },
     ]
     assert sorted_finding_to_package_map == sorted(

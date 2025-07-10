@@ -145,8 +145,10 @@ class InspectorFindingToPackageRelRelProperties(CartographyRelProperties):
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
     # The following properties live in vulnerablePackages from AWS API
-    # Adding them here until can be moved to ECRRepositoryImage and AWSLambda
+    # Adding them here to avoid multiple repetion of packages
     filepath: PropertyRef = PropertyRef("filePath")
+    fixedinversion: PropertyRef = PropertyRef("fixedInVersion")
+    remediation: PropertyRef = PropertyRef("remediation")
     sourcelayerhash: PropertyRef = PropertyRef("sourceLayerHash")
     sourcelambdalayerarn: PropertyRef = PropertyRef("sourceLambdaLayerArn")
 

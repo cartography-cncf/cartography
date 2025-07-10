@@ -174,6 +174,11 @@ def transform_inspector_findings(
                     {
                         "findingarn": finding["id"],
                         "packageid": package_id,
+                        "remediation": package.get("remediation"),
+                        "fixedInVersion": package.get("fixedInVersion"),
+                        "filePath": package.get("filePath"),
+                        "sourceLayerHash": package.get("sourceLayerHash"),
+                        "sourceLambdaLayerArn": package.get("sourceLambdaLayerArn"),
                     }
                 )
                 packages_set.add(frozenset(package.items()))
@@ -233,7 +238,6 @@ def load_inspector_findings(
 def load_inspector_packages(
     neo4j_session: neo4j.Session,
     packages: List[Dict[str, Any]],
-    region: str,
     aws_update_tag: int,
     current_aws_account_id: str,
 ) -> None:
@@ -241,7 +245,6 @@ def load_inspector_packages(
         neo4j_session,
         AWSInspectorPackageSchema(),
         packages,
-        Region=region,
         AWS_ID=current_aws_account_id,
         lastupdated=aws_update_tag,
     )
@@ -317,7 +320,6 @@ def _sync_findings_for_account(
         load_inspector_packages(
             neo4j_session,
             package_data,
-            region,
             update_tag,
             current_aws_account_id,
         )
