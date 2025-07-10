@@ -73,6 +73,7 @@ def get_assume_role_events(
 
     return all_events
 
+
 @timeit
 def transform_assume_role_events_to_role_assumptions(
     events: List[Dict[str, Any]],
@@ -128,7 +129,7 @@ def transform_assume_role_events_to_role_assumptions(
         event_time = event.get("EventTime")
 
         key = (normalized_source_principal, normalized_destination_principal)
-       
+
         if key in aggregated:
             aggregated[key]["times_used"] += 1
             aggregated[key]["assume_role_count"] += 1  # All events are AssumeRole
@@ -136,7 +137,7 @@ def transform_assume_role_events_to_role_assumptions(
             if event_time:
                 existing_first = aggregated[key]["first_seen_in_time_window"]
                 existing_last = aggregated[key]["last_used"]
-                
+
                 if existing_first is None or event_time < existing_first:
                     aggregated[key]["first_seen_in_time_window"] = event_time
                 if existing_last is None or event_time > existing_last:
@@ -155,6 +156,7 @@ def transform_assume_role_events_to_role_assumptions(
             }
 
     return list(aggregated.values())
+
 
 @timeit
 def load_role_assumptions(
@@ -337,6 +339,7 @@ def sync_assume_role_events(
         f"CloudTrail management events sync completed successfully. "
         f"Processed {total_role_assumptions} total role assumption events across {len(regions)} regions."
     )
+
 
 # Main sync function for when we decide to add more event types
 @timeit
