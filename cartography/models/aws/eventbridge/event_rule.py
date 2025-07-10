@@ -10,6 +10,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
+
 @dataclass(frozen=True)
 class EventRuleNodeProperties(CartographyNodeProperties):
     """Properties for CloudWatch Event Rule nodes"""
@@ -32,9 +33,11 @@ class EventRuleNodeProperties(CartographyNodeProperties):
 
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
 
+
 @dataclass(frozen=True)
 class _EventRuleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class EventRuleToAWSAccountRel(CartographyRelSchema):
@@ -47,6 +50,7 @@ class EventRuleToAWSAccountRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
+
 
 @dataclass(frozen=True)
 class EventRuleToIAMRoleRel(CartographyRelSchema):
@@ -63,6 +67,7 @@ class EventRuleToIAMRoleRel(CartographyRelSchema):
     rel_label: str = "USES_ROLE"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
 
+
 @dataclass(frozen=True)
 class EventRuleToLambdaFunctionRel(CartographyRelSchema):
     """(:EventRule)-[:TRIGGERS]->(:AWSLambda)
@@ -78,6 +83,7 @@ class EventRuleToLambdaFunctionRel(CartographyRelSchema):
     rel_label: str = "TRIGGERS"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
 
+
 @dataclass(frozen=True)
 class EventRuleToSNSTopicRel(CartographyRelSchema):
     """(:EventRule)-[:PUBLISHES_TO]->(:SNSTopic)
@@ -91,6 +97,7 @@ class EventRuleToSNSTopicRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "PUBLISHES_TO"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
+
 
 @dataclass(frozen=True)
 class EventRuleToSQSQueueRel(CartographyRelSchema):
@@ -106,6 +113,7 @@ class EventRuleToSQSQueueRel(CartographyRelSchema):
     rel_label: str = "SENDS_TO"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
 
+
 @dataclass(frozen=True)
 class EventRuleToKinesisStreamRel(CartographyRelSchema):
     """(:EventRule)-[:SENDS_TO]->(:KinesisStream)"""
@@ -117,6 +125,7 @@ class EventRuleToKinesisStreamRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SENDS_TO"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
+
 
 @dataclass(frozen=True)
 class EventRuleToECSClusterRel(CartographyRelSchema):
@@ -130,6 +139,7 @@ class EventRuleToECSClusterRel(CartographyRelSchema):
     rel_label: str = "TARGETS"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
 
+
 @dataclass(frozen=True)
 class EventRuleToStepFunctionRel(CartographyRelSchema):
     """(:EventRule)-[:EXECUTES]->(:StepFunction)"""
@@ -141,6 +151,7 @@ class EventRuleToStepFunctionRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "EXECUTES"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
+
 
 @dataclass(frozen=True)
 class EventRuleToCloudWatchLogGroupRel(CartographyRelSchema):
@@ -154,6 +165,7 @@ class EventRuleToCloudWatchLogGroupRel(CartographyRelSchema):
     rel_label: str = "LOGS_TO"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
 
+
 @dataclass(frozen=True)
 class EventRuleToBatchJobQueueRel(CartographyRelSchema):
     """(:EventRule)-[:SUBMITS_TO]->(:BatchJobQueue)"""
@@ -165,6 +177,7 @@ class EventRuleToBatchJobQueueRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SUBMITS_TO"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
+
 
 @dataclass(frozen=True)
 class EventRuleToSageMakerPipelineRel(CartographyRelSchema):
@@ -178,6 +191,7 @@ class EventRuleToSageMakerPipelineRel(CartographyRelSchema):
     rel_label: str = "STARTS_PIPELINE"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
 
+
 @dataclass(frozen=True)
 class EventRuleToFirehoseDeliveryStreamRel(CartographyRelSchema):
     """(:EventRule)-[:DELIVERS_TO]->(:FirehoseDeliveryStream)"""
@@ -189,6 +203,7 @@ class EventRuleToFirehoseDeliveryStreamRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "DELIVERS_TO"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
+
 
 @dataclass(frozen=True)
 class EventRuleToRedshiftClusterRel(CartographyRelSchema):
@@ -202,6 +217,7 @@ class EventRuleToRedshiftClusterRel(CartographyRelSchema):
     rel_label: str = "TARGETS"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
 
+
 @dataclass(frozen=True)
 class EventRuleToCodeBuildProjectRel(CartographyRelSchema):
     """(:EventRule)-[:TRIGGERS_BUILD]->(:CodeBuildProject)"""
@@ -213,6 +229,7 @@ class EventRuleToCodeBuildProjectRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "TRIGGERS_BUILD"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
+
 
 @dataclass(frozen=True)
 class EventRuleToCodePipelineRel(CartographyRelSchema):
@@ -226,6 +243,7 @@ class EventRuleToCodePipelineRel(CartographyRelSchema):
     rel_label: str = "STARTS_PIPELINE"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
 
+
 @dataclass(frozen=True)
 class EventRuleToAPIGatewayRel(CartographyRelSchema):
     """(:EventRule)-[:INVOKES_API]->(:APIGatewayRestAPI)"""
@@ -238,10 +256,11 @@ class EventRuleToAPIGatewayRel(CartographyRelSchema):
     rel_label: str = "INVOKES_API"
     properties: _EventRuleRelProperties = _EventRuleRelProperties()
 
+
 @dataclass(frozen=True)
 class EventRuleSchema(CartographyNodeSchema):
     """Schema for CloudWatch Event Rules.
-    
+
     This schema includes relationships for all supported EventBridge target types.
     The sub_resource_relationship correctly points to AWSAccount (tenant-like object)
     as per Cartography best practices.
@@ -250,5 +269,6 @@ class EventRuleSchema(CartographyNodeSchema):
     label: str = "EventRule"
     properties: EventRuleNodeProperties = EventRuleNodeProperties()
     sub_resource_relationship: EventRuleToAWSAccountRel = EventRuleToAWSAccountRel()
-    other_relationships: OtherRelationships = OtherRelationships([EventRuleToIAMRoleRel()]) 
-
+    other_relationships: OtherRelationships = OtherRelationships(
+        [EventRuleToIAMRoleRel()]
+    )

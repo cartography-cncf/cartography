@@ -208,5 +208,4 @@ MOCK_EVENT_RULES_RESPONSE: dict[str, Any] = {
     },
 }
 
-MOCK_EVENT_RULES_EMPTY_RESPONSE: dict[str, Any] = {"Rules": [], "Targets": {}} 
-
+MOCK_EVENT_RULES_EMPTY_RESPONSE: dict[str, Any] = {"Rules": [], "Targets": {}}

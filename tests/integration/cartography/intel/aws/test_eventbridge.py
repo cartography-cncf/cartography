@@ -10,6 +10,7 @@ TEST_ACCOUNT_ID = "123456789012"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 1234567890
 
+
 @patch.object(
     cartography.intel.aws.eventbridge,
     "get_event_rules",
@@ -21,7 +22,7 @@ def test_sync_event_rules_nodes(mock_get_rules, neo4j_session):
 
     sync(
         neo4j_session,
-        boto3_session=None,  
+        boto3_session=None,
         regions=[TEST_REGION],
         current_aws_account_id=TEST_ACCOUNT_ID,
         update_tag=TEST_UPDATE_TAG,
@@ -69,6 +70,7 @@ def test_sync_event_rules_nodes(mock_get_rules, neo4j_session):
         check_nodes(neo4j_session, "EventRule", ["arn", "name", "state"])
         == expected_nodes
     )
+
 
 @patch.object(
     cartography.intel.aws.eventbridge,
@@ -139,6 +141,7 @@ def test_sync_event_rules_relationships_to_account(mock_get_rules, neo4j_session
         )
         == expected
     )
+
 
 @patch.object(
     cartography.intel.aws.eventbridge,
@@ -289,5 +292,4 @@ def test_sync_event_rules_relationships_to_targets(mock_get_rules, neo4j_session
             rel_direction_right=True,
         )
         == expected_api
-    ) 
-
+    )
