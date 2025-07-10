@@ -24,3 +24,4 @@ poetry.lock
 .gitconfig
 .python-version
 .python_history
+github_config.json

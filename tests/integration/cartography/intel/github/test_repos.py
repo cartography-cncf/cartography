@@ -2,6 +2,8 @@ import cartography.intel.github
 from tests.data.github.repos import DIRECT_COLLABORATORS
 from tests.data.github.repos import GET_REPOS
 from tests.data.github.repos import OUTSIDE_COLLABORATORS
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
@@ -386,3 +388,144 @@ def test_python_library_in_multiple_requirements_files(neo4j_session):
     node_ids = {n["lib_ids"] for n in nodes}
     assert len(node_ids) == 2
     assert node_ids == {"okta", "okta|0.9.0"}
+
+
+def test_sync_github_dependencies_end_to_end(neo4j_session):
+    """
+    Test that GitHub dependencies are correctly synced from GitHub's dependency graph to Neo4j.
+    This tests the complete end-to-end flow following the cartography integration test pattern.
+    """
+    # Arrange - Set up test data (this calls the full transform and load pipeline)
+    _ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # _ensure_local_neo4j_has_test_data has already called sync, now we test that the sync worked. Mock GitHub API data should
+    # be transofrmed and in the Neo4j database.
+
+    # Create expected IDs with simple format: canonical_name|version
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    react_id = "react|18.2.0"
+    lodash_id = "lodash"
+    django_id = "django|4.2.0"
+
+    # Assert - Test that new GitHub dependency graph nodes were created
+    # Note: Database also contains legacy Python dependencies, so we check subset
+    expected_github_dependency_nodes = {
+        (react_id, "react", "18.2.0", "npm"),
+        (lodash_id, "lodash", None, "npm"),
+        (django_id, "django", "4.2.0", "pip"),
+    }
+    actual_dependency_nodes = check_nodes(
+        neo4j_session,
+        "Dependency",
+        ["id", "name", "version", "ecosystem"],
+    )
+    assert actual_dependency_nodes is not None
+    assert expected_github_dependency_nodes.issubset(actual_dependency_nodes)
+
+    # Assert - Test that dependencies are correctly tagged with their ecosystems
+    expected_ecosystem_tags = {
+        (react_id, "npm"),
+        (lodash_id, "npm"),
+        (django_id, "pip"),
+    }
+    actual_ecosystem_tags = check_nodes(
+        neo4j_session,
+        "Dependency",
+        ["id", "ecosystem"],
+    )
+    assert actual_ecosystem_tags is not None
+    assert expected_ecosystem_tags.issubset(actual_ecosystem_tags)
+
+    # Assert - Test that repositories are connected to new GitHub dependencies
+    expected_github_repo_dependency_relationships = {
+        (repo_url, react_id),
+        (repo_url, lodash_id),
+        (repo_url, django_id),
+    }
+    actual_repo_dependency_relationships = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "Dependency",
+        "id",
+        "REQUIRES",
+    )
+    assert actual_repo_dependency_relationships is not None
+    assert expected_github_repo_dependency_relationships.issubset(
+        actual_repo_dependency_relationships
+    )
+
+    # Assert - Test that both NPM and Python ecosystems are supported
+    expected_github_npm_deps = {
+        (react_id, "npm"),
+        (lodash_id, "npm"),
+    }
+    expected_github_python_deps = {
+        (django_id, "pip"),
+    }
+
+    actual_ecosystem_nodes = check_nodes(
+        neo4j_session,
+        "Dependency",
+        ["id", "ecosystem"],
+    )
+    assert actual_ecosystem_nodes is not None
+
+    npm_nodes = {
+        (dep_id, ecosystem)
+        for dep_id, ecosystem in actual_ecosystem_nodes
+        if ecosystem == "npm"
+    }
+    python_nodes = {
+        (dep_id, ecosystem)
+        for dep_id, ecosystem in actual_ecosystem_nodes
+        if ecosystem == "pip"
+    }
+
+    # Check that our expected GitHub dependencies are present (subset check)
+    assert expected_github_npm_deps.issubset(npm_nodes)
+    assert expected_github_python_deps.issubset(python_nodes)
+
+    # Assert - Test that GitHub dependency relationship properties are preserved
+    expected_github_relationship_props = {
+        (
+            repo_url,
+            react_id,
+            "18.2.0",
+            "/package.json",
+        ),
+        (
+            repo_url,
+            lodash_id,
+            "^4.17.21",
+            "/package.json",
+        ),
+        (
+            repo_url,
+            django_id,
+            "==4.2.0",
+            "/requirements.txt",
+        ),  # Preserves original requirements format
+    }
+
+    # Query only GitHub dependency graph relationships (those with manifest_path)
+    result = neo4j_session.run(
+        """
+        MATCH (repo:GitHubRepository)-[r:REQUIRES]->(dep:Dependency)
+        WHERE r.manifest_path IS NOT NULL
+        RETURN repo.id as repo_id, dep.id as dep_id, r.requirements as requirements, r.manifest_path as manifest_path
+        ORDER BY repo.id, dep.id
+        """
+    )
+
+    actual_github_relationship_props = {
+        (
+            record["repo_id"],
+            record["dep_id"],
+            record["requirements"],
+            record["manifest_path"],
+        )
+        for record in result
+    }
+
+    assert actual_github_relationship_props == expected_github_relationship_props
