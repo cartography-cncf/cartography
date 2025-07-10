@@ -3474,6 +3474,30 @@ Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/
     ```
     (AWSAccount)-[RESOURCE]->(SNSTopic)
     ```
+
+### SNSTopicSubscription
+Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sns/latest/api/API_GetSubscriptionAttributes.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the SNS topic subscription |
+| **arn** | The Amazon Resource Name (ARN) of the topic subscription |
+| topic_arn | The topic ARN that the subscription is associated with |
+| endpoint | The subscription's endpoint |
+| owner | The subscription's owner |
+| protocol | The subscription's protocol for messages |
+#### Relationships
+- SNS Topic Subscriptions are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SNSTopicSubscription)
+    ```
+- SNS Topic Subscriptions are associated with SNS Topics.
+    ```
+    (:SNSTopicSubscription)-[HAS_SUBSCRIPTION]->(:SNSTopic)
+    ```
+
 ### S3AccountPublicAccessBlock
 Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources.
 

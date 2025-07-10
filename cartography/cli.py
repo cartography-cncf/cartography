@@ -717,6 +717,32 @@ class CLI:
                 "Required if you are using the Scaleway intel module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--sentinelone-account-ids",
+            type=str,
+            default=None,
+            help=(
+                "Comma-separated list of SentinelOne account IDs to sync. "
+                "If not specified, all accessible accounts will be synced."
+            ),
+        )
+        parser.add_argument(
+            "--sentinelone-api-url",
+            type=str,
+            default=None,
+            help=(
+                "SentinelOne API URL. Required if you are using the SentinelOne intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--sentinelone-api-token-env-var",
+            type=str,
+            default="SENTINELONE_API_TOKEN",
+            help=(
+                "The name of an environment variable containing the SentinelOne API token. "
+                "Required if you are using the SentinelOne intel module. Ignored otherwise."
+            ),
+        )
 
         return parser
 
@@ -1063,6 +1089,25 @@ class CLI:
             )
         else:
             config.scaleway_secret_key = None
+
+        # SentinelOne config
+        if config.sentinelone_account_ids:
+            config.sentinelone_account_ids = [
+                id.strip() for id in config.sentinelone_account_ids.split(",")
+            ]
+            logger.debug(
+                f"Parsed {len(config.sentinelone_account_ids)} SentinelOne account IDs to sync"
+            )
+        else:
+            config.sentinelone_account_ids = None
+
+        if config.sentinelone_api_url and config.sentinelone_api_token_env_var:
+            logger.debug(
+                f"Reading API token for SentinelOne from environment variable {config.sentinelone_api_token_env_var}",
+            )
+            config.sentinelone_api_token = os.environ.get(
+                config.sentinelone_api_token_env_var
+            )
 
         # Run cartography
         try:

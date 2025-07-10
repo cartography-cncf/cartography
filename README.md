@@ -21,31 +21,32 @@ You can learn more about the story behind Cartography in our [presentation at BS
 
 
 ## Supported platforms
+- [Airbyte](https://cartography-cncf.github.io/cartography/modules/airbyte/index.html) - Organization, Workspace, User, Source, Destination, Connection, Tag, Stream
 - [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, CodeBuild, Config, EC2, ECS, ECR, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SQS, SSM, STS, Tags
+- [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
+- [BigFix](https://cartography-cncf.github.io/cartography/modules/bigfix/index.html) - Computers
+- [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
+- [Crowdstrike Falcon](https://cartography-cncf.github.io/cartography/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
+- [DigitalOcean](https://cartography-cncf.github.io/cartography/modules/digitalocean/index.html)
+- [Duo](https://cartography-cncf.github.io/cartography/modules/duo/index.html) - Users, Groups, Endpoints
+- [GitHub](https://cartography-cncf.github.io/cartography/modules/github/index.html) - repos, branches, users, teams
 - [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
 - [Google GSuite](https://cartography-cncf.github.io/cartography/modules/gsuite/index.html) - users, groups
-- [Oracle Cloud Infrastructure](https://cartography-cncf.github.io/cartography/modules/oci/index.html) - IAM
-- [Okta](https://cartography-cncf.github.io/cartography/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs
-- [GitHub](https://cartography-cncf.github.io/cartography/modules/github/index.html) - repos, branches, users, teams
-- [DigitalOcean](https://cartography-cncf.github.io/cartography/modules/digitalocean/index.html)
+- [Kandji](https://cartography-cncf.github.io/cartography/modules/kandji/index.html) - Devices
+- [Kubernetes](https://cartography-cncf.github.io/cartography/modules/kubernetes/index.html) - Cluster, Namespace, Service, Pod, Container
+- [Lastpass](https://cartography-cncf.github.io/cartography/modules/lastpass/index.html) - users
 - [Microsoft Azure](https://cartography-cncf.github.io/cartography/modules/azure/index.html) -  CosmosDB, SQL, Storage, Virtual Machine
 - [Microsoft Entra ID](https://cartography-cncf.github.io/cartography/modules/entra/index.html) -  Users
-- [Kubernetes](https://cartography-cncf.github.io/cartography/modules/kubernetes/index.html) - Cluster, Namespace, Service, Pod, Container
-- [PagerDuty](https://cartography-cncf.github.io/cartography/modules/pagerduty/index.html) - Users, teams, services, schedules, escalation policies, integrations, vendors
-- [Crowdstrike Falcon](https://cartography-cncf.github.io/cartography/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
 - [NIST CVE](https://cartography-cncf.github.io/cartography/modules/cve/index.html) - Common Vulnerabilities and Exposures (CVE) data from NIST database
-- [Lastpass](https://cartography-cncf.github.io/cartography/modules/lastpass/index.html) - users
-- [BigFix](https://cartography-cncf.github.io/cartography/modules/bigfix/index.html) - Computers
-- [Duo](https://cartography-cncf.github.io/cartography/modules/duo/index.html) - Users, Groups, Endpoints
-- [Kandji](https://cartography-cncf.github.io/cartography/modules/kandji/index.html) - Devices
+- [Okta](https://cartography-cncf.github.io/cartography/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs
+- [OpenAI](https://cartography-cncf.github.io/cartography/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
+- [Oracle Cloud Infrastructure](https://cartography-cncf.github.io/cartography/modules/oci/index.html) - IAM
+- [PagerDuty](https://cartography-cncf.github.io/cartography/modules/pagerduty/index.html) - Users, teams, services, schedules, escalation policies, integrations, vendors
+- [Scaleway](https://cartography-cncf.github.io/cartography/modules/scaleway/index.html) - Projects, IAM, Local Storage, Instances
+- [SentinelOne](https://cartography-cncf.github.io/cartography/modules/sentinelone/index.html) - Accounts, Agents
 - [SnipeIT](https://cartography-cncf.github.io/cartography/modules/snipeit/index.html) - Users, Assets
 - [Tailscale](https://cartography-cncf.github.io/cartography/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations
-- [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
-- [OpenAI](https://cartography-cncf.github.io/cartography/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
-- [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
-- [Airbyte](https://cartography-cncf.github.io/cartography/modules/airbyte/index.html) - Organization, Workspace, User, Source, Destination, Connection, Tag, Stream
 - [Trivy Scanner](https://cartography-cncf.github.io/cartography/modules/trivy/index.html) - AWS ECR Images
-- [Scaleway](https://cartography-cncf.github.io/cartography/modules/scaleway/index.html) - Projects, IAM, Local Storage, Instances
 
 
 ## Philosophy
