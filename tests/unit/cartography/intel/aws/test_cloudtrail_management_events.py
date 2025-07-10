@@ -94,7 +94,7 @@ def test_aggregates_multiple_events_for_same_principal_role_pair():
                     "AccountId": "123456789012",
                 }
             ],
-            "CloudTrailEvent": '{"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
         },
         {
             "EventName": "AssumeRole",
@@ -107,7 +107,7 @@ def test_aggregates_multiple_events_for_same_principal_role_pair():
                     "AccountId": "123456789012",
                 }
             ],
-            "CloudTrailEvent": '{"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
         },
         {
             "EventName": "AssumeRole",
@@ -120,7 +120,7 @@ def test_aggregates_multiple_events_for_same_principal_role_pair():
                     "AccountId": "123456789012",
                 }
             ],
-            "CloudTrailEvent": '{"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
         },
     ]
 
@@ -164,7 +164,7 @@ def test_preserves_separate_records_for_different_principal_role_pairs():
                     "AccountId": "123456789012",
                 }
             ],
-            "CloudTrailEvent": '{"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
         },
         {
             "EventName": "AssumeRole",
@@ -177,7 +177,7 @@ def test_preserves_separate_records_for_different_principal_role_pairs():
                     "AccountId": "987654321098",
                 }
             ],
-            "CloudTrailEvent": '{"requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountRole"}}',
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountRole"}}',
         },
         {
             "EventName": "AssumeRole",
@@ -190,7 +190,7 @@ def test_preserves_separate_records_for_different_principal_role_pairs():
                     "AccountId": "123456789012",
                 }
             ],
-            "CloudTrailEvent": '{"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/bob"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}',
         },
     ]
 

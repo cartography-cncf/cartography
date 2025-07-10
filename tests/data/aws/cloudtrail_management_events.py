@@ -446,6 +446,10 @@ UNIT_TEST_ASSUME_ROLE_EVENT = {
     ],
     "CloudTrailEvent": json.dumps(
         {
+            "userIdentity": {
+                "type": "User",
+                "arn": "arn:aws:iam::123456789012:user/john.doe",
+            },
             "requestParameters": {
                 "roleArn": "arn:aws:iam::987654321098:role/ApplicationRole",
                 "roleSessionName": "ApplicationSession",
@@ -474,7 +478,10 @@ UNIT_TEST_MULTIPLE_STS_EVENTS = [
             }
         ],
         "CloudTrailEvent": json.dumps(
-            {"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}}
+            {
+                "userIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"},
+                "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/AppRole"}
+            }
         ),
     },
     {
@@ -491,6 +498,7 @@ UNIT_TEST_MULTIPLE_STS_EVENTS = [
         ],
         "CloudTrailEvent": json.dumps(
             {
+                "userIdentity": {"arn": "arn:aws:iam::123456789012:saml-user/saml-user"},
                 "requestParameters": {
                     "roleArn": "arn:aws:iam::123456789012:role/SAMLRole"
                 }
@@ -510,7 +518,10 @@ UNIT_TEST_MULTIPLE_STS_EVENTS = [
             }
         ],
         "CloudTrailEvent": json.dumps(
-            {"requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/WebRole"}}
+            {
+                "userIdentity": {"arn": "arn:aws:iam::123456789012:web-identity-user/web-user"},
+                "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/WebRole"}
+            }
         ),
     },
 ]

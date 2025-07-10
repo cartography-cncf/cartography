@@ -138,6 +138,7 @@ def _ensure_local_neo4j_has_cross_account_test_data(neo4j_session):
                     "AccountId": "123456789012",
                 }
             ],
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/john.doe"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/ApplicationRole"}}',
         },
         {
             "EventName": "AssumeRole",
@@ -150,6 +151,7 @@ def _ensure_local_neo4j_has_cross_account_test_data(neo4j_session):
                     "AccountId": "987654321098",
                 }
             ],
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountRole"}}',
         },
     ],
 )
@@ -230,6 +232,7 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
                     "AccountId": "111111111111",
                 }
             ],
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/TestRole"}}',
         },
         {
             "EventName": "AssumeRole",
@@ -242,6 +245,7 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
                     "AccountId": "111111111111",
                 }
             ],
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/TestRole"}}',
         },
         {
             "EventName": "AssumeRole",
@@ -254,6 +258,7 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
                     "AccountId": "111111111111",
                 }
             ],
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/TestRole"}}',
         },
     ],
 )
@@ -331,6 +336,7 @@ def test_cloudtrail_management_events_aggregates_multiple_role_assumptions(
                     "AccountId": "333333333333",
                 }
             ],
+            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::222222222222:user/cross-user"}, "requestParameters": {"roleArn": "arn:aws:iam::333333333333:role/ExternalRole"}}',
         },
     ],
 )
