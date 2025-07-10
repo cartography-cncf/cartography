@@ -22,5 +22,7 @@ def get_index_statements() -> List[str]:
 def run(neo4j_session: neo4j.Session, config: Config) -> None:
     logger.info("Creating indexes for cartography node types.")
     for statement in get_index_statements():
+        if not statement.strip():
+            continue
         logger.debug("Executing statement: %s", statement)
         neo4j_session.run(statement)
