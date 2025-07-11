@@ -2,66 +2,18 @@ from unittest.mock import patch
 
 import cartography.intel.aws.eventbridge
 from cartography.intel.aws.eventbridge import sync
-from tests.integration.util import check_nodes
-from tests.integration.util import check_rels
+
+from tests.integration.util import check_nodes, check_rels
+
+from tests.data.aws.eventbridge.event_rules import (
+    MOCK_EVENT_RULES_RESPONSE,
+)
 
 TEST_ACCOUNT_ID = "123456789012"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 1234567890
 
-MOCK_EVENT_RULES_RESPONSE = {
-    "Rules": [
-        {
-            "Name": "hourly-lambda-trigger",
-            "Arn": (
-                "arn:aws:events:us-east-1:123456789012:rule/" "hourly-lambda-trigger"
-            ),
-            "State": "ENABLED",
-            "Description": "Triggers Lambda every hour",
-            "ScheduleExpression": "rate(1 hour)",
-            "EventBusName": "default",
-            "RoleArn": "arn:aws:iam::123456789012:role/EventBridgeRole",
-        },
-        {
-            "Name": "ec2-state-monitor",
-            "Arn": ("arn:aws:events:us-east-1:123456789012:rule/" "ec2-state-monitor"),
-            "State": "ENABLED",
-            "Description": "Monitor EC2 state changes",
-            "EventPattern": (
-                '{"source": ["aws.ec2"], "detail-type": '
-                '["EC2 Instance State-change Notification"]}'
-            ),
-            "EventBusName": "default",
-        },
-    ],
-    "Targets": {
-        "hourly-lambda-trigger": [
-            {
-                "Id": "1",
-                "Arn": (
-                    "arn:aws:lambda:us-east-1:123456789012:function:" "ProcessHourlyJob"
-                ),
-            },
-        ],
-        "ec2-state-monitor": [
-            {
-                "Id": "1",
-                "Arn": "arn:aws:sns:us-east-1:123456789012:ec2-alerts",
-            },
-            {
-                "Id": "2",
-                "Arn": "arn:aws:sqs:us-east-1:123456789012:ec2-state-queue",
-            },
-        ],
-    },
-}
-
-
-@patch.object(
-    cartography.intel.aws.eventbridge,
-    "get_event_rules",
-    return_value=MOCK_EVENT_RULES_RESPONSE,
-)
+@patch.object(cartography.intel.aws.eventbridge, "get_event_rules", return_value=MOCK_EVENT_RULES_RESPONSE)
 def test_sync_event_rules(mock_get_rules, neo4j_session):
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -77,22 +29,44 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    neo4j_session.run(
-        """
-        MERGE (lambda:AWSLambda {
-            id: 'arn:aws:lambda:us-east-1:123456789012:function:ProcessHourlyJob'
-        })
-        MERGE (sns:SNSTopic {
-            arn: 'arn:aws:sns:us-east-1:123456789012:ec2-alerts'
-        })
-        MERGE (sqs:SQSQueue {
-            arn: 'arn:aws:sqs:us-east-1:123456789012:ec2-state-queue'
-        })
-        MERGE (role:AWSRole {
-            arn: 'arn:aws:iam::123456789012:role/EventBridgeRole'
-        })
-        """
-    )
+    target_arns = set()
+    for tgt_list in MOCK_EVENT_RULES_RESPONSE["Targets"].values():
+        for tgt in tgt_list:
+            target_arns.add(tgt["Arn"])
+
+    for arn in target_arns:
+        if ":lambda:" in arn and ":function:" in arn:
+            node_label = "AWSLambda"
+            id_field = "id"
+        elif ":sns:" in arn:
+            node_label = "SNSTopic"
+            id_field = "arn"
+        elif ":sqs:" in arn:
+            node_label = "SQSQueue"
+            id_field = "arn"
+        elif ":states:" in arn:
+            node_label = "StepFunction"
+            id_field = "arn"
+        elif ":ecs:" in arn and "cluster/" in arn:
+            node_label = "ECSCluster"
+            id_field = "arn"
+        elif ":kinesis:" in arn and ":stream/" in arn:
+            node_label = "KinesisStream"
+            id_field = "arn"
+        elif ":codebuild:" in arn and ":project/" in arn:
+            node_label = "CodeBuildProject"
+            id_field = "arn"
+        elif ":codepipeline:" in arn:
+            node_label = "CodePipeline"
+            id_field = "arn"
+        else:
+            
+            continue
+
+        neo4j_session.run(
+            f"MERGE (n:{node_label} {{{id_field}: $arn}})",
+            arn=arn,
+        )
 
     sync(
         neo4j_session,
@@ -104,16 +78,7 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
     )
 
     expected_nodes = {
-        (
-            "arn:aws:events:us-east-1:123456789012:rule/hourly-lambda-trigger",
-            "hourly-lambda-trigger",
-            "ENABLED",
-        ),
-        (
-            "arn:aws:events:us-east-1:123456789012:rule/ec2-state-monitor",
-            "ec2-state-monitor",
-            "ENABLED",
-        ),
+        (rule["Arn"], rule["Name"], rule["State"]) for rule in MOCK_EVENT_RULES_RESPONSE["Rules"]
     }
     assert (
         check_nodes(neo4j_session, "EventRule", ["arn", "name", "state"])
@@ -121,14 +86,7 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
     )
 
     expected_account_rels = {
-        (
-            "arn:aws:events:us-east-1:123456789012:rule/hourly-lambda-trigger",
-            TEST_ACCOUNT_ID,
-        ),
-        (
-            "arn:aws:events:us-east-1:123456789012:rule/ec2-state-monitor",
-            TEST_ACCOUNT_ID,
-        ),
+        (rule["Arn"], TEST_ACCOUNT_ID) for rule in MOCK_EVENT_RULES_RESPONSE["Rules"]
     }
     assert (
         check_rels(
@@ -143,12 +101,14 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
         == expected_account_rels
     )
 
-    expected_lambda_rels = {
-        (
-            "arn:aws:events:us-east-1:123456789012:rule/hourly-lambda-trigger",
-            "arn:aws:lambda:us-east-1:123456789012:function:ProcessHourlyJob",
-        ),
-    }
+    expected_lambda_rels = set()
+    for rule_name, tgt_list in MOCK_EVENT_RULES_RESPONSE["Targets"].items():
+        for tgt in tgt_list:
+            if ":lambda:" in tgt["Arn"] and ":function:" in tgt["Arn"]:
+                
+                rule_arn = next(r["Arn"] for r in MOCK_EVENT_RULES_RESPONSE["Rules"] if r["Name"] == rule_name)
+                expected_lambda_rels.add((rule_arn, tgt["Arn"]))
+
     assert (
         check_rels(
             neo4j_session,
@@ -161,3 +121,4 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
         )
         == expected_lambda_rels
     )
+

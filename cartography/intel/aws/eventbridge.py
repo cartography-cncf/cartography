@@ -171,6 +171,66 @@ def _create_target_relationships(
                     update_tag=update_tag,
                 )
 
+            elif ":ecs:" in target_arn and "cluster/" in target_arn:
+                # ECS Cluster target
+                neo4j_session.run(
+                    """
+                    MATCH (rule:EventRule {arn: $rule_arn})
+                    MATCH (ecs:ECSCluster {arn: $target_arn})
+                    MERGE (rule)-[r:TARGETS {lastupdated: $update_tag}]->(ecs)
+                    SET r.target_id = $target_id
+                    """,
+                    rule_arn=rule_arn,
+                    target_arn=target_arn,
+                    target_id=target["id"],
+                    update_tag=update_tag,
+                )
+
+            elif ":kinesis:" in target_arn and ":stream/" in target_arn:
+                # Kinesis Stream target
+                neo4j_session.run(
+                    """
+                    MATCH (rule:EventRule {arn: $rule_arn})
+                    MATCH (stream:KinesisStream {arn: $target_arn})
+                    MERGE (rule)-[r:SENDS_TO {lastupdated: $update_tag}]->(stream)
+                    SET r.target_id = $target_id
+                    """,
+                    rule_arn=rule_arn,
+                    target_arn=target_arn,
+                    target_id=target["id"],
+                    update_tag=update_tag,
+                )
+
+            elif ":codebuild:" in target_arn and ":project/" in target_arn:
+                # CodeBuild Project target
+                neo4j_session.run(
+                    """
+                    MATCH (rule:EventRule {arn: $rule_arn})
+                    MATCH (proj:CodeBuildProject {arn: $target_arn})
+                    MERGE (rule)-[r:TRIGGERS_BUILD {lastupdated: $update_tag}]->(proj)
+                    SET r.target_id = $target_id
+                    """,
+                    rule_arn=rule_arn,
+                    target_arn=target_arn,
+                    target_id=target["id"],
+                    update_tag=update_tag,
+                )
+
+            elif ":codepipeline:" in target_arn:
+                # CodePipeline target
+                neo4j_session.run(
+                    """
+                    MATCH (rule:EventRule {arn: $rule_arn})
+                    MATCH (pipe:CodePipeline {arn: $target_arn})
+                    MERGE (rule)-[r:STARTS_PIPELINE {lastupdated: $update_tag}]->(pipe)
+                    SET r.target_id = $target_id
+                    """,
+                    rule_arn=rule_arn,
+                    target_arn=target_arn,
+                    target_id=target["id"],
+                    update_tag=update_tag,
+                )
+
 
 def _create_role_relationships(
     neo4j_session: neo4j.Session,
@@ -211,7 +271,7 @@ def sync(
 ) -> None:
     for region in regions:
         logger.info(
-            f"Syncing EventBridge for account {current_aws_account_id} " f"in {region}"
+            f"Syncing EventBridge for account {current_aws_account_id} in {region}"
         )
 
         data = get_event_rules(boto3_session, region)
