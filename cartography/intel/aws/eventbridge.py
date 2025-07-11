@@ -181,9 +181,7 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
-        logger.info(
-            f"Syncing EventBridge in {region}"
-        )
+        logger.info(f"Syncing EventBridge in {region}")
 
         data = get_event_rules(boto3_session, region)
 
