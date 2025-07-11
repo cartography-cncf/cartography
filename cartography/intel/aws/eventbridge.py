@@ -182,7 +182,7 @@ def sync(
 ) -> None:
     for region in regions:
         logger.info(
-            f"Syncing EventBridge for account {current_aws_account_id} in {region}"
+            f"Syncing EventBridge in {region}"
         )
 
         data = get_event_rules(boto3_session, region)
