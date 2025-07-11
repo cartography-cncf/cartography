@@ -101,135 +101,46 @@ def _create_target_relationships(
     rules_data: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
+    target_mappings = [
+        (":lambda:", ":function:", "AWSLambda", "id", "TRIGGERS"),
+        (":sns:", None, "SNSTopic", "arn", "PUBLISHES_TO"),
+        (":sqs:", None, "SQSQueue", "arn", "SENDS_TO"),
+        (":states:", None, "StepFunction", "arn", "EXECUTES"),
+        (":ecs:", "cluster/", "ECSCluster", "arn", "TARGETS"),
+        (":kinesis:", ":stream/", "KinesisStream", "arn", "SENDS_TO"),
+        (":codebuild:", ":project/", "CodeBuildProject", "arn", "TRIGGERS_BUILD"),
+        (":codepipeline:", None, "CodePipeline", "arn", "STARTS_PIPELINE"),
+    ]
+
     for rule in rules_data:
         rule_arn = rule["arn"]
 
         for target in rule.get("_target_arns", []):
             target_arn = target["arn"]
 
-            if ":lambda:" in target_arn and ":function:" in target_arn:
-                neo4j_session.run(
+            for service, resource, node_label, id_field, rel_type in target_mappings:
+                if service in target_arn and (
+                    resource is None or resource in target_arn
+                ):
+                    query = f"""
+                    MATCH (rule:EventRule {{arn: $rule_arn}})
+                    MATCH (target:{node_label} {{{id_field}: $target_arn}})
+                    MERGE (rule)-[r:{rel_type} {{lastupdated: $update_tag}}]->(target)
+                    SET r.target_id = $target_id
                     """
-                    MATCH (rule:EventRule {arn: $rule_arn})
-                    MATCH (lambda:AWSLambda {id: $target_arn})
-                    MERGE (rule)-[r:TRIGGERS {lastupdated: $update_tag}]->(
-                        lambda
+
+                    if rel_type == "TRIGGERS":
+                        query += ", r.target_role_arn = $target_role_arn"
+
+                    neo4j_session.run(
+                        query,
+                        rule_arn=rule_arn,
+                        target_arn=target_arn,
+                        target_id=target["id"],
+                        target_role_arn=target.get("role_arn"),
+                        update_tag=update_tag,
                     )
-                    SET r.target_id = $target_id,
-                        r.target_role_arn = $target_role_arn
-                    """,
-                    rule_arn=rule_arn,
-                    target_arn=target_arn,
-                    target_id=target["id"],
-                    target_role_arn=target.get("role_arn"),
-                    update_tag=update_tag,
-                )
-
-            elif ":sns:" in target_arn:
-                neo4j_session.run(
-                    """
-                    MATCH (rule:EventRule {arn: $rule_arn})
-                    MATCH (topic:SNSTopic {arn: $target_arn})
-                    MERGE (rule)-[r:PUBLISHES_TO {lastupdated: $update_tag}]->(
-                        topic
-                    )
-                    SET r.target_id = $target_id
-                    """,
-                    rule_arn=rule_arn,
-                    target_arn=target_arn,
-                    target_id=target["id"],
-                    update_tag=update_tag,
-                )
-
-            elif ":sqs:" in target_arn:
-                neo4j_session.run(
-                    """
-                    MATCH (rule:EventRule {arn: $rule_arn})
-                    MATCH (queue:SQSQueue {arn: $target_arn})
-                    MERGE (rule)-[r:SENDS_TO {lastupdated: $update_tag}]->(
-                        queue
-                    )
-                    SET r.target_id = $target_id
-                    """,
-                    rule_arn=rule_arn,
-                    target_arn=target_arn,
-                    target_id=target["id"],
-                    update_tag=update_tag,
-                )
-
-            elif ":states:" in target_arn:
-                neo4j_session.run(
-                    """
-                    MATCH (rule:EventRule {arn: $rule_arn})
-                    MATCH (sf:StepFunction {arn: $target_arn})
-                    MERGE (rule)-[r:EXECUTES {lastupdated: $update_tag}]->(sf)
-                    SET r.target_id = $target_id
-                    """,
-                    rule_arn=rule_arn,
-                    target_arn=target_arn,
-                    target_id=target["id"],
-                    update_tag=update_tag,
-                )
-
-            elif ":ecs:" in target_arn and "cluster/" in target_arn:
-                # ECS Cluster target
-                neo4j_session.run(
-                    """
-                    MATCH (rule:EventRule {arn: $rule_arn})
-                    MATCH (ecs:ECSCluster {arn: $target_arn})
-                    MERGE (rule)-[r:TARGETS {lastupdated: $update_tag}]->(ecs)
-                    SET r.target_id = $target_id
-                    """,
-                    rule_arn=rule_arn,
-                    target_arn=target_arn,
-                    target_id=target["id"],
-                    update_tag=update_tag,
-                )
-
-            elif ":kinesis:" in target_arn and ":stream/" in target_arn:
-                # Kinesis Stream target
-                neo4j_session.run(
-                    """
-                    MATCH (rule:EventRule {arn: $rule_arn})
-                    MATCH (stream:KinesisStream {arn: $target_arn})
-                    MERGE (rule)-[r:SENDS_TO {lastupdated: $update_tag}]->(stream)
-                    SET r.target_id = $target_id
-                    """,
-                    rule_arn=rule_arn,
-                    target_arn=target_arn,
-                    target_id=target["id"],
-                    update_tag=update_tag,
-                )
-
-            elif ":codebuild:" in target_arn and ":project/" in target_arn:
-                # CodeBuild Project target
-                neo4j_session.run(
-                    """
-                    MATCH (rule:EventRule {arn: $rule_arn})
-                    MATCH (proj:CodeBuildProject {arn: $target_arn})
-                    MERGE (rule)-[r:TRIGGERS_BUILD {lastupdated: $update_tag}]->(proj)
-                    SET r.target_id = $target_id
-                    """,
-                    rule_arn=rule_arn,
-                    target_arn=target_arn,
-                    target_id=target["id"],
-                    update_tag=update_tag,
-                )
-
-            elif ":codepipeline:" in target_arn:
-                # CodePipeline target
-                neo4j_session.run(
-                    """
-                    MATCH (rule:EventRule {arn: $rule_arn})
-                    MATCH (pipe:CodePipeline {arn: $target_arn})
-                    MERGE (rule)-[r:STARTS_PIPELINE {lastupdated: $update_tag}]->(pipe)
-                    SET r.target_id = $target_id
-                    """,
-                    rule_arn=rule_arn,
-                    target_arn=target_arn,
-                    target_id=target["id"],
-                    update_tag=update_tag,
-                )
+                    break
 
 
 def _create_role_relationships(
