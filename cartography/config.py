@@ -31,6 +31,8 @@ class Config:
     :type aws_best_effort_mode: bool
     :param aws_best_effort_mode: If True, AWS sync will not raise any exceptions, just log. If False (default),
         exceptions will be raised.
+    :type aws_cloudtrail_management_events_lookback_hours: int
+    :param aws_cloudtrail_management_events_lookback_hours: Number of hours back to retrieve CloudTrail management events from. Optional.
     :type azure_sync_all_subscriptions: bool
     :param azure_sync_all_subscriptions: If True, Azure sync will run for all profiles in azureProfile.json. If
         False (default), Azure sync will run using current user session via CLI credentials. Optional.
@@ -173,6 +175,7 @@ class Config:
         aws_sync_all_profiles=False,
         aws_regions=None,
         aws_best_effort_mode=False,
+        aws_cloudtrail_management_events_lookback_hours=None,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
@@ -253,6 +256,9 @@ class Config:
         self.aws_sync_all_profiles = aws_sync_all_profiles
         self.aws_regions = aws_regions
         self.aws_best_effort_mode = aws_best_effort_mode
+        self.aws_cloudtrail_management_events_lookback_hours = (
+            aws_cloudtrail_management_events_lookback_hours
+        )
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id
