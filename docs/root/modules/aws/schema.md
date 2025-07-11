@@ -3855,3 +3855,75 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     ```
     (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
+
+### EventRule
+
+Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-rules.html).
+
+| Field | Description |
+|-------|-------------|
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the EventBridge rule |
+| arn | The Amazon Resource Name (ARN) of the rule |
+| name | The name of the rule |
+| state | The state of the rule (ENABLED or DISABLED) |
+| description | The description of the rule |
+| event_pattern | The event pattern used by the rule to filter events |
+| schedule_expression | The scheduling expression for time-based rules (e.g., "rate(5 minutes)") |
+| role_arn | The ARN of the IAM role associated with the rule |
+| event_bus_name | The name of the event bus associated with the rule |
+| managed_by | The AWS service that manages the rule (if applicable) |
+| created_by | The entity that created the rule |
+| region | The AWS region where the rule exists |
+
+#### Relationships
+
+- EventRule belongs to an AWSAccount.
+    ```
+    (EventRule)<-[RESOURCE]-(AWSAccount)
+    ```
+
+- EventRule can trigger AWS Lambda functions.
+    ```
+    (EventRule)-[TRIGGERS]->(AWSLambda)
+    ```
+
+- EventRule can publish to SNS topics.
+    ```
+    (EventRule)-[PUBLISHES_TO]->(SNSTopic)
+    ```
+
+- EventRule can send messages to SQS queues.
+    ```
+    (EventRule)-[SENDS_TO]->(SQSQueue)
+    ```
+
+- EventRule can execute Step Functions.
+    ```
+    (EventRule)-[EXECUTES]->(StepFunction)
+    ```
+
+- EventRule can target ECS clusters.
+    ```
+    (EventRule)-[TARGETS]->(ECSCluster)
+    ```
+
+- EventRule can send data to Kinesis streams.
+    ```
+    (EventRule)-[SENDS_TO]->(KinesisStream)
+    ```
+
+- EventRule can trigger CodeBuild projects.
+    ```
+    (EventRule)-[TRIGGERS_BUILD]->(CodeBuildProject)
+    ```
+
+- EventRule can start CodePipeline executions.
+    ```
+    (EventRule)-[STARTS_PIPELINE]->(CodePipeline)
+    ```
+
+- EventRule can use IAM roles for target invocation.
+    ```
+    (EventRule)-[USES_ROLE]->(AWSRole)
+    ```

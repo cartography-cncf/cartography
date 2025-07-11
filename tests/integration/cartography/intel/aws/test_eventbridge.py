@@ -2,18 +2,20 @@ from unittest.mock import patch
 
 import cartography.intel.aws.eventbridge
 from cartography.intel.aws.eventbridge import sync
-
-from tests.integration.util import check_nodes, check_rels
-
-from tests.data.aws.eventbridge.event_rules import (
-    MOCK_EVENT_RULES_RESPONSE,
-)
+from tests.data.aws.eventbridge.event_rules import MOCK_EVENT_RULES_RESPONSE
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "123456789012"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 1234567890
 
-@patch.object(cartography.intel.aws.eventbridge, "get_event_rules", return_value=MOCK_EVENT_RULES_RESPONSE)
+
+@patch.object(
+    cartography.intel.aws.eventbridge,
+    "get_event_rules",
+    return_value=MOCK_EVENT_RULES_RESPONSE,
+)
 def test_sync_event_rules(mock_get_rules, neo4j_session):
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -60,7 +62,7 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
             node_label = "CodePipeline"
             id_field = "arn"
         else:
-            
+
             continue
 
         neo4j_session.run(
@@ -78,7 +80,8 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
     )
 
     expected_nodes = {
-        (rule["Arn"], rule["Name"], rule["State"]) for rule in MOCK_EVENT_RULES_RESPONSE["Rules"]
+        (rule["Arn"], rule["Name"], rule["State"])
+        for rule in MOCK_EVENT_RULES_RESPONSE["Rules"]
     }
     assert (
         check_nodes(neo4j_session, "EventRule", ["arn", "name", "state"])
@@ -105,8 +108,12 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
     for rule_name, tgt_list in MOCK_EVENT_RULES_RESPONSE["Targets"].items():
         for tgt in tgt_list:
             if ":lambda:" in tgt["Arn"] and ":function:" in tgt["Arn"]:
-                
-                rule_arn = next(r["Arn"] for r in MOCK_EVENT_RULES_RESPONSE["Rules"] if r["Name"] == rule_name)
+
+                rule_arn = next(
+                    r["Arn"]
+                    for r in MOCK_EVENT_RULES_RESPONSE["Rules"]
+                    if r["Name"] == rule_name
+                )
                 expected_lambda_rels.add((rule_arn, tgt["Arn"]))
 
     assert (
@@ -121,4 +128,3 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
         )
         == expected_lambda_rels
     )
-
