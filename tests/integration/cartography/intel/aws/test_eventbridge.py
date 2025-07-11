@@ -23,52 +23,44 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
     }
 
     neo4j_session.run(
-        """
-        MERGE (a:AWSAccount {id: $account_id})
-        SET a.lastupdated = $update_tag
-        """,
+        "MERGE (a:AWSAccount {id: $account_id}) SET a.lastupdated = $update_tag",
         account_id=TEST_ACCOUNT_ID,
         update_tag=TEST_UPDATE_TAG,
     )
 
-    target_arns = set()
-    for tgt_list in MOCK_EVENT_RULES_RESPONSE["Targets"].values():
-        for tgt in tgt_list:
-            target_arns.add(tgt["Arn"])
-
-    for arn in target_arns:
-        if ":lambda:" in arn and ":function:" in arn:
-            node_label = "AWSLambda"
-            id_field = "id"
-        elif ":sns:" in arn:
-            node_label = "SNSTopic"
-            id_field = "arn"
-        elif ":sqs:" in arn:
-            node_label = "SQSQueue"
-            id_field = "arn"
-        elif ":states:" in arn:
-            node_label = "StepFunction"
-            id_field = "arn"
-        elif ":ecs:" in arn and "cluster/" in arn:
-            node_label = "ECSCluster"
-            id_field = "arn"
-        elif ":kinesis:" in arn and ":stream/" in arn:
-            node_label = "KinesisStream"
-            id_field = "arn"
-        elif ":codebuild:" in arn and ":project/" in arn:
-            node_label = "CodeBuildProject"
-            id_field = "arn"
-        elif ":codepipeline:" in arn:
-            node_label = "CodePipeline"
-            id_field = "arn"
-        else:
-
-            continue
-
+    for role in [
+        "EventBridgeRole",
+        "CrossAccountRole",
+        "StepFunctionRole",
+        "ECSTaskRole",
+        "CodeBuildRole",
+        "CodePipelineRole",
+    ]:
         neo4j_session.run(
-            f"MERGE (n:{node_label} {{{id_field}: $arn}})",
-            arn=arn,
+            "MERGE (r:AWSRole {arn: $arn})",
+            arn=f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/{role}",
         )
+
+    service_mappings = [
+        (":lambda:", ":function:", "AWSLambda", "id"),
+        (":sns:", None, "SNSTopic", "arn"),
+        (":sqs:", None, "SQSQueue", "arn"),
+        (":states:", None, "StepFunction", "arn"),
+        (":ecs:", "cluster/", "ECSCluster", "arn"),
+        (":kinesis:", ":stream/", "KinesisStream", "arn"),
+        (":codebuild:", ":project/", "CodeBuildProject", "arn"),
+        (":codepipeline:", None, "CodePipeline", "arn"),
+    ]
+
+    for targets in MOCK_EVENT_RULES_RESPONSE["Targets"].values():
+        for target in targets:
+            arn = target["Arn"]
+            for service, resource, label, id_field in service_mappings:
+                if service in arn and (resource is None or resource in arn):
+                    neo4j_session.run(
+                        f"MERGE (n:{label} {{{id_field}: $arn}})", arn=arn
+                    )
+                    break
 
     sync(
         neo4j_session,
@@ -88,43 +80,73 @@ def test_sync_event_rules(mock_get_rules, neo4j_session):
         == expected_nodes
     )
 
-    expected_account_rels = {
-        (rule["Arn"], TEST_ACCOUNT_ID) for rule in MOCK_EVENT_RULES_RESPONSE["Rules"]
-    }
-    assert (
-        check_rels(
-            neo4j_session,
+    rule = neo4j_session.run(
+        "MATCH (r:EventRule {name: 'hourly-batch-job'}) RETURN r"
+    ).single()["r"]
+    assert rule["schedule_expression"] == "rate(1 hour)"
+    assert rule["description"] == "Triggers batch job every hour"
+    assert rule["event_bus_name"] == "default"
+
+    relationship_tests = [
+        (
             "EventRule",
             "arn",
             "AWSAccount",
             "id",
             "RESOURCE",
-            rel_direction_right=False,
-        )
-        == expected_account_rels
-    )
+            False,
+            len(MOCK_EVENT_RULES_RESPONSE["Rules"]),
+        ),
+        ("EventRule", "arn", "AWSLambda", "id", "TRIGGERS", True, 2),
+        ("EventRule", "arn", "SNSTopic", "arn", "PUBLISHES_TO", True, 1),
+        ("EventRule", "arn", "SQSQueue", "arn", "SENDS_TO", True, 1),
+        ("EventRule", "arn", "KinesisStream", "arn", "SENDS_TO", True, 1),
+        ("EventRule", "arn", "StepFunction", "arn", "EXECUTES", True, 1),
+        ("EventRule", "arn", "ECSCluster", "arn", "TARGETS", True, 1),
+        ("EventRule", "arn", "CodeBuildProject", "arn", "TRIGGERS_BUILD", True, 1),
+        ("EventRule", "arn", "CodePipeline", "arn", "STARTS_PIPELINE", True, 1),
+        ("EventRule", "arn", "AWSRole", "arn", "USES_ROLE", True, 4),
+    ]
 
-    expected_lambda_rels = set()
-    for rule_name, tgt_list in MOCK_EVENT_RULES_RESPONSE["Targets"].items():
-        for tgt in tgt_list:
-            if ":lambda:" in tgt["Arn"] and ":function:" in tgt["Arn"]:
-
-                rule_arn = next(
-                    r["Arn"]
-                    for r in MOCK_EVENT_RULES_RESPONSE["Rules"]
-                    if r["Name"] == rule_name
-                )
-                expected_lambda_rels.add((rule_arn, tgt["Arn"]))
-
-    assert (
-        check_rels(
+    for (
+        source_label,
+        source_field,
+        target_label,
+        target_field,
+        rel_type,
+        direction,
+        expected_count,
+    ) in relationship_tests:
+        rels = check_rels(
             neo4j_session,
-            "EventRule",
-            "arn",
-            "AWSLambda",
-            "id",
-            "TRIGGERS",
-            rel_direction_right=True,
+            source_label,
+            source_field,
+            target_label,
+            target_field,
+            rel_type,
+            rel_direction_right=direction,
         )
-        == expected_lambda_rels
-    )
+        assert (
+            len(rels) == expected_count
+        ), f"Expected {expected_count} {rel_type} relationships, got {len(rels)}"
+
+    rel_prop = neo4j_session.run(
+        """
+        MATCH (r:EventRule {name: 'hourly-batch-job'})-[rel:TRIGGERS]->(l:AWSLambda)
+        WHERE l.id = 'arn:aws:lambda:us-east-1:123456789012:function:ProcessBatchJob'
+        RETURN rel.target_id as target_id
+        """
+    ).single()
+    assert rel_prop["target_id"] == "1"
+
+    unknown_count = neo4j_session.run(
+        "MATCH (n) WHERE n.arn CONTAINS 'some-future-service' OR n.arn CONTAINS 'custom-service' RETURN count(n) as count"
+    ).single()["count"]
+    assert unknown_count == 0
+
+    disabled = neo4j_session.run(
+        "MATCH (r:EventRule {name: 'cross-account-events'}) RETURN r"
+    ).single()["r"]
+    assert disabled["state"] == "DISABLED"
+    assert disabled["event_bus_name"] == "custom-event-bus"
+    assert disabled["managed_by"] == "partner-service"
