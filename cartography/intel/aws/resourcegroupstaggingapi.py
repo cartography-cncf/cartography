@@ -56,6 +56,35 @@ def get_short_id_from_lb2_arn(alb_arn: str) -> str:
     return alb_arn.split("/")[-2]
 
 
+def get_resource_type_from_arn(arn: str) -> str:
+    """Return the resource type format expected by the Tagging API.
+
+    The Resource Groups Tagging API requires resource types in the form
+    ``service:resource``. Most ARNs embed the resource type in the fifth segment
+    after the service name. Load balancer ARNs add an extra ``app`` or ``net``
+    component that must be preserved. S3 and SQS ARNs only contain the service
+    name.  This helper extracts the appropriate string so that ARNs can be
+    grouped correctly for API calls.
+    """
+
+    parts = arn.split(":", 5)
+    service = parts[2]
+    if service in {"s3", "sqs"}:
+        return service
+
+    resource = parts[5]
+    if service == "elasticloadbalancing" and resource.startswith("loadbalancer/"):
+        segments = resource.split("/")
+        if len(segments) > 2 and segments[1] in {"app", "net"}:
+            resource_type = f"{segments[0]}/{segments[1]}"
+        else:
+            resource_type = segments[0]
+    else:
+        resource_type = resource.split("/")[0].split(":")[0]
+
+    return f"{service}:{resource_type}" if resource_type else service
+
+
 # We maintain a mapping from AWS resource types to their associated labels and unique identifiers.
 # label: the node label used in cartography for this resource type
 # property: the field of this node that uniquely identified this resource type
@@ -158,26 +187,22 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
 @aws_handle_regions
 def get_tags(
     boto3_session: boto3.session.Session,
-    resource_type: str,
+    resource_types: List[str],
     region: str,
 ) -> List[Dict]:
-    """
-    Create boto3 client and retrieve tag data.
-    """
-    # this is a temporary workaround to populate AWS tags for IAM roles.
-    # resourcegroupstaggingapi does not support IAM roles and no ETA is provided
-    # TODO: when resourcegroupstaggingapi supports iam:role, remove this condition block
-    if resource_type == "iam:role":
-        return get_role_tags(boto3_session)
+    """Retrieve tag data for the provided resource types."""
+    resources: List[Dict] = []
+
+    if "iam:role" in resource_types:
+        resources.extend(get_role_tags(boto3_session))
+        resource_types = [rt for rt in resource_types if rt != "iam:role"]
+
+    if not resource_types:
+        return resources
 
     client = boto3_session.client("resourcegroupstaggingapi", region_name=region)
     paginator = client.get_paginator("get_resources")
-    resources: List[Dict] = []
-    for page in paginator.paginate(
-        # Only ingest tags for resources that Cartography supports.
-        # This is just a starting list; there may be others supported by this API.
-        ResourceTypeFilters=[resource_type],
-    ):
+    for page in paginator.paginate(ResourceTypeFilters=resource_types):
         resources.extend(page["ResourceTagMappingList"])
     return resources
 
@@ -262,6 +287,26 @@ def compute_resource_id(tag_mapping: Dict, resource_type: str) -> str:
     return resource_id
 
 
+def _group_tag_data_by_resource_type(
+    tag_data: List[Dict],
+    tag_resource_type_mappings: Dict,
+) -> Dict[str, List[Dict]]:
+    """Group raw tag data by the resource types Cartography supports."""
+
+    grouped: Dict[str, List[Dict]] = {rtype: [] for rtype in tag_resource_type_mappings}
+    for mapping in tag_data:
+        rtype = get_resource_type_from_arn(mapping["ResourceARN"])
+        if rtype in grouped:
+            grouped[rtype].append(mapping)
+        else:
+            logger.debug(
+                "Unknown tag resource type %s from ARN %s",
+                rtype,
+                mapping["ResourceARN"],
+            )
+    return grouped
+
+
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     run_cleanup_job(
@@ -285,8 +330,14 @@ def sync(
         logger.info(
             f"Syncing AWS tags for account {current_aws_account_id} and region {region}",
         )
+        all_tag_data = get_tags(
+            boto3_session, list(tag_resource_type_mappings.keys()), region
+        )
+        grouped = _group_tag_data_by_resource_type(
+            all_tag_data, tag_resource_type_mappings
+        )
         for resource_type in tag_resource_type_mappings.keys():
-            tag_data = get_tags(boto3_session, resource_type, region)
+            tag_data = grouped.get(resource_type, [])
             transform_tags(tag_data, resource_type)  # type: ignore
             logger.info(
                 f"Loading {len(tag_data)} tags for resource type {resource_type}",
