@@ -4,7 +4,7 @@ from datetime import datetime
 LIST_DETECTORS = {
     "DetectorIds": [
         "12abc34d56e78f901234567890abcdef",
-        "98zyx76w54v32u109876543210zyxwvu"
+        "98zyx76w54v32u109876543210zyxwvu",
     ]
 }
 
@@ -12,8 +12,8 @@ LIST_DETECTORS = {
 LIST_FINDINGS = {
     "FindingIds": [
         "74b1234567890abcdef1234567890abcdef",
-        "85c2345678901bcdef2345678901bcdef0", 
-        "96d3456789012cdef3456789012cdef01"
+        "85c2345678901bcdef2345678901bcdef0",
+        "96d3456789012cdef3456789012cdef01",
     ]
 }
 
@@ -46,7 +46,7 @@ GET_FINDINGS = {
                     "ProductCodes": [],
                     "IamInstanceProfile": {
                         "Arn": "arn:aws:iam::123456789012:instance-profile/test-role",
-                        "Id": "AIPAI23HZ27SI6FQMGNQ2"
+                        "Id": "AIPAI23HZ27SI6FQMGNQ2",
                     },
                     "NetworkInterfaces": [
                         {
@@ -57,64 +57,45 @@ GET_FINDINGS = {
                             "PrivateIpAddresses": [
                                 {
                                     "PrivateDnsName": "ip-10-0-1-10.ec2.internal",
-                                    "PrivateIpAddress": "10.0.1.10"
+                                    "PrivateIpAddress": "10.0.1.10",
                                 }
                             ],
                             "PublicDnsName": "ec2-54-123-456-789.compute-1.amazonaws.com",
                             "PublicIp": "54.123.456.789",
                             "SecurityGroups": [
-                                {
-                                    "GroupId": "sg-12345678",
-                                    "GroupName": "default"
-                                }
+                                {"GroupId": "sg-12345678", "GroupName": "default"}
                             ],
                             "SubnetId": "subnet-12345678",
-                            "VpcId": "vpc-12345678"
+                            "VpcId": "vpc-12345678",
                         }
                     ],
-                    "Tags": [
-                        {
-                            "Key": "Name",
-                            "Value": "test-instance"
-                        }
-                    ]
-                }
+                    "Tags": [{"Key": "Name", "Value": "test-instance"}],
+                },
             },
             "Service": {
                 "Action": {
                     "ActionType": "NETWORK_CONNECTION",
                     "NetworkConnectionAction": {
                         "ConnectionDirection": "OUTBOUND",
-                        "LocalPortDetails": {
-                            "Port": 54321,
-                            "PortName": "Unknown"
-                        },
+                        "LocalPortDetails": {"Port": 54321, "PortName": "Unknown"},
                         "Protocol": "TCP",
                         "RemoteIpDetails": {
                             "IpAddressV4": "198.51.100.1",
                             "Country": {
                                 "CountryCode": "US",
-                                "CountryName": "United States"
+                                "CountryName": "United States",
                             },
-                            "City": {
-                                "CityName": "New York"
-                            },
-                            "GeoLocation": {
-                                "Lat": 40.7128,
-                                "Lon": -74.0060
-                            },
+                            "City": {"CityName": "New York"},
+                            "GeoLocation": {"Lat": 40.7128, "Lon": -74.0060},
                             "Organization": {
                                 "Asn": "12345",
                                 "AsnOrg": "Example ISP",
                                 "Isp": "Example ISP",
-                                "Org": "Example Organization"
-                            }
+                                "Org": "Example Organization",
+                            },
                         },
-                        "RemotePortDetails": {
-                            "Port": 80,
-                            "PortName": "HTTP"
-                        }
-                    }
+                        "RemotePortDetails": {"Port": 80, "PortName": "HTTP"},
+                    },
                 },
                 "Archived": False,
                 "Count": 5,
@@ -122,8 +103,8 @@ GET_FINDINGS = {
                 "EventFirstSeen": datetime(2023, 1, 15, 10, 30, 0),
                 "EventLastSeen": datetime(2023, 1, 15, 10, 45, 0),
                 "ResourceRole": "TARGET",
-                "ServiceName": "guardduty"
-            }
+                "ServiceName": "guardduty",
+            },
         },
         {
             "Id": "85c2345678901bcdef2345678901bcdef0",
@@ -149,34 +130,25 @@ GET_FINDINGS = {
                         "Name": "test-bucket",
                         "Type": "Destination",
                         "CreatedAt": datetime(2023, 1, 1, 0, 0, 0),
-                        "Owner": {
-                            "Id": "abcdef1234567890abcdef1234567890abcdef12"
-                        },
-                        "Tags": [
-                            {
-                                "Key": "Environment",
-                                "Value": "production"
-                            }
-                        ],
-                        "DefaultServerSideEncryption": {
-                            "EncryptionType": "SSE-S3"
-                        },
+                        "Owner": {"Id": "abcdef1234567890abcdef1234567890abcdef12"},
+                        "Tags": [{"Key": "Environment", "Value": "production"}],
+                        "DefaultServerSideEncryption": {"EncryptionType": "SSE-S3"},
                         "PublicAccess": {
                             "PermissionConfiguration": {
                                 "BucketLevelPermissions": {
                                     "AccessControlList": {
                                         "AllowsPublicReadAccess": False,
-                                        "AllowsPublicWriteAccess": False
+                                        "AllowsPublicWriteAccess": False,
                                     },
                                     "BucketPolicy": {
                                         "AllowsPublicReadAccess": False,
-                                        "AllowsPublicWriteAccess": False
-                                    }
+                                        "AllowsPublicWriteAccess": False,
+                                    },
                                 }
                             }
-                        }
+                        },
                     }
-                ]
+                ],
             },
             "Service": {
                 "Action": {
@@ -186,26 +158,18 @@ GET_FINDINGS = {
                         "CallerType": "Remote IP",
                         "RemoteIpDetails": {
                             "IpAddressV4": "203.0.113.5",
-                            "Country": {
-                                "CountryCode": "CA",
-                                "CountryName": "Canada"
-                            },
-                            "City": {
-                                "CityName": "Toronto"
-                            },
-                            "GeoLocation": {
-                                "Lat": 43.6532,
-                                "Lon": -79.3832
-                            },
+                            "Country": {"CountryCode": "CA", "CountryName": "Canada"},
+                            "City": {"CityName": "Toronto"},
+                            "GeoLocation": {"Lat": 43.6532, "Lon": -79.3832},
                             "Organization": {
                                 "Asn": "54321",
                                 "AsnOrg": "Example Canadian ISP",
                                 "Isp": "Example Canadian ISP",
-                                "Org": "Example Canadian Organization"
-                            }
+                                "Org": "Example Canadian Organization",
+                            },
                         },
-                        "ServiceName": "s3.amazonaws.com"
-                    }
+                        "ServiceName": "s3.amazonaws.com",
+                    },
                 },
                 "Archived": False,
                 "Count": 12,
@@ -213,8 +177,8 @@ GET_FINDINGS = {
                 "EventFirstSeen": datetime(2023, 1, 16, 14, 20, 0),
                 "EventLastSeen": datetime(2023, 1, 16, 14, 35, 0),
                 "ResourceRole": "TARGET",
-                "ServiceName": "guardduty"
-            }
+                "ServiceName": "guardduty",
+            },
         },
         {
             "Id": "96d3456789012cdef3456789012cdef01",
@@ -238,8 +202,8 @@ GET_FINDINGS = {
                     "AccessKeyId": "AKIAIOSFODNN7EXAMPLE",
                     "PrincipalId": "AIDACKCEVSQ6C2EXAMPLE",
                     "UserName": "GeneratedFindingUserName",
-                    "UserType": "IAMUser"
-                }
+                    "UserType": "IAMUser",
+                },
             },
             "Service": {
                 "Action": {
@@ -251,24 +215,19 @@ GET_FINDINGS = {
                             "IpAddressV4": "192.0.2.1",
                             "Country": {
                                 "CountryCode": "US",
-                                "CountryName": "United States"
+                                "CountryName": "United States",
                             },
-                            "City": {
-                                "CityName": "Seattle"
-                            },
-                            "GeoLocation": {
-                                "Lat": 47.6062,
-                                "Lon": -122.3321
-                            },
+                            "City": {"CityName": "Seattle"},
+                            "GeoLocation": {"Lat": 47.6062, "Lon": -122.3321},
                             "Organization": {
                                 "Asn": "16509",
                                 "AsnOrg": "AMAZON-02",
                                 "Isp": "Amazon.com Inc.",
-                                "Org": "Amazon.com Inc."
-                            }
+                                "Org": "Amazon.com Inc.",
+                            },
                         },
-                        "ServiceName": "iam.amazonaws.com"
-                    }
+                        "ServiceName": "iam.amazonaws.com",
+                    },
                 },
                 "Archived": False,
                 "Count": 3,
@@ -276,9 +235,9 @@ GET_FINDINGS = {
                 "EventFirstSeen": datetime(2023, 1, 17, 9, 15, 0),
                 "EventLastSeen": datetime(2023, 1, 17, 9, 30, 0),
                 "ResourceRole": "ACTOR",
-                "ServiceName": "guardduty"
-            }
-        }
+                "ServiceName": "guardduty",
+            },
+        },
     ]
 }
 
@@ -294,13 +253,11 @@ SAMPLE_FINDINGS = [
         "Confidence": 7.5,
         "Resource": {
             "ResourceType": "Instance",
-            "InstanceDetails": {
-                "InstanceId": "i-1234567890abcdef0"
-            }
-        }
+            "InstanceDetails": {"InstanceId": "i-1234567890abcdef0"},
+        },
     },
     {
-        "Id": "sample-finding-2", 
+        "Id": "sample-finding-2",
         "Arn": "arn:aws:guardduty:us-west-2:123456789012:detector/test/finding/sample-finding-2",
         "Type": "Discovery:S3/BucketEnumeration.Unusual",
         "Title": "Sample S3 finding",
@@ -308,11 +265,7 @@ SAMPLE_FINDINGS = [
         "Severity": 5.0,
         "Resource": {
             "ResourceType": "S3Bucket",
-            "S3BucketDetails": [
-                {
-                    "Name": "sample-test-bucket"
-                }
-            ]
-        }
-    }
-] 
+            "S3BucketDetails": [{"Name": "sample-test-bucket"}],
+        },
+    },
+]

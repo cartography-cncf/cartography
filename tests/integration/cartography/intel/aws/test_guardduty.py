@@ -5,7 +5,6 @@ import cartography.intel.aws.guardduty
 from cartography.intel.aws.guardduty import sync
 from tests.data.aws.guardduty import GET_FINDINGS
 from tests.data.aws.guardduty import LIST_DETECTORS
-from tests.data.aws.guardduty import LIST_FINDINGS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -16,14 +15,16 @@ TEST_UPDATE_TAG = 123456789
 
 
 @patch.object(
-    cartography.intel.aws.guardduty, "get_detectors", return_value=LIST_DETECTORS["DetectorIds"]
+    cartography.intel.aws.guardduty,
+    "get_detectors",
+    return_value=LIST_DETECTORS["DetectorIds"],
 )
 @patch.object(
-    cartography.intel.aws.guardduty, "get_findings", return_value=GET_FINDINGS["Findings"]
+    cartography.intel.aws.guardduty,
+    "get_findings",
+    return_value=GET_FINDINGS["Findings"],
 )
-def test_sync_guardduty_findings(
-    mock_get_findings, mock_get_detectors, neo4j_session
-):
+def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_session):
     """
     Test that GuardDuty findings are correctly synced to the graph and create proper relationships.
     """
@@ -40,7 +41,7 @@ def test_sync_guardduty_findings(
         instance_id="i-99999999",
         update_tag=TEST_UPDATE_TAG,
     )
-    
+
     neo4j_session.run(
         """
         MERGE (bucket:S3Bucket {id: $bucket_name})
@@ -69,7 +70,9 @@ def test_sync_guardduty_findings(
     }
 
     # Assert - Check that GuardDuty findings have the correct properties
-    assert check_nodes(neo4j_session, "GuardDutyFinding", ["id", "severity", "resource_type"]) == {
+    assert check_nodes(
+        neo4j_session, "GuardDutyFinding", ["id", "severity", "resource_type"]
+    ) == {
         ("74b1234567890abcdef1234567890abcdef", 8.0, "Instance"),
         ("85c2345678901bcdef2345678901bcdef0", 5.0, "S3Bucket"),
         ("96d3456789012cdef3456789012cdef01", 7.5, "AccessKey"),

@@ -2,7 +2,6 @@ from datetime import datetime
 
 from cartography.intel.aws.guardduty import transform_findings
 from tests.data.aws.guardduty import GET_FINDINGS
-from tests.data.aws.guardduty import SAMPLE_FINDINGS
 
 TEST_UPDATE_TAG = 123456789
 
@@ -12,10 +11,10 @@ def test_transform_findings():
     # Use the full mock API response data
     findings_data = GET_FINDINGS["Findings"]
     transformed = transform_findings(findings_data)
-    
+
     # Should transform 3 findings
     assert len(transformed) == 3
-    
+
     # Expected EC2 Instance finding
     expected_ec2_finding = {
         "id": "74b1234567890abcdef1234567890abcdef",
@@ -32,10 +31,10 @@ def test_transform_findings():
         "detectorid": "12abc34d56e78f901234567890abcdef",
         "archived": False,
         "resource_type": "Instance",
-        "resource_id": "i-99999999"
+        "resource_id": "i-99999999",
     }
     assert transformed[0] == expected_ec2_finding
-    
+
     # Expected S3 Bucket finding
     expected_s3_finding = {
         "id": "85c2345678901bcdef2345678901bcdef0",
@@ -52,10 +51,10 @@ def test_transform_findings():
         "detectorid": "12abc34d56e78f901234567890abcdef",
         "archived": False,
         "resource_type": "S3Bucket",
-        "resource_id": "test-bucket"
+        "resource_id": "test-bucket",
     }
     assert transformed[1] == expected_s3_finding
-    
+
     # Expected IAM AccessKey finding
     expected_iam_finding = {
         "id": "96d3456789012cdef3456789012cdef01",
@@ -72,7 +71,6 @@ def test_transform_findings():
         "detectorid": "12abc34d56e78f901234567890abcdef",
         "archived": False,
         "resource_type": "AccessKey",
-        "resource_id": None  # AccessKey doesn't have resource_id
+        "resource_id": None,  # AccessKey doesn't have resource_id
     }
     assert transformed[2] == expected_iam_finding
-
