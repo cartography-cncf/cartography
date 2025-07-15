@@ -162,11 +162,13 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
     # Verify get_findings was called with severity_threshold parameter
     mock_get_findings.assert_called()
 
-    # Verify the call included the severity_threshold parameter (as positional argument)
-    call_args = mock_get_findings.call_args
+    # Verify that only HIGH+ severity findings were synced to the graph
+    findings = neo4j_session.run(
+        "MATCH (f:GuardDutyFinding) RETURN f.severity as severity"
+    ).data()
+    assert all(
+        f["severity"] >= 7.0 for f in findings
+    ), "All findings should be HIGH+ severity (>= 7.0)"
     assert (
-        len(call_args.args) >= 4
-    ), f"Expected at least 4 positional args, got {len(call_args.args)}"
-    assert (
-        call_args.args[3] == "HIGH"
-    ), f"Expected severity_threshold='HIGH' as 4th arg, got {call_args.args}"
+        len(findings) == 2
+    ), f"Expected 2 HIGH+ severity findings, got {len(findings)}"

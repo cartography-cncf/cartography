@@ -140,7 +140,7 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     (:AWSAccount)-[:RESOURCE]->(:AWSGroup)
     ```
 
-### GuardDutyFinding
+### GuardDutyFinding::Risk
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
 
@@ -179,11 +179,6 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings may affect S3 Buckets
     ```cypher
     (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
-    ```
-
-- GuardDuty findings are labeled as security risks
-    ```cypher
-    (:GuardDutyFinding)-[]->(:Risk)
     ```
 
 ### AWSInspectorFinding
