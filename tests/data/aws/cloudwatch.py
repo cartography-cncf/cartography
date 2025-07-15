@@ -24,3 +24,34 @@ GET_CLOUDWATCH_LOG_GROUPS = [
         "logGroupArn": "arn:aws:logs:eu-west-1:123456789012:log-group:/aws/codebuild/sample-project",
     },
 ]
+
+GET_CLOUDWATCH_LOG_METRIC_FILTERS = [
+    {
+        "filterName": "LambdaErrorCount",
+        "logGroupName": "/aws/lambda/process-orders",
+        "filterPattern": "[timestamp=*Z, request_id=\"*-*\", event]",
+        "metricTransformations": [
+            {
+                "metricName": "ErrorCount",
+                "metricNamespace": "MyApp/Metrics",
+                "metricValue": "1",
+                "defaultValue": 0.0
+            }
+        ],
+        "creationTime": 1685549800000,
+    },
+    {
+        "filterName": "BuildDuration",
+        "logGroupName": "/aws/codebuild/sample-project",
+        "filterPattern": "[duration=*]",
+        "metricTransformations": [
+            {
+                "metricName": "BuildDuration",
+                "metricNamespace": "CodeBuild/Metrics",
+                "metricValue": "$duration",
+                "defaultValue": 0.0
+            }
+        ],
+        "creationTime": 1687650000000,
+    },
+]
