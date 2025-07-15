@@ -173,8 +173,7 @@ def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, An
 
 def _enrich_tasks_with_network_interface_id(tasks: list[dict[str, Any]]) -> None:
     """
-    Extract network interface ID from task attachments for tasks with awsvpc network mode.
-    Modifies tasks in-place by adding networkInterfaceId field.
+    Extract network interface ID from task attachments.
     """
     for task in tasks:
         for attachment in task.get("attachments", []):
