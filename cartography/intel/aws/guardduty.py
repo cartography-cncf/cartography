@@ -224,14 +224,13 @@ def sync(
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict,
-    severity_threshold: str | None = None,
 ) -> None:
     """
     Sync GuardDuty findings for all regions.
-
-    :param severity_threshold: Optional severity threshold filter (LOW, MEDIUM, HIGH, CRITICAL).
-                             Only findings at or above this level will be synced.
+    Severity threshold filter is obtained from common_job_parameters.
     """
+    # Get severity threshold from common job parameters
+    severity_threshold = common_job_parameters.get("aws_guardduty_severity_threshold")
     for region in regions:
         logger.info(
             f"Syncing GuardDuty findings for {region} in account {current_aws_account_id}"

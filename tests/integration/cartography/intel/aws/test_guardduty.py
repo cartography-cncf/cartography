@@ -86,8 +86,11 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-        severity_threshold="HIGH",
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACCOUNT_ID,
+            "aws_guardduty_severity_threshold": "HIGH",
+        },
     )
 
     # Assert - Check that only HIGH severity findings were created (excluding MEDIUM severity 5.0 finding)
