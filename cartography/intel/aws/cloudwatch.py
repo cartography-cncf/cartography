@@ -62,13 +62,13 @@ def transform_metric_filters(
     for filter in metric_filters:
         transformed_filter = {
             "id": f"{filter['logGroupName']}:{filter['filterName']}",
-            "arn": filter["filterName"],
-            "filter_name": filter["filterName"],
-            "filter_pattern": filter.get("filterPattern"),
-            "log_group_name": filter["logGroupName"],
-            "metric_name": filter["metricTransformations"][0]["metricName"],
-            "metric_namespace": filter["metricTransformations"][0]["metricNamespace"],
-            "metric_value": filter["metricTransformations"][0]["metricValue"],
+            "arn": f"{filter['logGroupName']}:{filter['filterName']}",
+            "filterName": filter["filterName"],
+            "filterPattern": filter.get("filterPattern"),
+            "logGroupName": filter["logGroupName"],
+            "metricName": filter["metricTransformations"][0]["metricName"],
+            "metricNamespace": filter["metricTransformations"][0]["metricNamespace"],
+            "metricValue": filter["metricTransformations"][0]["metricValue"],
             "Region": region,
         }
         transformed_filters.append(transformed_filter)

@@ -822,7 +822,7 @@ Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | id | Ensures that the id field is a unique combination of logGroupName and filterName |
-| arn | The name of the metric filter |
+| arn | Ensures that the arn field is a unique combination of logGroupName and filterName |
 | region | The region of the CloudWatch Log Metric Filter |
 | filter_name | The name of the filter pattern used to extract metric data from log events |
 | filter_pattern | The pattern used to extract metric data from CloudWatch log events |

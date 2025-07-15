@@ -44,7 +44,9 @@ class CloudWatchLogMetricFilterToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudWatchLogMetricFilterToCloudWatchLogGroupRelProperties(CartographyRelProperties):
+class CloudWatchLogMetricFilterToCloudWatchLogGroupRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -52,7 +54,7 @@ class CloudWatchLogMetricFilterToCloudWatchLogGroupRelProperties(CartographyRelP
 class CloudWatchLogMetricFilterToCloudWatchLogGroupRel(CartographyRelSchema):
     target_node_label: str = "CloudWatchLogGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"log_group_name": PropertyRef("log_group_name")},
+        {"log_group_name": PropertyRef("logGroupName")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "METRIC_FILTER_OF"
@@ -64,7 +66,9 @@ class CloudWatchLogMetricFilterToCloudWatchLogGroupRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudWatchLogMetricFilterSchema(CartographyNodeSchema):
     label: str = "CloudWatchLogMetricFilter"
-    properties: CloudWatchLogMetricFilterNodeProperties = CloudWatchLogMetricFilterNodeProperties()
+    properties: CloudWatchLogMetricFilterNodeProperties = (
+        CloudWatchLogMetricFilterNodeProperties()
+    )
     sub_resource_relationship: CloudWatchLogMetricFilterToAWSAccountRel = (
         CloudWatchLogMetricFilterToAWSAccountRel()
     )
