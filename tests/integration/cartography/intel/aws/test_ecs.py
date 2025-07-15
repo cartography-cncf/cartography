@@ -240,6 +240,53 @@ def test_load_ecs_tasks(neo4j_session, *args):
         assert n["c"] == 1
 
 
+def test_ecs_task_network_interface_relationship(neo4j_session):
+    """Test that ECS tasks with network interface attachments create proper NETWORK_INTERFACE relationships."""
+    # Arrange
+    neo4j_session.run(
+        """
+        MERGE (ni:NetworkInterface{id: $NetworkInterfaceId})
+        ON CREATE SET ni.firstseen = timestamp()
+        SET ni.lastupdated = $aws_update_tag
+        """,
+        NetworkInterfaceId="eni-00000000000000000",
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+    
+    import copy
+    task_data = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASKS)
+    cartography.intel.aws.ecs._enrich_tasks_with_network_interface_id(task_data)
+    
+    # Act
+    cartography.intel.aws.ecs.load_ecs_tasks(
+        neo4j_session,
+        CLUSTER_ARN,
+        task_data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    
+    # Assert
+    nodes = neo4j_session.run(
+        """
+        MATCH (t:ECSTask)-[:NETWORK_INTERFACE]->(ni:NetworkInterface)
+        RETURN t.id as task_id, ni.id as ni_id
+        """,
+    )
+    actual_relationships = {
+        (n["task_id"], n["ni_id"])
+        for n in nodes
+    }
+    expected_relationships = {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
+            "eni-00000000000000000",
+        ),
+    }
+    assert actual_relationships == expected_relationships
+
+
 def test_load_ecs_task_definitions(neo4j_session, *args):
     # Arrange
     data = tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS

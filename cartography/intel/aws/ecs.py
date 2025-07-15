@@ -159,6 +159,8 @@ def get_ecs_tasks(
             tasks=task_arn_chunk,
         )
         tasks.extend(task_chunk.get("tasks", []))
+    
+    _enrich_tasks_with_network_interface_id(tasks)
     return tasks
 
 
@@ -167,6 +169,22 @@ def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, An
     for task in tasks:
         containers.extend(task.get("containers", []))
     return containers
+
+
+def _enrich_tasks_with_network_interface_id(tasks: list[dict[str, Any]]) -> None:
+    """
+    Extract network interface ID from task attachments for tasks with awsvpc network mode.
+    Modifies tasks in-place by adding networkInterfaceId field.
+    """
+    for task in tasks:
+        for attachment in task.get("attachments", []):
+            if attachment.get("type") == "ElasticNetworkInterface":
+                details = attachment.get("details", [])
+                for detail in details:
+                    if detail.get("name") == "networkInterfaceId":
+                        task["networkInterfaceId"] = detail.get("value")
+                        break
+                break
 
 
 @timeit
