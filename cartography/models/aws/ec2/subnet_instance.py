@@ -16,6 +16,7 @@ class EC2SubnetInstanceNodeProperties(CartographyNodeProperties):
     # arn: PropertyRef = PropertyRef('Arn', extra_index=True) TODO use arn; issue #1024
     id: PropertyRef = PropertyRef("SubnetId")
     subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
+    subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

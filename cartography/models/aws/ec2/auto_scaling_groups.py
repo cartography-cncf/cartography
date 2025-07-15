@@ -137,6 +137,7 @@ class EC2SubnetToAutoScalingGroupRel(CartographyRelSchema):
 class EC2SubnetAutoScalingGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("VPCZoneIdentifier")
     subnetid: PropertyRef = PropertyRef("VPCZoneIdentifier", extra_index=True)
+    subnet_id: PropertyRef = PropertyRef("VPCZoneIdentifier", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

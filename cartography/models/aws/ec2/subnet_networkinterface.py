@@ -17,6 +17,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class EC2SubnetNetworkInterfaceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("SubnetId")
     subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
+    subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
