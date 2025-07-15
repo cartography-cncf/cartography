@@ -159,7 +159,7 @@ def get_ecs_tasks(
             tasks=task_arn_chunk,
         )
         tasks.extend(task_chunk.get("tasks", []))
-    
+
     _enrich_tasks_with_network_interface_id(tasks)
     return tasks
 

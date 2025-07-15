@@ -252,11 +252,12 @@ def test_ecs_task_network_interface_relationship(neo4j_session):
         NetworkInterfaceId="eni-00000000000000000",
         aws_update_tag=TEST_UPDATE_TAG,
     )
-    
+
     import copy
+
     task_data = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASKS)
     cartography.intel.aws.ecs._enrich_tasks_with_network_interface_id(task_data)
-    
+
     # Act
     cartography.intel.aws.ecs.load_ecs_tasks(
         neo4j_session,
@@ -266,7 +267,7 @@ def test_ecs_task_network_interface_relationship(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    
+
     # Assert
     nodes = neo4j_session.run(
         """
@@ -274,10 +275,7 @@ def test_ecs_task_network_interface_relationship(neo4j_session):
         RETURN t.id as task_id, ni.id as ni_id
         """,
     )
-    actual_relationships = {
-        (n["task_id"], n["ni_id"])
-        for n in nodes
-    }
+    actual_relationships = {(n["task_id"], n["ni_id"]) for n in nodes}
     expected_relationships = {
         (
             "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",

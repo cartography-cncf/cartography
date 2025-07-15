@@ -114,7 +114,9 @@ class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "NETWORK_INTERFACE"
-    properties: ECSTaskToNetworkInterfaceRelProperties = ECSTaskToNetworkInterfaceRelProperties()
+    properties: ECSTaskToNetworkInterfaceRelProperties = (
+        ECSTaskToNetworkInterfaceRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -123,5 +125,9 @@ class ECSTaskSchema(CartographyNodeSchema):
     properties: ECSTaskNodeProperties = ECSTaskNodeProperties()
     sub_resource_relationship: ECSTaskToAWSAccountRel = ECSTaskToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [ECSTaskToContainerInstanceRel(), ECSTaskToECSClusterRel(), ECSTaskToNetworkInterfaceRel()]
+        [
+            ECSTaskToContainerInstanceRel(),
+            ECSTaskToECSClusterRel(),
+            ECSTaskToNetworkInterfaceRel(),
+        ]
     )
