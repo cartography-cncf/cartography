@@ -52,7 +52,7 @@ class Config:
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
     :type aws_guardduty_severity_threshold: str
-    :param aws_guardduty_severity_threshold: GuardDuty severity threshold filter. Only findings at or above this 
+    :param aws_guardduty_severity_threshold: GuardDuty severity threshold filter. Only findings at or above this
         severity level will be synced. Valid values: LOW, MEDIUM, HIGH, CRITICAL. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.

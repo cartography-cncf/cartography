@@ -1,9 +1,3 @@
-from datetime import datetime
-from unittest.mock import MagicMock
-from unittest.mock import patch
-
-import boto3
-
 from cartography.intel.aws.guardduty import transform_findings
 from tests.data.aws.guardduty import EXPECTED_TRANSFORM_RESULTS
 from tests.data.aws.guardduty import GET_FINDINGS
@@ -31,4 +25,3 @@ def test_transform_findings():
     # Expected IAM AccessKey finding
     expected_iam_finding = EXPECTED_TRANSFORM_RESULTS[2]
     assert transformed[2] == expected_iam_finding
-

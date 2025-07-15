@@ -15,25 +15,28 @@ TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-def mock_get_findings_with_severity_filter(boto3_session, region, detector_id, severity_threshold=None):
+def mock_get_findings_with_severity_filter(
+    boto3_session, region, detector_id, severity_threshold=None
+):
     """Mock get_findings that actually filters by severity threshold like the real implementation."""
     all_findings = GET_FINDINGS["Findings"]
-    
+
     if not severity_threshold:
         return all_findings
-    
+
     # Use the same filtering logic as the real implementation
     severity_range = _get_severity_range_for_threshold(severity_threshold)
     if not severity_range:
         return all_findings
-    
+
     # Convert to float before finding minimum to get correct numeric comparison
     min_severity = min(float(s) for s in severity_range)
     filtered_findings = [
-        finding for finding in all_findings 
+        finding
+        for finding in all_findings
         if finding["Severity"] >= min_severity and not finding.get("Archived", False)
     ]
-    
+
     return filtered_findings
 
 
@@ -90,11 +93,11 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
     # Assert - Check that only HIGH severity findings were created (excluding MEDIUM severity 5.0 finding)
     assert check_nodes(neo4j_session, "GuardDutyFinding", ["id"]) == {
         ("74b1234567890abcdef1234567890abcdef",),  # Severity 8.0 (HIGH)
-        ("96d3456789012cdef3456789012cdef01",),    # Severity 7.5 (HIGH)
+        ("96d3456789012cdef3456789012cdef01",),  # Severity 7.5 (HIGH)
         # Note: 85c2345678901bcdef2345678901bcdef0 (severity 5.0) should be excluded
     }
 
-    # Assert - Check that synced findings have the correct properties  
+    # Assert - Check that synced findings have the correct properties
     assert check_nodes(
         neo4j_session, "GuardDutyFinding", ["id", "severity", "resource_type"]
     ) == {
@@ -149,12 +152,18 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         "AFFECTS",
         rel_direction_right=True,
     )
-    assert s3_relationships == set(), f"Expected no S3 relationships with HIGH threshold, but found: {s3_relationships}"
+    assert (
+        s3_relationships == set()
+    ), f"Expected no S3 relationships with HIGH threshold, but found: {s3_relationships}"
 
     # Verify get_findings was called with severity_threshold parameter
     mock_get_findings.assert_called()
-    
+
     # Verify the call included the severity_threshold parameter (as positional argument)
     call_args = mock_get_findings.call_args
-    assert len(call_args.args) >= 4, f"Expected at least 4 positional args, got {len(call_args.args)}"
-    assert call_args.args[3] == "HIGH", f"Expected severity_threshold='HIGH' as 4th arg, got {call_args.args}"
+    assert (
+        len(call_args.args) >= 4
+    ), f"Expected at least 4 positional args, got {len(call_args.args)}"
+    assert (
+        call_args.args[3] == "HIGH"
+    ), f"Expected severity_threshold='HIGH' as 4th arg, got {call_args.args}"
