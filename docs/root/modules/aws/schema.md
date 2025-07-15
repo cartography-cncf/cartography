@@ -239,6 +239,8 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 |sourcelambdalayerarn|ARN of the AWS Lambda function affected|
 |fixedinversion|Version the related finding was fixed in|
 |remediation|Remediation steps|
+|_sub_resource_label|Resource label to do relationships clean-up. Always `AWSAccount`
+|_sub_resource_id|Resource id to do relationships clean-up. Always ID of the AWS `RESOURCE` account.
 
 
 - AWSInspectorPackages belong to AWSAccounts.
