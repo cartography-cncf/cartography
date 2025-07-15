@@ -229,7 +229,7 @@ class InspectorFindingToPackageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
-    
+
     # Business properties from the vulnerable package data
     filepath: PropertyRef = PropertyRef("filePath")
     fixedinversion: PropertyRef = PropertyRef("fixedInVersion")
