@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.guardduty
+from cartography.intel.aws.guardduty import _get_severity_range_for_threshold
 from cartography.intel.aws.guardduty import sync
 from tests.data.aws.guardduty import GET_FINDINGS
 from tests.data.aws.guardduty import LIST_DETECTORS
@@ -14,6 +15,28 @@ TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
+def mock_get_findings_with_severity_filter(boto3_session, region, detector_id, severity_threshold=None):
+    """Mock get_findings that actually filters by severity threshold like the real implementation."""
+    all_findings = GET_FINDINGS["Findings"]
+    
+    if not severity_threshold:
+        return all_findings
+    
+    # Use the same filtering logic as the real implementation
+    severity_range = _get_severity_range_for_threshold(severity_threshold)
+    if not severity_range:
+        return all_findings
+    
+    # Convert to float before finding minimum to get correct numeric comparison
+    min_severity = min(float(s) for s in severity_range)
+    filtered_findings = [
+        finding for finding in all_findings 
+        if finding["Severity"] >= min_severity and not finding.get("Archived", False)
+    ]
+    
+    return filtered_findings
+
+
 @patch.object(
     cartography.intel.aws.guardduty,
     "get_detectors",
@@ -22,11 +45,12 @@ TEST_UPDATE_TAG = 123456789
 @patch.object(
     cartography.intel.aws.guardduty,
     "get_findings",
-    return_value=GET_FINDINGS["Findings"],
+    side_effect=mock_get_findings_with_severity_filter,
 )
 def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_session):
     """
     Test that GuardDuty findings are correctly synced to the graph and create proper relationships.
+    Also tests severity threshold filtering functionality.
     """
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
@@ -52,7 +76,7 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         update_tag=TEST_UPDATE_TAG,
     )
 
-    # Act
+    # Act - Test severity threshold functionality (HIGH threshold = severity >= 7.0)
     sync(
         neo4j_session,
         boto3_session,
@@ -60,25 +84,26 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+        severity_threshold="HIGH",
     )
 
-    # Assert - Check that GuardDuty findings were created
+    # Assert - Check that only HIGH severity findings were created (excluding MEDIUM severity 5.0 finding)
     assert check_nodes(neo4j_session, "GuardDutyFinding", ["id"]) == {
-        ("74b1234567890abcdef1234567890abcdef",),
-        ("85c2345678901bcdef2345678901bcdef0",),
-        ("96d3456789012cdef3456789012cdef01",),
+        ("74b1234567890abcdef1234567890abcdef",),  # Severity 8.0 (HIGH)
+        ("96d3456789012cdef3456789012cdef01",),    # Severity 7.5 (HIGH)
+        # Note: 85c2345678901bcdef2345678901bcdef0 (severity 5.0) should be excluded
     }
 
-    # Assert - Check that GuardDuty findings have the correct properties
+    # Assert - Check that synced findings have the correct properties  
     assert check_nodes(
         neo4j_session, "GuardDutyFinding", ["id", "severity", "resource_type"]
     ) == {
         ("74b1234567890abcdef1234567890abcdef", 8.0, "Instance"),
-        ("85c2345678901bcdef2345678901bcdef0", 5.0, "S3Bucket"),
         ("96d3456789012cdef3456789012cdef01", 7.5, "AccessKey"),
+        # Note: S3Bucket finding with severity 5.0 excluded by HIGH threshold
     }
 
-    # Assert - Check that GuardDuty findings are connected to the AWSAccount
+    # Assert - Check that HIGH severity findings are connected to the AWSAccount
     assert check_rels(
         neo4j_session,
         "AWSAccount",
@@ -89,15 +114,15 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         rel_direction_right=True,
     ) == {
         (TEST_ACCOUNT_ID, "74b1234567890abcdef1234567890abcdef"),
-        (TEST_ACCOUNT_ID, "85c2345678901bcdef2345678901bcdef0"),
         (TEST_ACCOUNT_ID, "96d3456789012cdef3456789012cdef01"),
+        # Note: MEDIUM severity finding excluded
     }
 
-    # Assert - Check that GuardDuty findings have the Risk label
+    # Assert - Check that HIGH severity findings have the Risk label
     assert check_nodes(neo4j_session, "Risk", ["id"]) == {
         ("74b1234567890abcdef1234567890abcdef",),
-        ("85c2345678901bcdef2345678901bcdef0",),
         ("96d3456789012cdef3456789012cdef01",),
+        # Note: MEDIUM severity finding excluded
     }
 
     # Assert - Check that GuardDuty finding is connected to the EC2 instance
@@ -113,8 +138,9 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         ("74b1234567890abcdef1234567890abcdef", "i-99999999"),
     }
 
-    # Assert - Check that GuardDuty finding is connected to the S3 bucket
-    assert check_rels(
+    # Assert - Verify that the MEDIUM severity S3 finding was filtered out
+    # (No AFFECTS relationship to S3 bucket should exist)
+    s3_relationships = check_rels(
         neo4j_session,
         "GuardDutyFinding",
         "id",
@@ -122,6 +148,13 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         "id",
         "AFFECTS",
         rel_direction_right=True,
-    ) == {
-        ("85c2345678901bcdef2345678901bcdef0", "test-bucket"),
-    }
+    )
+    assert s3_relationships == set(), f"Expected no S3 relationships with HIGH threshold, but found: {s3_relationships}"
+
+    # Verify get_findings was called with severity_threshold parameter
+    mock_get_findings.assert_called()
+    
+    # Verify the call included the severity_threshold parameter (as positional argument)
+    call_args = mock_get_findings.call_args
+    assert len(call_args.args) >= 4, f"Expected at least 4 positional args, got {len(call_args.args)}"
+    assert call_args.args[3] == "HIGH", f"Expected severity_threshold='HIGH' as 4th arg, got {call_args.args}"

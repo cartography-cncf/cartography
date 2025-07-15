@@ -20,6 +20,36 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 
+def _get_severity_range_for_threshold(severity_threshold: str | None) -> List[str] | None:
+    """
+    Convert severity threshold string to GuardDuty numeric severity range.
+    
+    GuardDuty severity mappings:
+    - LOW: 1.0-3.9
+    - MEDIUM: 4.0-6.9  
+    - HIGH: 7.0-8.9
+    - CRITICAL: 9.0-10.0
+    
+    :param severity_threshold: Severity threshold (LOW, MEDIUM, HIGH, CRITICAL)
+    :return: List of numeric severity ranges to include, or None for no filtering
+    """
+    if not severity_threshold:
+        return None
+    
+    threshold_upper = severity_threshold.upper().strip() 
+    
+    # Map threshold to numeric ranges - include threshold level and above
+    if threshold_upper == "LOW":
+        return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]  # All severities
+    elif threshold_upper == "MEDIUM":
+        return ["4", "5", "6", "7", "8", "9", "10"]  # MEDIUM and above
+    elif threshold_upper == "HIGH":
+        return ["7", "8", "9", "10"]  # HIGH and CRITICAL only
+    elif threshold_upper == "CRITICAL":
+        return ["9", "10"]  # CRITICAL only
+    else:
+        return None
+        
 @aws_handle_regions
 def get_detectors(
     boto3_session: boto3.session.Session,
@@ -41,21 +71,48 @@ def get_detectors(
     logger.info(f"Found {len(detector_ids)} GuardDuty detectors in region {region}")
     return detector_ids
 
-
+@aws_handle_regions
 @timeit
 def get_findings(
     boto3_session: boto3.session.Session,
     region: str,
     detector_id: str,
+    severity_threshold: str | None = None,
 ) -> List[Dict[str, Any]]:
     """
     Get GuardDuty findings for a specific detector.
+    Only fetches unarchived findings to avoid including closed/resolved findings.
+    Optionally filters by severity threshold.
     """
     client = boto3_session.client("guardduty", region_name=region)
 
-    # Get all finding IDs for this detector
+    # Build FindingCriteria - always exclude archived findings
+    criteria = {
+        "service.archived": {
+            "Equals": ["false"]
+        }
+    }
+    
+    # Add severity filtering if threshold is provided
+    severity_range = _get_severity_range_for_threshold(severity_threshold)
+    if severity_range:
+        min_severity = min(float(s) for s in severity_range) # get min severity from range
+        # I chose to ignore the type error here  because the AWS API has fields that require different types
+        criteria["severity"] = {  # type: ignore 
+            "GreaterThanOrEqual": int(min_severity)
+        }
+    
+    # Get all finding IDs for this detector with filtering
     finding_ids = list(
-        aws_paginate(client, "list_findings", "FindingIds", DetectorId=detector_id)
+        aws_paginate(
+            client, 
+            "list_findings", 
+            "FindingIds", 
+            DetectorId=detector_id,
+            FindingCriteria={
+                "Criterion": criteria
+            }
+        )
     )
 
     if not finding_ids:
@@ -169,9 +226,13 @@ def sync(
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict,
+    severity_threshold: str | None = None,
 ) -> None:
     """
     Sync GuardDuty findings for all regions.
+    
+    :param severity_threshold: Optional severity threshold filter (LOW, MEDIUM, HIGH, CRITICAL).
+                             Only findings at or above this level will be synced.
     """
     for region in regions:
         logger.info(
@@ -189,7 +250,7 @@ def sync(
 
         # Get findings for each detector
         for detector_id in detector_ids:
-            findings = get_findings(boto3_session, region, detector_id)
+            findings = get_findings(boto3_session, region, detector_id, severity_threshold)
             all_findings.extend(findings)
 
         transformed_findings = transform_findings(all_findings)

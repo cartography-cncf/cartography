@@ -55,6 +55,7 @@ def _sync_one_account(
     common_job_parameters: Dict[str, Any],
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
+    aws_guardduty_severity_threshold: str | None = None,
 ) -> None:
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
@@ -76,7 +77,14 @@ def _sync_one_account(
                 "permission_relationships",
                 "resourcegroupstaggingapi",
             ]:
-                RESOURCE_FUNCTIONS[func_name](**sync_args)
+                # Handle GuardDuty specially to pass severity threshold parameter
+                if func_name == "guardduty":
+                    RESOURCE_FUNCTIONS[func_name](
+                        **sync_args,
+                        severity_threshold=aws_guardduty_severity_threshold,
+                    )
+                else:
+                    RESOURCE_FUNCTIONS[func_name](**sync_args)
             else:
                 continue
         else:
@@ -178,6 +186,7 @@ def _sync_multiple_accounts(
     aws_best_effort_mode: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
+    aws_guardduty_severity_threshold: str | None = None,
 ) -> bool:
     logger.info("Syncing AWS accounts: %s", ", ".join(accounts.values()))
     organizations.sync(neo4j_session, accounts, sync_tag, common_job_parameters)
@@ -217,6 +226,7 @@ def _sync_multiple_accounts(
                 common_job_parameters,
                 regions=regions,
                 aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
+                aws_guardduty_severity_threshold=aws_guardduty_severity_threshold,
             )
         except Exception as e:
             if aws_best_effort_mode:
@@ -365,6 +375,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.aws_best_effort_mode,
         requested_syncs,
         regions=regions,
+        aws_guardduty_severity_threshold=config.aws_guardduty_severity_threshold,
     )
 
     if sync_successful:
