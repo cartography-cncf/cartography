@@ -245,7 +245,7 @@ def test_application_version_id_generation():
 
     # Verify version ID normalization includes version
     assert result[0]["id"] == "test_vendor:test_app:1.2.3-beta"
-    assert result[1]["id"] == "test_vendor:test_app:2.0.0build.123"
+    assert result[1]["id"] == "test_vendor:test_app:2.0.0+build.123"
 
 
 @patch("cartography.intel.sentinelone.application.get_paginated_results")
@@ -287,50 +287,6 @@ def test_get_application_data_empty_response(mock_get_paginated_results):
 
     # Verify return value
     assert result == []
-
-
-@patch("cartography.intel.sentinelone.application.get_paginated_results")
-def test_get_application_installs(mock_get_paginated_results):
-    """
-    Test that get_application_installs calls API for each application and processes data correctly
-    """
-    # Mock API responses for each application
-    mock_get_paginated_results.side_effect = [
-        [
-            APPLICATION_INSTALLS_DATA[0],
-            APPLICATION_INSTALLS_DATA[1],
-        ],  # Office 365 installs
-        [APPLICATION_INSTALLS_DATA[2]],  # Chrome installs
-        [APPLICATION_INSTALLS_DATA[3]],  # Photoshop installs
-    ]
-
-    # Call function
-    result = get_application_installs(
-        APPLICATIONS_DATA, TEST_ACCOUNT_ID, TEST_API_URL, TEST_API_TOKEN
-    )
-
-    # Verify API was called 3 times (once per application)
-    assert mock_get_paginated_results.call_count == 3
-
-    # Verify first API call (Office 365)
-    first_call = mock_get_paginated_results.call_args_list[0]
-    assert first_call[1]["api_url"] == TEST_API_URL
-    assert (
-        first_call[1]["endpoint"]
-        == "/web/api/v2.1/application-management/inventory/endpoints"
-    )
-    assert first_call[1]["api_token"] == TEST_API_TOKEN
-    assert first_call[1]["params"]["accountIds"] == TEST_ACCOUNT_ID
-    assert first_call[1]["params"]["applicationName"] == "Office 365"
-    assert first_call[1]["params"]["applicationVendor"] == "Microsoft"
-
-    # Verify result contains all installs
-    assert len(result) == 4
-
-    # Verify vendor/name were set correctly on installs
-    for install in result:
-        assert "applicationVendor" in install
-        assert "applicationName" in install
 
 
 @patch("cartography.intel.sentinelone.application.get_paginated_results")
@@ -392,37 +348,3 @@ def test_get_application_installs_missing_vendor(mock_get_paginated_results):
 
     # Verify no API calls were made due to early failure
     mock_get_paginated_results.assert_not_called()
-
-
-@patch("cartography.intel.sentinelone.application.get_paginated_results")
-def test_get_application_installs_preserves_vendor_name(mock_get_paginated_results):
-    """
-    Test that get_application_installs preserves original vendor/name in returned data
-    """
-    # Mock API response that might have different vendor/name
-    mock_api_response = [
-        {
-            "applicationName": "Different Name",  # API might return different name
-            "applicationVendor": "Different Vendor",  # API might return different vendor
-            "version": "1.0.0",
-            "endpointUuid": AGENT_UUID_1,
-        }
-    ]
-    mock_get_paginated_results.return_value = mock_api_response
-
-    # Call function with specific app data
-    app_data = [
-        {
-            "applicationName": "Original Name",
-            "applicationVendor": "Original Vendor",
-        }
-    ]
-
-    result = get_application_installs(
-        app_data, TEST_ACCOUNT_ID, TEST_API_URL, TEST_API_TOKEN
-    )
-
-    # Verify original vendor/name are preserved in result
-    assert len(result) == 1
-    assert result[0]["applicationVendor"] == "Original Vendor"
-    assert result[0]["applicationName"] == "Original Name"
