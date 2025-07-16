@@ -42,8 +42,8 @@ class S1ApplicationVersionToAccount(CartographyRelSchema):
 @dataclass(frozen=True)
 class S1AgentToApplicationVersionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    installed_dt: PropertyRef = PropertyRef("installed_dt")
-    installation_path: PropertyRef = PropertyRef("installation_path")
+    installeddatetime: PropertyRef = PropertyRef("installed_dt")
+    installationpath: PropertyRef = PropertyRef("installation_path")
 
 
 @dataclass(frozen=True)

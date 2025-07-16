@@ -128,8 +128,8 @@ Represents a specific version of an application installed on SentinelOne agents.
 
     | Property | Description |
     |----------|-------------|
-    | installed_dt | ISO 8601 timestamp of when the application was installed |
-    | installation_path | The file system path where the application is installed |
+    | installeddatetime | ISO 8601 timestamp of when the application was installed |
+    | installationpath | The file system path where the application is installed |
 
 - A S1ApplicationVersion belongs to a S1Application.
 
