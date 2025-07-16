@@ -45,7 +45,7 @@ def load_subnets(
 
     ingest_subnets = """
     UNWIND $subnets as subnet
-    MERGE (snet:EC2Subnet{id: subnet.SubnetId})
+    MERGE (snet:EC2Subnet{subnetid: subnet.SubnetId})
     ON CREATE SET snet.firstseen = timestamp()
     SET snet.lastupdated = $aws_update_tag,
         snet.name = subnet.CidrBlock,
@@ -59,7 +59,6 @@ def load_subnets(
         snet.subnet_arn = subnet.SubnetArn,
         snet.availability_zone = subnet.AvailabilityZone,
         snet.availability_zone_id = subnet.AvailabilityZoneId,
-        snet.subnetid = subnet.SubnetId,
         snet.subnet_id = subnet.SubnetId
     """
 
