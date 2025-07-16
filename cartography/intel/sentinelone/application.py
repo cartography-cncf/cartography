@@ -91,7 +91,6 @@ def get_application_installs(
     return application_installs
 
 
-@timeit
 def transform_applications(
     applications_list: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -115,7 +114,6 @@ def transform_applications(
     return transformed_data
 
 
-@timeit
 def transform_application_versions(
     application_installs_list: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
