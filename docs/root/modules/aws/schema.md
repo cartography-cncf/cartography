@@ -821,6 +821,32 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
     ```
 
+### CloudWatchLogMetricFilter
+Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeMetricFilters.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | Ensures that the id field is a unique combination of logGroupName and filterName |
+| arn | Ensures that the arn field is a unique combination of logGroupName and filterName |
+| region | The region of the CloudWatch Log Metric Filter |
+| filter_name | The name of the filter pattern used to extract metric data from log events |
+| filter_pattern | The pattern used to extract metric data from CloudWatch log events |
+| log_group_name | The name of the log group to which this metric filter is applied |
+| metric_name | The name of the metric emitted by this filter |
+| metric_namespace | The namespace of the metric emitted by this filter |
+| metric_value | The value to publish to the CloudWatch metric when a log event matches the filter pattern |
+#### Relationships
+- CLoudWatch Log Metric Filters are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchLogMetricFilter)
+    ```
+- CloudWatchLogMetricFilter associated with CloudWatchLogGroup via the METRIC_FILTER_OF relationship
+    ```
+    (CloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(CloudWatchLogGroup)
+    ```
+
 ### CodeBuildProject
 Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
 
