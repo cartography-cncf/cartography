@@ -3346,8 +3346,14 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 | task\_definition\_arn | The ARN of the task definition that creates the task. |
 | version | The version counter for the task. |
 | ephemeral\_storage\_size\_in\_gib | The total amount, in GiB, of ephemeral storage to set for the task. |
+| network\_interface\_id | The network interface ID for tasks running in awsvpc network mode. |
 
 #### Relationships
+
+- ECSTasks are a resource under the AWS Account
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ECSTask)
+    ```
 
 - ECSClusters have ECSTasks
     ```
@@ -3362,6 +3368,11 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 - ECSTasks have ECSTaskDefinitions
     ```
     (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTasks in awsvpc network mode have NetworkInterfaces
+    ```
+    (:ECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
     ```
 
 ### ECSContainer
