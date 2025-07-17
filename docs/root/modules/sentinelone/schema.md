@@ -25,6 +25,18 @@ Represents a SentinelOne account, which is the top-level organizational unit for
     (S1Account)-[RESOURCE]->(S1Agent)
     ```
 
+- A S1Account contains S1Applications.
+
+    ```
+    (S1Account)-[RESOURCE]->(S1Application)
+    ```
+
+- A S1Account contains S1ApplicationVersions.
+
+    ```
+    (S1Account)-[RESOURCE]->(S1ApplicationVersion)
+    ```
+
 ### S1Agent
 
 Represents a SentinelOne agent installed on an endpoint device.
@@ -51,4 +63,76 @@ Represents a SentinelOne agent installed on an endpoint device.
 
     ```
     (S1Agent)-[RESOURCE]->(S1Account)
+    ```
+
+- A S1Agent has installed application versions.
+
+    ```
+    (S1Agent)-[HAS_INSTALLED]->(S1ApplicationVersion)
+    ```
+
+### S1Application
+
+Represents an application discovered in the SentinelOne environment.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the application (normalized vendor:name) |
+| **name** | The name of the application |
+| **vendor** | The vendor/publisher of the application |
+
+#### Relationships
+
+- A S1Application belongs to a S1Account.
+
+    ```
+    (S1Application)-[RESOURCE]->(S1Account)
+    ```
+
+- A S1Application has versions.
+
+    ```
+    (S1Application)-[VERSION]->(S1ApplicationVersion)
+    ```
+
+### S1ApplicationVersion
+
+Represents a specific version of an application installed on SentinelOne agents.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the application version (normalized vendor:name:version) |
+| **application_name** | The name of the application |
+| **application_vendor** | The vendor/publisher of the application |
+| **version** | The version string of the application |
+
+#### Relationships
+
+- A S1ApplicationVersion belongs to a S1Account.
+
+    ```
+    (S1ApplicationVersion)<-[RESOURCE]-(S1Account)
+    ```
+
+- A S1ApplicationVersion is installed on S1Agents.
+
+    ```
+    (S1Agent)-[HAS_INSTALLED]->(S1ApplicationVersion)
+    ```
+
+    The HAS_INSTALLED relationship includes additional properties:
+
+    | Property | Description |
+    |----------|-------------|
+    | installeddatetime | ISO 8601 timestamp of when the application was installed |
+    | installationpath | The file system path where the application is installed |
+
+- A S1ApplicationVersion belongs to a S1Application.
+
+    ```
+    (S1Application)-[VERSION]->(S1ApplicationVersion)
     ```
