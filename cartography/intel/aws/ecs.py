@@ -159,8 +159,6 @@ def get_ecs_tasks(
             tasks=task_arn_chunk,
         )
         tasks.extend(task_chunk.get("tasks", []))
-
-    _enrich_tasks_with_network_interface_id(tasks)
     return tasks
 
 
@@ -171,7 +169,7 @@ def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, An
     return containers
 
 
-def _enrich_tasks_with_network_interface_id(tasks: list[dict[str, Any]]) -> None:
+def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Extract network interface ID from task attachments.
     """
@@ -184,6 +182,7 @@ def _enrich_tasks_with_network_interface_id(tasks: list[dict[str, Any]]) -> None
                         task["networkInterfaceId"] = detail.get("value")
                         break
                 break
+    return tasks
 
 
 @timeit
@@ -424,6 +423,7 @@ def _sync_ecs_task_and_container_defns(
         boto3_session,
         region,
     )
+    tasks = transform_ecs_tasks(tasks)
     containers = _get_containers_from_tasks(tasks)
     load_ecs_tasks(
         neo4j_session,
