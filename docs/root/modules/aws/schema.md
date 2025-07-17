@@ -799,7 +799,7 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
     ```
 - CloudTrail Trail can send logs to CloudWatchLogGroup.
     ```
-    (CloudTrailTrail)-[SENDS_LOGS_TO_CLOUDWATCH]->(CloudWatchLogGroup)
+    (:CloudTrailTrail)-[:SENDS_LOGS_TO_CLOUDWATCH]->(:CloudWatchLogGroup)
     ```
 
 ### CloudWatchLogGroup
