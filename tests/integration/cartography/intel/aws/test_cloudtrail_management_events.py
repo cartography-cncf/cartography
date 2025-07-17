@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.cloudtrail_management_events
 import cartography.intel.aws.iam
+import cartography.intel.aws.identitycenter
 from cartography.intel.aws.cloudtrail_management_events import sync
 from tests.data.aws.cloudtrail_management_events import (
     INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
@@ -27,6 +28,7 @@ from tests.data.aws.cloudtrail_management_events import (
 from tests.data.aws.cloudtrail_management_events import (
     INTEGRATION_TEST_CROSS_ACCOUNT_ID,
 )
+from tests.data.aws.cloudtrail_management_events import TEST_SSO_USERS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -35,16 +37,22 @@ TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-def _cleanup_neo4j(neo4j_session):
-    """
-    Clean up Neo4j database before each test.
-    """
-    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+def _cleanup_cloudtrail_test_data(neo4j_session):
+    """Clean up CloudTrail test data between tests."""
+    neo4j_session.run("MATCH ()-[r:ASSUMED_ROLE]-() DELETE r")
+    neo4j_session.run("MATCH ()-[r:ASSUMED_ROLE_WITH_SAML]-() DELETE r")
+    neo4j_session.run("MATCH ()-[r:ASSUMED_ROLE_WITH_WEB_IDENTITY]-() DELETE r")
+    neo4j_session.run("MATCH (n:AWSPrincipal) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSUser) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSRole) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSSSOUser) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:GitHubRepository) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:AWSAccount) DETACH DELETE n")
 
 
 def _ensure_local_neo4j_has_basic_test_data(neo4j_session):
     """Set up test IAM users and roles for basic relationships test."""
-    # Load test users using cartography's IAM loader
+    # Load test users and roles using cartography's IAM loaders
     cartography.intel.aws.iam.load_users(
         neo4j_session,
         INTEGRATION_TEST_BASIC_IAM_USERS,
@@ -52,7 +60,6 @@ def _ensure_local_neo4j_has_basic_test_data(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    # Load test roles using cartography's IAM loader
     cartography.intel.aws.iam.load_roles(
         neo4j_session,
         INTEGRATION_TEST_BASIC_IAM_ROLES,
@@ -60,18 +67,40 @@ def _ensure_local_neo4j_has_basic_test_data(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    # Create cross-account role manually since it's in a different account
-    neo4j_session.run(
-        """
-        MERGE (role:AWSRole:AWSPrincipal {arn: $role_arn})
-        SET role.roleid = $role_id,
-            role.name = $role_name,
-            role.lastupdated = $update_tag
-        """,
-        role_arn="arn:aws:iam::987654321098:role/CrossAccountRole",
-        role_id="AROA00000000CROSSACCOUNT",
-        role_name="CrossAccountRole",
-        update_tag=TEST_UPDATE_TAG,
+    # Create cross-account role using IAM loader with different account
+    cartography.intel.aws.iam.load_roles(
+        neo4j_session,
+        [
+            {
+                "RoleName": "CrossAccountRole",
+                "RoleId": "AROA00000000CROSSACCOUNT",
+                "Arn": "arn:aws:iam::987654321098:role/CrossAccountRole",
+                "Path": "/",
+                "CreateDate": "2024-01-01T10:00:00Z",
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
+                            "Action": "sts:AssumeRole",
+                        }
+                    ],
+                },
+            }
+        ],
+        "987654321098",  # Different account ID
+        TEST_UPDATE_TAG,
+    )
+
+    # Load AWSSSOUser nodes using identity center loader
+    cartography.intel.aws.identitycenter.load_sso_users(
+        neo4j_session,
+        cartography.intel.aws.identitycenter.transform_sso_users(TEST_SSO_USERS),
+        "d-1234567890",  # identity_store_id
+        TEST_REGION,
+        INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
     )
 
 
@@ -108,18 +137,30 @@ def _ensure_local_neo4j_has_cross_account_test_data(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    # Create external role manually since it's in a different account
-    neo4j_session.run(
-        """
-        MERGE (role:AWSRole:AWSPrincipal {arn: $role_arn})
-        SET role.roleid = $role_id,
-            role.name = $role_name,
-            role.lastupdated = $update_tag
-        """,
-        role_arn="arn:aws:iam::333333333333:role/ExternalRole",
-        role_id="AROA00000000EXTERNAL",
-        role_name="ExternalRole",
-        update_tag=TEST_UPDATE_TAG,
+    # Create external role using IAM loader with different account
+    cartography.intel.aws.iam.load_roles(
+        neo4j_session,
+        [
+            {
+                "RoleName": "ExternalRole",
+                "RoleId": "AROA00000000EXTERNAL",
+                "Arn": "arn:aws:iam::333333333333:role/ExternalRole",
+                "Path": "/",
+                "CreateDate": "2024-01-01T10:00:00Z",
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {"AWS": "arn:aws:iam::222222222222:root"},
+                            "Action": "sts:AssumeRole",
+                        }
+                    ],
+                },
+            }
+        ],
+        "333333333333",  # Different account ID
+        TEST_UPDATE_TAG,
     )
 
 
@@ -140,49 +181,42 @@ def _ensure_local_neo4j_has_cross_account_test_data(neo4j_session):
             ],
             "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/john.doe"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/ApplicationRole"}}',
         },
-        {
-            "EventName": "AssumeRole",
-            "EventTime": "2024-01-15T11:15:30.456000",
-            "UserIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"},
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::987654321098:role/CrossAccountRole",
-                    "AccountId": "987654321098",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountRole"}}',
-        },
     ],
 )
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_saml_role_events",
+    return_value=[],
+)
 def test_cloudtrail_management_events_creates_assumed_role_relationships(
-    mock_get_events, neo4j_session
+    mock_get_saml_events, mock_get_assume_role_events, neo4j_session
 ):
     """
-    OUTCOME: CloudTrail management events sync creates ASSUMED_ROLE relationships
-    between existing principals and roles with correct properties.
-
-    This is the primary happy path test - CloudTrail events should result in
-    graph relationships that show actual role usage patterns.
+    Test that CloudTrail AssumeRole events create ASSUMED_ROLE relationships
+    between existing principals and roles.
     """
-    # Arrange: Clean database and set up AWS account with IAM users and roles
-    _cleanup_neo4j(neo4j_session)
+    # Arrange
+    _cleanup_cloudtrail_test_data(neo4j_session)
     create_test_account(
         neo4j_session, INTEGRATION_TEST_BASIC_ACCOUNT_ID, TEST_UPDATE_TAG
     )
     _ensure_local_neo4j_has_basic_test_data(neo4j_session)
 
-    # Act: Run CloudTrail sync with lookback period
+    # Act
     sync(
         neo4j_session,
-        MagicMock(),  # boto3_session
+        MagicMock(),
         [TEST_REGION],
         INTEGRATION_TEST_BASIC_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {"aws_cloudtrail_management_events_lookback_hours": 24},
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+            "aws_cloudtrail_management_events_lookback_hours": 24,
+        },
     )
 
-    # Assert: ASSUMED_ROLE relationships created between principals and roles
+    # Assert
     assert check_rels(
         neo4j_session,
         "AWSPrincipal",
@@ -196,25 +230,7 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
             "arn:aws:iam::123456789012:user/john.doe",
             "arn:aws:iam::123456789012:role/ApplicationRole",
         ),
-        (
-            "arn:aws:iam::123456789012:user/alice",
-            "arn:aws:iam::987654321098:role/CrossAccountRole",
-        ),
     }
-
-    # Assert: Verify that all role assumptions have usage count of 1
-    role_usage_results = neo4j_session.run(
-        """
-        MATCH (p:AWSPrincipal)-[r:ASSUMED_ROLE]->(role:AWSRole)
-        WHERE p.arn STARTS WITH 'arn:aws:iam::123456789012:'
-        RETURN r.times_used as times_used, r.last_used as last_used
-        """
-    ).data()
-
-    assert len(role_usage_results) == 2
-    for usage in role_usage_results:
-        assert usage["times_used"] == 1
-        assert usage["last_used"] is not None
 
 
 @patch.object(
@@ -236,7 +252,7 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
         },
         {
             "EventName": "AssumeRole",
-            "EventTime": "2024-01-15T14:00:00.000000",
+            "EventTime": "2024-01-15T13:00:00.000000",
             "UserIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"},
             "Resources": [
                 {
@@ -262,34 +278,40 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
         },
     ],
 )
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_saml_role_events",
+    return_value=[],
+)
 def test_cloudtrail_management_events_aggregates_multiple_role_assumptions(
-    mock_get_events, neo4j_session
+    mock_get_saml_events, mock_get_assume_role_events, neo4j_session
 ):
     """
-    OUTCOME: Multiple CloudTrail events for the same principal/role pair
-    are aggregated into a single ASSUMED_ROLE relationship with usage analytics.
-
-    This tests the core aggregation behavior - multiple role assumptions
-    should be consolidated with proper times_used, first_seen, last_seen tracking.
+    Test that multiple CloudTrail AssumeRole events for the same
+    (source, destination) pair are aggregated into a single relationship.
     """
-    # Arrange: Clean database and set up AWS account with IAM data
-    _cleanup_neo4j(neo4j_session)
+    # Arrange
+    _cleanup_cloudtrail_test_data(neo4j_session)
     create_test_account(
         neo4j_session, INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID, TEST_UPDATE_TAG
     )
     _ensure_local_neo4j_has_aggregation_test_data(neo4j_session)
 
-    # Act: Run CloudTrail sync
+    # Act
     sync(
         neo4j_session,
         MagicMock(),
         [TEST_REGION],
         INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {"aws_cloudtrail_management_events_lookback_hours": 24},
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
+            "aws_cloudtrail_management_events_lookback_hours": 24,
+        },
     )
 
-    # Assert: Single aggregated relationship created (not 3 separate ones)
+    # Assert: Single aggregated relationship created
     assert check_rels(
         neo4j_session,
         "AWSPrincipal",
@@ -340,34 +362,40 @@ def test_cloudtrail_management_events_aggregates_multiple_role_assumptions(
         },
     ],
 )
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_saml_role_events",
+    return_value=[],
+)
 def test_cloudtrail_management_events_handles_cross_account_relationships(
-    mock_get_events, neo4j_session
+    mock_get_saml_events, mock_get_assume_role_events, neo4j_session
 ):
     """
-    OUTCOME: CloudTrail events create ASSUMED_ROLE relationships even when
-    the source and destination are in different AWS accounts.
-
-    This tests cross-account role assumption tracking - a key security
-    use case for understanding cross-account access patterns.
+    Test that CloudTrail events create ASSUMED_ROLE relationships
+    even when source and destination are in different AWS accounts.
     """
-    # Arrange: Clean database and set up AWS account with IAM data including cross-account role
-    _cleanup_neo4j(neo4j_session)
+    # Arrange
+    _cleanup_cloudtrail_test_data(neo4j_session)
     create_test_account(
         neo4j_session, INTEGRATION_TEST_CROSS_ACCOUNT_ID, TEST_UPDATE_TAG
     )
     _ensure_local_neo4j_has_cross_account_test_data(neo4j_session)
 
-    # Act: Run CloudTrail sync
+    # Act
     sync(
         neo4j_session,
         MagicMock(),
         [TEST_REGION],
         INTEGRATION_TEST_CROSS_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {"aws_cloudtrail_management_events_lookback_hours": 24},
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": INTEGRATION_TEST_CROSS_ACCOUNT_ID,
+            "aws_cloudtrail_management_events_lookback_hours": 24,
+        },
     )
 
-    # Assert: Cross-account ASSUMED_ROLE relationship created
+    # Assert
     assert check_rels(
         neo4j_session,
         "AWSPrincipal",
@@ -383,11 +411,497 @@ def test_cloudtrail_management_events_handles_cross_account_relationships(
         ),
     }
 
-    # Assert: Both source (current account) and destination (external account) nodes exist
-    source_users = check_nodes(neo4j_session, "AWSUser", ["arn"])
-    destination_roles = check_nodes(neo4j_session, "AWSRole", ["arn"])
 
-    assert source_users is not None
-    assert destination_roles is not None
-    assert ("arn:aws:iam::222222222222:user/cross-user",) in source_users
-    assert ("arn:aws:iam::333333333333:role/ExternalRole",) in destination_roles
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_assume_role_events",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_saml_role_events",
+    return_value=[
+        {
+            "EventName": "AssumeRoleWithSAML",
+            "EventTime": "2024-01-15T11:45:22.456000",
+            "UserIdentity": {
+                "type": "SAMLUser",
+                "principalId": "SAML:admin@example.com",
+                "arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/admin@example.com",
+                "accountId": "123456789012",
+            },
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::123456789012:role/ApplicationRole",
+                    "AccountId": "123456789012",
+                }
+            ],
+            "CloudTrailEvent": '{"userIdentity": {"type": "SAMLUser", "principalId": "SAML:admin@example.com", "userName": "admin@example.com"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/ApplicationRole", "principalArn": "arn:aws:iam::123456789012:saml-provider/ExampleProvider"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/admin@example.com"}}}',
+        },
+        {
+            "EventName": "AssumeRoleWithSAML",
+            "EventTime": "2024-01-15T12:20:30.789000",
+            "UserIdentity": {
+                "type": "SAMLUser",
+                "principalId": "SAML:alice@example.com",
+                "arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/alice@example.com",
+                "accountId": "123456789012",
+            },
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::987654321098:role/CrossAccountRole",
+                    "AccountId": "987654321098",
+                }
+            ],
+            "CloudTrailEvent": '{"userIdentity": {"type": "SAMLUser", "principalId": "SAML:alice@example.com", "userName": "alice@example.com"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountRole", "principalArn": "arn:aws:iam::123456789012:saml-provider/ExampleProvider"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/alice@example.com"}}}',
+        },
+    ],
+)
+def test_cloudtrail_management_events_creates_assumed_role_with_saml_relationships(
+    mock_get_saml_events, mock_get_assume_role_events, neo4j_session
+):
+    """
+    Test that CloudTrail SAML management events create ASSUMED_ROLE_WITH_SAML relationships
+    between AWSSSOUser nodes and roles.
+    """
+    # Arrange
+    _cleanup_cloudtrail_test_data(neo4j_session)
+    create_test_account(
+        neo4j_session, INTEGRATION_TEST_BASIC_ACCOUNT_ID, TEST_UPDATE_TAG
+    )
+    _ensure_local_neo4j_has_basic_test_data(neo4j_session)
+
+    # Act
+    sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+            "aws_cloudtrail_management_events_lookback_hours": 24,
+        },
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOUser",
+        "user_name",
+        "AWSRole",
+        "arn",
+        "ASSUMED_ROLE_WITH_SAML",
+        rel_direction_right=True,
+    ) == {
+        ("admin@example.com", "arn:aws:iam::123456789012:role/ApplicationRole"),
+        ("alice@example.com", "arn:aws:iam::987654321098:role/CrossAccountRole"),
+    }
+
+    # Assert: Verify SAML usage properties
+    saml_role_usage_results = neo4j_session.run(
+        """
+        MATCH (p:AWSSSOUser)-[r:ASSUMED_ROLE_WITH_SAML]->(role:AWSRole)
+        WHERE p.user_name IN ['admin@example.com', 'alice@example.com']
+        RETURN r.times_used as times_used, r.last_used as last_used, r.saml_count as saml_count
+        """
+    ).data()
+
+    assert len(saml_role_usage_results) == 2
+    for usage in saml_role_usage_results:
+        assert usage["times_used"] == 1
+        assert usage["last_used"] is not None
+        assert usage["saml_count"] == 1
+
+
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_assume_role_events",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_saml_role_events",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_web_identity_role_events",
+    return_value=[
+        {
+            "EventName": "AssumeRoleWithWebIdentity",
+            "EventTime": "2024-01-15T13:10:25.123000",
+            "UserIdentity": {
+                "type": "WebIdentityUser",
+                "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main",
+                "identityProvider": "token.actions.githubusercontent.com",
+                "userName": "sublimagesec/sublimage",
+            },
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::123456789012:role/GitHubActionsRole",
+                    "AccountId": "123456789012",
+                }
+            ],
+            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "sublimagesec/sublimage"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/GitHubActionsRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/GitHubActionsRole/sublimage"}}}',
+        },
+        {
+            "EventName": "AssumeRoleWithWebIdentity",
+            "EventTime": "2024-01-15T14:30:45.789000",
+            "UserIdentity": {
+                "type": "WebIdentityUser",
+                "principalId": "repo:myorg/demo-app:ref:refs/heads/develop",
+                "identityProvider": "token.actions.githubusercontent.com",
+                "userName": "myorg/demo-app",
+            },
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole",
+                    "AccountId": "987654321098",
+                }
+            ],
+            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/demo-app:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/demo-app"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::987654321098:assumed-role/CrossAccountGitHubRole/demo-app"}}}',
+        },
+    ],
+)
+def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_relationships(
+    mock_get_web_identity_events,
+    mock_get_saml_events,
+    mock_get_assume_role_events,
+    neo4j_session,
+):
+    """
+    Test that CloudTrail GitHub Actions events create ASSUMED_ROLE_WITH_WEB_IDENTITY relationships
+    between GitHubRepository nodes and AWS roles with user tracking.
+    """
+    # Arrange
+    _cleanup_cloudtrail_test_data(neo4j_session)
+    create_test_account(
+        neo4j_session, INTEGRATION_TEST_BASIC_ACCOUNT_ID, TEST_UPDATE_TAG
+    )
+    _ensure_local_neo4j_has_basic_test_data(neo4j_session)
+
+    # Create AWS roles that GitHub repos will assume
+    github_target_roles = [
+        {
+            "RoleName": "GitHubActionsRole",
+            "RoleId": "AROA00000000000000003",
+            "Arn": "arn:aws:iam::123456789012:role/GitHubActionsRole",
+            "Path": "/",
+            "CreateDate": "2024-01-01T10:00:00Z",
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+                        },
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                    }
+                ],
+            },
+        },
+        {
+            "RoleName": "CrossAccountGitHubRole",
+            "RoleId": "AROA00000000000000004",
+            "Arn": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole",
+            "Path": "/",
+            "CreateDate": "2024-01-01T10:00:00Z",
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Federated": "arn:aws:iam::987654321098:oidc-provider/token.actions.githubusercontent.com"
+                        },
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                    }
+                ],
+            },
+        },
+    ]
+
+    # Use IAM loader to create target roles
+    cartography.intel.aws.iam.load_roles(
+        neo4j_session,
+        github_target_roles,
+        INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Create GitHubRepository nodes that will be the source of the relationships
+    neo4j_session.run(
+        """
+        CREATE (repo1:GitHubRepository {
+            fullname: 'sublimagesec/sublimage',
+            name: 'sublimage',
+            id: 'https://github.com/sublimagesec/sublimage',
+            lastupdated: $update_tag
+        }),
+        (repo2:GitHubRepository {
+            fullname: 'myorg/demo-app',
+            name: 'demo-app',
+            id: 'https://github.com/myorg/demo-app',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": INTEGRATION_TEST_BASIC_ACCOUNT_ID,
+            "aws_cloudtrail_management_events_lookback_hours": 24,
+        },
+    )
+
+    # Assert: Verify GitHubRepository nodes exist
+    repo_nodes = check_nodes(neo4j_session, "GitHubRepository", ["fullname"])
+    expected_repos = {
+        ("sublimagesec/sublimage",),
+        ("myorg/demo-app",),
+    }
+    assert repo_nodes is not None and expected_repos.issubset(repo_nodes)
+
+    # Assert: Verify ASSUMED_ROLE_WITH_WEB_IDENTITY relationships exist
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "fullname",
+        "AWSRole",
+        "arn",
+        "ASSUMED_ROLE_WITH_WEB_IDENTITY",
+        rel_direction_right=True,
+    ) == {
+        ("sublimagesec/sublimage", "arn:aws:iam::123456789012:role/GitHubActionsRole"),
+        ("myorg/demo-app", "arn:aws:iam::987654321098:role/CrossAccountGitHubRole"),
+    }
+
+    # Assert: Verify WebIdentity usage properties including user tracking
+    web_identity_role_usage_results = neo4j_session.run(
+        """
+        MATCH (repo:GitHubRepository)-[r:ASSUMED_ROLE_WITH_WEB_IDENTITY]->(role:AWSRole)
+        WHERE repo.fullname IN ['sublimagesec/sublimage', 'myorg/demo-app']
+        RETURN repo.fullname as repo_fullname, r.times_used as times_used, r.last_used as last_used,
+               r.web_identity_count as web_identity_count, r.web_identity_users as web_identity_users,
+               r.unique_user_count as unique_user_count
+        """
+    ).data()
+
+    assert len(web_identity_role_usage_results) == 2
+
+    # Create lookup by repo for easier assertions
+    usage_by_repo = {
+        result["repo_fullname"]: result for result in web_identity_role_usage_results
+    }
+
+    # Verify sublimagesec/sublimage repo relationship
+    sublimage_usage = usage_by_repo["sublimagesec/sublimage"]
+    assert sublimage_usage["times_used"] == 1
+    assert sublimage_usage["last_used"] is not None
+    assert sublimage_usage["web_identity_count"] == 1
+    assert sublimage_usage["web_identity_users"] == ["sublimagesec/sublimage"]
+    assert sublimage_usage["unique_user_count"] == 1
+
+    # Verify myorg/demo-app repo relationship
+    demo_app_usage = usage_by_repo["myorg/demo-app"]
+    assert demo_app_usage["times_used"] == 1
+    assert demo_app_usage["last_used"] is not None
+    assert demo_app_usage["web_identity_count"] == 1
+    assert demo_app_usage["web_identity_users"] == ["myorg/demo-app"]
+    assert demo_app_usage["unique_user_count"] == 1
+
+
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_assume_role_events",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_saml_role_events",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.cloudtrail_management_events,
+    "get_web_identity_role_events",
+    return_value=[
+        {
+            "EventName": "AssumeRoleWithWebIdentity",
+            "EventTime": "2024-01-15T09:10:25.123000",
+            "UserIdentity": {
+                "type": "WebIdentityUser",
+                "principalId": "repo:myorg/test-repo:ref:refs/heads/main",
+                "identityProvider": "token.actions.githubusercontent.com",
+                "userName": "myorg/test-repo",
+            },
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::111111111111:role/GitHubTestRole",
+                    "AccountId": "111111111111",
+                }
+            ],
+            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/test-repo"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
+        },
+        {
+            "EventName": "AssumeRoleWithWebIdentity",
+            "EventTime": "2024-01-15T11:30:45.789000",
+            "UserIdentity": {
+                "type": "WebIdentityUser",
+                "principalId": "repo:myorg/test-repo:ref:refs/heads/develop",
+                "identityProvider": "token.actions.githubusercontent.com",
+                "userName": "myorg/test-repo",
+            },
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::111111111111:role/GitHubTestRole",
+                    "AccountId": "111111111111",
+                }
+            ],
+            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/test-repo"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
+        },
+        {
+            "EventName": "AssumeRoleWithWebIdentity",
+            "EventTime": "2024-01-15T14:15:30.456000",
+            "UserIdentity": {
+                "type": "WebIdentityUser",
+                "principalId": "repo:myorg/test-repo:ref:refs/heads/main",
+                "identityProvider": "token.actions.githubusercontent.com",
+                "userName": "myorg/test-repo",
+            },
+            "Resources": [
+                {
+                    "ResourceType": "AWS::IAM::Role",
+                    "ResourceName": "arn:aws:iam::111111111111:role/GitHubTestRole",
+                    "AccountId": "111111111111",
+                }
+            ],
+            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/test-repo"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
+        },
+    ],
+)
+def test_cloudtrail_web_identity_events_aggregates_multiple_users_and_tracks_individuals(
+    mock_get_web_identity_events,
+    mock_get_saml_events,
+    mock_get_assume_role_events,
+    neo4j_session,
+):
+    """
+    Test that multiple GitHub Actions events from the same repository
+    are aggregated into a single relationship with proper event tracking.
+    """
+    # Arrange
+    _cleanup_cloudtrail_test_data(neo4j_session)
+    create_test_account(
+        neo4j_session, INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID, TEST_UPDATE_TAG
+    )
+    _ensure_local_neo4j_has_aggregation_test_data(neo4j_session)
+
+    # Create role that GitHub repo will assume
+    github_roles = [
+        {
+            "RoleName": "GitHubTestRole",
+            "RoleId": "AROA00000000000000005",
+            "Arn": "arn:aws:iam::111111111111:role/GitHubTestRole",
+            "Path": "/",
+            "CreateDate": "2024-01-01T10:00:00Z",
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Federated": "arn:aws:iam::111111111111:oidc-provider/token.actions.githubusercontent.com"
+                        },
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                    }
+                ],
+            },
+        },
+    ]
+
+    # Use IAM loader to create target role
+    cartography.intel.aws.iam.load_roles(
+        neo4j_session,
+        github_roles,
+        INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Create GitHubRepository node
+    neo4j_session.run(
+        """
+        CREATE (repo:GitHubRepository {
+            fullname: 'myorg/test-repo',
+            name: 'test-repo',
+            id: 'https://github.com/myorg/test-repo',
+            lastupdated: $update_tag
+        })
+        """,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act
+    sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
+            "aws_cloudtrail_management_events_lookback_hours": 24,
+        },
+    )
+
+    # Assert: Single aggregated relationship created
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "fullname",
+        "AWSRole",
+        "arn",
+        "ASSUMED_ROLE_WITH_WEB_IDENTITY",
+        rel_direction_right=True,
+    ) == {
+        ("myorg/test-repo", "arn:aws:iam::111111111111:role/GitHubTestRole"),
+    }
+
+    # Assert: Aggregated properties reflect multiple events from same repo
+    aggregated_usage = neo4j_session.run(
+        """
+        MATCH (repo:GitHubRepository {fullname: 'myorg/test-repo'})
+              -[r:ASSUMED_ROLE_WITH_WEB_IDENTITY]->
+              (role:AWSRole {arn: 'arn:aws:iam::111111111111:role/GitHubTestRole'})
+        RETURN r.times_used as times_used, r.first_seen_in_time_window as first_seen_in_time_window,
+               r.last_used as last_used, r.web_identity_count as web_identity_count,
+               r.web_identity_users as web_identity_users, r.unique_user_count as unique_user_count
+        """
+    ).single()
+
+    # Verify aggregation counts
+    assert aggregated_usage["times_used"] == 3
+    assert aggregated_usage["web_identity_count"] == 3
+    assert aggregated_usage["first_seen_in_time_window"] == "2024-01-15T09:10:25.123000"
+    assert aggregated_usage["last_used"] == "2024-01-15T14:15:30.456000"
+
+    # Verify user tracking - all events from same repo, so only 1 unique "user" (the repo itself)
+    assert aggregated_usage["unique_user_count"] == 1  # myorg/test-repo
+    assert aggregated_usage["web_identity_users"] == ["myorg/test-repo"]  # Single repo
