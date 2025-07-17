@@ -34,6 +34,7 @@ def test_load_security_groups(neo4j_session):
         "sg-028e2522c72719996",
         "sg-06c795c66be8937be",
         "sg-053dba35430032a0d",
+        "sg-web-server-12345",
     }
 
     nodes = neo4j_session.run(
@@ -87,6 +88,9 @@ def test_load_security_groups_relationships(neo4j_session):
         ("sg-06c795c66be8937be", "sg-06c795c66be8937be/IpPermissions/8080tcp"),
         ("sg-0fd4fff275d63600f", "sg-0fd4fff275d63600f/IpPermissionsEgress/NoneNone-1"),
         ("sg-0fd4fff275d63600f", "sg-0fd4fff275d63600f/IpPermissions/NoneNone-1"),
+        ("sg-web-server-12345", "sg-web-server-12345/IpPermissionsEgress/NoneNone-1"),
+        ("sg-web-server-12345", "sg-web-server-12345/IpPermissions/2222tcp"),
+        ("sg-web-server-12345", "sg-web-server-12345/IpPermissions/8080tcp"),
     }
 
     # Fetch relationships
@@ -129,6 +133,7 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         ("sg-053dba35430032a0d", "sg-053dba35430032a0d"),
         ("sg-06c795c66be8937be", "sg-06c795c66be8937be"),
         ("sg-0fd4fff275d63600f", "sg-0fd4fff275d63600f"),
+        ("sg-web-server-12345", "sg-web-server-12345"),
     }
 
     # Assert security groups are connected to AWS account
@@ -145,6 +150,7 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         ("sg-053dba35430032a0d", "000000000000"),
         ("sg-06c795c66be8937be", "000000000000"),
         ("sg-0fd4fff275d63600f", "000000000000"),
+        ("sg-web-server-12345", "000000000000"),
     }
 
     # Assert IpPermissionInbound rules exist (only inbound rules)
@@ -155,6 +161,8 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         ("sg-06c795c66be8937be/IpPermissions/8080tcp", "sg-06c795c66be8937be"),
         ("sg-06c795c66be8937be/IpPermissions/443443tcp", "sg-06c795c66be8937be"),
         ("sg-0fd4fff275d63600f/IpPermissions/NoneNone-1", "sg-0fd4fff275d63600f"),
+        ("sg-web-server-12345/IpPermissions/2222tcp", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/8080tcp", "sg-web-server-12345"),
     }
     assert (
         check_nodes(neo4j_session, "IpPermissionInbound", ["ruleid", "groupid"])
@@ -177,6 +185,9 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         ("sg-06c795c66be8937be/IpPermissions/443443tcp", "sg-06c795c66be8937be"),
         ("sg-0fd4fff275d63600f/IpPermissionsEgress/NoneNone-1", "sg-0fd4fff275d63600f"),
         ("sg-0fd4fff275d63600f/IpPermissions/NoneNone-1", "sg-0fd4fff275d63600f"),
+        ("sg-web-server-12345/IpPermissionsEgress/NoneNone-1", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/2222tcp", "sg-web-server-12345"),
+        ("sg-web-server-12345/IpPermissions/8080tcp", "sg-web-server-12345"),
     }
     assert (
         check_nodes(neo4j_session, "IpRule", ["ruleid", "groupid"]) == expected_ip_rules
@@ -206,9 +217,11 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         ("sg-06c795c66be8937be/IpPermissions/443443tcp", "000000000000"),
         ("sg-0fd4fff275d63600f/IpPermissionsEgress/NoneNone-1", "000000000000"),
         ("sg-0fd4fff275d63600f/IpPermissions/NoneNone-1", "000000000000"),
+        ("sg-web-server-12345/IpPermissionsEgress/NoneNone-1", "000000000000"),
+        ("sg-web-server-12345/IpPermissions/2222tcp", "000000000000"),
+        ("sg-web-server-12345/IpPermissions/8080tcp", "000000000000"),
     }
 
-    # Test self-referential security groups
     assert check_rels(
         neo4j_session,
         "EC2SecurityGroup",
@@ -218,6 +231,9 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         "ALLOWS_TRAFFIC_FROM",
         rel_direction_right=True,
     ) == {
+        # Test self-referential security groups
         ("sg-053dba35430032a0d", "sg-053dba35430032a0d"),
         ("sg-0fd4fff275d63600f", "sg-0fd4fff275d63600f"),
+        # Test cross-security group relationships
+        ("sg-web-server-12345", "sg-028e2522c72719996"),
     }
