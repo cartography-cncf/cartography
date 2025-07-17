@@ -41,7 +41,9 @@ class DependencyGraphManifestToRepositoryRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DependencyGraphManifestSchema(CartographyNodeSchema):
     label: str = "DependencyGraphManifest"
-    properties: DependencyGraphManifestNodeProperties = DependencyGraphManifestNodeProperties()
+    properties: DependencyGraphManifestNodeProperties = (
+        DependencyGraphManifestNodeProperties()
+    )
     sub_resource_relationship: DependencyGraphManifestToRepositoryRel = (
         DependencyGraphManifestToRepositoryRel()
-    ) 
+    )
