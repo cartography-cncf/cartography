@@ -240,6 +240,48 @@ def test_load_ecs_tasks(neo4j_session, *args):
         assert n["c"] == 1
 
 
+def test_transform_ecs_tasks(neo4j_session):
+    """Test that ECS tasks with network interface attachments are transformed correctly."""
+    # Arrange
+    neo4j_session.run(
+        """
+        MERGE (ni:NetworkInterface{id: $NetworkInterfaceId})
+        ON CREATE SET ni.firstseen = timestamp()
+        SET ni.lastupdated = $aws_update_tag
+        """,
+        NetworkInterfaceId="eni-00000000000000000",
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
+    task_data = tests.data.aws.ecs.GET_ECS_TASKS
+    task_data = cartography.intel.aws.ecs.transform_ecs_tasks(task_data)
+
+    # Act
+    cartography.intel.aws.ecs.load_ecs_tasks(
+        neo4j_session,
+        CLUSTER_ARN,
+        task_data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "ECSTask",
+        "id",
+        "NetworkInterface",
+        "id",
+        "NETWORK_INTERFACE",
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
+            "eni-00000000000000000",
+        ),
+    }
+
+
 def test_load_ecs_task_definitions(neo4j_session, *args):
     # Arrange
     data = tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS
