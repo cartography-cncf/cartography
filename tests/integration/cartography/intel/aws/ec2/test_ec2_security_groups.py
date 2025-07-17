@@ -207,3 +207,17 @@ def test_sync_ec2_security_groupinfo(mock_get_security_groups, neo4j_session):
         ("sg-0fd4fff275d63600f/IpPermissionsEgress/NoneNone-1", "000000000000"),
         ("sg-0fd4fff275d63600f/IpPermissions/NoneNone-1", "000000000000"),
     }
+
+    # Test self-referential security groups
+    assert check_rels(
+        neo4j_session,
+        "EC2SecurityGroup",
+        "id",
+        "EC2SecurityGroup",
+        "id",
+        "ALLOWS_TRAFFIC_FROM",
+        rel_direction_right=True,
+    ) == {
+        ("sg-053dba35430032a0d", "sg-053dba35430032a0d"),
+        ("sg-0fd4fff275d63600f", "sg-0fd4fff275d63600f"),
+    }

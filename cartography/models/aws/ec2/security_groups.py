@@ -58,6 +58,24 @@ class EC2SecurityGroupToVpcRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class EC2SecurityGroupToSourceGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
+    target_node_label: str = "EC2SecurityGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"groupid": PropertyRef("SOURCE_GROUP_IDS", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ALLOWS_TRAFFIC_FROM"
+    properties: EC2SecurityGroupToSourceGroupRelProperties = (
+        EC2SecurityGroupToSourceGroupRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class EC2SecurityGroupSchema(CartographyNodeSchema):
     label: str = "EC2SecurityGroup"
     properties: EC2SecurityGroupNodeProperties = EC2SecurityGroupNodeProperties()
@@ -65,5 +83,8 @@ class EC2SecurityGroupSchema(CartographyNodeSchema):
         EC2SecurityGroupToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [EC2SecurityGroupToVpcRel()]
+        [
+            EC2SecurityGroupToVpcRel(),
+            EC2SecurityGroupToSourceGroupRel(),
+        ]
     )

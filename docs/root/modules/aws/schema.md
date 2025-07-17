@@ -1227,7 +1227,7 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| groupid | The ID of the security group|
+| groupid | The ID of the security group. Note that these are globally unique in AWS.|
 | name | The name of the security group|
 | description | A description of the security group|
 | **id** | Same as `groupid` |
@@ -1251,6 +1251,11 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 - Load balancers can define inbound [Source Security Groups](https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-security-groups.html).
     ```
     (LoadBalancer)-[SOURCE_SECURITY_GROUP]->(EC2SecurityGroup)
+    ```
+
+- Security Groups can allow traffic from other security groups. This relationship can also be self-referential, meaning that a security group can allow traffic from itself (as security groups are default-deny).
+    ```
+    (:EC2SecurityGroup)-[:ALLOWS_TRAFFIC_FROM]->(:EC2SecurityGroup)
     ```
 
 - AWS Accounts contain EC2 Security Groups.

@@ -57,14 +57,14 @@ def transform_ec2_security_group_data(
     ranges: List[Dict[str, Any]] = []
 
     for group in data:
-        groups.append(
-            {
-                "GroupId": group["GroupId"],
-                "GroupName": group.get("GroupName"),
-                "Description": group.get("Description"),
-                "VpcId": group.get("VpcId"),
-            },
-        )
+        group_record = {
+            "GroupId": group["GroupId"],
+            "GroupName": group.get("GroupName"),
+            "Description": group.get("Description"),
+            "VpcId": group.get("VpcId"),
+        }
+        # Collect referenced security groups for relationship loading
+        source_group_ids: set[str] = set()
 
         for rule_type, target in (
             ("IpPermissions", inbound_rules),
@@ -88,6 +88,13 @@ def transform_ec2_security_group_data(
                 )
                 for ip_range in rule.get("IpRanges", []):
                     ranges.append({"RangeId": ip_range["CidrIp"], "RuleId": rule_id})
+                for pair in rule.get("UserIdGroupPairs", []):
+                    sg_id = pair.get("GroupId")
+                    if sg_id:
+                        source_group_ids.add(sg_id)
+
+        group_record["SOURCE_GROUP_IDS"] = list(source_group_ids)
+        groups.append(group_record)
 
     return Ec2SecurityGroupData(
         groups=groups,
