@@ -393,31 +393,41 @@ def transform_web_identity_role_events_to_role_assumptions(
 
         user_identity = cloudtrail_event.get("userIdentity", {})
 
-        if user_identity.get("type") == "WebIdentityUser" and user_identity.get("userName"):
+        if user_identity.get("type") == "WebIdentityUser" and user_identity.get(
+            "userName"
+        ):
             identity_provider = user_identity.get("identityProvider", "unknown")
             destination_principal = cloudtrail_event["requestParameters"]["roleArn"]
             event_time = event.get("EventTime")
-            
-            # Only process GitHub Actions events  
+
+            # Only process GitHub Actions events
             if "token.actions.githubusercontent.com" in identity_provider:
                 # GitHub repo fullname is directly in userName (e.g., "sublimagesec/sublimage")
                 github_repo = user_identity.get("userName", "")
                 if not github_repo:
-                    logger.debug(f"Missing userName in GitHub WebIdentity event: {event.get('EventId', 'unknown')}")
+                    logger.debug(
+                        f"Missing userName in GitHub WebIdentity event: {event.get('EventId', 'unknown')}"
+                    )
                     continue
                 key = (github_repo, destination_principal)
-                
+
                 if key in github_aggregated:
                     github_aggregated[key]["times_used"] += 1
                     github_aggregated[key]["web_identity_count"] += 1
-                    github_aggregated[key]["users"].add(github_repo)  # Store the repo fullname for tracking
+                    github_aggregated[key]["users"].add(
+                        github_repo
+                    )  # Store the repo fullname for tracking
                     # Handle None values safely for time comparisons
                     if event_time:
-                        existing_first = github_aggregated[key]["first_seen_in_time_window"]
+                        existing_first = github_aggregated[key][
+                            "first_seen_in_time_window"
+                        ]
                         existing_last = github_aggregated[key]["last_used"]
 
                         if existing_first is None or event_time < existing_first:
-                            github_aggregated[key]["first_seen_in_time_window"] = event_time
+                            github_aggregated[key][
+                                "first_seen_in_time_window"
+                            ] = event_time
                         if existing_last is None or event_time > existing_last:
                             github_aggregated[key]["last_used"] = event_time
                 else:
@@ -428,7 +438,9 @@ def transform_web_identity_role_events_to_role_assumptions(
                         "first_seen_in_time_window": event_time,
                         "last_used": event_time,
                         "web_identity_count": 1,
-                        "users": {github_repo}, # during aggregation using set to avoid duplicates
+                        "users": {
+                            github_repo
+                        },  # during aggregation using set to avoid duplicates
                     }
             else:
                 # Skip non-GitHub events for now
@@ -443,14 +455,14 @@ def transform_web_identity_role_events_to_role_assumptions(
             continue
     # Convert user sets to lists and add count, keeping the logic simple
     result = []
-    
+
     # Process GitHub repo-level aggregated relationships
     for item in github_aggregated.values():
         users_set = item.pop("users")  # Remove and get the users set
         item["web_identity_users"] = list(users_set)  # Convert to list for Neo4j
-        item["unique_user_count"] = len(users_set)    # Count before converting
+        item["unique_user_count"] = len(users_set)  # Count before converting
         result.append(item)
-    
+
     return result
 
 
@@ -873,10 +885,12 @@ def sync_web_identity_role_events(
         )
 
         # Transform AssumeRoleWithWebIdentity events to role assumptions
-        web_identity_role_assumptions = transform_web_identity_role_events_to_role_assumptions(
-            events=web_identity_role_events,
-            region=region,
-            current_aws_account_id=current_aws_account_id,
+        web_identity_role_assumptions = (
+            transform_web_identity_role_events_to_role_assumptions(
+                events=web_identity_role_events,
+                region=region,
+                current_aws_account_id=current_aws_account_id,
+            )
         )
 
         # Load WebIdentity role assumptions for this region
