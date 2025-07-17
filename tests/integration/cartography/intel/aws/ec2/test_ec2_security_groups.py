@@ -8,9 +8,14 @@ TEST_UPDATE_TAG = 123456789
 
 def test_load_security_groups(neo4j_session):
     data = tests.data.aws.ec2.security_groups.DESCRIBE_SGS
+    transformed = (
+        cartography.intel.aws.ec2.security_groups.transform_ec2_security_group_data(
+            data
+        )
+    )
     cartography.intel.aws.ec2.security_groups.load_ec2_security_groupinfo(
         neo4j_session,
-        data,
+        transformed,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -46,9 +51,14 @@ def test_load_security_groups_relationships(neo4j_session):
     )
 
     data = tests.data.aws.ec2.security_groups.DESCRIBE_SGS
+    transformed = (
+        cartography.intel.aws.ec2.security_groups.transform_ec2_security_group_data(
+            data
+        )
+    )
     cartography.intel.aws.ec2.security_groups.load_ec2_security_groupinfo(
         neo4j_session,
-        data,
+        transformed,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
