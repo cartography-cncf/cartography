@@ -46,6 +46,7 @@ class ECSTaskNodeProperties(CartographyNodeProperties):
     ephemeral_storage_size_in_gib: PropertyRef = PropertyRef(
         "ephemeralStorage.sizeInGiB"
     )
+    network_interface_id: PropertyRef = PropertyRef("networkInterfaceId")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -101,10 +102,32 @@ class ECSTaskToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSTaskToNetworkInterfaceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
+    target_node_label: str = "NetworkInterface"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("networkInterfaceId")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "NETWORK_INTERFACE"
+    properties: ECSTaskToNetworkInterfaceRelProperties = (
+        ECSTaskToNetworkInterfaceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECSTaskSchema(CartographyNodeSchema):
     label: str = "ECSTask"
     properties: ECSTaskNodeProperties = ECSTaskNodeProperties()
     sub_resource_relationship: ECSTaskToAWSAccountRel = ECSTaskToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [ECSTaskToContainerInstanceRel(), ECSTaskToECSClusterRel()]
+        [
+            ECSTaskToContainerInstanceRel(),
+            ECSTaskToECSClusterRel(),
+            ECSTaskToNetworkInterfaceRel(),
+        ]
     )

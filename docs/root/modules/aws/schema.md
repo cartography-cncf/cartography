@@ -1278,6 +1278,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **subnetid** | The ID of the subnet|
+| **subnet_id** | The ID of the subnet|
 | **id** | same as subnetid |
 | region| The AWS region the subnet is installed on|
 | name | The IPv4 CIDR block assigned to the subnet|
@@ -1969,6 +1970,7 @@ Representation of a generic Network Interface.  Currently however, we only creat
 | private\_dns\_name| The private DNS name |
 | status | Status of the network interface.  Valid Values: ``available \| associated \| attaching \| in-use \| detaching `` |
 | subnetid | The ID of the subnet |
+| subnet_id | The ID of the subnet |
 | interface_type  |  Describes the type of network interface. Valid values: `` interface \| efa `` |
 | requester_id  | Id of the requester, e.g. `amazon-elb` for ELBs |
 | requester_managed  |  Indicates whether the interface is managed by the requester |
@@ -3344,8 +3346,14 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 | task\_definition\_arn | The ARN of the task definition that creates the task. |
 | version | The version counter for the task. |
 | ephemeral\_storage\_size\_in\_gib | The total amount, in GiB, of ephemeral storage to set for the task. |
+| network\_interface\_id | The network interface ID for tasks running in awsvpc network mode. |
 
 #### Relationships
+
+- ECSTasks are a resource under the AWS Account
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ECSTask)
+    ```
 
 - ECSClusters have ECSTasks
     ```
@@ -3360,6 +3368,11 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 - ECSTasks have ECSTaskDefinitions
     ```
     (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTasks in awsvpc network mode have NetworkInterfaces
+    ```
+    (:ECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
     ```
 
 ### ECSContainer
