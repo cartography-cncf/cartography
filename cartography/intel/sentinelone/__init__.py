@@ -2,6 +2,7 @@ import logging
 
 import neo4j
 
+import cartography.intel.sentinelone.agent
 from cartography.config import Config
 from cartography.intel.sentinelone.account import sync_accounts
 from cartography.stats import get_stats_client
@@ -24,18 +25,32 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
         logger.info("SentinelOne API configuration not found - skipping this module.")
         return
 
+    # Set up common job parameters
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
+        "API_URL": config.sentinelone_api_url,
+        "API_TOKEN": config.sentinelone_api_token,
     }
 
-    # Sync SentinelOne account data (needs to be done first to establish the account node)
-    sync_accounts(
+    # Sync SentinelOne account data (needs to be done first to establish the account nodes)
+    synced_account_ids = sync_accounts(
         neo4j_session,
-        config.sentinelone_api_url,
-        config.sentinelone_api_token,
-        config.update_tag,
         common_job_parameters,
+        config.sentinelone_account_ids,
     )
+
+    # Sync agents for each account
+    for account_id in synced_account_ids:
+        # Add account-specific parameter
+        common_job_parameters["S1_ACCOUNT_ID"] = account_id
+
+        cartography.intel.sentinelone.agent.sync(
+            neo4j_session,
+            common_job_parameters,
+        )
+
+        # Clean up account-specific parameter
+        del common_job_parameters["S1_ACCOUNT_ID"]
 
     # Record that the sync is complete
     merge_module_sync_metadata(

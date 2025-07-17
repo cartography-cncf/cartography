@@ -4,6 +4,7 @@ from unittest.mock import patch
 import cartography.intel.aws.cloudwatch
 from cartography.intel.aws.cloudwatch import sync
 from tests.data.aws.cloudwatch import GET_CLOUDWATCH_LOG_GROUPS
+from tests.data.aws.cloudwatch import GET_CLOUDWATCH_LOG_METRIC_FILTERS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -15,10 +16,17 @@ TEST_UPDATE_TAG = 123456789
 
 @patch.object(
     cartography.intel.aws.cloudwatch,
+    "get_cloudwatch_log_metric_filters",
+    return_value=GET_CLOUDWATCH_LOG_METRIC_FILTERS,
+)
+@patch.object(
+    cartography.intel.aws.cloudwatch,
     "get_cloudwatch_log_groups",
     return_value=GET_CLOUDWATCH_LOG_GROUPS,
 )
-def test_sync_cloudwatch(mock_get_log_groups, neo4j_session):
+def test_sync_cloudwatch(
+    mock_get_log_groups, mock_get_log_metric_filters, neo4j_session
+):
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
@@ -41,6 +49,11 @@ def test_sync_cloudwatch(mock_get_log_groups, neo4j_session):
         ),
     }
 
+    assert check_nodes(neo4j_session, "CloudWatchLogMetricFilter", ["id"]) == {
+        ("/aws/lambda/process-orders:HighErrorRate",),
+        ("/aws/codebuild/sample-project:AuthFailures",),
+    }
+
     # Assert
     assert check_rels(
         neo4j_session,
@@ -58,5 +71,37 @@ def test_sync_cloudwatch(mock_get_log_groups, neo4j_session):
         (
             TEST_ACCOUNT_ID,
             "arn:aws:logs:eu-west-1:123456789012:log-group:/aws/codebuild/sample-project",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "CloudWatchLogMetricFilter",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "/aws/lambda/process-orders:HighErrorRate"),
+        (TEST_ACCOUNT_ID, "/aws/codebuild/sample-project:AuthFailures"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "CloudWatchLogMetricFilter",
+        "id",
+        "CloudWatchLogGroup",
+        "log_group_name",
+        "METRIC_FILTER_OF",
+        rel_direction_right=True,
+    ) == {
+        (
+            "/aws/lambda/process-orders:HighErrorRate",
+            "/aws/lambda/process-orders",
+        ),
+        (
+            "/aws/codebuild/sample-project:AuthFailures",
+            "/aws/codebuild/sample-project",
         ),
     }

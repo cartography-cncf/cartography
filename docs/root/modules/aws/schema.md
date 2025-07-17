@@ -255,19 +255,13 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 | Field | Description | Required|
 |-------|-------------|------|
 |**arn**|The AWS ARN|yes|
-|id|Uses the format of `name\|arch\|version\|release\|epoch` to uniqulely identify packages|yes|
-|region|AWS region the finding is from|yes|
-|awsaccount|AWS account the finding is from|yes|
-|findingarn|The AWS ARN for a related finding|yes|
+|id|Uses the format of `name|epoch:version-release.arch` to uniquely identify packages|yes|
 |name|The finding name|
 |arch|Architecture for the package|
 |version|Version of the package|
 |release|Release of the package
 |epoch|Package epoch|
 |manager|Related package manager|
-|filepath|Path to the file or package|
-|fixedinversion|Version the related finding was fixed in|
-|sourcelayerhash|Source layer hash for container images|
 
 
 #### Relationships
@@ -276,7 +270,20 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 
     ```cypher
     (:AWSInspectorFindings)-[:HAS]->(:AWSInspectorPackages)
+
     ```
+    - `HAS` attributes
+
+| Field | Description | Required|
+|-------|-------------|------|
+|filepath|Path to the file or package|
+|sourcelayerhash|Source layer hash for container images|
+|sourcelambdalayerarn|ARN of the AWS Lambda function affected|
+|fixedinversion|Version the related finding was fixed in|
+|remediation|Remediation steps|
+|_sub_resource_label|Resource label to do relationships clean-up. Always `AWSAccount`
+|_sub_resource_id|Resource id to do relationships clean-up. Always ID of the AWS `RESOURCE` account.
+
 
 - AWSInspectorPackages belong to AWSAccounts.
 
@@ -660,6 +667,11 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
+- Cartography records assumerole events between AWS principals
+    ```cypher
+    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(AWSRole)
+    ```
+
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
 
@@ -849,6 +861,32 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 - CLoudWatch LogGroups are a resource under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
+
+### CloudWatchLogMetricFilter
+Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeMetricFilters.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | Ensures that the id field is a unique combination of logGroupName and filterName |
+| arn | Ensures that the arn field is a unique combination of logGroupName and filterName |
+| region | The region of the CloudWatch Log Metric Filter |
+| filter_name | The name of the filter pattern used to extract metric data from log events |
+| filter_pattern | The pattern used to extract metric data from CloudWatch log events |
+| log_group_name | The name of the log group to which this metric filter is applied |
+| metric_name | The name of the metric emitted by this filter |
+| metric_namespace | The namespace of the metric emitted by this filter |
+| metric_value | The value to publish to the CloudWatch metric when a log event matches the filter pattern |
+#### Relationships
+- CLoudWatch Log Metric Filters are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchLogMetricFilter)
+    ```
+- CloudWatchLogMetricFilter associated with CloudWatchLogGroup via the METRIC_FILTER_OF relationship
+    ```
+    (CloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(CloudWatchLogGroup)
     ```
 
 ### CodeBuildProject
@@ -1282,6 +1320,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **subnetid** | The ID of the subnet|
+| **subnet_id** | The ID of the subnet|
 | **id** | same as subnetid |
 | region| The AWS region the subnet is installed on|
 | name | The IPv4 CIDR block assigned to the subnet|
@@ -1973,6 +2012,7 @@ Representation of a generic Network Interface.  Currently however, we only creat
 | private\_dns\_name| The private DNS name |
 | status | Status of the network interface.  Valid Values: ``available \| associated \| attaching \| in-use \| detaching `` |
 | subnetid | The ID of the subnet |
+| subnet_id | The ID of the subnet |
 | interface_type  |  Describes the type of network interface. Valid values: `` interface \| efa `` |
 | requester_id  | Id of the requester, e.g. `amazon-elb` for ELBs |
 | requester_managed  |  Indicates whether the interface is managed by the requester |
