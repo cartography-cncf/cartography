@@ -26,10 +26,13 @@ def get_cloudtrail_trails(
     )
 
     trails = client.describe_trails()["trailList"]
-
-    # CloudTrail multi-region trails are shown in list_trails,
-    # but the get_trail call only works in the home region
     trails_filtered = [trail for trail in trails if trail.get("HomeRegion") == region]
+
+    for trail in trails_filtered:
+        arn = trail.get("CloudWatchLogsLogGroupArn")
+        if arn:
+            trail["CloudWatchLogsLogGroupArn"] = arn.split(":*")[0]
+
     return trails_filtered
 
 
@@ -80,6 +83,12 @@ def sync(
             f"Syncing CloudTrail for region '{region}' in account '{current_aws_account_id}'.",
         )
         trails = get_cloudtrail_trails(boto3_session, region)
+        for trail in trails:
+            trail_arn = trail.get("TrailARN")
+            log_group_arn = trail.get("CloudWatchLogsLogGroupArn", "None")
+            if log_group_arn and ":*" in log_group_arn:
+                log_group_arn = log_group_arn.split(":*")[0]
+            print(f"[DEBUG] Trail: {trail_arn}, CloudWatchLogGroupArn: {log_group_arn}")
 
         load_cloudtrail_trails(
             neo4j_session,
