@@ -4,6 +4,53 @@ from typing import List
 
 from cartography.intel.github.repos import UserAffiliationAndRepoPermission
 
+# Dependency graph test data for unit tests
+DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
+    "nodes": [
+        {
+            "blobPath": "/package.json",
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "react",
+                        "requirements": "18.2.0",
+                        "packageManager": "NPM",
+                    },
+                    {
+                        "packageName": "lodash",
+                        "requirements": "^4.17.21",
+                        "packageManager": "NPM",
+                    },
+                ],
+            },
+        },
+        {
+            "blobPath": "/requirements.txt",
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "Django",
+                        "requirements": "==4.2.0",
+                        "packageManager": "PIP",
+                    },
+                ],
+            },
+        },
+        {
+            "blobPath": "/pom.xml",
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "org.springframework:spring-core",
+                        "requirements": "5.3.21",
+                        "packageManager": "MAVEN",
+                    },
+                ],
+            },
+        },
+    ],
+}
+
 GET_REPOS: List[dict[str, Any]] = [
     {
         "name": "sample_repo",
@@ -131,39 +178,7 @@ GET_REPOS: List[dict[str, Any]] = [
             """,
             ),
         },
-        "dependencyGraphManifests": {
-            "nodes": [
-                {
-                    "blobPath": "/package.json",
-                    "dependencies": {
-                        "nodes": [
-                            {
-                                "packageName": "react",
-                                "requirements": "18.2.0",
-                                "packageManager": "NPM",
-                            },
-                            {
-                                "packageName": "lodash",
-                                "requirements": "^4.17.21",
-                                "packageManager": "NPM",
-                            },
-                        ],
-                    },
-                },
-                {
-                    "blobPath": "/requirements.txt",
-                    "dependencies": {
-                        "nodes": [
-                            {
-                                "packageName": "Django",
-                                "requirements": "==4.2.0",
-                                "packageManager": "PIP",
-                            },
-                        ],
-                    },
-                },
-            ],
-        },
+        "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
     },
 ]
 
@@ -289,231 +304,5 @@ DIRECT_COLLABORATORS: dict[str, List[UserAffiliationAndRepoPermission]] = {
             permission="MAINTAIN",
             affiliation="DIRECT",
         ),
-    ],
-}
-
-
-# Dependency graph test data for unit tests
-DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
-    "nodes": [
-        {
-            "blobPath": "/package.json",
-            "dependencies": {
-                "nodes": [
-                    {
-                        "packageName": "react",
-                        "requirements": "18.2.0",
-                        "packageManager": "NPM",
-                    },
-                    {
-                        "packageName": "lodash",
-                        "requirements": "^4.17.21",
-                        "packageManager": "NPM",
-                    },
-                ],
-            },
-        },
-        {
-            "blobPath": "/requirements.txt",
-            "dependencies": {
-                "nodes": [
-                    {
-                        "packageName": "Django",
-                        "requirements": "==4.2.0",
-                        "packageManager": "PIP",
-                    },
-                ],
-            },
-        },
-        {
-            "blobPath": "/pom.xml",
-            "dependencies": {
-                "nodes": [
-                    {
-                        "packageName": "org.springframework:spring-core",
-                        "requirements": "5.3.21",
-                        "packageManager": "MAVEN",
-                    },
-                ],
-            },
-        },
-    ],
-}
-
-DEPENDENCY_GRAPH_WITH_MISSING_FIELDS = {
-    "nodes": [
-        {
-            "blobPath": "/package.json",
-            "dependencies": {
-                "nodes": [
-                    {
-                        # Missing packageName - should be skipped
-                        "requirements": "1.0.0",
-                        "packageManager": "NPM",
-                    },
-                    {
-                        "packageName": "valid-package",
-                        # Missing requirements - should use None
-                        "packageManager": "NPM",
-                    },
-                    {
-                        "packageName": "another-package",
-                        "requirements": "",  # Empty requirements
-                        # Missing packageManager - should default to unknown
-                    },
-                ],
-            },
-        },
-        {
-            # Missing blobPath - should use empty string
-            "dependencies": {
-                "nodes": [
-                    {
-                        "packageName": "test-package",
-                        "requirements": "2.0.0",
-                        "packageManager": "UNKNOWN",
-                    },
-                ],
-            },
-        },
-    ],
-}
-
-DEPENDENCY_GRAPH_EMPTY_MANIFESTS: dict[str, list] = {"nodes": []}
-
-
-# Test repository data for GitHub Dependencies unit tests
-TEST_REPOS_WITH_DEPENDENCIES: List[dict[str, Any]] = [
-    {
-        "name": "cartography",
-        "nameWithOwner": "cartography-cncf/cartography",
-        "primaryLanguage": {"name": "Python"},
-        "url": "https://github.com/cartography-cncf/cartography",
-        "sshUrl": "git@github.com:cartography-cncf/cartography.git",
-        "createdAt": "2018-05-01T00:00:00Z",
-        "description": "A tool for mapping dependencies",
-        "updatedAt": "2023-01-01T00:00:00Z",
-        "homepageUrl": "https://cartography.io",
-        "languages": {
-            "totalCount": 2,
-            "nodes": [{"name": "Python"}, {"name": "Makefile"}],
-        },
-        "defaultBranchRef": {"name": "master", "id": "branch123"},
-        "isPrivate": False,
-        "isArchived": False,
-        "isDisabled": False,
-        "isLocked": False,
-        "owner": {
-            "url": "https://github.com/cartography-cncf",
-            "login": "cartography-cncf",
-            "__typename": "Organization",
-        },
-        "directCollaborators": {"totalCount": 0},
-        "outsideCollaborators": {"totalCount": 0},
-        "requirements": None,
-        "setupCfg": None,
-        "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
-    },
-    {
-        "name": "test-repo",
-        "nameWithOwner": "test-org/test-repo",
-        "primaryLanguage": None,
-        "url": "https://github.com/test-org/test-repo",
-        "sshUrl": "git@github.com:test-org/test-repo.git",
-        "createdAt": "2023-01-01T00:00:00Z",
-        "description": "Test repository",
-        "updatedAt": "2023-01-01T00:00:00Z",
-        "homepageUrl": None,
-        "languages": {"totalCount": 0, "nodes": []},
-        "defaultBranchRef": {"name": "main", "id": "branch456"},
-        "isPrivate": True,
-        "isArchived": False,
-        "isDisabled": False,
-        "isLocked": False,
-        "owner": {
-            "url": "https://github.com/test-org",
-            "login": "test-org",
-            "__typename": "Organization",
-        },
-        "directCollaborators": {"totalCount": 0},
-        "outsideCollaborators": {"totalCount": 0},
-        "requirements": None,
-        "setupCfg": None,
-        "dependencyGraphManifests": DEPENDENCY_GRAPH_EMPTY_MANIFESTS,
-    },
-]
-
-# Test repository data for empty dependencies test
-TEST_REPOS_EMPTY_DEPENDENCIES: List[dict[str, Any]] = [
-    {
-        "name": "empty-repo",
-        "nameWithOwner": "test-org/empty-repo",
-        "primaryLanguage": None,
-        "url": "https://github.com/test-org/empty-repo",
-        "sshUrl": "git@github.com:test-org/empty-repo.git",
-        "createdAt": "2023-01-01T00:00:00Z",
-        "description": "Empty test repository",
-        "updatedAt": "2023-01-01T00:00:00Z",
-        "homepageUrl": None,
-        "languages": {"totalCount": 0, "nodes": []},
-        "defaultBranchRef": {"name": "main", "id": "branch789"},
-        "isPrivate": False,
-        "isArchived": False,
-        "isDisabled": False,
-        "isLocked": False,
-        "owner": {
-            "url": "https://github.com/test-org",
-            "login": "test-org",
-            "__typename": "Organization",
-        },
-        "directCollaborators": {"totalCount": 0},
-        "outsideCollaborators": {"totalCount": 0},
-        "requirements": None,
-        "setupCfg": None,
-        "dependencyGraphManifests": DEPENDENCY_GRAPH_EMPTY_MANIFESTS,
-    }
-]
-
-# Test repository data for malformed dependencies test
-TEST_REPOS_MALFORMED_DEPENDENCIES: List[dict[str, Any]] = [
-    {
-        "name": "malformed-repo",
-        "nameWithOwner": "test-org/malformed-repo",
-        "primaryLanguage": None,
-        "url": "https://github.com/test-org/malformed-repo",
-        "sshUrl": "git@github.com:test-org/malformed-repo.git",
-        "createdAt": "2023-01-01T00:00:00Z",
-        "description": "Repo with malformed dependencies",
-        "updatedAt": "2023-01-01T00:00:00Z",
-        "homepageUrl": None,
-        "languages": {"totalCount": 0, "nodes": []},
-        "defaultBranchRef": {"name": "main", "id": "branchXYZ"},
-        "isPrivate": False,
-        "isArchived": False,
-        "isDisabled": False,
-        "isLocked": False,
-        "owner": {
-            "url": "https://github.com/test-org",
-            "login": "test-org",
-            "__typename": "Organization",
-        },
-        "directCollaborators": {"totalCount": 0},
-        "outsideCollaborators": {"totalCount": 0},
-        "requirements": None,
-        "setupCfg": None,
-        "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MISSING_FIELDS,
-    }
-]
-
-DEPENDENCY_GRAPH_NO_DEPENDENCIES = {
-    "nodes": [
-        {
-            "blobPath": "/package.json",
-            "dependencies": {"nodes": []},  # Empty dependencies
-        },
-        {
-            "blobPath": "/requirements.txt",
-            # Missing dependencies field
-        },
     ],
 }

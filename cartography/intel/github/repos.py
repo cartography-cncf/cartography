@@ -1,5 +1,6 @@
 import configparser
 import logging
+from collections import defaultdict
 from collections import namedtuple
 from string import Template
 from typing import Any
@@ -17,6 +18,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import PaginatedGraphqlData
 from cartography.models.github.dependencies import GitHubDependencySchema
+from cartography.models.github.manifests import DependencyGraphManifestSchema
 from cartography.util import backoff_handler
 from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
@@ -99,7 +101,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                     dependencyGraphManifests(first: 20) {
                         nodes {
                             blobPath
-                            dependencies(first: 200) {
+                            dependencies(first: 100) {
                                 nodes {
                                     packageName
                                     requirements
@@ -306,7 +308,8 @@ def transform(
     :param outside_collaborators: dict of repo URL to list of outside collaborators.
         See tests.data.github.repos.OUTSIDE_COLLABORATORS for data shape.
     :return: Dict containing the repos, repo->language mapping, owners->repo mapping, outside collaborators->repo
-    mapping, Python requirements files (if any) in a repo, and all dependencies from GitHub's dependency graph.
+    mapping, Python requirements files (if any) in a repo, manifests from GitHub's dependency graph, and all
+    dependencies from GitHub's dependency graph.
     """
     logger.info(f"Processing {len(repos_json)} GitHub repositories")
     transformed_repo_list: List[Dict] = []
@@ -329,6 +332,7 @@ def transform(
     }
     transformed_requirements_files: List[Dict] = []
     transformed_dependencies: List[Dict] = []
+    transformed_manifests: List[Dict] = []
     for repo_object in repos_json:
         _transform_repo_languages(
             repo_object["url"],
@@ -367,6 +371,11 @@ def transform(
             repo_url,
             transformed_requirements_files,
         )
+        _transform_dependency_manifests(
+            repo_object.get("dependencyGraphManifests"),
+            repo_url,
+            transformed_manifests,
+        )
         _transform_dependency_graph(
             repo_object.get("dependencyGraphManifests"),
             repo_url,
@@ -380,6 +389,7 @@ def transform(
         "repo_direct_collaborators": transformed_direct_collaborators,
         "python_requirements": transformed_requirements_files,
         "dependencies": transformed_dependencies,
+        "manifests": transformed_manifests,
     }
 
     return results
@@ -557,6 +567,54 @@ def _transform_setup_cfg_requirements(
     _transform_python_requirements(requirements_list, repo_url, out_requirements_files)
 
 
+def _transform_dependency_manifests(
+    dependency_manifests: Optional[Dict],
+    repo_url: str,
+    out_manifests_list: List[Dict],
+) -> None:
+    """
+    Transform GitHub dependency graph manifests into cartography manifest format.
+    :param dependency_manifests: dependencyGraphManifests from GitHub GraphQL API
+    :param repo_url: The URL of the GitHub repo
+    :param out_manifests_list: Output array to append transformed results to
+    :return: Nothing
+    """
+    if not dependency_manifests or not dependency_manifests.get("nodes"):
+        return
+
+    manifests_added = 0
+
+    for manifest in dependency_manifests["nodes"]:
+        blob_path = manifest.get("blobPath", "")
+        if not blob_path:
+            continue
+
+        # Count dependencies in this manifest
+        dependencies = manifest.get("dependencies", {})
+        dependencies_count = len(dependencies.get("nodes", []) if dependencies else [])
+
+        # Create unique manifest ID by combining repo URL and blob path
+        manifest_id = f"{repo_url}#{blob_path}"
+
+        # Extract filename from blob path
+        filename = blob_path.split("/")[-1] if blob_path else ""
+
+        out_manifests_list.append(
+            {
+                "id": manifest_id,
+                "blob_path": blob_path,
+                "filename": filename,
+                "dependencies_count": dependencies_count,
+                "repo_url": repo_url,
+            }
+        )
+        manifests_added += 1
+
+    if manifests_added > 0:
+        repo_name = repo_url.split("/")[-1] if repo_url else "repository"
+        logger.info(f"Found {manifests_added} dependency manifests in {repo_name}")
+
+
 def _transform_dependency_graph(
     dependency_manifests: Optional[Dict],
     repo_url: str,
@@ -576,7 +634,7 @@ def _transform_dependency_graph(
 
     for manifest in dependency_manifests["nodes"]:
         dependencies = manifest.get("dependencies", {})
-        if not dependencies.get("nodes"):
+        if not dependencies or not dependencies.get("nodes"):
             continue
 
         manifest_path = manifest.get("blobPath", "")
@@ -611,6 +669,9 @@ def _transform_dependency_graph(
             # Normalize requirements field (prefer None over empty string)
             normalized_requirements = requirements if requirements else None
 
+            # Create manifest ID for the HAS_DEP relationship
+            manifest_id = f"{repo_url}#{manifest_path}"
+
             out_dependencies_list.append(
                 {
                     "id": dependency_id,
@@ -621,6 +682,7 @@ def _transform_dependency_graph(
                     "ecosystem": ecosystem,
                     "package_manager": package_manager,
                     "manifest_path": manifest_path,
+                    "manifest_id": manifest_id,
                     "repo_url": repo_url,
                     # Add separate fields for easier querying
                     "repo_name": repo_url.split("/")[-1] if repo_url else "",
@@ -977,23 +1039,56 @@ def load_github_dependencies(
     :param dependencies: List of dependency objects from GitHub's dependency graph
     :return: Nothing
     """
-    # Group dependencies by repository URL for schema-based loading
-    from collections import defaultdict
-
-    dependencies_by_repo = defaultdict(list)
+    # Group dependencies by both repo_url and manifest_id for schema-based loading
+    dependencies_by_repo_and_manifest = defaultdict(list)
 
     for dep in dependencies:
         repo_url = dep["repo_url"]
-        # Remove repo_url from the dependency object since we'll pass it as kwarg
-        dep_without_repo = {k: v for k, v in dep.items() if k != "repo_url"}
-        dependencies_by_repo[repo_url].append(dep_without_repo)
+        manifest_id = dep["manifest_id"]
+        # Create a key combining both repo_url and manifest_id
+        group_key = (repo_url, manifest_id)
+        # Remove repo_url and manifest_id from the dependency object since we'll pass them as kwargs
+        dep_without_kwargs = {
+            k: v for k, v in dep.items() if k not in ["repo_url", "manifest_id"]
+        }
+        dependencies_by_repo_and_manifest[group_key].append(dep_without_kwargs)
 
-    # Load dependencies for each repository separately
-    for repo_url, repo_dependencies in dependencies_by_repo.items():
+    # Load dependencies for each repository/manifest combination separately
+    for (
+        repo_url,
+        manifest_id,
+    ), group_dependencies in dependencies_by_repo_and_manifest.items():
         load_data(
             neo4j_session,
             GitHubDependencySchema(),
-            repo_dependencies,
+            group_dependencies,
+            lastupdated=update_tag,
+            repo_url=repo_url,
+            manifest_id=manifest_id,
+        )
+
+
+@timeit
+def load_github_dependency_manifests(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    manifests: List[Dict],
+) -> None:
+    """
+    Ingest GitHub dependency manifests into Neo4j
+    """
+    manifests_by_repo = defaultdict(list)
+
+    for manifest in manifests:
+        repo_url = manifest["repo_url"]
+        manifests_by_repo[repo_url].append(manifest)
+
+    # Load manifests for each repository separately
+    for repo_url, repo_manifests in manifests_by_repo.items():
+        load_data(
+            neo4j_session,
+            DependencyGraphManifestSchema(),
+            repo_manifests,
             lastupdated=update_tag,
             repo_url=repo_url,
         )
@@ -1005,16 +1100,30 @@ def cleanup_github_dependencies(
     common_job_parameters: Dict[str, Any],
     repo_urls: List[str],
 ) -> None:
-    """
-    Delete GitHub dependencies and their relationships from the graph if they were not updated in the last sync.
-    :param neo4j_session: Neo4j session
-    :param common_job_parameters: Common job parameters containing UPDATE_TAG
-    :param repo_urls: List of repository URLs to clean up dependencies for
-    """
     # Run cleanup for each repository separately
     for repo_url in repo_urls:
         cleanup_params = {**common_job_parameters, "repo_url": repo_url}
         GraphJob.from_node_schema(GitHubDependencySchema(), cleanup_params).run(
+            neo4j_session
+        )
+
+
+@timeit
+def cleanup_github_manifests(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+    repo_urls: List[str],
+) -> None:
+    """
+    Delete GitHub dependency manifests and their relationships from the graph if they were not updated in the last sync.
+    :param neo4j_session: Neo4j session
+    :param common_job_parameters: Common job parameters containing UPDATE_TAG
+    :param repo_urls: List of repository URLs to clean up manifests for
+    """
+    # Run cleanup for each repository separately
+    for repo_url in repo_urls:
+        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
+        GraphJob.from_node_schema(DependencyGraphManifestSchema(), cleanup_params).run(
             neo4j_session
         )
 
@@ -1056,6 +1165,11 @@ def load(
         neo4j_session,
         common_job_parameters["UPDATE_TAG"],
         repo_data["python_requirements"],
+    )
+    load_github_dependency_manifests(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["manifests"],
     )
     load_github_dependencies(
         neo4j_session,
@@ -1115,4 +1229,12 @@ def sync(
     )
     cleanup_github_dependencies(
         neo4j_session, common_job_parameters, repo_urls_with_dependencies
+    )
+
+    # Collect repository URLs that have manifests for cleanup
+    repo_urls_with_manifests = list(
+        {manifest["repo_url"] for manifest in repo_data["manifests"]}
+    )
+    cleanup_github_manifests(
+        neo4j_session, common_job_parameters, repo_urls_with_manifests
     )

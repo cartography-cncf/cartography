@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -44,9 +45,30 @@ class GitHubDependencyToRepositoryRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class DependencyGraphManifestToDependencyRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class DependencyGraphManifestToDependencyRel(CartographyRelSchema):
+    target_node_label: str = "DependencyGraphManifest"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("manifest_id", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_DEP"
+    properties: DependencyGraphManifestToDependencyRelProperties = (
+        DependencyGraphManifestToDependencyRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitHubDependencySchema(CartographyNodeSchema):
     label: str = "Dependency"
     properties: GitHubDependencyNodeProperties = GitHubDependencyNodeProperties()
     sub_resource_relationship: GitHubDependencyToRepositoryRel = (
         GitHubDependencyToRepositoryRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [DependencyGraphManifestToDependencyRel()]
     )

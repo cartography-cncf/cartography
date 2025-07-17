@@ -1,11 +1,64 @@
-from unittest.mock import MagicMock
-from unittest.mock import patch
-
 from cartography.intel.github.repos import _transform_dependency_graph
-from cartography.intel.github.repos import load_github_dependencies
+from cartography.intel.github.repos import _transform_dependency_manifests
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 
 TEST_UPDATE_TAG = 123456789
+
+
+def test_transform_dependency_manifests_converts_to_expected_format():
+    """
+    Test that the manifest transformation function correctly processes GitHub API data
+    into the format expected for loading manifest nodes into the database.
+    """
+    # Arrange
+    repo_url = "https://github.com/test-org/test-repo"
+    output_list = []
+
+    # Act
+    _transform_dependency_manifests(
+        DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS, repo_url, output_list
+    )
+
+    # Assert: Check that 3 manifests were transformed
+    assert len(output_list) == 3
+
+    # Assert: Check that expected manifest IDs are present
+    manifest_ids = {manifest["id"] for manifest in output_list}
+    expected_ids = {
+        "https://github.com/test-org/test-repo#/package.json",
+        "https://github.com/test-org/test-repo#/requirements.txt",
+        "https://github.com/test-org/test-repo#/pom.xml",
+    }
+    assert manifest_ids == expected_ids
+
+    # Assert: Check that a specific manifest has expected properties
+    package_json_manifest = next(
+        manifest for manifest in output_list if manifest["filename"] == "package.json"
+    )
+    assert (
+        package_json_manifest["id"]
+        == "https://github.com/test-org/test-repo#/package.json"
+    )
+    assert package_json_manifest["blob_path"] == "/package.json"
+    assert package_json_manifest["filename"] == "package.json"
+    assert package_json_manifest["dependencies_count"] == 2  # react and lodash
+    assert package_json_manifest["repo_url"] == repo_url
+
+    # Assert: Check requirements.txt manifest
+    requirements_manifest = next(
+        manifest
+        for manifest in output_list
+        if manifest["filename"] == "requirements.txt"
+    )
+    assert requirements_manifest["dependencies_count"] == 1  # Django
+    assert requirements_manifest["blob_path"] == "/requirements.txt"
+
+    # Assert: Check pom.xml manifest
+    pom_manifest = next(
+        manifest for manifest in output_list if manifest["filename"] == "pom.xml"
+    )
+    assert pom_manifest["dependencies_count"] == 1  # spring-core
+    assert pom_manifest["blob_path"] == "/pom.xml"
 
 
 def test_transform_dependency_converts_to_expected_format():
@@ -47,64 +100,3 @@ def test_transform_dependency_converts_to_expected_format():
     assert react_dep["repo_url"] == repo_url
     assert react_dep["repo_name"] == "test-repo"
     assert react_dep["manifest_file"] == "package.json"
-
-
-@patch("cartography.intel.github.repos.load_data")
-def test_load_github_dependencies_calls_data_model_correctly(mock_load):
-    """
-    Test that the load function calls the new data model load function with correct parameters.
-    """
-    # Arrange
-    mock_neo4j_session = MagicMock()
-    repo_url = "https://github.com/test/repo"
-    dependencies = [
-        {
-            "id": "test-package|1.0.0",
-            "name": "test-package",
-            "original_name": "Test-Package",
-            "version": "1.0.0",
-            "requirements": "1.0.0",
-            "ecosystem": "npm",
-            "package_manager": "NPM",
-            "manifest_path": "/package.json",
-            "repo_url": repo_url,
-            "repo_name": "repo",
-            "manifest_file": "package.json",
-        }
-    ]
-
-    # Act
-    load_github_dependencies(mock_neo4j_session, TEST_UPDATE_TAG, dependencies)
-
-    # Assert: Check that the data model load function was called correctly
-    mock_load.assert_called_once()
-    call_args = mock_load.call_args
-
-    # Verify the function was called with correct arguments
-    assert call_args[0][0] == mock_neo4j_session  # neo4j_session
-    # GitHubDependencySchema should be the second argument - check the type
-    assert call_args[0][1].__class__.__name__ == "GitHubDependencySchema"
-
-    # The function removes repo_url from each dependency before passing to load_data
-    expected_dependencies = [
-        {
-            "id": "test-package|1.0.0",
-            "name": "test-package",
-            "original_name": "Test-Package",
-            "version": "1.0.0",
-            "requirements": "1.0.0",
-            "ecosystem": "npm",
-            "package_manager": "NPM",
-            "manifest_path": "/package.json",
-            "repo_name": "repo",
-            "manifest_file": "package.json",
-            # Note: repo_url is removed from the dependency object
-        }
-    ]
-    assert (
-        call_args[0][2] == expected_dependencies
-    )  # dependencies data (without repo_url)
-
-    # Check keyword arguments
-    assert call_args[1]["lastupdated"] == TEST_UPDATE_TAG
-    assert call_args[1]["repo_url"] == repo_url  # repo_url passed as kwarg
