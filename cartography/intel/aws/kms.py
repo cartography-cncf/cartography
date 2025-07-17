@@ -13,6 +13,8 @@ import neo4j
 from botocore.exceptions import ClientError
 from policyuniverse.policy import Policy
 
+from cartography.client.core.tx import load
+from cartography.models.aws.kms.key import KMSKeySchema
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -324,39 +326,21 @@ def load_kms_keys(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    ingest_keys = """
-    UNWIND $key_list AS k
-    MERGE (kmskey:KMSKey{id:k.KeyId})
-    ON CREATE SET kmskey.firstseen = timestamp(),
-    kmskey.arn = k.Arn, kmskey.creationdate = k.CreationDate
-    SET kmskey.deletiondate = k.DeletionDate,
-    kmskey.validto = k.ValidTo,
-    kmskey.enabled = k.Enabled,
-    kmskey.keystate = k.KeyState,
-    kmskey.customkeystoreid = k.CustomKeyStoreId,
-    kmskey.cloudhsmclusterid = k.CloudHsmClusterId,
-    kmskey.lastupdated = $aws_update_tag,
-    kmskey.region = $Region
-    WITH kmskey
-    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (aa)-[r:RESOURCE]->(kmskey)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
+    logger.info("Loading %d KMS Keys for region %s into graph.", len(data), region)
 
-    # neo4j does not accept datetime objects and values. This loop is used to convert
-    # these values to string.
+    # Neo4j does not accept datetime objects; convert them to strings
     for key in data:
         key["CreationDate"] = str(key["CreationDate"])
         key["DeletionDate"] = str(key.get("DeletionDate"))
         key["ValidTo"] = str(key.get("ValidTo"))
 
-    neo4j_session.run(
-        ingest_keys,
-        key_list=data,
+    load(
+        neo4j_session,
+        KMSKeySchema(),
+        data,
+        lastupdated=aws_update_tag,
         Region=region,
-        AWS_ACCOUNT_ID=current_aws_account_id,
-        aws_update_tag=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
 
 
