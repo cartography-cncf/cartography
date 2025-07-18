@@ -429,7 +429,7 @@ def sync_rds_clusters(
     """
     for region in regions:
         logger.info(
-            "Syncing RDS for region '%s' in account '%s'.",
+            "Syncing RDS clusters for region '%s' in account '%s'.",
             region,
             current_aws_account_id,
         )
@@ -455,7 +455,7 @@ def sync_rds_instances(
     """
     for region in regions:
         logger.info(
-            "Syncing RDS for region '%s' in account '%s'.",
+            "Syncing RDS instances for region '%s' in account '%s'.",
             region,
             current_aws_account_id,
         )
@@ -489,7 +489,7 @@ def sync_rds_snapshots(
     """
     for region in regions:
         logger.info(
-            "Syncing RDS for region '%s' in account '%s'.",
+            "Syncing RDS snapshots for region '%s' in account '%s'.",
             region,
             current_aws_account_id,
         )
