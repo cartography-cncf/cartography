@@ -153,8 +153,8 @@ def test_sync_ebs_snapshots(
 
     # Assert EBSSnapshot nodes exist with expected properties
     expected_snapshot_nodes = {
-        ("sn-01", "Snapshot for testing", True, "completed", "v-01", 123),
-        ("sn-02", "Snapshot for testing", True, "completed", "v-02", 123),
+        ("sn-01", "Snapshot for testing", True, "completed", "vol-0df", 123),
+        ("sn-02", "Snapshot for testing", True, "completed", "vol-03", 123),
     }
     assert (
         check_nodes(
@@ -215,6 +215,8 @@ def test_sync_ebs_snapshots(
         TEST_REGION,
         [],  # Empty list since get_snapshots_in_use is mocked to return empty list
     )
+    # Note: CREATED_FROM relationships are not created in this test because volumes are not loaded
+    # The relationships would be created if volumes existed in the graph
 
 
 @patch.object(
@@ -257,8 +259,8 @@ def test_sync_ebs_snapshots_with_snapshots_in_use(mock_get_snapshots, neo4j_sess
 
     # Assert EBSSnapshot nodes exist with expected properties
     expected_snapshot_nodes = {
-        ("sn-01", "Snapshot for testing", True, "completed", "v-01", 123),
-        ("sn-02", "Snapshot for testing", True, "completed", "v-02", 123),
+        ("sn-01", "Snapshot for testing", True, "completed", "vol-0df", 123),
+        ("sn-02", "Snapshot for testing", True, "completed", "vol-03", 123),
     }
     assert (
         check_nodes(
@@ -287,9 +289,20 @@ def test_sync_ebs_snapshots_with_snapshots_in_use(mock_get_snapshots, neo4j_sess
         == expected_account_relationships
     )
 
-    # Verify the call arguments more flexibly (order doesn't matter)
-    assert mock_get_snapshots.call_count == 1
-    call_args = mock_get_snapshots.call_args[0]
-    assert call_args[0] == boto3_session
-    assert call_args[1] == TEST_REGION
-    assert set(call_args[2]) == {"sn-01", "sn-02"}  # Check set equality to ignore order
+    # Assert snapshots are connected to volumes via CREATED_FROM relationship
+    expected_created_from_relationships = {
+        ("sn-01", "vol-0df"),
+        ("sn-02", "vol-03"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "EBSSnapshot",
+            "id",
+            "EBSVolume",
+            "id",
+            "CREATED_FROM",
+            rel_direction_right=True,
+        )
+        == expected_created_from_relationships
+    )
