@@ -207,7 +207,6 @@ def transform_rds_clusters(data: List[Dict]) -> List[Dict]:
     return clusters
 
 
-@timeit
 def transform_rds_snapshots(data: List[Dict]) -> List[Dict]:
     snapshots = []
 
@@ -235,7 +234,6 @@ def transform_rds_snapshots(data: List[Dict]) -> List[Dict]:
     return snapshots
 
 
-@timeit
 def transform_rds_instances(
     data: List[Dict], region: str, current_aws_account_id: str
 ) -> List[Dict]:
@@ -294,7 +292,6 @@ def transform_rds_instances(
     return instances
 
 
-@timeit
 def transform_rds_subnet_groups(
     data: List[Dict], region: str, current_aws_account_id: str
 ) -> List[Dict]:
