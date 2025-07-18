@@ -433,15 +433,16 @@ resources that exist in the graph don't change across syncs.
     same data. Explained another way, each module should "offer its own perspective" on the data. We believe doing this
     gives us a more complete graph. Below are some key guidelines clarifying and justifying this design choice.
 
-- It is possible (and encouraged) for more than one intel module to modify the same node type.
+- It is possible (and encouraged) for more than one intel module to modify the same node type. However, there are two distinct patterns for this:
 
-    For example, when we [connect RDS instances to their associated EC2 security
-    groups](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L188)
-    there are actually two different intel modules that retrieve EC2 security group data: the [RDS module](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L13)
-    returns [partial group data](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSecurityGroupMembership.html),
-    and the EC2 module returns more complete data as it calls APIs specific for [retrieving and loading security groups](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/ec2.py#L166).
-    Because both the RDS and EC2 modules `MERGE` on a unique ID, we don't need to worry about
-    creating duplicate nodes in the graph.
+    **Simple Relationship Pattern**: When data type A only refers to data type B by an ID without providing additional properties about B, there is no need to define a composite node. Instead, we can just define a relationship schema that performs a `MATCH` operation to connect existing nodes.
 
-    Another less obvious benefit of using `MERGE` across more than one intel module to connect nodes in this way is that
-    in many cases, we've seen an intel module discover nodes that another module was not aware of!
+    For example, when an RDS instance refers to EC2 security groups by ID, we create a relationship from the RDS instance to the security group nodes without needing to define a composite security group schema, since the RDS API doesn't provide additional properties about the security groups beyond their IDs.
+
+    **Composite Node Pattern**: When a data type `A` refers to another data type `B` and offers additional fields about `B` that `B` doesn't have itself, we should define a composite node schema. This composite node would be named "`BASchema`" to denote that it's a "`B`" object as known by an "`A`" object. When loaded, the composite node schema targets the same node label as the primary `B` schema, allowing the loading system to perform a `MERGE` operation that combines properties from both sources.
+
+    For example, in the AWS EC2 module, we have both `EBSVolumeSchema` (from the EBS API) and `EBSVolumeInstanceSchema` (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn't have, such as `deleteontermination`. Both schemas target the same `EBSVolume` node label, allowing the node to accumulate properties from both sources.
+
+    The key distinction is whether the referring module provides additional properties about the target entity. If it does, use a composite node schema. If it only provides IDs, use a simple relationship schema.
+
+    In case you're curious, here's some [historical context](https://github.com/cartography-cncf/cartography/issues/1210) on how we got here.
