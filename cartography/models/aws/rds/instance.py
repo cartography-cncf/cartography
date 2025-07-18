@@ -141,6 +141,26 @@ class RDSInstanceToRDSClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RDSInstanceToDBSubnetGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class RDSInstanceToDBSubnetGroupRel(CartographyRelSchema):
+    target_node_label: str = "DBSubnetGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("db_subnet_group_arn"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF_DB_SUBNET_GROUP"
+    properties: RDSInstanceToDBSubnetGroupRelProperties = (
+        RDSInstanceToDBSubnetGroupRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class RDSInstanceSchema(CartographyNodeSchema):
     label: str = "RDSInstance"
     properties: RDSInstanceNodeProperties = RDSInstanceNodeProperties()
@@ -150,5 +170,6 @@ class RDSInstanceSchema(CartographyNodeSchema):
             RDSInstanceToEC2SecurityGroupRel(),
             RDSInstanceToRDSInstanceRel(),
             RDSInstanceToRDSClusterRel(),
+            RDSInstanceToDBSubnetGroupRel(),
         ]
     )

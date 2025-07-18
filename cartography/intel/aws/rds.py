@@ -90,12 +90,6 @@ def load_rds_instances(
     """
     Ingest the RDS instances to Neo4j and link them to necessary nodes.
     """
-    subnets = []
-
-    for rds in data:
-        if rds.get("DBSubnetGroup"):
-            subnets.append(rds)
-
     load(
         neo4j_session,
         RDSInstanceSchema(),
@@ -103,14 +97,6 @@ def load_rds_instances(
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
-    )
-
-    _attach_ec2_subnet_groups(
-        neo4j_session,
-        subnets,
-        region,
-        current_aws_account_id,
-        aws_update_tag,
     )
 
 
@@ -146,56 +132,6 @@ def load_rds_snapshots(
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
-    )
-
-
-@timeit
-def _attach_ec2_subnet_groups(
-    neo4j_session: neo4j.Session,
-    instances: List[Dict],
-    region: str,
-    current_aws_account_id: str,
-    aws_update_tag: int,
-) -> None:
-    """
-    Attach RDS instances to their EC2 subnet groups
-    """
-    attach_rds_to_subnet_group = """
-    UNWIND $SubnetGroups as rds_sng
-        MERGE (sng:DBSubnetGroup{id: rds_sng.arn})
-        ON CREATE SET sng.firstseen = timestamp()
-        SET sng.name = rds_sng.DBSubnetGroupName,
-            sng.vpc_id = rds_sng.VpcId,
-            sng.description = rds_sng.DBSubnetGroupDescription,
-            sng.status = rds_sng.DBSubnetGroupStatus,
-            sng.lastupdated = $aws_update_tag
-        WITH sng, rds_sng.instance_arn AS instance_arn
-        MATCH(rds:RDSInstance{id: instance_arn})
-        MERGE(rds)-[r:MEMBER_OF_DB_SUBNET_GROUP]->(sng)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-    """
-    db_sngs = []
-    for instance in instances:
-        db_sng = instance["DBSubnetGroup"]
-        db_sng["arn"] = _get_db_subnet_group_arn(
-            region,
-            current_aws_account_id,
-            db_sng["DBSubnetGroupName"],
-        )
-        db_sng["instance_arn"] = instance["DBInstanceArn"]
-        db_sngs.append(db_sng)
-    neo4j_session.run(
-        attach_rds_to_subnet_group,
-        SubnetGroups=db_sngs,
-        aws_update_tag=aws_update_tag,
-    )
-    _attach_ec2_subnets_to_subnetgroup(
-        neo4j_session,
-        db_sngs,
-        region,
-        current_aws_account_id,
-        aws_update_tag,
     )
 
 
@@ -350,7 +286,9 @@ def transform_rds_snapshots(data: List[Dict]) -> List[Dict]:
 
 
 @timeit
-def transform_rds_instances(data: List[Dict]) -> List[Dict]:
+def transform_rds_instances(
+    data: List[Dict], region: str, current_aws_account_id: str
+) -> List[Dict]:
     """
     Transform RDS instance data for Neo4j ingestion
     """
@@ -379,6 +317,13 @@ def transform_rds_instances(data: List[Dict]) -> List[Dict]:
             transformed_instance["db_cluster_identifier"] = instance[
                 "DBClusterIdentifier"
             ]
+
+        # Handle subnet group data for the relationship
+        if instance.get("DBSubnetGroup"):
+            db_subnet_group = instance["DBSubnetGroup"]
+            transformed_instance["db_subnet_group_arn"] = _get_db_subnet_group_arn(
+                region, current_aws_account_id, db_subnet_group["DBSubnetGroupName"]
+            )
 
         # Handle endpoint data
         ep = _validate_rds_endpoint(instance)
@@ -489,7 +434,7 @@ def sync_rds_instances(
             current_aws_account_id,
         )
         data = get_rds_instance_data(boto3_session, region)
-        transformed_data = transform_rds_instances(data)
+        transformed_data = transform_rds_instances(data, region, current_aws_account_id)
         load_rds_instances(
             neo4j_session, transformed_data, region, current_aws_account_id, update_tag
         )

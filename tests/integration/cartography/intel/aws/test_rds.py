@@ -36,7 +36,7 @@ def test_load_rds_clusters_basic(neo4j_session):
 
     # Transform the data first
     transformed_data = cartography.intel.aws.rds.transform_rds_instances(
-        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"]
+        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"], "us-east1", "1234"
     )
     cartography.intel.aws.rds.load_rds_instances(
         neo4j_session,
@@ -79,7 +79,7 @@ def test_load_rds_instances_basic(neo4j_session):
     """Test that we successfully load RDS instance nodes to the graph"""
     # Transform the data first
     transformed_data = cartography.intel.aws.rds.transform_rds_instances(
-        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"]
+        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"], "us-east1", "1234"
     )
     cartography.intel.aws.rds.load_rds_instances(
         neo4j_session,
@@ -108,7 +108,7 @@ def test_load_rds_snapshots_basic(neo4j_session):
     """Test that we successfully load RDS snapshots to the graph"""
     # Transform the data first
     transformed_data = cartography.intel.aws.rds.transform_rds_instances(
-        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"]
+        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"], "us-east1", "1234"
     )
     cartography.intel.aws.rds.load_rds_instances(
         neo4j_session,
