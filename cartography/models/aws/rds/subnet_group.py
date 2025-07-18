@@ -63,6 +63,26 @@ class DBSubnetGroupToRDSInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class DBSubnetGroupToEC2SubnetRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class DBSubnetGroupToEC2SubnetRel(CartographyRelSchema):
+    target_node_label: str = "EC2Subnet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "subnetid": PropertyRef("subnet_ids", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RESOURCE"
+    properties: DBSubnetGroupToEC2SubnetRelProperties = (
+        DBSubnetGroupToEC2SubnetRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class DBSubnetGroupSchema(CartographyNodeSchema):
     """
     DB Subnet Group schema
@@ -76,5 +96,6 @@ class DBSubnetGroupSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             DBSubnetGroupToRDSInstanceRel(),
+            DBSubnetGroupToEC2SubnetRel(),
         ]
     )
