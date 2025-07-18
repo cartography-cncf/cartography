@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -76,7 +77,32 @@ class RDSSnapshotToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RDSSnapshotToRDSInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class RDSSnapshotToRDSInstanceRel(CartographyRelSchema):
+    target_node_label: str = "RDSInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "db_instance_identifier": PropertyRef("DBInstanceIdentifier"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_SNAPSHOT_SOURCE"
+    properties: RDSSnapshotToRDSInstanceRelProperties = (
+        RDSSnapshotToRDSInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class RDSSnapshotSchema(CartographyNodeSchema):
     label: str = "RDSSnapshot"
     properties: RDSSnapshotNodeProperties = RDSSnapshotNodeProperties()
     sub_resource_relationship: RDSSnapshotToAWSAccountRel = RDSSnapshotToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            RDSSnapshotToRDSInstanceRel(),
+        ]
+    )

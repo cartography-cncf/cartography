@@ -189,40 +189,13 @@ def load_rds_snapshots(
     """
     Ingest the RDS snapshots to neo4j and link them to necessary nodes.
     """
-    snapshots = transform_rds_snapshots(data)
-
     load(
         neo4j_session,
         RDSSnapshotSchema(),
-        snapshots,
+        data,
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
-    )
-    _attach_snapshots(neo4j_session, snapshots, aws_update_tag)
-
-
-@timeit
-def _attach_snapshots(
-    neo4j_session: neo4j.Session,
-    snapshots: List[Dict],
-    aws_update_tag: int,
-) -> None:
-    """
-    Attach snapshots to their source instance
-    """
-    attach_member_to_source = """
-    UNWIND $Snapshots as snapshot
-        MATCH (rdsInstance:RDSInstance {db_instance_identifier: snapshot.DBInstanceIdentifier}),
-        (rdsSnapshot:RDSSnapshot {arn: snapshot.DBSnapshotArn})
-        MERGE (rdsInstance)-[r:IS_SNAPSHOT_SOURCE]->(rdsSnapshot)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-    """
-    neo4j_session.run(
-        attach_member_to_source,
-        Snapshots=snapshots,
-        aws_update_tag=aws_update_tag,
     )
 
 
@@ -580,8 +553,9 @@ def sync_rds_snapshots(
             current_aws_account_id,
         )
         data = get_rds_snapshot_data(boto3_session, region)
+        transformed_data = transform_rds_snapshots(data)
         load_rds_snapshots(
-            neo4j_session, data, region, current_aws_account_id, update_tag
+            neo4j_session, transformed_data, region, current_aws_account_id, update_tag
         )
     cleanup_rds_snapshots(neo4j_session, common_job_parameters)
 
