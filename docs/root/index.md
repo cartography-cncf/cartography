@@ -29,8 +29,16 @@ dev/writing-analysis-jobs
 ```
 
 ```{toctree}
+:caption: References
+:hidden: true
+
+references/index
+```
+
+```{toctree}
 :caption: Get In Touch
 :hidden: true
 
 contact
 ```
+
