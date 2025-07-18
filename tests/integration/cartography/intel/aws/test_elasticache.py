@@ -220,14 +220,11 @@ def test_sync_elasticache(mock_get_clusters, neo4j_session):
     }
 
     # Verify that clusters have the expected properties
-    cluster_nodes = neo4j_session.run(
-        """
-        MATCH (c:ElasticacheCluster)
-        RETURN c.cache_cluster_id, c.engine, c.cache_node_type, c.cache_cluster_status
-        ORDER BY c.cache_cluster_id
-        """
-    )
-    expected_cluster_properties = {
+    assert check_nodes(
+        neo4j_session,
+        "ElasticacheCluster",
+        ["cache_cluster_id", "engine", "cache_node_type", "cache_cluster_status"],
+    ) == {
         ("test-group-0001-001", "redis", "cache.t3.medium", "available"),
         ("test-group-0001-002", "redis", "cache.t3.medium", "available"),
         ("test-group-0002-001", "redis", "cache.t3.medium", "available"),
@@ -235,26 +232,8 @@ def test_sync_elasticache(mock_get_clusters, neo4j_session):
         ("test-group-0003-001", "redis", "cache.t3.medium", "available"),
         ("test-group-0004-001", "redis", "cache.t3.medium", "available"),
     }
-    actual_cluster_properties = {
-        (
-            row["c.cache_cluster_id"],
-            row["c.engine"],
-            row["c.cache_node_type"],
-            row["c.cache_cluster_status"],
-        )
-        for row in cluster_nodes
-    }
-    assert actual_cluster_properties == expected_cluster_properties
 
     # Verify that topics have the expected properties
-    topic_nodes = neo4j_session.run(
-        """
-        MATCH (t:ElasticacheTopic)
-        RETURN t.id, t.status
-        """
-    )
-    expected_topic_properties = {
+    assert check_nodes(neo4j_session, "ElasticacheTopic", ["id", "status"]) == {
         ("arn:aws:sns:us-east-1:123456789000:elasticache-events", "active"),
     }
-    actual_topic_properties = {(row["t.id"], row["t.status"]) for row in topic_nodes}
-    assert actual_topic_properties == expected_topic_properties
