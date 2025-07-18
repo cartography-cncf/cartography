@@ -339,6 +339,11 @@ Here's how to represent this in the Cartography data model:
 
 Now we can use the same steps described above in this doc to finish data ingestion.
 
+### MatchLinks
+
+See [the MatchLinks documentation](matchlinks) on how to connect existing nodes in the graph together using Cartography's data model.
+
+
 ### Cleanup
 
 We have just added new nodes and relationships to the graph, and we have also updated previously-added ones

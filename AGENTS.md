@@ -754,7 +754,7 @@ MOCK_USERS_RESPONSE = {
 
 ### Unit Tests
 
-Test your transform functions in `tests/unit/cartography/intel/your_service/`:
+(Optional) Test your transform functions in `tests/unit/cartography/intel/your_service/`:
 
 ```python
 # tests/unit/cartography/intel/your_service/test_users.py
@@ -782,6 +782,10 @@ def test_transform_users():
 ### Integration Tests
 
 Test actual Neo4j loading in `tests/integration/cartography/intel/your_service/`:
+
+**Key Principle: Test outcomes, not implementation details.**
+
+Focus on verifying that data is written to the graph as expected, rather than testing internal function parameters or implementation details. Mock external dependencies (APIs, databases) when necessary, but avoid brittle parameter testing.
 
 ```python
 # tests/integration/cartography/intel/your_service/test_users.py
@@ -813,7 +817,8 @@ def test_sync_users(mock_api, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
 
-    # Assert - Use check_nodes() instead of raw Neo4j queries
+    # ✅ DO: Test outcomes - verify data is written to the graph as expected
+    # Assert - Use check_nodes() instead of raw Neo4j queries.
     expected_nodes = {
         ("user-123", "alice@example.com"),
         ("user-456", "bob@example.com"),
@@ -826,7 +831,8 @@ def test_sync_users(mock_api, neo4j_session):
     }
     assert check_nodes(neo4j_session, "YourServiceTenant", ["id"]) == expected_tenant_nodes
 
-    # Assert - Use check_rels() instead of raw Neo4j queries for relationships
+    # Assert relationships are created correctly.
+    # Use check_rels() instead of raw Neo4j queries for relationships
     expected_rels = {
         ("user-123", TEST_TENANT_ID),
         ("user-456", TEST_TENANT_ID),
@@ -843,7 +849,34 @@ def test_sync_users(mock_api, neo4j_session):
         )
         == expected_rels
     )
+
+    # ✅ DO: Mock external dependencies when needed
+    # mock_api.return_value = MOCK_USERS_RESPONSE  # Good - provides test data
+    # (Prefer the decorator style though)
+
+    # ❌ DON'T: Test brittle implementation details
+    # mock_api.assert_called_once_with("fake-api-key", TEST_TENANT_ID)  # Brittle!
+    # mock_api.assert_called_with(specific_params)  # Brittle!
 ```
+
+**What to Test:**
+- ✅ **Outcomes**: Nodes created with correct properties
+- ✅ **Outcomes**: Relationships created between expected nodes
+
+**What NOT to Test:**
+- ❌ **Implementation**: Function parameters passed to mocks (brittle!)
+- ❌ **Implementation**: Internal function call order
+- ❌ **Implementation**: Mock call counts unless absolutely necessary
+
+**When to Mock:**
+- ✅ External APIs (AWS, Azure, third-party services) - provide test data
+- ✅ Database connections - avoid real connections
+- ✅ Network calls - avoid real network requests
+
+**When NOT to Mock:**
+- ❌ Internal Cartography functions
+- ❌ Data transformation logic
+- ❌ The function that is being tested
 
 ## 📚 Common Patterns and Examples {#common-patterns}
 

@@ -104,11 +104,30 @@ def test_batch(mocker):
         [10, 11],
     ]
     # Act
-    actual = batch(x, 5)
+    actual = list(batch(x, 5))
     # Assert
     assert actual == expected
     # Also check for empty input
-    assert batch([], 3) == []
+    assert list(batch([], 3)) == []
+
+
+def test_batch_generator():
+    # Arrange
+    def my_generator():
+        yield from range(12)
+
+    x = my_generator()
+    expected = [
+        [0, 1, 2, 3, 4],
+        [5, 6, 7, 8, 9],
+        [10, 11],
+    ]
+    # Act
+    actual = list(batch(x, 5))
+    # Assert
+    assert actual == expected
+    # Also check for empty generator
+    assert list(batch((i for i in range(0)), 3)) == []
 
 
 @mock.patch.object(cartography.util, "run_analysis_job", return_value=None)
