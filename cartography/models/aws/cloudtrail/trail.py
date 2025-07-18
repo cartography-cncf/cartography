@@ -74,6 +74,26 @@ class CloudTrailTrailToS3BucketRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class CloudTrailTrailToCloudWatchLogGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class CloudTrailTrailToCloudWatchLogGroupRel(CartographyRelSchema):
+    target_node_label: str = "CloudWatchLogGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("CloudWatchLogsLogGroupArn"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SENDS_LOGS_TO_CLOUDWATCH"
+    properties: CloudTrailTrailToCloudWatchLogGroupRelProperties = (
+        CloudTrailTrailToCloudWatchLogGroupRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class CloudTrailTrailSchema(CartographyNodeSchema):
     label: str = "CloudTrailTrail"
     properties: CloudTrailTrailNodeProperties = CloudTrailTrailNodeProperties()
@@ -81,5 +101,6 @@ class CloudTrailTrailSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudTrailTrailToS3BucketRel(),
+            CloudTrailTrailToCloudWatchLogGroupRel(),
         ]
     )

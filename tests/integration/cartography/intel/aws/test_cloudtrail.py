@@ -2,9 +2,11 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.cloudtrail
+import cartography.intel.aws.cloudwatch
 from cartography.intel.aws.cloudtrail import sync
 from tests.data.aws.cloudtrail import BUCKETS
 from tests.data.aws.cloudtrail import DESCRIBE_CLOUDTRAIL_TRAILS
+from tests.data.aws.cloudwatch import GET_CLOUDWATCH_LOG_GROUPS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -23,6 +25,16 @@ def _ensure_local_neo4j_has_test_buckets(neo4j_session):
     )
 
 
+def _ensure_local_neo4j_has_test_cloudwatch_log_groups(neo4j_session):
+    cartography.intel.aws.cloudwatch.load_cloudwatch_log_groups(
+        neo4j_session,
+        GET_CLOUDWATCH_LOG_GROUPS,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.aws.cloudtrail,
     "get_cloudtrail_trails",
@@ -33,6 +45,7 @@ def test_sync_cloudtrail(mock_get_trails, neo4j_session):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_buckets(neo4j_session)
+    _ensure_local_neo4j_has_test_cloudwatch_log_groups(neo4j_session)
 
     # Act
     sync(
@@ -72,4 +85,19 @@ def test_sync_cloudtrail(mock_get_trails, neo4j_session):
         rel_direction_right=True,
     ) == {
         ("arn:aws:cloudtrail:us-east-1:123456789012:trail/test-trail", "test-bucket"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "CloudTrailTrail",
+        "id",
+        "CloudWatchLogGroup",
+        "id",
+        "SENDS_LOGS_TO_CLOUDWATCH",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:cloudtrail:us-east-1:123456789012:trail/test-trail",
+            "arn:aws:logs:eu-west-1:123456789012:log-group:/aws/lambda/process-orders",
+        ),
     }

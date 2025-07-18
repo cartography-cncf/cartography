@@ -839,6 +839,10 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
     ```
     (:CloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
     ```
+- CloudTrail Trail can send logs to CloudWatchLogGroup.
+    ```
+    (:CloudTrailTrail)-[:SENDS_LOGS_TO_CLOUDWATCH]->(:CloudWatchLogGroup)
+    ```
 
 ### CloudWatchLogGroup
 Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)

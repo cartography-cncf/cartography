@@ -146,13 +146,10 @@ def sync(
             f"Syncing CloudWatch for region '{region}' in account '{current_aws_account_id}'.",
         )
         logGroups = get_cloudwatch_log_groups(boto3_session, region)
-        group_data: List[Dict[str, Any]] = []
-        for logGroup in logGroups:
-            group_data.append(logGroup)
 
         load_cloudwatch_log_groups(
             neo4j_session,
-            group_data,
+            logGroups,
             region,
             current_aws_account_id,
             update_tag,
