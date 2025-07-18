@@ -1,14 +1,18 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 import boto3
 import neo4j
 from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.models.aws.ec2.snapshots import EBSSnapshotSchema
-from cartography.util import aws_handle_regions, timeit
+from cartography.util import aws_handle_regions
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +28,13 @@ def get_snapshots_in_use(
     WHERE v.region = $Region
     RETURN v.snapshotid as snapshot
     """
-    results = neo4j_session.run(
+    results = read_list_of_values_tx(
+        neo4j_session,
         query,
         AWS_ACCOUNT_ID=current_aws_account_id,
         Region=region,
     )
-    return [r["snapshot"] for r in results if r["snapshot"]]
+    return [str(snapshot) for snapshot in results if snapshot]
 
 
 @timeit
@@ -107,7 +112,9 @@ def cleanup_snapshots(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    GraphJob.from_node_schema(EBSSnapshotSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(EBSSnapshotSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -140,4 +147,3 @@ def sync_ebs_snapshots(
             update_tag,
         )
     cleanup_snapshots(neo4j_session, common_job_parameters)
-
