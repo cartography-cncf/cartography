@@ -818,6 +818,7 @@ def test_sync_users(mock_api, neo4j_session):
     )
 
     # ✅ DO: Test outcomes - verify data is written to the graph as expected
+    # Assert - Use check_nodes() instead of raw Neo4j queries.
     expected_nodes = {
         ("user-123", "alice@example.com"),
         ("user-456", "bob@example.com"),
@@ -830,7 +831,8 @@ def test_sync_users(mock_api, neo4j_session):
     }
     assert check_nodes(neo4j_session, "YourServiceTenant", ["id"]) == expected_tenant_nodes
 
-    # Assert relationships are created correctly
+    # Assert relationships are created correctly.
+    # Use check_rels() instead of raw Neo4j queries for relationships
     expected_rels = {
         ("user-123", TEST_TENANT_ID),
         ("user-456", TEST_TENANT_ID),
