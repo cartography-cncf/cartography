@@ -119,29 +119,17 @@ def load_rds_instances(
     """
     read_replicas = []
     clusters = []
-    secgroups = []
     subnets = []
 
     for rds in data:
-        ep = _validate_rds_endpoint(rds)
-
         if rds.get("ReadReplicaSourceDBInstanceIdentifier"):
             read_replicas.append(rds)
 
         if rds.get("DBClusterIdentifier"):
             clusters.append(rds)
 
-        if rds.get("VpcSecurityGroups"):
-            secgroups.append(rds)
-
         if rds.get("DBSubnetGroup"):
             subnets.append(rds)
-
-        rds["InstanceCreateTime"] = dict_value_to_str(rds, "InstanceCreateTime")
-        rds["LatestRestorableTime"] = dict_value_to_str(rds, "LatestRestorableTime")
-        rds["EndpointAddress"] = ep.get("Address")
-        rds["EndpointHostedZoneId"] = ep.get("HostedZoneId")
-        rds["EndpointPort"] = ep.get("Port")
 
     load(
         neo4j_session,
@@ -152,7 +140,6 @@ def load_rds_instances(
         AWS_ID=current_aws_account_id,
     )
 
-    _attach_ec2_security_groups(neo4j_session, secgroups, aws_update_tag)
     _attach_ec2_subnet_groups(
         neo4j_session,
         subnets,
@@ -301,39 +288,6 @@ def _attach_ec2_subnets_to_subnetgroup(
 
 
 @timeit
-def _attach_ec2_security_groups(
-    neo4j_session: neo4j.Session,
-    instances: List[Dict],
-    aws_update_tag: int,
-) -> None:
-    """
-    Attach an RDS instance to its EC2SecurityGroups
-    """
-    attach_rds_to_group = """
-    UNWIND $Groups as rds_sg
-        MATCH (rds:RDSInstance{id: rds_sg.arn})
-        MERGE (sg:EC2SecurityGroup{id: rds_sg.group_id})
-        MERGE (rds)-[m:MEMBER_OF_EC2_SECURITY_GROUP]->(sg)
-        ON CREATE SET m.firstseen = timestamp()
-        SET m.lastupdated = $aws_update_tag
-    """
-    groups = []
-    for instance in instances:
-        for group in instance["VpcSecurityGroups"]:
-            groups.append(
-                {
-                    "arn": instance["DBInstanceArn"],
-                    "group_id": group["VpcSecurityGroupId"],
-                },
-            )
-    neo4j_session.run(
-        attach_rds_to_group,
-        Groups=groups,
-        aws_update_tag=aws_update_tag,
-    )
-
-
-@timeit
 def _attach_read_replicas(
     neo4j_session: neo4j.Session,
     read_replicas: List[Dict],
@@ -440,6 +394,44 @@ def transform_rds_snapshots(data: List[Dict]) -> List[Dict]:
 
 
 @timeit
+def transform_rds_instances(data: List[Dict]) -> List[Dict]:
+    """
+    Transform RDS instance data for Neo4j ingestion
+    """
+    instances = []
+
+    for instance in data:
+        # Copy the instance data
+        transformed_instance = instance.copy()
+
+        # Extract security group IDs for the relationship
+        security_group_ids = []
+        if instance.get("VpcSecurityGroups"):
+            for group in instance["VpcSecurityGroups"]:
+                security_group_ids.append(group["VpcSecurityGroupId"])
+
+        transformed_instance["security_group_ids"] = security_group_ids
+
+        # Handle endpoint data
+        ep = _validate_rds_endpoint(instance)
+        transformed_instance["EndpointAddress"] = ep.get("Address")
+        transformed_instance["EndpointHostedZoneId"] = ep.get("HostedZoneId")
+        transformed_instance["EndpointPort"] = ep.get("Port")
+
+        # Convert datetime fields
+        transformed_instance["InstanceCreateTime"] = dict_value_to_str(
+            instance, "InstanceCreateTime"
+        )
+        transformed_instance["LatestRestorableTime"] = dict_value_to_str(
+            instance, "LatestRestorableTime"
+        )
+
+        instances.append(transformed_instance)
+
+    return instances
+
+
+@timeit
 def cleanup_rds_instances_and_db_subnet_groups(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
@@ -528,8 +520,9 @@ def sync_rds_instances(
             current_aws_account_id,
         )
         data = get_rds_instance_data(boto3_session, region)
+        transformed_data = transform_rds_instances(data)
         load_rds_instances(
-            neo4j_session, data, region, current_aws_account_id, update_tag
+            neo4j_session, transformed_data, region, current_aws_account_id, update_tag
         )
     cleanup_rds_instances_and_db_subnet_groups(neo4j_session, common_job_parameters)
 
