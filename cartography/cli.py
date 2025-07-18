@@ -265,6 +265,16 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--aws-guardduty-severity-threshold",
+            type=str,
+            default=None,
+            help=(
+                "GuardDuty severity threshold filter. Only findings at or above this severity level will be synced. "
+                "Valid values: LOW, MEDIUM, HIGH, CRITICAL. If not specified, all findings (except archived) will be synced. "
+                "Example: 'HIGH' will sync only HIGH and CRITICAL findings, filtering out LOW and MEDIUM severity findings."
+            ),
+        )
+        parser.add_argument(
             "--analysis-job-directory",
             type=str,
             default=None,

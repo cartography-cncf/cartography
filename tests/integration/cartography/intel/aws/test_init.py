@@ -140,6 +140,7 @@ def test_start_aws_ingestion(
         {
             "UPDATE_TAG": test_config.update_tag,
             "permission_relationships_file": test_config.permission_relationships_file,
+            "aws_guardduty_severity_threshold": None,
             "aws_cloudtrail_management_events_lookback_hours": test_config.aws_cloudtrail_management_events_lookback_hours,
         },
     )

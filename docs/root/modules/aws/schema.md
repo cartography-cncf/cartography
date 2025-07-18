@@ -38,6 +38,7 @@ Representation of an AWS Account.
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
                                 :ESDomain,
+                                :GuardDutyFinding,
                                 :LaunchConfiguration,
                                 :LaunchTemplate,
                                 :LaunchTemplateVersion,
@@ -137,6 +138,47 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSGroup)
+    ```
+
+### GuardDutyFinding::Risk
+
+Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the GuardDuty finding |
+| arn | The Amazon Resource Name (ARN) of the finding |
+| type | The type of finding (e.g., "UnauthorizedAccess:EC2/MaliciousIPCaller.Custom") |
+| severity | The severity score of the finding (0.1 to 8.9 for medium/high findings) |
+| confidence | The confidence level that GuardDuty has in the accuracy of the finding |
+| title | A short description of the finding |
+| description | A more detailed description of the finding |
+| eventfirstseen | Timestamp when the activity that prompted GuardDuty to generate this finding was first observed |
+| eventlastseen | Timestamp when the activity that prompted GuardDuty to generate this finding was last observed |
+| accountid | The ID of the AWS account in which the finding was generated |
+| region | The AWS Region where the finding was generated |
+| detectorid | The ID of the detector that generated the finding |
+| resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
+| resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
+| archived | Whether the finding has been archived |
+
+#### Relationships
+
+- GuardDuty findings belong to AWS Accounts
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:GuardDutyFinding)
+    ```
+
+- GuardDuty findings may affect EC2 Instances
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
+    ```
+
+- GuardDuty findings may affect S3 Buckets
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
     ```
 
 ### AWSInspectorFinding
