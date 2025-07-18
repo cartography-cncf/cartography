@@ -28,12 +28,21 @@ def get_cloudtrail_trails(
     trails = client.describe_trails()["trailList"]
     trails_filtered = [trail for trail in trails if trail.get("HomeRegion") == region]
 
-    for trail in trails_filtered:
+    return trails_filtered
+
+
+def transform_cloudtrail_trails(
+    trails: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
+    """
+    Transform CloudTrail trail data for ingestion
+    """
+    for trail in trails:
         arn = trail.get("CloudWatchLogsLogGroupArn")
         if arn:
             trail["CloudWatchLogsLogGroupArn"] = arn.split(":*")[0]
 
-    return trails_filtered
+    return trails
 
 
 @timeit
@@ -82,7 +91,8 @@ def sync(
         logger.info(
             f"Syncing CloudTrail for region '{region}' in account '{current_aws_account_id}'.",
         )
-        trails = get_cloudtrail_trails(boto3_session, region)
+        trails_filtered = get_cloudtrail_trails(boto3_session, region)
+        trails = transform_cloudtrail_trails(trails_filtered, region)
 
         load_cloudtrail_trails(
             neo4j_session,
