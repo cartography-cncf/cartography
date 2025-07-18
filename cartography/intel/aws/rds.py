@@ -7,6 +7,7 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.models.aws.rds.cluster import RDSClusterSchema
 from cartography.models.aws.rds.instance import RDSInstanceSchema
 from cartography.models.aws.rds.snapshot import RDSSnapshotSchema
@@ -16,7 +17,6 @@ from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
 from cartography.util import dict_value_to_str
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -370,12 +370,18 @@ def cleanup_rds_instances_and_db_subnet_groups(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Remove RDS graph nodes and DBSubnetGroups that were created from other ingestion runs
+    Remove RDS instances and DB subnet groups that weren't updated in this sync run
     """
-    run_cleanup_job(
-        "aws_import_rds_instances_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    logger.debug("Running RDS instances and DB subnet groups cleanup job")
+
+    # Clean up RDS instances
+    GraphJob.from_node_schema(RDSInstanceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+    # Clean up DB subnet groups
+    GraphJob.from_node_schema(DBSubnetGroupSchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
@@ -385,12 +391,12 @@ def cleanup_rds_clusters(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Remove RDS cluster graph nodes
+    Remove RDS clusters that weren't updated in this sync run
     """
-    run_cleanup_job(
-        "aws_import_rds_clusters_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    logger.debug("Running RDS clusters cleanup job")
+
+    GraphJob.from_node_schema(RDSClusterSchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
@@ -400,12 +406,12 @@ def cleanup_rds_snapshots(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Remove RDS snapshots graph nodes
+    Remove RDS snapshots that weren't updated in this sync run
     """
-    run_cleanup_job(
-        "aws_import_rds_snapshots_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    logger.debug("Running RDS snapshots cleanup job")
+
+    GraphJob.from_node_schema(RDSSnapshotSchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
