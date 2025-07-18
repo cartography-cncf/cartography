@@ -14,6 +14,7 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 logger = logging.getLogger(__name__)
@@ -109,10 +110,10 @@ def _build_rel_properties_statement(
     return set_clause
 
 
-def _build_match_clause(matcher: TargetNodeMatcher) -> str:
+def _build_match_clause(matcher: TargetNodeMatcher | SourceNodeMatcher) -> str:
     """
     Generate a Neo4j match statement on one or more keys and values for a given node.
-    :param matcher: A TargetNodeMatcher object
+    :param matcher: A TargetNodeMatcher or SourceNodeMatcher object
     :return: a Neo4j match clause
     """
     match = Template("$Key: $PropRef")
@@ -548,3 +549,136 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> List[str]:
         ],
     )
     return result
+
+
+def build_create_index_queries_for_matchlink(
+    rel_schema: CartographyRelSchema,
+) -> list[str]:
+    """
+    Generate queries to create indexes for the given CartographyRelSchema and all node types attached to it via its
+    relationships.
+    :param rel_schema: The CartographyRelSchema object
+    :return: A list of queries of the form `CREATE INDEX IF NOT EXISTS FOR (n:$TargetNodeLabel) ON (n.$TargetAttribute)`
+    """
+    if not rel_schema.source_node_matcher:
+        logger.warning(
+            f"No source node matcher found for {rel_schema.rel_label}; returning empty list."
+            "Please note that build_create_index_queries_for_matchlink() is only used for load_matchlinks() where we match on "
+            "and connect existing nodes in the graph."
+        )
+        return []
+
+    index_template = Template(
+        "CREATE INDEX IF NOT EXISTS FOR (n:$NodeLabel) ON (n.$NodeAttribute);",
+    )
+
+    result = []
+    for source_key in asdict(rel_schema.source_node_matcher).keys():
+        result.append(
+            index_template.safe_substitute(
+                NodeLabel=rel_schema.source_node_label,
+                NodeAttribute=source_key,
+            ),
+        )
+    for target_key in asdict(rel_schema.target_node_matcher).keys():
+        result.append(
+            index_template.safe_substitute(
+                NodeLabel=rel_schema.target_node_label,
+                NodeAttribute=target_key,
+            ),
+        )
+
+    # Create a composite index for the relationship between the source and target nodes.
+    # https://neo4j.com/docs/cypher-manual/4.3/indexes-for-search-performance/#administration-indexes-create-a-composite-index-for-relationships
+    rel_index_template = Template(
+        "CREATE INDEX IF NOT EXISTS FOR ()$rel_direction[r:$RelLabel]$rel_direction_end() "
+        "ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id);",
+    )
+    if rel_schema.direction == LinkDirection.INWARD:
+        result.append(
+            rel_index_template.safe_substitute(
+                RelLabel=rel_schema.rel_label,
+                rel_direction="<-",
+                rel_direction_end="-",
+            )
+        )
+    else:
+        result.append(
+            rel_index_template.safe_substitute(
+                RelLabel=rel_schema.rel_label,
+                rel_direction="-",
+                rel_direction_end="->",
+            )
+        )
+    return result
+
+
+def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
+    """
+    Generate a Neo4j query to link two existing nodes when given a CartographyRelSchema object.
+    This is only used for load_matchlinks().
+    :param rel_schema: The CartographyRelSchema object to generate a query. This CartographyRelSchema object
+    - Must have a source_node_matcher and source_node_label defined
+    - Must have a CartographyRelProperties object where _sub_resource_label and _sub_resource_id are defined
+    :return: A Neo4j query that can be used to link two existing nodes.
+    """
+    if not rel_schema.source_node_matcher or not rel_schema.source_node_label:
+        raise ValueError(
+            f"No source node matcher or source node label found for {rel_schema.rel_label}. "
+            "MatchLink relationships require a source_node_matcher and source_node_label to be defined."
+        )
+
+    rel_props_as_dict = _asdict_with_validate_relprops(rel_schema)
+
+    # These are needed for the cleanup query
+    if "_sub_resource_label" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_label to be defined on {rel_schema.properties.__class__.__name__}"
+            "Please include `_sub_resource_label: PropertyRef = PropertyRef('_sub_resource_label', set_in_kwargs=True)`"
+        )
+    if "_sub_resource_id" not in rel_props_as_dict:
+        raise ValueError(
+            f"Expected _sub_resource_id to be defined on {rel_schema.properties.__class__.__name__}"
+            "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
+        )
+
+    matchlink_query_template = Template(
+        """
+        UNWIND $DictList as item
+            $source_match
+            $target_match
+            MERGE $rel
+            ON CREATE SET r.firstseen = timestamp()
+            SET
+                $set_rel_properties_statement;
+        """
+    )
+
+    source_match = Template(
+        "MATCH (from:$source_node_label{$match_clause})"
+    ).safe_substitute(
+        source_node_label=rel_schema.source_node_label,
+        match_clause=_build_match_clause(rel_schema.source_node_matcher),
+    )
+
+    target_match = Template(
+        "MATCH (to:$target_node_label{$match_clause})"
+    ).safe_substitute(
+        target_node_label=rel_schema.target_node_label,
+        match_clause=_build_match_clause(rel_schema.target_node_matcher),
+    )
+
+    if rel_schema.direction == LinkDirection.INWARD:
+        rel = f"(from)<-[r:{rel_schema.rel_label}]-(to)"
+    else:
+        rel = f"(from)-[r:{rel_schema.rel_label}]->(to)"
+
+    return matchlink_query_template.safe_substitute(
+        source_match=source_match,
+        target_match=target_match,
+        rel=rel,
+        set_rel_properties_statement=_build_rel_properties_statement(
+            "r",
+            rel_props_as_dict,
+        ),
+    )

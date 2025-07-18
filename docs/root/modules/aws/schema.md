@@ -38,6 +38,7 @@ Representation of an AWS Account.
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
                                 :ESDomain,
+                                :GuardDutyFinding,
                                 :LaunchConfiguration,
                                 :LaunchTemplate,
                                 :LaunchTemplateVersion,
@@ -139,6 +140,47 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     (:AWSAccount)-[:RESOURCE]->(:AWSGroup)
     ```
 
+### GuardDutyFinding::Risk
+
+Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the GuardDuty finding |
+| arn | The Amazon Resource Name (ARN) of the finding |
+| type | The type of finding (e.g., "UnauthorizedAccess:EC2/MaliciousIPCaller.Custom") |
+| severity | The severity score of the finding (0.1 to 8.9 for medium/high findings) |
+| confidence | The confidence level that GuardDuty has in the accuracy of the finding |
+| title | A short description of the finding |
+| description | A more detailed description of the finding |
+| eventfirstseen | Timestamp when the activity that prompted GuardDuty to generate this finding was first observed |
+| eventlastseen | Timestamp when the activity that prompted GuardDuty to generate this finding was last observed |
+| accountid | The ID of the AWS account in which the finding was generated |
+| region | The AWS Region where the finding was generated |
+| detectorid | The ID of the detector that generated the finding |
+| resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
+| resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
+| archived | Whether the finding has been archived |
+
+#### Relationships
+
+- GuardDuty findings belong to AWS Accounts
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:GuardDutyFinding)
+    ```
+
+- GuardDuty findings may affect EC2 Instances
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
+    ```
+
+- GuardDuty findings may affect S3 Buckets
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
+    ```
+
 ### AWSInspectorFinding
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
@@ -213,19 +255,13 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 | Field | Description | Required|
 |-------|-------------|------|
 |**arn**|The AWS ARN|yes|
-|id|Uses the format of `name|arch|version|release|epoch` to uniqulely identify packages|yes|
-|region|AWS region the finding is from|yes|
-|awsaccount|AWS account the finding is from|yes|
-|findingarn|The AWS ARN for a related finding|yes|
+|id|Uses the format of `name|epoch:version-release.arch` to uniquely identify packages|yes|
 |name|The finding name|
 |arch|Architecture for the package|
 |version|Version of the package|
 |release|Release of the package
 |epoch|Package epoch|
 |manager|Related package manager|
-|filepath|Path to the file or package|
-|fixedinversion|Version the related finding was fixed in|
-|sourcelayerhash|Source layer hash for container images|
 
 
 #### Relationships
@@ -234,7 +270,20 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 
     ```cypher
     (:AWSInspectorFindings)-[:HAS]->(:AWSInspectorPackages)
+
     ```
+    - `HAS` attributes
+
+| Field | Description | Required|
+|-------|-------------|------|
+|filepath|Path to the file or package|
+|sourcelayerhash|Source layer hash for container images|
+|sourcelambdalayerarn|ARN of the AWS Lambda function affected|
+|fixedinversion|Version the related finding was fixed in|
+|remediation|Remediation steps|
+|_sub_resource_label|Resource label to do relationships clean-up. Always `AWSAccount`
+|_sub_resource_id|Resource id to do relationships clean-up. Always ID of the AWS `RESOURCE` account.
+
 
 - AWSInspectorPackages belong to AWSAccounts.
 
@@ -320,7 +369,7 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 
 - AWSLambda functions may act as AWSPrincipals via role assumption.
     ```
-    (:AWSLambda)-[:STS_ASSUME_ROLE_ALLOW]->(:AWSPrincipal)
+    (:AWSLambda)-[:STS_ASSUMEROLE_ALLOW]->(:AWSPrincipal)
     ```
 
 - AWSLambda functions may also have aliases.
@@ -608,6 +657,21 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (AWSAccount)-[RESOURCE]->(AWSRole)
     ```
 
+- ECSTaskDefinitions have task roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```cypher
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
+    ```
+
+- Cartography records assumerole events between AWS principals
+    ```cypher
+    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(AWSRole)
+    ```
+
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
 
@@ -797,6 +861,52 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 - CLoudWatch LogGroups are a resource under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
+
+### CloudWatchLogMetricFilter
+Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeMetricFilters.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | Ensures that the id field is a unique combination of logGroupName and filterName |
+| arn | Ensures that the arn field is a unique combination of logGroupName and filterName |
+| region | The region of the CloudWatch Log Metric Filter |
+| filter_name | The name of the filter pattern used to extract metric data from log events |
+| filter_pattern | The pattern used to extract metric data from CloudWatch log events |
+| log_group_name | The name of the log group to which this metric filter is applied |
+| metric_name | The name of the metric emitted by this filter |
+| metric_namespace | The namespace of the metric emitted by this filter |
+| metric_value | The value to publish to the CloudWatch metric when a log event matches the filter pattern |
+#### Relationships
+- CLoudWatch Log Metric Filters are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchLogMetricFilter)
+    ```
+- CloudWatchLogMetricFilter associated with CloudWatchLogGroup via the METRIC_FILTER_OF relationship
+    ```
+    (CloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(CloudWatchLogGroup)
+    ```
+
+### CodeBuildProject
+Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The ARN of the CodeBuild Project |
+| arn | The Amazon Resource Name (ARN) of the CodeBuild Project |
+| region | The region of the codebuild project |
+| created | The creation time of the CodeBuild Project |
+| environment_variables | A list of environment variables used in the build environment. Each variable is represented as a string in the format `<NAME>=<VALUE>`. Variables of type `PLAINTEXT` retain their values (e.g., `ENV=prod`), while variables of type `PARAMETER_STORE`, `SECRETS_MANAGER`, etc., have values redacted as `<REDACTED>` (e.g., `SECRET_TOKEN=<REDACTED>`) |
+| source_type | The type of repository that contains the source code to be built |
+| source_location | Information about the location of the source code to be built |
+#### Relationships
+- CodeBuild Projects are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CodeBuildProject)
     ```
 
 ### DBSubnetGroup
@@ -1159,7 +1269,7 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| groupid | The ID of the security group|
+| groupid | The ID of the security group. Note that these are globally unique in AWS.|
 | name | The name of the security group|
 | description | A description of the security group|
 | **id** | Same as `groupid` |
@@ -1183,6 +1293,11 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 - Load balancers can define inbound [Source Security Groups](https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-security-groups.html).
     ```
     (LoadBalancer)-[SOURCE_SECURITY_GROUP]->(EC2SecurityGroup)
+    ```
+
+- Security Groups can allow traffic from other security groups. This relationship can also be self-referential, meaning that a security group can allow traffic from itself (as security groups are default-deny). Relevant API docs: [IP Permission](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_IpPermission.html), [UserIdGroupPair](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_UserIdGroupPair.html).
+    ```
+    (:EC2SecurityGroup)-[:ALLOWS_TRAFFIC_FROM]->(:EC2SecurityGroup)
     ```
 
 - AWS Accounts contain EC2 Security Groups.
@@ -1210,6 +1325,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **subnetid** | The ID of the subnet|
+| **subnet_id** | The ID of the subnet|
 | **id** | same as subnetid |
 | region| The AWS region the subnet is installed on|
 | name | The IPv4 CIDR block assigned to the subnet|
@@ -1475,6 +1591,17 @@ ECRRepositoryImage.
     (:Package)-[:DEPLOYED]->(:ECRImage)
     ```
 
+- A TrivyImageFinding is a vulnerability that affects an ECRImage.
+
+    ```
+    (:TrivyImageFinding)-[:AFFECTS]->(:ECRImage)
+    ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    ```
+
 
 ### Package
 
@@ -1493,30 +1620,17 @@ Representation of a software package, as found by an AWS ECR vulnerability scan.
     (:Package)-[:DEPLOYED]->(:ECRImage)
     ```
 
-- AWS ECR scans yield ECRScanFindings that affect software packages
+- A TrivyImageFinding is a vulnerability that affects a software Package.
+
     ```
-    (:ECRScanFindings)-[:AFFECTS]->(:Package)
-    ```
-
-
-### ECRScanFinding (:Risk:CVE)
-
-Representation of a scan finding from AWS ECR. This is the result output of [`ecr.describe_image_scan_findings()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_DescribeImageScanFindings.html).
-
-| Field | Description |
-|--------|-----------|
-| name | The name of the ECR scan finding, e.g. a CVE name |
-| **id** | Same as name |
-| severity | The severity of the risk |
-| uri | A URI link to a descriptive article on the risk |
-
-#### Relationships
-
-- AWS ECR scans yield ECRScanFindings that affect software packages
-    ```
-    (:ECRScanFindings)-[:AFFECTS]->(:Package)
+    (:Package)-[:AFFECTS]->(:TrivyImageFinding)
     ```
 
+- We should update a vulnerable package to a fixed version described by a TrivyFix.
+
+    ```
+    (:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
+    ```
 
 
 ### EKSCluster
@@ -1684,15 +1798,18 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 | port | The port of this endpoint |
 | ssl\_policy | Only set for HTTPS or TLS listener. The security policy that defines which protocols and ciphers are supported. |
 | targetgrouparn | The ARN of the Target Group, if the Action type is `forward`. |
-
+| arn | The ARN of the ELBV2Listener |
 
 #### Relationships
 
-- A ELBV2Listener is installed on a LoadBalancerV2.
+- LoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
-    (elbv2)-[r:ELBV2_LISTENER]->(ELBV2Listener)
+    (:LoadBalancerV2)-[:ELBV2_LISTENER]->(:ELBV2Listener)
     ```
-
+- ACM Certificates may be used by ELBV2Listeners.
+    ```
+    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    ```
 
 ### Ip
 
@@ -1900,6 +2017,7 @@ Representation of a generic Network Interface.  Currently however, we only creat
 | private\_dns\_name| The private DNS name |
 | status | Status of the network interface.  Valid Values: ``available \| associated \| attaching \| in-use \| detaching `` |
 | subnetid | The ID of the subnet |
+| subnet_id | The ID of the subnet |
 | interface_type  |  Describes the type of network interface. Valid values: `` interface \| efa `` |
 | requester_id  | Id of the requester, e.g. `amazon-elb` for ELBs |
 | requester_managed  |  Indicates whether the interface is managed by the requester |
@@ -2261,6 +2379,7 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 | ignore\_public\_acls | Specifies whether Amazon S3 should ignore public ACLs for this bucket and objects in this bucket. |
 | block\_public\_acls | Specifies whether Amazon S3 should block public bucket policies for this bucket. |
 | restrict\_public\_buckets | Specifies whether Amazon S3 should restrict public bucket policies for this bucket. |
+| object_ownership | The bucket's [Object Ownership](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html) setting. `BucketOwnerEnforced` indicates that ACLs on the bucket and its objects are ignored. `BucketOwnerPreferred` and `ObjectWriter` indicate that ACLs still function; see [the AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html#object-ownership-overview) for details.|
 
 #### Relationships
 
@@ -2277,6 +2396,11 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 -  S3 Buckets can be tagged with AWSTags.
     ```
     (S3Bucket)-[TAGGED]->(AWSTag)
+    ```
+
+- S3 Buckets can send notifications to SNS Topics.
+    ```
+    (S3Bucket)-[NOTIFIES]->(SNSTopic)
     ```
 
 ### S3PolicyStatement
@@ -2457,6 +2581,36 @@ Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazo
     ```
     (APIGatewayStage)-[HAS_CERTIFICATE]->(APIGatewayClientCertificate)
     ```
+
+### ACMCertificate
+
+Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the certificate |
+| domainname | The primary domain name of the certificate |
+| status | The status of the certificate |
+| type | The source of the certificate |
+| key_algorithm | The key algorithm used |
+| signature_algorithm | The signature algorithm |
+| not_before | The time before which the certificate is invalid |
+| not_after | The time after which the certificate expires |
+| in_use_by | List of ARNs of resources that use this certificate |
+
+#### Relationships
+
+- ACM Certificates are resources under the AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ACMCertificate)
+    ```
+- ACM Certificates may be used by ELBV2Listeners.
+    ```
+    (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
+    ```
+  Note: the AWS ACM API may return a load balancer ARN for the `in_use_by` field instead of a listener ARN. To properly map the certificate to the listener in this situation, we need to rely on data from the ELBV2 module. This is a weird quirk of the AWS API.
 
 ### APIGatewayResource
 
@@ -3023,7 +3177,7 @@ Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/lat
 
 - ECSClusters are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSCluster)
+    (:AWSAccount)-[:RESOURCE]->(:ECSCluster)
     ```
 
 ### ECSContainerInstance
@@ -3053,12 +3207,12 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 ### ECSService
@@ -3098,12 +3252,12 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 
 - An ECSCluster has ECSService
     ```
-    (ECSCluster)-[HAS_SERVICE]->(ECSService)
+    (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
     ```
 
 - An ECSCluster has ECSContainerInstances
     ```
-    (ECSCluster)-[HAS_CONTAINER_INSTANCE]->(ECSContainerInstance)
+    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
     ```
 
 ### ECSTaskDefinition
@@ -3141,12 +3295,22 @@ Representation of an AWS ECS [Task Definition](https://docs.aws.amazon.com/Amazo
 
 - ECSTaskDefinition are a resource under the AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(ECSTaskDefinition)
+    (:AWSAccount)-[:RESOURCE]->(:ECSTaskDefinition)
     ```
 
 - An ECSTask has an ECSTaskDefinition.
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTaskDefinitions have task roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_TASK_ROLE]->(:AWSRole)
+    ```
+
+- ECSTaskDefinitions have execution roles.
+    ```
+    (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
 ### ECSContainerDefinition
@@ -3186,7 +3350,7 @@ Representation of an AWS ECS [Container Definition](https://docs.aws.amazon.com/
 
 - ECSTaskDefinitions have ECSContainerDefinitions
     ```
-    (ECSTaskDefinition)-[HAS_CONTAINER_DEFINITION]->(ECSContainerDefinition)
+    (:ECSTaskDefinition)-[:HAS_CONTAINER_DEFINITION]->(:ECSContainerDefinition)
     ```
 
 ### ECSTask
@@ -3229,22 +3393,33 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 | task\_definition\_arn | The ARN of the task definition that creates the task. |
 | version | The version counter for the task. |
 | ephemeral\_storage\_size\_in\_gib | The total amount, in GiB, of ephemeral storage to set for the task. |
+| network\_interface\_id | The network interface ID for tasks running in awsvpc network mode. |
 
 #### Relationships
 
+- ECSTasks are a resource under the AWS Account
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ECSTask)
+    ```
+
 - ECSClusters have ECSTasks
     ```
-    (ECSCluster)-[HAS_TASK]->(ECSTask)
+    (:ECSCluster)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSContainerInstances have ECSTasks
     ```
-    (ECSContainerInstance)-[HAS_TASK]->(ECSTask)
+    (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
 - ECSTasks have ECSTaskDefinitions
     ```
-    (ECSTask)-[HAS_TASK_DEFINITION]->(ECSTaskDefinition)
+    (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTasks in awsvpc network mode have NetworkInterfaces
+    ```
+    (:ECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
     ```
 
 ### ECSContainer
@@ -3276,8 +3451,99 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 
 - ECSTasks have ECSContainers
     ```
-    (ECSTask)-[HAS_CONTAINER]->(ECSContainer)
+    (:ECSTask)-[:HAS_CONTAINER]->(:ECSContainer)
     ```
+
+- ECSContainers have images.
+    ```
+    (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    ```
+
+### EfsFileSystem
+Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/latest/ug/API_FileSystemDescription.html)
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ID of the file system, assigned by Amazon EFS |
+| arn | Amazon Resource Name (ARN) for the EFS file system |
+| region | The region of the file system |
+| owner_id | The AWS account that created the file system |
+| creation_token | The opaque string specified in the request |
+| creation_time | The time that the file system was created, in seconds |
+| lifecycle_state | The lifecycle phase of the file system |
+| name | If the file system has a name tag, Amazon EFS returns the value in this field |
+| number_of_mount_targets | The current number of mount targets that the file system has |
+| size_in_bytes_value | Latest known metered size (in bytes) of data stored in the file system |
+| size_in_bytes_timestamp | Time at which that size was determined |
+| performance_mode | The performance mode of the file system |
+| encrypted | A Boolean value that, if true, indicates that the file system is encrypted |
+| kms_key_id | The ID of an AWS KMS key used to protect the encrypted file system |
+| throughput_mode | Displays the file system's throughput mode |
+| availability_zone_name | Describes the AWS Availability Zone in which the file system is located |
+| availability_zone_id | The unique and consistent identifier of the Availability Zone in which the file system is located |
+| file_system_protection | Describes the protection on the file system |
+
+#### Relationships
+- EfsFileSystem are a resource under the AWS Account.
+   ```
+   (AWSAccount)-[RESOURCE]->(EfsFileSystem)
+   ```
+
+### EfsMountTarget
+Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/latest/ug/API_MountTargetDescription.html)
+| Field | Description |
+|-------|-------------|
+| **id** | System-assigned mount target ID |
+| arn | System-assigned mount target ID |
+| region | The region of the mount target |
+| fileSystem_id | The ID of the file system for which the mount target is intended |
+| lifecycle_state | Lifecycle state of the mount target |
+| mount_target_id | System-assigned mount target ID |
+| subnet_id | The ID of the mount target's subnet |
+| availability_zone_id | The unique and consistent identifier of the Availability Zone that the mount target resides in |
+| availability_zone_name | The name of the Availability Zone in which the mount target is located |
+| ip_address | Address at which the file system can be mounted by using the mount target |
+| network_interface_id | The ID of the network interface that Amazon EFS created when it created the mount target |
+| owner_id | AWS account ID that owns the resource |
+| vpc_id | The virtual private cloud (VPC) ID that the mount target is configured in |
+#### Relationships
+- Efs MountTargets are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EfsMountTarget)
+    ```
+- Efs MountTargets are attached to Efs FileSystems.
+    ```
+    (EfsMountTarget)-[ATTACHED_TO]->(EfsFileSystem)
+    ```
+
+### EfsAccessPoint
+Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/latest/ug/API_AccessPointDescription.html)
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | System-assigned access point ARN |
+| arn | The unique Amazon Resource Name (ARN) associated with the access point |
+| region | The region of the access point |
+|access_point_id | The ID of the access point, assigned by Amazon EFS |
+| file_system_id | The ID of the EFS file system that the access point applies to |
+| lifecycle_state | Identifies the lifecycle phase of the access point |
+| name | The name of the access point |
+| owner_id | AWS account ID that owns the resource |
+| posix_gid | The POSIX group ID used for all file system operations using this access point |
+| posix_uid | The POSIX user ID used for all file system operations using this access point |
+| root_directory_path | Specifies the path on the EFS file system to expose as the root directory to NFS clients using the access point to access the EFS file system |
+#### Relationships
+- Efs AccessPoints are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EfsAccessPoint)
+    ```
+- EFS Access Points are entry points into EFS File Systems.
+    ```
+    (EfsAccessPoint)-[ACCESS_POINT_OF]->(EfsFileSystem)
+    ```
+
 ### SNSTopic
 Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/API_Topic.html)
 | Field | Description |
@@ -3301,6 +3567,30 @@ Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/
     ```
     (AWSAccount)-[RESOURCE]->(SNSTopic)
     ```
+
+### SNSTopicSubscription
+Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sns/latest/api/API_GetSubscriptionAttributes.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the SNS topic subscription |
+| **arn** | The Amazon Resource Name (ARN) of the topic subscription |
+| topic_arn | The topic ARN that the subscription is associated with |
+| endpoint | The subscription's endpoint |
+| owner | The subscription's owner |
+| protocol | The subscription's protocol for messages |
+#### Relationships
+- SNS Topic Subscriptions are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SNSTopicSubscription)
+    ```
+- SNS Topic Subscriptions are associated with SNS Topics.
+    ```
+    (:SNSTopicSubscription)-[HAS_SUBSCRIPTION]->(:SNSTopic)
+    ```
+
 ### S3AccountPublicAccessBlock
 Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources.
 
@@ -3591,7 +3881,7 @@ Representation of an AWS [EC2 Route](https://docs.aws.amazon.com/AWSEC2/latest/A
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
-|**id**| The ID of the route, formatted as `route_table_id|destination_cidr|target_components` where target components are prefixed with their type (e.g., gw-, nat-, pcx-) and joined with underscores.|
+|**id**| The ID of the route, formatted as `route_table_id\|destination_cidr\|target_components` where target components are prefixed with their type (e.g., gw-, nat-, pcx-) and joined with underscores.|
 |route_id| The ID of the route (same as id)|
 |target|The ID of the route association's target -- either 'Main', or a subnet ID or a gateway ID. This is an invented field that we created to have an ID because the underlying EC2 route association is a "union" data structure of many different possible targets.|
 |destination_cidr_block| The IPv4 CIDR block used for the destination match|

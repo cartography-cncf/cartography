@@ -62,12 +62,30 @@ class EntraGroupToUserRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class EntraGroupToGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:EntraGroup)-[:MEMBER_OF]->(:EntraGroup)
+class EntraGroupToGroupRel(CartographyRelSchema):
+    target_node_label: str = "EntraGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("member_group_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
+    properties: EntraGroupToGroupRelProperties = EntraGroupToGroupRelProperties()
+
+
+@dataclass(frozen=True)
 class EntraGroupSchema(CartographyNodeSchema):
     label: str = "EntraGroup"
     properties: EntraGroupNodeProperties = EntraGroupNodeProperties()
     sub_resource_relationship: EntraGroupToTenantRel = EntraGroupToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            EntraGroupToGroupRel(),
             EntraGroupToUserRel(),
         ]
     )

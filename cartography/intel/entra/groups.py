@@ -36,26 +36,33 @@ async def get_entra_groups(client: GraphServiceClient) -> list[Group]:
 
 
 @timeit
-async def get_group_members(client: GraphServiceClient, group_id: str) -> list[str]:
-    """Get member user IDs for a given group."""
-    members: list[str] = []
+async def get_group_members(
+    client: GraphServiceClient, group_id: str
+) -> tuple[list[str], list[str]]:
+    """Get member user IDs and subgroup IDs for a given group."""
+    user_ids: list[str] = []
+    group_ids: list[str] = []
     request_builder = client.groups.by_group_id(group_id).members
     page = await request_builder.get()
     while page:
         if page.value:
             for obj in page.value:
                 if isinstance(obj, DirectoryObject):
-                    # Filter to user objects based on odata_type
-                    if getattr(obj, "odata_type", "") == "#microsoft.graph.user":
-                        members.append(obj.id)
+                    odata_type = getattr(obj, "odata_type", "")
+                    if odata_type == "#microsoft.graph.user":
+                        user_ids.append(obj.id)
+                    elif odata_type == "#microsoft.graph.group":
+                        group_ids.append(obj.id)
         if not page.odata_next_link:
             break
         page = await request_builder.with_url(page.odata_next_link).get()
-    return members
+    return user_ids, group_ids
 
 
 def transform_groups(
-    groups: list[Group], member_map: dict[str, list[str]]
+    groups: list[Group],
+    user_member_map: dict[str, list[str]],
+    group_member_map: dict[str, list[str]],
 ) -> list[dict[str, Any]]:
     """Transform API responses into dictionaries for ingestion."""
     result: list[dict[str, Any]] = []
@@ -73,7 +80,8 @@ def transform_groups(
             "is_assignable_to_role": g.is_assignable_to_role,
             "created_date_time": g.created_date_time,
             "deleted_date_time": g.deleted_date_time,
-            "member_ids": member_map.get(g.id, []),
+            "member_ids": user_member_map.get(g.id, []),
+            "member_group_ids": group_member_map.get(g.id, []),
         }
         result.append(transformed)
     return result
@@ -124,15 +132,19 @@ async def sync_entra_groups(
 
     groups = await get_entra_groups(client)
 
-    member_map: dict[str, list[str]] = {}
+    user_member_map: dict[str, list[str]] = {}
+    group_member_map: dict[str, list[str]] = {}
     for group in groups:
         try:
-            member_map[group.id] = await get_group_members(client, group.id)
+            users, subgroups = await get_group_members(client, group.id)
+            user_member_map[group.id] = users
+            group_member_map[group.id] = subgroups
         except Exception as e:
             logger.error(f"Failed to fetch members for group {group.id}: {e}")
-            member_map[group.id] = []
+            user_member_map[group.id] = []
+            group_member_map[group.id] = []
 
-    transformed_groups = transform_groups(groups, member_map)
+    transformed_groups = transform_groups(groups, user_member_map, group_member_map)
 
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
     load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)

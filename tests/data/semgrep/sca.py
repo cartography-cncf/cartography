@@ -1,6 +1,6 @@
 VULN_ID = 73537136
 USAGE_ID = hash(
-    "org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",
+    "simpsoncorp/sample_repo/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",
 )
 
 SCA_RESPONSE = {
@@ -11,10 +11,10 @@ SCA_RESPONSE = {
             "syntactic_id": "91f6bebf5c374b3db9ae6b0afeb8ba4f",
             "match_based_id": "cf89274a455b0f7dae15d218af143cf317fb9886d12f3dcbe0e37cad02d0d29411cecb9a2c3fedc9e973de",
             "repository": {
-                "name": "org/repository",
-                "url": "https: //github.com/org/repository",
+                "name": "simpsoncorp/sample_repo",
+                "url": "https://github.com/simpsoncorp/sample_repo",
             },
-            "line_of_code_url": "https: //github.com/org/repository/blob/71bbed12f950de8335006d7f91112263d8504f1b/src/packages/components/AccountsTable/constants.tsx#L274",  # noqa E501
+            "line_of_code_url": "https://github.com/simpsoncorp/sample_repo/blob/71bbed12f950de8335006d7f91112263d8504f1b/src/packages/components/AccountsTable/constants.tsx#L274",  # noqa E501
             "first_seen_scan_id": 30469982,
             "state": "unresolved",
             "triage_state": "untriaged",
@@ -58,7 +58,7 @@ SCA_RESPONSE = {
                 "version": "2.29.2",
                 "ecosystem": "npm",
                 "transitivity": "direct",
-                "lockfile_line_url": "https: //github.com/org/repository/blob/commit_id/package-lock.json#L14373",
+                "lockfile_line_url": "https: //github.com/simpsoncorp/sample_repo/blob/commit_id/package-lock.json#L14373",
             },
             "fix_recommendations": [{"package": "moment", "version": "2.29.4"}],
             "usage": {
@@ -68,7 +68,7 @@ SCA_RESPONSE = {
                     "start_col": 37,
                     "end_line": 274,
                     "end_col": 62,
-                    "url": "https: //github.com/org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
+                    "url": "https: //github.com/simpsoncorp/sample_repo/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
                 },
                 "external_ticket": None,
             },
@@ -87,6 +87,6 @@ USAGES = [
         "start_col": 37,
         "end_line": 274,
         "end_col": 62,
-        "url": "https: //github.com/org/repository/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
+        "url": "https: //github.com/simpsoncorp/sample_repo/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",  # noqa E501
     },
 ]

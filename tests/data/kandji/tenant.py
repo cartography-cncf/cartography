@@ -1,8 +1,8 @@
 TENANT = {
-    "company_a": {
-        "id": "Company A",
+    "simpson_corp": {
+        "id": "SimpsonCorp",
     },
-    "company_b": {
-        "id": "Company B",
+    "south_park": {
+        "id": "SouthPark",
     },
 }
