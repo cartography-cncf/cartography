@@ -9,7 +9,7 @@ DESCRIBE_SNAPSHOTS = [
         "SnapshotId": "sn-01",
         "StartTime": datetime.datetime(2018, 10, 14, 16, 30, 26),
         "State": "completed",
-        "VolumeId": "vol-0df",  # Updated to match volume ID from volume test data
+        "VolumeId": "vol-0df",
         "VolumeSize": 123,
         "OutpostArn": "arn1",
     },
@@ -21,7 +21,7 @@ DESCRIBE_SNAPSHOTS = [
         "SnapshotId": "sn-02",
         "StartTime": datetime.datetime(2018, 10, 14, 16, 30, 26),
         "State": "completed",
-        "VolumeId": "vol-03",  # Updated to match volume ID from volume test data
+        "VolumeId": "vol-03",
         "VolumeSize": 123,
         "OutpostArn": "arn1",
     },
