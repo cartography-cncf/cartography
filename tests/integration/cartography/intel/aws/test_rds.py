@@ -86,54 +86,36 @@ def test_sync_rds_comprehensive(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert RDS clusters exist
-    actual_clusters = check_nodes(
+    # Assert
+    assert check_nodes(
         neo4j_session, "RDSCluster", ["id", "db_cluster_identifier"]
-    )
-    expected_cluster = (
-        "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
-        "some-prod-db-iad",
-    )
-    assert (
-        expected_cluster in actual_clusters
-    ), f"Expected cluster {expected_cluster} not found in {actual_clusters}"
+    ) == {
+        (
+            "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
+            "some-prod-db-iad",
+        ),
+    }, "RDS clusters don't exist"
 
-    # Assert RDS instances exist
-    actual_instances = check_nodes(
+    assert check_nodes(
         neo4j_session, "RDSInstance", ["id", "db_instance_identifier"]
-    )
-    expected_instance = (
-        "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
-        "some-prod-db-iad-0",
-    )
-    assert (
-        expected_instance in actual_instances
-    ), f"Expected instance {expected_instance} not found in {actual_instances}"
+    ) == {
+        ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "some-prod-db-iad-0"),
+    }, "RDS instances don't exist"
 
-    # Assert RDS snapshots exist
-    actual_snapshots = check_nodes(
+    assert check_nodes(
         neo4j_session, "RDSSnapshot", ["id", "db_snapshot_identifier"]
-    )
-    expected_snapshot = (
-        "arn:aws:rds:us-east-1:some-arn:snapshot:some-prod-db-iad-0",
-        "some-db-snapshot-identifier",
-    )
-    assert (
-        expected_snapshot in actual_snapshots
-    ), f"Expected snapshot {expected_snapshot} not found in {actual_snapshots}"
+    ) == {
+        (
+            "arn:aws:rds:us-east-1:some-arn:snapshot:some-prod-db-iad-0",
+            "some-db-snapshot-identifier",
+        ),
+    }, "RDS snapshots don't exist"
 
-    # Assert DB subnet groups exist
-    actual_subnet_groups = check_nodes(neo4j_session, "DBSubnetGroup", ["id", "name"])
-    expected_subnet_group = (
-        "arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1",
-        "subnet-group-1",
-    )
-    assert (
-        expected_subnet_group in actual_subnet_groups
-    ), f"Expected subnet group {expected_subnet_group} not found in {actual_subnet_groups}"
+    assert check_nodes(neo4j_session, "DBSubnetGroup", ["id", "name"]) == {
+        ("arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1", "subnet-group-1"),
+    }, "DB subnet groups don't exist"
 
-    # Assert RDS clusters are connected to AWS account
-    actual_cluster_account_rels = check_rels(
+    assert check_rels(
         neo4j_session,
         "RDSCluster",
         "id",
@@ -141,17 +123,11 @@ def test_sync_rds_comprehensive(
         "id",
         "RESOURCE",
         rel_direction_right=False,
-    )
-    expected_cluster_account_rel = (
-        "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
-        "000000000000",
-    )
-    assert (
-        expected_cluster_account_rel in actual_cluster_account_rels
-    ), f"Expected cluster-account relationship {expected_cluster_account_rel} not found in {actual_cluster_account_rels}"
+    ) == {
+        ("arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0", "000000000000"),
+    }, "RDS clusters are not connected to AWS account"
 
-    # Assert RDS instances are connected to AWS account
-    actual_instance_account_rels = check_rels(
+    assert check_rels(
         neo4j_session,
         "RDSInstance",
         "id",
@@ -159,17 +135,11 @@ def test_sync_rds_comprehensive(
         "id",
         "RESOURCE",
         rel_direction_right=False,
-    )
-    expected_instance_account_rel = (
-        "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
-        "000000000000",
-    )
-    assert (
-        expected_instance_account_rel in actual_instance_account_rels
-    ), f"Expected instance-account relationship {expected_instance_account_rel} not found in {actual_instance_account_rels}"
+    ) == {
+        ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "000000000000"),
+    }, "RDS instances are not connected to AWS account"
 
-    # Assert RDS snapshots are connected to AWS account
-    actual_snapshot_account_rels = check_rels(
+    assert check_rels(
         neo4j_session,
         "RDSSnapshot",
         "id",
@@ -177,17 +147,11 @@ def test_sync_rds_comprehensive(
         "id",
         "RESOURCE",
         rel_direction_right=False,
-    )
-    expected_snapshot_account_rel = (
-        "arn:aws:rds:us-east-1:some-arn:snapshot:some-prod-db-iad-0",
-        "000000000000",
-    )
-    assert (
-        expected_snapshot_account_rel in actual_snapshot_account_rels
-    ), f"Expected snapshot-account relationship {expected_snapshot_account_rel} not found in {actual_snapshot_account_rels}"
+    ) == {
+        ("arn:aws:rds:us-east-1:some-arn:snapshot:some-prod-db-iad-0", "000000000000"),
+    }, "RDS snapshots are not connected to AWS account"
 
-    # Assert DB subnet groups are connected to AWS account
-    actual_subnet_group_account_rels = check_rels(
+    assert check_rels(
         neo4j_session,
         "DBSubnetGroup",
         "id",
@@ -195,17 +159,11 @@ def test_sync_rds_comprehensive(
         "id",
         "RESOURCE",
         rel_direction_right=False,
-    )
-    expected_subnet_group_account_rel = (
-        "arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1",
-        "000000000000",
-    )
-    assert (
-        expected_subnet_group_account_rel in actual_subnet_group_account_rels
-    ), f"Expected subnet-group-account relationship {expected_subnet_group_account_rel} not found in {actual_subnet_group_account_rels}"
+    ) == {
+        ("arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1", "000000000000"),
+    }, "DB subnet groups are not connected to AWS account"
 
-    # Assert RDS instances are connected to DB subnet groups
-    actual_instance_subnet_group_rels = check_rels(
+    assert check_rels(
         neo4j_session,
         "RDSInstance",
         "id",
@@ -213,17 +171,14 @@ def test_sync_rds_comprehensive(
         "id",
         "MEMBER_OF_DB_SUBNET_GROUP",
         rel_direction_right=True,
-    )
-    expected_instance_subnet_group_rel = (
-        "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
-        "arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1",
-    )
-    assert (
-        expected_instance_subnet_group_rel in actual_instance_subnet_group_rels
-    ), f"Expected instance-subnet-group relationship {expected_instance_subnet_group_rel} not found in {actual_instance_subnet_group_rels}"
+    ) == {
+        (
+            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
+            "arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1",
+        ),
+    }, "RDS instances are not connected to DB subnet groups"
 
-    # Assert RDS instances are connected to EC2 security groups
-    actual_instance_security_group_rels = check_rels(
+    assert check_rels(
         neo4j_session,
         "RDSInstance",
         "id",
@@ -231,19 +186,13 @@ def test_sync_rds_comprehensive(
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
         rel_direction_right=True,
-    )
-    expected_security_group_rels = [
+    ) == {
         ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "sg-some-othersg"),
         ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "sg-some-sg"),
         ("arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0", "sg-secgroup"),
-    ]
-    for expected_rel in expected_security_group_rels:
-        assert (
-            expected_rel in actual_instance_security_group_rels
-        ), f"Expected security group relationship {expected_rel} not found in {actual_instance_security_group_rels}"
+    }, "RDS instances are not connected to EC2 security groups"
 
-    # Assert RDS instances are connected to RDS clusters
-    actual_instance_cluster_rels = check_rels(
+    assert check_rels(
         neo4j_session,
         "RDSInstance",
         "id",
@@ -251,17 +200,14 @@ def test_sync_rds_comprehensive(
         "id",
         "IS_CLUSTER_MEMBER_OF",
         rel_direction_right=True,
-    )
-    expected_instance_cluster_rel = (
-        "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
-        "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
-    )
-    assert (
-        expected_instance_cluster_rel in actual_instance_cluster_rels
-    ), f"Expected instance-cluster relationship {expected_instance_cluster_rel} not found in {actual_instance_cluster_rels}"
+    ) == {
+        (
+            "arn:aws:rds:us-east-1:some-arn:db:some-prod-db-iad-0",
+            "arn:aws:rds:us-east-1:some-arn:cluster:some-prod-db-iad-0",
+        ),
+    }, "RDS instances are not connected to RDS clusters"
 
-    # Assert DB subnet groups are connected to EC2 subnets
-    actual_subnet_group_subnet_rels = check_rels(
+    assert check_rels(
         neo4j_session,
         "DBSubnetGroup",
         "id",
@@ -269,14 +215,9 @@ def test_sync_rds_comprehensive(
         "subnetid",
         "RESOURCE",
         rel_direction_right=True,
-    )
-    expected_subnet_rels = [
+    ) == {
         ("arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1", "subnet-abcd"),
         ("arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1", "subnet-3421"),
         ("arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1", "subnet-4567"),
         ("arn:aws:rds:us-east-1:000000000000:subgrp:subnet-group-1", "subnet-1234"),
-    ]
-    for expected_rel in expected_subnet_rels:
-        assert (
-            expected_rel in actual_subnet_group_subnet_rels
-        ), f"Expected subnet relationship {expected_rel} not found in {actual_subnet_group_subnet_rels}"
+    }, "DB subnet groups are not connected to EC2 subnets"
