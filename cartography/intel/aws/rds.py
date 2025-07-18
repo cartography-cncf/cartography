@@ -51,33 +51,6 @@ def load_rds_clusters(
     """
     Ingest the RDS clusters to neo4j and link them to necessary nodes.
     """
-    for cluster in data:
-        cluster["EarliestRestorableTime"] = dict_value_to_str(
-            cluster,
-            "EarliestRestorableTime",
-        )
-        cluster["LatestRestorableTime"] = dict_value_to_str(
-            cluster,
-            "LatestRestorableTime",
-        )
-        cluster["ClusterCreateTime"] = dict_value_to_str(cluster, "ClusterCreateTime")
-        cluster["EarliestBacktrackTime"] = dict_value_to_str(
-            cluster,
-            "EarliestBacktrackTime",
-        )
-        cluster["ScalingConfigurationInfoMinCapacity"] = cluster.get(
-            "ScalingConfigurationInfo",
-            {},
-        ).get("MinCapacity")
-        cluster["ScalingConfigurationInfoMaxCapacity"] = cluster.get(
-            "ScalingConfigurationInfo",
-            {},
-        ).get("MaxCapacity")
-        cluster["ScalingConfigurationInfoAutoPause"] = cluster.get(
-            "ScalingConfigurationInfo",
-            {},
-        ).get("AutoPause")
-
     load(
         neo4j_session,
         RDSClusterSchema(),
@@ -307,6 +280,47 @@ def _get_db_subnet_group_arn(
     )
 
 
+def transform_rds_clusters(data: List[Dict]) -> List[Dict]:
+    """
+    Transform RDS cluster data for Neo4j ingestion
+    """
+    clusters = []
+
+    for cluster in data:
+        # Copy the cluster data
+        transformed_cluster = cluster.copy()
+
+        # Convert datetime fields
+        transformed_cluster["EarliestRestorableTime"] = dict_value_to_str(
+            cluster, "EarliestRestorableTime"
+        )
+        transformed_cluster["LatestRestorableTime"] = dict_value_to_str(
+            cluster, "LatestRestorableTime"
+        )
+        transformed_cluster["ClusterCreateTime"] = dict_value_to_str(
+            cluster, "ClusterCreateTime"
+        )
+        transformed_cluster["EarliestBacktrackTime"] = dict_value_to_str(
+            cluster, "EarliestBacktrackTime"
+        )
+
+        # Extract scaling configuration info
+        scaling_config = cluster.get("ScalingConfigurationInfo", {})
+        transformed_cluster["ScalingConfigurationInfoMinCapacity"] = scaling_config.get(
+            "MinCapacity"
+        )
+        transformed_cluster["ScalingConfigurationInfoMaxCapacity"] = scaling_config.get(
+            "MaxCapacity"
+        )
+        transformed_cluster["ScalingConfigurationInfoAutoPause"] = scaling_config.get(
+            "AutoPause"
+        )
+
+        clusters.append(transformed_cluster)
+
+    return clusters
+
+
 @timeit
 def transform_rds_snapshots(data: List[Dict]) -> List[Dict]:
     snapshots = []
@@ -440,7 +454,7 @@ def sync_rds_clusters(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Grab RDS instance data from AWS, ingest to neo4j, and run the cleanup job.
+    Grab RDS cluster data from AWS, ingest to neo4j, and run the cleanup job.
     """
     for region in regions:
         logger.info(
@@ -449,8 +463,9 @@ def sync_rds_clusters(
             current_aws_account_id,
         )
         data = get_rds_cluster_data(boto3_session, region)
+        transformed_data = transform_rds_clusters(data)
         load_rds_clusters(
-            neo4j_session, data, region, current_aws_account_id, update_tag
+            neo4j_session, transformed_data, region, current_aws_account_id, update_tag
         )
     cleanup_rds_clusters(neo4j_session, common_job_parameters)
 

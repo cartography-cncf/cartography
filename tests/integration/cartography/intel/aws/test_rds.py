@@ -8,9 +8,13 @@ TEST_UPDATE_TAG = 123456789
 
 def test_load_rds_clusters_basic(neo4j_session):
     """Test that we successfully load RDS cluster nodes to the graph"""
+    # Transform the data first
+    transformed_data = cartography.intel.aws.rds.transform_rds_clusters(
+        DESCRIBE_DBCLUSTERS_RESPONSE["DBClusters"]
+    )
     cartography.intel.aws.rds.load_rds_clusters(
         neo4j_session,
-        DESCRIBE_DBCLUSTERS_RESPONSE["DBClusters"],
+        transformed_data,
         "us-east1",
         "1234",
         TEST_UPDATE_TAG,
