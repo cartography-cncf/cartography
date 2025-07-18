@@ -51,9 +51,7 @@ def test_transform_single_assume_role_event():
     events = [SAMPLE_ASSUME_ROLE_EVENT]
 
     # Act
-    result = transform_assume_role_events_to_role_assumptions(
-        events=events, region="us-east-1", current_aws_account_id="123456789012"
-    )
+    result = transform_assume_role_events_to_role_assumptions(events=events)
 
     # Assert
     assert len(result) == 1
@@ -69,7 +67,6 @@ def test_transform_single_assume_role_event():
     assert assumption["times_used"] == 1
     assert assumption["first_seen_in_time_window"] == "2024-01-15T10:30:15.123000"
     assert assumption["last_used"] == "2024-01-15T10:30:15.123000"
-    assert assumption["assume_role_count"] == 1
 
 
 def test_transform_single_saml_role_event():
@@ -78,9 +75,7 @@ def test_transform_single_saml_role_event():
     events = [SAMPLE_ASSUME_ROLE_WITH_SAML_EVENT]
 
     # Act
-    result = transform_saml_role_events_to_role_assumptions(
-        events=events, region="us-east-1", current_aws_account_id="123456789012"
-    )
+    result = transform_saml_role_events_to_role_assumptions(events=events)
 
     # Assert
     assert len(result) == 1
@@ -94,7 +89,6 @@ def test_transform_single_saml_role_event():
     assert assumption["times_used"] == 1
     assert assumption["first_seen_in_time_window"] == "2024-01-15T11:45:22.456000"
     assert assumption["last_used"] == "2024-01-15T11:45:22.456000"
-    assert assumption["saml_count"] == 1
 
 
 def test_transform_single_github_web_identity_role_event():
@@ -103,9 +97,7 @@ def test_transform_single_github_web_identity_role_event():
     events = [SAMPLE_GITHUB_ASSUME_ROLE_WITH_WEB_IDENTITY_EVENT]
 
     # Act
-    result = transform_web_identity_role_events_to_role_assumptions(
-        events=events, region="us-east-1", current_aws_account_id="123456789012"
-    )
+    result = transform_web_identity_role_events_to_role_assumptions(events=events)
 
     # Assert
     assert len(result) == 1
@@ -119,6 +111,3 @@ def test_transform_single_github_web_identity_role_event():
     assert assumption["times_used"] == 1
     assert assumption["first_seen_in_time_window"] == "2024-01-15T12:15:30.789000"
     assert assumption["last_used"] == "2024-01-15T12:15:30.789000"
-    assert assumption["web_identity_count"] == 1
-    assert assumption["web_identity_users"] == ["sublimagesec/sublimage"]
-    assert assumption["unique_user_count"] == 1

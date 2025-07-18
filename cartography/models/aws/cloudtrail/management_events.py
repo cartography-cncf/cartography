@@ -29,9 +29,6 @@ class AssumedRoleRelProperties(CartographyRelProperties):
     times_used: PropertyRef = PropertyRef("times_used")
     first_seen_in_time_window: PropertyRef = PropertyRef("first_seen_in_time_window")
 
-    # Event type tracking properties
-    assume_role_count: PropertyRef = PropertyRef("assume_role_count")
-
 
 @dataclass(frozen=True)
 class AssumedRoleMatchLink(CartographyRelSchema):
@@ -80,9 +77,6 @@ class AssumedRoleWithSAMLRelProperties(CartographyRelProperties):
     times_used: PropertyRef = PropertyRef("times_used")
     first_seen_in_time_window: PropertyRef = PropertyRef("first_seen_in_time_window")
 
-    # SAML-specific event tracking
-    saml_count: PropertyRef = PropertyRef("saml_count")
-
 
 @dataclass(frozen=True)
 class AssumedRoleWithSAMLMatchLink(CartographyRelSchema):
@@ -129,17 +123,6 @@ class AssumeRoleWithWebIdentityRelProperties(CartographyRelProperties):
     last_used: PropertyRef = PropertyRef("last_used")
     times_used: PropertyRef = PropertyRef("times_used")
     first_seen_in_time_window: PropertyRef = PropertyRef("first_seen_in_time_window")
-
-    # Web Identity-specific event tracking
-    web_identity_count: PropertyRef = PropertyRef("web_identity_count")
-
-    # Individual user tracking within provider-level aggregation
-    web_identity_users: PropertyRef = PropertyRef(
-        "web_identity_users"
-    )  # List of unique users
-    unique_user_count: PropertyRef = PropertyRef(
-        "unique_user_count"
-    )  # Count of unique users
 
 
 @dataclass(frozen=True)

@@ -506,7 +506,7 @@ def test_cloudtrail_management_events_creates_assumed_role_with_saml_relationshi
         """
         MATCH (p:AWSSSOUser)-[r:ASSUMED_ROLE_WITH_SAML]->(role:AWSRole)
         WHERE p.user_name IN ['admin@example.com', 'alice@example.com']
-        RETURN r.times_used as times_used, r.last_used as last_used, r.saml_count as saml_count
+        RETURN r.times_used as times_used, r.last_used as last_used
         """
     ).data()
 
@@ -514,7 +514,6 @@ def test_cloudtrail_management_events_creates_assumed_role_with_saml_relationshi
     for usage in saml_role_usage_results:
         assert usage["times_used"] == 1
         assert usage["last_used"] is not None
-        assert usage["saml_count"] == 1
 
 
 @patch.object(
@@ -696,9 +695,7 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
         """
         MATCH (repo:GitHubRepository)-[r:ASSUMED_ROLE_WITH_WEB_IDENTITY]->(role:AWSRole)
         WHERE repo.fullname IN ['sublimagesec/sublimage', 'myorg/demo-app']
-        RETURN repo.fullname as repo_fullname, r.times_used as times_used, r.last_used as last_used,
-               r.web_identity_count as web_identity_count, r.web_identity_users as web_identity_users,
-               r.unique_user_count as unique_user_count
+        RETURN repo.fullname as repo_fullname, r.times_used as times_used, r.last_used as last_used
         """
     ).data()
 
@@ -713,17 +710,11 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
     sublimage_usage = usage_by_repo["sublimagesec/sublimage"]
     assert sublimage_usage["times_used"] == 1
     assert sublimage_usage["last_used"] is not None
-    assert sublimage_usage["web_identity_count"] == 1
-    assert sublimage_usage["web_identity_users"] == ["sublimagesec/sublimage"]
-    assert sublimage_usage["unique_user_count"] == 1
 
     # Verify myorg/demo-app repo relationship
     demo_app_usage = usage_by_repo["myorg/demo-app"]
     assert demo_app_usage["times_used"] == 1
     assert demo_app_usage["last_used"] is not None
-    assert demo_app_usage["web_identity_count"] == 1
-    assert demo_app_usage["web_identity_users"] == ["myorg/demo-app"]
-    assert demo_app_usage["unique_user_count"] == 1
 
 
 @patch.object(
@@ -891,17 +882,11 @@ def test_cloudtrail_web_identity_events_aggregates_multiple_users_and_tracks_ind
               -[r:ASSUMED_ROLE_WITH_WEB_IDENTITY]->
               (role:AWSRole {arn: 'arn:aws:iam::111111111111:role/GitHubTestRole'})
         RETURN r.times_used as times_used, r.first_seen_in_time_window as first_seen_in_time_window,
-               r.last_used as last_used, r.web_identity_count as web_identity_count,
-               r.web_identity_users as web_identity_users, r.unique_user_count as unique_user_count
+               r.last_used as last_used
         """
     ).single()
 
     # Verify aggregation counts
     assert aggregated_usage["times_used"] == 3
-    assert aggregated_usage["web_identity_count"] == 3
     assert aggregated_usage["first_seen_in_time_window"] == "2024-01-15T09:10:25.123000"
     assert aggregated_usage["last_used"] == "2024-01-15T14:15:30.456000"
-
-    # Verify user tracking - all events from same repo, so only 1 unique "user" (the repo itself)
-    assert aggregated_usage["unique_user_count"] == 1  # myorg/test-repo
-    assert aggregated_usage["web_identity_users"] == ["myorg/test-repo"]  # Single repo

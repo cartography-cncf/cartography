@@ -197,8 +197,6 @@ def get_web_identity_role_events(
 @timeit
 def transform_assume_role_events_to_role_assumptions(
     events: List[Dict[str, Any]],
-    region: str,
-    current_aws_account_id: str,
 ) -> List[Dict[str, Any]]:
     """
     Transform raw CloudTrail AssumeRole events into aggregated role assumption relationships.
@@ -213,16 +211,12 @@ def transform_assume_role_events_to_role_assumptions(
 
     :type events: List[Dict[str, Any]]
     :param events: List of raw CloudTrail AssumeRole events from lookup_events API
-    :type region: str
-    :param region: The AWS region where events were retrieved from
-    :type current_aws_account_id: str
-    :param current_aws_account_id: The AWS account ID being synced
     :rtype: List[Dict[str, Any]]
     :return: List of aggregated role assumption relationships ready for loading
     """
     aggregated: Dict[tuple, Dict[str, Any]] = {}
     logger.info(
-        f"Transforming {len(events)} CloudTrail AssumeRole events to role assumptions for region '{region}'"
+        f"Transforming {len(events)} CloudTrail AssumeRole events to role assumptions"
     )
 
     for event in events:
@@ -252,7 +246,6 @@ def transform_assume_role_events_to_role_assumptions(
 
         if key in aggregated:
             aggregated[key]["times_used"] += 1
-            aggregated[key]["assume_role_count"] += 1  # All events are AssumeRole
             # Handle None values safely for time comparisons
             if event_time:
                 existing_first = aggregated[key]["first_seen_in_time_window"]
@@ -269,10 +262,6 @@ def transform_assume_role_events_to_role_assumptions(
                 "times_used": 1,
                 "first_seen_in_time_window": event_time,
                 "last_used": event_time,
-                "event_types": ["AssumeRole"],
-                "assume_role_count": 1,
-                "saml_count": 0,
-                "web_identity_count": 0,
             }
 
     return list(aggregated.values())
@@ -281,8 +270,6 @@ def transform_assume_role_events_to_role_assumptions(
 @timeit
 def transform_saml_role_events_to_role_assumptions(
     events: List[Dict[str, Any]],
-    region: str,
-    current_aws_account_id: str,
 ) -> List[Dict[str, Any]]:
     """
     Transform raw CloudTrail AssumeRoleWithSAML events into aggregated role assumption relationships.
@@ -297,16 +284,14 @@ def transform_saml_role_events_to_role_assumptions(
 
     :type events: List[Dict[str, Any]]
     :param events: List of raw CloudTrail AssumeRoleWithSAML events from lookup_events API
-    :type region: str
-    :param region: The AWS region where events were retrieved from
-    :type current_aws_account_id: str
-    :param current_aws_account_id: The AWS account ID being synced
     :rtype: List[Dict[str, Any]]
-    :return: List of aggregated SAML role assumption relationships ready for loading
+    :return: List of aggregated SAML role assumption relationships ready for loading.
+             Each dict contains keys: source_principal_arn, destination_principal_arn,
+             times_used, first_seen_in_time_window, last_used
     """
     aggregated: Dict[tuple, Dict[str, Any]] = {}
     logger.info(
-        f"Transforming {len(events)} CloudTrail AssumeRoleWithSAML events to role assumptions for region '{region}'"
+        f"Transforming {len(events)} CloudTrail AssumeRoleWithSAML events to role assumptions"
     )
 
     for event in events:
@@ -333,7 +318,6 @@ def transform_saml_role_events_to_role_assumptions(
 
         if key in aggregated:
             aggregated[key]["times_used"] += 1
-            aggregated[key]["saml_count"] += 1  # All events are AssumeRoleWithSAML
             # Handle None values safely for time comparisons
             if event_time:
                 existing_first = aggregated[key]["first_seen_in_time_window"]
@@ -350,7 +334,6 @@ def transform_saml_role_events_to_role_assumptions(
                 "times_used": 1,
                 "first_seen_in_time_window": event_time,
                 "last_used": event_time,
-                "saml_count": 1,
             }
 
     return list(aggregated.values())
@@ -359,8 +342,6 @@ def transform_saml_role_events_to_role_assumptions(
 @timeit
 def transform_web_identity_role_events_to_role_assumptions(
     events: List[Dict[str, Any]],
-    region: str,
-    current_aws_account_id: str,
 ) -> List[Dict[str, Any]]:
     """
     Transform raw CloudTrail AssumeRoleWithWebIdentity events into aggregated role assumption relationships.
@@ -375,16 +356,14 @@ def transform_web_identity_role_events_to_role_assumptions(
 
     :type events: List[Dict[str, Any]]
     :param events: List of raw CloudTrail AssumeRoleWithWebIdentity events from lookup_events API
-    :type region: str
-    :param region: The AWS region where events were retrieved from
-    :type current_aws_account_id: str
-    :param current_aws_account_id: The AWS account ID being synced
     :rtype: List[Dict[str, Any]]
-    :return: List of aggregated WebIdentity role assumption relationships ready for loading
+    :return: List of aggregated WebIdentity role assumption relationships ready for loading.
+             Each dict contains keys: source_repo_fullname, destination_principal_arn,
+             times_used, first_seen_in_time_window, last_used
     """
     github_aggregated: Dict[tuple, Dict[str, Any]] = {}
     logger.info(
-        f"Transforming {len(events)} CloudTrail AssumeRoleWithWebIdentity events to role assumptions for region '{region}'"
+        f"Transforming {len(events)} CloudTrail AssumeRoleWithWebIdentity events to role assumptions"
     )
 
     for event in events:
@@ -413,10 +392,6 @@ def transform_web_identity_role_events_to_role_assumptions(
 
                 if key in github_aggregated:
                     github_aggregated[key]["times_used"] += 1
-                    github_aggregated[key]["web_identity_count"] += 1
-                    github_aggregated[key]["users"].add(
-                        github_repo
-                    )  # Store the repo fullname for tracking
                     # Handle None values safely for time comparisons
                     if event_time:
                         existing_first = github_aggregated[key][
@@ -437,10 +412,6 @@ def transform_web_identity_role_events_to_role_assumptions(
                         "times_used": 1,
                         "first_seen_in_time_window": event_time,
                         "last_used": event_time,
-                        "web_identity_count": 1,
-                        "users": {
-                            github_repo
-                        },  # during aggregation using set to avoid duplicates
                     }
             else:
                 # Skip non-GitHub events for now
@@ -453,17 +424,8 @@ def transform_web_identity_role_events_to_role_assumptions(
                 f"Skipping CloudTrail AssumeRoleWithWebIdentity event due to missing or invalid userIdentity. Event: {event.get('EventId', 'unknown')}"
             )
             continue
-    # Convert user sets to lists and add count, keeping the logic simple
-    result = []
-
-    # Process GitHub repo-level aggregated relationships
-    for item in github_aggregated.values():
-        users_set = item.pop("users")  # Remove and get the users set
-        item["web_identity_users"] = list(users_set)  # Convert to list for Neo4j
-        item["unique_user_count"] = len(users_set)  # Count before converting
-        result.append(item)
-
-    return result
+    # Return aggregated relationships directly
+    return list(github_aggregated.values())
 
 
 @timeit
@@ -477,7 +439,7 @@ def load_role_assumptions(
     Load aggregated role assumption relationships into Neo4j using MatchLink pattern.
 
     Creates direct ASSUMED_ROLE relationships with aggregated properties:
-    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {lastused, times_used, first_seen_in_time_window, last_seen}]->(AWSRole)
+    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {lastupdated, times_used, first_seen_in_time_window, last_used}]->(AWSRole)
 
     Assumes that both source principals and destination roles already exist in the graph.
 
@@ -519,7 +481,7 @@ def load_saml_role_assumptions(
     Load aggregated SAML role assumption relationships into Neo4j using MatchLink pattern.
 
     Creates direct ASSUMED_ROLE_WITH_SAML relationships with aggregated properties:
-    (AWSRole)-[:ASSUMED_ROLE_WITH_SAML {lastused, times_used, first_seen_in_time_window, last_seen}]->(AWSRole)
+    (AWSRole)-[:ASSUMED_ROLE_WITH_SAML {lastupdated, times_used, first_seen_in_time_window, last_used}]->(AWSRole)
 
     Assumes that both source principals and destination roles already exist in the graph.
 
@@ -561,7 +523,7 @@ def load_web_identity_role_assumptions(
     Load aggregated WebIdentity role assumption relationships into Neo4j using MatchLink pattern.
 
     Creates direct ASSUMED_ROLE_WITH_WEB_IDENTITY relationships with aggregated properties:
-    (GitHubRepository)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY {lastused, times_used, first_seen_in_time_window, last_seen}]->(AWSRole)
+    (GitHubRepository)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY {lastupdated, times_used, first_seen_in_time_window, last_used}]->(AWSRole)
 
     Assumes that both source principals and destination roles already exist in the graph.
 
@@ -662,7 +624,7 @@ def sync_assume_role_events(
     4. Run cleanup after processing all regions
 
     The resulting graph contains direct relationships like:
-    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen_in_time_window, last_used, lastused}]->(AWSRole)
+    (AWSUser|AWSRole|AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
 
     :type neo4j_session: neo4j.Session
     :param neo4j_session: The Neo4j session
@@ -708,8 +670,6 @@ def sync_assume_role_events(
         # Transform AssumeRole events to role assumptions
         assume_role_assumptions = transform_assume_role_events_to_role_assumptions(
             events=assume_role_events,
-            region=region,
-            current_aws_account_id=current_aws_account_id,
         )
 
         # Load AssumeRole assumptions for this region
@@ -751,7 +711,7 @@ def sync_saml_role_events(
     3. Load role assumption relationships into Neo4j for each region
 
     The resulting graph contains direct relationships like:
-    (AWSRole)-[:ASSUMED_ROLE_WITH_SAML {times_used, first_seen_in_time_window, last_used, lastused}]->(AWSRole)
+    (AWSRole)-[:ASSUMED_ROLE_WITH_SAML {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
 
     :type neo4j_session: neo4j.Session
     :param neo4j_session: The Neo4j session
@@ -799,8 +759,6 @@ def sync_saml_role_events(
         # Transform AssumeRoleWithSAML events to role assumptions
         saml_role_assumptions = transform_saml_role_events_to_role_assumptions(
             events=saml_role_events,
-            region=region,
-            current_aws_account_id=current_aws_account_id,
         )
 
         # Load SAML role assumptions for this region
@@ -839,7 +797,7 @@ def sync_web_identity_role_events(
     3. Load role assumption relationships into Neo4j for each region
 
     The resulting graph contains direct relationships like:
-    (GitHubRepository)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY {times_used, first_seen_in_time_window, last_used, lastused}]->(AWSRole)
+    (GitHubRepository)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
 
     :type neo4j_session: neo4j.Session
     :param neo4j_session: The Neo4j session
@@ -888,8 +846,6 @@ def sync_web_identity_role_events(
         web_identity_role_assumptions = (
             transform_web_identity_role_events_to_role_assumptions(
                 events=web_identity_role_events,
-                region=region,
-                current_aws_account_id=current_aws_account_id,
             )
         )
 
