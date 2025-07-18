@@ -43,6 +43,25 @@ INTEGRATION_TEST_BASIC_IAM_ROLES = [
             ],
         },
     },
+    {
+        "RoleName": "SAMLRole",
+        "RoleId": "AROA00000000000000002",
+        "Arn": "arn:aws:iam::123456789012:role/SAMLRole",
+        "Path": "/",
+        "CreateDate": datetime(2024, 1, 1, 10, 0, 0),
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Federated": "arn:aws:iam::123456789012:saml-provider/ExampleProvider"
+                    },
+                    "Action": "sts:AssumeRoleWithSAML",
+                }
+            ],
+        },
+    },
 ]
 
 # Test data for aggregation test - different account to prevent conflicts
@@ -106,5 +125,55 @@ INTEGRATION_TEST_CROSS_ACCOUNT_IAM_ROLES = [
                 }
             ],
         },
+    },
+]
+
+# Test data for SSO users for SAML tests
+TEST_SSO_USERS = [
+    {
+        "UserName": "admin@example.com",
+        "UserId": "admin-user-id-1",
+        "ExternalIds": [
+            {
+                "Issuer": "https://scim.aws.com/test",
+                "Id": "admin-external-id",
+            },
+        ],
+        "Name": {
+            "FamilyName": "Admin",
+            "GivenName": "Test",
+        },
+        "DisplayName": "Test Admin",
+        "Emails": [
+            {
+                "Value": "admin@example.com",
+                "Type": "work",
+                "Primary": True,
+            },
+        ],
+        "IdentityStoreId": "d-1234567890",
+    },
+    {
+        "UserName": "alice@example.com",
+        "UserId": "alice-user-id-2",
+        "ExternalIds": [
+            {
+                "Issuer": "https://scim.aws.com/test",
+                "Id": "alice-external-id",
+            },
+        ],
+        "Name": {
+            "FamilyName": "Alice",
+            "GivenName": "Test",
+        },
+        "DisplayName": "Test Alice",
+        "Emails": [
+            {
+                "Value": "alice@example.com",
+                "Type": "work",
+                "Primary": True,
+            },
+        ],
+        "IdentityStoreId": "d-1234567890",
     },
 ]
