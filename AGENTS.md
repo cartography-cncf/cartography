@@ -983,7 +983,7 @@ class RDSInstanceToSecurityGroupRel(CartographyRelSchema):
         "id": PropertyRef("SecurityGroupId"),  # Just the ID, no additional properties
     })
     direction: LinkDirection = LinkDirection.OUTWARD
-            rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
+    rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
     properties: RDSInstanceToSecurityGroupRelProperties = RDSInstanceToSecurityGroupRelProperties()
 ```
 
