@@ -10,10 +10,26 @@ def test_load_clusters(neo4j_session):
     neo4j_session.run("MERGE(a:AWSAccount{id:$account});", account=TEST_ACCOUNT_ID)
     elasticache_data = tests.data.aws.elasticache.DESCRIBE_CACHE_CLUSTERS
     clusters = elasticache_data["CacheClusters"]
+
+    # Transform the data to extract both cluster and topic information
+    cluster_data, topic_data = (
+        cartography.intel.aws.elasticache.transform_elasticache_clusters(
+            clusters, TEST_REGION
+        )
+    )
+
     cartography.intel.aws.elasticache.load_elasticache_clusters(
         neo4j_session,
-        clusters,
+        cluster_data,
         TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Also load the topics
+    cartography.intel.aws.elasticache.load_elasticache_topics(
+        neo4j_session,
+        topic_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
