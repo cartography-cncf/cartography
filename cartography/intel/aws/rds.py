@@ -117,14 +117,10 @@ def load_rds_instances(
     """
     Ingest the RDS instances to Neo4j and link them to necessary nodes.
     """
-    read_replicas = []
     clusters = []
     subnets = []
 
     for rds in data:
-        if rds.get("ReadReplicaSourceDBInstanceIdentifier"):
-            read_replicas.append(rds)
-
         if rds.get("DBClusterIdentifier"):
             clusters.append(rds)
 
@@ -147,7 +143,6 @@ def load_rds_instances(
         current_aws_account_id,
         aws_update_tag,
     )
-    _attach_read_replicas(neo4j_session, read_replicas, aws_update_tag)
     _attach_clusters(neo4j_session, clusters, aws_update_tag)
 
 
@@ -288,30 +283,6 @@ def _attach_ec2_subnets_to_subnetgroup(
 
 
 @timeit
-def _attach_read_replicas(
-    neo4j_session: neo4j.Session,
-    read_replicas: List[Dict],
-    aws_update_tag: int,
-) -> None:
-    """
-    Attach read replicas to their source instances
-    """
-    attach_replica_to_source = """
-    UNWIND $Replicas as rds_replica
-        MATCH (replica:RDSInstance{id: rds_replica.DBInstanceArn}),
-        (source:RDSInstance{db_instance_identifier: rds_replica.ReadReplicaSourceDBInstanceIdentifier})
-        MERGE (replica)-[r:IS_READ_REPLICA_OF]->(source)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-    """
-    neo4j_session.run(
-        attach_replica_to_source,
-        Replicas=read_replicas,
-        aws_update_tag=aws_update_tag,
-    )
-
-
-@timeit
 def _attach_clusters(
     neo4j_session: neo4j.Session,
     cluster_members: List[Dict],
@@ -411,6 +382,12 @@ def transform_rds_instances(data: List[Dict]) -> List[Dict]:
                 security_group_ids.append(group["VpcSecurityGroupId"])
 
         transformed_instance["security_group_ids"] = security_group_ids
+
+        # Handle read replica source identifier for the relationship
+        if instance.get("ReadReplicaSourceDBInstanceIdentifier"):
+            transformed_instance["read_replica_source_identifier"] = instance[
+                "ReadReplicaSourceDBInstanceIdentifier"
+            ]
 
         # Handle endpoint data
         ep = _validate_rds_endpoint(instance)

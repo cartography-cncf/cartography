@@ -101,6 +101,26 @@ class RDSInstanceToEC2SecurityGroupRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RDSInstanceToRDSInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class RDSInstanceToRDSInstanceRel(CartographyRelSchema):
+    target_node_label: str = "RDSInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "db_instance_identifier": PropertyRef("read_replica_source_identifier"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_READ_REPLICA_OF"
+    properties: RDSInstanceToRDSInstanceRelProperties = (
+        RDSInstanceToRDSInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class RDSInstanceSchema(CartographyNodeSchema):
     label: str = "RDSInstance"
     properties: RDSInstanceNodeProperties = RDSInstanceNodeProperties()
@@ -108,5 +128,6 @@ class RDSInstanceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             RDSInstanceToEC2SecurityGroupRel(),
+            RDSInstanceToRDSInstanceRel(),
         ]
     )
