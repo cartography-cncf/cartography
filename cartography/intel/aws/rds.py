@@ -7,9 +7,11 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.models.aws.ec2.subnet_rds import EC2SubnetRDSSchema
 from cartography.models.aws.rds.cluster import RDSClusterSchema
 from cartography.models.aws.rds.instance import RDSInstanceSchema
 from cartography.models.aws.rds.snapshot import RDSSnapshotSchema
+from cartography.models.aws.rds.subnet_group import DBSubnetGroupSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
@@ -132,57 +134,6 @@ def load_rds_snapshots(
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
-    )
-
-
-@timeit
-def _attach_ec2_subnets_to_subnetgroup(
-    neo4j_session: neo4j.Session,
-    db_subnet_groups: List[Dict],
-    region: str,
-    current_aws_account_id: str,
-    aws_update_tag: int,
-) -> None:
-    """
-    Attach EC2Subnets to their DB Subnet Group.
-
-    From https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html:
-    `Each DB subnet group should have subnets in at least two Availability Zones in a given region. When creating a DB
-    instance in a VPC, you must select a DB subnet group. Amazon RDS uses that DB subnet group and your preferred
-    Availability Zone to select a subnet and an IP address within that subnet to associate with your DB instance.`
-    """
-    attach_subnets_to_sng = """
-    UNWIND $Subnets as rds_sn
-        MATCH(sng:DBSubnetGroup{id: rds_sn.sng_arn})
-        MERGE(subnet:EC2Subnet{subnetid: rds_sn.sn_id})
-        ON CREATE SET subnet.firstseen = timestamp()
-        MERGE(sng)-[r:RESOURCE]->(subnet)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag,
-        subnet.availability_zone = rds_sn.az,
-        subnet.lastupdated = $aws_update_tag
-    """
-    subnets = []
-    for subnet_group in db_subnet_groups:
-        for subnet in subnet_group.get("Subnets", []):
-            sn_id = subnet.get("SubnetIdentifier")
-            sng_arn = _get_db_subnet_group_arn(
-                region,
-                current_aws_account_id,
-                subnet_group["DBSubnetGroupName"],
-            )
-            az = subnet.get("SubnetAvailabilityZone", {}).get("Name")
-            subnets.append(
-                {
-                    "sn_id": sn_id,
-                    "sng_arn": sng_arn,
-                    "az": az,
-                },
-            )
-    neo4j_session.run(
-        attach_subnets_to_sng,
-        Subnets=subnets,
-        aws_update_tag=aws_update_tag,
     )
 
 
@@ -345,6 +296,117 @@ def transform_rds_instances(
 
 
 @timeit
+def transform_rds_subnet_groups(
+    data: List[Dict], region: str, current_aws_account_id: str
+) -> List[Dict]:
+    """
+    Transform RDS subnet group data for Neo4j ingestion
+    """
+    subnet_groups_dict = {}
+
+    for instance in data:
+        if instance.get("DBSubnetGroup"):
+            db_subnet_group = instance["DBSubnetGroup"]
+            db_subnet_group_arn = _get_db_subnet_group_arn(
+                region, current_aws_account_id, db_subnet_group["DBSubnetGroupName"]
+            )
+
+            # If this subnet group doesn't exist yet, create it
+            if db_subnet_group_arn not in subnet_groups_dict:
+                subnet_groups_dict[db_subnet_group_arn] = {
+                    "id": db_subnet_group_arn,
+                    "name": db_subnet_group["DBSubnetGroupName"],
+                    "vpc_id": db_subnet_group["VpcId"],
+                    "description": db_subnet_group["DBSubnetGroupDescription"],
+                    "status": db_subnet_group["SubnetGroupStatus"],
+                    "db_instance_identifier": [],
+                }
+
+            # Add this RDS instance to the subnet group's list
+            if instance.get("DBInstanceIdentifier"):
+                subnet_groups_dict[db_subnet_group_arn][
+                    "db_instance_identifier"
+                ].append(instance["DBInstanceIdentifier"])
+
+    return list(subnet_groups_dict.values())
+
+
+@timeit
+def transform_rds_subnets(
+    data: List[Dict], region: str, current_aws_account_id: str
+) -> List[Dict]:
+    """
+    Transform RDS subnet data for Neo4j ingestion
+    """
+    subnets = []
+
+    for instance in data:
+        if instance.get("DBSubnetGroup"):
+            db_subnet_group = instance["DBSubnetGroup"]
+            db_subnet_group_arn = _get_db_subnet_group_arn(
+                region, current_aws_account_id, db_subnet_group["DBSubnetGroupName"]
+            )
+
+            # Extract subnet data from the DB subnet group
+            for subnet in db_subnet_group.get("Subnets", []):
+                subnet_id = subnet.get("SubnetIdentifier")
+                availability_zone = subnet.get("SubnetAvailabilityZone", {}).get("Name")
+
+                if subnet_id:
+                    subnets.append(
+                        {
+                            "SubnetId": subnet_id,
+                            "availability_zone": availability_zone,
+                            "db_subnet_group_arn": db_subnet_group_arn,
+                        }
+                    )
+
+    return subnets
+
+
+@timeit
+def load_rds_subnet_groups(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Ingest the RDS subnet groups to Neo4j and link them to necessary nodes.
+    """
+    load(
+        neo4j_session,
+        DBSubnetGroupSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def load_rds_subnets(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Ingest the RDS subnets to Neo4j and link them to necessary nodes.
+    """
+    load(
+        neo4j_session,
+        EC2SubnetRDSSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
 def cleanup_rds_instances_and_db_subnet_groups(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
@@ -437,6 +499,20 @@ def sync_rds_instances(
         transformed_data = transform_rds_instances(data, region, current_aws_account_id)
         load_rds_instances(
             neo4j_session, transformed_data, region, current_aws_account_id, update_tag
+        )
+
+        # Load subnet groups from RDS instances
+        subnet_group_data = transform_rds_subnet_groups(
+            data, region, current_aws_account_id
+        )
+        load_rds_subnet_groups(
+            neo4j_session, subnet_group_data, region, current_aws_account_id, update_tag
+        )
+
+        # Load subnets from RDS instances (after subnet groups are loaded)
+        subnet_data = transform_rds_subnets(data, region, current_aws_account_id)
+        load_rds_subnets(
+            neo4j_session, subnet_data, region, current_aws_account_id, update_tag
         )
     cleanup_rds_instances_and_db_subnet_groups(neo4j_session, common_job_parameters)
 
