@@ -69,6 +69,24 @@ class EBSVolumeToEC2InstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class EBSSnapshotToEBSVolumeRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class EBSSnapshotToEBSVolumeRel(CartographyRelSchema):
+    target_node_label: str = "EBSSnapshot"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("SnapshotId")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CREATED_FROM"
+    properties: EBSSnapshotToEBSVolumeRelRelProperties = (
+        EBSSnapshotToEBSVolumeRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class EBSVolumeSchema(CartographyNodeSchema):
     """
     EBS Volume properties as returned from the EBS Volume API response
@@ -80,6 +98,7 @@ class EBSVolumeSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             EBSVolumeToEC2InstanceRel(),
+            EBSSnapshotToEBSVolumeRel(),
         ],
     )
 
@@ -110,5 +129,6 @@ class EBSVolumeInstanceSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             EBSVolumeToEC2InstanceRel(),
+            EBSSnapshotToEBSVolumeRel(),
         ],
     )

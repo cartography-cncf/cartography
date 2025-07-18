@@ -51,32 +51,8 @@ class EBSSnapshotToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class EBSSnapshotToEBSVolumeRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class EBSSnapshotToEBSVolumeRel(CartographyRelSchema):
-    target_node_label: str = "EBSVolume"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "id": PropertyRef("VolumeId"),
-        }
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "CREATED_FROM"
-    properties: EBSSnapshotToEBSVolumeRelProperties = (
-        EBSSnapshotToEBSVolumeRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class EBSSnapshotSchema(CartographyNodeSchema):
     label: str = "EBSSnapshot"
     properties: EBSSnapshotNodeProperties = EBSSnapshotNodeProperties()
     sub_resource_relationship: EBSSnapshotToAWSAccountRel = EBSSnapshotToAWSAccountRel()
-    other_relationships: OtherRelationships = OtherRelationships(
-        [
-            EBSSnapshotToEBSVolumeRel(),
-        ]
-    )
+    other_relationships: OtherRelationships = OtherRelationships([])
