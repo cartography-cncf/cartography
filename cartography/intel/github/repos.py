@@ -597,7 +597,7 @@ def _transform_dependency_manifests(
         manifest_id = f"{repo_url}#{blob_path}"
 
         # Extract filename from blob path
-        filename = blob_path.split("/")[-1] if blob_path else ""
+        filename = blob_path.split("/")[-1] if blob_path else "None"
 
         out_manifests_list.append(
             {

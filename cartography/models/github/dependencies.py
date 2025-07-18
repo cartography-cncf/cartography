@@ -14,10 +14,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class GitHubDependencyNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
+    name: PropertyRef = PropertyRef("name")
     original_name: PropertyRef = PropertyRef("original_name")
     version: PropertyRef = PropertyRef("version")
-    ecosystem: PropertyRef = PropertyRef("ecosystem", extra_index=True)
+    ecosystem: PropertyRef = PropertyRef("ecosystem")
     package_manager: PropertyRef = PropertyRef("package_manager")
     repo_name: PropertyRef = PropertyRef("repo_name")
     manifest_file: PropertyRef = PropertyRef("manifest_file")

@@ -13,10 +13,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class DependencyGraphManifestNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    blob_path: PropertyRef = PropertyRef("blob_path", extra_index=True)
-    filename: PropertyRef = PropertyRef("filename", extra_index=True)
+    blob_path: PropertyRef = PropertyRef("blob_path")
+    filename: PropertyRef = PropertyRef("filename")
     dependencies_count: PropertyRef = PropertyRef("dependencies_count")
-    repo_url: PropertyRef = PropertyRef("repo_url", extra_index=True)
+    repo_url: PropertyRef = PropertyRef("repo_url")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

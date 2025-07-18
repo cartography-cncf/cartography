@@ -319,8 +319,8 @@ Represents a dependency manifest file (e.g., package.json, requirements.txt, pom
     ```
 
 ### Dependency
-
-Represents a software dependency from GitHub's dependency graph manifests.
+https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency
+Represents a software dependency from GitHub's dependency graph manifests. This node contains information about a package dependency within a repository
 
 | Field | Description |
 |-------|-------------|
