@@ -1221,7 +1221,6 @@ def sync(
         )
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     load(neo4j_session, common_job_parameters, repo_data)
-    run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)
 
     # Collect repository URLs that have dependencies for cleanup
     repo_urls_with_dependencies = list(
@@ -1238,3 +1237,5 @@ def sync(
     cleanup_github_manifests(
         neo4j_session, common_job_parameters, repo_urls_with_manifests
     )
+
+    run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)
