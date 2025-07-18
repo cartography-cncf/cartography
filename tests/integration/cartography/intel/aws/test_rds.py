@@ -30,9 +30,13 @@ def test_load_rds_clusters_basic(neo4j_session):
     }
     assert actual_nodes == expected_nodes
 
+    # Transform the data first
+    transformed_data = cartography.intel.aws.rds.transform_rds_instances(
+        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"]
+    )
     cartography.intel.aws.rds.load_rds_instances(
         neo4j_session,
-        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"],
+        transformed_data,
         "us-east1",
         "1234",
         TEST_UPDATE_TAG,
@@ -69,9 +73,13 @@ def test_load_rds_clusters_basic(neo4j_session):
 
 def test_load_rds_instances_basic(neo4j_session):
     """Test that we successfully load RDS instance nodes to the graph"""
+    # Transform the data first
+    transformed_data = cartography.intel.aws.rds.transform_rds_instances(
+        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"]
+    )
     cartography.intel.aws.rds.load_rds_instances(
         neo4j_session,
-        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"],
+        transformed_data,
         "us-east1",
         "1234",
         TEST_UPDATE_TAG,
@@ -94,16 +102,24 @@ def test_load_rds_instances_basic(neo4j_session):
 
 def test_load_rds_snapshots_basic(neo4j_session):
     """Test that we successfully load RDS snapshots to the graph"""
+    # Transform the data first
+    transformed_data = cartography.intel.aws.rds.transform_rds_instances(
+        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"]
+    )
     cartography.intel.aws.rds.load_rds_instances(
         neo4j_session,
-        DESCRIBE_DBINSTANCES_RESPONSE["DBInstances"],
+        transformed_data,
         "us-east1",
         "1234",
         TEST_UPDATE_TAG,
     )
+    # Transform snapshot data first
+    transformed_snapshot_data = cartography.intel.aws.rds.transform_rds_snapshots(
+        DESCRIBE_DBSNAPSHOTS_RESPONSE["DBSnapshots"]
+    )
     cartography.intel.aws.rds.load_rds_snapshots(
         neo4j_session,
-        DESCRIBE_DBSNAPSHOTS_RESPONSE["DBSnapshots"],
+        transformed_snapshot_data,
         "us-east1",
         "1234",
         TEST_UPDATE_TAG,

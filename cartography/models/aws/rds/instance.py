@@ -121,6 +121,26 @@ class RDSInstanceToRDSInstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RDSInstanceToRDSClusterRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class RDSInstanceToRDSClusterRel(CartographyRelSchema):
+    target_node_label: str = "RDSCluster"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "db_cluster_identifier": PropertyRef("db_cluster_identifier"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "IS_CLUSTER_MEMBER_OF"
+    properties: RDSInstanceToRDSClusterRelProperties = (
+        RDSInstanceToRDSClusterRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class RDSInstanceSchema(CartographyNodeSchema):
     label: str = "RDSInstance"
     properties: RDSInstanceNodeProperties = RDSInstanceNodeProperties()
@@ -129,5 +149,6 @@ class RDSInstanceSchema(CartographyNodeSchema):
         [
             RDSInstanceToEC2SecurityGroupRel(),
             RDSInstanceToRDSInstanceRel(),
+            RDSInstanceToRDSClusterRel(),
         ]
     )

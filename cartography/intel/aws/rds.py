@@ -117,13 +117,9 @@ def load_rds_instances(
     """
     Ingest the RDS instances to Neo4j and link them to necessary nodes.
     """
-    clusters = []
     subnets = []
 
     for rds in data:
-        if rds.get("DBClusterIdentifier"):
-            clusters.append(rds)
-
         if rds.get("DBSubnetGroup"):
             subnets.append(rds)
 
@@ -143,7 +139,6 @@ def load_rds_instances(
         current_aws_account_id,
         aws_update_tag,
     )
-    _attach_clusters(neo4j_session, clusters, aws_update_tag)
 
 
 @timeit
@@ -282,30 +277,6 @@ def _attach_ec2_subnets_to_subnetgroup(
     )
 
 
-@timeit
-def _attach_clusters(
-    neo4j_session: neo4j.Session,
-    cluster_members: List[Dict],
-    aws_update_tag: int,
-) -> None:
-    """
-    Attach cluster members to their source clusters
-    """
-    attach_member_to_source = """
-    UNWIND $Members as rds_cluster_member
-    MATCH (member:RDSInstance{id: rds_cluster_member.DBInstanceArn}),
-    (source:RDSCluster{db_cluster_identifier: rds_cluster_member.DBClusterIdentifier})
-    MERGE (member)-[r:IS_CLUSTER_MEMBER_OF]->(source)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-    neo4j_session.run(
-        attach_member_to_source,
-        Members=cluster_members,
-        aws_update_tag=aws_update_tag,
-    )
-
-
 def _validate_rds_endpoint(rds: Dict) -> Dict:
     """
     Get Endpoint from RDS data structure.  Log to debug if an Endpoint field does not exist.
@@ -387,6 +358,12 @@ def transform_rds_instances(data: List[Dict]) -> List[Dict]:
         if instance.get("ReadReplicaSourceDBInstanceIdentifier"):
             transformed_instance["read_replica_source_identifier"] = instance[
                 "ReadReplicaSourceDBInstanceIdentifier"
+            ]
+
+        # Handle cluster identifier for the relationship
+        if instance.get("DBClusterIdentifier"):
+            transformed_instance["db_cluster_identifier"] = instance[
+                "DBClusterIdentifier"
             ]
 
         # Handle endpoint data
