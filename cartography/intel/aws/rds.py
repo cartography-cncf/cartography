@@ -6,6 +6,10 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import load
+from cartography.models.aws.rds.cluster import RDSClusterSchema
+from cartography.models.aws.rds.instance import RDSInstanceSchema
+from cartography.models.aws.rds.snapshot import RDSSnapshotSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
@@ -39,7 +43,7 @@ def get_rds_cluster_data(
 @timeit
 def load_rds_clusters(
     neo4j_session: neo4j.Session,
-    data: Dict,
+    data: List[Dict],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -47,59 +51,7 @@ def load_rds_clusters(
     """
     Ingest the RDS clusters to neo4j and link them to necessary nodes.
     """
-    ingest_rds_cluster = """
-    UNWIND $Clusters as rds_cluster
-        MERGE (cluster:RDSCluster{id: rds_cluster.DBClusterArn})
-        ON CREATE SET cluster.firstseen = timestamp(),
-            cluster.arn = rds_cluster.DBClusterArn
-        SET cluster.allocated_storage = rds_cluster.AllocatedStorage,
-            cluster.availability_zones = rds_cluster.AvailabilityZones,
-            cluster.backup_retention_period = rds_cluster.BackupRetentionPeriod,
-            cluster.character_set_name = rds_cluster.CharacterSetName,
-            cluster.database_name = rds_cluster.DatabaseName,
-            cluster.db_cluster_identifier = rds_cluster.DBClusterIdentifier,
-            cluster.db_parameter_group = rds_cluster.DBClusterParameterGroup,
-            cluster.status = rds_cluster.Status,
-            cluster.earliest_restorable_time = rds_cluster.EarliestRestorableTime,
-            cluster.endpoint = rds_cluster.Endpoint,
-            cluster.reader_endpoint = rds_cluster.ReaderEndpoint,
-            cluster.multi_az = rds_cluster.MultiAZ,
-            cluster.engine = rds_cluster.Engine,
-            cluster.engine_version = rds_cluster.EngineVersion,
-            cluster.latest_restorable_time = rds_cluster.LatestRestorableTime,
-            cluster.port = rds_cluster.Port,
-            cluster.master_username = rds_cluster.MasterUsername,
-            cluster.preferred_backup_window = rds_cluster.PreferredBackupWindow,
-            cluster.preferred_maintenance_window = rds_cluster.PreferredMaintenanceWindow,
-            cluster.hosted_zone_id = rds_cluster.HostedZoneId,
-            cluster.storage_encrypted = rds_cluster.StorageEncrypted,
-            cluster.kms_key_id = rds_cluster.KmsKeyId,
-            cluster.db_cluster_resource_id = rds_cluster.DbClusterResourceId,
-            cluster.clone_group_id = rds_cluster.CloneGroupId,
-            cluster.cluster_create_time = rds_cluster.ClusterCreateTime,
-            cluster.earliest_backtrack_time = rds_cluster.EarliestBacktrackTime,
-            cluster.backtrack_window = rds_cluster.BacktrackWindow,
-            cluster.backtrack_consumed_change_records = rds_cluster.BacktrackConsumedChangeRecords,
-            cluster.capacity = rds_cluster.Capacity,
-            cluster.engine_mode = rds_cluster.EngineMode,
-            cluster.scaling_configuration_info_min_capacity = rds_cluster.ScalingConfigurationInfoMinCapacity,
-            cluster.scaling_configuration_info_max_capacity = rds_cluster.ScalingConfigurationInfoMaxCapacity,
-            cluster.scaling_configuration_info_auto_pause = rds_cluster.ScalingConfigurationInfoAutoPause,
-            cluster.deletion_protection = rds_cluster.DeletionProtection,
-            cluster.region = $Region,
-            cluster.lastupdated = $aws_update_tag
-        WITH cluster
-        MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-        MERGE (aa)-[r:RESOURCE]->(cluster)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-    """
     for cluster in data:
-        # TODO: track read replicas
-        # TODO: track associated roles
-        # TODO: track security groups
-        # TODO: track subnet groups
-
         cluster["EarliestRestorableTime"] = dict_value_to_str(
             cluster,
             "EarliestRestorableTime",
@@ -126,12 +78,13 @@ def load_rds_clusters(
             {},
         ).get("AutoPause")
 
-    neo4j_session.run(
-        ingest_rds_cluster,
-        Clusters=data,
+    load(
+        neo4j_session,
+        RDSClusterSchema(),
+        data,
+        lastupdated=aws_update_tag,
         Region=region,
-        AWS_ACCOUNT_ID=current_aws_account_id,
-        aws_update_tag=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
 
 
@@ -156,55 +109,13 @@ def get_rds_instance_data(
 @timeit
 def load_rds_instances(
     neo4j_session: neo4j.Session,
-    data: Dict,
+    data: List[Dict],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     """
-    Ingest the RDS instances to neo4j and link them to necessary nodes.
-    """
-    ingest_rds_instance = """
-    UNWIND $Instances as rds_instance
-        MERGE (rds:RDSInstance{id: rds_instance.DBInstanceArn})
-        ON CREATE SET rds.firstseen = timestamp(),
-            rds.arn = rds_instance.DBInstanceArn
-        SET rds.db_instance_identifier = rds_instance.DBInstanceIdentifier,
-            rds.db_instance_class = rds_instance.DBInstanceClass,
-            rds.engine = rds_instance.Engine,
-            rds.master_username = rds_instance.MasterUsername,
-            rds.db_name = rds_instance.DBName,
-            rds.instance_create_time = rds_instance.InstanceCreateTime,
-            rds.availability_zone = rds_instance.AvailabilityZone,
-            rds.multi_az = rds_instance.MultiAZ,
-            rds.engine_version = rds_instance.EngineVersion,
-            rds.publicly_accessible = rds_instance.PubliclyAccessible,
-            rds.db_cluster_identifier = rds_instance.DBClusterIdentifier,
-            rds.storage_encrypted = rds_instance.StorageEncrypted,
-            rds.kms_key_id = rds_instance.KmsKeyId,
-            rds.dbi_resource_id = rds_instance.DbiResourceId,
-            rds.ca_certificate_identifier = rds_instance.CACertificateIdentifier,
-            rds.enhanced_monitoring_resource_arn = rds_instance.EnhancedMonitoringResourceArn,
-            rds.monitoring_role_arn = rds_instance.MonitoringRoleArn,
-            rds.performance_insights_enabled = rds_instance.PerformanceInsightsEnabled,
-            rds.performance_insights_kms_key_id = rds_instance.PerformanceInsightsKMSKeyId,
-            rds.region = rds_instance.Region,
-            rds.deletion_protection = rds_instance.DeletionProtection,
-            rds.preferred_backup_window = rds_instance.PreferredBackupWindow,
-            rds.latest_restorable_time = rds_instance.LatestRestorableTime,
-            rds.preferred_maintenance_window = rds_instance.PreferredMaintenanceWindow,
-            rds.backup_retention_period = rds_instance.BackupRetentionPeriod,
-            rds.endpoint_address = rds_instance.EndpointAddress,
-            rds.endpoint_hostedzoneid = rds_instance.EndpointHostedZoneId,
-            rds.endpoint_port = rds_instance.EndpointPort,
-            rds.iam_database_authentication_enabled = rds_instance.IAMDatabaseAuthenticationEnabled,
-            rds.auto_minor_version_upgrade = rds_instance.AutoMinorVersionUpgrade,
-            rds.lastupdated = $aws_update_tag
-        WITH rds
-        MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-        MERGE (aa)-[r:RESOURCE]->(rds)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
+    Ingest the RDS instances to Neo4j and link them to necessary nodes.
     """
     read_replicas = []
     clusters = []
@@ -214,11 +125,9 @@ def load_rds_instances(
     for rds in data:
         ep = _validate_rds_endpoint(rds)
 
-        # Keep track of instances that are read replicas so we can attach them to their source instances later
         if rds.get("ReadReplicaSourceDBInstanceIdentifier"):
             read_replicas.append(rds)
 
-        # Keep track of instances that are cluster members so we can attach them to their source clusters later
         if rds.get("DBClusterIdentifier"):
             clusters.append(rds)
 
@@ -234,13 +143,15 @@ def load_rds_instances(
         rds["EndpointHostedZoneId"] = ep.get("HostedZoneId")
         rds["EndpointPort"] = ep.get("Port")
 
-    neo4j_session.run(
-        ingest_rds_instance,
-        Instances=data,
+    load(
+        neo4j_session,
+        RDSInstanceSchema(),
+        data,
+        lastupdated=aws_update_tag,
         Region=region,
-        AWS_ACCOUNT_ID=current_aws_account_id,
-        aws_update_tag=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
+
     _attach_ec2_security_groups(neo4j_session, secgroups, aws_update_tag)
     _attach_ec2_subnet_groups(
         neo4j_session,
@@ -270,7 +181,7 @@ def get_rds_snapshot_data(
 @timeit
 def load_rds_snapshots(
     neo4j_session: neo4j.Session,
-    data: Dict,
+    data: List[Dict],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -278,59 +189,15 @@ def load_rds_snapshots(
     """
     Ingest the RDS snapshots to neo4j and link them to necessary nodes.
     """
-    ingest_rds_snapshot = """
-    UNWIND $Snapshots as rds_snapshot
-        MERGE (snapshot:RDSSnapshot{id: rds_snapshot.DBSnapshotArn})
-        ON CREATE SET snapshot.firstseen = timestamp(),
-            snapshot.arn = rds_snapshot.DBSnapshotArn
-        SET snapshot.db_snapshot_identifier = rds_snapshot.DBSnapshotIdentifier,
-            snapshot.db_instance_identifier = rds_snapshot.DBInstanceIdentifier,
-            snapshot.snapshot_create_time = rds_snapshot.SnapshotCreateTime,
-            snapshot.engine = rds_snapshot.Engine,
-            snapshot.allocated_storage = rds_snapshot.AllocatedStorage,
-            snapshot.status = rds_snapshot.Status,
-            snapshot.port = rds_snapshot.Port,
-            snapshot.availability_zone = rds_snapshot.AvailabilityZone,
-            snapshot.vpc_id = rds_snapshot.VpcId,
-            snapshot.instance_create_time = rds_snapshot.InstanceCreateTime,
-            snapshot.master_username = rds_snapshot.MasterUsername,
-            snapshot.engine_version = rds_snapshot.EngineVersion,
-            snapshot.license_model = rds_snapshot.LicenseModel,
-            snapshot.snapshot_type = rds_snapshot.SnapshotType,
-            snapshot.iops = rds_snapshot.Iops,
-            snapshot.option_group_name = rds_snapshot.OptionGroupName,
-            snapshot.percent_progress = rds_snapshot.PercentProgress,
-            snapshot.source_region = rds_snapshot.SourceRegion,
-            snapshot.source_db_snapshot_identifier = rds_snapshot.SourceDBSnapshotIdentifier,
-            snapshot.storage_type = rds_snapshot.StorageType,
-            snapshot.tde_credential_arn = rds_snapshot.TdeCredentialArn,
-            snapshot.encrypted = rds_snapshot.Encrypted,
-            snapshot.kms_key_id = rds_snapshot.KmsKeyId,
-            snapshot.timezone = rds_snapshot.Timezone,
-            snapshot.iam_database_authentication_enabled = rds_snapshot.IAMDatabaseAuthenticationEnabled,
-            snapshot.processor_features = rds_snapshot.ProcessorFeatures,
-            snapshot.dbi_resource_id = rds_snapshot.DbiResourceId,
-            snapshot.original_snapshot_create_time = rds_snapshot.OriginalSnapshotCreateTime,
-            snapshot.snapshot_database_time = rds_snapshot.SnapshotDatabaseTime,
-            snapshot.snapshot_target = rds_snapshot.SnapshotTarget,
-            snapshot.storage_throughput = rds_snapshot.StorageThroughput,
-            snapshot.region = $Region,
-            snapshot.lastupdated = $aws_update_tag
-        WITH snapshot
-        MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-        MERGE (aa)-[r:RESOURCE]->(snapshot)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-    """
-
     snapshots = transform_rds_snapshots(data)
 
-    neo4j_session.run(
-        ingest_rds_snapshot,
-        Snapshots=snapshots,
+    load(
+        neo4j_session,
+        RDSSnapshotSchema(),
+        snapshots,
+        lastupdated=aws_update_tag,
         Region=region,
-        AWS_ACCOUNT_ID=current_aws_account_id,
-        aws_update_tag=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
     _attach_snapshots(neo4j_session, snapshots, aws_update_tag)
 
@@ -572,7 +439,7 @@ def _get_db_subnet_group_arn(
 
 
 @timeit
-def transform_rds_snapshots(data: Dict) -> List[Dict]:
+def transform_rds_snapshots(data: List[Dict]) -> List[Dict]:
     snapshots = []
 
     for snapshot in data:
@@ -663,7 +530,9 @@ def sync_rds_clusters(
             current_aws_account_id,
         )
         data = get_rds_cluster_data(boto3_session, region)
-        load_rds_clusters(neo4j_session, data, region, current_aws_account_id, update_tag)  # type: ignore
+        load_rds_clusters(
+            neo4j_session, data, region, current_aws_account_id, update_tag
+        )
     cleanup_rds_clusters(neo4j_session, common_job_parameters)
 
 
@@ -686,7 +555,9 @@ def sync_rds_instances(
             current_aws_account_id,
         )
         data = get_rds_instance_data(boto3_session, region)
-        load_rds_instances(neo4j_session, data, region, current_aws_account_id, update_tag)  # type: ignore
+        load_rds_instances(
+            neo4j_session, data, region, current_aws_account_id, update_tag
+        )
     cleanup_rds_instances_and_db_subnet_groups(neo4j_session, common_job_parameters)
 
 
@@ -709,7 +580,9 @@ def sync_rds_snapshots(
             current_aws_account_id,
         )
         data = get_rds_snapshot_data(boto3_session, region)
-        load_rds_snapshots(neo4j_session, data, region, current_aws_account_id, update_tag)  # type: ignore
+        load_rds_snapshots(
+            neo4j_session, data, region, current_aws_account_id, update_tag
+        )
     cleanup_rds_snapshots(neo4j_session, common_job_parameters)
 
 
