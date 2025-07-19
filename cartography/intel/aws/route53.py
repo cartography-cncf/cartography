@@ -12,6 +12,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.aws.route53.dnsrecord import AWSDNSRecordSchema
+from cartography.models.aws.route53.nameserver import NameServerSchema
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -24,6 +25,7 @@ DnsData = namedtuple(
         "alias_records",
         "cname_records",
         "ns_records",
+        "name_servers",
     ],
 )
 
@@ -35,6 +37,7 @@ TransformedDnsData = namedtuple(
         "alias_records",
         "cname_records",
         "ns_records",
+        "name_servers",
     ],
 )
 
@@ -163,67 +166,33 @@ def load_zone(
 @timeit
 def load_ns_records(
     neo4j_session: neo4j.Session,
-    records: List[Dict],
+    records: list[dict[str, Any]],
     update_tag: int,
-    zone_name: str = None,
+    current_aws_id: str,
 ) -> None:
-    """
-    Load NS records. If zone_name is provided, it's used for backward compatibility.
-    Otherwise, zone_name is expected to be in each record.
-    """
-    # For backward compatibility, if zone_name is provided, add it to records that don't have it
-    if zone_name:
-        for record in records:
-            if "zone_name" not in record:
-                record["zone_name"] = zone_name
-
-    ingest_records = """
-    UNWIND $records as record
-        MERGE (a:DNSRecord:AWSDNSRecord{id: record.id})
-        ON CREATE SET
-            a.firstseen = timestamp(),
-            a.name = record.name,
-            a.type = record.type
-        SET
-            a.lastupdated = $update_tag,
-            a.value = record.name
-        WITH a,record
-        MATCH (zone:AWSDNSZone{zoneid: record.zoneid})
-        MERGE (a)-[r:MEMBER_OF_DNS_ZONE]->(zone)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $update_tag
-        WITH a,record
-        UNWIND record.servers as server
-            MERGE (ns:NameServer{id:server})
-            ON CREATE SET ns.firstseen = timestamp()
-            SET
-                ns.lastupdated = $update_tag,
-                ns.name = server
-            MERGE (a)-[pt:DNS_POINTS_TO]->(ns)
-            SET pt.lastupdated = $update_tag
-    """
-    neo4j_session.run(
-        ingest_records,
-        records=records,
-        update_tag=update_tag,
+    load(
+        neo4j_session,
+        AWSDNSRecordSchema(),
+        records,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
     )
 
-    # Map the official name servers for a domain.
-    map_ns_records = """
-    UNWIND $servers as server
-        MATCH (ns:NameServer{id:server})
-        MATCH (zone:AWSDNSZone{zoneid:$zoneid})
-        MERGE (ns)<-[r:NAMESERVER]-(zone)
-        SET r.lastupdated = $update_tag
-    """
-    for record in records:
-        if record.get("zone_name") == record["name"]:
-            neo4j_session.run(
-                map_ns_records,
-                servers=record["servers"],
-                zoneid=record["zoneid"],
-                update_tag=update_tag,
-            )
+
+@timeit
+def load_name_servers(
+    neo4j_session: neo4j.Session,
+    name_servers: list[dict[str, Any]],
+    update_tag: int,
+    current_aws_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        NameServerSchema(),
+        name_servers,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
+    )
 
 
 @timeit
@@ -308,9 +277,7 @@ def transform_record_set(record_set: Dict, zone_id: str, name: str) -> Optional[
         return None
 
 
-@timeit
-def transform_ns_record_set(record_set: Dict, zone_id: str) -> Optional[Dict]:
-
+def transform_ns_record_set(record_set: Dict, zone_id: str) -> dict[str, Any] | None:
     if "ResourceRecords" in record_set:
         # Sometimes the value records have a trailing period, sometimes they dont.
         servers = [
@@ -329,7 +296,6 @@ def transform_ns_record_set(record_set: Dict, zone_id: str) -> Optional[Dict]:
         return None
 
 
-@timeit
 def transform_zone(zone: Dict) -> Dict:
     # TODO simplify this
     if "Comment" in zone["Config"]:
@@ -346,7 +312,6 @@ def transform_zone(zone: Dict) -> Dict:
     }
 
 
-@timeit
 def transform_dns_records(
     zone_record_sets: List[Dict],
     zone_id: str,
@@ -355,6 +320,8 @@ def transform_dns_records(
     alias_records = []
     cname_records = []
     ns_records = []
+
+    name_servers: list[dict[str, Any]] = []
 
     for record_set in zone_record_sets:
         if record_set["Type"] == "A" or record_set["Type"] == "CNAME":
@@ -375,16 +342,19 @@ def transform_dns_records(
             record = transform_ns_record_set(record_set, zone_id)
             if record:
                 ns_records.append(record)
+                name_servers.extend(
+                    [{"id": server, "zoneid": zone_id} for server in record["servers"]]
+                )
 
     return DnsData(
         a_records=a_records,
         alias_records=alias_records,
         cname_records=cname_records,
         ns_records=ns_records,
+        name_servers=name_servers,
     )
 
 
-@timeit
 def transform_all_dns_data(
     zones: List[Tuple[Dict, List[Dict]]],
 ) -> TransformedDnsData:
@@ -397,14 +367,16 @@ def transform_all_dns_data(
     all_alias_records = []
     all_cname_records = []
     all_ns_records = []
+    all_name_servers = []
 
     for zone, zone_record_sets in zones:
         # Transform zone
         parsed_zone = transform_zone(zone)
         transformed_zones.append(parsed_zone)
 
+        # TODO try to unnest this
         # Transform records
-        dns_data = transform_dns_records(zone_record_sets, zone["Id"])
+        dns_data: DnsData = transform_dns_records(zone_record_sets, zone["Id"])
 
         # Add zone name to NS records for loading
         zone_name = parsed_zone["name"][:-1]
@@ -415,6 +387,7 @@ def transform_all_dns_data(
         all_alias_records.extend(dns_data.alias_records)
         all_cname_records.extend(dns_data.cname_records)
         all_ns_records.extend(dns_data.ns_records)
+        all_name_servers.extend(dns_data.name_servers)
 
     return TransformedDnsData(
         zones=transformed_zones,
@@ -422,6 +395,7 @@ def transform_all_dns_data(
         alias_records=all_alias_records,
         cname_records=all_cname_records,
         ns_records=all_ns_records,
+        name_servers=all_name_servers,
     )
 
 
@@ -433,6 +407,7 @@ def _load_dns_details_flat(
     alias_records: list[dict[str, Any]],
     cname_records: list[dict[str, Any]],
     ns_records: list[dict[str, Any]],
+    name_servers: list[str],
     current_aws_id: str,
     update_tag: int,
 ) -> None:
@@ -444,7 +419,8 @@ def _load_dns_details_flat(
     load_a_records(neo4j_session, a_records, update_tag, current_aws_id)
     load_alias_records(neo4j_session, alias_records, update_tag, current_aws_id)
     load_cname_records(neo4j_session, cname_records, update_tag, current_aws_id)
-    load_ns_records(neo4j_session, ns_records, update_tag)
+    load_name_servers(neo4j_session, name_servers, update_tag, current_aws_id)
+    load_ns_records(neo4j_session, ns_records, update_tag, current_aws_id)
     link_aws_resources(neo4j_session, update_tag)
 
 
@@ -466,6 +442,7 @@ def load_dns_details(
         transformed_data.alias_records,
         transformed_data.cname_records,
         transformed_data.ns_records,
+        transformed_data.name_servers,
         current_aws_id,
         update_tag,
     )
@@ -542,6 +519,7 @@ def sync(
         transformed_data.alias_records,
         transformed_data.cname_records,
         transformed_data.ns_records,
+        transformed_data.name_servers,
         current_aws_account_id,
         update_tag,
     )

@@ -14,7 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class NameServerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
-    name: PropertyRef = PropertyRef("name", extra_index=True)
+    name: PropertyRef = PropertyRef("id", extra_index=True)
     zoneid: PropertyRef = PropertyRef("zoneid")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
