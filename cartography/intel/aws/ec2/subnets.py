@@ -1,17 +1,17 @@
 import logging
-from typing import Dict
-from typing import List
+from typing import Any
 
 import boto3
 import neo4j
 
+from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.ec2.auto_scaling_groups import (
     EC2SubnetAutoScalingGroupSchema,
 )
 from cartography.models.aws.ec2.subnet_instance import EC2SubnetInstanceSchema
+from cartography.models.aws.ec2.subnets import EC2SubnetSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 from .util import get_botocore_config
@@ -21,86 +21,53 @@ logger = logging.getLogger(__name__)
 
 @timeit
 @aws_handle_regions
-def get_subnet_data(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
+def get_subnet_data(
+    boto3_session: boto3.session.Session, region: str
+) -> list[dict[str, Any]]:
     client = boto3_session.client(
         "ec2",
         region_name=region,
         config=get_botocore_config(),
     )
     paginator = client.get_paginator("describe_subnets")
-    subnets: List[Dict] = []
+    subnets: list[dict[str, Any]] = []
     for page in paginator.paginate():
         subnets.extend(page["Subnets"])
     return subnets
 
 
+def transform_subnet_data(subnets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Transform subnet data into a loadable format."""
+    transformed: list[dict[str, Any]] = []
+    for subnet in subnets:
+        transformed.append(subnet.copy())
+    return transformed
+
+
 @timeit
 def load_subnets(
     neo4j_session: neo4j.Session,
-    data: List[Dict],
+    data: list[dict[str, Any]],
     region: str,
     aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-
-    ingest_subnets = """
-    UNWIND $subnets as subnet
-    MERGE (snet:EC2Subnet{subnetid: subnet.SubnetId})
-    ON CREATE SET snet.firstseen = timestamp()
-    SET snet.lastupdated = $aws_update_tag, snet.name = subnet.CidrBlock, snet.cidr_block = subnet.CidrBlock,
-    snet.available_ip_address_count = subnet.AvailableIpAddressCount, snet.default_for_az = subnet.DefaultForAz,
-    snet.map_customer_owned_ip_on_launch = subnet.MapCustomerOwnedIpOnLaunch,
-    snet.state = subnet.State, snet.assignipv6addressoncreation = subnet.AssignIpv6AddressOnCreation,
-    snet.map_public_ip_on_launch = subnet.MapPublicIpOnLaunch, snet.subnet_arn = subnet.SubnetArn,
-    snet.availability_zone = subnet.AvailabilityZone, snet.availability_zone_id = subnet.AvailabilityZoneId,
-    snet.subnet_id = subnet.SubnetId
-    """
-
-    ingest_subnet_vpc_relations = """
-    UNWIND $subnets as subnet
-    MATCH (snet:EC2Subnet{subnetid: subnet.SubnetId}), (vpc:AWSVpc{id: subnet.VpcId})
-    MERGE (snet)-[r:MEMBER_OF_AWS_VPC]->(vpc)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-
-    ingest_subnet_aws_account_relations = """
-    UNWIND $subnets as subnet
-    MATCH (snet:EC2Subnet{subnetid: subnet.SubnetId}), (aws:AWSAccount{id: $aws_account_id})
-    MERGE (aws)-[r:RESOURCE]->(snet)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_subnets,
-        subnets=data,
-        aws_update_tag=aws_update_tag,
-        region=region,
-        aws_account_id=aws_account_id,
-    )
-    neo4j_session.run(
-        ingest_subnet_vpc_relations,
-        subnets=data,
-        aws_update_tag=aws_update_tag,
-        region=region,
-        aws_account_id=aws_account_id,
-    )
-    neo4j_session.run(
-        ingest_subnet_aws_account_relations,
-        subnets=data,
-        aws_update_tag=aws_update_tag,
-        region=region,
-        aws_account_id=aws_account_id,
+    load(
+        neo4j_session,
+        EC2SubnetSchema(),
+        data,
+        Region=region,
+        AWS_ID=aws_account_id,
+        lastupdated=aws_update_tag,
     )
 
 
 @timeit
-def cleanup_subnets(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job(
-        "aws_ingest_subnets_cleanup.json",
+def cleanup_subnets(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(EC2SubnetSchema(), common_job_parameters).run(
         neo4j_session,
-        common_job_parameters,
     )
     GraphJob.from_node_schema(EC2SubnetInstanceSchema(), common_job_parameters).run(
         neo4j_session,
@@ -115,10 +82,10 @@ def cleanup_subnets(neo4j_session: neo4j.Session, common_job_parameters: Dict) -
 def sync_subnets(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
         logger.info(
@@ -127,5 +94,12 @@ def sync_subnets(
             current_aws_account_id,
         )
         data = get_subnet_data(boto3_session, region)
-        load_subnets(neo4j_session, data, region, current_aws_account_id, update_tag)
+        transformed = transform_subnet_data(data)
+        load_subnets(
+            neo4j_session,
+            transformed,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
     cleanup_subnets(neo4j_session, common_job_parameters)
