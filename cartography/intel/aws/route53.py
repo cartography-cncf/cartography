@@ -1,4 +1,6 @@
 import logging
+from collections import namedtuple
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -12,6 +14,27 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+DnsData = namedtuple(
+    "DnsData",
+    [
+        "a_records",
+        "alias_records",
+        "cname_records",
+        "ns_records",
+    ],
+)
+
+TransformedDnsData = namedtuple(
+    "TransformedDnsData",
+    [
+        "zones",
+        "a_records",
+        "alias_records",
+        "cname_records",
+        "ns_records",
+    ],
+)
 
 
 @timeit
@@ -179,9 +202,19 @@ def load_zone(
 def load_ns_records(
     neo4j_session: neo4j.Session,
     records: List[Dict],
-    zone_name: str,
     update_tag: int,
+    zone_name: str = None,
 ) -> None:
+    """
+    Load NS records. If zone_name is provided, it's used for backward compatibility.
+    Otherwise, zone_name is expected to be in each record.
+    """
+    # For backward compatibility, if zone_name is provided, add it to records that don't have it
+    if zone_name:
+        for record in records:
+            if "zone_name" not in record:
+                record["zone_name"] = zone_name
+
     ingest_records = """
     UNWIND $records as record
         MERGE (a:DNSRecord:AWSDNSRecord{id: record.id})
@@ -222,7 +255,7 @@ def load_ns_records(
         SET r.lastupdated = $update_tag
     """
     for record in records:
-        if zone_name == record["name"]:
+        if record.get("zone_name") == record["name"]:
             neo4j_session.run(
                 map_ns_records,
                 servers=record["servers"],
@@ -352,6 +385,108 @@ def transform_zone(zone: Dict) -> Dict:
 
 
 @timeit
+def transform_dns_records(
+    zone_record_sets: List[Dict],
+    zone_id: str,
+) -> DnsData:
+    a_records = []
+    alias_records = []
+    cname_records = []
+    ns_records = []
+
+    for record_set in zone_record_sets:
+        if record_set["Type"] == "A" or record_set["Type"] == "CNAME":
+            record = transform_record_set(
+                record_set,
+                zone_id,
+                record_set["Name"][:-1],
+            )
+
+            if record and record["type"] == "A":
+                a_records.append(record)
+            elif record and record["type"] == "ALIAS":
+                alias_records.append(record)
+            elif record and record["type"] == "CNAME":
+                cname_records.append(record)
+
+        if record_set["Type"] == "NS":
+            record = transform_ns_record_set(record_set, zone_id)
+            if record:
+                ns_records.append(record)
+
+    return DnsData(
+        a_records=a_records,
+        alias_records=alias_records,
+        cname_records=cname_records,
+        ns_records=ns_records,
+    )
+
+
+@timeit
+def transform_all_dns_data(
+    zones: List[Tuple[Dict, List[Dict]]],
+) -> TransformedDnsData:
+    """
+    Transform all DNS data into flat lists for loading.
+    Returns: (zones, a_records, alias_records, cname_records, ns_records)
+    """
+    transformed_zones = []
+    all_a_records = []
+    all_alias_records = []
+    all_cname_records = []
+    all_ns_records = []
+
+    for zone, zone_record_sets in zones:
+        # Transform zone
+        parsed_zone = transform_zone(zone)
+        transformed_zones.append(parsed_zone)
+
+        # Transform records
+        dns_data = transform_dns_records(zone_record_sets, zone["Id"])
+
+        # Add zone name to NS records for loading
+        zone_name = parsed_zone["name"][:-1]
+        for ns_record in dns_data.ns_records:
+            ns_record["zone_name"] = zone_name
+
+        all_a_records.extend(dns_data.a_records)
+        all_alias_records.extend(dns_data.alias_records)
+        all_cname_records.extend(dns_data.cname_records)
+        all_ns_records.extend(dns_data.ns_records)
+
+    return TransformedDnsData(
+        zones=transformed_zones,
+        a_records=all_a_records,
+        alias_records=all_alias_records,
+        cname_records=all_cname_records,
+        ns_records=all_ns_records,
+    )
+
+
+@timeit
+def _load_dns_details_flat(
+    neo4j_session: neo4j.Session,
+    zones: list[dict[str, Any]],
+    a_records: list[dict[str, Any]],
+    alias_records: list[dict[str, Any]],
+    cname_records: list[dict[str, Any]],
+    ns_records: list[dict[str, Any]],
+    current_aws_id: str,
+    update_tag: int,
+) -> None:
+    # Load zones
+    for zone in zones:
+        load_zone(neo4j_session, zone, current_aws_id, update_tag)
+
+    # Load records
+    load_a_records(neo4j_session, a_records, update_tag)
+    load_alias_records(neo4j_session, alias_records, update_tag)
+    load_cname_records(neo4j_session, cname_records, update_tag)
+    load_ns_records(neo4j_session, ns_records, update_tag)
+    link_aws_resources(neo4j_session, update_tag)
+
+
+@timeit
 def load_dns_details(
     neo4j_session: neo4j.Session,
     dns_details: List[Tuple[Dict, List[Dict]]],
@@ -359,55 +494,19 @@ def load_dns_details(
     update_tag: int,
 ) -> None:
     """
-    Create the paths
-    (:AWSAccount)--(:AWSDNSZone)--(:AWSDNSRecord),
-    (:AWSDNSZone)--(:NameServer),
-    (:AWSDNSRecord{type:"NS"})-[:DNS_POINTS_TO]->(:NameServer),
-    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:AWSDNSRecord).
+    Backward-compatible wrapper for the flat loader. Accepts the old signature.
     """
-    for zone, zone_record_sets in dns_details:
-        zone_a_records = []
-        zone_alias_records = []
-        zone_cname_records = []
-        zone_ns_records = []
-        parsed_zone = transform_zone(zone)
-
-        load_zone(neo4j_session, parsed_zone, current_aws_id, update_tag)
-
-        for record_set in zone_record_sets:
-            if record_set["Type"] == "A" or record_set["Type"] == "CNAME":
-                record = transform_record_set(
-                    record_set,
-                    zone["Id"],
-                    record_set["Name"][:-1],
-                )
-
-                if record["type"] == "A":
-                    zone_a_records.append(record)
-                elif record["type"] == "ALIAS":
-                    zone_alias_records.append(record)
-                elif record["type"] == "CNAME":
-                    zone_cname_records.append(record)
-
-            if record_set["Type"] == "NS":
-                record = transform_ns_record_set(record_set, zone["Id"])
-                zone_ns_records.append(record)
-        if zone_a_records:
-            load_a_records(neo4j_session, zone_a_records, update_tag)
-
-        if zone_alias_records:
-            load_alias_records(neo4j_session, zone_alias_records, update_tag)
-
-        if zone_cname_records:
-            load_cname_records(neo4j_session, zone_cname_records, update_tag)
-        if zone_ns_records:
-            load_ns_records(
-                neo4j_session,
-                zone_ns_records,
-                parsed_zone["name"][:-1],
-                update_tag,
-            )
-    link_aws_resources(neo4j_session, update_tag)
+    transformed_data = transform_all_dns_data(dns_details)
+    _load_dns_details_flat(
+        neo4j_session,
+        transformed_data.zones,
+        transformed_data.a_records,
+        transformed_data.alias_records,
+        transformed_data.cname_records,
+        transformed_data.ns_records,
+        current_aws_id,
+        update_tag,
+    )
 
 
 @timeit
@@ -470,6 +569,19 @@ def sync(
     logger.info("Syncing Route53 for account '%s'.", current_aws_account_id)
     client = boto3_session.client("route53")
     zones = get_zones(client)
-    load_dns_details(neo4j_session, zones, current_aws_account_id, update_tag)
+
+    # Transform the data
+    transformed_data = transform_all_dns_data(zones)
+
+    _load_dns_details_flat(
+        neo4j_session,
+        transformed_data.zones,
+        transformed_data.a_records,
+        transformed_data.alias_records,
+        transformed_data.cname_records,
+        transformed_data.ns_records,
+        current_aws_account_id,
+        update_tag,
+    )
     link_sub_zones(neo4j_session, update_tag)
     cleanup_route53(neo4j_session, current_aws_account_id, update_tag)
