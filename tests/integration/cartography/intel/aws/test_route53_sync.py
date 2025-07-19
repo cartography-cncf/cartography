@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.route53
 from cartography.intel.aws.route53 import sync
+from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
 from tests.data.aws.route53 import GET_ZONES_SAMPLE_RESPONSE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -11,6 +12,16 @@ from tests.integration.util import check_rels
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
+
+
+def _ensure_local_neo4j_has_test_ec2_records(neo4j_session):
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
+        neo4j_session,
+        LOAD_BALANCER_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(
@@ -25,6 +36,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _ensure_local_neo4j_has_test_ec2_records(neo4j_session)
 
     # Act
     sync(
@@ -36,12 +48,11 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert DNS zones exist
+    # Assert
     assert check_nodes(neo4j_session, "AWSDNSZone", ["zoneid", "name"]) == {
         ("/hostedzone/HOSTED_ZONE", "example.com"),
-    }
+    }, "DNS Zones don't exist"
 
-    # Assert DNS records exist
     assert check_nodes(neo4j_session, "AWSDNSRecord", ["id", "name", "type"]) == {
         ("/hostedzone/HOSTED_ZONE/example.com/A", "example.com", "A"),
         ("/hostedzone/HOSTED_ZONE/example.com/NS", "example.com", "NS"),
@@ -60,9 +71,9 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "www.example.com",
             "CNAME",
         ),
-    }
+    }, "DNS records don't exist"
 
-    # Assert DNS zones are connected to AWS account
+    # DNS zones -- AWS account
     assert check_rels(
         neo4j_session,
         "AWSAccount",
@@ -71,9 +82,11 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         "zoneid",
         "RESOURCE",
         rel_direction_right=True,
-    ) == {(TEST_ACCOUNT_ID, "/hostedzone/HOSTED_ZONE")}
+    ) == {
+        (TEST_ACCOUNT_ID, "/hostedzone/HOSTED_ZONE")
+    }, "DNS zones aren't connected to AWS account"
 
-    # Assert DNS records are connected to DNS zones
+    # DNS zones -- AWS account
     assert check_rels(
         neo4j_session,
         "AWSDNSRecord",
@@ -94,17 +107,16 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/www.example.com/WEIGHTED_CNAME",
             "/hostedzone/HOSTED_ZONE",
         ),
-    }
+    }, "DNS records aren't connected to DNS zones"
 
-    # Assert name servers exist
     assert check_nodes(neo4j_session, "NameServer", ["id", "name"]) == {
         (
             "ec2-1-2-3-4.us-east-2.compute.amazonaws.com",
             "ec2-1-2-3-4.us-east-2.compute.amazonaws.com",
         ),
-    }
+    }, "Name servers don't exist"
 
-    # Assert DNS records point to name servers
+    # DNS records -- Name servers
     assert check_rels(
         neo4j_session,
         "AWSDNSRecord",
@@ -118,9 +130,9 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/example.com/NS",
             "ec2-1-2-3-4.us-east-2.compute.amazonaws.com",
         ),
-    }
+    }, "DNS records don't point to name servers"
 
-    # Assert DNS zone is connected to name servers
+    # DNS zones -- Name servers
     assert check_rels(
         neo4j_session,
         "AWSDNSZone",
@@ -131,9 +143,9 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         rel_direction_right=True,
     ) == {
         ("/hostedzone/HOSTED_ZONE", "ec2-1-2-3-4.us-east-2.compute.amazonaws.com"),
-    }
+    }, "DNS zones don't point to name servers"
 
-    # Assert DNS records point to other DNS records (internal references)
+    # DNS records -- DNS records
     assert check_rels(
         neo4j_session,
         "AWSDNSRecord",
@@ -147,7 +159,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/example.com/NS",
             "/hostedzone/HOSTED_ZONE/example.com/A",
         ),
-    }
+    }, "DNS records don't point to other DNS records"
 
 
 @patch.object(
@@ -190,7 +202,8 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert DNS records point to LoadBalancerV2
+    # Assert
+    # DNS records -- LoadBalancerV2
     assert check_rels(
         neo4j_session,
         "AWSDNSRecord",
@@ -204,9 +217,9 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS",
             "myawesomeloadbalancer.amazonaws.com",
         ),
-    }
+    }, "DNS records don't point to LoadBalancerV2"
 
-    # Assert DNS records point to EC2 instances
+    # DNS records -- EC2 instances
     assert check_rels(
         neo4j_session,
         "AWSDNSRecord",
@@ -220,7 +233,7 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/www.example.com/WEIGHTED_CNAME",
             "i-1234567890abcdef0",
         ),
-    }
+    }, "DNS records don't point to EC2 instances"
 
 
 @patch.object(
@@ -312,7 +325,6 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert - Sub-zone relationship should be created
     assert check_rels(
         neo4j_session,
         "AWSDNSZone",
@@ -323,7 +335,7 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
         rel_direction_right=False,
     ) == {
         ("parent-zone", "/hostedzone/HOSTED_ZONE"),
-    }
+    }, "Sub-zone relationship should be created"
 
 
 @patch.object(
