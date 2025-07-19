@@ -13,6 +13,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.models.aws.route53.dnsrecord import AWSDNSRecordSchema
 from cartography.models.aws.route53.nameserver import NameServerSchema
+from cartography.models.aws.route53.zone import AWSDNSZoneSchema
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -137,29 +138,12 @@ def load_zone(
     current_aws_id: str,
     update_tag: int,
 ) -> None:
-    ingest_z = """
-    MERGE (zone:DNSZone:AWSDNSZone{zoneid:$ZoneId})
-    ON CREATE SET
-        zone.firstseen = timestamp(),
-        zone.name = $ZoneName
-    SET
-        zone.lastupdated = $update_tag,
-        zone.comment = $Comment,
-        zone.privatezone = $PrivateZone
-    WITH zone
-    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (aa)-[r:RESOURCE]->(zone)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-    """
-    neo4j_session.run(
-        ingest_z,
-        ZoneName=zone["name"][:-1],
-        ZoneId=zone["zoneid"],
-        Comment=zone["comment"],
-        PrivateZone=zone["privatezone"],
-        AWS_ACCOUNT_ID=current_aws_id,
-        update_tag=update_tag,
+    load(
+        neo4j_session,
+        AWSDNSZoneSchema(),
+        [zone],
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
     )
 
 
@@ -216,7 +200,6 @@ def link_sub_zones(neo4j_session: neo4j.Session, update_tag: int) -> None:
     )
 
 
-@timeit
 def transform_record_set(record_set: Dict, zone_id: str, name: str) -> Optional[Dict]:
     # process CNAME, ALIAS and A records
     if record_set["Type"] == "CNAME":
@@ -304,9 +287,14 @@ def transform_zone(zone: Dict) -> Dict:
     else:
         comment = ""
 
+    # Remove trailing dot from name for schema compatibility
+    zone_name = zone["Name"]
+    if zone_name.endswith("."):
+        zone_name = zone_name[:-1]
+
     return {
         "zoneid": zone["Id"],
-        "name": zone["Name"],
+        "name": zone_name,
         "privatezone": zone["Config"]["PrivateZone"],
         "comment": comment,
         "count": zone["ResourceRecordSetCount"],
@@ -380,7 +368,7 @@ def transform_all_dns_data(
         dns_data: DnsData = transform_dns_records(zone_record_sets, zone["Id"])
 
         # Add zone name to NS records for loading
-        zone_name = parsed_zone["name"][:-1]
+        zone_name = parsed_zone["name"]
         for ns_record in dns_data.ns_records:
             ns_record["zone_name"] = zone_name
 
