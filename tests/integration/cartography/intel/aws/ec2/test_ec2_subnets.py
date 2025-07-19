@@ -17,7 +17,6 @@ TEST_REGION = "eu-north-1"
 TEST_UPDATE_TAG = 123456789
 
 
-
 def test_load_subnets(neo4j_session):
     data = tests.data.aws.ec2.subnets.DESCRIBE_SUBNETS
     cartography.intel.aws.ec2.subnets.load_subnets(
@@ -223,7 +222,10 @@ def test_sync_subnets(mock_get_subnets, neo4j_session):
         ("subnet-0773409557644dca4", "10.1.1.0/24"),
         ("subnet-0fa9c8fa7cb241479", "10.2.1.0/24"),
     }
-    assert check_nodes(neo4j_session, "EC2Subnet", ["subnetid", "cidr_block"]) == expected_subnet_nodes
+    assert (
+        check_nodes(neo4j_session, "EC2Subnet", ["subnetid", "cidr_block"])
+        == expected_subnet_nodes
+    )
 
     # Check that subnets are connected to AWS account
     expected_account_rels = {
@@ -269,5 +271,9 @@ def test_sync_subnets(mock_get_subnets, neo4j_session):
         "EC2Subnet",
         ["subnetid", "availability_zone", "state", "available_ip_address_count"],
     )
-    assert ("subnet-0773409557644dca4", "eu-north-1a", "available", 251) in all_subnet_props
-
+    assert (
+        "subnet-0773409557644dca4",
+        "eu-north-1a",
+        "available",
+        251,
+    ) in all_subnet_props
