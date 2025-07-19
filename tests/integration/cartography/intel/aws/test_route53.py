@@ -164,22 +164,6 @@ def test_load_dnspointsto_ec2_relationships(neo4j_session):
     assert actual == expected
 
 
-def test_load_dnspointsto_relationships(neo4j_session):
-    # Act: load dns resources
-    _ensure_local_neo4j_has_test_route53_records(neo4j_session)
-
-    # Assert: Verify that the expected AWS DNS records point to each other
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AWSDNSRecord{id:"/hostedzone/HOSTED_ZONE/example.com/NS"})-[:DNS_POINTS_TO]->(n2:AWSDNSRecord)
-        RETURN n1.name, n2.id
-        """,
-    )
-    expected = {("example.com", "/hostedzone/HOSTED_ZONE/example.com/A")}
-    actual = {(r["n1.name"], r["n2.id"]) for r in result}
-    assert actual == expected
-
-
 def test_cleanup_dnspointsto_relationships(neo4j_session):
     # Arrange: load dns resources with update tag of TEST_UPDATE_TAG
     _ensure_local_neo4j_has_test_route53_records(neo4j_session)

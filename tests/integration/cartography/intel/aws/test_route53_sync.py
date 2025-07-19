@@ -146,20 +146,19 @@ def test_sync_route53(mock_get_zones, neo4j_session):
     }, "DNS zones don't point to name servers"
 
     # DNS records -- DNS records
-    assert check_rels(
-        neo4j_session,
-        "AWSDNSRecord",
-        "id",
-        "AWSDNSRecord",
-        "id",
-        "DNS_POINTS_TO",
-        rel_direction_right=True,
-    ) == {
-        (
-            "/hostedzone/HOSTED_ZONE/example.com/NS",
-            "/hostedzone/HOSTED_ZONE/example.com/A",
-        ),
-    }, "DNS records don't point to other DNS records"
+    # TODO edit the test data so we have something interesting here
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSDNSRecord",
+            "id",
+            "AWSDNSRecord",
+            "id",
+            "DNS_POINTS_TO",
+            rel_direction_right=True,
+        )
+        == set()
+    ), "DNS records don't point to other DNS records"
 
 
 @patch.object(
@@ -364,7 +363,8 @@ def test_sync_route53_record_values(mock_get_zones, neo4j_session):
     # Assert - Check specific record values using check_nodes
     assert check_nodes(neo4j_session, "AWSDNSRecord", ["id", "value"]) == {
         ("/hostedzone/HOSTED_ZONE/example.com/A", "1.2.3.4"),
-        ("/hostedzone/HOSTED_ZONE/example.com/NS", "example.com"),
+        # NS records don't have a value, they have one or more name servers attached to them
+        ("/hostedzone/HOSTED_ZONE/example.com/NS", None),
         (
             "/hostedzone/HOSTED_ZONE/_b6e76e6a1b6853211abcdef123454.example.com/CNAME",
             "_1f9ee9f5c4304947879ee77d0a995cc9.something.something.aws",

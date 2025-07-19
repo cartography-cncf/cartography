@@ -284,6 +284,7 @@ def transform_ns_record_set(record_set: Dict, zone_id: str) -> dict[str, Any] | 
             _normalize_dns_address(record["Value"])
             for record in record_set["ResourceRecords"]
         ]
+        #        import pdb; pdb.set_trace()
         return {
             "zoneid": zone_id,
             "type": "NS",
@@ -420,7 +421,9 @@ def _load_dns_details_flat(
     load_alias_records(neo4j_session, alias_records, update_tag, current_aws_id)
     load_cname_records(neo4j_session, cname_records, update_tag, current_aws_id)
     load_name_servers(neo4j_session, name_servers, update_tag, current_aws_id)
+
     load_ns_records(neo4j_session, ns_records, update_tag, current_aws_id)
+
     link_aws_resources(neo4j_session, update_tag)
 
 
