@@ -44,46 +44,6 @@ TransformedDnsData = namedtuple(
 
 
 @timeit
-def link_aws_resources(neo4j_session: neo4j.Session, update_tag: int) -> None:
-    # find records that point to other records
-    link_records = """
-    MATCH (n:AWSDNSRecord) WITH n MATCH (v:AWSDNSRecord{value: n.name})
-    WHERE NOT n = v
-    MERGE (v)-[p:DNS_POINTS_TO]->(n)
-    ON CREATE SET p.firstseen = timestamp()
-    SET p.lastupdated = $update_tag
-    """
-    neo4j_session.run(link_records, update_tag=update_tag)
-
-    # find records that point to AWS LoadBalancers
-    link_elb = """
-    MATCH (n:AWSDNSRecord) WITH n MATCH (l:LoadBalancer{dnsname: n.value})
-    MERGE (n)-[p:DNS_POINTS_TO]->(l)
-    ON CREATE SET p.firstseen = timestamp()
-    SET p.lastupdated = $update_tag
-    """
-    neo4j_session.run(link_elb, update_tag=update_tag)
-
-    # find records that point to AWS LoadBalancersV2
-    link_elbv2 = """
-    MATCH (n:AWSDNSRecord) WITH n MATCH (l:LoadBalancerV2{dnsname: n.value})
-    MERGE (n)-[p:DNS_POINTS_TO]->(l)
-    ON CREATE SET p.firstseen = timestamp()
-    SET p.lastupdated = $update_tag
-    """
-    neo4j_session.run(link_elbv2, update_tag=update_tag)
-
-    # find records that point to AWS EC2 Instances
-    link_ec2 = """
-    MATCH (n:AWSDNSRecord) WITH n MATCH (e:EC2Instance{publicdnsname: n.value})
-    MERGE (n)-[p:DNS_POINTS_TO]->(e)
-    ON CREATE SET p.firstseen = timestamp()
-    SET p.lastupdated = $update_tag
-    """
-    neo4j_session.run(link_ec2, update_tag=update_tag)
-
-
-@timeit
 def load_a_records(
     neo4j_session: neo4j.Session,
     records: List[Dict],
@@ -409,10 +369,7 @@ def _load_dns_details_flat(
     load_alias_records(neo4j_session, alias_records, update_tag, current_aws_id)
     load_cname_records(neo4j_session, cname_records, update_tag, current_aws_id)
     load_name_servers(neo4j_session, name_servers, update_tag, current_aws_id)
-
     load_ns_records(neo4j_session, ns_records, update_tag, current_aws_id)
-
-    link_aws_resources(neo4j_session, update_tag)
 
 
 @timeit
