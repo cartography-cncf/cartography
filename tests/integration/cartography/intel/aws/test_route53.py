@@ -1,5 +1,6 @@
 import cartography.intel.aws.route53
 import cartography.util
+import tests.data.aws.ec2.load_balancers
 import tests.data.aws.route53
 
 TEST_UPDATE_TAG = 123456789
