@@ -25,6 +25,7 @@ import backoff
 import boto3
 import botocore
 import neo4j
+import requests
 
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
@@ -466,3 +467,18 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
     results = to_synchronous(future_1, future_2)
     """
     return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))
+
+
+try:
+    from cartography._version import version as cartography_version
+except ImportError:
+    cartography_version = "unknown"
+
+def build_session() -> requests.Session:
+    """
+    Create a requests.Session with a custom User-Agent header that includes the Cartography version.
+    """
+    session = requests.Session()
+    user_agent = f"Cartography/{cartography_version}"
+    session.headers.update({"User-Agent": user_agent})
+    return session
