@@ -102,9 +102,6 @@ def load_alias_records(
     update_tag: int,
     current_aws_id: str,
 ) -> None:
-    """
-    Load alias records using the new data model approach.
-    """
     load(
         neo4j_session,
         AWSDNSRecordSchema(),
@@ -119,27 +116,14 @@ def load_cname_records(
     neo4j_session: neo4j.Session,
     records: List[Dict],
     update_tag: int,
+    current_aws_id: str,
 ) -> None:
-    ingest_records = """
-    UNWIND $records as record
-        MERGE (a:DNSRecord:AWSDNSRecord{id: record.id})
-        ON CREATE SET
-            a.firstseen = timestamp(),
-            a.name = record.name,
-            a.type = record.type
-        SET
-            a.lastupdated = $update_tag,
-            a.value = record.value
-        WITH a,record
-        MATCH (zone:AWSDNSZone{zoneid: record.zoneid})
-        MERGE (a)-[r:MEMBER_OF_DNS_ZONE]->(zone)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $update_tag
-    """
-    neo4j_session.run(
-        ingest_records,
-        records=records,
-        update_tag=update_tag,
+    load(
+        neo4j_session,
+        AWSDNSRecordSchema(),
+        records,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
     )
 
 
@@ -459,7 +443,7 @@ def _load_dns_details_flat(
     # Load records
     load_a_records(neo4j_session, a_records, update_tag, current_aws_id)
     load_alias_records(neo4j_session, alias_records, update_tag, current_aws_id)
-    load_cname_records(neo4j_session, cname_records, update_tag)
+    load_cname_records(neo4j_session, cname_records, update_tag, current_aws_id)
     load_ns_records(neo4j_session, ns_records, update_tag)
     link_aws_resources(neo4j_session, update_tag)
 

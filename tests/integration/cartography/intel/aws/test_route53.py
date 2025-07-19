@@ -90,8 +90,9 @@ def test_transform_and_load_cname_records(neo4j_session):
     )
     cartography.intel.aws.route53.load_cname_records(
         neo4j_session,
-        first_data,
+        [first_data],
         TEST_UPDATE_TAG,
+        TEST_AWS_ACCOUNTID,
     )
 
     second_data = cartography.intel.aws.route53.transform_record_set(
@@ -101,8 +102,9 @@ def test_transform_and_load_cname_records(neo4j_session):
     )
     cartography.intel.aws.route53.load_cname_records(
         neo4j_session,
-        second_data,
+        [second_data],
         TEST_UPDATE_TAG,
+        TEST_AWS_ACCOUNTID,
     )
     result = neo4j_session.run(
         "MATCH (n:AWSDNSRecord{name:'subdomain.lyft.com'}) return count(n) as recordcount",
