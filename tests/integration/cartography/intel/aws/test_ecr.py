@@ -390,6 +390,7 @@ def test_load_ecr_repository_images(neo4j_session):
         neo4j_session,
         repo_images_list,
         TEST_REGION,
+        TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -429,6 +430,7 @@ def test_load_ecr_images(neo4j_session):
         neo4j_session,
         repo_images_list,
         TEST_REGION,
+        TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
