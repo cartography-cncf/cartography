@@ -1,12 +1,19 @@
 from unittest import mock
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
 import tests.data.aws.iam
 from cartography.cli import CLI
 from cartography.config import Config
+from cartography.intel.aws.iam import sync
 from cartography.sync import build_default_sync
+from tests.data.aws.iam.user_policies import GET_USER_LIST_DATA
+from tests.data.aws.iam.user_policies import GET_USER_MANAGED_POLS_SAMPLE
+from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
@@ -217,3 +224,139 @@ def test_map_permissions(neo4j_session):
     assert results
     for result in results:
         assert result["rel_count"] == 1
+
+
+@patch.object(
+    cartography.intel.aws.iam, "get_role_managed_policy_data", return_value={}
+)
+@patch.object(cartography.intel.aws.iam, "get_role_policy_data", return_value={})
+@patch.object(
+    cartography.intel.aws.iam, "get_role_list_data", return_value={"Roles": []}
+)
+@patch.object(
+    cartography.intel.aws.iam, "get_group_managed_policy_data", return_value={}
+)
+@patch.object(cartography.intel.aws.iam, "get_group_policy_data", return_value={})
+@patch.object(
+    cartography.intel.aws.iam, "get_group_list_data", return_value={"Groups": []}
+)
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_user_managed_policy_data",
+    return_value=GET_USER_MANAGED_POLS_SAMPLE,
+)
+@patch.object(cartography.intel.aws.iam, "get_user_policy_data", return_value={})
+@patch.object(
+    cartography.intel.aws.iam, "get_user_list_data", return_value=GET_USER_LIST_DATA
+)
+def test_sync_iam(
+    mock_get_users,
+    mock_get_user_inline_pols,
+    mock_get_user_managed_pols,
+    mock_get_groups,
+    mock_get_group_policies,
+    mock_get_group_managed_pols,
+    mock_get_roles,
+    mock_get_role_policies,
+    mock_get_role_managed_pols,
+    neo4j_session,
+):
+    """Test IAM sync end-to-end for basic relationships."""
+    boto3_session = MagicMock()
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    sync(
+        neo4j_session,
+        boto3_session,
+        ["us-east-1"],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # AWSAccount -> AWSPrincipal
+    expected_account_principal = {
+        (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user1"),
+        (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user2"),
+        (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user3"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSAccount",
+            "id",
+            "AWSPrincipal",
+            "arn",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_account_principal
+    )
+
+    # AWSPrincipal -> AWSPolicy
+    expected_principal_policy = {
+        ("arn:aws:iam::1234:user/user1", "arn:aws:iam::1234:policy/user1-user-policy"),
+        ("arn:aws:iam::1234:user/user1", "arn:aws:iam::aws:policy/AmazonS3FullAccess"),
+        (
+            "arn:aws:iam::1234:user/user1",
+            "arn:aws:iam::aws:policy/AWSLambda_FullAccess",
+        ),
+        ("arn:aws:iam::1234:user/user3", "arn:aws:iam::aws:policy/AdministratorAccess"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSPrincipal",
+            "arn",
+            "AWSPolicy",
+            "id",
+            "POLICY",
+            rel_direction_right=True,
+        )
+        == expected_principal_policy
+    )
+
+    # AWSPolicy -> AWSPolicyStatement
+    expected_policy_statement = {
+        (
+            "arn:aws:iam::1234:policy/user1-user-policy",
+            "arn:aws:iam::1234:policy/user1-user-policy/statement/VisualEditor0",
+        ),
+        (
+            "arn:aws:iam::1234:policy/user1-user-policy",
+            "arn:aws:iam::1234:policy/user1-user-policy/statement/VisualEditor1",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+            "arn:aws:iam::aws:policy/AmazonS3FullAccess/statement/1",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AWSLambda_FullAccess",
+            "arn:aws:iam::aws:policy/AWSLambda_FullAccess/statement/1",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AWSLambda_FullAccess",
+            "arn:aws:iam::aws:policy/AWSLambda_FullAccess/statement/2",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AWSLambda_FullAccess",
+            "arn:aws:iam::aws:policy/AWSLambda_FullAccess/statement/3",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AdministratorAccess",
+            "arn:aws:iam::aws:policy/AdministratorAccess/statement/1",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSPolicy",
+            "id",
+            "AWSPolicyStatement",
+            "id",
+            "STATEMENT",
+            rel_direction_right=True,
+        )
+        == expected_policy_statement
+    )
