@@ -255,6 +255,7 @@ def test_sync_route53_cleanup(mock_get_zones, neo4j_session):
         MERGE (zone:AWSDNSZone {zoneid: "/hostedzone/HOSTED_ZONE", lastupdated: 999999})
         MERGE (account:AWSAccount {id: $account_id, lastupdated: $update_tag})
         MERGE (record)-[:MEMBER_OF_DNS_ZONE]->(zone)
+        MERGE (record)<-[:RESOURCE]-(account)
         MERGE (account)-[:RESOURCE]->(zone)
         """,
         account_id=TEST_ACCOUNT_ID,
