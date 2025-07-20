@@ -125,9 +125,10 @@ def transform_record_set(
                 "value": value[:-1],
                 "id": _create_dns_record_id(zone_id, name, "A"),
             }
-
-    else:
-        return None
+    # This should never happen since we only call this for A and CNAME records,
+    # but we'll log it and return None.
+    logger.warning(f"Unsupported record type: {record_set['Type']}")
+    return None
 
 
 def transform_ns_record_set(
@@ -148,15 +149,14 @@ def transform_ns_record_set(
             "id": _create_dns_record_id(zone_id, record_set["Name"][:-1], "NS"),
         }
     else:
+        # This should never happen since we only call this for NS records
+        # but we'll log it and return None.
+        logger.warning(f"NS record set missing ResourceRecords: {record_set}")
         return None
 
 
 def transform_zone(zone: dict[str, Any]) -> dict[str, Any]:
-    # TODO simplify this
-    if "Comment" in zone["Config"]:
-        comment = zone["Config"]["Comment"]
-    else:
-        comment = ""
+    comment = zone["Config"].get("Comment")
 
     # Remove trailing dot from name for schema compatibility
     zone_name = zone["Name"]
@@ -170,50 +170,6 @@ def transform_zone(zone: dict[str, Any]) -> dict[str, Any]:
         "comment": comment,
         "count": zone["ResourceRecordSetCount"],
     }
-
-
-def transform_dns_records(
-    zone_record_sets: list[dict[str, Any]],
-    zone_id: str,
-) -> DnsData:
-    a_records = []
-    alias_records = []
-    cname_records = []
-    ns_records = []
-
-    name_servers: list[dict[str, Any]] = []
-
-    for record_set in zone_record_sets:
-        if record_set["Type"] == "A" or record_set["Type"] == "CNAME":
-            record = transform_record_set(
-                record_set,
-                zone_id,
-                record_set["Name"][:-1],
-            )
-
-            if record and record["type"] == "A":
-                a_records.append(record)
-            elif record and record["type"] == "ALIAS":
-                alias_records.append(record)
-            elif record and record["type"] == "CNAME":
-                cname_records.append(record)
-
-        if record_set["Type"] == "NS":
-            record = transform_ns_record_set(record_set, zone_id)
-            if record:
-                ns_records.append(record)
-                name_servers.extend(
-                    [{"id": server, "zoneid": zone_id} for server in record["servers"]]
-                )
-
-    return DnsData(
-        zones=[],
-        a_records=a_records,
-        alias_records=alias_records,
-        cname_records=cname_records,
-        ns_records=ns_records,
-        name_servers=name_servers,
-    )
 
 
 def transform_all_dns_data(
@@ -231,24 +187,43 @@ def transform_all_dns_data(
     all_name_servers = []
 
     for zone, zone_record_sets in zones:
-        # Transform zone
         parsed_zone = transform_zone(zone)
         transformed_zones.append(parsed_zone)
 
-        # TODO try to unnest this
-        # Transform records
-        dns_data: DnsData = transform_dns_records(zone_record_sets, zone["Id"])
-
-        # Add zone name to NS records for loading
+        zone_id = zone["Id"]
         zone_name = parsed_zone["name"]
-        for ns_record in dns_data.ns_records:
-            ns_record["zone_name"] = zone_name
 
-        all_a_records.extend(dns_data.a_records)
-        all_alias_records.extend(dns_data.alias_records)
-        all_cname_records.extend(dns_data.cname_records)
-        all_ns_records.extend(dns_data.ns_records)
-        all_name_servers.extend(dns_data.name_servers)
+        for rs in zone_record_sets:
+            if rs["Type"] == "A" or rs["Type"] == "CNAME":
+                transformed_rs = transform_record_set(
+                    rs,
+                    zone_id,
+                    rs["Name"][:-1],
+                )
+                if transformed_rs is None:
+                    continue
+
+                if transformed_rs["type"] == "A":
+                    all_a_records.append(transformed_rs)
+                elif transformed_rs["type"] == "ALIAS":
+                    all_alias_records.append(transformed_rs)
+                elif transformed_rs["type"] == "CNAME":
+                    all_cname_records.append(transformed_rs)
+
+            elif rs["Type"] == "NS":
+                transformed_rs = transform_ns_record_set(rs, zone_id)
+                if transformed_rs is None:
+                    continue
+
+                # Add zone name to NS records for loading
+                transformed_rs["zone_name"] = zone_name
+                all_ns_records.append(transformed_rs)
+                all_name_servers.extend(
+                    [
+                        {"id": server, "zoneid": zone_id}
+                        for server in transformed_rs["servers"]
+                    ]
+                )
 
     return DnsData(
         zones=transformed_zones,
