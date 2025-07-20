@@ -14,6 +14,7 @@ from cartography.models.aws.route53.dnsrecord import AWSDNSRecordSchema
 from cartography.models.aws.route53.nameserver import NameServerSchema
 from cartography.models.aws.route53.subzone import AWSDNSZoneSubzoneMatchLink
 from cartography.models.aws.route53.zone import AWSDNSZoneSchema
+from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ def get_zone_record_sets(
     return resource_record_sets
 
 
+@aws_handle_regions
 @timeit
 def get_zones(
     client: botocore.client.BaseClient,
@@ -245,7 +247,7 @@ def _load_dns_details_flat(
     alias_records: list[dict[str, Any]],
     cname_records: list[dict[str, Any]],
     ns_records: list[dict[str, Any]],
-    name_servers: list[str],
+    name_servers: list[dict[str, Any]],
     current_aws_id: str,
     update_tag: int,
 ) -> None:
