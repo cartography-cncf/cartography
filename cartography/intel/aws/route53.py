@@ -405,13 +405,15 @@ def link_sub_zones(
     neo4j_session: neo4j.Session, update_tag: int, current_aws_id: str
 ) -> None:
     """
-    Create SUBZONE relationships between DNS zones using MatchLinks.
+    Create SUBZONE relationships between DNS zones using matchlinks.
 
-    This function finds relationships where:
-    1. A DNS zone has an NS record that points to a nameserver
-    2. That nameserver is associated with another DNS zone
-    3. The NS record's name matches the other zone's name
-    4. This creates a parent-child relationship between zones
+    A DNS zone B is a sub zone of A if:
+    1. DNS zone A has an NS record that points to a nameserver
+    2. That nameserver is associated with DNS zone B
+    3. The NS record's name matches the name of DNS zone B
+
+    We use matchlinks instead of a regular relationship because the hierarchy
+    isn't known ahead of time.
     """
     query = """
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(z:AWSDNSZone)
@@ -479,7 +481,6 @@ def sync(
     client = boto3_session.client("route53")
     zones = get_zones(client)
 
-    # Transform the data
     transformed_data = transform_all_dns_data(zones)
 
     _load_dns_details_flat(
