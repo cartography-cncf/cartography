@@ -31,133 +31,41 @@ DnsData = namedtuple(
 )
 
 
-@timeit
-def load_a_records(
-    neo4j_session: neo4j.Session,
-    records: list[dict[str, Any]],
-    update_tag: int,
-    current_aws_id: str,
-) -> None:
-    load(
-        neo4j_session,
-        AWSDNSRecordSchema(),
-        records,
-        lastupdated=update_tag,
-        AWS_ID=current_aws_id,
-    )
+def _create_dns_record_id(zoneid: str, name: str, record_type: str) -> str:
+    return "/".join([zoneid, name, record_type])
+
+
+def _normalize_dns_address(address: str) -> str:
+    return address.rstrip(".")
 
 
 @timeit
-def load_alias_records(
-    neo4j_session: neo4j.Session,
-    records: list[dict[str, Any]],
-    update_tag: int,
-    current_aws_id: str,
-) -> None:
-    load(
-        neo4j_session,
-        AWSDNSRecordSchema(),
-        records,
-        lastupdated=update_tag,
-        AWS_ID=current_aws_id,
-    )
+def get_zone_record_sets(
+    client: botocore.client.BaseClient,
+    zone_id: str,
+) -> list[dict[str, Any]]:
+    resource_record_sets: list[dict[str, Any]] = []
+    paginator = client.get_paginator("list_resource_record_sets")
+    pages = paginator.paginate(HostedZoneId=zone_id)
+    for page in pages:
+        resource_record_sets.extend(page["ResourceRecordSets"])
+    return resource_record_sets
 
 
 @timeit
-def load_cname_records(
-    neo4j_session: neo4j.Session,
-    records: list[dict[str, Any]],
-    update_tag: int,
-    current_aws_id: str,
-) -> None:
-    load(
-        neo4j_session,
-        AWSDNSRecordSchema(),
-        records,
-        lastupdated=update_tag,
-        AWS_ID=current_aws_id,
-    )
+def get_zones(
+    client: botocore.client.BaseClient,
+) -> list[tuple[dict[str, Any], list[dict[str, Any]]]]:
+    paginator = client.get_paginator("list_hosted_zones")
+    hosted_zones: list[dict[str, Any]] = []
+    for page in paginator.paginate():
+        hosted_zones.extend(page["HostedZones"])
 
-
-@timeit
-def load_zone(
-    neo4j_session: neo4j.Session,
-    zone: dict[str, Any],
-    current_aws_id: str,
-    update_tag: int,
-) -> None:
-    load(
-        neo4j_session,
-        AWSDNSZoneSchema(),
-        [zone],
-        lastupdated=update_tag,
-        AWS_ID=current_aws_id,
-    )
-
-
-@timeit
-def load_ns_records(
-    neo4j_session: neo4j.Session,
-    records: list[dict[str, Any]],
-    update_tag: int,
-    current_aws_id: str,
-) -> None:
-    load(
-        neo4j_session,
-        AWSDNSRecordSchema(),
-        records,
-        lastupdated=update_tag,
-        AWS_ID=current_aws_id,
-    )
-
-
-@timeit
-def load_name_servers(
-    neo4j_session: neo4j.Session,
-    name_servers: list[dict[str, Any]],
-    update_tag: int,
-    current_aws_id: str,
-) -> None:
-    load(
-        neo4j_session,
-        NameServerSchema(),
-        name_servers,
-        lastupdated=update_tag,
-        AWS_ID=current_aws_id,
-    )
-
-
-@timeit
-def link_sub_zones(
-    neo4j_session: neo4j.Session, update_tag: int, current_aws_id: str
-) -> None:
-    """
-    Create SUBZONE relationships between DNS zones using MatchLinks.
-
-    This function finds relationships where:
-    1. A DNS zone has an NS record that points to a nameserver
-    2. That nameserver is associated with another DNS zone
-    3. The NS record's name matches the other zone's name
-    4. This creates a parent-child relationship between zones
-    """
-    query = """
-    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(z:AWSDNSZone)
-        <-[:MEMBER_OF_DNS_ZONE]-(record:DNSRecord{type:"NS"})
-        -[:DNS_POINTS_TO]->(ns:NameServer)<-[:NAMESERVER]-(z2:AWSDNSZone)
-    WHERE record.name=z2.name AND NOT z=z2
-    RETURN z.id as zone_id, z2.id as subzone_id
-    """
-    zone_to_subzone = neo4j_session.read_transaction(
-        read_list_of_dicts_tx, query, AWS_ID=current_aws_id
-    )
-    load_matchlinks(
-        neo4j_session,
-        AWSDNSZoneSubzoneMatchLink(),
-        zone_to_subzone,
-        lastupdated=update_tag,
-        _sub_resource_label="AWSAccount",
-        _sub_resource_id=current_aws_id,
-    )
+    results: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
+    for hosted_zone in hosted_zones:
+        record_sets = get_zone_record_sets(client, hosted_zone["Id"])
+        results.append((hosted_zone, record_sets))
+    return results
 
 
 def transform_record_set(
@@ -364,11 +272,7 @@ def _load_dns_details_flat(
     current_aws_id: str,
     update_tag: int,
 ) -> None:
-    # Load zones
-    for zone in zones:
-        load_zone(neo4j_session, zone, current_aws_id, update_tag)
-
-    # Load records
+    load_zones(neo4j_session, zones, current_aws_id, update_tag)
     load_a_records(neo4j_session, a_records, update_tag, current_aws_id)
     load_alias_records(neo4j_session, alias_records, update_tag, current_aws_id)
     load_cname_records(neo4j_session, cname_records, update_tag, current_aws_id)
@@ -401,40 +305,132 @@ def load_dns_details(
 
 
 @timeit
-def get_zone_record_sets(
-    client: botocore.client.BaseClient,
-    zone_id: str,
-) -> list[dict[str, Any]]:
-    resource_record_sets: list[dict[str, Any]] = []
-    paginator = client.get_paginator("list_resource_record_sets")
-    pages = paginator.paginate(HostedZoneId=zone_id)
-    for page in pages:
-        resource_record_sets.extend(page["ResourceRecordSets"])
-    return resource_record_sets
+def load_a_records(
+    neo4j_session: neo4j.Session,
+    records: list[dict[str, Any]],
+    update_tag: int,
+    current_aws_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSDNSRecordSchema(),
+        records,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
+    )
 
 
 @timeit
-def get_zones(
-    client: botocore.client.BaseClient,
-) -> list[tuple[dict[str, Any], list[dict[str, Any]]]]:
-    paginator = client.get_paginator("list_hosted_zones")
-    hosted_zones: list[dict[str, Any]] = []
-    for page in paginator.paginate():
-        hosted_zones.extend(page["HostedZones"])
-
-    results: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
-    for hosted_zone in hosted_zones:
-        record_sets = get_zone_record_sets(client, hosted_zone["Id"])
-        results.append((hosted_zone, record_sets))
-    return results
-
-
-def _create_dns_record_id(zoneid: str, name: str, record_type: str) -> str:
-    return "/".join([zoneid, name, record_type])
+def load_alias_records(
+    neo4j_session: neo4j.Session,
+    records: list[dict[str, Any]],
+    update_tag: int,
+    current_aws_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSDNSRecordSchema(),
+        records,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
+    )
 
 
-def _normalize_dns_address(address: str) -> str:
-    return address.rstrip(".")
+@timeit
+def load_cname_records(
+    neo4j_session: neo4j.Session,
+    records: list[dict[str, Any]],
+    update_tag: int,
+    current_aws_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSDNSRecordSchema(),
+        records,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
+    )
+
+
+@timeit
+def load_zones(
+    neo4j_session: neo4j.Session,
+    zones: list[dict[str, Any]],
+    current_aws_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSDNSZoneSchema(),
+        zones,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
+    )
+
+
+@timeit
+def load_ns_records(
+    neo4j_session: neo4j.Session,
+    records: list[dict[str, Any]],
+    update_tag: int,
+    current_aws_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSDNSRecordSchema(),
+        records,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
+    )
+
+
+@timeit
+def load_name_servers(
+    neo4j_session: neo4j.Session,
+    name_servers: list[dict[str, Any]],
+    update_tag: int,
+    current_aws_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        NameServerSchema(),
+        name_servers,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
+    )
+
+
+@timeit
+def link_sub_zones(
+    neo4j_session: neo4j.Session, update_tag: int, current_aws_id: str
+) -> None:
+    """
+    Create SUBZONE relationships between DNS zones using MatchLinks.
+
+    This function finds relationships where:
+    1. A DNS zone has an NS record that points to a nameserver
+    2. That nameserver is associated with another DNS zone
+    3. The NS record's name matches the other zone's name
+    4. This creates a parent-child relationship between zones
+    """
+    query = """
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(z:AWSDNSZone)
+        <-[:MEMBER_OF_DNS_ZONE]-(record:DNSRecord{type:"NS"})
+        -[:DNS_POINTS_TO]->(ns:NameServer)<-[:NAMESERVER]-(z2:AWSDNSZone)
+    WHERE record.name=z2.name AND NOT z=z2
+    RETURN z.id as zone_id, z2.id as subzone_id
+    """
+    zone_to_subzone = neo4j_session.read_transaction(
+        read_list_of_dicts_tx, query, AWS_ID=current_aws_id
+    )
+    load_matchlinks(
+        neo4j_session,
+        AWSDNSZoneSubzoneMatchLink(),
+        zone_to_subzone,
+        lastupdated=update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_id,
+    )
 
 
 @timeit

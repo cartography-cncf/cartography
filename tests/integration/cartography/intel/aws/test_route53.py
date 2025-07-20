@@ -71,9 +71,9 @@ def test_transform_and_load_zones(neo4j_session):
 
     for zone in data:
         parsed_zone = cartography.intel.aws.route53.transform_zone(zone)
-        cartography.intel.aws.route53.load_zone(
+        cartography.intel.aws.route53.load_zones(
             neo4j_session,
-            parsed_zone,
+            [parsed_zone],
             TEST_AWS_ACCOUNTID,
             TEST_UPDATE_TAG,
         )
