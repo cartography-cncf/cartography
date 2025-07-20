@@ -297,8 +297,8 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
     # Pre-create a parent zone that the test zone should be a sub-zone of
     neo4j_session.run(
         """
-        MERGE (parent:AWSDNSZone {zoneid: "parent-zone", name: "example.com"})
-        SET parent.lastupdated = $update_tag
+        MERGE (subzone:AWSDNSZone {id: "subzone", zoneid: "subzone", name: "example.com"})
+        SET subzone.lastupdated = $update_tag
         """,
         update_tag=TEST_UPDATE_TAG,
     )
@@ -308,8 +308,8 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
         """
         MERGE (ns:NameServer {id: "ec2-1-2-3-4.us-east-2.compute.amazonaws.com"})
         SET ns.lastupdated = $update_tag
-        MERGE (parent:AWSDNSZone {zoneid: "parent-zone"})
-        MERGE (ns)<-[:NAMESERVER]-(parent)
+        MERGE (subzone:AWSDNSZone {zoneid: "subzone"})
+        MERGE (ns)<-[:NAMESERVER]-(subzone)
         """,
         update_tag=TEST_UPDATE_TAG,
     )
@@ -323,7 +323,6 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
-
     assert check_rels(
         neo4j_session,
         "AWSDNSZone",
@@ -333,7 +332,7 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
         "SUBZONE",
         rel_direction_right=False,
     ) == {
-        ("parent-zone", "/hostedzone/HOSTED_ZONE"),
+        ("subzone", "/hostedzone/HOSTED_ZONE"),
     }, "Sub-zone relationship should be created"
 
 

@@ -11,8 +11,12 @@ import botocore
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.graph.job import GraphJob
 from cartography.models.aws.route53.dnsrecord import AWSDNSRecordSchema
 from cartography.models.aws.route53.nameserver import NameServerSchema
+from cartography.models.aws.route53.subzone import AWSDNSZoneSubzoneMatchLink
 from cartography.models.aws.route53.zone import AWSDNSZoneSchema
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -140,23 +144,33 @@ def load_name_servers(
 
 
 @timeit
-def link_sub_zones(neo4j_session: neo4j.Session, update_tag: int) -> None:
-    query = """
-    match (z:AWSDNSZone)
-    <-[:MEMBER_OF_DNS_ZONE]-
-    (record:DNSRecord{type:"NS"})
-    -[:DNS_POINTS_TO]->
-    (ns:NameServer)
-    <-[:NAMESERVER]-
-    (z2)
-    WHERE record.name=z2.name AND NOT z=z2
-    MERGE (z2)<-[r:SUBZONE]-(z)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
+def link_sub_zones(
+    neo4j_session: neo4j.Session, update_tag: int, current_aws_id: str
+) -> None:
     """
-    neo4j_session.run(
-        query,
-        update_tag=update_tag,
+    Create SUBZONE relationships between DNS zones using MatchLinks.
+
+    This function finds relationships where:
+    1. A DNS zone has an NS record that points to a nameserver
+    2. That nameserver is associated with another DNS zone
+    3. The NS record's name matches the other zone's name
+    4. This creates a parent-child relationship between zones
+    """
+    query = """
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(z:AWSDNSZone)<-[:MEMBER_OF_DNS_ZONE]-(record:DNSRecord{type:"NS"})-[:DNS_POINTS_TO]->(ns:NameServer)<-[:NAMESERVER]-(z2:AWSDNSZone)
+    WHERE record.name=z2.name AND NOT z=z2
+    RETURN z.id as zone_id, z2.id as subzone_id
+    """
+    zone_to_subzone = neo4j_session.read_transaction(
+        read_list_of_dicts_tx, query, AWS_ID=current_aws_id
+    )
+    load_matchlinks(
+        neo4j_session,
+        AWSDNSZoneSubzoneMatchLink(),
+        zone_to_subzone,
+        lastupdated=update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_id,
     )
 
 
@@ -442,6 +456,14 @@ def cleanup_route53(
         neo4j_session,
         {"UPDATE_TAG": update_tag, "AWS_ID": current_aws_id},
     )
+    # Clean up stale relationships
+    cleanup_job = GraphJob.from_matchlink(
+        AWSDNSZoneSubzoneMatchLink(),
+        "AWSAccount",
+        current_aws_id,
+        update_tag,
+    )
+    cleanup_job.run(neo4j_session)
 
 
 @timeit
@@ -471,5 +493,5 @@ def sync(
         current_aws_account_id,
         update_tag,
     )
-    link_sub_zones(neo4j_session, update_tag)
+    link_sub_zones(neo4j_session, update_tag, current_aws_account_id)
     cleanup_route53(neo4j_session, current_aws_account_id, update_tag)

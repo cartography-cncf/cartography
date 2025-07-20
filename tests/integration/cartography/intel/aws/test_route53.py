@@ -34,7 +34,9 @@ def _ensure_local_neo4j_has_test_route53_records(neo4j_session):
         TEST_AWS_ACCOUNTID,
         TEST_UPDATE_TAG,
     )
-    cartography.intel.aws.route53.link_sub_zones(neo4j_session, TEST_UPDATE_TAG)
+    cartography.intel.aws.route53.link_sub_zones(
+        neo4j_session, TEST_UPDATE_TAG, TEST_AWS_ACCOUNTID
+    )
 
 
 def _ensure_local_neo4j_has_test_ec2_records(neo4j_session):
