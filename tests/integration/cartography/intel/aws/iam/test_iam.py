@@ -9,11 +9,42 @@ from cartography.cli import CLI
 from cartography.config import Config
 from cartography.intel.aws.iam import sync
 from cartography.sync import build_default_sync
+from tests.data.aws.iam.role_policies import (
+    ANOTHER_GET_ROLE_LIST_DATASET as GET_ROLE_LIST_DATA,
+)
+from tests.data.aws.iam.role_policies import GET_ROLE_MANAGED_POLICY_DATA
 from tests.data.aws.iam.user_policies import GET_USER_LIST_DATA
 from tests.data.aws.iam.user_policies import GET_USER_MANAGED_POLS_SAMPLE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
+
+# Create inline policy data that matches the roles in ANOTHER_GET_ROLE_LIST_DATASET
+GET_ROLE_INLINE_POLS_SAMPLE = {
+    "arn:aws:iam::1234:role/ServiceRole": {
+        "ServiceRole": [
+            {
+                "Sid": "VisualEditor0",
+                "Effect": "Allow",
+                "Action": [
+                    "iam:ListPolicies",
+                    "iam:GetAccountSummary",
+                    "iam:ListAccountAliases",
+                    "iam:GenerateServiceLastAccessedDetails",
+                    "iam:ListRoles",
+                    "iam:ListUsers",
+                    "iam:ListGroups",
+                    "iam:GetServiceLastAccessedDetails",
+                    "iam:ListRolePolicies",
+                ],
+                "Resource": "*",
+            },
+        ],
+    },
+    "arn:aws:iam::1234:role/ElasticacheAutoscale": {},
+    "arn:aws:iam::1234:role/sftp-LambdaExecutionRole-1234": {},
+}
+
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
@@ -227,11 +258,17 @@ def test_map_permissions(neo4j_session):
 
 
 @patch.object(
-    cartography.intel.aws.iam, "get_role_managed_policy_data", return_value={}
+    cartography.intel.aws.iam,
+    "get_role_managed_policy_data",
+    return_value=GET_ROLE_MANAGED_POLICY_DATA,
 )
-@patch.object(cartography.intel.aws.iam, "get_role_policy_data", return_value={})
 @patch.object(
-    cartography.intel.aws.iam, "get_role_list_data", return_value={"Roles": []}
+    cartography.intel.aws.iam,
+    "get_role_policy_data",
+    return_value=GET_ROLE_INLINE_POLS_SAMPLE,
+)
+@patch.object(
+    cartography.intel.aws.iam, "get_role_list_data", return_value=GET_ROLE_LIST_DATA
 )
 @patch.object(
     cartography.intel.aws.iam, "get_group_managed_policy_data", return_value={}
@@ -261,11 +298,13 @@ def test_sync_iam(
     mock_get_role_managed_pols,
     neo4j_session,
 ):
-    """Test IAM sync end-to-end for basic relationships."""
+    """Test IAM sync end-to-end"""
+    # Arrange
     boto3_session = MagicMock()
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
+    # Act
     sync(
         neo4j_session,
         boto3_session,
@@ -275,11 +314,17 @@ def test_sync_iam(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
+    # Assert
     # AWSAccount -> AWSPrincipal
     expected_account_principal = {
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user1"),
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user2"),
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user3"),
+        (TEST_ACCOUNT_ID, "arn:aws:iam::1234:role/ServiceRole"),
+        (TEST_ACCOUNT_ID, "arn:aws:iam::1234:role/ElasticacheAutoscale"),
+        (TEST_ACCOUNT_ID, "arn:aws:iam::1234:role/sftp-LambdaExecutionRole-1234"),
+        # Additional principals from trust relationships
+        ("54321", "arn:aws:iam::54321:root"),
     }
     assert (
         check_rels(
@@ -296,6 +341,7 @@ def test_sync_iam(
 
     # AWSPrincipal -> AWSPolicy
     expected_principal_policy = {
+        # User policies
         ("arn:aws:iam::1234:user/user1", "arn:aws:iam::1234:policy/user1-user-policy"),
         ("arn:aws:iam::1234:user/user1", "arn:aws:iam::aws:policy/AmazonS3FullAccess"),
         (
@@ -303,6 +349,35 @@ def test_sync_iam(
             "arn:aws:iam::aws:policy/AWSLambda_FullAccess",
         ),
         ("arn:aws:iam::1234:user/user3", "arn:aws:iam::aws:policy/AdministratorAccess"),
+        # Role policies
+        (
+            "arn:aws:iam::1234:role/ServiceRole",
+            "arn:aws:iam::1234:role/ServiceRole/inline_policy/ServiceRole",
+        ),
+        (
+            "arn:aws:iam::1234:role/ElasticacheAutoscale",
+            "arn:aws:iam::1234:policy/AWSLambdaBasicExecutionRole-autoscaleElasticache",
+        ),
+        (
+            "arn:aws:iam::1234:role/ElasticacheAutoscale",
+            "arn:aws:iam::aws:policy/AWSLambdaFullAccess",
+        ),
+        (
+            "arn:aws:iam::1234:role/ElasticacheAutoscale",
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+        ),
+        (
+            "arn:aws:iam::1234:role/ElasticacheAutoscale",
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaRole",
+        ),
+        (
+            "arn:aws:iam::1234:role/ElasticacheAutoscale",
+            "arn:aws:iam::aws:policy/AmazonElastiCacheFullAccess",
+        ),
+        (
+            "arn:aws:iam::1234:role/sftp-LambdaExecutionRole-1234",
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+        ),
     }
     assert (
         check_rels(
@@ -319,6 +394,7 @@ def test_sync_iam(
 
     # AWSPolicy -> AWSPolicyStatement
     expected_policy_statement = {
+        # User policy statements
         (
             "arn:aws:iam::1234:policy/user1-user-policy",
             "arn:aws:iam::1234:policy/user1-user-policy/statement/VisualEditor0",
@@ -346,6 +422,39 @@ def test_sync_iam(
         (
             "arn:aws:iam::aws:policy/AdministratorAccess",
             "arn:aws:iam::aws:policy/AdministratorAccess/statement/1",
+        ),
+        # Role policy statements
+        (
+            "arn:aws:iam::1234:role/ServiceRole/inline_policy/ServiceRole",
+            "arn:aws:iam::1234:role/ServiceRole/inline_policy/ServiceRole/statement/VisualEditor0",
+        ),
+        (
+            "arn:aws:iam::1234:policy/AWSLambdaBasicExecutionRole-autoscaleElasticache",
+            "arn:aws:iam::1234:policy/AWSLambdaBasicExecutionRole-autoscaleElasticache/statement/1",
+        ),
+        (
+            "arn:aws:iam::1234:policy/AWSLambdaBasicExecutionRole-autoscaleElasticache",
+            "arn:aws:iam::1234:policy/AWSLambdaBasicExecutionRole-autoscaleElasticache/statement/2",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AWSLambdaFullAccess",
+            "arn:aws:iam::aws:policy/AWSLambdaFullAccess/statement/1",
+        ),
+        (
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole/statement/1",
+        ),
+        (
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaRole",
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaRole/statement/1",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AmazonElastiCacheFullAccess",
+            "arn:aws:iam::aws:policy/AmazonElastiCacheFullAccess/statement/1",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AmazonElastiCacheFullAccess",
+            "arn:aws:iam::aws:policy/AmazonElastiCacheFullAccess/statement/2",
         ),
     }
     assert (
