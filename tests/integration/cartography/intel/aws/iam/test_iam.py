@@ -9,6 +9,7 @@ from cartography.cli import CLI
 from cartography.config import Config
 from cartography.intel.aws.iam import sync
 from cartography.sync import build_default_sync
+from tests.data.aws.iam import LIST_GROUPS
 from tests.data.aws.iam.role_policies import (
     ANOTHER_GET_ROLE_LIST_DATASET as GET_ROLE_LIST_DATA,
 )
@@ -43,6 +44,79 @@ GET_ROLE_INLINE_POLS_SAMPLE = {
     },
     "arn:aws:iam::1234:role/ElasticacheAutoscale": {},
     "arn:aws:iam::1234:role/sftp-LambdaExecutionRole-1234": {},
+}
+
+# Create group policy data that matches the groups in LIST_GROUPS
+GET_GROUP_INLINE_POLS_SAMPLE = {
+    "arn:aws:iam::000000000000:group/example-group-0": {
+        "group_inline_policy": [
+            {
+                "Sid": "VisualEditor0",
+                "Effect": "Allow",
+                "Action": [
+                    "s3:GetObject",
+                    "s3:ListBucket",
+                    "s3:PutObject",
+                ],
+                "Resource": [
+                    "arn:aws:s3:::example-bucket",
+                    "arn:aws:s3:::example-bucket/*",
+                ],
+            },
+            {
+                "Sid": "VisualEditor1",
+                "Effect": "Allow",
+                "Action": [
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeSecurityGroups",
+                ],
+                "Resource": "*",
+            },
+        ],
+    },
+    "arn:aws:iam::000000000000:group/example-group-1": {
+        "admin_policy": [
+            {
+                "Effect": "Allow",
+                "Action": "*",
+                "Resource": "*",
+            },
+        ],
+    },
+}
+
+GET_GROUP_MANAGED_POLICY_DATA = {
+    "arn:aws:iam::000000000000:group/example-group-0": {
+        "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "s3:GetObject",
+                    "s3:ListBucket",
+                ],
+                "Resource": "*",
+            },
+        ],
+        "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "ec2:Describe*",
+                    "elasticloadbalancing:Describe*",
+                ],
+                "Resource": "*",
+            },
+        ],
+    },
+    "arn:aws:iam::000000000000:group/example-group-1": {
+        "arn:aws:iam::aws:policy/AdministratorAccess": [
+            {
+                "Effect": "Allow",
+                "Action": "*",
+                "Resource": "*",
+            },
+        ],
+    },
 }
 
 
@@ -271,11 +345,17 @@ def test_map_permissions(neo4j_session):
     cartography.intel.aws.iam, "get_role_list_data", return_value=GET_ROLE_LIST_DATA
 )
 @patch.object(
-    cartography.intel.aws.iam, "get_group_managed_policy_data", return_value={}
+    cartography.intel.aws.iam,
+    "get_group_managed_policy_data",
+    return_value=GET_GROUP_MANAGED_POLICY_DATA,
 )
-@patch.object(cartography.intel.aws.iam, "get_group_policy_data", return_value={})
 @patch.object(
-    cartography.intel.aws.iam, "get_group_list_data", return_value={"Groups": []}
+    cartography.intel.aws.iam,
+    "get_group_policy_data",
+    return_value=GET_GROUP_INLINE_POLS_SAMPLE,
+)
+@patch.object(
+    cartography.intel.aws.iam, "get_group_list_data", return_value=LIST_GROUPS
 )
 @patch.object(
     cartography.intel.aws.iam,
@@ -323,6 +403,8 @@ def test_sync_iam(
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:role/ServiceRole"),
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:role/ElasticacheAutoscale"),
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:role/sftp-LambdaExecutionRole-1234"),
+        (TEST_ACCOUNT_ID, "arn:aws:iam::000000000000:group/example-group-0"),
+        (TEST_ACCOUNT_ID, "arn:aws:iam::000000000000:group/example-group-1"),
         # Additional principals from trust relationships
         ("54321", "arn:aws:iam::54321:root"),
     }
@@ -377,6 +459,27 @@ def test_sync_iam(
         (
             "arn:aws:iam::1234:role/sftp-LambdaExecutionRole-1234",
             "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+        ),
+        # Group policies
+        (
+            "arn:aws:iam::000000000000:group/example-group-0",
+            "arn:aws:iam::000000000000:group/example-group-0/inline_policy/group_inline_policy",
+        ),
+        (
+            "arn:aws:iam::000000000000:group/example-group-0",
+            "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+        ),
+        (
+            "arn:aws:iam::000000000000:group/example-group-0",
+            "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess",
+        ),
+        (
+            "arn:aws:iam::000000000000:group/example-group-1",
+            "arn:aws:iam::000000000000:group/example-group-1/inline_policy/admin_policy",
+        ),
+        (
+            "arn:aws:iam::000000000000:group/example-group-1",
+            "arn:aws:iam::aws:policy/AdministratorAccess",
         ),
     }
     assert (
@@ -456,6 +559,27 @@ def test_sync_iam(
             "arn:aws:iam::aws:policy/AmazonElastiCacheFullAccess",
             "arn:aws:iam::aws:policy/AmazonElastiCacheFullAccess/statement/2",
         ),
+        # Group policy statements
+        (
+            "arn:aws:iam::000000000000:group/example-group-0/inline_policy/group_inline_policy",
+            "arn:aws:iam::000000000000:group/example-group-0/inline_policy/group_inline_policy/statement/VisualEditor0",
+        ),
+        (
+            "arn:aws:iam::000000000000:group/example-group-0/inline_policy/group_inline_policy",
+            "arn:aws:iam::000000000000:group/example-group-0/inline_policy/group_inline_policy/statement/VisualEditor1",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess",
+            "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess/statement/1",
+        ),
+        (
+            "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess",
+            "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess/statement/1",
+        ),
+        (
+            "arn:aws:iam::000000000000:group/example-group-1/inline_policy/admin_policy",
+            "arn:aws:iam::000000000000:group/example-group-1/inline_policy/admin_policy/statement/1",
+        ),
     }
     assert (
         check_rels(
@@ -469,3 +593,6 @@ def test_sync_iam(
         )
         == expected_policy_statement
     )
+    import pdb
+
+    pdb.set_trace()
