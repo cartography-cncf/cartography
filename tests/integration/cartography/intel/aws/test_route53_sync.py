@@ -386,9 +386,6 @@ def test_sync_route53_record_values(mock_get_zones, neo4j_session):
     return_value=GET_ZONES_SAMPLE_RESPONSE,
 )
 def test_sync_route53_zone_properties(mock_get_zones, neo4j_session):
-    """
-    Test that Route53 sync correctly sets zone properties
-    """
     # Arrange - Clean slate
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     boto3_session = MagicMock()
