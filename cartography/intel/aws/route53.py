@@ -21,17 +21,6 @@ logger = logging.getLogger(__name__)
 DnsData = namedtuple(
     "DnsData",
     [
-        "a_records",
-        "alias_records",
-        "cname_records",
-        "ns_records",
-        "name_servers",
-    ],
-)
-
-TransformedDnsData = namedtuple(
-    "TransformedDnsData",
-    [
         "zones",
         "a_records",
         "alias_records",
@@ -310,6 +299,7 @@ def transform_dns_records(
                 )
 
     return DnsData(
+        zones=[],
         a_records=a_records,
         alias_records=alias_records,
         cname_records=cname_records,
@@ -320,7 +310,7 @@ def transform_dns_records(
 
 def transform_all_dns_data(
     zones: list[tuple[dict[str, Any], list[dict[str, Any]]]],
-) -> TransformedDnsData:
+) -> DnsData:
     """
     Transform all DNS data into flat lists for loading.
     Returns: (zones, a_records, alias_records, cname_records, ns_records)
@@ -352,7 +342,7 @@ def transform_all_dns_data(
         all_ns_records.extend(dns_data.ns_records)
         all_name_servers.extend(dns_data.name_servers)
 
-    return TransformedDnsData(
+    return DnsData(
         zones=transformed_zones,
         a_records=all_a_records,
         alias_records=all_alias_records,
