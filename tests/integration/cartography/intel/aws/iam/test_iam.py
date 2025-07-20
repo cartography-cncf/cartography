@@ -119,6 +119,43 @@ GET_GROUP_MANAGED_POLICY_DATA = {
     },
 }
 
+# Create user inline policy data
+GET_USER_INLINE_POLS_SAMPLE = {
+    "arn:aws:iam::1234:user/user1": {
+        "user1_inline_policy": [
+            {
+                "Sid": "VisualEditor0",
+                "Effect": "Allow",
+                "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:DeleteItem",
+                ],
+                "Resource": "arn:aws:dynamodb:us-east-1:1234:table/user1-table",
+            },
+            {
+                "Sid": "VisualEditor1",
+                "Effect": "Allow",
+                "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                ],
+                "Resource": "arn:aws:s3:::user1-bucket/*",
+            },
+        ],
+    },
+    "arn:aws:iam::1234:user/user2": {
+        "user2_admin_policy": [
+            {
+                "Effect": "Allow",
+                "Action": "*",
+                "Resource": "*",
+            },
+        ],
+    },
+    "arn:aws:iam::1234:user/user3": {},
+}
+
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
@@ -362,7 +399,11 @@ def test_map_permissions(neo4j_session):
     "get_user_managed_policy_data",
     return_value=GET_USER_MANAGED_POLS_SAMPLE,
 )
-@patch.object(cartography.intel.aws.iam, "get_user_policy_data", return_value={})
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_user_policy_data",
+    return_value=GET_USER_INLINE_POLS_SAMPLE,
+)
 @patch.object(
     cartography.intel.aws.iam, "get_user_list_data", return_value=GET_USER_LIST_DATA
 )
@@ -429,6 +470,14 @@ def test_sync_iam(
         (
             "arn:aws:iam::1234:user/user1",
             "arn:aws:iam::aws:policy/AWSLambda_FullAccess",
+        ),
+        (
+            "arn:aws:iam::1234:user/user1",
+            "arn:aws:iam::1234:user/user1/inline_policy/user1_inline_policy",
+        ),
+        (
+            "arn:aws:iam::1234:user/user2",
+            "arn:aws:iam::1234:user/user2/inline_policy/user2_admin_policy",
         ),
         ("arn:aws:iam::1234:user/user3", "arn:aws:iam::aws:policy/AdministratorAccess"),
         # Role policies
@@ -526,6 +575,19 @@ def test_sync_iam(
             "arn:aws:iam::aws:policy/AdministratorAccess",
             "arn:aws:iam::aws:policy/AdministratorAccess/statement/1",
         ),
+        # User inline policy statements
+        (
+            "arn:aws:iam::1234:user/user1/inline_policy/user1_inline_policy",
+            "arn:aws:iam::1234:user/user1/inline_policy/user1_inline_policy/statement/VisualEditor0",
+        ),
+        (
+            "arn:aws:iam::1234:user/user1/inline_policy/user1_inline_policy",
+            "arn:aws:iam::1234:user/user1/inline_policy/user1_inline_policy/statement/VisualEditor1",
+        ),
+        (
+            "arn:aws:iam::1234:user/user2/inline_policy/user2_admin_policy",
+            "arn:aws:iam::1234:user/user2/inline_policy/user2_admin_policy/statement/1",
+        ),
         # Role policy statements
         (
             "arn:aws:iam::1234:role/ServiceRole/inline_policy/ServiceRole",
@@ -593,6 +655,3 @@ def test_sync_iam(
         )
         == expected_policy_statement
     )
-    import pdb
-
-    pdb.set_trace()
