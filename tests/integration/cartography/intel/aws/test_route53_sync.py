@@ -49,6 +49,12 @@ def test_sync_route53(mock_get_zones, neo4j_session):
     )
 
     # Assert
+    assert check_nodes(
+        neo4j_session, "AWSDNSZone", ["zoneid", "name", "privatezone"]
+    ) == {
+        ("/hostedzone/HOSTED_ZONE", "example.com", False),
+    }, "DNS Zones don't exist"
+
     assert check_nodes(neo4j_session, "AWSDNSZone", ["zoneid", "name"]) == {
         ("/hostedzone/HOSTED_ZONE", "example.com"),
     }, "DNS Zones don't exist"
@@ -182,7 +188,6 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
         """,
         update_tag=TEST_UPDATE_TAG,
     )
-
     neo4j_session.run(
         """
         MERGE (ec2:EC2Instance {id: "i-1234567890abcdef0", publicdnsname: "hello.what.example.com"})
@@ -295,7 +300,7 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    # Pre-create a parent zone that the test zone should be a sub-zone of
+    # Pre-create a sub-zone
     neo4j_session.run(
         """
         MERGE (subzone:AWSDNSZone {id: "subzone", zoneid: "subzone", name: "example.com"})
@@ -304,7 +309,7 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    # Pre-create a name server that points to the parent zone
+    # Pre-create a name server that points to the sub-zone
     neo4j_session.run(
         """
         MERGE (ns:NameServer {id: "ec2-1-2-3-4.us-east-2.compute.amazonaws.com"})
@@ -324,6 +329,8 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
+
+    # Assert - Sub-zone relationship should be created
     assert check_rels(
         neo4j_session,
         "AWSDNSZone",
@@ -335,75 +342,3 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
     ) == {
         ("subzone", "/hostedzone/HOSTED_ZONE"),
     }, "Sub-zone relationship should be created"
-
-
-@patch.object(
-    cartography.intel.aws.route53,
-    "get_zones",
-    return_value=GET_ZONES_SAMPLE_RESPONSE,
-)
-def test_sync_route53_record_values(mock_get_zones, neo4j_session):
-    """
-    Test that Route53 sync correctly sets record values
-    """
-    # Arrange
-    boto3_session = MagicMock()
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-
-    # Act
-    sync(
-        neo4j_session,
-        boto3_session,
-        [TEST_REGION],
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    # Assert - Check specific record values using check_nodes
-    assert check_nodes(neo4j_session, "AWSDNSRecord", ["id", "value"]) == {
-        ("/hostedzone/HOSTED_ZONE/example.com/A", "1.2.3.4"),
-        # NS records don't have a value, they have one or more name servers attached to them
-        ("/hostedzone/HOSTED_ZONE/example.com/NS", None),
-        (
-            "/hostedzone/HOSTED_ZONE/_b6e76e6a1b6853211abcdef123454.example.com/CNAME",
-            "_1f9ee9f5c4304947879ee77d0a995cc9.something.something.aws",
-        ),
-        (
-            "/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS",
-            "myawesomeloadbalancer.amazonaws.com",
-        ),
-        (
-            "/hostedzone/HOSTED_ZONE/www.example.com/WEIGHTED_CNAME",
-            "hello.what.example.com",
-        ),
-    }
-
-
-@patch.object(
-    cartography.intel.aws.route53,
-    "get_zones",
-    return_value=GET_ZONES_SAMPLE_RESPONSE,
-)
-def test_sync_route53_zone_properties(mock_get_zones, neo4j_session):
-    # Arrange - Clean slate
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-    boto3_session = MagicMock()
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-
-    # Act
-    sync(
-        neo4j_session,
-        boto3_session,
-        [TEST_REGION],
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    # Assert - Check zone properties using check_nodes with exact values
-    assert check_nodes(
-        neo4j_session, "AWSDNSZone", ["zoneid", "name", "privatezone"]
-    ) == {
-        ("/hostedzone/HOSTED_ZONE", "example.com", False),
-    }
