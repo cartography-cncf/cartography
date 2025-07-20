@@ -176,6 +176,23 @@ class AWSDNSRecordToDNSRecordRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSDNSRecordToIpRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSDNSRecordToIpRel(CartographyRelSchema):
+    target_node_label: str = "Ip"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("ip_addresses", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DNS_POINTS_TO"
+    properties: AWSDNSRecordToIpRelProperties = AWSDNSRecordToIpRelProperties()
+
+
 class AWSDNSRecordSchema(CartographyNodeSchema):
     label: str = "AWSDNSRecord"
     properties: AWSDNSRecordNodeProperties = AWSDNSRecordNodeProperties()
@@ -192,5 +209,6 @@ class AWSDNSRecordSchema(CartographyNodeSchema):
             AWSDNSRecordToESDomainRel(),
             AWSDNSRecordToDNSRecordRel(),
             AWSDNSRecordToZoneRel(),
+            AWSDNSRecordToIpRel(),
         ]
     )

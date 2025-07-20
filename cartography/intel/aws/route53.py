@@ -112,17 +112,17 @@ def transform_record_set(
         else:
             # this is a real A record
             # loop and add each value (IP address) to a comma separated string
-            # don't forget to trim that trailing comma!
-            # TODO can this be replaced with a string join?
-            value = ""
-            for a_value in record_set["ResourceRecords"]:
-                value = value + a_value["Value"] + ","
+            # TODO if there are many IPs, this string will be long. we should change this.
+            ip_addresses = [record["Value"] for record in record_set["ResourceRecords"]]
+            value = ",".join(ip_addresses)
 
             return {
                 "name": name,
                 "type": "A",
                 "zoneid": zone_id,
-                "value": value[:-1],
+                # Include the IPs for relationships
+                "ip_addresses": ip_addresses,
+                "value": value,
                 "id": _create_dns_record_id(zone_id, name, "A"),
             }
     # This should never happen since we only call this for A and CNAME records,
@@ -205,6 +205,8 @@ def transform_all_dns_data(
 
                 if transformed_rs["type"] == "A":
                     all_a_records.append(transformed_rs)
+                    # TODO consider creating IPs as a first-class node from here.
+                    # Right now we just match on them from the A record.
                 elif transformed_rs["type"] == "ALIAS":
                     all_alias_records.append(transformed_rs)
                 elif transformed_rs["type"] == "CNAME":
