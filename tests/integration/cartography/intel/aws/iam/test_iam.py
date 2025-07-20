@@ -10,152 +10,19 @@ from cartography.config import Config
 from cartography.intel.aws.iam import sync
 from cartography.sync import build_default_sync
 from tests.data.aws.iam import LIST_GROUPS
+from tests.data.aws.iam.group_policies import GET_GROUP_INLINE_POLS_SAMPLE
+from tests.data.aws.iam.group_policies import GET_GROUP_MANAGED_POLICY_DATA
+from tests.data.aws.iam.role_inline_policies import GET_ROLE_INLINE_POLS_SAMPLE
 from tests.data.aws.iam.role_policies import (
     ANOTHER_GET_ROLE_LIST_DATASET as GET_ROLE_LIST_DATA,
 )
 from tests.data.aws.iam.role_policies import GET_ROLE_MANAGED_POLICY_DATA
+from tests.data.aws.iam.user_inline_policies import GET_USER_INLINE_POLS_SAMPLE
 from tests.data.aws.iam.user_policies import GET_USER_LIST_DATA
 from tests.data.aws.iam.user_policies import GET_USER_MANAGED_POLS_SAMPLE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
-
-# Create inline policy data that matches the roles in ANOTHER_GET_ROLE_LIST_DATASET
-GET_ROLE_INLINE_POLS_SAMPLE = {
-    "arn:aws:iam::1234:role/ServiceRole": {
-        "ServiceRole": [
-            {
-                "Sid": "VisualEditor0",
-                "Effect": "Allow",
-                "Action": [
-                    "iam:ListPolicies",
-                    "iam:GetAccountSummary",
-                    "iam:ListAccountAliases",
-                    "iam:GenerateServiceLastAccessedDetails",
-                    "iam:ListRoles",
-                    "iam:ListUsers",
-                    "iam:ListGroups",
-                    "iam:GetServiceLastAccessedDetails",
-                    "iam:ListRolePolicies",
-                ],
-                "Resource": "*",
-            },
-        ],
-    },
-    "arn:aws:iam::1234:role/ElasticacheAutoscale": {},
-    "arn:aws:iam::1234:role/sftp-LambdaExecutionRole-1234": {},
-}
-
-# Create group policy data that matches the groups in LIST_GROUPS
-GET_GROUP_INLINE_POLS_SAMPLE = {
-    "arn:aws:iam::000000000000:group/example-group-0": {
-        "group_inline_policy": [
-            {
-                "Sid": "VisualEditor0",
-                "Effect": "Allow",
-                "Action": [
-                    "s3:GetObject",
-                    "s3:ListBucket",
-                    "s3:PutObject",
-                ],
-                "Resource": [
-                    "arn:aws:s3:::example-bucket",
-                    "arn:aws:s3:::example-bucket/*",
-                ],
-            },
-            {
-                "Sid": "VisualEditor1",
-                "Effect": "Allow",
-                "Action": [
-                    "ec2:DescribeInstances",
-                    "ec2:DescribeSecurityGroups",
-                ],
-                "Resource": "*",
-            },
-        ],
-    },
-    "arn:aws:iam::000000000000:group/example-group-1": {
-        "admin_policy": [
-            {
-                "Effect": "Allow",
-                "Action": "*",
-                "Resource": "*",
-            },
-        ],
-    },
-}
-
-GET_GROUP_MANAGED_POLICY_DATA = {
-    "arn:aws:iam::000000000000:group/example-group-0": {
-        "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess": [
-            {
-                "Effect": "Allow",
-                "Action": [
-                    "s3:GetObject",
-                    "s3:ListBucket",
-                ],
-                "Resource": "*",
-            },
-        ],
-        "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess": [
-            {
-                "Effect": "Allow",
-                "Action": [
-                    "ec2:Describe*",
-                    "elasticloadbalancing:Describe*",
-                ],
-                "Resource": "*",
-            },
-        ],
-    },
-    "arn:aws:iam::000000000000:group/example-group-1": {
-        "arn:aws:iam::aws:policy/AdministratorAccess": [
-            {
-                "Effect": "Allow",
-                "Action": "*",
-                "Resource": "*",
-            },
-        ],
-    },
-}
-
-# Create user inline policy data
-GET_USER_INLINE_POLS_SAMPLE = {
-    "arn:aws:iam::1234:user/user1": {
-        "user1_inline_policy": [
-            {
-                "Sid": "VisualEditor0",
-                "Effect": "Allow",
-                "Action": [
-                    "dynamodb:GetItem",
-                    "dynamodb:PutItem",
-                    "dynamodb:DeleteItem",
-                ],
-                "Resource": "arn:aws:dynamodb:us-east-1:1234:table/user1-table",
-            },
-            {
-                "Sid": "VisualEditor1",
-                "Effect": "Allow",
-                "Action": [
-                    "s3:GetObject",
-                    "s3:PutObject",
-                ],
-                "Resource": "arn:aws:s3:::user1-bucket/*",
-            },
-        ],
-    },
-    "arn:aws:iam::1234:user/user2": {
-        "user2_admin_policy": [
-            {
-                "Effect": "Allow",
-                "Action": "*",
-                "Resource": "*",
-            },
-        ],
-    },
-    "arn:aws:iam::1234:user/user3": {},
-}
-
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
