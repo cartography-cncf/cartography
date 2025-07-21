@@ -303,7 +303,39 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return user_data
 
 
-def transform_groups(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+# TODO clean this up a bit
+@timeit
+def get_group_memberships(
+    boto3_session: boto3.Session, groups: list[dict[str, Any]]
+) -> dict[str, list[str]]:
+    """
+    Get membership data for all groups.
+    Returns a dict mapping group ARN to list of user ARNs.
+    """
+    memberships = {}
+    for group in groups:
+        try:
+            membership_data = get_group_membership_data(
+                boto3_session, group["GroupName"]
+            )
+            if membership_data and "Users" in membership_data:
+                memberships[group["Arn"]] = [
+                    user["Arn"] for user in membership_data["Users"]
+                ]
+            else:
+                memberships[group["Arn"]] = []
+        except Exception as e:
+            logger.warning(
+                f"Could not get membership data for group {group['GroupName']}: {e}"
+            )
+            memberships[group["Arn"]] = []
+
+    return memberships
+
+
+def transform_groups(
+    groups: list[dict[str, Any]], group_memberships: dict[str, list[str]]
+) -> list[dict[str, Any]]:
     """
     Transform AWS IAM group data for schema-based loading.
     """
@@ -315,6 +347,7 @@ def transform_groups(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "name": group["GroupName"],
             "path": group["Path"],
             "createdate": str(group["CreateDate"]),
+            "user_arns": group_memberships.get(group["Arn"], []),
         }
         group_data.append(group_record)
 
@@ -454,36 +487,6 @@ def load_roles(
                         SpnAccountId=get_account_from_arn(principal_value),
                         aws_update_tag=aws_update_tag,
                     )
-
-
-@timeit
-def load_group_memberships(
-    neo4j_session: neo4j.Session,
-    group_memberships: Dict,
-    aws_update_tag: int,
-) -> None:
-    ingest_membership = """
-    MATCH (group:AWSGroup{arn: $GroupArn})
-    WITH group
-    MATCH (user:AWSUser{arn: $PrincipalArn})
-    MERGE (user)-[r:MEMBER_AWS_GROUP]->(group)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    WITH user, group
-    MATCH (group)-[:POLICY]->(policy:AWSPolicy)
-    MERGE (user)-[r2:POLICY]->(policy)
-    SET r2.lastupdated = $aws_update_tag
-    """
-
-    for group_arn, membership_data in group_memberships.items():
-        for info in membership_data.get("Users", []):
-            principal_arn = info["Arn"]
-            neo4j_session.run(
-                ingest_membership,
-                GroupArn=group_arn,
-                PrincipalArn=principal_arn,
-                aws_update_tag=aws_update_tag,
-            )
 
 
 @timeit
@@ -849,7 +852,8 @@ def sync_groups(
 ) -> None:
     logger.info("Syncing IAM groups for account '%s'.", current_aws_account_id)
     data = get_group_list_data(boto3_session)
-    group_data = transform_groups(data["Groups"])
+    group_memberships = get_group_memberships(boto3_session, data["Groups"])
+    group_data = transform_groups(data["Groups"], group_memberships)
     load_groups(neo4j_session, group_data, current_aws_account_id, aws_update_tag)
 
     sync_groups_inline_policies(boto3_session, data, neo4j_session, aws_update_tag)
@@ -981,35 +985,6 @@ def sync_role_inline_policies(
 
 
 @timeit
-def sync_group_memberships(
-    neo4j_session: neo4j.Session,
-    boto3_session: boto3.Session,
-    current_aws_account_id: str,
-    aws_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    logger.info(
-        "Syncing IAM group membership for account '%s'.",
-        current_aws_account_id,
-    )
-    query = (
-        "MATCH (group:AWSGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ACCOUNT_ID}) "
-        "return group.name as name, group.arn as arn;"
-    )
-    groups = neo4j_session.run(query, AWS_ACCOUNT_ID=current_aws_account_id)
-    groups_membership = {
-        group["arn"]: get_group_membership_data(boto3_session, group["name"])
-        for group in groups
-    }
-    load_group_memberships(neo4j_session, groups_membership, aws_update_tag)
-    run_cleanup_job(
-        "aws_import_groups_membership_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
-
-
-@timeit
 def sync_user_access_keys(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
@@ -1064,13 +1039,6 @@ def sync(
         common_job_parameters,
     )
     sync_roles(
-        neo4j_session,
-        boto3_session,
-        current_aws_account_id,
-        update_tag,
-        common_job_parameters,
-    )
-    sync_group_memberships(
         neo4j_session,
         boto3_session,
         current_aws_account_id,

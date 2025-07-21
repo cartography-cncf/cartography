@@ -76,8 +76,18 @@ def test_load_users(neo4j_session):
 
 
 def test_load_groups(neo4j_session):
+    # Create a mock boto3 session for the test
+    mock_boto3_session = MagicMock()
+    mock_boto3_session.client.return_value.get_group.return_value = {"Users": []}
+
+    # Get group memberships
+    group_memberships = cartography.intel.aws.iam.get_group_memberships(
+        mock_boto3_session, tests.data.aws.iam.LIST_GROUPS["Groups"]
+    )
+
+    # Transform groups with membership data
     group_data = cartography.intel.aws.iam.transform_groups(
-        tests.data.aws.iam.LIST_GROUPS["Groups"]
+        tests.data.aws.iam.LIST_GROUPS["Groups"], group_memberships
     )
 
     cartography.intel.aws.iam.load_groups(
