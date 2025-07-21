@@ -863,8 +863,8 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
     ```
 
-### CloudWatchLogMetricFilter
-Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeMetricFilters.html)
+### CloudWatchMetricAlarm
+Representation of an AWS [CloudWatch Metric Alarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarms.html)
 
 | Field | Description |
 |-------|-------------|
@@ -884,8 +884,8 @@ Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.
     (AWSAccount)-[RESOURCE]->(CloudWatchMetricAlarm)
     ```
 
-### CloudWatchMetricAlarm
-Representation of an AWS [CloudWatch Metric Alarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarms.html)
+### CloudWatchLogMetricFilter
+Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeMetricFilters.html)
 
 | Field | Description |
 |-------|-------------|
