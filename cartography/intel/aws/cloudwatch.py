@@ -81,7 +81,7 @@ def transform_metric_filters(
 def get_cloudwatch_metric_alarms(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client("cloudwatch", region_name=region)
+    client = boto3_session.client("cloudwatch", region_name=region, config=get_botocore_config())
     paginator = client.get_paginator("describe_alarms")
     alarms = []
     for page in paginator.paginate():
