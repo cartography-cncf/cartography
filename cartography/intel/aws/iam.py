@@ -808,68 +808,6 @@ def load_policy_data(
 
 
 @timeit
-def load_policy_data_with_schema(
-    neo4j_session: neo4j.Session,
-    principal_policy_map: Dict[str, Dict[str, list[dict[str, Any]]]],
-    policy_type: str,
-    aws_update_tag: int,
-) -> None:
-    """
-    Load policies using the modern data model schema.
-    This function maintains the same interface as the old load_policy_data function
-    but uses the new AWSPolicySchema for better type safety and consistency.
-    """
-    policy_data: list[dict[str, Any]] = []
-
-    for principal_arn, policy_statement_map in principal_policy_map.items():
-        logger.debug(f"Loading policies for principal {principal_arn}")
-        for policy_key, statements in policy_statement_map.items():
-            policy_name = (
-                policy_key
-                if policy_type == PolicyType.inline.value
-                else get_policy_name_from_arn(policy_key)
-            )
-            policy_id = (
-                transform_policy_id(
-                    principal_arn,
-                    policy_type,
-                    policy_key,
-                )
-                if policy_type == PolicyType.inline.value
-                else policy_key
-            )
-
-            # Transform to schema format
-            policy_record = {
-                "id": policy_id,
-                "name": policy_name,
-                "type": policy_type,
-                "arn": policy_key if policy_type == PolicyType.managed.value else None,
-                "createdate": None,  # Not available in current data
-                "principal_arn": principal_arn,  # For relationship
-            }
-            policy_data.append(policy_record)
-
-    # Load policies using schema
-    if policy_data:
-        load(
-            neo4j_session,
-            AWSPolicySchema(),
-            policy_data,
-            lastupdated=aws_update_tag,
-        )
-
-    # Load policy statements (unchanged)
-    for principal_arn, policy_statement_map in principal_policy_map.items():
-        for policy_key, statements in policy_statement_map.items():
-            load_policy_statements(
-                neo4j_session,
-                statements,
-                aws_update_tag,
-            )
-
-
-@timeit
 def sync_users(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
