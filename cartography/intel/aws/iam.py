@@ -14,6 +14,7 @@ from cartography.intel.aws.permission_relationships import parse_statement_node
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
 from cartography.models.aws.iam.policy import AWSPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
+from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -282,6 +283,25 @@ def get_account_access_key_data(
     return access_keys
 
 
+def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Transform AWS IAM user data for schema-based loading.
+    """
+    user_data = []
+    for user in users:
+        user_record = {
+            "arn": user["Arn"],
+            "userid": user["UserId"],
+            "name": user["UserName"],
+            "path": user["Path"],
+            "createdate": str(user["CreateDate"]),
+            "passwordlastused": str(user.get("PasswordLastUsed", "")),
+        }
+        user_data.append(user_record)
+
+    return user_data
+
+
 @timeit
 def load_users(
     neo4j_session: neo4j.Session,
@@ -289,31 +309,13 @@ def load_users(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    ingest_user = """
-    MERGE (unode:AWSUser{arn: $ARN})
-    ON CREATE SET unode:AWSPrincipal, unode.userid = $USERID, unode.firstseen = timestamp(),
-    unode.createdate = $CREATE_DATE
-    SET unode.name = $USERNAME, unode.path = $PATH, unode.passwordlastused = $PASSWORD_LASTUSED,
-    unode.lastupdated = $aws_update_tag
-    WITH unode
-    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (aa)-[r:RESOURCE]->(unode)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-    logger.info(f"Loading {len(users)} IAM users.")
-    for user in users:
-        neo4j_session.run(
-            ingest_user,
-            ARN=user["Arn"],
-            USERID=user["UserId"],
-            CREATE_DATE=str(user["CreateDate"]),
-            USERNAME=user["UserName"],
-            PATH=user["Path"],
-            PASSWORD_LASTUSED=str(user.get("PasswordLastUsed", "")),
-            AWS_ACCOUNT_ID=current_aws_account_id,
-            aws_update_tag=aws_update_tag,
-        )
+    load(
+        neo4j_session,
+        AWSUserSchema(),
+        users,
+        lastupdated=aws_update_tag,
+        AWS_ACCOUNT_ID=current_aws_account_id,
+    )
 
 
 @timeit
@@ -876,7 +878,8 @@ def sync_users(
 ) -> None:
     logger.info("Syncing IAM users for account '%s'.", current_aws_account_id)
     data = get_user_list_data(boto3_session)
-    load_users(neo4j_session, data["Users"], current_aws_account_id, aws_update_tag)
+    user_data = transform_users(data["Users"])
+    load_users(neo4j_session, user_data, current_aws_account_id, aws_update_tag)
 
     sync_user_inline_policies(boto3_session, data, neo4j_session, aws_update_tag)
 

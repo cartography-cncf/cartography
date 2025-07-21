@@ -64,11 +64,12 @@ def _create_base_account(neo4j_session):
 
 def test_load_users(neo4j_session):
     _create_base_account(neo4j_session)
-    data = tests.data.aws.iam.LIST_USERS["Users"]
-
+    user_data = cartography.intel.aws.iam.transform_users(
+        tests.data.aws.iam.LIST_USERS["Users"]
+    )
     cartography.intel.aws.iam.load_users(
         neo4j_session,
-        data,
+        user_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
