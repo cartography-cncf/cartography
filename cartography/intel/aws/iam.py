@@ -9,8 +9,10 @@ from typing import Tuple
 import boto3
 import neo4j
 
+from cartography.client.core.tx import load
 from cartography.intel.aws.permission_relationships import parse_statement_node
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
+from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -33,7 +35,7 @@ def get_policy_name_from_arn(arn: str) -> str:
 
 
 @timeit
-def get_group_policies(boto3_session: boto3.session.Session, group_name: str) -> Dict:
+def get_group_policies(boto3_session: boto3.Session, group_name: str) -> Dict:
     client = boto3_session.client("iam")
     paginator = client.get_paginator("list_group_policies")
     policy_names: List[Dict] = []
@@ -44,7 +46,7 @@ def get_group_policies(boto3_session: boto3.session.Session, group_name: str) ->
 
 @timeit
 def get_group_policy_info(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     group_name: str,
     policy_name: str,
 ) -> Any:
@@ -54,7 +56,7 @@ def get_group_policy_info(
 
 @timeit
 def get_group_membership_data(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     group_name: str,
 ) -> Dict:
     client = boto3_session.client("iam")
@@ -72,7 +74,7 @@ def get_group_membership_data(
 
 @timeit
 def get_group_policy_data(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     group_list: List[Dict],
 ) -> Dict:
     resource_client = boto3_session.resource("iam")
@@ -90,7 +92,7 @@ def get_group_policy_data(
 
 @timeit
 def get_group_managed_policy_data(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     group_list: List[Dict],
 ) -> Dict:
     resource_client = boto3_session.resource("iam")
@@ -108,7 +110,7 @@ def get_group_managed_policy_data(
 
 @timeit
 def get_user_policy_data(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     user_list: List[Dict],
 ) -> Dict:
     resource_client = boto3_session.resource("iam")
@@ -131,7 +133,7 @@ def get_user_policy_data(
 
 @timeit
 def get_user_managed_policy_data(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     user_list: List[Dict],
 ) -> Dict:
     resource_client = boto3_session.resource("iam")
@@ -154,7 +156,7 @@ def get_user_managed_policy_data(
 
 @timeit
 def get_role_policy_data(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     role_list: List[Dict],
 ) -> Dict:
     resource_client = boto3_session.resource("iam")
@@ -177,7 +179,7 @@ def get_role_policy_data(
 
 @timeit
 def get_role_managed_policy_data(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     role_list: List[Dict],
 ) -> Dict:
     resource_client = boto3_session.resource("iam")
@@ -199,7 +201,7 @@ def get_role_managed_policy_data(
 
 
 @timeit
-def get_role_tags(boto3_session: boto3.session.Session) -> List[Dict]:
+def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
     role_list = get_role_list_data(boto3_session)["Roles"]
     resource_client = boto3_session.resource("iam")
     role_tag_data: List[Dict] = []
@@ -221,7 +223,7 @@ def get_role_tags(boto3_session: boto3.session.Session) -> List[Dict]:
 
 
 @timeit
-def get_user_list_data(boto3_session: boto3.session.Session) -> Dict:
+def get_user_list_data(boto3_session: boto3.Session) -> Dict:
     client = boto3_session.client("iam")
 
     paginator = client.get_paginator("list_users")
@@ -232,7 +234,7 @@ def get_user_list_data(boto3_session: boto3.session.Session) -> Dict:
 
 
 @timeit
-def get_group_list_data(boto3_session: boto3.session.Session) -> Dict:
+def get_group_list_data(boto3_session: boto3.Session) -> Dict:
     client = boto3_session.client("iam")
     paginator = client.get_paginator("list_groups")
     groups: List[Dict] = []
@@ -242,7 +244,7 @@ def get_group_list_data(boto3_session: boto3.session.Session) -> Dict:
 
 
 @timeit
-def get_role_list_data(boto3_session: boto3.session.Session) -> Dict:
+def get_role_list_data(boto3_session: boto3.Session) -> Dict:
     client = boto3_session.client("iam")
     paginator = client.get_paginator("list_roles")
     roles: List[Dict] = []
@@ -253,7 +255,7 @@ def get_role_list_data(boto3_session: boto3.session.Session) -> Dict:
 
 @timeit
 def get_account_access_key_data(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     username: str,
 ) -> Dict:
     client = boto3_session.client("iam")
@@ -597,36 +599,58 @@ def ensure_list(obj: Any) -> List[Any]:
     return obj
 
 
-def _transform_policy_statements(statements: Any, policy_id: str) -> List[Dict]:
+def _transform_policy_statements(
+    statements: Any, policy_id: str
+) -> list[dict[str, Any]]:
+    result: List[Dict[str, Any]] = []
     count = 1
+
     if not isinstance(statements, list):
         statements = [statements]
+
     for stmt in statements:
+        # Determine statement ID
         if "Sid" in stmt and stmt["Sid"]:
             statement_id = stmt["Sid"]
         else:
             statement_id = count
             count += 1
 
-        stmt["id"] = f"{policy_id}/statement/{statement_id}"
+        transformed_stmt = {
+            "id": f"{policy_id}/statement/{statement_id}",
+            "policy_id": policy_id,  # For the relationship to AWSPolicy
+            "Effect": stmt.get("Effect"),
+            "Sid": stmt.get("Sid"),
+        }
+
+        # Handle list fields
         if "Resource" in stmt:
-            stmt["Resource"] = ensure_list(stmt["Resource"])
+            transformed_stmt["Resource"] = ensure_list(stmt["Resource"])
         if "Action" in stmt:
-            stmt["Action"] = ensure_list(stmt["Action"])
+            transformed_stmt["Action"] = ensure_list(stmt["Action"])
         if "NotAction" in stmt:
-            stmt["NotAction"] = ensure_list(stmt["NotAction"])
+            transformed_stmt["NotAction"] = ensure_list(stmt["NotAction"])
         if "NotResource" in stmt:
-            stmt["NotResource"] = ensure_list(stmt["NotResource"])
+            transformed_stmt["NotResource"] = ensure_list(stmt["NotResource"])
         if "Condition" in stmt:
-            stmt["Condition"] = json.dumps(ensure_list(stmt["Condition"]))
-    return statements
+            transformed_stmt["Condition"] = json.dumps(ensure_list(stmt["Condition"]))
+
+        result.append(transformed_stmt)
+
+    return result
 
 
-def transform_policy_data(policy_map: Dict, policy_type: str) -> None:
+def transform_policy_data(
+    policy_map: Dict, policy_type: str
+) -> Dict[str, Dict[str, list[dict[str, Any]]]]:
+    transformed_policy_map: Dict[str, Dict[str, list[dict[str, Any]]]] = {}
+
     for principal_arn, policy_statement_map in policy_map.items():
         logger.debug(
             f"Transforming IAM {policy_type} policies for principal {principal_arn}",
         )
+        transformed_policy_map[principal_arn] = {}
+
         for policy_key, statements in policy_statement_map.items():
             policy_id = (
                 transform_policy_id(
@@ -637,10 +661,15 @@ def transform_policy_data(policy_map: Dict, policy_type: str) -> None:
                 if policy_type == PolicyType.inline.value
                 else policy_key
             )
-            policy_statement_map[policy_key] = _transform_policy_statements(
+
+            transformed_statements = _transform_policy_statements(
                 statements,
                 policy_id,
             )
+
+            transformed_policy_map[principal_arn][policy_key] = transformed_statements
+
+    return transformed_policy_map
 
 
 def transform_policy_id(principal_arn: str, policy_type: str, name: str) -> str:
@@ -699,42 +728,21 @@ def load_policy(
 @timeit
 def load_policy_statements(
     neo4j_session: neo4j.Session,
-    policy_id: str,
-    policy_name: str,
-    statements: Any,
+    statements: list[dict[str, Any]],
     aws_update_tag: int,
 ) -> None:
-    ingest_policy_statement = """
-        MATCH (policy:AWSPolicy{id: $PolicyId})
-        WITH policy
-        UNWIND $Statements as statement_data
-        MERGE (statement:AWSPolicyStatement{id: statement_data.id})
-        SET
-        statement.effect = statement_data.Effect,
-        statement.action = statement_data.Action,
-        statement.notaction = statement_data.NotAction,
-        statement.resource = statement_data.Resource,
-        statement.notresource = statement_data.NotResource,
-        statement.condition = statement_data.Condition,
-        statement.sid = statement_data.Sid,
-        statement.lastupdated = $aws_update_tag
-        MERGE (policy)-[r:STATEMENT]->(statement)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-        """
-    neo4j_session.run(
-        ingest_policy_statement,
-        PolicyId=policy_id,
-        PolicyName=policy_name,
-        Statements=statements,
-        aws_update_tag=aws_update_tag,
-    ).consume()
+    load(
+        neo4j_session,
+        AWSPolicyStatementSchema(),
+        statements,
+        lastupdated=aws_update_tag,
+    )
 
 
 @timeit
 def load_policy_data(
     neo4j_session: neo4j.Session,
-    principal_policy_map: Dict[str, Dict[str, Any]],
+    principal_policy_map: Dict[str, Dict[str, list[dict[str, Any]]]],
     policy_type: str,
     aws_update_tag: int,
 ) -> None:
@@ -755,6 +763,7 @@ def load_policy_data(
                 if policy_type == PolicyType.inline.value
                 else policy_key
             )
+
             load_policy(
                 neo4j_session,
                 policy_id,
@@ -763,10 +772,9 @@ def load_policy_data(
                 principal_arn,
                 aws_update_tag,
             )
+
             load_policy_statements(
                 neo4j_session,
-                policy_id,
-                policy_name,
                 statements,
                 aws_update_tag,
             )
@@ -775,7 +783,7 @@ def load_policy_data(
 @timeit
 def sync_users(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
@@ -797,16 +805,18 @@ def sync_users(
 
 @timeit
 def sync_user_managed_policies(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
 ) -> None:
     managed_policy_data = get_user_managed_policy_data(boto3_session, data["Users"])
-    transform_policy_data(managed_policy_data, PolicyType.managed.value)
+    transformed_policy_data = transform_policy_data(
+        managed_policy_data, PolicyType.managed.value
+    )
     load_policy_data(
         neo4j_session,
-        managed_policy_data,
+        transformed_policy_data,
         PolicyType.managed.value,
         aws_update_tag,
     )
@@ -814,16 +824,18 @@ def sync_user_managed_policies(
 
 @timeit
 def sync_user_inline_policies(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
 ) -> None:
     policy_data = get_user_policy_data(boto3_session, data["Users"])
-    transform_policy_data(policy_data, PolicyType.inline.value)
+    transformed_policy_data = transform_policy_data(
+        policy_data, PolicyType.inline.value
+    )
     load_policy_data(
         neo4j_session,
-        policy_data,
+        transformed_policy_data,
         PolicyType.inline.value,
         aws_update_tag,
     )
@@ -832,7 +844,7 @@ def sync_user_inline_policies(
 @timeit
 def sync_groups(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
@@ -853,32 +865,36 @@ def sync_groups(
 
 
 def sync_group_managed_policies(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
 ) -> None:
     managed_policy_data = get_group_managed_policy_data(boto3_session, data["Groups"])
-    transform_policy_data(managed_policy_data, PolicyType.managed.value)
+    transformed_policy_data = transform_policy_data(
+        managed_policy_data, PolicyType.managed.value
+    )
     load_policy_data(
         neo4j_session,
-        managed_policy_data,
+        transformed_policy_data,
         PolicyType.managed.value,
         aws_update_tag,
     )
 
 
 def sync_groups_inline_policies(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
 ) -> None:
     policy_data = get_group_policy_data(boto3_session, data["Groups"])
-    transform_policy_data(policy_data, PolicyType.inline.value)
+    transformed_policy_data = transform_policy_data(
+        policy_data, PolicyType.inline.value
+    )
     load_policy_data(
         neo4j_session,
-        policy_data,
+        transformed_policy_data,
         PolicyType.inline.value,
         aws_update_tag,
     )
@@ -887,7 +903,7 @@ def sync_groups_inline_policies(
 @timeit
 def sync_roles(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
@@ -921,7 +937,7 @@ def sync_roles(
 
 def sync_role_managed_policies(
     current_aws_account_id: str,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
@@ -931,10 +947,12 @@ def sync_role_managed_policies(
         current_aws_account_id,
     )
     managed_policy_data = get_role_managed_policy_data(boto3_session, data["Roles"])
-    transform_policy_data(managed_policy_data, PolicyType.managed.value)
+    transformed_policy_data = transform_policy_data(
+        managed_policy_data, PolicyType.managed.value
+    )
     load_policy_data(
         neo4j_session,
-        managed_policy_data,
+        transformed_policy_data,
         PolicyType.managed.value,
         aws_update_tag,
     )
@@ -942,7 +960,7 @@ def sync_role_managed_policies(
 
 def sync_role_inline_policies(
     current_aws_account_id: str,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
@@ -952,10 +970,12 @@ def sync_role_inline_policies(
         current_aws_account_id,
     )
     inline_policy_data = get_role_policy_data(boto3_session, data["Roles"])
-    transform_policy_data(inline_policy_data, PolicyType.inline.value)
+    transformed_policy_data = transform_policy_data(
+        inline_policy_data, PolicyType.inline.value
+    )
     load_policy_data(
         neo4j_session,
-        inline_policy_data,
+        transformed_policy_data,
         PolicyType.inline.value,
         aws_update_tag,
     )
@@ -964,7 +984,7 @@ def sync_role_inline_policies(
 @timeit
 def sync_group_memberships(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
@@ -993,7 +1013,7 @@ def sync_group_memberships(
 @timeit
 def sync_user_access_keys(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     current_aws_account_id: str,
     aws_update_tag: int,
     common_job_parameters: Dict,
@@ -1021,7 +1041,7 @@ def sync_user_access_keys(
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     regions: List[str],
     current_aws_account_id: str,
     update_tag: int,

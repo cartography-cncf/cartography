@@ -7,6 +7,7 @@ import cartography.intel.aws.permission_relationships
 import tests.data.aws.iam
 from cartography.cli import CLI
 from cartography.config import Config
+from cartography.intel.aws.iam import _transform_policy_statements
 from cartography.intel.aws.iam import sync
 from cartography.sync import build_default_sync
 from tests.data.aws.iam import LIST_GROUPS
@@ -199,11 +200,13 @@ def test_load_inline_policy(neo4j_session):
 
 
 def test_load_inline_policy_data(neo4j_session):
+    transformed_stmts = _transform_policy_statements(
+        tests.data.aws.iam.INLINE_POLICY_STATEMENTS,
+        "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
+    )
     cartography.intel.aws.iam.load_policy_statements(
         neo4j_session,
-        "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
-        "group_inline_policy",
-        tests.data.aws.iam.INLINE_POLICY_STATEMENTS,
+        transformed_stmts,
         TEST_UPDATE_TAG,
     )
 
@@ -216,7 +219,6 @@ def test_map_permissions(neo4j_session):
     """,
         AccountId=TEST_ACCOUNT_ID,
     )
-
     cartography.intel.aws.permission_relationships.sync(
         neo4j_session,
         mock.MagicMock,
