@@ -870,6 +870,27 @@ Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
+| id | The ARN of the CloudWatch Metric Alarm |
+| arn | The ARN of the CloudWatch Metric Alarm |
+| region | The region of the CloudWatch Metric Alarm |
+| alarm_name | The name of the alarm |
+| state_value | The state value for the alarm |
+| state_reason | An explanation for the alarm state, in text format |
+| actions_enabled | Indicates whether actions should be executed during any changes to the alarm state |
+| comparison_operator | The arithmetic operation to use when comparing the specified statistic and threshold. The specified statistic value is used as the first operand |
+#### Relationships
+- CloudWatch Metric Alarms are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchMetricAlarm)
+    ```
+
+### CloudWatchMetricAlarm
+Representation of an AWS [CloudWatch Metric Alarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarms.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
 | id | Ensures that the id field is a unique combination of logGroupName and filterName |
 | arn | Ensures that the arn field is a unique combination of logGroupName and filterName |
 | region | The region of the CloudWatch Log Metric Filter |
