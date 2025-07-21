@@ -326,8 +326,16 @@ def test_sync_iam(
     )
 
     # Assert
-    # AWSAccount -> AWSPrincipal
-    expected_account_principal = {
+    # Assert: AWSAccount -> AWSPrincipal
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSPrincipal",
+        "arn",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user1"),
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user2"),
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user3"),
@@ -339,21 +347,17 @@ def test_sync_iam(
         # Additional principals from trust relationships
         ("54321", "arn:aws:iam::54321:root"),
     }
-    assert (
-        check_rels(
-            neo4j_session,
-            "AWSAccount",
-            "id",
-            "AWSPrincipal",
-            "arn",
-            "RESOURCE",
-            rel_direction_right=True,
-        )
-        == expected_account_principal
-    )
 
     # AWSPrincipal -> AWSPolicy
-    expected_principal_policy = {
+    assert check_rels(
+        neo4j_session,
+        "AWSPrincipal",
+        "arn",
+        "AWSPolicy",
+        "id",
+        "POLICY",
+        rel_direction_right=True,
+    ) == {
         # User policies
         ("arn:aws:iam::1234:user/user1", "arn:aws:iam::1234:policy/user1-user-policy"),
         ("arn:aws:iam::1234:user/user1", "arn:aws:iam::aws:policy/AmazonS3FullAccess"),
@@ -421,21 +425,17 @@ def test_sync_iam(
             "arn:aws:iam::aws:policy/AdministratorAccess",
         ),
     }
-    assert (
-        check_rels(
-            neo4j_session,
-            "AWSPrincipal",
-            "arn",
-            "AWSPolicy",
-            "id",
-            "POLICY",
-            rel_direction_right=True,
-        )
-        == expected_principal_policy
-    )
 
     # AWSPolicy -> AWSPolicyStatement
-    expected_policy_statement = {
+    assert check_rels(
+        neo4j_session,
+        "AWSPolicy",
+        "id",
+        "AWSPolicyStatement",
+        "id",
+        "STATEMENT",
+        rel_direction_right=True,
+    ) == {
         # User policy statements
         (
             "arn:aws:iam::1234:policy/user1-user-policy",
@@ -533,43 +533,21 @@ def test_sync_iam(
             "arn:aws:iam::000000000000:group/example-group-1/inline_policy/admin_policy/statement/1",
         ),
     }
-    assert (
-        check_rels(
-            neo4j_session,
-            "AWSPolicy",
-            "id",
-            "AWSPolicyStatement",
-            "id",
-            "STATEMENT",
-            rel_direction_right=True,
-        )
-        == expected_policy_statement
-    )
 
-    # Check that access key nodes were created
-    expected_access_keys = {
+    # Assert: Check that access key nodes were created
+    assert check_nodes(
+        neo4j_session,
+        "AccountAccessKey",
+        ["accesskeyid", "id"],
+    ) == {
         ("AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE"),
         ("AKIAI44QH8DHBEXAMPLE", "AKIAI44QH8DHBEXAMPLE"),
         ("AKIAJQ5CMEXAMPLE", "AKIAJQ5CMEXAMPLE"),
         ("AKIAEXAMPLE123", "AKIAEXAMPLE123"),
     }
 
-    actual_access_keys = check_nodes(
-        neo4j_session,
-        "AccountAccessKey",
-        ["accesskeyid", "id"],
-    )
-    assert actual_access_keys == expected_access_keys
-
-    # Check that relationships were created between access keys and users
-    expected_access_key_relationships = {
-        ("AKIAIOSFODNN7EXAMPLE", "arn:aws:iam::1234:user/user1"),
-        ("AKIAI44QH8DHBEXAMPLE", "arn:aws:iam::1234:user/user1"),
-        ("AKIAJQ5CMEXAMPLE", "arn:aws:iam::1234:user/user2"),
-        ("AKIAEXAMPLE123", "arn:aws:iam::1234:user/user3"),
-    }
-
-    actual_access_key_relationships = check_rels(
+    # Assert: Check that relationships were created between access keys and users
+    assert check_rels(
         neo4j_session,
         "AccountAccessKey",
         "accesskeyid",
@@ -577,5 +555,9 @@ def test_sync_iam(
         "arn",
         "AWS_ACCESS_KEY",
         rel_direction_right=False,
-    )
-    assert actual_access_key_relationships == expected_access_key_relationships
+    ) == {
+        ("AKIAIOSFODNN7EXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAI44QH8DHBEXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAJQ5CMEXAMPLE", "arn:aws:iam::1234:user/user2"),
+        ("AKIAEXAMPLE123", "arn:aws:iam::1234:user/user3"),
+    }
