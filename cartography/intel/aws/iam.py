@@ -10,8 +10,10 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.intel.aws.permission_relationships import parse_statement_node
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
+from cartography.models.aws.iam.access_key import AccountAccessKeySchema
 from cartography.models.aws.iam.group import AWSGroupSchema
 from cartography.models.aws.iam.policy import AWSPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
@@ -257,6 +259,30 @@ def get_role_list_data(boto3_session: boto3.Session) -> Dict:
 
 
 @timeit
+def get_user_access_keys_data(
+    boto3_session: boto3.Session,
+    users: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Get access key data for all users.
+    Returns a dict mapping user ARN to list of access key data.
+    """
+    user_access_keys = {}
+
+    for user in users:
+        username = user["name"]
+        user_arn = user["arn"]
+
+        access_keys = get_account_access_key_data(boto3_session, username)
+        if access_keys and "AccessKeyMetadata" in access_keys:
+            user_access_keys[user_arn] = access_keys["AccessKeyMetadata"]
+        else:
+            user_access_keys[user_arn] = []
+
+    return user_access_keys
+
+
+@timeit
 def get_account_access_key_data(
     boto3_session: boto3.Session,
     username: str,
@@ -354,6 +380,30 @@ def transform_groups(
     return group_data
 
 
+def transform_access_keys(
+    user_access_keys: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """
+    Transform AWS IAM access key data for schema-based loading.
+    """
+    access_key_data = []
+    for user_arn, access_keys in user_access_keys.items():
+        for access_key in access_keys:
+            if access_key.get("AccessKeyId"):
+                access_key_record = {
+                    "accesskeyid": access_key["AccessKeyId"],
+                    "createdate": str(access_key["CreateDate"]),
+                    "status": access_key["Status"],
+                    "lastuseddate": str(access_key.get("LastUsedDate", "")),
+                    "lastusedservice": access_key.get("LastUsedService", ""),
+                    "lastusedregion": access_key.get("LastUsedRegion", ""),
+                    "user_arn": user_arn,  # For the sub-resource relationship
+                }
+                access_key_data.append(access_key_record)
+
+    return access_key_data
+
+
 @timeit
 def load_users(
     neo4j_session: neo4j.Session,
@@ -383,6 +433,20 @@ def load_groups(
         groups,
         lastupdated=aws_update_tag,
         AWS_ACCOUNT_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def load_access_keys(
+    neo4j_session: neo4j.Session,
+    access_keys: List[Dict],
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AccountAccessKeySchema(),
+        access_keys,
+        lastupdated=aws_update_tag,
     )
 
 
@@ -562,45 +626,6 @@ def sync_assumerole_relationships(
         neo4j_session,
         common_job_parameters,
     )
-
-
-@timeit
-def load_user_access_keys(
-    neo4j_session: neo4j.Session,
-    user_access_keys: Dict,
-    aws_update_tag: int,
-) -> None:
-    # TODO change the node label to reflect that this is a user access key, not an account access key
-    ingest_account_key = """
-    MATCH (user:AWSUser{arn: $UserARN})
-    WITH user
-    MERGE (key:AccountAccessKey{accesskeyid: $AccessKeyId})
-    ON CREATE SET key.firstseen = timestamp(), key.createdate = $CreateDate
-    SET key.status = $Status,
-        key.lastupdated = $aws_update_tag,
-        key.lastuseddate = $LastUsedDate,
-        key.lastusedservice = $LastUsedService,
-        key.lastusedregion = $LastUsedRegion
-    WITH user,key
-    MERGE (user)-[r:AWS_ACCESS_KEY]->(key)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-
-    for arn, access_keys in user_access_keys.items():
-        for key in access_keys["AccessKeyMetadata"]:
-            if key.get("AccessKeyId"):
-                neo4j_session.run(
-                    ingest_account_key,
-                    UserARN=arn,
-                    AccessKeyId=key["AccessKeyId"],
-                    CreateDate=str(key["CreateDate"]),
-                    Status=key["Status"],
-                    LastUsedDate=key["LastUsedDate"],
-                    LastUsedService=key["LastUsedService"],
-                    LastUsedRegion=key["LastUsedRegion"],
-                    aws_update_tag=aws_update_tag,
-                )
 
 
 def ensure_list(obj: Any) -> List[Any]:
@@ -805,6 +830,40 @@ def sync_users(
 
 
 @timeit
+def sync_user_access_keys(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    logger.info(
+        "Syncing IAM user access keys for account '%s'.", current_aws_account_id
+    )
+
+    # Query the graph for users instead of making another AWS API call
+    query = (
+        "MATCH (user:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ACCOUNT_ID}) "
+        "RETURN user.name as name, user.arn as arn"
+    )
+    users = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query,
+        AWS_ACCOUNT_ID=current_aws_account_id,
+    )
+
+    user_access_keys = get_user_access_keys_data(boto3_session, users)
+    access_key_data = transform_access_keys(user_access_keys)
+    load_access_keys(neo4j_session, access_key_data, aws_update_tag)
+
+    run_cleanup_job(
+        "aws_import_account_access_key_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+
+@timeit
 def sync_user_managed_policies(
     boto3_session: boto3.Session,
     data: Dict,
@@ -981,34 +1040,6 @@ def sync_role_inline_policies(
         transformed_policy_data,
         PolicyType.inline.value,
         aws_update_tag,
-    )
-
-
-@timeit
-def sync_user_access_keys(
-    neo4j_session: neo4j.Session,
-    boto3_session: boto3.Session,
-    current_aws_account_id: str,
-    aws_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    logger.info(
-        "Syncing IAM user access keys for account '%s'.",
-        current_aws_account_id,
-    )
-    query = (
-        "MATCH (user:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ACCOUNT_ID}) "
-        "RETURN user.name as name, user.arn as arn"
-    )
-    for user in neo4j_session.run(query, AWS_ACCOUNT_ID=current_aws_account_id):
-        access_keys = get_account_access_key_data(boto3_session, user["name"])
-        if access_keys:
-            account_access_keys = {user["arn"]: access_keys}
-            load_user_access_keys(neo4j_session, account_access_keys, aws_update_tag)
-    run_cleanup_job(
-        "aws_import_account_access_key_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
     )
 
 

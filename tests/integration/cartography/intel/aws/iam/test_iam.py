@@ -11,6 +11,7 @@ from cartography.intel.aws.iam import _transform_policy_statements
 from cartography.intel.aws.iam import sync
 from cartography.sync import build_default_sync
 from tests.data.aws.iam import LIST_GROUPS
+from tests.data.aws.iam.access_keys import GET_USER_ACCESS_KEYS_DATA
 from tests.data.aws.iam.group_policies import GET_GROUP_INLINE_POLS_SAMPLE
 from tests.data.aws.iam.group_policies import GET_GROUP_MANAGED_POLICY_DATA
 from tests.data.aws.iam.role_inline_policies import GET_ROLE_INLINE_POLS_SAMPLE
@@ -290,6 +291,11 @@ def test_map_permissions(neo4j_session):
 @patch.object(
     cartography.intel.aws.iam, "get_user_list_data", return_value=GET_USER_LIST_DATA
 )
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_user_access_keys_data",
+    return_value=GET_USER_ACCESS_KEYS_DATA,
+)
 def test_sync_iam(
     mock_get_users,
     mock_get_user_inline_pols,
@@ -300,6 +306,7 @@ def test_sync_iam(
     mock_get_roles,
     mock_get_role_policies,
     mock_get_role_managed_pols,
+    mock_get_user_access_keys,
     neo4j_session,
 ):
     """Test IAM sync end-to-end"""
@@ -538,3 +545,37 @@ def test_sync_iam(
         )
         == expected_policy_statement
     )
+
+    # Check that access key nodes were created
+    expected_access_keys = {
+        ("AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE"),
+        ("AKIAI44QH8DHBEXAMPLE", "AKIAI44QH8DHBEXAMPLE"),
+        ("AKIAJQ5CMEXAMPLE", "AKIAJQ5CMEXAMPLE"),
+        ("AKIAEXAMPLE123", "AKIAEXAMPLE123"),
+    }
+
+    actual_access_keys = check_nodes(
+        neo4j_session,
+        "AccountAccessKey",
+        ["accesskeyid", "id"],
+    )
+    assert actual_access_keys == expected_access_keys
+
+    # Check that relationships were created between access keys and users
+    expected_access_key_relationships = {
+        ("AKIAIOSFODNN7EXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAI44QH8DHBEXAMPLE", "arn:aws:iam::1234:user/user1"),
+        ("AKIAJQ5CMEXAMPLE", "arn:aws:iam::1234:user/user2"),
+        ("AKIAEXAMPLE123", "arn:aws:iam::1234:user/user3"),
+    }
+
+    actual_access_key_relationships = check_rels(
+        neo4j_session,
+        "AccountAccessKey",
+        "accesskeyid",
+        "AWSUser",
+        "arn",
+        "AWS_ACCESS_KEY",
+        rel_direction_right=False,
+    )
+    assert actual_access_key_relationships == expected_access_key_relationships
