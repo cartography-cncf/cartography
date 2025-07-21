@@ -12,6 +12,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.intel.aws.permission_relationships import parse_statement_node
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
+from cartography.models.aws.iam.policy import AWSPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -715,13 +716,32 @@ def load_policy(
     principal_arn: str,
     aws_update_tag: int,
 ) -> None:
-    neo4j_session.write_transaction(
-        _load_policy_tx,
-        policy_id,
-        policy_name,
-        policy_type,
-        principal_arn,
-        aws_update_tag,
+    # TODO move this out to a transform when we break this interface.
+    policy_data = [
+        {
+            "id": policy_id,
+            "name": policy_name,
+            "type": policy_type,
+            "arn": policy_id if policy_type == PolicyType.managed.value else None,
+            "createdate": None,  # Not available in current data
+            "principal_arn": principal_arn,  # For relationship
+        }
+    ]
+
+    _load_policy_with_schema(neo4j_session, policy_data, aws_update_tag)
+
+
+@timeit
+def _load_policy_with_schema(
+    neo4j_session: neo4j.Session,
+    policy_data: list[dict[str, Any]],
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSPolicySchema(),
+        policy_data,
+        lastupdated=aws_update_tag,
     )
 
 
@@ -764,6 +784,7 @@ def load_policy_data(
                 else policy_key
             )
 
+            # TODO: break this interface
             load_policy(
                 neo4j_session,
                 policy_id,
@@ -773,6 +794,71 @@ def load_policy_data(
                 aws_update_tag,
             )
 
+            load_policy_statements(
+                neo4j_session,
+                statements,
+                aws_update_tag,
+            )
+
+
+@timeit
+def load_policy_data_with_schema(
+    neo4j_session: neo4j.Session,
+    principal_policy_map: Dict[str, Dict[str, list[dict[str, Any]]]],
+    policy_type: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load policies using the modern data model schema.
+    This function maintains the same interface as the old load_policy_data function
+    but uses the new AWSPolicySchema for better type safety and consistency.
+    """
+    from cartography.client.core.tx import load
+
+    # Transform data for schema-based loading
+    policy_data: list[dict[str, Any]] = []
+
+    for principal_arn, policy_statement_map in principal_policy_map.items():
+        logger.debug(f"Loading policies for principal {principal_arn}")
+        for policy_key, statements in policy_statement_map.items():
+            policy_name = (
+                policy_key
+                if policy_type == PolicyType.inline.value
+                else get_policy_name_from_arn(policy_key)
+            )
+            policy_id = (
+                transform_policy_id(
+                    principal_arn,
+                    policy_type,
+                    policy_key,
+                )
+                if policy_type == PolicyType.inline.value
+                else policy_key
+            )
+
+            # Transform to schema format
+            policy_record = {
+                "id": policy_id,
+                "name": policy_name,
+                "type": policy_type,
+                "arn": policy_key if policy_type == PolicyType.managed.value else None,
+                "createdate": None,  # Not available in current data
+                "principal_arn": principal_arn,  # For relationship
+            }
+            policy_data.append(policy_record)
+
+    # Load policies using schema
+    if policy_data:
+        load(
+            neo4j_session,
+            AWSPolicySchema(),
+            policy_data,
+            lastupdated=aws_update_tag,
+        )
+
+    # Load policy statements (unchanged)
+    for principal_arn, policy_statement_map in principal_policy_map.items():
+        for policy_key, statements in policy_statement_map.items():
             load_policy_statements(
                 neo4j_session,
                 statements,

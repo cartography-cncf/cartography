@@ -189,6 +189,7 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
 
 
 def test_load_inline_policy(neo4j_session):
+    # TODO break this interface
     cartography.intel.aws.iam.load_policy(
         neo4j_session,
         "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
