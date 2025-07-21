@@ -15,7 +15,6 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AWSRoleNodeProperties(CartographyNodeProperties):
     # Required unique identifier
-    # TODO double check what the id should be
     id: PropertyRef = PropertyRef("arn")
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
 

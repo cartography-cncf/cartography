@@ -4,6 +4,7 @@ from unittest.mock import patch
 import cartography.intel.aws.cloudtrail_management_events
 import cartography.intel.aws.iam
 from cartography.intel.aws.cloudtrail_management_events import sync
+from cartography.intel.aws.iam import transform_users
 from tests.data.aws.cloudtrail_management_events import (
     INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
 )
@@ -44,18 +45,19 @@ def _cleanup_neo4j(neo4j_session):
 
 def _ensure_local_neo4j_has_basic_test_data(neo4j_session):
     """Set up test IAM users and roles for basic relationships test."""
-    # Load test users using cartography's IAM loader
+    # Transform and load test users using cartography's IAM loader
+    user_data = transform_users(INTEGRATION_TEST_BASIC_IAM_USERS)
     cartography.intel.aws.iam.load_users(
         neo4j_session,
-        INTEGRATION_TEST_BASIC_IAM_USERS,
+        user_data,
         INTEGRATION_TEST_BASIC_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
     # Load test roles using cartography's IAM loader
-    cartography.intel.aws.iam.load_roles(
+    cartography.intel.aws.iam.sync_role_assumptions(
         neo4j_session,
-        INTEGRATION_TEST_BASIC_IAM_ROLES,
+        {"Roles": INTEGRATION_TEST_BASIC_IAM_ROLES},
         INTEGRATION_TEST_BASIC_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
@@ -77,16 +79,18 @@ def _ensure_local_neo4j_has_basic_test_data(neo4j_session):
 
 def _ensure_local_neo4j_has_aggregation_test_data(neo4j_session):
     """Set up test IAM users and roles for aggregation test."""
+    # Transform and load test users using cartography's IAM loader
+    user_data = transform_users(INTEGRATION_TEST_AGGREGATION_IAM_USERS)
     cartography.intel.aws.iam.load_users(
         neo4j_session,
-        INTEGRATION_TEST_AGGREGATION_IAM_USERS,
+        user_data,
         INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
-    cartography.intel.aws.iam.load_roles(
+    cartography.intel.aws.iam.sync_role_assumptions(
         neo4j_session,
-        INTEGRATION_TEST_AGGREGATION_IAM_ROLES,
+        {"Roles": INTEGRATION_TEST_AGGREGATION_IAM_ROLES},
         INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
@@ -94,16 +98,18 @@ def _ensure_local_neo4j_has_aggregation_test_data(neo4j_session):
 
 def _ensure_local_neo4j_has_cross_account_test_data(neo4j_session):
     """Set up test IAM users and roles for cross-account test."""
+    # Transform and load test users using cartography's IAM loader
+    user_data = transform_users(INTEGRATION_TEST_CROSS_ACCOUNT_IAM_USERS)
     cartography.intel.aws.iam.load_users(
         neo4j_session,
-        INTEGRATION_TEST_CROSS_ACCOUNT_IAM_USERS,
+        user_data,
         INTEGRATION_TEST_CROSS_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
-    cartography.intel.aws.iam.load_roles(
+    cartography.intel.aws.iam.sync_role_assumptions(
         neo4j_session,
-        INTEGRATION_TEST_CROSS_ACCOUNT_IAM_ROLES,
+        {"Roles": INTEGRATION_TEST_CROSS_ACCOUNT_IAM_ROLES},
         INTEGRATION_TEST_CROSS_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )

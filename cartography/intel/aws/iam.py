@@ -423,6 +423,9 @@ def transform_access_keys(
 def transform_roles(
     roles: list[dict[str, Any]], current_aws_account_id: str
 ) -> TransformedRoleData:
+    """
+    Process AWS role assumption policy documents
+    """
     role_data: list[dict[str, Any]] = []
     federated_principals: list[dict[str, Any]] = []
     service_principals: list[dict[str, Any]] = []
@@ -434,6 +437,7 @@ def transform_roles(
         # List of principals of type "AWS" that this role trusts
         trusted_aws_principals = set()
         # Process each statement in the assume role policy document
+        # TODO support conditions
         for statement in role["AssumeRolePolicyDocument"]["Statement"]:
 
             principal_entries = _parse_principal_entries(statement["Principal"])
@@ -466,13 +470,20 @@ def transform_roles(
                         # Add what we know about it to the graph.
                         account_id = get_account_from_arn(principal_value)
                         if account_id != current_aws_account_id:
+                            # Note - why we don't set inscope or foreign attribute on the account
+                            #
+                            # we are agnostic here if this is the AWSAccount is part of the sync scope or
+                            # a foreign AWS account that contains a trusted principal. The account could also be inscope
+                            # but not synced yet.
+                            # - The inscope attribute - set when the account is being sync.
+                            # - The foreign attribute - the attribute assignment logic is in aws_foreign_accounts.json analysis job
+                            # - Why seperate statement is needed - the arn may point to service level principals ex - ec2.amazonaws.com
                             external_aws_accounts.append({"id": account_id})
 
                         # Let's ensure that the root principal exists
                         role_data.append(
                             {
                                 "arn": principal_value,
-                                # TODO `type`` might want to go on to the edge instead of the node.
                                 "type": "AWS",
                                 # Everything in role_data gets the account_id from the role ARN instead of from kwargs
                                 # because we can find root principals from other accounts, and those account_ids will not be
@@ -563,94 +574,6 @@ def _parse_principal_entries(principal: Dict) -> List[Tuple[Any, Any]]:
         for principal_value in principal_values:
             principal_entries.append((principal_type, principal_value))
     return principal_entries
-
-
-@timeit
-def load_roles(
-    neo4j_session: neo4j.Session,
-    roles: List[Dict],
-    current_aws_account_id: str,
-    aws_update_tag: int,
-) -> None:
-    ingest_role = """
-    MERGE (rnode:AWSPrincipal{arn: $Arn})
-    ON CREATE SET rnode.firstseen = timestamp()
-    SET
-        rnode:AWSRole,
-        rnode.roleid = $RoleId,
-        rnode.createdate = $CreateDate,
-        rnode.name = $RoleName,
-        rnode.path = $Path,
-        rnode.lastupdated = $aws_update_tag
-    WITH rnode
-    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (aa)-[r:RESOURCE]->(rnode)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-
-    ingest_policy_statement = """
-    MERGE (spnnode:AWSPrincipal{arn: $SpnArn})
-    ON CREATE SET spnnode.firstseen = timestamp()
-    SET spnnode.lastupdated = $aws_update_tag, spnnode.type = $SpnType
-    WITH spnnode
-    MATCH (role:AWSRole{arn: $RoleArn})
-    MERGE (role)-[r:TRUSTS_AWS_PRINCIPAL]->(spnnode)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-
-    # Note - why we don't set inscope or foreign attribute on the account
-    #
-    # we are agnostic here if this is the AWSAccount is part of the sync scope or
-    # a foreign AWS account that contains a trusted principal. The account could also be inscope
-    # but not sync yet.
-    # - The inscope attribute - set when the account is being sync.
-    # - The foreign attribute - the attribute assignment logic is in aws_foreign_accounts.json analysis job
-    # - Why seperate statement is needed - the arn may point to service level principals ex - ec2.amazonaws.com
-    ingest_spnmap_statement = """
-    MERGE (aa:AWSAccount{id: $SpnAccountId})
-    ON CREATE SET aa.firstseen = timestamp()
-    SET aa.lastupdated = $aws_update_tag
-    WITH aa
-    MATCH (spnnode:AWSPrincipal{arn: $SpnArn})
-    WITH spnnode, aa
-    MERGE (aa)-[r:RESOURCE]->(spnnode)
-    ON CREATE SET r.firstseen = timestamp()
-    """
-
-    # TODO support conditions
-    logger.info(f"Loading {len(roles)} IAM roles to the graph.")
-    for role in roles:
-        neo4j_session.run(
-            ingest_role,
-            Arn=role["Arn"],
-            RoleId=role["RoleId"],
-            CreateDate=str(role["CreateDate"]),
-            RoleName=role["RoleName"],
-            Path=role["Path"],
-            AWS_ACCOUNT_ID=current_aws_account_id,
-            aws_update_tag=aws_update_tag,
-        )
-
-        for statement in role["AssumeRolePolicyDocument"]["Statement"]:
-            principal_entries = _parse_principal_entries(statement["Principal"])
-            for principal_type, principal_value in principal_entries:
-                neo4j_session.run(
-                    ingest_policy_statement,
-                    SpnArn=principal_value,
-                    SpnType=principal_type,
-                    RoleArn=role["Arn"],
-                    aws_update_tag=aws_update_tag,
-                )
-                spn_arn = get_account_from_arn(principal_value)
-                if spn_arn:
-                    neo4j_session.run(
-                        ingest_spnmap_statement,
-                        SpnArn=principal_value,
-                        SpnAccountId=get_account_from_arn(principal_value),
-                        aws_update_tag=aws_update_tag,
-                    )
 
 
 @timeit
