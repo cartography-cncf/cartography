@@ -22,14 +22,14 @@ You can learn more about the story behind Cartography in our [presentation at BS
 
 ## Supported platforms
 - [Airbyte](https://cartography-cncf.github.io/cartography/modules/airbyte/index.html) - Organization, Workspace, User, Source, Destination, Connection, Tag, Stream
-- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, CodeBuild, Config, EC2, ECS, ECR, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SQS, SSM, STS, Tags
+- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, CodeBuild, Config, EC2, ECS, ECR, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SQS, SSM, STS, Tags
 - [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 - [BigFix](https://cartography-cncf.github.io/cartography/modules/bigfix/index.html) - Computers
 - [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
 - [Crowdstrike Falcon](https://cartography-cncf.github.io/cartography/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
 - [DigitalOcean](https://cartography-cncf.github.io/cartography/modules/digitalocean/index.html)
 - [Duo](https://cartography-cncf.github.io/cartography/modules/duo/index.html) - Users, Groups, Endpoints
-- [GitHub](https://cartography-cncf.github.io/cartography/modules/github/index.html) - repos, branches, users, teams
+- [GitHub](https://cartography-cncf.github.io/cartography/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies
 - [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
 - [Google GSuite](https://cartography-cncf.github.io/cartography/modules/gsuite/index.html) - users, groups
 - [Kandji](https://cartography-cncf.github.io/cartography/modules/kandji/index.html) - Devices

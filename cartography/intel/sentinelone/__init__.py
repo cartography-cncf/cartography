@@ -3,6 +3,7 @@ import logging
 import neo4j
 
 import cartography.intel.sentinelone.agent
+import cartography.intel.sentinelone.application
 from cartography.config import Config
 from cartography.intel.sentinelone.account import sync_accounts
 from cartography.stats import get_stats_client
@@ -39,7 +40,7 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
         config.sentinelone_account_ids,
     )
 
-    # Sync agents for each account
+    # Sync agents and applications for each account
     for account_id in synced_account_ids:
         # Add account-specific parameter
         common_job_parameters["S1_ACCOUNT_ID"] = account_id
@@ -49,7 +50,12 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
             common_job_parameters,
         )
 
-        # Clean up account-specific parameter
+        cartography.intel.sentinelone.application.sync(
+            neo4j_session,
+            common_job_parameters,
+        )
+
+        # Clean up account-specific parameters
         del common_job_parameters["S1_ACCOUNT_ID"]
 
     # Record that the sync is complete

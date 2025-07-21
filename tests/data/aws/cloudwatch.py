@@ -24,3 +24,30 @@ GET_CLOUDWATCH_LOG_GROUPS = [
         "logGroupArn": "arn:aws:logs:eu-west-1:123456789012:log-group:/aws/codebuild/sample-project",
     },
 ]
+
+GET_CLOUDWATCH_LOG_METRIC_FILTERS = [
+    {
+        "filterName": "HighErrorRate",
+        "logGroupName": "/aws/lambda/process-orders",
+        "filterPattern": "[errorCode = 500]",
+        "metricTransformations": [
+            {
+                "metricName": "ErrorCount",
+                "metricNamespace": "MyApp/Errors",
+                "metricValue": "1",
+            }
+        ],
+    },
+    {
+        "filterName": "AuthFailures",
+        "logGroupName": "/aws/codebuild/sample-project",
+        "filterPattern": "[statusCode = 401]",
+        "metricTransformations": [
+            {
+                "metricName": "UnauthorizedAccess",
+                "metricNamespace": "MyApp/Security",
+                "metricValue": "1",
+            }
+        ],
+    },
+]

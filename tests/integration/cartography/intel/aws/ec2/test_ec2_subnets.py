@@ -1,5 +1,12 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import cartography.intel.aws.ec2
 import tests.data.aws.ec2.subnets
+from cartography.intel.aws.ec2.instances import sync_ec2_instances
+from cartography.intel.aws.ec2.network_interfaces import sync_network_interfaces
+from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
+from tests.data.aws.ec2.network_interfaces import DESCRIBE_NETWORK_INTERFACES
 from tests.integration.util import check_nodes
 
 TEST_ACCOUNT_ID = "000000000000"
@@ -78,3 +85,83 @@ def test_load_subnet_relationships(neo4j_session):
     actual = {(r["n1.id"], r["n2.subnet_arn"]) for r in result}
 
     assert actual == expected_nodes
+
+
+@patch.object(
+    cartography.intel.aws.ec2.network_interfaces,
+    "get_network_interface_data",
+    return_value=DESCRIBE_NETWORK_INTERFACES,
+)
+@patch.object(
+    cartography.intel.aws.ec2.instances,
+    "get_ec2_instances",
+    return_value=DESCRIBE_INSTANCES["Reservations"],
+)
+def test_detect_inconsistent_subnet_property_naming(
+    mock_get_instances, mock_get_network_interfaces, neo4j_session
+):
+    """
+    Test to detect inconsistent property naming in EC2Subnet nodes.
+
+    This test should FAIL when there are EC2Subnet nodes with inconsistent
+    property naming (some with 'subnetid', others with 'subnet_id').
+    The test should PASS when all nodes use consistent property naming.
+    """
+    boto3_session = MagicMock()
+
+    # Arrange and Act: create all nodes in cartography that use subnetid and subnet_id
+    data = tests.data.aws.ec2.subnets.DESCRIBE_SUBNETS
+    cartography.intel.aws.ec2.subnets.load_subnets(
+        neo4j_session,
+        data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    sync_network_interfaces(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    sync_ec2_instances(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert: Check for nodes with subnetid but no subnet_id
+    result_subnetid_only = neo4j_session.run(
+        """
+        MATCH (s:EC2Subnet)
+        WHERE s.subnetid IS NOT NULL AND s.subnet_id IS NULL
+        RETURN count(s) as count
+        """
+    )
+    subnetid_only_count = result_subnetid_only.single()["count"]
+
+    # Check for nodes with subnet_id but no subnetid
+    result_subnet_id_only = neo4j_session.run(
+        """
+        MATCH (s:EC2Subnet)
+        WHERE s.subnet_id IS NOT NULL AND s.subnetid IS NULL
+        RETURN count(s) as count
+        """
+    )
+    subnet_id_only_count = result_subnet_id_only.single()["count"]
+
+    # The test should FAIL if we have both types of nodes (inconsistent state)
+    # This indicates the bug exists
+    assert subnetid_only_count == 0 or subnet_id_only_count == 0, (
+        f"Found inconsistent EC2Subnet property naming: "
+        f"{subnetid_only_count} nodes with 'subnetid' only, "
+        f"{subnet_id_only_count} nodes with 'subnet_id' only. "
+        f"All nodes should use consistent property naming."
+    )

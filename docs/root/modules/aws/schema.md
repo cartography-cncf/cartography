@@ -38,6 +38,7 @@ Representation of an AWS Account.
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
                                 :ESDomain,
+                                :GuardDutyFinding,
                                 :LaunchConfiguration,
                                 :LaunchTemplate,
                                 :LaunchTemplateVersion,
@@ -137,6 +138,47 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSGroup)
+    ```
+
+### GuardDutyFinding::Risk
+
+Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the GuardDuty finding |
+| arn | The Amazon Resource Name (ARN) of the finding |
+| type | The type of finding (e.g., "UnauthorizedAccess:EC2/MaliciousIPCaller.Custom") |
+| severity | The severity score of the finding (0.1 to 8.9 for medium/high findings) |
+| confidence | The confidence level that GuardDuty has in the accuracy of the finding |
+| title | A short description of the finding |
+| description | A more detailed description of the finding |
+| eventfirstseen | Timestamp when the activity that prompted GuardDuty to generate this finding was first observed |
+| eventlastseen | Timestamp when the activity that prompted GuardDuty to generate this finding was last observed |
+| accountid | The ID of the AWS account in which the finding was generated |
+| region | The AWS Region where the finding was generated |
+| detectorid | The ID of the detector that generated the finding |
+| resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
+| resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
+| archived | Whether the finding has been archived |
+
+#### Relationships
+
+- GuardDuty findings belong to AWS Accounts
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:GuardDutyFinding)
+    ```
+
+- GuardDuty findings may affect EC2 Instances
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
+    ```
+
+- GuardDuty findings may affect S3 Buckets
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
     ```
 
 ### AWSInspectorFinding
@@ -825,6 +867,32 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
     ```
 
+### CloudWatchLogMetricFilter
+Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeMetricFilters.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | Ensures that the id field is a unique combination of logGroupName and filterName |
+| arn | Ensures that the arn field is a unique combination of logGroupName and filterName |
+| region | The region of the CloudWatch Log Metric Filter |
+| filter_name | The name of the filter pattern used to extract metric data from log events |
+| filter_pattern | The pattern used to extract metric data from CloudWatch log events |
+| log_group_name | The name of the log group to which this metric filter is applied |
+| metric_name | The name of the metric emitted by this filter |
+| metric_namespace | The namespace of the metric emitted by this filter |
+| metric_value | The value to publish to the CloudWatch metric when a log event matches the filter pattern |
+#### Relationships
+- CLoudWatch Log Metric Filters are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchLogMetricFilter)
+    ```
+- CloudWatchLogMetricFilter associated with CloudWatchLogGroup via the METRIC_FILTER_OF relationship
+    ```
+    (CloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(CloudWatchLogGroup)
+    ```
+
 ### CodeBuildProject
 Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
 
@@ -1205,7 +1273,7 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| groupid | The ID of the security group|
+| groupid | The ID of the security group. Note that these are globally unique in AWS.|
 | name | The name of the security group|
 | description | A description of the security group|
 | **id** | Same as `groupid` |
@@ -1229,6 +1297,11 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 - Load balancers can define inbound [Source Security Groups](https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-security-groups.html).
     ```
     (LoadBalancer)-[SOURCE_SECURITY_GROUP]->(EC2SecurityGroup)
+    ```
+
+- Security Groups can allow traffic from other security groups. This relationship can also be self-referential, meaning that a security group can allow traffic from itself (as security groups are default-deny). Relevant API docs: [IP Permission](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_IpPermission.html), [UserIdGroupPair](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_UserIdGroupPair.html).
+    ```
+    (:EC2SecurityGroup)-[:ALLOWS_TRAFFIC_FROM]->(:EC2SecurityGroup)
     ```
 
 - AWS Accounts contain EC2 Security Groups.
@@ -1256,6 +1329,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **subnetid** | The ID of the subnet|
+| **subnet_id** | The ID of the subnet|
 | **id** | same as subnetid |
 | region| The AWS region the subnet is installed on|
 | name | The IPv4 CIDR block assigned to the subnet|
@@ -1947,6 +2021,7 @@ Representation of a generic Network Interface.  Currently however, we only creat
 | private\_dns\_name| The private DNS name |
 | status | Status of the network interface.  Valid Values: ``available \| associated \| attaching \| in-use \| detaching `` |
 | subnetid | The ID of the subnet |
+| subnet_id | The ID of the subnet |
 | interface_type  |  Describes the type of network interface. Valid values: `` interface \| efa `` |
 | requester_id  | Id of the requester, e.g. `amazon-elb` for ELBs |
 | requester_managed  |  Indicates whether the interface is managed by the requester |
@@ -3322,8 +3397,14 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 | task\_definition\_arn | The ARN of the task definition that creates the task. |
 | version | The version counter for the task. |
 | ephemeral\_storage\_size\_in\_gib | The total amount, in GiB, of ephemeral storage to set for the task. |
+| network\_interface\_id | The network interface ID for tasks running in awsvpc network mode. |
 
 #### Relationships
+
+- ECSTasks are a resource under the AWS Account
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ECSTask)
+    ```
 
 - ECSClusters have ECSTasks
     ```
@@ -3338,6 +3419,11 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 - ECSTasks have ECSTaskDefinitions
     ```
     (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTasks in awsvpc network mode have NetworkInterfaces
+    ```
+    (:ECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
     ```
 
 ### ECSContainer
