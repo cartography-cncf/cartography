@@ -683,36 +683,6 @@ def transform_policy_id(principal_arn: str, policy_type: str, name: str) -> str:
     return f"{principal_arn}/{policy_type}_policy/{name}"
 
 
-def _load_policy_tx(
-    tx: neo4j.Transaction,
-    policy_id: str,
-    policy_name: str,
-    policy_type: str,
-    principal_arn: str,
-    aws_update_tag: int,
-) -> None:
-    ingest_policy = """
-    MERGE (policy:AWSPolicy{id: $PolicyId})
-    ON CREATE SET
-        policy.firstseen = timestamp(),
-        policy.type = $PolicyType,
-        policy.name = $PolicyName
-    SET policy.lastupdated = $aws_update_tag
-    WITH policy
-    MATCH (principal:AWSPrincipal{arn: $PrincipalArn})
-    MERGE (policy) <-[r:POLICY]-(principal)
-    SET r.lastupdated = $aws_update_tag
-    """
-    tx.run(
-        ingest_policy,
-        PolicyId=policy_id,
-        PolicyName=policy_name,
-        PolicyType=policy_type,
-        PrincipalArn=principal_arn,
-        aws_update_tag=aws_update_tag,
-    )
-
-
 @timeit
 def load_policy(
     neo4j_session: neo4j.Session,
