@@ -1,6 +1,7 @@
 import enum
 import json
 import logging
+from collections import namedtuple
 from typing import Any
 from typing import Dict
 from typing import List
@@ -14,9 +15,13 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.intel.aws.permission_relationships import parse_statement_node
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
 from cartography.models.aws.iam.access_key import AccountAccessKeySchema
+from cartography.models.aws.iam.account_role import AWSAccountAWSRoleSchema
+from cartography.models.aws.iam.federated_principal import AWSFederatedPrincipalSchema
 from cartography.models.aws.iam.group import AWSGroupSchema
 from cartography.models.aws.iam.policy import AWSPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
+from cartography.models.aws.iam.role import AWSRoleSchema
+from cartography.models.aws.iam.service_principal import AWSServicePrincipalSchema
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -33,6 +38,17 @@ stat_handler = get_stats_client(__name__)
 class PolicyType(enum.Enum):
     managed = "managed"
     inline = "inline"
+
+
+TransformedRoleData = namedtuple(
+    "TransformedRoleData",
+    [
+        "role_data",
+        "federated_principals",
+        "service_principals",
+        "external_aws_accounts",
+    ],
+)
 
 
 def get_policy_name_from_arn(arn: str) -> str:
@@ -404,6 +420,90 @@ def transform_access_keys(
     return access_key_data
 
 
+def transform_roles(
+    roles: list[dict[str, Any]], current_aws_account_id: str
+) -> TransformedRoleData:
+    role_data: list[dict[str, Any]] = []
+    federated_principals: list[dict[str, Any]] = []
+    service_principals: list[dict[str, Any]] = []
+    external_aws_accounts: list[dict[str, Any]] = []
+
+    for role in roles:
+        role_arn = role["Arn"]
+
+        # List of principals of type "AWS" that this role trusts
+        trusted_aws_principals = set()
+        # Process each statement in the assume role policy document
+        for statement in role["AssumeRolePolicyDocument"]["Statement"]:
+
+            principal_entries = _parse_principal_entries(statement["Principal"])
+            for principal_type, principal_value in principal_entries:
+                if principal_type == "Federated":
+                    # Add this to list of federated nodes to create
+                    federated_principals.append(
+                        {
+                            "arn": principal_value,
+                            "type": "Federated",
+                            "account_id": get_account_from_arn(principal_value),
+                            "role_arn": role_arn,
+                        }
+                    )
+                    trusted_aws_principals.add(principal_value)
+                elif principal_type == "Service":
+                    # Add to the list of service nodes to create
+                    service_principals.append(
+                        {
+                            "arn": principal_value,
+                            "type": "Service",
+                        }
+                    )
+                    trusted_aws_principals.add(principal_value)
+                elif principal_type == "AWS":
+                    if "root" in principal_value:
+                        # The current principal trusts a root principal.
+
+                        # First check if the root principal is in a different account than the current one.
+                        # Add what we know about it to the graph.
+                        account_id = get_account_from_arn(principal_value)
+                        if account_id != current_aws_account_id:
+                            external_aws_accounts.append({"id": account_id})
+
+                        # Let's ensure that the root principal exists
+                        role_data.append(
+                            {
+                                "arn": principal_value,
+                                # TODO `type`` might want to go on to the edge instead of the node.
+                                "type": "AWS",
+                                # Everything in role_data gets the account_id from the role ARN instead of from kwargs
+                                # because we can find root principals from other accounts, and those account_ids will not be
+                                # known by the kwargs.
+                                "account_id": account_id,
+                            }
+                        )
+                    trusted_aws_principals.add(principal_value)
+                else:
+                    # This should not happen but who knows.
+                    logger.warning(f"Unknown principal type: {principal_type}")
+
+        role_record = {
+            "arn": role["Arn"],
+            "roleid": role["RoleId"],
+            "name": role["RoleName"],
+            "path": role["Path"],
+            "createdate": str(role["CreateDate"]),
+            "trusted_aws_principals": list(trusted_aws_principals),
+            "account_id": get_account_from_arn(role["Arn"]),
+        }
+        role_data.append(role_record)
+
+    return TransformedRoleData(
+        role_data=role_data,
+        federated_principals=federated_principals,
+        service_principals=service_principals,
+        external_aws_accounts=external_aws_accounts,
+    )
+
+
 @timeit
 def load_users(
     neo4j_session: neo4j.Session,
@@ -567,6 +667,7 @@ def get_policies_for_principal(
     DISTINCT policy.id AS policy_id,
     COLLECT(DISTINCT statements) AS statements
     """
+    # TODO use execute_read
     results = neo4j_session.run(
         get_policy_query,
         Arn=principal_arn,
@@ -612,6 +713,7 @@ def sync_assumerole_relationships(
         AccountId=current_aws_account_id,
     )
     potential_matches = [(r["source_arn"], r["target_arn"]) for r in results]
+    # TODO this is a matchlink
     for source_arn, target_arn in potential_matches:
         policies = get_policies_for_principal(neo4j_session, source_arn)
         if principal_allowed_on_resource(policies, target_arn, ["sts:AssumeRole"]):
@@ -962,6 +1064,92 @@ def sync_groups_inline_policies(
     )
 
 
+def load_external_aws_accounts(
+    neo4j_session: neo4j.Session,
+    external_aws_accounts: list[dict[str, Any]],
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSAccountAWSRoleSchema(),
+        external_aws_accounts,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def load_service_principals(
+    neo4j_session: neo4j.Session,
+    service_principals: list[dict[str, Any]],
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSServicePrincipalSchema(),
+        service_principals,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def load_role_data(
+    neo4j_session: neo4j.Session,
+    role_list: list[dict[str, Any]],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    # Note that the account_id is set in the transform_roles function instead of from the `AWS_ID` kwarg like in other modules
+    # because this can create root principals from other accounts based on data from the assume role policy document.
+    load(
+        neo4j_session,
+        AWSRoleSchema(),
+        role_list,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def load_federated_principals(
+    neo4j_session: neo4j.Session,
+    federated_principals: list[dict[str, Any]],
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSFederatedPrincipalSchema(),
+        federated_principals,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def sync_role_assumptions(
+    neo4j_session: neo4j.Session,
+    data: dict[str, Any],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    transformed = transform_roles(data["Roles"], current_aws_account_id)
+
+    # Order matters here.
+    # External accounts come first because they need to be created before the roles that trust them.
+    load_external_aws_accounts(
+        neo4j_session, transformed.external_aws_accounts, aws_update_tag
+    )
+    # Service principals e.g. arn = "ec2.amazonaws.com" come first because they're global
+    load_service_principals(
+        neo4j_session, transformed.service_principals, aws_update_tag
+    )
+    # For SAML things
+    load_federated_principals(
+        neo4j_session, transformed.federated_principals, aws_update_tag
+    )
+    # Finally, write the roles to the graph with trust rels, including to service and federated principals
+    load_role_data(
+        neo4j_session, transformed.role_data, current_aws_account_id, aws_update_tag
+    )
+
+
 @timeit
 def sync_roles(
     neo4j_session: neo4j.Session,
@@ -972,7 +1160,8 @@ def sync_roles(
 ) -> None:
     logger.info("Syncing IAM roles for account '%s'.", current_aws_account_id)
     data = get_role_list_data(boto3_session)
-    load_roles(neo4j_session, data["Roles"], current_aws_account_id, aws_update_tag)
+
+    sync_role_assumptions(neo4j_session, data, current_aws_account_id, aws_update_tag)
 
     sync_role_inline_policies(
         current_aws_account_id,

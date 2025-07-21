@@ -1,6 +1,6 @@
 # Create group policy data that matches the groups in LIST_GROUPS
 GET_GROUP_INLINE_POLS_SAMPLE = {
-    "arn:aws:iam::000000000000:group/example-group-0": {
+    "arn:aws:iam::1234:group/example-group-0": {
         "group_inline_policy": [
             {
                 "Sid": "VisualEditor0",
@@ -26,7 +26,7 @@ GET_GROUP_INLINE_POLS_SAMPLE = {
             },
         ],
     },
-    "arn:aws:iam::000000000000:group/example-group-1": {
+    "arn:aws:iam::1234:group/example-group-1": {
         "admin_policy": [
             {
                 "Effect": "Allow",
@@ -38,7 +38,7 @@ GET_GROUP_INLINE_POLS_SAMPLE = {
 }
 
 GET_GROUP_MANAGED_POLICY_DATA = {
-    "arn:aws:iam::000000000000:group/example-group-0": {
+    "arn:aws:iam::1234:group/example-group-0": {
         "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess": [
             {
                 "Effect": "Allow",
@@ -60,7 +60,7 @@ GET_GROUP_MANAGED_POLICY_DATA = {
             },
         ],
     },
-    "arn:aws:iam::000000000000:group/example-group-1": {
+    "arn:aws:iam::1234:group/example-group-1": {
         "arn:aws:iam::aws:policy/AdministratorAccess": [
             {
                 "Effect": "Allow",
