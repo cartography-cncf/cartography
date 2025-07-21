@@ -126,37 +126,6 @@ class AssumeRoleWithWebIdentityRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AssumeRoleWithWebIdentityMatchLink(CartographyRelSchema):
-    """
-    MatchLink schema for ASSUMED_ROLE_WITH_WEB_IDENTITY relationships from CloudTrail web identity events.
-    Creates relationships like: (AWSPrincipal)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY]->(AWSRole)
-
-    This MatchLink handles web identity-based role assumption relationships discovered via CloudTrail
-    AssumeRoleWithWebIdentity events. It creates separate relationships from regular AssumeRole events
-    to preserve visibility into external identity provider authentication methods.
-    """
-
-    # MatchLink-specific fields - use a generic approach for external identity users
-    source_node_label: str = (
-        "AWSPrincipal"  # Matches on existing AWSPrincipal Nodes that are of the federated type.
-    )
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
-        {"arn": PropertyRef("source_principal_arn")},
-    )
-
-    # Standard CartographyRelSchema fields
-    target_node_label: str = "AWSRole"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"arn": PropertyRef("destination_principal_arn")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "ASSUMED_ROLE_WITH_WEB_IDENTITY"
-    properties: AssumeRoleWithWebIdentityRelProperties = (
-        AssumeRoleWithWebIdentityRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class GitHubRepoAssumeRoleWithWebIdentityMatchLink(CartographyRelSchema):
     """
     MatchLink schema for ASSUMED_ROLE_WITH_WEB_IDENTITY relationships from GitHub Actions to AWS roles.

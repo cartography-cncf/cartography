@@ -415,14 +415,8 @@ def transform_web_identity_role_events_to_role_assumptions(
                     }
             else:
                 # Skip non-GitHub events for now
-                logger.debug(
-                    f"Skipping non-GitHub WebIdentity event from provider '{identity_provider}'. Event: {event.get('EventId', 'unknown')}"
-                )
                 continue
         else:
-            logger.debug(
-                f"Skipping CloudTrail AssumeRoleWithWebIdentity event due to missing or invalid userIdentity. Event: {event.get('EventId', 'unknown')}"
-            )
             continue
     # Return aggregated relationships directly
     return list(github_aggregated.values())

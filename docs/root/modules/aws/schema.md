@@ -625,10 +625,21 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
-- Cartography records assumerole events between AWS principals
+- Cartography records assumerole events between AWS principals from CloudTrail management events
     ```cypher
-    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(AWSRole)
+    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
     ```
+
+- Cartography records SAML-based role assumptions from CloudTrail management events
+    ```cypher
+    (AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
+    ```
+
+- Cartography records GitHub Actions role assumptions from CloudTrail management events
+    ```cypher
+    (GitHubRepository)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
+    ```
+    Note: Generic web identity providers are not currently implemented.
 
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
@@ -3715,6 +3726,11 @@ Representation of an AWS SSO User.
 - UserAccount can be assumed by AWSSSOUser.
     ```
     (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
+    ```
+
+- AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
+    ```
+    (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)
     ```
 
 ### AWSPermissionSet

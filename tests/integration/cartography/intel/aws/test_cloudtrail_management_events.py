@@ -6,6 +6,25 @@ import cartography.intel.aws.iam
 import cartography.intel.aws.identitycenter
 from cartography.intel.aws.cloudtrail_management_events import sync
 from tests.data.aws.cloudtrail_management_events import (
+    AGGREGATION_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+)
+from tests.data.aws.cloudtrail_management_events import (
+    BASIC_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+)
+from tests.data.aws.cloudtrail_management_events import (
+    CROSS_ACCOUNT_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+)
+from tests.data.aws.cloudtrail_management_events import (
+    GITHUB_ACTIONS_AGGREGATION_CLOUDTRAIL_EVENTS,
+)
+from tests.data.aws.cloudtrail_management_events import (
+    GITHUB_ACTIONS_AGGREGATION_IAM_ROLES,
+)
+from tests.data.aws.cloudtrail_management_events import GITHUB_ACTIONS_IAM_ROLES
+from tests.data.aws.cloudtrail_management_events import (
+    GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS,
+)
+from tests.data.aws.cloudtrail_management_events import (
     INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
 )
 from tests.data.aws.cloudtrail_management_events import (
@@ -28,6 +47,9 @@ from tests.data.aws.cloudtrail_management_events import (
 from tests.data.aws.cloudtrail_management_events import (
     INTEGRATION_TEST_CROSS_ACCOUNT_ID,
 )
+from tests.data.aws.cloudtrail_management_events import (
+    SAML_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+)
 from tests.data.aws.cloudtrail_management_events import TEST_SSO_USERS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -39,15 +61,7 @@ TEST_UPDATE_TAG = 123456789
 
 def _cleanup_cloudtrail_test_data(neo4j_session):
     """Clean up CloudTrail test data between tests."""
-    neo4j_session.run("MATCH ()-[r:ASSUMED_ROLE]-() DELETE r")
-    neo4j_session.run("MATCH ()-[r:ASSUMED_ROLE_WITH_SAML]-() DELETE r")
-    neo4j_session.run("MATCH ()-[r:ASSUMED_ROLE_WITH_WEB_IDENTITY]-() DELETE r")
-    neo4j_session.run("MATCH (n:AWSPrincipal) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:AWSUser) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:AWSRole) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:AWSSSOUser) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:GitHubRepository) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:AWSAccount) DETACH DELETE n")
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
 
 
 def _ensure_local_neo4j_has_basic_test_data(neo4j_session):
@@ -167,21 +181,7 @@ def _ensure_local_neo4j_has_cross_account_test_data(neo4j_session):
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
     "get_assume_role_events",
-    return_value=[
-        {
-            "EventName": "AssumeRole",
-            "EventTime": "2024-01-15T10:30:15.123000",
-            "UserIdentity": {"arn": "arn:aws:iam::123456789012:user/john.doe"},
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::123456789012:role/ApplicationRole",
-                    "AccountId": "123456789012",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::123456789012:user/john.doe"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/ApplicationRole"}}',
-        },
-    ],
+    return_value=BASIC_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
 )
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
@@ -236,47 +236,7 @@ def test_cloudtrail_management_events_creates_assumed_role_relationships(
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
     "get_assume_role_events",
-    return_value=[
-        {
-            "EventName": "AssumeRole",
-            "EventTime": "2024-01-15T09:00:00.000000",
-            "UserIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"},
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::111111111111:role/TestRole",
-                    "AccountId": "111111111111",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/TestRole"}}',
-        },
-        {
-            "EventName": "AssumeRole",
-            "EventTime": "2024-01-15T13:00:00.000000",
-            "UserIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"},
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::111111111111:role/TestRole",
-                    "AccountId": "111111111111",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/TestRole"}}',
-        },
-        {
-            "EventName": "AssumeRole",
-            "EventTime": "2024-01-15T17:00:00.000000",
-            "UserIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"},
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::111111111111:role/TestRole",
-                    "AccountId": "111111111111",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::111111111111:user/test-user"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/TestRole"}}',
-        },
-    ],
+    return_value=AGGREGATION_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
 )
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
@@ -346,21 +306,7 @@ def test_cloudtrail_management_events_aggregates_multiple_role_assumptions(
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
     "get_assume_role_events",
-    return_value=[
-        {
-            "EventName": "AssumeRole",
-            "EventTime": "2024-01-15T10:30:15.123000",
-            "UserIdentity": {"arn": "arn:aws:iam::222222222222:user/cross-user"},
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::333333333333:role/ExternalRole",
-                    "AccountId": "333333333333",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"arn": "arn:aws:iam::222222222222:user/cross-user"}, "requestParameters": {"roleArn": "arn:aws:iam::333333333333:role/ExternalRole"}}',
-        },
-    ],
+    return_value=CROSS_ACCOUNT_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
 )
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
@@ -420,44 +366,7 @@ def test_cloudtrail_management_events_handles_cross_account_relationships(
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
     "get_saml_role_events",
-    return_value=[
-        {
-            "EventName": "AssumeRoleWithSAML",
-            "EventTime": "2024-01-15T11:45:22.456000",
-            "UserIdentity": {
-                "type": "SAMLUser",
-                "principalId": "SAML:admin@example.com",
-                "arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/admin@example.com",
-                "accountId": "123456789012",
-            },
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::123456789012:role/ApplicationRole",
-                    "AccountId": "123456789012",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"type": "SAMLUser", "principalId": "SAML:admin@example.com", "userName": "admin@example.com"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/ApplicationRole", "principalArn": "arn:aws:iam::123456789012:saml-provider/ExampleProvider"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/admin@example.com"}}}',
-        },
-        {
-            "EventName": "AssumeRoleWithSAML",
-            "EventTime": "2024-01-15T12:20:30.789000",
-            "UserIdentity": {
-                "type": "SAMLUser",
-                "principalId": "SAML:alice@example.com",
-                "arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/alice@example.com",
-                "accountId": "123456789012",
-            },
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::987654321098:role/CrossAccountRole",
-                    "AccountId": "987654321098",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"type": "SAMLUser", "principalId": "SAML:alice@example.com", "userName": "alice@example.com"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountRole", "principalArn": "arn:aws:iam::123456789012:saml-provider/ExampleProvider"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/alice@example.com"}}}',
-        },
-    ],
+    return_value=SAML_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
 )
 def test_cloudtrail_management_events_creates_assumed_role_with_saml_relationships(
     mock_get_saml_events, mock_get_assume_role_events, neo4j_session
@@ -529,44 +438,7 @@ def test_cloudtrail_management_events_creates_assumed_role_with_saml_relationshi
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
     "get_web_identity_role_events",
-    return_value=[
-        {
-            "EventName": "AssumeRoleWithWebIdentity",
-            "EventTime": "2024-01-15T13:10:25.123000",
-            "UserIdentity": {
-                "type": "WebIdentityUser",
-                "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main",
-                "identityProvider": "token.actions.githubusercontent.com",
-                "userName": "sublimagesec/sublimage",
-            },
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::123456789012:role/GitHubActionsRole",
-                    "AccountId": "123456789012",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "sublimagesec/sublimage"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/GitHubActionsRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/GitHubActionsRole/sublimage"}}}',
-        },
-        {
-            "EventName": "AssumeRoleWithWebIdentity",
-            "EventTime": "2024-01-15T14:30:45.789000",
-            "UserIdentity": {
-                "type": "WebIdentityUser",
-                "principalId": "repo:myorg/demo-app:ref:refs/heads/develop",
-                "identityProvider": "token.actions.githubusercontent.com",
-                "userName": "myorg/demo-app",
-            },
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole",
-                    "AccountId": "987654321098",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/demo-app:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/demo-app"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::987654321098:assumed-role/CrossAccountGitHubRole/demo-app"}}}',
-        },
-    ],
+    return_value=GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS,
 )
 def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_relationships(
     mock_get_web_identity_events,
@@ -586,46 +458,7 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
     _ensure_local_neo4j_has_basic_test_data(neo4j_session)
 
     # Create AWS roles that GitHub repos will assume
-    github_target_roles = [
-        {
-            "RoleName": "GitHubActionsRole",
-            "RoleId": "AROA00000000000000003",
-            "Arn": "arn:aws:iam::123456789012:role/GitHubActionsRole",
-            "Path": "/",
-            "CreateDate": "2024-01-01T10:00:00Z",
-            "AssumeRolePolicyDocument": {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Principal": {
-                            "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
-                        },
-                        "Action": "sts:AssumeRoleWithWebIdentity",
-                    }
-                ],
-            },
-        },
-        {
-            "RoleName": "CrossAccountGitHubRole",
-            "RoleId": "AROA00000000000000004",
-            "Arn": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole",
-            "Path": "/",
-            "CreateDate": "2024-01-01T10:00:00Z",
-            "AssumeRolePolicyDocument": {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Principal": {
-                            "Federated": "arn:aws:iam::987654321098:oidc-provider/token.actions.githubusercontent.com"
-                        },
-                        "Action": "sts:AssumeRoleWithWebIdentity",
-                    }
-                ],
-            },
-        },
-    ]
+    github_target_roles = GITHUB_ACTIONS_IAM_ROLES
 
     # Use IAM loader to create target roles
     cartography.intel.aws.iam.load_roles(
@@ -730,62 +563,7 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
 @patch.object(
     cartography.intel.aws.cloudtrail_management_events,
     "get_web_identity_role_events",
-    return_value=[
-        {
-            "EventName": "AssumeRoleWithWebIdentity",
-            "EventTime": "2024-01-15T09:10:25.123000",
-            "UserIdentity": {
-                "type": "WebIdentityUser",
-                "principalId": "repo:myorg/test-repo:ref:refs/heads/main",
-                "identityProvider": "token.actions.githubusercontent.com",
-                "userName": "myorg/test-repo",
-            },
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::111111111111:role/GitHubTestRole",
-                    "AccountId": "111111111111",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/test-repo"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
-        },
-        {
-            "EventName": "AssumeRoleWithWebIdentity",
-            "EventTime": "2024-01-15T11:30:45.789000",
-            "UserIdentity": {
-                "type": "WebIdentityUser",
-                "principalId": "repo:myorg/test-repo:ref:refs/heads/develop",
-                "identityProvider": "token.actions.githubusercontent.com",
-                "userName": "myorg/test-repo",
-            },
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::111111111111:role/GitHubTestRole",
-                    "AccountId": "111111111111",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/test-repo"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
-        },
-        {
-            "EventName": "AssumeRoleWithWebIdentity",
-            "EventTime": "2024-01-15T14:15:30.456000",
-            "UserIdentity": {
-                "type": "WebIdentityUser",
-                "principalId": "repo:myorg/test-repo:ref:refs/heads/main",
-                "identityProvider": "token.actions.githubusercontent.com",
-                "userName": "myorg/test-repo",
-            },
-            "Resources": [
-                {
-                    "ResourceType": "AWS::IAM::Role",
-                    "ResourceName": "arn:aws:iam::111111111111:role/GitHubTestRole",
-                    "AccountId": "111111111111",
-                }
-            ],
-            "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/test-repo"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
-        },
-    ],
+    return_value=GITHUB_ACTIONS_AGGREGATION_CLOUDTRAIL_EVENTS,
 )
 def test_cloudtrail_web_identity_events_aggregates_multiple_users_and_tracks_individuals(
     mock_get_web_identity_events,
@@ -805,27 +583,7 @@ def test_cloudtrail_web_identity_events_aggregates_multiple_users_and_tracks_ind
     _ensure_local_neo4j_has_aggregation_test_data(neo4j_session)
 
     # Create role that GitHub repo will assume
-    github_roles = [
-        {
-            "RoleName": "GitHubTestRole",
-            "RoleId": "AROA00000000000000005",
-            "Arn": "arn:aws:iam::111111111111:role/GitHubTestRole",
-            "Path": "/",
-            "CreateDate": "2024-01-01T10:00:00Z",
-            "AssumeRolePolicyDocument": {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Principal": {
-                            "Federated": "arn:aws:iam::111111111111:oidc-provider/token.actions.githubusercontent.com"
-                        },
-                        "Action": "sts:AssumeRoleWithWebIdentity",
-                    }
-                ],
-            },
-        },
-    ]
+    github_roles = GITHUB_ACTIONS_AGGREGATION_IAM_ROLES
 
     # Use IAM loader to create target role
     cartography.intel.aws.iam.load_roles(
