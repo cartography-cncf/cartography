@@ -76,11 +76,13 @@ def test_load_users(neo4j_session):
 
 
 def test_load_groups(neo4j_session):
-    data = tests.data.aws.iam.LIST_GROUPS["Groups"]
+    group_data = cartography.intel.aws.iam.transform_groups(
+        tests.data.aws.iam.LIST_GROUPS["Groups"]
+    )
 
     cartography.intel.aws.iam.load_groups(
         neo4j_session,
-        data,
+        group_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )

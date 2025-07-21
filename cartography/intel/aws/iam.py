@@ -12,6 +12,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.intel.aws.permission_relationships import parse_statement_node
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
+from cartography.models.aws.iam.group import AWSGroupSchema
 from cartography.models.aws.iam.policy import AWSPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.models.aws.iam.user import AWSUserSchema
@@ -302,6 +303,24 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return user_data
 
 
+def transform_groups(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Transform AWS IAM group data for schema-based loading.
+    """
+    group_data = []
+    for group in groups:
+        group_record = {
+            "arn": group["Arn"],
+            "groupid": group["GroupId"],
+            "name": group["GroupName"],
+            "path": group["Path"],
+            "createdate": str(group["CreateDate"]),
+        }
+        group_data.append(group_record)
+
+    return group_data
+
+
 @timeit
 def load_users(
     neo4j_session: neo4j.Session,
@@ -325,28 +344,13 @@ def load_groups(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    ingest_group = """
-    MERGE (gnode:AWSGroup{arn: $ARN})
-    ON CREATE SET gnode.groupid = $GROUP_ID, gnode.firstseen = timestamp(), gnode.createdate = $CREATE_DATE
-    SET gnode:AWSPrincipal, gnode.name = $GROUP_NAME, gnode.path = $PATH,gnode.lastupdated = $aws_update_tag
-    WITH gnode
-    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (aa)-[r:RESOURCE]->(gnode)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-    logger.info(f"Loading {len(groups)} IAM groups to the graph.")
-    for group in groups:
-        neo4j_session.run(
-            ingest_group,
-            ARN=group["Arn"],
-            GROUP_ID=group["GroupId"],
-            CREATE_DATE=str(group["CreateDate"]),
-            GROUP_NAME=group["GroupName"],
-            PATH=group["Path"],
-            AWS_ACCOUNT_ID=current_aws_account_id,
-            aws_update_tag=aws_update_tag,
-        )
+    load(
+        neo4j_session,
+        AWSGroupSchema(),
+        groups,
+        lastupdated=aws_update_tag,
+        AWS_ACCOUNT_ID=current_aws_account_id,
+    )
 
 
 def _parse_principal_entries(principal: Dict) -> List[Tuple[Any, Any]]:
@@ -815,9 +819,6 @@ def load_policy_data_with_schema(
     This function maintains the same interface as the old load_policy_data function
     but uses the new AWSPolicySchema for better type safety and consistency.
     """
-    from cartography.client.core.tx import load
-
-    # Transform data for schema-based loading
     policy_data: list[dict[str, Any]] = []
 
     for principal_arn, policy_statement_map in principal_policy_map.items():
@@ -940,7 +941,8 @@ def sync_groups(
 ) -> None:
     logger.info("Syncing IAM groups for account '%s'.", current_aws_account_id)
     data = get_group_list_data(boto3_session)
-    load_groups(neo4j_session, data["Groups"], current_aws_account_id, aws_update_tag)
+    group_data = transform_groups(data["Groups"])
+    load_groups(neo4j_session, group_data, current_aws_account_id, aws_update_tag)
 
     sync_groups_inline_policies(boto3_session, data, neo4j_session, aws_update_tag)
 
