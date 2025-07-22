@@ -667,10 +667,21 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
-- Cartography records assumerole events between AWS principals
+- Cartography records assumerole events between AWS principals from CloudTrail management events
     ```cypher
-    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(AWSRole)
+    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
     ```
+
+- Cartography records SAML-based role assumptions from CloudTrail management events
+    ```cypher
+    (AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
+    ```
+
+- Cartography records GitHub Actions role assumptions from CloudTrail management events
+    ```cypher
+    (GitHubRepository)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
+    ```
+    Note: Generic web identity providers are not currently implemented.
 
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
@@ -839,6 +850,10 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
     ```
     (:CloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
     ```
+- CloudTrail Trail can send logs to CloudWatchLogGroup.
+    ```
+    (:CloudTrailTrail)-[:SENDS_LOGS_TO_CLOUDWATCH]->(:CloudWatchLogGroup)
+    ```
 
 ### CloudWatchLogGroup
 Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)
@@ -861,6 +876,27 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 - CLoudWatch LogGroups are a resource under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
+
+### CloudWatchMetricAlarm
+Representation of an AWS [CloudWatch Metric Alarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarms.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The ARN of the CloudWatch Metric Alarm |
+| arn | The ARN of the CloudWatch Metric Alarm |
+| region | The region of the CloudWatch Metric Alarm |
+| alarm_name | The name of the alarm |
+| state_value | The state value for the alarm |
+| state_reason | An explanation for the alarm state, in text format |
+| actions_enabled | Indicates whether actions should be executed during any changes to the alarm state |
+| comparison_operator | The arithmetic operation to use when comparing the specified statistic and threshold. The specified statistic value is used as the first operand |
+#### Relationships
+- CloudWatch Metric Alarms are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchMetricAlarm)
     ```
 
 ### CloudWatchLogMetricFilter
@@ -3839,6 +3875,11 @@ Representation of an AWS SSO User.
 - UserAccount can be assumed by AWSSSOUser.
     ```
     (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
+    ```
+
+- AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
+    ```
+    (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)
     ```
 
 ### AWSPermissionSet
