@@ -17,6 +17,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(".."))
 
+
 def setup(app):
     app.add_config_value("release_level", "", "env")
 
@@ -35,9 +36,9 @@ extensions = [
     "sphinx.ext.githubpages",
     "sphinxcontrib.mermaid",
     "myst_parser",
-    'sphinx.ext.napoleon',
-    'sphinx.ext.autodoc',
-    'sphinx.ext.coverage',
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.coverage",
     "sphinx_copybutton",
 ]
 

@@ -6,6 +6,7 @@
 .. automodule:: cartography.client.core.tx
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -17,6 +18,7 @@
 .. automodule:: cartography.graph.querybuilder
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -28,6 +30,7 @@
 .. automodule:: cartography.graph.cleanupbuilder
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -39,6 +42,7 @@
 .. automodule:: cartography.graph.job
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -50,6 +54,7 @@
 .. automodule:: cartography.graph.statement
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -61,6 +66,7 @@
 .. automodule:: cartography.graph.context
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise

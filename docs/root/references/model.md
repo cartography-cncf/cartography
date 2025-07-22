@@ -6,6 +6,7 @@
 .. automodule:: cartography.models.core.nodes
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -16,6 +17,7 @@
 .. automodule:: cartography.models.core.relationships
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -26,7 +28,7 @@
 .. automodule:: cartography.models.core.common
     :synopsis:
     :members:
-    :undoc-members:
+    :special-members: __init__
     :show-inheritance:
     :member-order: groupwise
 ```

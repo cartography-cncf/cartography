@@ -41,4 +41,3 @@ references/index
 
 contact
 ```
-

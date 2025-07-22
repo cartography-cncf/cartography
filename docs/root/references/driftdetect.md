@@ -6,7 +6,7 @@
 .. automodule:: cartography.driftdetect.cli
     :synopsis:
     :members:
-    :undoc-members:
+    :special-members: __init__
     :show-inheritance:
     :member-order: groupwise
 ```
@@ -17,7 +17,7 @@
 .. automodule:: cartography.driftdetect.config
     :synopsis:
     :members:
-    :undoc-members:
+    :special-members: __init__
     :show-inheritance:
     :member-order: groupwise
 ```
@@ -28,7 +28,7 @@
 .. automodule:: cartography.driftdetect.util
     :synopsis:
     :members:
-    :undoc-members:
+    :special-members: __init__
     :show-inheritance:
     :member-order: groupwise
 ```
@@ -39,7 +39,7 @@
 .. automodule:: cartography.driftdetect.model
     :synopsis:
     :members:
-    :undoc-members:
+    :special-members: __init__
     :show-inheritance:
     :member-order: groupwise
 ```
@@ -48,7 +48,7 @@
 .. automodule:: cartography.driftdetect.get_states
     :synopsis:
     :members:
-    :undoc-members:
+    :special-members: __init__
     :show-inheritance:
     :member-order: groupwise
 ```
@@ -59,6 +59,7 @@
 .. automodule:: cartography.driftdetect.storage
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -70,6 +71,7 @@
 .. automodule:: cartography.driftdetect.shortcut
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -79,6 +81,7 @@
 .. automodule:: cartography.driftdetect.add_shortcut
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -90,6 +93,7 @@
 .. automodule:: cartography.driftdetect.reporter
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -101,6 +105,7 @@
 .. automodule:: cartography.driftdetect.serializers
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise
@@ -112,6 +117,7 @@
 .. automodule:: cartography.driftdetect.detect_deviations
     :synopsis:
     :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
     :member-order: groupwise

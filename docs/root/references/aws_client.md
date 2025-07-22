@@ -6,7 +6,7 @@
 .. automodule:: cartography.client.aws.ecr
     :synopsis:
     :members:
-    :undoc-members:
+    :special-members: __init__
     :show-inheritance:
     :member-order: groupwise
 ```
@@ -17,7 +17,7 @@
 .. automodule:: cartography.client.aws.iam
     :synopsis:
     :members:
-    :undoc-members:
+    :special-members: __init__
     :show-inheritance:
     :member-order: groupwise
 ```
