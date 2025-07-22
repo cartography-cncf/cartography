@@ -8,17 +8,15 @@ GET_GLUE_CONNECTIONS_LIST = [
             "USERNAME": "test_user",
             "PASSWORD": "test_pass",
             "JDBC_CONNECTION_URL": "jdbc:mysql://db.example.com:3306/testdb",
-            "JDBC_ENFORCE_SSL": "false"
+            "JDBC_ENFORCE_SSL": "false",
         },
-        "SparkProperties": {
-            "spark.sql.shuffle.partitions": "10"
-        },
+        "SparkProperties": {"spark.sql.shuffle.partitions": "10"},
         "AthenaProperties": {},
         "PythonProperties": {},
         "PhysicalConnectionRequirements": {
             "SubnetId": "subnet-1234abcd",
             "SecurityGroupIdList": ["sg-0123abcd"],
-            "AvailabilityZone": "us-east-1a"
+            "AvailabilityZone": "us-east-1a",
         },
         "CreationTime": "2023-08-01T10:00:00Z",
         "LastUpdatedTime": "2023-08-15T12:00:00Z",
@@ -28,12 +26,9 @@ GET_GLUE_CONNECTIONS_LIST = [
         "LastConnectionValidationTime": "2023-08-15T12:00:00Z",
         "AuthenticationConfiguration": {
             "AuthenticationType": "BASIC",
-            "SecretArn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:mysql-credentials-abc123"
+            "SecretArn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:mysql-credentials-abc123",
         },
         "ConnectionSchemaVersion": 1,
-        "CompatibleComputeEnvironments": [
-            "SPARK",
-            "PYTHON"
-        ]
+        "CompatibleComputeEnvironments": ["SPARK", "PYTHON"],
     }
 ]

@@ -46,8 +46,12 @@ def transform_glue_connections(
             "ConnectionType": connection.get("ConnectionType"),
             "Status": connection.get("Status"),
             "StatusReason": connection.get("StatusReason"),
-            "AuthenticationType": connection.get("AuthenticationConfiguration", {}).get("AuthenticationType"),
-            "SecretArn": connection.get("AuthenticationConfiguration", {}).get("SecretArn"),
+            "AuthenticationType": connection.get("AuthenticationConfiguration", {}).get(
+                "AuthenticationType"
+            ),
+            "SecretArn": connection.get("AuthenticationConfiguration", {}).get(
+                "SecretArn"
+            ),
             "Region": region,
         }
         transformed_connections.append(transformed_connection)
