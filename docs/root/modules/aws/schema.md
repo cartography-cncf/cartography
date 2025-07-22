@@ -2367,6 +2367,72 @@ Representation of an AWS Relational Database Service [DBSnapshot](https://docs.a
     (RDSSnapshot)-[TAGGED]->(AWSTag)
     ```
 
+### ElasticacheCluster
+
+Representation of an AWS [ElastiCache Cluster](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CacheCluster.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Same as ARN |
+| **arn** | The Amazon Resource Name (ARN) for the ElastiCache cluster |
+| cache_cluster_id | The unique identifier for the cache cluster |
+| cache_node_type | The compute and memory capacity of the nodes in the cluster |
+| engine | The name of the cache engine (redis, memcached) |
+| engine_version | The version of the cache engine |
+| cache_cluster_status | The current state of the cache cluster |
+| num_cache_nodes | The number of cache nodes in the cluster |
+| preferred_availability_zone | The name of the Availability Zone in which the cache cluster is located |
+| preferred_maintenance_window | The weekly time range during which maintenance on the cache cluster is performed |
+| cache_cluster_create_time | The date and time when the cache cluster was created |
+| cache_subnet_group_name | The name of the cache subnet group associated with the cache cluster |
+| auto_minor_version_upgrade | Indicates whether minor version patches are applied automatically |
+| replication_group_id | The replication group to which this cache cluster belongs |
+| snapshot_retention_limit | The number of days for which ElastiCache will retain automatic cache cluster snapshots |
+| snapshot_window | The daily time range during which ElastiCache will take a snapshot of the cache cluster |
+| auth_token_enabled | Indicates whether an authentication token is enabled for the cache cluster |
+| transit_encryption_enabled | Indicates whether the cache cluster is encrypted in transit |
+| at_rest_encryption_enabled | Indicates whether the cache cluster is encrypted at rest |
+| topic_arn | The ARN of the SNS topic to which notifications are sent |
+| region | The AWS region where the cache cluster is located |
+
+#### Relationships
+
+- ElastiCache clusters are part of AWS Accounts.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ElasticacheCluster)
+    ```
+
+- ElastiCache topics are associated with ElastiCache clusters.
+    ```
+    (:ElasticacheTopic)-[:CACHE_CLUSTER]->(:ElasticacheCluster)
+    ```
+
+### ElasticacheTopic
+
+Representation of an AWS [ElastiCache Topic](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CacheCluster.html) for notifications.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Same as ARN |
+| **arn** | The Amazon Resource Name (ARN) for the SNS topic |
+| status | The status of the SNS topic (active, inactive) |
+
+#### Relationships
+
+- ElastiCache topics are part of AWS Accounts.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ElasticacheTopic)
+    ```
+
+- ElastiCache topics are associated with ElastiCache clusters.
+    ```
+    (:ElasticacheTopic)-[:CACHE_CLUSTER]->(:ElasticacheCluster)
+    ```
+
 ### S3Acl
 
 Representation of an AWS S3 [Access Control List](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_S3AccessControlList.html).
