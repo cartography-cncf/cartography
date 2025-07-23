@@ -8,11 +8,12 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AWSFederatedPrincipalNodeProperties(CartographyNodeProperties):
+class AWSFederatedNonlocalPrincipalNodeProperties(CartographyNodeProperties):
     # Required unique identifier
     id: PropertyRef = PropertyRef("arn")
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
@@ -25,41 +26,44 @@ class AWSFederatedPrincipalNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AWSFederatedPrincipalToAWSAccountRelProperties(CartographyRelProperties):
+class AWSFederatedNonlocalPrincipalToAWSAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AWSFederatedPrincipalToAWSAccountRel(CartographyRelSchema):
+class AWSFederatedNonlocalPrincipalToAWSAccountRel(CartographyRelSchema):
     """
-    This federated principal belongs to the current AWS account being
-    synced in cartography/intel/aws/iam.py.
+    This federated principal belongs to a different AWS account than the
+    current AWS account being synced in cartography/intel/aws/iam.py.
+    (This is rare but possible.)
     """
 
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("AWS_ID", set_in_kwargs=True),
+            "id": PropertyRef("other_account_id"),
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSFederatedPrincipalToAWSAccountRelProperties = (
-        AWSFederatedPrincipalToAWSAccountRelProperties()
+    properties: AWSFederatedNonlocalPrincipalToAWSAccountRelProperties = (
+        AWSFederatedNonlocalPrincipalToAWSAccountRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AWSFederatedPrincipalSchema(CartographyNodeSchema):
+class AWSFederatedNonlocalPrincipalSchema(CartographyNodeSchema):
     """
     A federated principal as discovered from a role's trust relationship.
     """
 
-    label: str = "AWSFederatedPrincipal"
-    properties: AWSFederatedPrincipalNodeProperties = (
-        AWSFederatedPrincipalNodeProperties()
+    label: str = "AWSFederatedNonlocalPrincipal"
+    properties: AWSFederatedNonlocalPrincipalNodeProperties = (
+        AWSFederatedNonlocalPrincipalNodeProperties()
     )
-    sub_resource_relationship: AWSFederatedPrincipalToAWSAccountRel = (
-        AWSFederatedPrincipalToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AWSFederatedNonlocalPrincipalToAWSAccountRel(),
+        ]
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])

@@ -107,6 +107,7 @@ def test_sync_iam(
         "RESOURCE",
         rel_direction_right=True,
     ) == {
+        (TEST_ACCOUNT_ID, "arn:aws:iam::1234:root"),
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user1"),
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user2"),
         (TEST_ACCOUNT_ID, "arn:aws:iam::1234:user/user3"),

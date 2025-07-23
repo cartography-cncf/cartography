@@ -12,6 +12,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import read_list_of_values_tx
+from cartography.graph.job import GraphJob
 from cartography.intel.aws.permission_relationships import parse_statement_node
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
 from cartography.models.aws.iam.access_key import AccountAccessKeySchema
@@ -21,6 +23,7 @@ from cartography.models.aws.iam.group import AWSGroupSchema
 from cartography.models.aws.iam.policy import AWSPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.models.aws.iam.role import AWSRoleSchema
+from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
 from cartography.models.aws.iam.service_principal import AWSServicePrincipalSchema
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
@@ -441,57 +444,46 @@ def transform_roles(
         for statement in role["AssumeRolePolicyDocument"]["Statement"]:
 
             principal_entries = _parse_principal_entries(statement["Principal"])
-            for principal_type, principal_value in principal_entries:
+            for principal_type, principal_arn in principal_entries:
                 if principal_type == "Federated":
                     # Add this to list of federated nodes to create
+                    # It is possible that the federated principal is in a different account
+                    # We will just `match` on it.
+                    # If it is in the same account, we will create a node for it.
+                    account_id = get_account_from_arn(principal_arn)
                     federated_principals.append(
                         {
-                            "arn": principal_value,
+                            "arn": principal_arn,
                             "type": "Federated",
-                            "account_id": get_account_from_arn(principal_value),
+                            "other_account_id": (
+                                account_id
+                                if account_id != current_aws_account_id
+                                else None
+                            ),
                             "role_arn": role_arn,
                         }
                     )
-                    trusted_aws_principals.add(principal_value)
+                    trusted_aws_principals.add(principal_arn)
                 elif principal_type == "Service":
                     # Add to the list of service nodes to create
                     service_principals.append(
                         {
-                            "arn": principal_value,
+                            "arn": principal_arn,
                             "type": "Service",
                         }
                     )
-                    trusted_aws_principals.add(principal_value)
+                    # Service principals are global so there is no account id.
+                    trusted_aws_principals.add(principal_arn)
                 elif principal_type == "AWS":
-                    if "root" in principal_value:
+                    if "root" in principal_arn:
                         # The current principal trusts a root principal.
 
                         # First check if the root principal is in a different account than the current one.
-                        # Add what we know about it to the graph.
-                        account_id = get_account_from_arn(principal_value)
+                        # Add what we know about that account to the graph.
+                        account_id = get_account_from_arn(principal_arn)
                         if account_id != current_aws_account_id:
-                            # Note - why we don't set inscope or foreign attribute on the account
-                            #
-                            # we are agnostic here if this is the AWSAccount is part of the sync scope or
-                            # a foreign AWS account that contains a trusted principal. The account could also be inscope
-                            # but not synced yet.
-                            # - The inscope attribute - set when the account is being sync.
-                            # - The foreign attribute - the attribute assignment logic is in aws_foreign_accounts.json analysis job
-                            # - Why seperate statement is needed - the arn may point to service level principals ex - ec2.amazonaws.com
                             external_aws_accounts.append({"id": account_id})
-
-                        # Let's ensure that the root principal exists
-                        role_data.append(
-                            {
-                                "arn": principal_value,
-                                "type": "AWS",
-                                # Everything in role_data gets the account_id from the role ARN instead of from kwargs
-                                # because we can find root principals from other accounts, and those account_ids will not be
-                                # known by the kwargs.
-                                "account_id": account_id,
-                            }
-                        )
-                    trusted_aws_principals.add(principal_value)
+                    trusted_aws_principals.add(principal_arn)
                 else:
                     # This should not happen but who knows.
                     logger.warning(f"Unknown principal type: {principal_type}")
@@ -527,7 +519,7 @@ def load_users(
         AWSUserSchema(),
         users,
         lastupdated=aws_update_tag,
-        AWS_ACCOUNT_ID=current_aws_account_id,
+        AWS_ID=current_aws_account_id,
     )
 
 
@@ -543,7 +535,7 @@ def load_groups(
         AWSGroupSchema(),
         groups,
         lastupdated=aws_update_tag,
-        AWS_ACCOUNT_ID=current_aws_account_id,
+        AWS_ID=current_aws_account_id,
     )
 
 
@@ -771,6 +763,7 @@ def _load_policy_with_schema(
         AWSPolicySchema(),
         policy_data,
         lastupdated=aws_update_tag,
+        PRINCIPAL_ID=policy_data[0]["principal_arn"],  # TODO check this
     )
 
 
@@ -785,6 +778,7 @@ def load_policy_statements(
         AWSPolicyStatementSchema(),
         statements,
         lastupdated=aws_update_tag,
+        POLICY_ID=statements[0]["policy_id"],  # TODO check this
     )
 
 
@@ -868,13 +862,13 @@ def sync_user_access_keys(
 
     # Query the graph for users instead of making another AWS API call
     query = (
-        "MATCH (user:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ACCOUNT_ID}) "
+        "MATCH (user:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID}) "
         "RETURN user.name as name, user.arn as arn"
     )
     users = neo4j_session.execute_read(
         read_list_of_dicts_tx,
         query,
-        AWS_ACCOUNT_ID=current_aws_account_id,
+        AWS_ID=current_aws_account_id,
     )
 
     user_access_keys = get_user_access_keys_data(boto3_session, users)
@@ -998,6 +992,13 @@ def load_external_aws_accounts(
         external_aws_accounts,
         lastupdated=aws_update_tag,
     )
+    # Ensure that the root principal exists for each external account.
+    for account in external_aws_accounts:
+        sync_root_principal(
+            neo4j_session,
+            account["id"],
+            aws_update_tag,
+        )
 
 
 @timeit
@@ -1028,6 +1029,7 @@ def load_role_data(
         AWSRoleSchema(),
         role_list,
         lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
 
 
@@ -1035,6 +1037,7 @@ def load_role_data(
 def load_federated_principals(
     neo4j_session: neo4j.Session,
     federated_principals: list[dict[str, Any]],
+    current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     load(
@@ -1042,6 +1045,7 @@ def load_federated_principals(
         AWSFederatedPrincipalSchema(),
         federated_principals,
         lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
 
 
@@ -1065,7 +1069,10 @@ def sync_role_assumptions(
     )
     # For SAML things
     load_federated_principals(
-        neo4j_session, transformed.federated_principals, aws_update_tag
+        neo4j_session,
+        transformed.federated_principals,
+        current_aws_account_id,
+        aws_update_tag,
     )
     # Finally, write the roles to the graph with trust rels, including to service and federated principals
     load_role_data(
@@ -1155,6 +1162,100 @@ def sync_role_inline_policies(
     )
 
 
+def _get_policies_in_current_account(
+    neo4j_session: neo4j.Session, current_aws_account_id: str
+) -> list[str]:
+    query = """
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(p:AWSPolicy)
+    RETURN p.id
+    """
+    return [
+        str(policy_id)
+        for policy_id in neo4j_session.execute_read(
+            read_list_of_values_tx,
+            query,
+            AWS_ID=current_aws_account_id,
+        )
+    ]
+
+
+def _get_principals_with_pols_in_current_account(
+    neo4j_session: neo4j.Session, current_aws_account_id: str
+) -> list[str]:
+    query = """
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(p:AWSPrincipal)
+    WHERE (p)-[:POLICY]->(:AWSPolicy)
+    RETURN p.id
+    """
+    return [
+        str(principal_id)
+        for principal_id in neo4j_session.execute_read(
+            read_list_of_values_tx,
+            query,
+            AWS_ID=current_aws_account_id,
+        )
+    ]
+
+
+def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+    # List all policies in the current account
+    policy_ids = _get_policies_in_current_account(
+        neo4j_session, common_job_parameters["AWS_ID"]
+    )
+
+    # for each policy id, run the cleanup job for the policy statements, passing the policy id as a kwarg.
+    for policy_id in policy_ids:
+        GraphJob.from_node_schema(
+            AWSPolicyStatementSchema(),
+            {**common_job_parameters, "POLICY_ID": policy_id},
+        ).run(
+            neo4j_session,
+        )
+
+    principal_ids = _get_principals_with_pols_in_current_account(
+        neo4j_session, common_job_parameters["AWS_ID"]
+    )
+    for principal_id in principal_ids:
+        GraphJob.from_node_schema(
+            AWSPolicySchema(), {**common_job_parameters, "PRINCIPAL_ID": principal_id}
+        ).run(
+            neo4j_session,
+        )
+
+    # Roles before federated and service principals.
+    GraphJob.from_node_schema(AWSRoleSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AWSFederatedPrincipalSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(AWSServicePrincipalSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(AWSUserSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AWSGroupSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+def sync_root_principal(
+    neo4j_session: neo4j.Session, current_aws_account_id: str, aws_update_tag: int
+) -> None:
+    """
+    In the current account, create a node for the AWS root principal "arn:aws:iam::<account_id>:root".
+
+    If a role X trusts the root principal in an account A, then any other role Y in A can assume X.
+
+    Note that this is _not_ the same as the AWS root user. The root principal doesn't show up in any
+    APIs except for assumerole trust policies.
+    """
+    load(
+        neo4j_session,
+        AWSRootPrincipalSchema(),
+        [{"arn": f"arn:aws:iam::{current_aws_account_id}:root"}],
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -1167,6 +1268,11 @@ def sync(
     logger.info("Syncing IAM for account '%s'.", current_aws_account_id)
     # This module only syncs IAM information that is in use.
     # As such only policies that are attached to a user, role or group are synced
+    sync_root_principal(
+        neo4j_session,
+        current_aws_account_id,
+        update_tag,
+    )
     sync_users(
         neo4j_session,
         boto3_session,
@@ -1201,6 +1307,7 @@ def sync(
         update_tag,
         common_job_parameters,
     )
+    cleanup_iam(neo4j_session, common_job_parameters)
     run_cleanup_job(
         "aws_import_principals_cleanup.json",
         neo4j_session,

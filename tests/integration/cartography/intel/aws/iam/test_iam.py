@@ -7,6 +7,7 @@ import tests.data.aws.iam
 from cartography.cli import CLI
 from cartography.config import Config
 from cartography.intel.aws.iam import _transform_policy_statements
+from cartography.intel.aws.iam import sync_root_principal
 from cartography.sync import build_default_sync
 from tests.integration.util import check_nodes
 
@@ -45,6 +46,12 @@ def test_permission_relationships_file_arguments():
 
 def _create_base_account(neo4j_session):
     neo4j_session.run("MERGE (a:AWSAccount{id:$AccountId})", AccountId=TEST_ACCOUNT_ID)
+    # Hack to create the root principal node since we're not calling the full sync() function in this test.
+    sync_root_principal(
+        neo4j_session,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
 
 
 def test_load_users(neo4j_session):
@@ -107,7 +114,7 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    # Get TRUSTS_AWS_PRINCIPAL relationships from Neo4j.
+    # Assert: Get TRUSTS_AWS_PRINCIPAL relationships from Neo4j.
     result = neo4j_session.run(
         """
         MATCH (n1:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(n2:AWSPrincipal) RETURN n1.arn, n2.arn;

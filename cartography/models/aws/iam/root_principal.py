@@ -12,30 +12,19 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AWSFederatedPrincipalNodeProperties(CartographyNodeProperties):
-    # Required unique identifier
+class AWSRootPrincipalNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("arn")
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
-
-    # Automatic fields (set by cartography)
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-    # Business fields from AWS IAM federated principals
-    type: PropertyRef = PropertyRef("type")
-
-
-@dataclass(frozen=True)
-class AWSFederatedPrincipalToAWSAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AWSFederatedPrincipalToAWSAccountRel(CartographyRelSchema):
-    """
-    This federated principal belongs to the current AWS account being
-    synced in cartography/intel/aws/iam.py.
-    """
+class AWSRootPrincipalToAWSAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
+
+@dataclass(frozen=True)
+class AWSRootPrincipalToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -44,22 +33,20 @@ class AWSFederatedPrincipalToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSFederatedPrincipalToAWSAccountRelProperties = (
-        AWSFederatedPrincipalToAWSAccountRelProperties()
+    properties: AWSRootPrincipalToAWSAccountRelProperties = (
+        AWSRootPrincipalToAWSAccountRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AWSFederatedPrincipalSchema(CartographyNodeSchema):
+class AWSRootPrincipalSchema(CartographyNodeSchema):
     """
-    A federated principal as discovered from a role's trust relationship.
+    Represents the AWS root principal for an AWS account
     """
 
-    label: str = "AWSFederatedPrincipal"
-    properties: AWSFederatedPrincipalNodeProperties = (
-        AWSFederatedPrincipalNodeProperties()
-    )
-    sub_resource_relationship: AWSFederatedPrincipalToAWSAccountRel = (
-        AWSFederatedPrincipalToAWSAccountRel()
+    label: str = "AWSRootPrincipal"
+    properties: AWSRootPrincipalNodeProperties = AWSRootPrincipalNodeProperties()
+    sub_resource_relationship: AWSRootPrincipalToAWSAccountRel = (
+        AWSRootPrincipalToAWSAccountRel()
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])
