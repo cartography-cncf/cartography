@@ -1,8 +1,0 @@
-{
-  "statements": [{
-    "query": "MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(n:AWSUser) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
-    "iterative": true,
-    "iterationsize": 100
-  }],
-  "name": "cleanup AWSUser"
-}

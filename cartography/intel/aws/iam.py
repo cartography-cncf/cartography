@@ -544,12 +544,14 @@ def load_access_keys(
     neo4j_session: neo4j.Session,
     access_keys: List[Dict],
     aws_update_tag: int,
+    current_aws_account_id: str,
 ) -> None:
     load(
         neo4j_session,
         AccountAccessKeySchema(),
         access_keys,
         lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
 
 
@@ -606,12 +608,16 @@ def sync_assumerole_relationships(
     )
     query_potential_matches = """
     MATCH (:AWSAccount{id:$AccountId})-[:RESOURCE]->(target:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(source:AWSPrincipal)
-    WHERE NOT source.arn ENDS WITH 'root'
-    AND NOT source.type = 'Service'
-    AND NOT source.type = 'Federated'
-    RETURN target.arn AS target_arn,
-    source.arn AS source_arn
+    WHERE NOT source:AWSRootPrincipal
+    AND NOT source:AWSServicePrincipal
+    AND NOT source:AWSFederatedPrincipal
+    RETURN target.arn AS target_arn, source.arn AS source_arn
     """
+    results = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query_potential_matches,
+        AccountId=current_aws_account_id,
+    )
 
     ingest_policies_assume_role = """
     MATCH (source:AWSPrincipal{arn: $SourceArn})
@@ -623,10 +629,6 @@ def sync_assumerole_relationships(
     SET r.lastupdated = $aws_update_tag
     """
 
-    results = neo4j_session.run(
-        query_potential_matches,
-        AccountId=current_aws_account_id,
-    )
     potential_matches = [(r["source_arn"], r["target_arn"]) for r in results]
     # TODO this is a matchlink
     for source_arn, target_arn in potential_matches:
@@ -841,12 +843,6 @@ def sync_users(
 
     sync_user_managed_policies(boto3_session, data, neo4j_session, aws_update_tag)
 
-    run_cleanup_job(
-        "aws_import_users_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
-
 
 @timeit
 def sync_user_access_keys(
@@ -873,12 +869,11 @@ def sync_user_access_keys(
 
     user_access_keys = get_user_access_keys_data(boto3_session, users)
     access_key_data = transform_access_keys(user_access_keys)
-    load_access_keys(neo4j_session, access_key_data, aws_update_tag)
-
-    run_cleanup_job(
-        "aws_import_account_access_key_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    load_access_keys(
+        neo4j_session, access_key_data, aws_update_tag, current_aws_account_id
+    )
+    GraphJob.from_node_schema(AccountAccessKeySchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
@@ -937,12 +932,6 @@ def sync_groups(
     sync_groups_inline_policies(boto3_session, data, neo4j_session, aws_update_tag)
 
     sync_group_managed_policies(boto3_session, data, neo4j_session, aws_update_tag)
-
-    run_cleanup_job(
-        "aws_import_groups_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
 
 
 def sync_group_managed_policies(
@@ -1107,12 +1096,6 @@ def sync_roles(
         data,
         neo4j_session,
         aws_update_tag,
-    )
-
-    run_cleanup_job(
-        "aws_import_roles_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
     )
 
 
@@ -1308,11 +1291,6 @@ def sync(
         common_job_parameters,
     )
     cleanup_iam(neo4j_session, common_job_parameters)
-    run_cleanup_job(
-        "aws_import_principals_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
     merge_module_sync_metadata(
         neo4j_session,
         group_type="AWSAccount",

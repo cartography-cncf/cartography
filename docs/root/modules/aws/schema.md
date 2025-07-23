@@ -811,7 +811,12 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 #### Relationships
 - Account Access Keys may authenticate AWS Users and AWS Principal objects.
     ```
-    (AWSUser, AWSPrincipal)-[AWS_ACCESS_KEY]->(AccountAccessKey)
+    (:AWSUser, :AWSPrincipal)-[:AWS_ACCESS_KEY]->(:AccountAccessKey)
+    ```
+
+- Account Access Keys are a resource under the AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:AccountAccessKey)
     ```
 
 ### CloudTrailTrail
