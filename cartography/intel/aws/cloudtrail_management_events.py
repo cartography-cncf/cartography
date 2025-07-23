@@ -381,13 +381,16 @@ def transform_web_identity_role_events_to_role_assumptions(
 
             # Only process GitHub Actions events
             if "token.actions.githubusercontent.com" in identity_provider:
-                # GitHub repo fullname is directly in userName (e.g., "sublimagesec/sublimage")
-                github_repo = user_identity.get("userName", "")
-                if not github_repo:
+                # Extract GitHub repo fullname from userName format: "repo:owner/repo:context"
+                user_name = user_identity.get("userName", "")
+                if not user_name:
                     logger.debug(
                         f"Missing userName in GitHub WebIdentity event: {event.get('EventId', 'unknown')}"
                     )
                     continue
+                
+                # Parse GitHub repo fullname from format like "repo:owner/repo:pull_request"
+                github_repo = _extract_github_repo_from_username(user_name)
                 key = (github_repo, destination_principal)
 
                 if key in github_aggregated:
@@ -570,6 +573,38 @@ def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
 
     # Return original ARN if conversion fails
     return assumed_role_arn
+
+
+def _extract_github_repo_from_username(user_name: str) -> str:
+    """
+    Extract GitHub repository fullname from CloudTrail userName field.
+
+    GitHub Actions CloudTrail events have userName in the format:
+    "repo:{owner}/{repo}:{context}"
+    """
+    if not user_name:
+        return ""
+
+    # Split by colon - expected format: "repo:owner/repo:context"
+    parts = user_name.split(":")
+    
+    # Need at least 3 parts: ["repo", "owner/repo", "context"]
+    if len(parts) < 3 or parts[0] != "repo":
+        return ""
+    
+    # Extract the owner/repo part (second element)
+    repo_fullname = parts[1]
+    
+    # Validate it looks like owner/repo format
+    if "/" not in repo_fullname or repo_fullname.count("/") != 1:
+        return ""
+    
+    # Additional validation - ensure both owner and repo parts exist
+    owner, repo = repo_fullname.split("/")
+    if not owner or not repo:
+        return ""
+    
+    return repo_fullname
 
 
 @timeit
