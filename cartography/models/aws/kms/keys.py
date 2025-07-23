@@ -44,6 +44,10 @@ class KMSKeyNodeProperties(CartographyNodeProperties):
     encryption_algorithms: PropertyRef = PropertyRef("EncryptionAlgorithms")
     signing_algorithms: PropertyRef = PropertyRef("SigningAlgorithms")
 
+    # Policy analysis properties
+    anonymous_access: PropertyRef = PropertyRef("anonymous_access")
+    anonymous_actions: PropertyRef = PropertyRef("anonymous_actions")
+
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
