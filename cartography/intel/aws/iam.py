@@ -11,6 +11,7 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
@@ -25,10 +26,10 @@ from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.models.aws.iam.role import AWSRoleSchema
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
 from cartography.models.aws.iam.service_principal import AWSServicePrincipalSchema
+from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -619,32 +620,35 @@ def sync_assumerole_relationships(
         AccountId=current_aws_account_id,
     )
 
-    ingest_policies_assume_role = """
-    MATCH (source:AWSPrincipal{arn: $SourceArn})
-    WITH source
-    MATCH (role:AWSRole{arn: $TargetArn})
-    WITH role, source
-    MERGE (source)-[r:STS_ASSUMEROLE_ALLOW]->(role)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-
-    potential_matches = [(r["source_arn"], r["target_arn"]) for r in results]
-    # TODO this is a matchlink
-    for source_arn, target_arn in potential_matches:
+    # Filter potential matches to only those where the source principal has sts:AssumeRole permission
+    valid_matches = []
+    for result in results:
+        source_arn = result["source_arn"]
+        target_arn = result["target_arn"]
         policies = get_policies_for_principal(neo4j_session, source_arn)
         if principal_allowed_on_resource(policies, target_arn, ["sts:AssumeRole"]):
-            neo4j_session.run(
-                ingest_policies_assume_role,
-                SourceArn=source_arn,
-                TargetArn=target_arn,
-                aws_update_tag=aws_update_tag,
+            valid_matches.append(
+                {
+                    "source_arn": source_arn,
+                    "target_arn": target_arn,
+                }
             )
-    run_cleanup_job(
-        "aws_import_roles_policy_cleanup.json",
+
+    load_matchlinks(
         neo4j_session,
-        common_job_parameters,
+        STSAssumeRoleAllowMatchLink(),
+        valid_matches,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=current_aws_account_id,
     )
+
+    GraphJob.from_matchlink(
+        STSAssumeRoleAllowMatchLink(),
+        "AWSAccount",  # _sub_resource_label
+        current_aws_account_id,  # _sub_resource_id
+        aws_update_tag,
+    ).run(neo4j_session)
 
 
 def ensure_list(obj: Any) -> List[Any]:
