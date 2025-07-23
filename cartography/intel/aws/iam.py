@@ -766,7 +766,7 @@ def _load_policy_with_schema(
         AWSPolicySchema(),
         policy_data,
         lastupdated=aws_update_tag,
-        PRINCIPAL_ID=policy_data[0]["principal_arn"],  # TODO check this
+        PRINCIPAL_ID=policy_data[0]["principal_arn"],
     )
 
 
@@ -781,7 +781,7 @@ def load_policy_statements(
         AWSPolicyStatementSchema(),
         statements,
         lastupdated=aws_update_tag,
-        POLICY_ID=statements[0]["policy_id"],  # TODO check this
+        POLICY_ID=statements[0]["policy_id"],
     )
 
 
@@ -792,6 +792,8 @@ def load_policy_data(
     policy_type: str,
     aws_update_tag: int,
 ) -> None:
+    # TODO when we decide to make the AWS account a sub resource of the policy, we can
+    # refactor this to just one load() call. For now we're keeping the legacy structure.
     for principal_arn, policy_statement_map in principal_policy_map.items():
         logger.debug(f"Loading policies for principal {principal_arn}")
         for policy_key, statements in policy_statement_map.items():
@@ -810,7 +812,6 @@ def load_policy_data(
                 else policy_key
             )
 
-            # TODO: break this interface
             load_policy(
                 neo4j_session,
                 policy_id,
@@ -1204,7 +1205,7 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
             neo4j_session,
         )
 
-    # Roles before federated and service principals.
+    # Clean up roles before federated and service principals
     GraphJob.from_node_schema(AWSRoleSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(AWSFederatedPrincipalSchema(), common_job_parameters).run(
         neo4j_session

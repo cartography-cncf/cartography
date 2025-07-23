@@ -107,7 +107,7 @@ type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
   RETURN outbound_account.name, inbound_account.name, inbound_range.range, inbound_rule.fromport, inbound_rule.toport, inbound_rule.protocol, inbound_group.name, inbound_vpc.id
   ```
 
-### AWSGroup
+### AWSPrincipal :: AWSGroup
 
 Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Group.html).
 
@@ -138,6 +138,54 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSGroup)
+    ```
+
+- AWSGroups can be assigned AWSPolicies.
+
+    ```cypher
+    (:AWSGroup)-[:POLICY]->(:AWSPolicy)
+    ```
+
+### AWSPrincipal :: AWSRootPrincipal
+
+Representation of the root principal for an AWS account.
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the root principal|
+| **id** | Same as arn |
+
+
+#### Relationships
+
+- Every AWSAccount implicitly has a "root principal".
+
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:AWSRootPrincipal)
+    ```
+
+- If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
+
+    ```cypher
+    (:AWSRootPrincipal)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
+    ```
+
+
+### AWSPrincipal :: AWSServicePrincipal
+
+Representation of a global AWS service principal e.g. "ec2.amazonaws.com"
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the service principal|
+| **id** | Same as arn |
+
+#### Relationships
+
+- AWSRoles set up trust relationships with AWSServicePrincipals like "ec2.amazonaws.com" to enable use of those services.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSServicePrincipal)
     ```
 
 ### GuardDutyFinding::Risk
@@ -604,6 +652,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSAccount)-[RESOURCE]->(AWSUser)
     ```
 
+- AWS Users can be assigned AWSPolicies.
+
+    ```cypher
+    (:AWSUser)-[:POLICY]->(:AWSPolicy)
+    ```
+
 
 ### AWSPrincipal::AWSRole
 
@@ -668,9 +722,23 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
+- AWSRoles set up trust relationships with AWSServicePrincipals like "ec2.amazonaws.com" to enable use of those services.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSServicePrincipal)
+    ```
+
+- If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
+
+    ```cypher
+    (:AWSRootPrincipal)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
+    ```
+
 - Cartography records assumerole events between AWS principals
     ```cypher
     (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(AWSRole)
+
+
     ```
 
 ### AWSTransitGateway
