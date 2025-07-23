@@ -966,6 +966,51 @@ Represents a user in Your Service.
 - User connected to human: `(:YourServiceUser)<-[:IDENTITY_YOUR_SERVICE]-(:Human)`
 ```
 
+### Multiple Intel Modules Modifying the Same Node Type
+
+It is possible (and encouraged) for more than one intel module to modify the same node type. However, there are two distinct patterns for this:
+
+**Simple Relationship Pattern**: When data type A only refers to data type B by an ID without providing additional properties about B, we can just define a relationship schema. This way when A is loaded, the relationship schema performs a `MATCH` to find and connect to existing nodes of type B.
+
+For example, when an RDS instance refers to EC2 security groups by ID, we create a relationship from the RDS instance to the security group nodes, since the RDS API doesn't provide additional properties about the security groups beyond their IDs.
+
+```python
+# RDS Instance refers to Security Groups by ID only
+@dataclass(frozen=True)
+class RDSInstanceToSecurityGroupRel(CartographyRelSchema):
+    target_node_label: str = "EC2SecurityGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "id": PropertyRef("SecurityGroupId"),  # Just the ID, no additional properties
+    })
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
+    properties: RDSInstanceToSecurityGroupRelProperties = RDSInstanceToSecurityGroupRelProperties()
+```
+
+**Composite Node Pattern**: When a data type A refers to another data type B and offers additional fields about B that B doesn't have itself, we should define a composite node schema. This composite node would be named "`BASchema`" to denote that it's a "`B`" object as known by an "`A`" object. When loaded, the composite node schema targets the same node label as the primary `B` schema, allowing the loading system to perform a `MERGE` operation that combines properties from both sources.
+
+For example, in the AWS EC2 module, we have both `EBSVolumeSchema` (from the EBS API) and `EBSVolumeInstanceSchema` (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn't have, such as `deleteontermination`. Both schemas target the same `EBSVolume` node label, allowing the node to accumulate properties from both sources.
+
+```python
+# EC2 Instance provides additional properties about EBS Volumes
+@dataclass(frozen=True)
+class EBSVolumeInstanceProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("VolumeId")
+    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    # Additional property that EBS API doesn't have
+    deleteontermination: PropertyRef = PropertyRef("DeleteOnTermination")
+
+@dataclass(frozen=True)
+class EBSVolumeInstanceSchema(CartographyNodeSchema):
+    label: str = "EBSVolume"  # Same label as EBSVolumeSchema
+    properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
+    sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
+    # ... other relationships
+```
+
+The key distinction is whether the referring module provides additional properties about the target entity. If it does, use a composite node schema. If it only provides IDs, use a simple relationship schema.
+
 ## 🎯 Final Checklist
 
 Before submitting your module:
