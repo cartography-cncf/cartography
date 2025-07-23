@@ -146,48 +146,6 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     (:AWSGroup)-[:POLICY]->(:AWSPolicy)
     ```
 
-### AWSPrincipal :: AWSRootPrincipal
-
-Representation of the root principal for an AWS account.
-
-| Field | Description |
-|-------|-------------|
-| **arn** | The arn of the root principal|
-| **id** | Same as arn |
-
-
-#### Relationships
-
-- Every AWSAccount implicitly has a "root principal".
-
-    ```cypher
-    (:AWSAccount)-[:RESOURCE]->(:AWSRootPrincipal)
-    ```
-
-- If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
-
-    ```cypher
-    (:AWSRootPrincipal)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
-    ```
-
-
-### AWSPrincipal :: AWSServicePrincipal
-
-Representation of a global AWS service principal e.g. "ec2.amazonaws.com"
-
-| Field | Description |
-|-------|-------------|
-| **arn** | The arn of the service principal|
-| **id** | Same as arn |
-
-#### Relationships
-
-- AWSRoles set up trust relationships with AWSServicePrincipals like "ec2.amazonaws.com" to enable use of those services.
-
-    ```cypher
-    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSServicePrincipal)
-    ```
-
 ### GuardDutyFinding::Risk
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
@@ -679,37 +637,37 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 - Some AWS Groups, Users, Principals, and EC2 Instances can assume AWS Roles.
 
     ```cypher
-    (AWSGroup, AWSUser, EC2Instance)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
+    (:AWSGroup, :AWSUser, :EC2Instance)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
     ```
 
 - Some AWS Roles can assume other AWS Roles.
 
     ```cypher
-    (AWSRole)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
+    (:AWSRole)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
     ```
 
 - Some AWS Roles trust AWS Principals.
 
     ```cypher
-    (AWSRole)-[TRUSTS_AWS_PRINCIPAL]->(AWSPrincipal)
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSPrincipal)
     ```
 
 - Members of an Okta group can assume associated AWS roles if Okta SAML is configured with AWS.
 
     ```cypher
-    (AWSRole)-[ALLOWED_BY]->(OktaGroup)
+    (:AWSRole)-[:ALLOWED_BY]->(:OktaGroup)
     ```
 
 - An IamInstanceProfile can be associated with a role.
 
     ```cypher
-    (AWSRole)<-[ASSOCIATED_WITH]-(AWSInstanceProfile)
+    (:AWSRole)<-[:ASSOCIATED_WITH]-(:AWSInstanceProfile)
     ```
 
 - AWS Roles are defined in AWS Accounts.
 
     ```cypher
-    (AWSAccount)-[RESOURCE]->(AWSRole)
+    (:AWSAccount)-[:RESOURCE]->(:AWSRole)
     ```
 
 - ECSTaskDefinitions have task roles.
@@ -722,10 +680,45 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
+- If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
+
+    ```cypher
+    (:AWSRootPrincipal)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
+    ```
+
 - AWSRoles set up trust relationships with AWSServicePrincipals like "ec2.amazonaws.com" to enable use of those services.
 
     ```cypher
     (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSServicePrincipal)
+    ```
+
+- AWSRoles set up trust relationships with AWSFederatedPrincipals to enable use of those services.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSFederatedPrincipal)
+    ```
+
+- Cartography records assumerole events between AWS principals
+    ```cypher
+    (:AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(:AWSRole)
+    ```
+
+### AWSPrincipal::AWSRootPrincipal
+
+Representation of the root principal for an AWS account.
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the root principal|
+| **id** | Same as arn |
+
+
+#### Relationships
+
+- Every AWSAccount implicitly has a "root principal".
+
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:AWSRootPrincipal)
     ```
 
 - If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
@@ -734,11 +727,38 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:AWSRootPrincipal)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
     ```
 
-- Cartography records assumerole events between AWS principals
+### AWSPrincipal::AWSServicePrincipal
+
+Representation of a global AWS service principal e.g. "ec2.amazonaws.com"
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the service principal|
+| **id** | Same as arn |
+
+#### Relationships
+
+- We define trust relationships from AWS roles to AWSServicePrincipals like "ec2.amazonaws.com" to enable those services to use those roles.
+
     ```cypher
-    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(AWSRole)
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSServicePrincipal)
+    ```
 
+### AWSPrincipal::AWSFederatedPrincipal
 
+Representation of a federated principal e.g. "arn:aws:iam::123456789012:saml-provider/my-saml-provider". Federated principals are used for authentication to AWS using SAML or OpenID Connect. Federated principals are only discoverable from AWS role trust relationships.
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the federated principal|
+| **id** | Same as arn |
+
+#### Relationships
+
+- We can define trust relationships from AWS roles to AWSFederatedPrincipals like "arn:aws:iam::123456789012:saml-provider/my-saml-provider" so that other vendors and products can authenticate to AWS as those roles.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSFederatedPrincipal)
     ```
 
 ### AWSTransitGateway

@@ -31,11 +31,6 @@ class AWSFederatedPrincipalToAWSAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSFederatedPrincipalToAWSAccountRel(CartographyRelSchema):
-    """
-    This federated principal belongs to the current AWS account being
-    synced in cartography/intel/aws/iam.py.
-    """
-
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
@@ -52,7 +47,7 @@ class AWSFederatedPrincipalToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSFederatedPrincipalSchema(CartographyNodeSchema):
     """
-    A federated principal as discovered from a role's trust relationship.
+    E.g. "arn:aws:iam::123456789012:saml-provider/my-saml-provider".
     """
 
     label: str = "AWSFederatedPrincipal"
