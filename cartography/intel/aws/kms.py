@@ -13,7 +13,13 @@ import neo4j
 from botocore.exceptions import ClientError
 from policyuniverse.policy import Policy
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.aws.kms.aliases import KMSAliasSchema
+from cartography.models.aws.kms.grants import KMSGrantSchema
+from cartography.models.aws.kms.keys import KMSKeySchema
 from cartography.util import aws_handle_regions
+from cartography.util import dict_date_to_epoch
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -120,64 +126,96 @@ def get_grants(key: Dict, client: botocore.client.BaseClient) -> List[Any]:
 
 
 @timeit
-def _load_kms_key_aliases(
+def transform_kms_aliases(aliases: List[Dict]) -> List[Dict]:
+    """
+    Transform AWS KMS Aliases to match the data model.
+    Converts datetime fields to epoch timestamps for consistency.
+    """
+    transformed_data = []
+    for alias in aliases:
+        transformed = dict(alias)
+        
+        # Convert datetime fields to epoch timestamps
+        transformed["CreationDate"] = dict_date_to_epoch(alias, "CreationDate")
+        transformed["LastUpdatedDate"] = dict_date_to_epoch(alias, "LastUpdatedDate")
+        
+        transformed_data.append(transformed)
+    return transformed_data
+
+
+@timeit
+def transform_kms_keys(keys: List[Dict]) -> List[Dict]:
+    """
+    Transform AWS KMS Keys to match the data model.
+    Converts datetime fields to epoch timestamps for consistency.
+    """
+    transformed_data = []
+    for key in keys:
+        transformed = dict(key)
+        
+        # Convert datetime fields to epoch timestamps
+        transformed["CreationDate"] = dict_date_to_epoch(key, "CreationDate")
+        transformed["DeletionDate"] = dict_date_to_epoch(key, "DeletionDate") 
+        transformed["ValidTo"] = dict_date_to_epoch(key, "ValidTo")
+        
+        transformed_data.append(transformed)
+    return transformed_data
+
+
+@timeit
+def transform_kms_grants(grants: List[Dict]) -> List[Dict]:
+    """
+    Transform AWS KMS Grants to match the data model.
+    Converts datetime fields to epoch timestamps for consistency.
+    """
+    transformed_data = []
+    for grant in grants:
+        transformed = dict(grant)
+        
+        # Convert datetime fields to epoch timestamps
+        transformed["CreationDate"] = dict_date_to_epoch(grant, "CreationDate")
+        
+        transformed_data.append(transformed)
+    return transformed_data
+
+
+@timeit
+def load_kms_aliases(
     neo4j_session: neo4j.Session,
     aliases: List[Dict],
+    region: str,
+    aws_account_id: str,
     update_tag: int,
 ) -> None:
     """
-    Ingest KMS Aliases into neo4j.
+    Load KMS Aliases into Neo4j using the data model.
     """
-    ingest_aliases = """
-    UNWIND $alias_list AS alias
-    MERGE (a:KMSAlias{id: alias.AliasArn})
-    ON CREATE SET a.firstseen = timestamp(), a.targetkeyid = alias.TargetKeyId
-    SET a.aliasname = alias.AliasName, a.lastupdated = $UpdateTag
-    WITH a, alias
-    MATCH (kmskey:KMSKey{id: alias.TargetKeyId})
-    MERGE (a)-[r:KNOWN_AS]->(kmskey)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-
-    neo4j_session.run(
-        ingest_aliases,
-        alias_list=aliases,
-        UpdateTag=update_tag,
+    logger.info(f"Loading {len(aliases)} KMS aliases for region {region} into graph.")
+    load(
+        neo4j_session,
+        KMSAliasSchema(),
+        aliases,
+        lastupdated=update_tag,
+        Region=region,
+        AWS_ID=aws_account_id,
     )
 
 
 @timeit
-def _load_kms_key_grants(
+def load_kms_grants(
     neo4j_session: neo4j.Session,
-    grants_list: List[Dict],
+    grants: List[Dict],
     update_tag: int,
 ) -> None:
     """
-    Ingest KMS Key Grants into neo4j.
+    Load KMS Grants into Neo4j using the data model.
     """
-    ingest_grants = """
-    UNWIND $grants AS grant
-    MERGE (g:KMSGrant{id: grant.GrantId})
-    ON CREATE SET g.firstseen = timestamp(), g.granteeprincipal = grant.GranteePrincipal,
-    g.creationdate = grant.CreationDate
-    SET g.name = grant.GrantName, g.lastupdated = $UpdateTag
-    WITH g, grant
-    MATCH (kmskey:KMSKey{id: grant.KeyId})
-    MERGE (g)-[r:APPLIED_ON]->(kmskey)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-
-    # neo4j does not accept datetime objects and values. This loop is used to convert
-    # these values to string.
-    for grant in grants_list:
-        grant["CreationDate"] = str(grant["CreationDate"])
-
-    neo4j_session.run(
-        ingest_grants,
-        grants=grants_list,
-        UpdateTag=update_tag,
+    logger.info(f"Loading {len(grants)} KMS grants into graph.")
+    load(
+        neo4j_session,
+        KMSGrantSchema(),
+        grants,
+        lastupdated=update_tag,
     )
 
 
@@ -230,15 +268,15 @@ def load_kms_key_details(
     Create dictionaries for all KMS key policies, aliases and grants so we can import them in a single query for each
     """
     policies = []
-    aliases: List[str] = []
-    grants: List[str] = []
+    aliases: List[Dict] = []
+    grants: List[Dict] = []
     for key, policy, alias, grant in policy_alias_grants_data:
         parsed_policy = parse_policy(key, policy)
         if parsed_policy is not None:
             policies.append(parsed_policy)
         if len(alias) > 0:
             aliases.extend(alias)
-        if len(grants) > 0:
+        if len(grant) > 0:
             grants.extend(grant)
 
     # cleanup existing policy properties
@@ -249,8 +287,14 @@ def load_kms_key_details(
     )
 
     _load_kms_key_policies(neo4j_session, policies, update_tag)
-    _load_kms_key_aliases(neo4j_session, aliases, update_tag)
-    _load_kms_key_grants(neo4j_session, grants, update_tag)
+    
+    # Transform and load aliases using the data model
+    transformed_aliases = transform_kms_aliases(aliases)
+    load_kms_aliases(neo4j_session, transformed_aliases, region, aws_account_id, update_tag)
+    
+    # Transform and load grants using the data model
+    transformed_grants = transform_kms_grants(grants)
+    load_kms_grants(neo4j_session, transformed_grants, update_tag)
     _set_default_values(neo4j_session, aws_account_id)
 
 
@@ -319,50 +363,41 @@ def parse_policy(key: str, policy: Policy) -> Optional[Dict[Any, Any]]:
 @timeit
 def load_kms_keys(
     neo4j_session: neo4j.Session,
-    data: Dict,
+    keys: List[Dict],
     region: str,
-    current_aws_account_id: str,
-    aws_update_tag: int,
+    aws_account_id: str,
+    update_tag: int,
 ) -> None:
-    ingest_keys = """
-    UNWIND $key_list AS k
-    MERGE (kmskey:KMSKey{id:k.KeyId})
-    ON CREATE SET kmskey.firstseen = timestamp(),
-    kmskey.arn = k.Arn, kmskey.creationdate = k.CreationDate
-    SET kmskey.deletiondate = k.DeletionDate,
-    kmskey.validto = k.ValidTo,
-    kmskey.enabled = k.Enabled,
-    kmskey.keystate = k.KeyState,
-    kmskey.customkeystoreid = k.CustomKeyStoreId,
-    kmskey.cloudhsmclusterid = k.CloudHsmClusterId,
-    kmskey.lastupdated = $aws_update_tag,
-    kmskey.region = $Region
-    WITH kmskey
-    MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (aa)-[r:RESOURCE]->(kmskey)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
     """
-
-    # neo4j does not accept datetime objects and values. This loop is used to convert
-    # these values to string.
-    for key in data:
-        key["CreationDate"] = str(key["CreationDate"])
-        key["DeletionDate"] = str(key.get("DeletionDate"))
-        key["ValidTo"] = str(key.get("ValidTo"))
-
-    neo4j_session.run(
-        ingest_keys,
-        key_list=data,
+    Load KMS Keys into Neo4j using the data model.
+    Expects data to already be transformed by transform_kms_keys().
+    """
+    logger.info(f"Loading {len(keys)} KMS keys for region {region} into graph.")
+    load(
+        neo4j_session,
+        KMSKeySchema(),
+        keys,
+        lastupdated=update_tag,
         Region=region,
-        AWS_ACCOUNT_ID=current_aws_account_id,
-        aws_update_tag=aws_update_tag,
+        AWS_ID=aws_account_id,
     )
 
 
 @timeit
 def cleanup_kms(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job("aws_import_kms_cleanup.json", neo4j_session, common_job_parameters)
+    """
+    Run KMS cleanup using schema-based GraphJobs for all node types.
+    """
+    logger.debug("Running KMS cleanup using GraphJob for all node types")
+    
+    # Clean up grants first (they depend on keys)
+    GraphJob.from_node_schema(KMSGrantSchema(), common_job_parameters).run(neo4j_session)
+    
+    # Clean up aliases
+    GraphJob.from_node_schema(KMSAliasSchema(), common_job_parameters).run(neo4j_session)
+    
+    # Clean up keys
+    GraphJob.from_node_schema(KMSKeySchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit
@@ -375,9 +410,11 @@ def sync_kms_keys(
 ) -> None:
     kms_keys = get_kms_key_list(boto3_session, region)
 
+    # Transform and load keys using the data model
+    transformed_keys = transform_kms_keys(kms_keys)
     load_kms_keys(
         neo4j_session,
-        kms_keys,
+        transformed_keys,
         region,
         current_aws_account_id,
         aws_update_tag,
