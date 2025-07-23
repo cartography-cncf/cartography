@@ -85,27 +85,29 @@ def _ensure_local_neo4j_has_basic_test_data(neo4j_session):
     )
 
     # Create cross-account role using IAM loader with different account
-    cartography.intel.aws.iam.load_roles(
+    cartography.intel.aws.iam.sync_role_assumptions(
         neo4j_session,
-        [
-            {
-                "RoleName": "CrossAccountRole",
-                "RoleId": "AROA00000000CROSSACCOUNT",
-                "Arn": "arn:aws:iam::987654321098:role/CrossAccountRole",
-                "Path": "/",
-                "CreateDate": "2024-01-01T10:00:00Z",
-                "AssumeRolePolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
-                            "Action": "sts:AssumeRole",
-                        }
-                    ],
-                },
-            }
-        ],
+        {
+            "Roles": [
+                {
+                    "RoleName": "CrossAccountRole",
+                    "RoleId": "AROA00000000CROSSACCOUNT",
+                    "Arn": "arn:aws:iam::987654321098:role/CrossAccountRole",
+                    "Path": "/",
+                    "CreateDate": "2024-01-01T10:00:00Z",
+                    "AssumeRolePolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
+                                "Action": "sts:AssumeRole",
+                            }
+                        ],
+                    },
+                }
+            ]
+        },
         "987654321098",  # Different account ID
         TEST_UPDATE_TAG,
     )
@@ -159,27 +161,29 @@ def _ensure_local_neo4j_has_cross_account_test_data(neo4j_session):
     )
 
     # Create external role using IAM loader with different account
-    cartography.intel.aws.iam.load_roles(
+    cartography.intel.aws.iam.sync_role_assumptions(
         neo4j_session,
-        [
-            {
-                "RoleName": "ExternalRole",
-                "RoleId": "AROA00000000EXTERNAL",
-                "Arn": "arn:aws:iam::333333333333:role/ExternalRole",
-                "Path": "/",
-                "CreateDate": "2024-01-01T10:00:00Z",
-                "AssumeRolePolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Principal": {"AWS": "arn:aws:iam::222222222222:root"},
-                            "Action": "sts:AssumeRole",
-                        }
-                    ],
-                },
-            }
-        ],
+        {
+            "Roles": [
+                {
+                    "RoleName": "ExternalRole",
+                    "RoleId": "AROA00000000EXTERNAL",
+                    "Arn": "arn:aws:iam::333333333333:role/ExternalRole",
+                    "Path": "/",
+                    "CreateDate": "2024-01-01T10:00:00Z",
+                    "AssumeRolePolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Principal": {"AWS": "arn:aws:iam::222222222222:root"},
+                                "Action": "sts:AssumeRole",
+                            }
+                        ],
+                    },
+                }
+            ]
+        },
         "333333333333",  # Different account ID
         TEST_UPDATE_TAG,
     )
@@ -468,9 +472,9 @@ def test_cloudtrail_management_events_creates_assumed_role_with_web_identity_rel
     github_target_roles = GITHUB_ACTIONS_IAM_ROLES
 
     # Use IAM loader to create target roles
-    cartography.intel.aws.iam.load_roles(
+    cartography.intel.aws.iam.sync_role_assumptions(
         neo4j_session,
-        github_target_roles,
+        {"Roles": github_target_roles},
         INTEGRATION_TEST_BASIC_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
@@ -593,9 +597,9 @@ def test_cloudtrail_web_identity_events_aggregates_multiple_users_and_tracks_ind
     github_roles = GITHUB_ACTIONS_AGGREGATION_IAM_ROLES
 
     # Use IAM loader to create target role
-    cartography.intel.aws.iam.load_roles(
+    cartography.intel.aws.iam.sync_role_assumptions(
         neo4j_session,
-        github_roles,
+        {"Roles": github_roles},
         INTEGRATION_TEST_AGGREGATION_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
