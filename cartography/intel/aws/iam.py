@@ -448,9 +448,6 @@ def transform_roles(
             for principal_type, principal_arn in principal_entries:
                 if principal_type == "Federated":
                     # Add this to list of federated nodes to create
-                    # It is possible that the federated principal is in a different account
-                    # We will just `match` on it.
-                    # If it is in the same account, we will create a node for it.
                     account_id = get_account_from_arn(principal_arn)
                     federated_principals.append(
                         {
@@ -1056,18 +1053,16 @@ def sync_role_assumptions(
     load_external_aws_accounts(
         neo4j_session, transformed.external_aws_accounts, aws_update_tag
     )
-    # Service principals e.g. arn = "ec2.amazonaws.com" come first because they're global
+    # Service principals e.g. arn = "ec2.amazonaws.com" come next because they're global
     load_service_principals(
         neo4j_session, transformed.service_principals, aws_update_tag
     )
-    # For SAML things
     load_federated_principals(
         neo4j_session,
         transformed.federated_principals,
         current_aws_account_id,
         aws_update_tag,
     )
-    # Finally, write the roles to the graph with trust rels, including to service and federated principals
     load_role_data(
         neo4j_session, transformed.role_data, current_aws_account_id, aws_update_tag
     )
