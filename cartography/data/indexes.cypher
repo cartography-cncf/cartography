@@ -259,8 +259,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:S3Bucket) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:S3Bucket) ON (n.name);
 CREATE INDEX IF NOT EXISTS FOR (n:S3Bucket) ON (n.arn);
 CREATE INDEX IF NOT EXISTS FOR (n:S3Bucket) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:SecretsManagerSecret) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:SecretsManagerSecret) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:SecurityHub) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:SecurityHub) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:SpotlightVulnerability) ON (n.id);
