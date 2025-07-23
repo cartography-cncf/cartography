@@ -84,7 +84,7 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    logger.debug("Running Efs cleanup job.")
+    logger.debug("Running Glue cleanup job.")
     GraphJob.from_node_schema(GlueConnectionSchema(), common_job_parameters).run(
         neo4j_session
     )
