@@ -13,6 +13,7 @@ from cartography.models.aws.cloudwatch.log_metric_filter import (
     CloudWatchLogMetricFilterSchema,
 )
 from cartography.models.aws.cloudwatch.loggroup import CloudWatchLogGroupSchema
+from cartography.models.aws.cloudwatch.metric_alarm import CloudWatchMetricAlarmSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -76,6 +77,43 @@ def transform_metric_filters(
 
 
 @timeit
+@aws_handle_regions
+def get_cloudwatch_metric_alarms(
+    boto3_session: boto3.Session, region: str
+) -> List[Dict[str, Any]]:
+    client = boto3_session.client(
+        "cloudwatch", region_name=region, config=get_botocore_config()
+    )
+    paginator = client.get_paginator("describe_alarms")
+    alarms = []
+    for page in paginator.paginate():
+        alarms.extend(page["MetricAlarms"])
+    return alarms
+
+
+def transform_metric_alarms(
+    metric_alarms: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
+    """
+    Transform CloudWatch metric alarm data for ingestion into Neo4j.
+    """
+    transformed_alarms = []
+    for alarm in metric_alarms:
+        transformed_alarm = {
+            "AlarmArn": alarm["AlarmArn"],
+            "AlarmName": alarm.get("AlarmName"),
+            "AlarmDescription": alarm.get("AlarmDescription"),
+            "StateValue": alarm.get("StateValue"),
+            "StateReason": alarm.get("StateReason"),
+            "ActionsEnabled": alarm.get("ActionsEnabled"),
+            "ComparisonOperator": alarm.get("ComparisonOperator"),
+            "Region": region,
+        }
+        transformed_alarms.append(transformed_alarm)
+    return transformed_alarms
+
+
+@timeit
 def load_cloudwatch_log_groups(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
@@ -118,6 +156,27 @@ def load_cloudwatch_log_metric_filters(
 
 
 @timeit
+def load_cloudwatch_metric_alarms(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        f"Loading CloudWatch {len(data)} metric alarms for region '{region}' into graph.",
+    )
+    load(
+        neo4j_session,
+        CloudWatchMetricAlarmSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -130,6 +189,9 @@ def cleanup(
     GraphJob.from_node_schema(
         CloudWatchLogMetricFilterSchema(), common_job_parameters
     ).run(neo4j_session)
+    GraphJob.from_node_schema(CloudWatchMetricAlarmSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -160,6 +222,16 @@ def sync(
         load_cloudwatch_log_metric_filters(
             neo4j_session,
             transformed_filters,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+        metric_alarms = get_cloudwatch_metric_alarms(boto3_session, region)
+        transformed_alarms = transform_metric_alarms(metric_alarms, region)
+        load_cloudwatch_metric_alarms(
+            neo4j_session,
+            transformed_alarms,
             region,
             current_aws_account_id,
             update_tag,
