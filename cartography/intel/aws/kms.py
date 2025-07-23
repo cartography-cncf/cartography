@@ -134,11 +134,11 @@ def transform_kms_aliases(aliases: List[Dict]) -> List[Dict]:
     transformed_data = []
     for alias in aliases:
         transformed = dict(alias)
-        
+
         # Convert datetime fields to epoch timestamps
         transformed["CreationDate"] = dict_date_to_epoch(alias, "CreationDate")
         transformed["LastUpdatedDate"] = dict_date_to_epoch(alias, "LastUpdatedDate")
-        
+
         transformed_data.append(transformed)
     return transformed_data
 
@@ -152,12 +152,12 @@ def transform_kms_keys(keys: List[Dict]) -> List[Dict]:
     transformed_data = []
     for key in keys:
         transformed = dict(key)
-        
+
         # Convert datetime fields to epoch timestamps
         transformed["CreationDate"] = dict_date_to_epoch(key, "CreationDate")
-        transformed["DeletionDate"] = dict_date_to_epoch(key, "DeletionDate") 
+        transformed["DeletionDate"] = dict_date_to_epoch(key, "DeletionDate")
         transformed["ValidTo"] = dict_date_to_epoch(key, "ValidTo")
-        
+
         transformed_data.append(transformed)
     return transformed_data
 
@@ -171,10 +171,10 @@ def transform_kms_grants(grants: List[Dict]) -> List[Dict]:
     transformed_data = []
     for grant in grants:
         transformed = dict(grant)
-        
+
         # Convert datetime fields to epoch timestamps
         transformed["CreationDate"] = dict_date_to_epoch(grant, "CreationDate")
-        
+
         transformed_data.append(transformed)
     return transformed_data
 
@@ -287,11 +287,13 @@ def load_kms_key_details(
     )
 
     _load_kms_key_policies(neo4j_session, policies, update_tag)
-    
+
     # Transform and load aliases using the data model
     transformed_aliases = transform_kms_aliases(aliases)
-    load_kms_aliases(neo4j_session, transformed_aliases, region, aws_account_id, update_tag)
-    
+    load_kms_aliases(
+        neo4j_session, transformed_aliases, region, aws_account_id, update_tag
+    )
+
     # Transform and load grants using the data model
     transformed_grants = transform_kms_grants(grants)
     load_kms_grants(neo4j_session, transformed_grants, update_tag)
@@ -389,13 +391,17 @@ def cleanup_kms(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     Run KMS cleanup using schema-based GraphJobs for all node types.
     """
     logger.debug("Running KMS cleanup using GraphJob for all node types")
-    
+
     # Clean up grants first (they depend on keys)
-    GraphJob.from_node_schema(KMSGrantSchema(), common_job_parameters).run(neo4j_session)
-    
+    GraphJob.from_node_schema(KMSGrantSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
     # Clean up aliases
-    GraphJob.from_node_schema(KMSAliasSchema(), common_job_parameters).run(neo4j_session)
-    
+    GraphJob.from_node_schema(KMSAliasSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
     # Clean up keys
     GraphJob.from_node_schema(KMSKeySchema(), common_job_parameters).run(neo4j_session)
 

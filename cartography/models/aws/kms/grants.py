@@ -1,15 +1,14 @@
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
-from cartography.models.core.relationships import (
-    CartographyRelProperties,
-    CartographyRelSchema,
-    LinkDirection,
-    make_target_node_matcher,
-    OtherRelationships,
-    TargetNodeMatcher,
-)
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -33,7 +32,9 @@ class KMSGrantRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class KMSGrantToKMSKeyRel(CartographyRelSchema):
     target_node_label: str = "KMSKey"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({"arn": PropertyRef("KeyId")})
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("KeyId")}
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "APPLIED_ON"
     properties: KMSGrantRelProperties = KMSGrantRelProperties()
@@ -43,5 +44,9 @@ class KMSGrantToKMSKeyRel(CartographyRelSchema):
 class KMSGrantSchema(CartographyNodeSchema):
     label: str = "KMSGrant"
     properties: KMSGrantNodeProperties = KMSGrantNodeProperties()
-    sub_resource_relationship: None = None #rel between grants and keys so no sub resource relationship necessary
-    other_relationships: OtherRelationships = OtherRelationships([KMSGrantToKMSKeyRel()]) 
+    sub_resource_relationship: None = (
+        None  # rel between grants and keys so no sub resource relationship necessary
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [KMSGrantToKMSKeyRel()]
+    )

@@ -55,7 +55,7 @@ def test_load_kms_keys_relationships(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    
+
     expected_rels = {
         (
             TEST_ACCOUNT_ID,
@@ -67,15 +67,18 @@ def test_load_kms_keys_relationships(neo4j_session):
         ),
     }
 
-    assert check_rels(
-        neo4j_session,
-        "AWSAccount",
-        "id",
-        "KMSKey",
-        "arn",
-        "RESOURCE",
-        rel_direction_right=True,
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSAccount",
+            "id",
+            "KMSKey",
+            "arn",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )
 
 
 def test_load_kms_key_aliases(neo4j_session):
@@ -94,7 +97,9 @@ def test_load_kms_key_aliases(neo4j_session):
         ("arn:aws:kms:eu-west-1:000000000000:alias/key2-testing", "Prod-Testing"),
     }
 
-    assert check_nodes(neo4j_session, "KMSAlias", ["arn", "alias_name"]) == expected_nodes
+    assert (
+        check_nodes(neo4j_session, "KMSAlias", ["arn", "alias_name"]) == expected_nodes
+    )
 
 
 def test_load_kms_key_aliases_relationships(neo4j_session):
@@ -130,15 +135,18 @@ def test_load_kms_key_aliases_relationships(neo4j_session):
         ),
     }
 
-    assert check_rels(
-        neo4j_session,
-        "KMSAlias",
-        "arn",
-        "KMSKey",
-        "arn",
-        "KNOWN_AS",
-        rel_direction_right=True,
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KMSAlias",
+            "arn",
+            "KMSKey",
+            "arn",
+            "KNOWN_AS",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )
 
 
 def test_load_kms_key_grants(neo4j_session):
@@ -196,10 +204,15 @@ def test_load_kms_key_grants_relationships(neo4j_session):
         ),
     }
 
-    assert check_rels(
-        neo4j_session,
-        "KMSGrant", "grant_id",
-        "KMSKey", "arn",
-        "APPLIED_ON",
-        rel_direction_right=True,
-    ) == expected_rels
+    assert (
+        check_rels(
+            neo4j_session,
+            "KMSGrant",
+            "grant_id",
+            "KMSKey",
+            "arn",
+            "APPLIED_ON",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )
