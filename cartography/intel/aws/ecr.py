@@ -6,9 +6,12 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.aws.ecr.image import ECRImageSchema
+from cartography.models.aws.ecr.repository import ECRRepositorySchema
+from cartography.models.aws.ecr.repository_image import ECRRepositoryImageSchema
 from cartography.util import aws_handle_regions
-from cartography.util import batch
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 from cartography.util import to_asynchronous
 from cartography.util import to_synchronous
@@ -74,33 +77,17 @@ def load_ecr_repositories(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    query = """
-    UNWIND $Repositories as ecr_repo
-        MERGE (repo:ECRRepository{id: ecr_repo.repositoryArn})
-        ON CREATE SET repo.firstseen = timestamp(),
-            repo.arn = ecr_repo.repositoryArn,
-            repo.name = ecr_repo.repositoryName,
-            repo.region = $Region,
-            repo.created_at = ecr_repo.createdAt
-        SET repo.lastupdated = $aws_update_tag,
-            repo.uri = ecr_repo.repositoryUri
-        WITH repo
-
-        MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
-        MERGE (owner)-[r:RESOURCE]->(repo)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-    """
     logger.info(
         f"Loading {len(repos)} ECR repositories for region {region} into graph.",
     )
-    neo4j_session.run(
-        query,
-        Repositories=repos,
+    load(
+        neo4j_session,
+        ECRRepositorySchema(),
+        repos,
+        lastupdated=aws_update_tag,
         Region=region,
-        aws_update_tag=aws_update_tag,
-        AWS_ACCOUNT_ID=current_aws_account_id,
-    ).consume()  # See issue #440
+        AWS_ID=current_aws_account_id,
+    )
 
 
 @timeit
@@ -114,8 +101,13 @@ def transform_ecr_repository_images(repo_data: Dict) -> List[Dict]:
     for repo_uri in sorted(repo_data.keys()):
         repo_images = repo_data[repo_uri]
         for img in repo_images:
-            if "imageDigest" in img and img["imageDigest"]:
+            digest = img.get("imageDigest")
+            if digest:
+                tag = img.get("imageTag")
+                uri = repo_uri + (f":{tag}" if tag else "")
                 img["repo_uri"] = repo_uri
+                img["uri"] = uri
+                img["id"] = uri
                 repo_images_list.append(img)
             else:
                 logger.warning(
@@ -127,74 +119,51 @@ def transform_ecr_repository_images(repo_data: Dict) -> List[Dict]:
     return repo_images_list
 
 
-def _load_ecr_repo_img_tx(
-    tx: neo4j.Transaction,
-    repo_images_list: List[Dict],
-    aws_update_tag: int,
-    region: str,
-) -> None:
-    query = """
-    UNWIND $RepoList as repo_img
-        MERGE (ri:ECRRepositoryImage{id: repo_img.repo_uri + COALESCE(":" + repo_img.imageTag, '')})
-        ON CREATE SET ri.firstseen = timestamp()
-        SET ri.lastupdated = $aws_update_tag,
-            ri.tag = repo_img.imageTag,
-            ri.uri = repo_img.repo_uri + COALESCE(":" + repo_img.imageTag, ''),
-            ri.image_size_bytes = repo_img.imageSizeInBytes,
-            ri.image_pushed_at = repo_img.imagePushedAt,
-            ri.image_manifest_media_type = repo_img.imageManifestMediaType,
-            ri.artifact_media_type = repo_img.artifactMediaType,
-            ri.last_recorded_pull_time = repo_img.lastRecordedPullTime
-        WITH ri, repo_img
-
-        MERGE (img:ECRImage{id: repo_img.imageDigest})
-        ON CREATE SET img.firstseen = timestamp(),
-            img.digest = repo_img.imageDigest
-        SET img.lastupdated = $aws_update_tag,
-            img.region = $Region
-        WITH ri, img, repo_img
-
-        MERGE (ri)-[r1:IMAGE]->(img)
-        ON CREATE SET r1.firstseen = timestamp()
-        SET r1.lastupdated = $aws_update_tag
-        WITH ri, repo_img
-
-        MATCH (repo:ECRRepository{uri: repo_img.repo_uri})
-        MERGE (repo)-[r2:REPO_IMAGE]->(ri)
-        ON CREATE SET r2.firstseen = timestamp()
-        SET r2.lastupdated = $aws_update_tag
-    """
-    tx.run(
-        query,
-        RepoList=repo_images_list,
-        Region=region,
-        aws_update_tag=aws_update_tag,
-    )
-
-
 @timeit
 def load_ecr_repository_images(
     neo4j_session: neo4j.Session,
     repo_images_list: List[Dict],
     region: str,
+    current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     logger.info(
         f"Loading {len(repo_images_list)} ECR repository images in {region} into graph.",
     )
-    for repo_image_batch in batch(repo_images_list, size=10000):
-        neo4j_session.write_transaction(
-            _load_ecr_repo_img_tx,
-            repo_image_batch,
-            aws_update_tag,
-            region,
-        )
+    image_digests = {img["imageDigest"] for img in repo_images_list}
+    ecr_images = [{"imageDigest": d} for d in image_digests]
+
+    load(
+        neo4j_session,
+        ECRImageSchema(),
+        ecr_images,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+    load(
+        neo4j_session,
+        ECRRepositoryImageSchema(),
+        repo_images_list,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
 
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     logger.debug("Running ECR cleanup job.")
-    run_cleanup_job("aws_import_ecr_cleanup.json", neo4j_session, common_job_parameters)
+    GraphJob.from_node_schema(ECRRepositorySchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ECRRepositoryImageSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ECRImageSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 def _get_image_data(
@@ -251,5 +220,11 @@ def sync(
             update_tag,
         )
         repo_images_list = transform_ecr_repository_images(image_data)
-        load_ecr_repository_images(neo4j_session, repo_images_list, region, update_tag)
+        load_ecr_repository_images(
+            neo4j_session,
+            repo_images_list,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
     cleanup(neo4j_session, common_job_parameters)
