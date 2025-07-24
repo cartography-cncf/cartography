@@ -1180,6 +1180,7 @@ def _get_principals_with_pols_in_current_account(
     ]
 
 
+@timeit
 def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     # List all policies in the current account
     policy_ids = _get_policies_in_current_account(
