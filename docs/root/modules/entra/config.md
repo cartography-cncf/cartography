@@ -13,8 +13,23 @@ To set up the Entra client,
 1. Create a new app registration.
 1. Grant it the following permissions:
     - `AdministrativeUnit.Read.All`
+        - Read all administrative units
+        - Type: Application
+    - `AppRoleAssignment.Read.All`
+        - Manage app permission grants and app role assignments
+        - Type: Application
+    - `Application.Read.All`
+        - Read all applications
+        - Type: Application
     - `Directory.Read.All`
+        - Read directory data
+        - Type: Application
     - `Group.Read.All`
+        - Read all groups
+        - Type: Application
     - `GroupMember.Read.All`
+        - Read all group memberships
+        - Type: Application
     - `User.Read.All`
-    - `User.Read`
+        - Read all users' full profiles
+        - Type: Application
