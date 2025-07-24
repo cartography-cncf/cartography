@@ -142,14 +142,11 @@ def transform_kms_aliases(aliases: List[Dict]) -> List[Dict]:
     return transformed_data
 
 
-@timeit
-def transform_kms_keys(
-    keys: List[Dict], policy_data: Optional[Dict[str, Dict]] = None
-) -> List[Dict]:
+def transform_kms_keys(keys: List[Dict], policy_data: Dict[str, Dict]) -> List[Dict]:
     """
     Transform AWS KMS Keys to match the data model.
     Converts datetime fields to epoch timestamps for consistency.
-    Optionally includes policy analysis properties.
+    Includes policy analysis properties.
     """
     transformed_data = []
     for key in keys:
@@ -160,19 +157,13 @@ def transform_kms_keys(
         transformed["DeletionDate"] = dict_date_to_epoch(key, "DeletionDate")
         transformed["ValidTo"] = dict_date_to_epoch(key, "ValidTo")
 
-        # Add policy analysis if provided
-        if policy_data and key["KeyId"] in policy_data:
-            transformed.update(policy_data[key["KeyId"]])
-        else:
-            # Set defaults for policy analysis properties
-            transformed["anonymous_access"] = False
-            transformed["anonymous_actions"] = []
+        # Add policy analysis
+        transformed.update(policy_data[key["KeyId"]])
 
         transformed_data.append(transformed)
     return transformed_data
 
 
-@timeit
 def transform_kms_grants(grants: List[Dict]) -> List[Dict]:
     """
     Transform AWS KMS Grants to match the data model.
@@ -189,7 +180,6 @@ def transform_kms_grants(grants: List[Dict]) -> List[Dict]:
     return transformed_data
 
 
-@timeit
 def transform_kms_key_policies(
     policy_alias_grants_data: List[Tuple],
 ) -> Dict[str, Dict]:
@@ -198,18 +188,21 @@ def transform_kms_key_policies(
     """
     policy_data = {}
 
-    for key_id, policy, alias, grant in policy_alias_grants_data:
+    for key_id, policy, *_ in policy_alias_grants_data:
         parsed_policy = parse_policy(key_id, policy)
 
         if parsed_policy is not None:
-            # Policy exists and is internet accessible
+            # Policy exists and is  accessible
             policy_data[key_id] = {
                 "anonymous_access": parsed_policy["internet_accessible"],
                 "anonymous_actions": parsed_policy["accessible_actions"],
             }
-        else:
-            # Set defaults for keys without policies or non-internet-accessible policies
+        elif policy is not None:
+            # Policy exists but not accessible
             policy_data[key_id] = {"anonymous_access": False, "anonymous_actions": []}
+        else:
+            # Policy could not be determined
+            policy_data[key_id] = {"anonymous_access": None, "anonymous_actions": []}
 
     return policy_data
 

@@ -10,7 +10,11 @@ TEST_UPDATE_TAG = 123456789
 
 def test_load_kms_keys(neo4j_session):
     data = tests.data.aws.kms.DESCRIBE_KEYS
-    transformed_data = cartography.intel.aws.kms.transform_kms_keys(data)
+    # Create policy data for test keys using defaults
+    policy_data = {}
+    for key in data:
+        policy_data[key["KeyId"]] = {"anonymous_access": False, "anonymous_actions": []}
+    transformed_data = cartography.intel.aws.kms.transform_kms_keys(data, policy_data)
     cartography.intel.aws.kms.load_kms_keys(
         neo4j_session,
         transformed_data,
@@ -47,7 +51,11 @@ def test_load_kms_keys_relationships(neo4j_session):
 
     # Load Test KMS Key
     data = tests.data.aws.kms.DESCRIBE_KEYS
-    transformed_data = cartography.intel.aws.kms.transform_kms_keys(data)
+    # Create policy data for test keys using defaults
+    policy_data = {}
+    for key in data:
+        policy_data[key["KeyId"]] = {"anonymous_access": False, "anonymous_actions": []}
+    transformed_data = cartography.intel.aws.kms.transform_kms_keys(data, policy_data)
     cartography.intel.aws.kms.load_kms_keys(
         neo4j_session,
         transformed_data,
@@ -179,7 +187,13 @@ def test_load_kms_key_grants_relationships(neo4j_session):
 
     # Load test KMS Keys
     data_kms = tests.data.aws.kms.DESCRIBE_KEYS
-    transformed_keys = cartography.intel.aws.kms.transform_kms_keys(data_kms)
+    # Create policy data for test keys using defaults
+    policy_data = {}
+    for key in data_kms:
+        policy_data[key["KeyId"]] = {"anonymous_access": False, "anonymous_actions": []}
+    transformed_keys = cartography.intel.aws.kms.transform_kms_keys(
+        data_kms, policy_data
+    )
     cartography.intel.aws.kms.load_kms_keys(
         neo4j_session,
         transformed_keys,
