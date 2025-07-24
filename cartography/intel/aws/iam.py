@@ -330,25 +330,6 @@ def get_account_access_key_data(
     return access_keys
 
 
-def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """
-    Transform AWS IAM user data for schema-based loading.
-    """
-    user_data = []
-    for user in users:
-        user_record = {
-            "arn": user["Arn"],
-            "userid": user["UserId"],
-            "name": user["UserName"],
-            "path": user["Path"],
-            "createdate": str(user["CreateDate"]),
-            "passwordlastused": str(user.get("PasswordLastUsed", "")),
-        }
-        user_data.append(user_record)
-
-    return user_data
-
-
 # TODO clean this up a bit
 @timeit
 def get_group_memberships(
@@ -377,6 +358,48 @@ def get_group_memberships(
             memberships[group["Arn"]] = []
 
     return memberships
+
+
+@timeit
+def get_policies_for_principal(
+    neo4j_session: neo4j.Session,
+    principal_arn: str,
+) -> Dict:
+    get_policy_query = """
+    MATCH
+    (principal:AWSPrincipal{arn:$Arn})-[:POLICY]->
+    (policy:AWSPolicy)-[:STATEMENT]->
+    (statements:AWSPolicyStatement)
+    RETURN
+    DISTINCT policy.id AS policy_id,
+    COLLECT(DISTINCT statements) AS statements
+    """
+    # TODO use execute_read
+    results = neo4j_session.run(
+        get_policy_query,
+        Arn=principal_arn,
+    )
+    policies = {r["policy_id"]: parse_statement_node(r["statements"]) for r in results}
+    return policies
+
+
+def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Transform AWS IAM user data for schema-based loading.
+    """
+    user_data = []
+    for user in users:
+        user_record = {
+            "arn": user["Arn"],
+            "userid": user["UserId"],
+            "name": user["UserName"],
+            "path": user["Path"],
+            "createdate": str(user["CreateDate"]),
+            "passwordlastused": str(user.get("PasswordLastUsed", "")),
+        }
+        user_data.append(user_record)
+
+    return user_data
 
 
 def transform_groups(
@@ -566,29 +589,6 @@ def _parse_principal_entries(principal: Dict) -> List[Tuple[Any, Any]]:
         for principal_value in principal_values:
             principal_entries.append((principal_type, principal_value))
     return principal_entries
-
-
-@timeit
-def get_policies_for_principal(
-    neo4j_session: neo4j.Session,
-    principal_arn: str,
-) -> Dict:
-    get_policy_query = """
-    MATCH
-    (principal:AWSPrincipal{arn:$Arn})-[:POLICY]->
-    (policy:AWSPolicy)-[:STATEMENT]->
-    (statements:AWSPolicyStatement)
-    RETURN
-    DISTINCT policy.id AS policy_id,
-    COLLECT(DISTINCT statements) AS statements
-    """
-    # TODO use execute_read
-    results = neo4j_session.run(
-        get_policy_query,
-        Arn=principal_arn,
-    )
-    policies = {r["policy_id"]: parse_statement_node(r["statements"]) for r in results}
-    return policies
 
 
 @timeit
