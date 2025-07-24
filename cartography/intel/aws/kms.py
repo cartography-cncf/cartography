@@ -233,6 +233,7 @@ def load_kms_aliases(
 def load_kms_grants(
     neo4j_session: neo4j.Session,
     grants: List[Dict],
+    aws_account_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -244,6 +245,7 @@ def load_kms_grants(
         KMSGrantSchema(),
         grants,
         lastupdated=update_tag,
+        AWS_ID=aws_account_id,
     )
 
 
@@ -406,7 +408,9 @@ def sync_kms_keys(
         current_aws_account_id,
         aws_update_tag,
     )
-    load_kms_grants(neo4j_session, transformed_grants, aws_update_tag)
+    load_kms_grants(
+        neo4j_session, transformed_grants, current_aws_account_id, aws_update_tag
+    )
 
 
 @timeit

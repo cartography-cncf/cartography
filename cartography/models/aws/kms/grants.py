@@ -41,12 +41,25 @@ class KMSGrantToKMSKeyRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KMSGrantToAWSAccountRel(CartographyRelSchema):
+    """
+    Relationship between KMSGrant and AWS Account
+    """
+
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: KMSGrantRelProperties = KMSGrantRelProperties()
+
+
+@dataclass(frozen=True)
 class KMSGrantSchema(CartographyNodeSchema):
     label: str = "KMSGrant"
     properties: KMSGrantNodeProperties = KMSGrantNodeProperties()
-    sub_resource_relationship: None = (
-        None  # rel between grants and keys so no sub resource relationship necessary
-    )
+    sub_resource_relationship: KMSGrantToAWSAccountRel = KMSGrantToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [KMSGrantToKMSKeyRel()]
     )
