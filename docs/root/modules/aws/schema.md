@@ -2624,6 +2624,11 @@ Representation of an AWS [KMS Key Grant](https://docs.aws.amazon.com/kms/latest/
 
 #### Relationships
 
+- AWS KMS Grants are resources in an AWS Account.
+    ```
+    (AWSAccount)-[:RESOURCE]->(KMSGrant)
+    ```
+
 - AWS KMS Grants are applied to KMS Keys.
     ```
     (KMSGrant)-[:APPLIED_ON]->(KMSKey)
