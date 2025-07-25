@@ -4,8 +4,6 @@ from typing import Any
 from typing import Dict
 from typing import Generator
 from typing import List
-from typing import Optional
-from typing import Tuple
 
 import boto3
 import botocore
@@ -181,8 +179,8 @@ def transform_kms_grants(grants: List[Dict]) -> List[Dict]:
 
 
 def transform_kms_key_policies(
-    policy_alias_grants_data: List[Tuple],
-) -> Dict[str, Dict]:
+    policy_alias_grants_data: list[tuple],
+) -> dict[str, dict[str, Any]]:
     """
     Transform KMS key policy data for inclusion in key records.
     """
@@ -190,19 +188,7 @@ def transform_kms_key_policies(
 
     for key_id, policy, *_ in policy_alias_grants_data:
         parsed_policy = parse_policy(key_id, policy)
-
-        if parsed_policy is not None:
-            # Policy exists and is  accessible
-            policy_data[key_id] = {
-                "anonymous_access": parsed_policy["internet_accessible"],
-                "anonymous_actions": parsed_policy["accessible_actions"],
-            }
-        elif policy is not None:
-            # Policy exists but not accessible
-            policy_data[key_id] = {"anonymous_access": False, "anonymous_actions": []}
-        else:
-            # Policy could not be determined
-            policy_data[key_id] = {"anonymous_access": None, "anonymous_actions": []}
+        policy_data[key_id] = parsed_policy
 
     return policy_data
 
@@ -250,65 +236,19 @@ def load_kms_grants(
 
 
 @timeit
-def parse_policy(key: str, policy: Policy) -> Optional[Dict[Any, Any]]:
+def parse_policy(key: str, policy: Policy) -> dict[str, Any]:
     """
-    Uses PolicyUniverse to parse KMS key policies and returns the internet accessibility results
+    Uses PolicyUniverse to parse KMS key policies and returns the internet accessibility results.
+    Expects policy to never be None
     """
-    # policy is not required, so may be None
-    # policy JSON format. Note condition can be any JSON statement so will need to import as-is
-    # policy is a very complex format, so the policyuniverse library will be used for parsing out important data
-    # ...metadata...
-    # "Policy" :
-    # {
-    #   "Version": "2012-10-17",
-    #   "Id": "key-consolepolicy-5",
-    #   "Statement": [
-    #     {
-    #       "Sid": "Enable IAM User Permissions",
-    #       "Effect": "Allow",
-    #       "Principal": {
-    #         "AWS": "arn:aws:iam::123456789012:root"
-    #       },
-    #       "Action": "kms:*",
-    #       "Resource": "*"
-    #     },
-    #     {
-    #       "Sid": "Allow access for Key Administrators",
-    #       "Effect": "Allow",
-    #       "Principal": {
-    #         "AWS": "arn:aws:iam::123456789012:role/ec2-manager"
-    #       },
-    #       "Action": [
-    #         "kms:Create*",
-    #         "kms:Describe*",
-    #         "kms:Enable*",
-    #         "kms:List*",
-    #         "kms:Put*",
-    #         "kms:Update*",
-    #         "kms:Revoke*",
-    #         "kms:Disable*",
-    #         "kms:Get*",
-    #         "kms:Delete*",
-    #         "kms:ScheduleKeyDeletion",
-    #         "kms:CancelKeyDeletion"
-    #       ],
-    #       "Resource": "*"
-    #     }
-    #   ]
-    # }
-    if policy is not None:
-        # get just the policy element and convert to JSON because boto3 returns this as string
-        policy = Policy(json.loads(policy["Policy"]))
-        if policy.is_internet_accessible():
-            return {
-                "kms_key": key,
-                "internet_accessible": True,
-                "accessible_actions": list(policy.internet_accessible_actions()),
-            }
-        else:
-            return None
-    else:
-        return None
+    policy = Policy(json.loads(policy["Policy"]))
+    inet_actions = policy.internet_accessible_actions()
+
+    return {
+        "kms_key": key,
+        "anonymous_access": policy.is_internet_accessible(),
+        "anonymous_actions": list(inet_actions) if inet_actions else [],
+    }
 
 
 @timeit
