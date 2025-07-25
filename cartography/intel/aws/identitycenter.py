@@ -7,6 +7,7 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.models.aws.identitycenter.awsidentitycenter import (
     AWSIdentityCenterInstanceSchema,
@@ -14,9 +15,11 @@ from cartography.models.aws.identitycenter.awsidentitycenter import (
 from cartography.models.aws.identitycenter.awspermissionset import (
     AWSPermissionSetSchema,
 )
+from cartography.models.aws.identitycenter.awspermissionset import (
+    RoleAssignmentAllowedByMatchLink,
+)
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -120,6 +123,8 @@ def load_permission_sets(
         InstanceArn=instance_arn,
         Region=region,
         AWS_ID=aws_account_id,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=aws_account_id,
     )
 
 
@@ -221,30 +226,102 @@ def get_role_assignments(
 
 
 @timeit
+def get_sso_roles_from_db(neo4j_session: neo4j.Session) -> Dict[str, str]:
+    """
+    Get SSO role ARNs from database (already synced by IAM module).
+    Returns mapping: {account_id:permission_set_name -> exact_role_arn}
+    """
+    get_sso_roles_query = """
+    MATCH (role:AWSRole)
+    WHERE role.arn CONTAINS '/aws-reserved/sso.amazonaws.com/'
+    RETURN role.arn as arn
+    """
+
+    results = neo4j_session.run(get_sso_roles_query)
+
+    mapping = {}
+    for record in results:
+        role_arn = record["arn"]
+        # Extract account and permission set name from ARN
+        account_id = role_arn.split(":")[4]
+        role_name = role_arn.split("/")[-1]  # AWSReservedSSO_Name_Suffix
+
+        if role_name.startswith("AWSReservedSSO_"):
+            parts = role_name.split("_")
+            if len(parts) >= 3:
+                permission_set_name = "_".join(
+                    parts[1:-1]
+                )  # Handle names with underscores
+                key = f"{account_id}:{permission_set_name}"
+                mapping[key] = role_arn
+
+    return mapping
+
+
+def transform_role_assignments(
+    role_assignments: List[Dict],
+    permission_sets: List[Dict],
+    sso_role_mapping: Dict[str, str],
+) -> List[Dict]:
+    """
+    Transform role assignments by looking up exact IAM role ARNs from the database.
+
+    AWS SSO creates roles with unpredictable suffixes, so we use the database
+    (populated by IAM module) to find the exact role ARNs.
+    """
+    # Create permission set list of dicts that has key PermissionSetArn and value Name (faster lookup for name)
+    ps_arn_to_name = {ps["PermissionSetArn"]: ps["Name"] for ps in permission_sets}
+
+    transformed_assignments = []
+    for assignment in role_assignments:
+        # Get permission set name from ARN
+        permission_set_arn = assignment["PermissionSetArn"]
+        permission_set_name = ps_arn_to_name.get(permission_set_arn)
+
+        if permission_set_name is None:
+            logger.warning(
+                f"Permission set name not found for ARN {permission_set_arn}. Skipping assignment."
+            )
+            continue
+
+        # Get exact role ARN from database mapping
+        account_id = assignment["AccountId"]
+        mapping_key = f"{account_id}:{permission_set_name}"
+        exact_role_arn = sso_role_mapping.get(mapping_key)
+
+        if exact_role_arn is None:
+            logger.warning(
+                f"No exact role ARN found for {mapping_key}. "
+                f"Make sure IAM module has synced for account {account_id}."
+            )
+            continue
+
+        # Create transformed assignment with exact RoleArn
+        transformed_assignment = {**assignment, "RoleArn": exact_role_arn}
+        transformed_assignments.append(transformed_assignment)
+
+    return transformed_assignments
+
+
+@timeit
 def load_role_assignments(
     neo4j_session: neo4j.Session,
     role_assignments: List[Dict],
+    aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     """
-    Load role assignments into the graph
+    Load role assignments into the graph using MatchLink schema
     """
     logger.info(f"Loading {len(role_assignments)} role assignments")
-    if role_assignments:
-        neo4j_session.run(
-            """
-            UNWIND $role_assignments AS ra
-            MATCH (acc:AWSAccount{id:ra.AccountId}) -[:RESOURCE]->
-            (role:AWSRole)<-[:ASSIGNED_TO_ROLE]-
-            (permset:AWSPermissionSet {id: ra.PermissionSetArn})
-            MATCH (sso:AWSSSOUser {id: ra.UserId})
-            MERGE (role)-[r:ALLOWED_BY]->(sso)
-            SET r.lastupdated = $aws_update_tag,
-            r.permission_set_arn = ra.PermissionSetArn
-            """,
-            role_assignments=role_assignments,
-            aws_update_tag=aws_update_tag,
-        )
+    load_matchlinks(
+        neo4j_session,
+        RoleAssignmentAllowedByMatchLink(),
+        role_assignments,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=aws_account_id,
+    )
 
 
 @timeit
@@ -262,11 +339,14 @@ def cleanup(
     GraphJob.from_node_schema(AWSSSOUserSchema(), common_job_parameters).run(
         neo4j_session,
     )
-    run_cleanup_job(
-        "aws_import_identity_center_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
+
+    # Clean up role assignment MatchLinks
+    GraphJob.from_matchlink(
+        RoleAssignmentAllowedByMatchLink(),
+        "AWSAccount",
+        common_job_parameters["AWS_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
 
 
 @timeit
@@ -327,9 +407,19 @@ def sync_identity_center_instances(
                 instance_arn,
                 region,
             )
+
+            # Get SSO role mapping from database (synced by IAM module)
+            sso_role_mapping = get_sso_roles_from_db(neo4j_session)
+
+            transformed_role_assignments = transform_role_assignments(
+                role_assignments,
+                permission_sets,
+                sso_role_mapping,
+            )
             load_role_assignments(
                 neo4j_session,
-                role_assignments,
+                transformed_role_assignments,
+                current_aws_account_id,
                 update_tag,
             )
 
