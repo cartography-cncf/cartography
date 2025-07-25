@@ -1859,7 +1859,7 @@ Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbri
 | name | The name of the rule |
 | role_arn | The Amazon Resource Name (ARN) of the role that is used for target invocation |
 | event_pattern | The event pattern of the rule |
-| state | The state of the rule, Valid Values: ENABLED | DISABLED | ENABLED_WITH_ALL_CLOUDTRAIL_MANAGEMENT_EVENTS |
+| state | The state of the rule, Valid Values: ENABLED, DISABLED, ENABLED_WITH_ALL_CLOUDTRAIL_MANAGEMENT_EVENTS |
 | description | The description of the rule |
 | schedule_expression | The scheduling expression |
 | managed_by | If the rule was created on behalf of your account by an AWS service, this field displays the principal name of the service that created the rule |
