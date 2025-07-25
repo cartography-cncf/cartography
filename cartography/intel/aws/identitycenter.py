@@ -226,81 +226,48 @@ def get_role_assignments(
 
 
 @timeit
-def get_sso_roles_from_db(neo4j_session: neo4j.Session) -> Dict[str, str]:
+def get_permset_roles(
+    neo4j_session: neo4j.Session,
+    role_assignments: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     """
-    Get SSO role ARNs from database (already synced by IAM module).
-    Returns mapping: {account_id:permission_set_name -> exact_role_arn}
+    Enrich role assignments with exact role ARNs by querying existing permission set relationships.
+    Uses the ASSIGNED_TO_ROLE relationships created when permission sets were loaded.
     """
-    get_sso_roles_query = """
-    MATCH (role:AWSRole)
-    WHERE role.arn CONTAINS '/aws-reserved/sso.amazonaws.com/'
-    RETURN role.arn as arn
+    # Get unique permission set ARNs from role assignments
+    permset_ids = list({ra["PermissionSetArn"] for ra in role_assignments})
+
+    query = """
+    MATCH (role:AWSRole)<-[:ASSIGNED_TO_ROLE]-(permset:AWSPermissionSet)
+    WHERE permset.arn IN $PermSetIds
+    RETURN permset.arn AS PermissionSetArn, role.arn AS RoleArn
     """
+    result = neo4j_session.run(query, PermSetIds=permset_ids)
+    permset_to_role = [record.data() for record in result]
 
-    results = neo4j_session.run(get_sso_roles_query)
+    # Create mapping from permission set ARN to role ARN
+    permset_to_role_map = {
+        entry["PermissionSetArn"]: entry["RoleArn"] for entry in permset_to_role
+    }
 
-    mapping = {}
-    for record in results:
-        role_arn = record["arn"]
-        # Extract account and permission set name from ARN
-        account_id = role_arn.split(":")[4]
-        role_name = role_arn.split("/")[-1]  # AWSReservedSSO_Name_Suffix
-
-        if role_name.startswith("AWSReservedSSO_"):
-            parts = role_name.split("_")
-            if len(parts) >= 3:
-                permission_set_name = "_".join(
-                    parts[1:-1]
-                )  # Handle names with underscores
-                key = f"{account_id}:{permission_set_name}"
-                mapping[key] = role_arn
-
-    return mapping
-
-
-def transform_role_assignments(
-    role_assignments: List[Dict],
-    permission_sets: List[Dict],
-    sso_role_mapping: Dict[str, str],
-) -> List[Dict]:
-    """
-    Transform role assignments by looking up exact IAM role ARNs from the database.
-
-    AWS SSO creates roles with unpredictable suffixes, so we use the database
-    (populated by IAM module) to find the exact role ARNs.
-    """
-    # Create permission set list of dicts that has key PermissionSetArn and value Name (faster lookup for name)
-    ps_arn_to_name = {ps["PermissionSetArn"]: ps["Name"] for ps in permission_sets}
-
-    transformed_assignments = []
+    # Enrich role assignments with exact role ARNs
+    enriched_assignments = []
     for assignment in role_assignments:
-        # Get permission set name from ARN
-        permission_set_arn = assignment["PermissionSetArn"]
-        permission_set_name = ps_arn_to_name.get(permission_set_arn)
-
-        if permission_set_name is None:
-            logger.warning(
-                f"Permission set name not found for ARN {permission_set_arn}. Skipping assignment."
+        role_arn = permset_to_role_map.get(assignment["PermissionSetArn"])
+        if role_arn:
+            enriched_assignments.append(
+                {
+                    **assignment,
+                    "RoleArn": role_arn,
+                }
             )
-            continue
-
-        # Get exact role ARN from database mapping
-        account_id = assignment["AccountId"]
-        mapping_key = f"{account_id}:{permission_set_name}"
-        exact_role_arn = sso_role_mapping.get(mapping_key)
-
-        if exact_role_arn is None:
+        else:
             logger.warning(
-                f"No exact role ARN found for {mapping_key}. "
-                f"Make sure IAM module has synced for account {account_id}."
+                f"No role found for permission set {assignment['PermissionSetArn']}. "
+                f"Make sure IAM module has synced for the target account."
             )
-            continue
 
-        # Create transformed assignment with exact RoleArn
-        transformed_assignment = {**assignment, "RoleArn": exact_role_arn}
-        transformed_assignments.append(transformed_assignment)
-
-    return transformed_assignments
+    return enriched_assignments
 
 
 @timeit
@@ -408,17 +375,14 @@ def sync_identity_center_instances(
                 region,
             )
 
-            # Get SSO role mapping from database (synced by IAM module)
-            sso_role_mapping = get_sso_roles_from_db(neo4j_session)
-
-            transformed_role_assignments = transform_role_assignments(
+            # Enrich role assignments with exact role ARNs using permission set relationships
+            enriched_role_assignments = get_permset_roles(
+                neo4j_session,
                 role_assignments,
-                permission_sets,
-                sso_role_mapping,
             )
             load_role_assignments(
                 neo4j_session,
-                transformed_role_assignments,
+                enriched_role_assignments,
                 current_aws_account_id,
                 update_tag,
             )

@@ -132,6 +132,5 @@ class AWSPermissionSetSchema(CartographyNodeSchema):
         [
             PermissionSetToInstanceRel(),
             PermissionSetToAWSRoleRel(),
-            RoleAssignmentAllowedByMatchLink(),
         ],
     )
