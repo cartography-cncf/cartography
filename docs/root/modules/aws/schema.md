@@ -473,7 +473,7 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
 
 ### AWSPolicy
 
-Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html).
+Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html). There are two types of policies: inline and managed.
 
 | Field | Description |
 |-------|-------------|
@@ -491,13 +491,74 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 - `AWSPrincipal` contains `AWSPolicy`
 
     ```cypher
-    (AWSPrincipal)-[POLICY]->(AWSPolicy)
+    (:AWSPrincipal)-[:POLICY]->(:AWSPolicy)
     ```
 
 - `AWSPolicy` contains `AWSPolicyStatement`
 
     ```cypher
-    (AWSPolicy)-[STATEMENTS]->(AWSPolicyStatement)
+    (:AWSPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
+    ```
+
+### AWSPolicy::AWSInlinePolicy
+
+Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html) of type "inline". An inline policy is a policy that is defined on a principal. Inline policies cannot be shared across principals.
+
+| Field | Description |
+|-------|-------------|
+| name | The friendly name (not ARN) identifying the policy |
+| createdate | ISO 8601 date-time when the policy was created|
+| type | "inline" |
+| arn | The arn for this object |
+| **id** | The unique identifer for a policy. Calculated as _AWSPrincipal_/inline_policy/_PolicyName_|
+
+
+#### Relationships
+
+- `AWSPrincipal` contains `AWSInlinePolicy`
+
+    ```cypher
+    (:AWSPrincipal)-[:POLICY]->(:AWSInlinePolicy)
+    ```
+
+- An `AWSInlinePolicy` is scoped to the AWSAccount of the principal it is attached to.
+
+    ```cypher
+    (:AWSInlinePolicy)-[:RESOURCE]->(:AWSAccount)
+    ```
+
+- `AWSInlinePolicy` contains `AWSPolicyStatement`
+
+    ```cypher
+    (:AWSInlinePolicy)-[:STATEMENT]->(:AWSPolicyStatement)
+    ```
+
+
+### AWSPolicy::AWSManagedPolicy
+
+Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html) of type "managed". A managed policy is a built-in policy created and maintained by AWS. Managed policies are shared across principals, and as such are not associated with a specific AWSAccount.
+
+| Field | Description |
+|-------|-------------|
+| name | The friendly name (not ARN) identifying the policy |
+| createdate | ISO 8601 date-time when the policy was created|
+| type | "managed" |
+| arn | The arn for this object |
+| **id** | The arn of the policy |
+
+
+#### Relationships
+
+- `AWSPrincipal` contains `AWSManagedPolicy`
+
+    ```cypher
+    (:AWSPrincipal)-[:POLICY]->(:AWSManagedPolicy)
+    ```
+
+- `AWSManagedPolicy` contains `AWSPolicyStatement`
+
+    ```cypher
+    (:AWSInlinePolicy)-[:STATEMENT]->(:AWSPolicyStatement)
     ```
 
 ### AWSPolicyStatement
@@ -520,7 +581,7 @@ Representation of an [AWS Policy Statement](https://docs.aws.amazon.com/IAM/late
 - `AWSPolicy` contains `AWSPolicyStatement`
 
     ```cypher
-    (AWSPolicy)-[STATEMENTS]->(AWSPolicyStatement)
+    (:AWSPolicy, :AWSInlinePolicy, :AWSManagedPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
     ```
 
 

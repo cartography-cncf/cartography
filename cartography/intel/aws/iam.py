@@ -21,7 +21,8 @@ from cartography.models.aws.iam.access_key import AccountAccessKeySchema
 from cartography.models.aws.iam.account_role import AWSAccountAWSRoleSchema
 from cartography.models.aws.iam.federated_principal import AWSFederatedPrincipalSchema
 from cartography.models.aws.iam.group import AWSGroupSchema
-from cartography.models.aws.iam.policy import AWSPolicySchema
+from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
+from cartography.models.aws.iam.managed_policy import AWSManagedPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.models.aws.iam.role import AWSRoleSchema
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
@@ -721,7 +722,7 @@ def transform_policy_data(
                 statements,
                 policy_id,
             )
-
+            # TODO what is a policy_key?
             transformed_policy_map[principal_arn][policy_key] = transformed_statements
 
     return transformed_policy_map
@@ -746,28 +747,31 @@ def load_policy(
             "id": policy_id,
             "name": policy_name,
             "type": policy_type,
+            # AWS inline policies don't have arns
             "arn": policy_id if policy_type == PolicyType.managed.value else None,
             "createdate": None,  # Not available in current data
             "principal_arn": principal_arn,  # For relationship
         }
     ]
-
-    _load_policy_with_schema(neo4j_session, policy_data, aws_update_tag)
-
-
-@timeit
-def _load_policy_with_schema(
-    neo4j_session: neo4j.Session,
-    policy_data: list[dict[str, Any]],
-    aws_update_tag: int,
-) -> None:
-    load(
-        neo4j_session,
-        AWSPolicySchema(),
-        policy_data,
-        lastupdated=aws_update_tag,
-        PRINCIPAL_ID=policy_data[0]["principal_arn"],
-    )
+    if policy_type == PolicyType.inline.value:
+        # Inline policies are defined on the principal and scoped to the account for cleanup jobs
+        account_id = get_account_from_arn(principal_arn)
+        load(
+            neo4j_session,
+            AWSInlinePolicySchema(),
+            policy_data,
+            lastupdated=aws_update_tag,
+            # Since the principal is the sub resource, we need to supply its account id through a kwarg
+            AWS_ID=account_id,
+        )
+    elif policy_type == PolicyType.managed.value:
+        # Managed policies are global and scoped to the principal for cleanup jobs
+        load(
+            neo4j_session,
+            AWSManagedPolicySchema(),
+            policy_data,
+            lastupdated=aws_update_tag,
+        )
 
 
 @timeit
@@ -1196,15 +1200,20 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
             neo4j_session,
         )
 
-    principal_ids = _get_principals_with_pols_in_current_account(
-        neo4j_session, common_job_parameters["AWS_ID"]
+    # Next, clean up the policies
+    # Note that managed policies don't have a sub resource relationship. This means that we will only clean up
+    # stale relationships and not stale AWSManagedPolicy nodes. This is because AWSManagedPolicy nodes are global
+    # to AWS and it is possible for them to be shared across accounts, so if we cleaned up an AWSManagedPolicy node
+    # for one account, it would be erroneously deleted for all accounts. Instead, we just clean up the relationships.
+    GraphJob.from_node_schema(AWSManagedPolicySchema(), common_job_parameters).run(
+        neo4j_session
     )
-    for principal_id in principal_ids:
-        GraphJob.from_node_schema(
-            AWSPolicySchema(), {**common_job_parameters, "PRINCIPAL_ID": principal_id}
-        ).run(
-            neo4j_session,
-        )
+
+    # Inline policies are simpler in that they are scoped to a single principal and therefore attached to that
+    # principal's account. This means that this operation will clean up stale AWSInlinePolicy nodes.
+    GraphJob.from_node_schema(AWSInlinePolicySchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
     # Clean up roles before federated and service principals
     GraphJob.from_node_schema(AWSRoleSchema(), common_job_parameters).run(neo4j_session)
