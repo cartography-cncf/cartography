@@ -375,8 +375,8 @@ def get_policies_for_principal(
     DISTINCT policy.id AS policy_id,
     COLLECT(DISTINCT statements) AS statements
     """
-    # TODO use execute_read
-    results = neo4j_session.run(
+    results = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
         get_policy_query,
         Arn=principal_arn,
     )
@@ -722,7 +722,6 @@ def transform_policy_data(
                 statements,
                 policy_id,
             )
-            # TODO what is a policy_key?
             transformed_policy_map[principal_arn][policy_key] = transformed_statements
 
     return transformed_policy_map
@@ -774,6 +773,28 @@ def load_policy(
         )
 
 
+def _load_policy(
+    neo4j_session: neo4j.Session,
+    managed_policy_data: list[dict[str, Any]],
+    inline_policy_data: list[dict[str, Any]],
+    account_id: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSManagedPolicySchema(),
+        managed_policy_data,
+        lastupdated=aws_update_tag,
+    )
+    load(
+        neo4j_session,
+        AWSInlinePolicySchema(),
+        inline_policy_data,
+        lastupdated=aws_update_tag,
+        AWS_ID=account_id,
+    )
+
+
 @timeit
 def load_policy_statements(
     neo4j_session: neo4j.Session,
@@ -788,6 +809,21 @@ def load_policy_statements(
         POLICY_ID=statements[0]["policy_id"],
     )
 
+@timeit
+def _load_policy_statements(
+    neo4j_session: neo4j.Session,
+    policy_statements: dict[str, list[dict[str, Any]]],
+    aws_update_tag: int,
+) -> None:
+    for policy_id, statements in policy_statements.items():
+        load(
+            neo4j_session,
+            AWSPolicyStatementSchema(),
+            statements,
+            lastupdated=aws_update_tag,
+            POLICY_ID=policy_id,
+        )
+
 
 @timeit
 def load_policy_data(
@@ -795,9 +831,21 @@ def load_policy_data(
     principal_policy_map: Dict[str, Dict[str, list[dict[str, Any]]]],
     policy_type: str,
     aws_update_tag: int,
+    current_aws_account_id: str,
 ) -> None:
-    # TODO when we decide to make the AWS account a sub resource of the policy, we can
-    # refactor this to just one load() call. For now we're keeping the legacy structure.
+    managed_policy_data = []
+    inline_policy_data = []
+
+    # Shape of a statement:
+    # transformed_stmts = [{
+    #     "id": f"{policy_id}/statement/{statement_id}",
+    #     "policy_id": policy_id,  # For the relationship to AWSPolicy
+    #     "Effect": stmt.get("Effect"),
+    #     "Sid": stmt.get("Sid"),
+    # },..]
+    # mapping of policy_id to list of statements
+    all_statements = {}
+
     for principal_arn, policy_statement_map in principal_policy_map.items():
         logger.debug(f"Loading policies for principal {principal_arn}")
         for policy_key, statements in policy_statement_map.items():
@@ -815,21 +863,35 @@ def load_policy_data(
                 if policy_type == PolicyType.inline.value
                 else policy_key
             )
+            policy_data = {
+                "id": policy_id,
+                "name": policy_name,
+                "type": policy_type,
+                # AWS inline policies don't have arns
+                "arn": policy_id if policy_type == PolicyType.managed.value else None,
+                "createdate": None,  # Not available in current data
+                "principal_arn": principal_arn,  # For relationship
+            }
+            if policy_type == PolicyType.inline.value:
+                inline_policy_data.append(policy_data)
+            else:
+                managed_policy_data.append(policy_data)
+            all_statements[policy_id] = statements
 
-            load_policy(
-                neo4j_session,
-                policy_id,
-                policy_name,
-                policy_type,
-                principal_arn,
-                aws_update_tag,
-            )
+    _load_policy(
+        neo4j_session,
+        managed_policy_data,
+        inline_policy_data,
+        current_aws_account_id,
+        aws_update_tag,
+    )
 
-            load_policy_statements(
-                neo4j_session,
-                statements,
-                aws_update_tag,
-            )
+    _load_policy_statements(
+        neo4j_session,
+        all_statements,
+        aws_update_tag,
+    )
+            
 
 
 @timeit
@@ -845,9 +907,9 @@ def sync_users(
     user_data = transform_users(data["Users"])
     load_users(neo4j_session, user_data, current_aws_account_id, aws_update_tag)
 
-    sync_user_inline_policies(boto3_session, data, neo4j_session, aws_update_tag)
+    sync_user_inline_policies(boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id)
 
-    sync_user_managed_policies(boto3_session, data, neo4j_session, aws_update_tag)
+    sync_user_managed_policies(boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id)
 
 
 @timeit
@@ -889,6 +951,7 @@ def sync_user_managed_policies(
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
+    current_aws_account_id: str,
 ) -> None:
     managed_policy_data = get_user_managed_policy_data(boto3_session, data["Users"])
     transformed_policy_data = transform_policy_data(
@@ -899,6 +962,7 @@ def sync_user_managed_policies(
         transformed_policy_data,
         PolicyType.managed.value,
         aws_update_tag,
+        current_aws_account_id,
     )
 
 
@@ -908,6 +972,7 @@ def sync_user_inline_policies(
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
+    current_aws_account_id: str,
 ) -> None:
     policy_data = get_user_policy_data(boto3_session, data["Users"])
     transformed_policy_data = transform_policy_data(
@@ -918,6 +983,7 @@ def sync_user_inline_policies(
         transformed_policy_data,
         PolicyType.inline.value,
         aws_update_tag,
+        current_aws_account_id,
     )
 
 
@@ -935,9 +1001,9 @@ def sync_groups(
     group_data = transform_groups(data["Groups"], group_memberships)
     load_groups(neo4j_session, group_data, current_aws_account_id, aws_update_tag)
 
-    sync_groups_inline_policies(boto3_session, data, neo4j_session, aws_update_tag)
+    sync_groups_inline_policies(boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id)
 
-    sync_group_managed_policies(boto3_session, data, neo4j_session, aws_update_tag)
+    sync_group_managed_policies(boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id)
 
 
 def sync_group_managed_policies(
@@ -945,6 +1011,7 @@ def sync_group_managed_policies(
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
+    current_aws_account_id: str,
 ) -> None:
     managed_policy_data = get_group_managed_policy_data(boto3_session, data["Groups"])
     transformed_policy_data = transform_policy_data(
@@ -955,6 +1022,7 @@ def sync_group_managed_policies(
         transformed_policy_data,
         PolicyType.managed.value,
         aws_update_tag,
+        current_aws_account_id,
     )
 
 
@@ -963,6 +1031,7 @@ def sync_groups_inline_policies(
     data: Dict,
     neo4j_session: neo4j.Session,
     aws_update_tag: int,
+    current_aws_account_id: str,
 ) -> None:
     policy_data = get_group_policy_data(boto3_session, data["Groups"])
     transformed_policy_data = transform_policy_data(
@@ -973,6 +1042,7 @@ def sync_groups_inline_policies(
         transformed_policy_data,
         PolicyType.inline.value,
         aws_update_tag,
+        current_aws_account_id,
     )
 
 
@@ -1123,6 +1193,7 @@ def sync_role_managed_policies(
         transformed_policy_data,
         PolicyType.managed.value,
         aws_update_tag,
+        current_aws_account_id,
     )
 
 
@@ -1146,6 +1217,7 @@ def sync_role_inline_policies(
         transformed_policy_data,
         PolicyType.inline.value,
         aws_update_tag,
+        current_aws_account_id,
     )
 
 
