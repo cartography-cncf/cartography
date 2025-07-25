@@ -381,7 +381,7 @@ def transform_web_identity_role_events_to_role_assumptions(
 
             # Only process GitHub Actions events
             if "token.actions.githubusercontent.com" in identity_provider:
-                # Extract GitHub repo fullname from userName format: "repo:owner/repo:context"
+                # Extract GitHub repo fullname from userName format: "repo:{organization}/{repository}:{context}"
                 user_name = user_identity.get("userName", "")
                 if not user_name:
                     logger.debug(
@@ -389,7 +389,6 @@ def transform_web_identity_role_events_to_role_assumptions(
                     )
                     continue
 
-                # Parse GitHub repo fullname from format like "repo:owner/repo:pull_request"
                 github_repo = _extract_github_repo_from_username(user_name)
                 key = (github_repo, destination_principal)
 
@@ -580,26 +579,25 @@ def _extract_github_repo_from_username(user_name: str) -> str:
     Extract GitHub repository fullname from CloudTrail userName field.
 
     GitHub Actions CloudTrail events have userName in the format:
-    "repo:{owner}/{repo}:{context}"
+    "repo:{organization}/{repository}:{context}"
     """
     if not user_name:
         return ""
 
-    # Split by colon - expected format: "repo:owner/repo:context"
     parts = user_name.split(":")
 
-    # Need at least 3 parts: ["repo", "owner/repo", "context"]
+    # Need at least 3 parts: ["repo", "{organization}/{repository}", "{context}"]
     if len(parts) < 3 or parts[0] != "repo":
         return ""
 
-    # Extract the owner/repo part (second element)
+    # Extract "{organization}/{repository}"
     repo_fullname = parts[1]
 
-    # Validate it looks like owner/repo format
-    if "/" not in repo_fullname or repo_fullname.count("/") != 1:
+    # Validate it looks like "{organization}/{repository}" format
+    if repo_fullname.count("/") != 1:
         return ""
 
-    # Additional validation - ensure both owner and repo parts exist
+    # Ensure both organization and repo exist
     owner, repo = repo_fullname.split("/")
     if not owner or not repo:
         return ""
