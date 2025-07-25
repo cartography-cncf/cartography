@@ -1847,6 +1847,29 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
     (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
     ```
 
+### EventBridgeRule
+Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_ListRules.html)
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | System-assigned eventbridge rule ID |
+| arn | The Amazon Resource Name (ARN) of the rule |
+| region | The region of the rule |
+| name | The name of the rule |
+| role_arn | The Amazon Resource Name (ARN) of the role that is used for target invocation |
+| event_pattern | The event pattern of the rule |
+| state | The state of the rule, Valid Values: ENABLED | DISABLED | ENABLED_WITH_ALL_CLOUDTRAIL_MANAGEMENT_EVENTS |
+| description | The description of the rule |
+| schedule_expression | The scheduling expression |
+| managed_by | If the rule was created on behalf of your account by an AWS service, this field displays the principal name of the service that created the rule |
+| event_bus_name | The name or ARN of the event bus associated with the rule |
+#### Relationships
+- EventBridge Rules are resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EventBridgeRule)
+    ```
+
 ### Ip
 
 Represents a generic IP address.
