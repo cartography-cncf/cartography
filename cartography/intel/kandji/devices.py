@@ -10,7 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.kandji.device import KandjiDeviceSchema
 from cartography.models.kandji.tenant import KandjiTenantSchema
-from cartography.util import timeit
+from cartography.util import timeit, build_session
 
 logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
@@ -33,7 +33,7 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
     }
 
     devices: List[Dict[str, Any]] = []
-    session = Session()
+    session = build_session()
     while True:
         logger.debug("Kandji device offset: %s", offset)
 
