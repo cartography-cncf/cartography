@@ -254,18 +254,12 @@ def get_permset_roles(
     enriched_assignments = []
     for assignment in role_assignments:
         role_arn = permset_to_role_map.get(assignment["PermissionSetArn"])
-        if role_arn:
-            enriched_assignments.append(
-                {
-                    **assignment,
-                    "RoleArn": role_arn,
-                }
-            )
-        else:
-            logger.warning(
-                f"No role found for permission set {assignment['PermissionSetArn']}. "
-                f"Make sure IAM module has synced for the target account."
-            )
+        enriched_assignments.append(
+            {
+                **assignment,
+                "RoleArn": role_arn,
+            }
+        )
 
     return enriched_assignments
 
