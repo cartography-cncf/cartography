@@ -41,7 +41,7 @@ to make it easier to ingest to the graph. `transform` functions are sometimes om
 We have some best practices on handling transforms:
 
 ```{hint}
-Before implementing a transform method, check if that can not be done with the `auto_format` option of the PropertyRef.
+Try using the `auto_format` option of the PropertyRef instead of writing a transform method!
 See [Auto-format section](#auto-format)
 ```
 

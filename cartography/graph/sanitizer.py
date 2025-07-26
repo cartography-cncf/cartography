@@ -121,6 +121,10 @@ def _auto_format_field(p_ref: PropertyRef, value: Any) -> Any:
                     return True
                 if value.lower() in ("false", "0", "no"):
                     return False
+                logger.warning(
+                    "Cannot convert string '%s' to bool. Falling back to string.",
+                    value,
+                )
                 return value
             if isinstance(value, bool):
                 return value
