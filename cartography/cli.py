@@ -17,10 +17,20 @@ logger = logging.getLogger(__name__)
 
 class CLI:
     """
-    :type sync: cartography.sync.Sync
-    :param sync: A sync task for the command line program to execute.
-    :type prog: string
-    :param prog: The name of the command line program. This will be displayed in usage and help output.
+    Command Line Interface for cartography.
+
+    This class provides the main command line interface for cartography, handling
+    argument parsing, configuration, and execution of sync operations.
+
+    Attributes:
+        sync: A cartography.sync.Sync object for executing sync operations.
+        prog: The name of the command line program for display in help output.
+        parser: The argparse.ArgumentParser instance for parsing command line arguments.
+
+    Note:
+        If no sync object is provided, the CLI will create a default sync using
+        cartography.sync.build_default_sync(). The parser is built automatically
+        during initialization.
     """
 
     def __init__(
@@ -34,9 +44,22 @@ class CLI:
 
     def _build_parser(self):
         """
-        :rtype: argparse.ArgumentParser
-        :return: A cartography argument parser. Calling parse_args on the argument parser will return an object which
-            implements the cartography.config.Config interface.
+        Build and configure the argument parser for cartography CLI.
+
+        This method creates a comprehensive ArgumentParser with all the necessary
+        command line options for configuring cartography's behavior, including
+        Neo4j connection settings, cloud provider configurations, and various
+        module-specific parameters.
+
+        Returns:
+            argparse.ArgumentParser: A configured argument parser that implements
+            the cartography.config.Config interface when parse_args() is called.
+
+        Note:
+            The returned parser includes comprehensive help documentation and
+            validation for all cartography configuration options. Calling
+            parse_args() on this parser returns an object that can be used
+            directly with cartography.sync.run_with_config().
         """
         parser = argparse.ArgumentParser(
             prog=self.prog,
@@ -758,10 +781,19 @@ class CLI:
 
     def main(self, argv: str) -> int:
         """
-        Entrypoint for the command line interface.
+        Main entrypoint for the command line interface.
 
-        :type argv: string
-        :param argv: The parameters supplied to the command line program.
+        This method parses command line arguments, configures logging and various
+        service connections, validates input parameters, and executes the cartography
+        sync operation with the provided configuration.
+
+        Args:
+            argv: The command line arguments to parse. Should be a list of strings
+                  representing the command line parameters (excluding the program name).
+
+        Returns:
+            An integer exit code. Returns 0 for successful execution, or a non-zero
+            value for errors or keyboard interruption.
         """
         # TODO support parameter lookup in environment variables if not present on command line
         config: argparse.Namespace = self.parser.parse_args(argv)
@@ -1128,12 +1160,27 @@ class CLI:
 
 def main(argv=None):
     """
-    Entrypoint for the default cartography command line interface.
+    Default entrypoint for the cartography command line interface.
 
-    This entrypoint build and executed the default cartography sync. See cartography.sync.build_default_sync.
+    This function sets up basic logging configuration and creates a CLI instance
+    with the default cartography sync configuration. It serves as the main entry
+    point when cartography is executed as a command line tool.
 
-    :rtype: int
-    :return: The return code.
+    Args:
+        argv: Optional command line arguments. If None, uses sys.argv[1:].
+              Should be a list of strings representing command line parameters.
+
+    Returns:
+        Does not return - calls sys.exit() with the appropriate exit code.
+        Exit code 0 indicates successful execution, non-zero indicates errors.
+
+    Note:
+        This function configures logging levels for various third-party libraries
+        to reduce noise in the output. It creates a CLI instance using the default
+        sync configuration from cartography.sync.build_default_sync().
+
+        The function handles KeyboardInterrupt exceptions gracefully through
+        the CLI.main() method.
     """
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("botocore").setLevel(logging.WARNING)
