@@ -61,7 +61,7 @@ def test_transform_and_load_droplets(mock_do_manager, mock_api, neo4j_session):
         "DOProject",
         "id",
         "RESOURCE",
-        rel_direction_right=True,
+        rel_direction_right=False,
     ) == {
         (
             test_droplet.id,
