@@ -32,9 +32,7 @@ class AWSInlinePolicyToAWSPrincipalRel(CartographyRelSchema):
     target_node_label: str = "AWSPrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "arn": PropertyRef(
-                "principal_arn",
-            ),
+            "arn": PropertyRef("principal_arns", one_to_many=True),
         }
     )
     direction: LinkDirection = LinkDirection.INWARD

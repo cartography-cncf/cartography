@@ -5,9 +5,11 @@ import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
 import tests.data.aws.iam
 from cartography.cli import CLI
+from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.intel.aws.iam import _transform_policy_statements
 from cartography.intel.aws.iam import sync_root_principal
+from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
 from cartography.sync import build_default_sync
 from tests.integration.util import check_nodes
 
@@ -144,14 +146,21 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
 
 
 def test_load_inline_policy(neo4j_session):
-    # TODO break this interface
-    cartography.intel.aws.iam.load_policy(
+    # Just load in a single policy. Note: this test is maintained for backward compatibility.
+    load(
         neo4j_session,
-        "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
-        "group_inline_policy",
-        "inline",
-        "arn:aws:iam::000000000000:group/example-group-0",
-        TEST_UPDATE_TAG,
+        AWSInlinePolicySchema(),
+        [
+            {
+                "id": "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
+                "arn": None,  # Inline policies don't have arns
+                "name": "group_inline_policy",
+                "type": "inline",
+                "principal_arns": ["arn:aws:iam::000000000000:group/example-group-0"],
+            }
+        ],
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
 
