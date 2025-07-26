@@ -146,7 +146,6 @@ class GraphJob:
         must be provided as keys and values in the params dict.
         """
         queries: List[str] = build_cleanup_queries(node_schema)
-
         expected_param_keys: Set[str] = get_parameters(queries)
         actual_param_keys: Set[str] = set(parameters.keys())
         # Hacky, but LIMIT_SIZE is specified by default in cartography.graph.statement, so we exclude it from validation
