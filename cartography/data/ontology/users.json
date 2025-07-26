@@ -9,6 +9,14 @@
             }
         }
     },
+    "airbyte": {
+        "nodes": {
+            "AirbyteUser": {
+                    "email": "email",
+                    "fullname": "name"
+            }
+        }
+    },
     "cloudflare": {
         "nodes": {
             "CloudflareMember": {
@@ -73,6 +81,17 @@
                     "email": "email",
                     "fullname": "name"
 
+            }
+        }
+    },
+    "scaleway": {
+        "nodes": {
+            "ScalewayUser": {
+
+                    "email": "email",
+                    "first_name": "first_name",
+                    "last_name": "last_name",
+                    "username": "username"
             }
         }
     },
