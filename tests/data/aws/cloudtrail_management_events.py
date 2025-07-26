@@ -191,7 +191,7 @@ GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS = [
             "type": "WebIdentityUser",
             "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main",
             "identityProvider": "token.actions.githubusercontent.com",
-            "userName": "sublimagesec/sublimage",
+            "userName": "repo:sublimagesec/sublimage:ref:refs/heads/main",
         },
         "Resources": [
             {
@@ -200,7 +200,7 @@ GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS = [
                 "AccountId": "123456789012",
             }
         ],
-        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "sublimagesec/sublimage"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/GitHubActionsRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/GitHubActionsRole/sublimage"}}}',
+        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:sublimagesec/sublimage:ref:refs/heads/main"}, "requestParameters": {"roleArn": "arn:aws:iam::123456789012:role/GitHubActionsRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/GitHubActionsRole/sublimage"}}}',
     },
     {
         "EventName": "AssumeRoleWithWebIdentity",
@@ -209,7 +209,7 @@ GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS = [
             "type": "WebIdentityUser",
             "principalId": "repo:myorg/demo-app:ref:refs/heads/develop",
             "identityProvider": "token.actions.githubusercontent.com",
-            "userName": "myorg/demo-app",
+            "userName": "repo:myorg/demo-app:ref:refs/heads/develop",
         },
         "Resources": [
             {
@@ -218,7 +218,7 @@ GITHUB_WEB_IDENTITY_CLOUDTRAIL_EVENTS = [
                 "AccountId": "987654321098",
             }
         ],
-        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/demo-app:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/demo-app"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::987654321098:assumed-role/CrossAccountGitHubRole/demo-app"}}}',
+        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/demo-app:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:myorg/demo-app:ref:refs/heads/develop"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountGitHubRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::987654321098:assumed-role/CrossAccountGitHubRole/demo-app"}}}',
     },
 ]
 
@@ -273,7 +273,7 @@ GITHUB_ACTIONS_AGGREGATION_CLOUDTRAIL_EVENTS = [
             "type": "WebIdentityUser",
             "principalId": "repo:myorg/test-repo:ref:refs/heads/main",
             "identityProvider": "token.actions.githubusercontent.com",
-            "userName": "myorg/test-repo",
+            "userName": "repo:myorg/test-repo:ref:refs/heads/main",
         },
         "Resources": [
             {
@@ -282,7 +282,7 @@ GITHUB_ACTIONS_AGGREGATION_CLOUDTRAIL_EVENTS = [
                 "AccountId": "111111111111",
             }
         ],
-        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/test-repo"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
+        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:myorg/test-repo:ref:refs/heads/main"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
     },
     {
         "EventName": "AssumeRoleWithWebIdentity",
@@ -291,7 +291,7 @@ GITHUB_ACTIONS_AGGREGATION_CLOUDTRAIL_EVENTS = [
             "type": "WebIdentityUser",
             "principalId": "repo:myorg/test-repo:ref:refs/heads/develop",
             "identityProvider": "token.actions.githubusercontent.com",
-            "userName": "myorg/test-repo",
+            "userName": "repo:myorg/test-repo:ref:refs/heads/develop",
         },
         "Resources": [
             {
@@ -300,7 +300,7 @@ GITHUB_ACTIONS_AGGREGATION_CLOUDTRAIL_EVENTS = [
                 "AccountId": "111111111111",
             }
         ],
-        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/test-repo"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
+        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/develop", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:myorg/test-repo:ref:refs/heads/develop"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
     },
     {
         "EventName": "AssumeRoleWithWebIdentity",
@@ -309,7 +309,7 @@ GITHUB_ACTIONS_AGGREGATION_CLOUDTRAIL_EVENTS = [
             "type": "WebIdentityUser",
             "principalId": "repo:myorg/test-repo:ref:refs/heads/main",
             "identityProvider": "token.actions.githubusercontent.com",
-            "userName": "myorg/test-repo",
+            "userName": "repo:myorg/test-repo:ref:refs/heads/main",
         },
         "Resources": [
             {
@@ -318,7 +318,7 @@ GITHUB_ACTIONS_AGGREGATION_CLOUDTRAIL_EVENTS = [
                 "AccountId": "111111111111",
             }
         ],
-        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "myorg/test-repo"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:assumed-role/GitHubTestRole/test-repo"}}}',
+        "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:myorg/test-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:myorg/test-repo:ref:refs/heads/main"}, "requestParameters": {"roleArn": "arn:aws:iam::111111111111:role/GitHubTestRole"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111111111111:role/GitHubTestRole/test-repo"}}}',
     },
 ]
 
