@@ -31,6 +31,8 @@ class Config:
     :type aws_best_effort_mode: bool
     :param aws_best_effort_mode: If True, AWS sync will not raise any exceptions, just log. If False (default),
         exceptions will be raised.
+    :type aws_cloudtrail_management_events_lookback_hours: int
+    :param aws_cloudtrail_management_events_lookback_hours: Number of hours back to retrieve CloudTrail management events from. Optional.
     :type azure_sync_all_subscriptions: bool
     :param azure_sync_all_subscriptions: If True, Azure sync will run for all profiles in azureProfile.json. If
         False (default), Azure sync will run using current user session via CLI credentials. Optional.
@@ -51,6 +53,9 @@ class Config:
     :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
+    :type aws_guardduty_severity_threshold: str
+    :param aws_guardduty_severity_threshold: GuardDuty severity threshold filter. Only findings at or above this
+        severity level will be synced. Valid values: LOW, MEDIUM, HIGH, CRITICAL. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -137,10 +142,28 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type airbyte_client_id: str
+    :param airbyte_client_id: Airbyte client ID for API authentication. Optional.
+    :type airbyte_client_secret: str
+    :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
+    :type airbyte_api_url: str
+    :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
     :type trivy_s3_bucket: str
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
     :type trivy_s3_prefix: str
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
+    :type scaleway_access_key: str
+    :param scaleway_access_key: Scaleway access key. Optional.
+    :type scaleway_secret_key: str
+    :param scaleway_secret_key: Scaleway secret key. Optional.
+    :type scaleway_org: str
+    :param scaleway_org: Scaleway organization id. Optional.
+    :type sentinelone_api_url: string
+    :param sentinelone_api_url: SentinelOne API URL. Optional.
+    :type sentinelone_api_token: string
+    :param sentinelone_api_token: SentinelOne API token for authentication. Optional.
+    :type sentinelone_account_ids: list[str]
+    :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
     """
 
     def __init__(
@@ -155,6 +178,7 @@ class Config:
         aws_sync_all_profiles=False,
         aws_regions=None,
         aws_best_effort_mode=False,
+        aws_cloudtrail_management_events_lookback_hours=None,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
@@ -164,6 +188,7 @@ class Config:
         entra_client_id=None,
         entra_client_secret=None,
         aws_requested_syncs=None,
+        aws_guardduty_severity_threshold=None,
         analysis_job_directory=None,
         oci_sync_all_profiles=None,
         okta_org_id=None,
@@ -213,8 +238,17 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        airbyte_client_id=None,
+        airbyte_client_secret=None,
+        airbyte_api_url=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
+        scaleway_access_key=None,
+        scaleway_secret_key=None,
+        scaleway_org=None,
+        sentinelone_api_url=None,
+        sentinelone_api_token=None,
+        sentinelone_account_ids=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -226,6 +260,9 @@ class Config:
         self.aws_sync_all_profiles = aws_sync_all_profiles
         self.aws_regions = aws_regions
         self.aws_best_effort_mode = aws_best_effort_mode
+        self.aws_cloudtrail_management_events_lookback_hours = (
+            aws_cloudtrail_management_events_lookback_hours
+        )
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id
@@ -235,6 +272,7 @@ class Config:
         self.entra_client_id = entra_client_id
         self.entra_client_secret = entra_client_secret
         self.aws_requested_syncs = aws_requested_syncs
+        self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
@@ -284,5 +322,14 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.airbyte_client_id = airbyte_client_id
+        self.airbyte_client_secret = airbyte_client_secret
+        self.airbyte_api_url = airbyte_api_url
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
+        self.scaleway_access_key = scaleway_access_key
+        self.scaleway_secret_key = scaleway_secret_key
+        self.scaleway_org = scaleway_org
+        self.sentinelone_api_url = sentinelone_api_url
+        self.sentinelone_api_token = sentinelone_api_token
+        self.sentinelone_account_ids = sentinelone_account_ids

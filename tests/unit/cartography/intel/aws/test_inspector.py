@@ -8,7 +8,9 @@ TEST_UPDATE_TAG = 123456789
 
 
 def test_transform_inspector_findings_network():
-    findings, _packages = transform_inspector_findings(LIST_FINDINGS_NETWORK)
+    findings, _packages, _finding_to_package_map = transform_inspector_findings(
+        LIST_FINDINGS_NETWORK
+    )
     assert findings == [
         {
             "id": "arn:aws:test123",
@@ -32,7 +34,9 @@ def test_transform_inspector_findings_network():
 
 
 def test_transform_inspector_findings_package():
-    findings, packages = transform_inspector_findings(LIST_FINDINGS_EC2_PACKAGE)
+    findings, packages, finding_to_package_map = transform_inspector_findings(
+        LIST_FINDINGS_EC2_PACKAGE
+    )
     assert findings == [
         {
             "id": "arn:aws:test456",
@@ -61,8 +65,8 @@ def test_transform_inspector_findings_package():
             "sourceurl": "https://access.redhat.com/security/cve/CVE-2017-9059",
             "status": "ACTIVE",
             "vulnerablepackageids": [
-                "kernel-tools|X86_64|4.9.17|6.29.amzn1|0",
-                "kernel|X86_64|4.9.17|6.29.amzn1|0",
+                "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
+                "kernel|0:4.9.17-6.29.amzn1.X86_64",
             ],
         },
         {
@@ -89,51 +93,81 @@ def test_transform_inspector_findings_package():
             "sourceurl": "https://nvd.nist.gov/vuln/detail/CVE-2023-1234",
             "status": "ACTIVE",
             "vulnerablepackageids": [
-                "openssl|X86_64|1.0.2k|1.amzn2|0",
+                "openssl|0:1.0.2k-1.amzn2.X86_64",
             ],
         },
     ]
-    assert packages == [
+    # The order of packages is not guaranteed because it comes from a set.
+    # To fix this, we sort both the actual and expected lists by a unique key before comparing.
+    sorted_packages = sorted(packages, key=lambda p: p["id"])
+    expected_packages = [
         {
             "arch": "X86_64",
-            "awsaccount": "123456789012",
             "epoch": 0,
-            "filepath": None,
-            "findingarn": "arn:aws:test456",
-            "fixedinversion": None,
-            "id": "kernel-tools|X86_64|4.9.17|6.29.amzn1|0",
-            "manager": "OS",
+            "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
+            "id": "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
+            "packageManager": "OS",
             "name": "kernel-tools",
             "release": "6.29.amzn1",
-            "sourcelayerhash": None,
             "version": "4.9.17",
+            "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
         },
         {
             "arch": "X86_64",
-            "awsaccount": "123456789012",
             "epoch": 0,
-            "filepath": None,
-            "findingarn": "arn:aws:test456",
-            "fixedinversion": None,
-            "id": "kernel|X86_64|4.9.17|6.29.amzn1|0",
-            "manager": "OS",
+            "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
+            "id": "kernel|0:4.9.17-6.29.amzn1.X86_64",
+            "packageManager": "OS",
             "name": "kernel",
             "release": "6.29.amzn1",
-            "sourcelayerhash": None,
             "version": "4.9.17",
+            "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
         },
         {
             "arch": "X86_64",
-            "awsaccount": "123456789011",
             "epoch": 0,
-            "filepath": None,
-            "findingarn": "arn:aws:test789",
-            "fixedinversion": None,
-            "id": "openssl|X86_64|1.0.2k|1.amzn2|0",
-            "manager": "OS",
+            "id": "openssl|0:1.0.2k-1.amzn2.X86_64",
+            "packageManager": "OS",
             "name": "openssl",
             "release": "1.amzn2",
-            "sourcelayerhash": None,
             "version": "1.0.2k",
         },
     ]
+    assert sorted_packages == sorted(expected_packages, key=lambda p: p["id"])
+    sorted_finding_to_package_map = sorted(
+        finding_to_package_map,
+        key=lambda i: (i["findingarn"], i["packageid"]),
+    )
+    expected_finding_to_package_map = [
+        {
+            "filePath": None,
+            "findingarn": "arn:aws:test456",
+            "packageid": "kernel-tools|0:4.9.17-6.29.amzn1.X86_64",
+            "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
+            "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
+            "sourceLambdaLayerArn": None,
+            "sourceLayerHash": None,
+        },
+        {
+            "filePath": None,
+            "findingarn": "arn:aws:test456",
+            "packageid": "kernel|0:4.9.17-6.29.amzn1.X86_64",
+            "remediation": "Upgrade your installed software packages to the proposed fixed in version and release.\n\nyum update kernel\n\nyum update kernel-tools",
+            "fixedInVersion": "0:4.9.18-6.30.amzn1.X86_64",
+            "sourceLambdaLayerArn": None,
+            "sourceLayerHash": None,
+        },
+        {
+            "filePath": None,
+            "findingarn": "arn:aws:test789",
+            "packageid": "openssl|0:1.0.2k-1.amzn2.X86_64",
+            "remediation": None,
+            "fixedInVersion": None,
+            "sourceLambdaLayerArn": None,
+            "sourceLayerHash": None,
+        },
+    ]
+    assert sorted_finding_to_package_map == sorted(
+        expected_finding_to_package_map,
+        key=lambda i: (i["findingarn"], i["packageid"]),
+    )
