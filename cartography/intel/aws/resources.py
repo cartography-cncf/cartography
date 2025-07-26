@@ -6,7 +6,9 @@ from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from . import acm
 from . import apigateway
 from . import cloudtrail
+from . import cloudtrail_management_events
 from . import cloudwatch
+from . import codebuild
 from . import config
 from . import dynamodb
 from . import ecr
@@ -16,6 +18,7 @@ from . import eks
 from . import elasticache
 from . import elasticsearch
 from . import emr
+from . import guardduty
 from . import iam
 from . import identitycenter
 from . import inspector
@@ -106,6 +109,9 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "config": config.sync,
     "identitycenter": identitycenter.sync_identity_center_instances,
     "cloudtrail": cloudtrail.sync,
+    "cloudtrail_management_events": cloudtrail_management_events.sync,
     "cloudwatch": cloudwatch.sync,
     "efs": efs.sync,
+    "guardduty": guardduty.sync,
+    "codebuild": codebuild.sync,
 }
