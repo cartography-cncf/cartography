@@ -169,6 +169,22 @@ def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, An
     return containers
 
 
+def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Extract network interface ID from task attachments.
+    """
+    for task in tasks:
+        for attachment in task.get("attachments", []):
+            if attachment.get("type") == "ElasticNetworkInterface":
+                details = attachment.get("details", [])
+                for detail in details:
+                    if detail.get("name") == "networkInterfaceId":
+                        task["networkInterfaceId"] = detail.get("value")
+                        break
+                break
+    return tasks
+
+
 @timeit
 def load_ecs_clusters(
     neo4j_session: neo4j.Session,
@@ -407,6 +423,7 @@ def _sync_ecs_task_and_container_defns(
         boto3_session,
         region,
     )
+    tasks = transform_ecs_tasks(tasks)
     containers = _get_containers_from_tasks(tasks)
     load_ecs_tasks(
         neo4j_session,
