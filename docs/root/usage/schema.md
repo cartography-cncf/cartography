@@ -96,6 +96,9 @@
 ```{include} ../modules/semgrep/schema.md
 ```
 
+```{include} ../modules/sentinelone/schema.md
+```
+
 ```{include} ../modules/snipeit/schema.md
 ```
 

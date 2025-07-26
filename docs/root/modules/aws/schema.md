@@ -38,6 +38,7 @@ Representation of an AWS Account.
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
                                 :ESDomain,
+                                :GuardDutyFinding,
                                 :LaunchConfiguration,
                                 :LaunchTemplate,
                                 :LaunchTemplateVersion,
@@ -139,6 +140,47 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     (:AWSAccount)-[:RESOURCE]->(:AWSGroup)
     ```
 
+### GuardDutyFinding::Risk
+
+Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the GuardDuty finding |
+| arn | The Amazon Resource Name (ARN) of the finding |
+| type | The type of finding (e.g., "UnauthorizedAccess:EC2/MaliciousIPCaller.Custom") |
+| severity | The severity score of the finding (0.1 to 8.9 for medium/high findings) |
+| confidence | The confidence level that GuardDuty has in the accuracy of the finding |
+| title | A short description of the finding |
+| description | A more detailed description of the finding |
+| eventfirstseen | Timestamp when the activity that prompted GuardDuty to generate this finding was first observed |
+| eventlastseen | Timestamp when the activity that prompted GuardDuty to generate this finding was last observed |
+| accountid | The ID of the AWS account in which the finding was generated |
+| region | The AWS Region where the finding was generated |
+| detectorid | The ID of the detector that generated the finding |
+| resource_type | The type of AWS resource affected (Instance, S3Bucket, AccessKey, etc.) |
+| resource_id | The identifier of the affected resource (instance ID, bucket name, etc.) |
+| archived | Whether the finding has been archived |
+
+#### Relationships
+
+- GuardDuty findings belong to AWS Accounts
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:GuardDutyFinding)
+    ```
+
+- GuardDuty findings may affect EC2 Instances
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:EC2Instance)
+    ```
+
+- GuardDuty findings may affect S3 Buckets
+    ```cypher
+    (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
+    ```
+
 ### AWSInspectorFinding
 
 Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspector/v2/APIReference/API_Finding.html)
@@ -213,19 +255,13 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 | Field | Description | Required|
 |-------|-------------|------|
 |**arn**|The AWS ARN|yes|
-|id|Uses the format of `name\|arch\|version\|release\|epoch` to uniqulely identify packages|yes|
-|region|AWS region the finding is from|yes|
-|awsaccount|AWS account the finding is from|yes|
-|findingarn|The AWS ARN for a related finding|yes|
+|id|Uses the format of `name|epoch:version-release.arch` to uniquely identify packages|yes|
 |name|The finding name|
 |arch|Architecture for the package|
 |version|Version of the package|
 |release|Release of the package
 |epoch|Package epoch|
 |manager|Related package manager|
-|filepath|Path to the file or package|
-|fixedinversion|Version the related finding was fixed in|
-|sourcelayerhash|Source layer hash for container images|
 
 
 #### Relationships
@@ -234,7 +270,20 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 
     ```cypher
     (:AWSInspectorFindings)-[:HAS]->(:AWSInspectorPackages)
+
     ```
+    - `HAS` attributes
+
+| Field | Description | Required|
+|-------|-------------|------|
+|filepath|Path to the file or package|
+|sourcelayerhash|Source layer hash for container images|
+|sourcelambdalayerarn|ARN of the AWS Lambda function affected|
+|fixedinversion|Version the related finding was fixed in|
+|remediation|Remediation steps|
+|_sub_resource_label|Resource label to do relationships clean-up. Always `AWSAccount`
+|_sub_resource_id|Resource id to do relationships clean-up. Always ID of the AWS `RESOURCE` account.
+
 
 - AWSInspectorPackages belong to AWSAccounts.
 
@@ -618,6 +667,22 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
+- Cartography records assumerole events between AWS principals from CloudTrail management events
+    ```cypher
+    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
+    ```
+
+- Cartography records SAML-based role assumptions from CloudTrail management events
+    ```cypher
+    (AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
+    ```
+
+- Cartography records GitHub Actions role assumptions from CloudTrail management events
+    ```cypher
+    (GitHubRepository)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
+    ```
+    Note: Generic web identity providers are not currently implemented.
+
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
 
@@ -785,6 +850,10 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
     ```
     (:CloudTrailTrail)-[:LOGS_TO]->(:S3Bucket)
     ```
+- CloudTrail Trail can send logs to CloudWatchLogGroup.
+    ```
+    (:CloudTrailTrail)-[:SENDS_LOGS_TO_CLOUDWATCH]->(:CloudWatchLogGroup)
+    ```
 
 ### CloudWatchLogGroup
 Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)
@@ -807,6 +876,53 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 - CLoudWatch LogGroups are a resource under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(CloudWatchLogGroup)
+    ```
+
+### CloudWatchMetricAlarm
+Representation of an AWS [CloudWatch Metric Alarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarms.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The ARN of the CloudWatch Metric Alarm |
+| arn | The ARN of the CloudWatch Metric Alarm |
+| region | The region of the CloudWatch Metric Alarm |
+| alarm_name | The name of the alarm |
+| state_value | The state value for the alarm |
+| state_reason | An explanation for the alarm state, in text format |
+| actions_enabled | Indicates whether actions should be executed during any changes to the alarm state |
+| comparison_operator | The arithmetic operation to use when comparing the specified statistic and threshold. The specified statistic value is used as the first operand |
+#### Relationships
+- CloudWatch Metric Alarms are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchMetricAlarm)
+    ```
+
+### CloudWatchLogMetricFilter
+Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DescribeMetricFilters.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | Ensures that the id field is a unique combination of logGroupName and filterName |
+| arn | Ensures that the arn field is a unique combination of logGroupName and filterName |
+| region | The region of the CloudWatch Log Metric Filter |
+| filter_name | The name of the filter pattern used to extract metric data from log events |
+| filter_pattern | The pattern used to extract metric data from CloudWatch log events |
+| log_group_name | The name of the log group to which this metric filter is applied |
+| metric_name | The name of the metric emitted by this filter |
+| metric_namespace | The namespace of the metric emitted by this filter |
+| metric_value | The value to publish to the CloudWatch metric when a log event matches the filter pattern |
+#### Relationships
+- CLoudWatch Log Metric Filters are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CloudWatchLogMetricFilter)
+    ```
+- CloudWatchLogMetricFilter associated with CloudWatchLogGroup via the METRIC_FILTER_OF relationship
+    ```
+    (CloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(CloudWatchLogGroup)
     ```
 
 ### CodeBuildProject
@@ -1189,7 +1305,7 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| groupid | The ID of the security group|
+| groupid | The ID of the security group. Note that these are globally unique in AWS.|
 | name | The name of the security group|
 | description | A description of the security group|
 | **id** | Same as `groupid` |
@@ -1213,6 +1329,11 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 - Load balancers can define inbound [Source Security Groups](https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-security-groups.html).
     ```
     (LoadBalancer)-[SOURCE_SECURITY_GROUP]->(EC2SecurityGroup)
+    ```
+
+- Security Groups can allow traffic from other security groups. This relationship can also be self-referential, meaning that a security group can allow traffic from itself (as security groups are default-deny). Relevant API docs: [IP Permission](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_IpPermission.html), [UserIdGroupPair](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_UserIdGroupPair.html).
+    ```
+    (:EC2SecurityGroup)-[:ALLOWS_TRAFFIC_FROM]->(:EC2SecurityGroup)
     ```
 
 - AWS Accounts contain EC2 Security Groups.
@@ -1240,6 +1361,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **subnetid** | The ID of the subnet|
+| **subnet_id** | The ID of the subnet|
 | **id** | same as subnetid |
 | region| The AWS region the subnet is installed on|
 | name | The IPv4 CIDR block assigned to the subnet|
@@ -1931,6 +2053,7 @@ Representation of a generic Network Interface.  Currently however, we only creat
 | private\_dns\_name| The private DNS name |
 | status | Status of the network interface.  Valid Values: ``available \| associated \| attaching \| in-use \| detaching `` |
 | subnetid | The ID of the subnet |
+| subnet_id | The ID of the subnet |
 | interface_type  |  Describes the type of network interface. Valid values: `` interface \| efa `` |
 | requester_id  | Id of the requester, e.g. `amazon-elb` for ELBs |
 | requester_managed  |  Indicates whether the interface is managed by the requester |
@@ -2242,6 +2365,72 @@ Representation of an AWS Relational Database Service [DBSnapshot](https://docs.a
 -  RDS Snapshots can be tagged with AWSTags.
     ```
     (RDSSnapshot)-[TAGGED]->(AWSTag)
+    ```
+
+### ElasticacheCluster
+
+Representation of an AWS [ElastiCache Cluster](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CacheCluster.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Same as ARN |
+| **arn** | The Amazon Resource Name (ARN) for the ElastiCache cluster |
+| cache_cluster_id | The unique identifier for the cache cluster |
+| cache_node_type | The compute and memory capacity of the nodes in the cluster |
+| engine | The name of the cache engine (redis, memcached) |
+| engine_version | The version of the cache engine |
+| cache_cluster_status | The current state of the cache cluster |
+| num_cache_nodes | The number of cache nodes in the cluster |
+| preferred_availability_zone | The name of the Availability Zone in which the cache cluster is located |
+| preferred_maintenance_window | The weekly time range during which maintenance on the cache cluster is performed |
+| cache_cluster_create_time | The date and time when the cache cluster was created |
+| cache_subnet_group_name | The name of the cache subnet group associated with the cache cluster |
+| auto_minor_version_upgrade | Indicates whether minor version patches are applied automatically |
+| replication_group_id | The replication group to which this cache cluster belongs |
+| snapshot_retention_limit | The number of days for which ElastiCache will retain automatic cache cluster snapshots |
+| snapshot_window | The daily time range during which ElastiCache will take a snapshot of the cache cluster |
+| auth_token_enabled | Indicates whether an authentication token is enabled for the cache cluster |
+| transit_encryption_enabled | Indicates whether the cache cluster is encrypted in transit |
+| at_rest_encryption_enabled | Indicates whether the cache cluster is encrypted at rest |
+| topic_arn | The ARN of the SNS topic to which notifications are sent |
+| region | The AWS region where the cache cluster is located |
+
+#### Relationships
+
+- ElastiCache clusters are part of AWS Accounts.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ElasticacheCluster)
+    ```
+
+- ElastiCache topics are associated with ElastiCache clusters.
+    ```
+    (:ElasticacheTopic)-[:CACHE_CLUSTER]->(:ElasticacheCluster)
+    ```
+
+### ElasticacheTopic
+
+Representation of an AWS [ElastiCache Topic](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/API_CacheCluster.html) for notifications.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Same as ARN |
+| **arn** | The Amazon Resource Name (ARN) for the SNS topic |
+| status | The status of the SNS topic (active, inactive) |
+
+#### Relationships
+
+- ElastiCache topics are part of AWS Accounts.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ElasticacheTopic)
+    ```
+
+- ElastiCache topics are associated with ElastiCache clusters.
+    ```
+    (:ElasticacheTopic)-[:CACHE_CLUSTER]->(:ElasticacheCluster)
     ```
 
 ### S3Acl
@@ -3306,8 +3495,14 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 | task\_definition\_arn | The ARN of the task definition that creates the task. |
 | version | The version counter for the task. |
 | ephemeral\_storage\_size\_in\_gib | The total amount, in GiB, of ephemeral storage to set for the task. |
+| network\_interface\_id | The network interface ID for tasks running in awsvpc network mode. |
 
 #### Relationships
+
+- ECSTasks are a resource under the AWS Account
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ECSTask)
+    ```
 
 - ECSClusters have ECSTasks
     ```
@@ -3322,6 +3517,11 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 - ECSTasks have ECSTaskDefinitions
     ```
     (:ECSTask)-[:HAS_TASK_DEFINITION]->(:ECSTaskDefinition)
+    ```
+
+- ECSTasks in awsvpc network mode have NetworkInterfaces
+    ```
+    (:ECSTask)-[:NETWORK_INTERFACE]->(:NetworkInterface)
     ```
 
 ### ECSContainer
@@ -3469,6 +3669,30 @@ Representation of an AWS [SNS Topic](https://docs.aws.amazon.com/sns/latest/api/
     ```
     (AWSAccount)-[RESOURCE]->(SNSTopic)
     ```
+
+### SNSTopicSubscription
+Representation of an AWS [SNS Topic Subscription](https://docs.aws.amazon.com/sns/latest/api/API_GetSubscriptionAttributes.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the SNS topic subscription |
+| **arn** | The Amazon Resource Name (ARN) of the topic subscription |
+| topic_arn | The topic ARN that the subscription is associated with |
+| endpoint | The subscription's endpoint |
+| owner | The subscription's owner |
+| protocol | The subscription's protocol for messages |
+#### Relationships
+- SNS Topic Subscriptions are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(SNSTopicSubscription)
+    ```
+- SNS Topic Subscriptions are associated with SNS Topics.
+    ```
+    (:SNSTopicSubscription)-[HAS_SUBSCRIPTION]->(:SNSTopic)
+    ```
+
 ### S3AccountPublicAccessBlock
 Representation of an AWS [S3 Account Public Access Block](https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html) configuration, which provides account-level settings to block public access to S3 resources.
 
@@ -3651,6 +3875,11 @@ Representation of an AWS SSO User.
 - UserAccount can be assumed by AWSSSOUser.
     ```
     (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
+    ```
+
+- AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
+    ```
+    (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)
     ```
 
 ### AWSPermissionSet

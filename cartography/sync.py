@@ -40,6 +40,7 @@ import cartography.intel.openai
 import cartography.intel.pagerduty
 import cartography.intel.scaleway
 import cartography.intel.semgrep
+import cartography.intel.sentinelone
 import cartography.intel.snipeit
 import cartography.intel.tailscale
 import cartography.intel.trivy
@@ -81,7 +82,9 @@ TOP_LEVEL_MODULES = OrderedDict(
         "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
+        "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "ontology": cartography.intel.ontology.run,
+        # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
     }
 )
