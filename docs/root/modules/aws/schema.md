@@ -480,7 +480,6 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | name | The friendly name (not ARN) identifying the policy |
-| createdate | ISO 8601 date-time when the policy was created|
 | type | "inline" or "managed" - the type of policy it is|
 | arn | The arn for this object |
 | **id** | The unique identifer for a policy. If the policy is managed this will be the Arn. If the policy is inline this will calculated as _AWSPrincipal_/inline_policy/_PolicyName_|
@@ -507,7 +506,6 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 | Field | Description |
 |-------|-------------|
 | name | The friendly name (not ARN) identifying the policy |
-| createdate | ISO 8601 date-time when the policy was created|
 | type | "inline" |
 | arn | The arn for this object |
 | **id** | The unique identifer for a policy. Calculated as _AWSPrincipal_/inline_policy/_PolicyName_|
@@ -541,7 +539,6 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 | Field | Description |
 |-------|-------------|
 | name | The friendly name (not ARN) identifying the policy |
-| createdate | ISO 8601 date-time when the policy was created|
 | type | "managed" |
 | arn | The arn for this object |
 | **id** | The arn of the policy |
@@ -549,13 +546,13 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 
 #### Relationships
 
-- `AWSPrincipal` contains `AWSManagedPolicy`
+- An `AWSPrincipal` can be assigned to one or more `AWSManagedPolicy`s
 
     ```cypher
     (:AWSPrincipal)-[:POLICY]->(:AWSManagedPolicy)
     ```
 
-- `AWSManagedPolicy` contains `AWSPolicyStatement`
+- An `AWSManagedPolicy` contains one or more `AWSPolicyStatement`s
 
     ```cypher
     (:AWSInlinePolicy)-[:STATEMENT]->(:AWSPolicyStatement)
@@ -578,7 +575,7 @@ Representation of an [AWS Policy Statement](https://docs.aws.amazon.com/IAM/late
 
 #### Relationships
 
-- `AWSPolicy` contains `AWSPolicyStatement`
+- `AWSPolicy`s contain one or more `AWSPolicyStatement`s
 
     ```cypher
     (:AWSPolicy, :AWSInlinePolicy, :AWSManagedPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
