@@ -158,7 +158,7 @@ def test_load_ecs_services(neo4j_session, *args):
 
 def test_load_ecs_tasks(neo4j_session, *args):
     # Arrange
-    data = tests.data.aws.ecs.GET_ECS_TASKS
+    data = tests.data.aws.ecs.GET_ECS_TASKS.copy()
     containers = cartography.intel.aws.ecs._get_containers_from_tasks(data)
 
     # Act

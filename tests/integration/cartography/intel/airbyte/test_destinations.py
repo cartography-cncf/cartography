@@ -29,7 +29,7 @@ def _ensure_local_neo4j_has_test_destinations(neo4j_session):
 @patch.object(
     cartography.intel.airbyte.destinations,
     "get",
-    return_value=tests.data.airbyte.destinations.AIRBYTE_DESTINATIONS,
+    return_value=tests.data.airbyte.destinations.AIRBYTE_DESTINATIONS.copy(),
 )
 def test_load_airbyte_destinations(mock_api, neo4j_session):
     """
