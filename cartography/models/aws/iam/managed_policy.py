@@ -19,7 +19,6 @@ class AWSManagedPolicyNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     type: PropertyRef = PropertyRef("type")
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
-    createdate: PropertyRef = PropertyRef("createdate")
 
 
 @dataclass(frozen=True)

@@ -131,7 +131,6 @@ def test_transform_policy_data_correctly_creates_lists_of_statements():
             "name": "pol-name",
             "type": "inline",
             "arn": None,  # Inline policies don't have ARNs
-            "createdate": None,
             "principal_arns": ["some-arn"],
         }
     ]

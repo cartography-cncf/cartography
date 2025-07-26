@@ -340,7 +340,6 @@ def get_account_access_key_data(
     return access_keys
 
 
-# TODO clean this up a bit
 @timeit
 def get_group_memberships(
     boto3_session: boto3.Session, groups: list[dict[str, Any]]
@@ -394,9 +393,6 @@ def get_policies_for_principal(
 
 
 def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """
-    Transform AWS IAM user data for schema-based loading.
-    """
     user_data = []
     for user in users:
         user_record = {
@@ -415,9 +411,6 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def transform_groups(
     groups: list[dict[str, Any]], group_memberships: dict[str, list[str]]
 ) -> list[dict[str, Any]]:
-    """
-    Transform AWS IAM group data for schema-based loading.
-    """
     group_data = []
     for group in groups:
         group_record = {
@@ -436,9 +429,6 @@ def transform_groups(
 def transform_access_keys(
     user_access_keys: dict[str, list[dict[str, Any]]],
 ) -> list[dict[str, Any]]:
-    """
-    Transform AWS IAM access key data for schema-based loading.
-    """
     access_key_data = []
     for user_arn, access_keys in user_access_keys.items():
         for access_key in access_keys:
@@ -457,11 +447,12 @@ def transform_access_keys(
     return access_key_data
 
 
-def transform_roles(
+def transform_role_trust_policies(
     roles: list[dict[str, Any]], current_aws_account_id: str
 ) -> TransformedRoleData:
     """
-    Process AWS role assumption policy documents
+    Processes AWS role assumption policy documents in the list_roles response.
+    Returns a TransformedRoleData object containing the role data, federated principals, service principals, and external AWS accounts.
     """
     role_data: list[dict[str, Any]] = []
     federated_principals: list[dict[str, Any]] = []
@@ -705,8 +696,12 @@ def _transform_policy_statements(
     return result
 
 
-def transform_policy_data(policy_map: Dict, policy_type: str) -> TransformedPolicyData:
-
+def transform_policy_data(
+    policy_map: dict[str, dict[str, Any]], policy_type: str
+) -> TransformedPolicyData:
+    """
+    Processes AWS IAM policy documents. Returns a TransformedPolicyData object containing the managed policies, inline policies, and statements by policy id -- all ready to be loaded to the graph.
+    """
     # First pass: collect all policies and their principals
     policy_to_principals: dict[str, set[str]] = {}
     policy_to_statements: dict[str, list[dict[str, Any]]] = {}
@@ -715,27 +710,21 @@ def transform_policy_data(policy_map: Dict, policy_type: str) -> TransformedPoli
     for principal_arn, policy_statement_map in policy_map.items():
         for policy_key, statements in policy_statement_map.items():
             policy_id = (
-                transform_policy_id(
-                    principal_arn,
-                    policy_type,
-                    policy_key,
-                )
+                transform_policy_id(principal_arn, policy_type, policy_key)
                 if policy_type == PolicyType.inline.value
                 else policy_key
             )
-
             policy_name = (
                 policy_key
                 if policy_type == PolicyType.inline.value
                 else get_policy_name_from_arn(policy_key)
             )
-
-            # Collect principals for this policy
+            # Map policy id to the principal arns that have it
             if policy_id not in policy_to_principals:
                 policy_to_principals[policy_id] = set()
             policy_to_principals[policy_id].add(principal_arn)
 
-            # Store policy metadata
+            # Map policy id to policy name
             policy_to_name[policy_id] = policy_name
 
             # Transform and store statements
@@ -758,10 +747,7 @@ def transform_policy_data(policy_map: Dict, policy_type: str) -> TransformedPoli
             "type": policy_type,
             # AWS inline policies don't have arns
             "arn": policy_id if policy_type == PolicyType.managed.value else None,
-            "createdate": None,  # Not available in current data
-            "principal_arns": list(
-                principal_arns
-            ),  # List of principals for relationship
+            "principal_arns": list(principal_arns),
         }
 
         if policy_type == PolicyType.inline.value:
@@ -1089,7 +1075,7 @@ def sync_role_assumptions(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    transformed = transform_roles(data["Roles"], current_aws_account_id)
+    transformed = transform_role_trust_policies(data["Roles"], current_aws_account_id)
 
     # Order matters here.
     # External accounts come first because they need to be created before the roles that trust them.
