@@ -16,7 +16,7 @@ class DependencyGraphManifestNodeProperties(CartographyNodeProperties):
     blob_path: PropertyRef = PropertyRef("blob_path")
     filename: PropertyRef = PropertyRef("filename")
     dependencies_count: PropertyRef = PropertyRef("dependencies_count")
-    repo_url: PropertyRef = PropertyRef("repo_url")
+    repo_url: PropertyRef = PropertyRef("repo_url", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
