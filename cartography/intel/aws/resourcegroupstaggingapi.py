@@ -1,5 +1,6 @@
 import logging
 from string import Template
+from typing import Any
 from typing import Dict
 from typing import List
 
@@ -187,11 +188,11 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
 @aws_handle_regions
 def get_tags(
     boto3_session: boto3.session.Session,
-    resource_types: List[str],
+    resource_types: list[str],
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """Retrieve tag data for the provided resource types."""
-    resources: List[Dict] = []
+    resources: list[dict[str, Any]] = []
 
     if "iam:role" in resource_types:
         resources.extend(get_role_tags(boto3_session))
@@ -202,8 +203,12 @@ def get_tags(
 
     client = boto3_session.client("resourcegroupstaggingapi", region_name=region)
     paginator = client.get_paginator("get_resources")
-    for page in paginator.paginate(ResourceTypeFilters=resource_types):
-        resources.extend(page["ResourceTagMappingList"])
+
+    # Batch resource types into groups of 100
+    # (https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_GetResources.html)
+    for resource_types_batch in batch(resource_types, size=100):
+        for page in paginator.paginate(ResourceTypeFilters=resource_types_batch):
+            resources.extend(page["ResourceTagMappingList"])
     return resources
 
 
@@ -235,6 +240,9 @@ def _load_tags_tx(
             r.firstseen = timestamp()
     """,
     )
+    if not tag_data:
+        return
+
     query = INGEST_TAG_TEMPLATE.safe_substitute(
         resource_label=TAG_RESOURCE_TYPE_MAPPINGS[resource_type]["label"],
         property=TAG_RESOURCE_TYPE_MAPPINGS[resource_type]["property"],
