@@ -22,6 +22,7 @@ def _ensure_local_neo4j_has_test_vpc_data(neo4j_session):
         neo4j_session,
         tests.data.gcp.compute.TRANSFORMED_GCP_VPCS,
         TEST_UPDATE_TAG,
+        "project-abc",
     )
 
 
@@ -51,6 +52,7 @@ def test_transform_and_load_vpcs(neo4j_session):
         neo4j_session,
         vpc_list,
         TEST_UPDATE_TAG,
+        "project-abc",
     )
 
     query = """
@@ -478,6 +480,7 @@ def test_vpc_to_firewall_to_iprule_to_iprange(neo4j_session):
     return_value=tests.data.gcp.compute.VPC_RESPONSE,
 )
 def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"}
     """Test sync_gcp_vpcs() loads VPCs and creates relationships."""
     # Act
     cartography.intel.gcp.compute.sync_gcp_vpcs(
@@ -485,7 +488,7 @@ def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
         MagicMock(),
         "project-abc",
         TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        common_job_parameters,
     )
 
     # Assert
@@ -525,6 +528,7 @@ def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
 def test_cleanup_not_scoped_to_project(mock_get_vpcs, neo4j_session):
     """Cleanup removes VPCs from other projects because it is not scoped."""
     # Arrange
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"}
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     query = """
     MERGE (p:GCPProject{id:$ProjectId})
@@ -541,7 +545,7 @@ def test_cleanup_not_scoped_to_project(mock_get_vpcs, neo4j_session):
         MagicMock(),
         "project-abc",
         TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        common_job_parameters,
     )
     # Assert that the first project->vpc rel is created
     assert check_rels(
@@ -558,12 +562,14 @@ def test_cleanup_not_scoped_to_project(mock_get_vpcs, neo4j_session):
 
     # Act: sync the second project at a later time
     new_tag = TEST_UPDATE_TAG + 1
+    common_job_parameters["UPDATE_TAG"] = new_tag
+    common_job_parameters["PROJECT_ID"] = "project-def"
     cartography.intel.gcp.compute.sync_gcp_vpcs(
         neo4j_session,
         MagicMock(),
         "project-def",
         new_tag,
-        {"UPDATE_TAG": new_tag},
+        common_job_parameters,
     )
 
     # Assert that the second project->vpc rel is created and the first project->vpc rel remains
@@ -576,6 +582,6 @@ def test_cleanup_not_scoped_to_project(mock_get_vpcs, neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        ("project-def", "projects/project-def/global/networks/default"),
+        ("project-abc", "projects/project-abc/global/networks/default"),
         ("project-def", "projects/project-def/global/networks/default2"),
     }, "Second project->vpc rels are not created"
