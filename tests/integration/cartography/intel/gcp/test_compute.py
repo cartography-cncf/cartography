@@ -482,7 +482,7 @@ def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
     # Act
     cartography.intel.gcp.compute.sync_gcp_vpcs(
         neo4j_session,
-        None,
+        MagicMock(),
         "project-abc",
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
