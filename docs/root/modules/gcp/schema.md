@@ -294,37 +294,37 @@ Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/re
 - GCPVpcs are part of projects
 
     ```
-    (GCPProject)-[RESOURCE]->(GCPVpc)
+    (:GCPProject)-[:RESOURCE]->(:GCPVpc)
     ```
 
 - GCPVpcs contain GCPSubnets
 
     ```
-    (GCPVpc)-[RESOURCE]->(GCPSubnet)
+    (:GCPVpc)-[:RESOURCE]->(:GCPSubnet)
     ```
 
 - GCPSubnets are part of GCP VPCs
 
     ```
-    (GCPVpc)-[RESOURCE]->(GCPSubnet)
+    (:GCPVpc)-[:RESOURCE]->(:GCPSubnet)
     ```
 
 - GCPNetworkTags are defined on a VPC and only have effect on assets in that VPC
 
     ```
-    (GCPVpc)-[DEFINED_IN]->(GCPNetworkTag)
+    (:GCPVpc)-[:DEFINED_IN]->(:GCPNetworkTag)
     ```
 
 - GCP Instances may be members of one or more GCP VPCs.
 
     ```
-    (GCPInstance)-[:MEMBER_OF_GCP_VPC]->(GCPVpc)
+    (:GCPInstance)-[:MEMBER_OF_GCP_VPC]->(:GCPVpc)
     ```
 
     Also note that this relationship is a shortcut for:
 
     ```
-    (GCPInstance)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:PART_OF_SUBNET]->(GCPSubnet)<-[:RESOURCE]-(GCPVpc)
+    (:GCPInstance)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:PART_OF_SUBNET]->(:GCPSubnet)<-[:RESOURCE]-(:GCPVpc)
     ```
 
 ### GCPNetworkInterface

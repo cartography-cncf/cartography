@@ -391,6 +391,7 @@ def _sync_multiple_projects(
     # Compute data sync
     for project in projects:
         project_id = project["projectId"]
+        common_job_parameters["PROJECT_ID"] = project_id
         logger.info("Syncing GCP project %s for Compute.", project_id)
         _sync_single_project_compute(
             neo4j_session,
@@ -399,10 +400,12 @@ def _sync_multiple_projects(
             gcp_update_tag,
             common_job_parameters,
         )
+        del common_job_parameters["PROJECT_ID"]
 
     # Storage data sync
     for project in projects:
         project_id = project["projectId"]
+        common_job_parameters["PROJECT_ID"] = project_id
         logger.info("Syncing GCP project %s for Storage", project_id)
         _sync_single_project_storage(
             neo4j_session,
@@ -411,10 +414,12 @@ def _sync_multiple_projects(
             gcp_update_tag,
             common_job_parameters,
         )
+        del common_job_parameters["PROJECT_ID"]
 
     # GKE data sync
     for project in projects:
         project_id = project["projectId"]
+        common_job_parameters["PROJECT_ID"] = project_id
         logger.info("Syncing GCP project %s for GKE", project_id)
         _sync_single_project_gke(
             neo4j_session,
@@ -423,10 +428,12 @@ def _sync_multiple_projects(
             gcp_update_tag,
             common_job_parameters,
         )
+        del common_job_parameters["PROJECT_ID"]
 
     # DNS data sync
     for project in projects:
         project_id = project["projectId"]
+        common_job_parameters["PROJECT_ID"] = project_id
         logger.info("Syncing GCP project %s for DNS", project_id)
         _sync_single_project_dns(
             neo4j_session,
@@ -435,14 +442,17 @@ def _sync_multiple_projects(
             gcp_update_tag,
             common_job_parameters,
         )
+        del common_job_parameters["PROJECT_ID"]
 
     # IAM data sync
     for project in projects:
         project_id = project["projectId"]
+        common_job_parameters["PROJECT_ID"] = project_id
         logger.info("Syncing GCP project %s for IAM", project_id)
         _sync_single_project_iam(
             neo4j_session, resources, project_id, gcp_update_tag, common_job_parameters
         )
+        del common_job_parameters["PROJECT_ID"]
 
 
 @timeit
