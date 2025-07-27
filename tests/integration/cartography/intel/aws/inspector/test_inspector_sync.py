@@ -16,7 +16,7 @@ TEST_ACC_ID_2 = "123456789012"
 @patch.object(
     cartography.intel.aws.inspector,
     "get_inspector_findings",
-    return_value=LIST_FINDINGS_NETWORK,
+    return_value=[LIST_FINDINGS_NETWORK],
 )
 def test_sync_inspector_network_findings(mock_get, neo4j_session):
     # Arrange
@@ -75,7 +75,7 @@ def test_sync_inspector_network_findings(mock_get, neo4j_session):
 @patch.object(
     cartography.intel.aws.inspector,
     "get_inspector_findings",
-    return_value=LIST_FINDINGS_EC2_PACKAGE,
+    return_value=[LIST_FINDINGS_EC2_PACKAGE],
 )
 def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
     # Arrange
@@ -134,9 +134,9 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         "HAS",
         rel_direction_right=True,
     ) == {
-        ("arn:aws:test456", "kernel-tools|X86_64|4.9.17|6.29.amzn1|0"),
-        ("arn:aws:test456", "kernel|X86_64|4.9.17|6.29.amzn1|0"),
-        ("arn:aws:test789", "openssl|X86_64|1.0.2k|1.amzn2|0"),
+        ("arn:aws:test456", "kernel-tools|0:4.9.17-6.29.amzn1.X86_64"),
+        ("arn:aws:test456", "kernel|0:4.9.17-6.29.amzn1.X86_64"),
+        ("arn:aws:test789", "openssl|0:1.0.2k-1.amzn2.X86_64"),
     }
 
     # Assert AWSAccount RESOURCE to Finding exists
@@ -165,4 +165,19 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
     ) == {
         ("123456789011", "arn:aws:test789"),
         ("123456789012", "arn:aws:test456"),
+    }
+
+    # Assert AWSAccount RESOURCE to Package exists
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSInspectorPackage",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("123456789012", "kernel-tools|0:4.9.17-6.29.amzn1.X86_64"),
+        ("123456789012", "kernel|0:4.9.17-6.29.amzn1.X86_64"),
+        ("123456789012", "openssl|0:1.0.2k-1.amzn2.X86_64"),
     }

@@ -1,0 +1,6 @@
+# Airbyte
+
+```{toctree}
+config
+schema
+```

@@ -309,6 +309,64 @@ class YourServiceUserSchema(CartographyNodeSchema):
     ])
 ```
 
+### Sub-Resource Relationships: Always Point to Tenant-Like Objects
+
+The `sub_resource_relationship` should **always** refer to a tenant-like object that represents the ownership or organizational boundary of the resource. This is crucial for proper data organization and cleanup operations.
+
+**✅ Correct Examples:**
+- **AWS Resources**: Point to `AWSAccount` (tenant = AWS account)
+- **Azure Resources**: Point to `AzureSubscription` (tenant = Azure subscription)
+- **GCP Resources**: Point to `GCPProject` (tenant = GCP project)
+- **SaaS Applications**: Point to `YourServiceTenant` (tenant = organization/company)
+- **GitHub Resources**: Point to `GitHubOrganization` (tenant = GitHub org)
+
+**❌ Incorrect Examples:**
+- Pointing to a parent resource that's not tenant-like (e.g., `ECSTaskDefinition` → `ECSTask`)
+- Pointing to infrastructure components (e.g., `ECSContainer` → `ECSTask`)
+- Pointing to logical groupings that aren't organizational boundaries
+
+**Example: AWS ECS Container Definitions**
+
+```python
+# ✅ CORRECT: Container definitions belong to AWS accounts
+@dataclass(frozen=True)
+class ECSContainerDefinitionSchema(CartographyNodeSchema):
+    label: str = "ECSContainerDefinition"
+    properties: ECSContainerDefinitionNodeProperties = ECSContainerDefinitionNodeProperties()
+    sub_resource_relationship: ECSContainerDefinitionToAWSAccountRel = ECSContainerDefinitionToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships([
+        ECSContainerDefinitionToTaskDefinitionRel(),  # Business relationship
+    ])
+
+# ✅ CORRECT: Relationship to AWS Account (tenant-like)
+@dataclass(frozen=True)
+class ECSContainerDefinitionToAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "id": PropertyRef("AWS_ID", set_in_kwargs=True),
+    })
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: ECSContainerDefinitionToAWSAccountRelProperties = ECSContainerDefinitionToAWSAccountRelProperties()
+
+# ✅ CORRECT: Business relationship to task definition (not tenant-like)
+@dataclass(frozen=True)
+class ECSContainerDefinitionToTaskDefinitionRel(CartographyRelSchema):
+    target_node_label: str = "ECSTaskDefinition"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "id": PropertyRef("_taskDefinitionArn"),
+    })
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_CONTAINER_DEFINITION"
+    properties: ECSContainerDefinitionToTaskDefinitionRelProperties = ECSContainerDefinitionToTaskDefinitionRelProperties()
+```
+
+**Why This Matters:**
+1. **Cleanup Operations**: Cartography uses the sub-resource relationship to determine which data to clean up during sync operations
+2. **Data Organization**: Tenant-like objects provide natural boundaries for data organization
+3. **Access Control**: Tenant relationships enable proper access control and data isolation
+4. **Consistency**: Following this pattern ensures consistent data modeling across all modules
+
 ### Relationships
 
 Define how your nodes connect to other nodes:
@@ -696,7 +754,7 @@ MOCK_USERS_RESPONSE = {
 
 ### Unit Tests
 
-Test your transform functions in `tests/unit/cartography/intel/your_service/`:
+(Optional) Test your transform functions in `tests/unit/cartography/intel/your_service/`:
 
 ```python
 # tests/unit/cartography/intel/your_service/test_users.py
@@ -724,6 +782,10 @@ def test_transform_users():
 ### Integration Tests
 
 Test actual Neo4j loading in `tests/integration/cartography/intel/your_service/`:
+
+**Key Principle: Test outcomes, not implementation details.**
+
+Focus on verifying that data is written to the graph as expected, rather than testing internal function parameters or implementation details. Mock external dependencies (APIs, databases) when necessary, but avoid brittle parameter testing.
 
 ```python
 # tests/integration/cartography/intel/your_service/test_users.py
@@ -755,7 +817,8 @@ def test_sync_users(mock_api, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
 
-    # Assert - Use check_nodes() instead of raw Neo4j queries
+    # ✅ DO: Test outcomes - verify data is written to the graph as expected
+    # Assert - Use check_nodes() instead of raw Neo4j queries.
     expected_nodes = {
         ("user-123", "alice@example.com"),
         ("user-456", "bob@example.com"),
@@ -768,7 +831,8 @@ def test_sync_users(mock_api, neo4j_session):
     }
     assert check_nodes(neo4j_session, "YourServiceTenant", ["id"]) == expected_tenant_nodes
 
-    # Assert - Use check_rels() instead of raw Neo4j queries for relationships
+    # Assert relationships are created correctly.
+    # Use check_rels() instead of raw Neo4j queries for relationships
     expected_rels = {
         ("user-123", TEST_TENANT_ID),
         ("user-456", TEST_TENANT_ID),
@@ -785,7 +849,34 @@ def test_sync_users(mock_api, neo4j_session):
         )
         == expected_rels
     )
+
+    # ✅ DO: Mock external dependencies when needed
+    # mock_api.return_value = MOCK_USERS_RESPONSE  # Good - provides test data
+    # (Prefer the decorator style though)
+
+    # ❌ DON'T: Test brittle implementation details
+    # mock_api.assert_called_once_with("fake-api-key", TEST_TENANT_ID)  # Brittle!
+    # mock_api.assert_called_with(specific_params)  # Brittle!
 ```
+
+**What to Test:**
+- ✅ **Outcomes**: Nodes created with correct properties
+- ✅ **Outcomes**: Relationships created between expected nodes
+
+**What NOT to Test:**
+- ❌ **Implementation**: Function parameters passed to mocks (brittle!)
+- ❌ **Implementation**: Internal function call order
+- ❌ **Implementation**: Mock call counts unless absolutely necessary
+
+**When to Mock:**
+- ✅ External APIs (AWS, Azure, third-party services) - provide test data
+- ✅ Database connections - avoid real connections
+- ✅ Network calls - avoid real network requests
+
+**When NOT to Mock:**
+- ❌ Internal Cartography functions
+- ❌ Data transformation logic
+- ❌ The function that is being tested
 
 ## 📚 Common Patterns and Examples {#common-patterns}
 
@@ -874,6 +965,51 @@ Represents a user in Your Service.
 - User belongs to tenant: `(:YourServiceUser)-[:RESOURCE]->(:YourServiceTenant)`
 - User connected to human: `(:YourServiceUser)<-[:IDENTITY_YOUR_SERVICE]-(:Human)`
 ```
+
+### Multiple Intel Modules Modifying the Same Node Type
+
+It is possible (and encouraged) for more than one intel module to modify the same node type. However, there are two distinct patterns for this:
+
+**Simple Relationship Pattern**: When data type A only refers to data type B by an ID without providing additional properties about B, we can just define a relationship schema. This way when A is loaded, the relationship schema performs a `MATCH` to find and connect to existing nodes of type B.
+
+For example, when an RDS instance refers to EC2 security groups by ID, we create a relationship from the RDS instance to the security group nodes, since the RDS API doesn't provide additional properties about the security groups beyond their IDs.
+
+```python
+# RDS Instance refers to Security Groups by ID only
+@dataclass(frozen=True)
+class RDSInstanceToSecurityGroupRel(CartographyRelSchema):
+    target_node_label: str = "EC2SecurityGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "id": PropertyRef("SecurityGroupId"),  # Just the ID, no additional properties
+    })
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
+    properties: RDSInstanceToSecurityGroupRelProperties = RDSInstanceToSecurityGroupRelProperties()
+```
+
+**Composite Node Pattern**: When a data type A refers to another data type B and offers additional fields about B that B doesn't have itself, we should define a composite node schema. This composite node would be named "`BASchema`" to denote that it's a "`B`" object as known by an "`A`" object. When loaded, the composite node schema targets the same node label as the primary `B` schema, allowing the loading system to perform a `MERGE` operation that combines properties from both sources.
+
+For example, in the AWS EC2 module, we have both `EBSVolumeSchema` (from the EBS API) and `EBSVolumeInstanceSchema` (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn't have, such as `deleteontermination`. Both schemas target the same `EBSVolume` node label, allowing the node to accumulate properties from both sources.
+
+```python
+# EC2 Instance provides additional properties about EBS Volumes
+@dataclass(frozen=True)
+class EBSVolumeInstanceProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("VolumeId")
+    arn: PropertyRef = PropertyRef("Arn", extra_index=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    # Additional property that EBS API doesn't have
+    deleteontermination: PropertyRef = PropertyRef("DeleteOnTermination")
+
+@dataclass(frozen=True)
+class EBSVolumeInstanceSchema(CartographyNodeSchema):
+    label: str = "EBSVolume"  # Same label as EBSVolumeSchema
+    properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
+    sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
+    # ... other relationships
+```
+
+The key distinction is whether the referring module provides additional properties about the target entity. If it does, use a composite node schema. If it only provides IDs, use a simple relationship schema.
 
 ## 🎯 Final Checklist
 
