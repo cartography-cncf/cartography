@@ -607,15 +607,6 @@ def load_gcp_vpcs(
     gcp_update_tag: int,
     project_id: str,
 ) -> None:
-    # Create GCPProject node first (required for the relationship)
-    query = """
-    MERGE (p:GCPProject{id:$ProjectId})
-    ON CREATE SET p.firstseen = timestamp()
-    SET p.lastupdated = $gcp_update_tag
-    """
-    neo4j_session.run(query, ProjectId=project_id, gcp_update_tag=gcp_update_tag)
-
-    # Load VPCs with relationships to the project
     load(
         neo4j_session,
         GCPVpcSchema(),
