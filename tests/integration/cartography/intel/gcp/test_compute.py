@@ -1,5 +1,10 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import cartography.intel.gcp.compute
 import tests.data.gcp.compute
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 
@@ -465,3 +470,119 @@ def test_vpc_to_firewall_to_iprule_to_iprange(neo4j_session):
         ),
     }
     assert actual_nodes == expected_nodes
+
+
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_vpcs",
+    return_value=tests.data.gcp.compute.VPC_RESPONSE,
+)
+def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
+    """Test sync_gcp_vpcs() loads VPCs and creates relationships."""
+    cartography.intel.gcp.compute.sync_gcp_vpcs(
+        neo4j_session,
+        None,
+        "project-abc",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    expected_nodes = {
+        (
+            "projects/project-abc/global/networks/default",
+            "default",
+            "project-abc",
+            True,
+        ),
+    }
+    assert (
+        check_nodes(
+            neo4j_session,
+            "GCPVpc",
+            ["id", "name", "project_id", "auto_create_subnetworks"],
+        )
+        == expected_nodes
+    )
+
+    expected_rels = {
+        ("project-abc", "projects/project-abc/global/networks/default"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPProject",
+            "id",
+            "GCPVpc",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )
+
+
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_vpcs",
+    side_effect=[
+        tests.data.gcp.compute.VPC_RESPONSE,
+        tests.data.gcp.compute.VPC_RESPONSE_2,
+    ],
+)
+def test_cleanup_not_scoped_to_project(mock_get_vpcs, neo4j_session):
+    """Cleanup removes VPCs from other projects because it is not scoped."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    query = """
+    MERGE (p:GCPProject{id:$ProjectId})
+    ON CREATE SET p.firstseen = timestamp()
+    SET p.lastupdated = $gcp_update_tag
+    """
+    neo4j_session.run(query, ProjectId="project-abc", gcp_update_tag=TEST_UPDATE_TAG)
+    neo4j_session.run(query, ProjectId="project-def", gcp_update_tag=TEST_UPDATE_TAG)
+
+    # First sync for project-abc
+    # Act
+    cartography.intel.gcp.compute.sync_gcp_vpcs(
+        neo4j_session,
+        MagicMock(),
+        "project-abc",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+    # Assert that the first project->vpc rel is created
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPVpc",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("project-abc", "projects/project-abc/global/networks/default"),
+    }, "First project->vpc rels is not created"
+
+    # Act: sync the second project at a later time
+    new_tag = TEST_UPDATE_TAG + 1
+    cartography.intel.gcp.compute.sync_gcp_vpcs(
+        neo4j_session,
+        MagicMock(),
+        "project-def",
+        new_tag,
+        {"UPDATE_TAG": new_tag},
+    )
+
+    # Assert that the second project->vpc rel is created and the first project->vpc rel remains
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPVpc",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("project-def", "projects/project-def/global/networks/default"),
+        ("project-def", "projects/project-def/global/networks/default2"),
+    }, "Second project->vpc rels are not created"
