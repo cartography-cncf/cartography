@@ -479,6 +479,7 @@ def test_vpc_to_firewall_to_iprule_to_iprange(neo4j_session):
 )
 def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
     """Test sync_gcp_vpcs() loads VPCs and creates relationships."""
+    # Act
     cartography.intel.gcp.compute.sync_gcp_vpcs(
         neo4j_session,
         None,
@@ -487,7 +488,12 @@ def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    expected_nodes = {
+    # Assert
+    assert check_nodes(
+        neo4j_session,
+        "GCPVpc",
+        ["id", "name", "project_id", "auto_create_subnetworks"],
+    ) == {
         (
             "projects/project-abc/global/networks/default",
             "default",
@@ -495,30 +501,17 @@ def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
             True,
         ),
     }
-    assert (
-        check_nodes(
-            neo4j_session,
-            "GCPVpc",
-            ["id", "name", "project_id", "auto_create_subnetworks"],
-        )
-        == expected_nodes
-    )
-
-    expected_rels = {
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPVpc",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
         ("project-abc", "projects/project-abc/global/networks/default"),
     }
-    assert (
-        check_rels(
-            neo4j_session,
-            "GCPProject",
-            "id",
-            "GCPVpc",
-            "id",
-            "RESOURCE",
-            rel_direction_right=True,
-        )
-        == expected_rels
-    )
 
 
 @patch.object(
