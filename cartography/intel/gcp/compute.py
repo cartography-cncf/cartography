@@ -14,6 +14,9 @@ import neo4j
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.gcp.compute.vpc import GCPVpcSchema
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -600,48 +603,17 @@ def load_gcp_instances(
 @timeit
 def load_gcp_vpcs(
     neo4j_session: neo4j.Session,
-    vpcs: List[Dict],
+    vpcs: list[dict[str, Any]],
     gcp_update_tag: int,
+    project_id: str,
 ) -> None:
-    """
-    Ingest VPCs to Neo4j
-    :param neo4j_session: The Neo4j session object
-    :param vpcs: List of VPCs to ingest
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :return: Nothing
-    """
-    query = """
-    MERGE(p:GCPProject{id:$ProjectId})
-    ON CREATE SET p.firstseen = timestamp()
-    SET p.lastupdated = $gcp_update_tag
-
-    MERGE(vpc:GCPVpc{id:$PartialUri})
-    ON CREATE SET vpc.firstseen = timestamp(),
-    vpc.partial_uri = $PartialUri
-    SET vpc.self_link = $SelfLink,
-    vpc.name = $VpcName,
-    vpc.project_id = $ProjectId,
-    vpc.auto_create_subnetworks = $AutoCreateSubnetworks,
-    vpc.routing_config_routing_mode = $RoutingMode,
-    vpc.description = $Description,
-    vpc.lastupdated = $gcp_update_tag
-
-    MERGE (p)-[r:RESOURCE]->(vpc)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $gcp_update_tag
-    """
-    for vpc in vpcs:
-        neo4j_session.run(
-            query,
-            ProjectId=vpc["project_id"],
-            PartialUri=vpc["partial_uri"],
-            SelfLink=vpc["self_link"],
-            VpcName=vpc["name"],
-            AutoCreateSubnetworks=vpc["auto_create_subnetworks"],
-            RoutingMode=vpc["routing_config_routing_mode"],
-            Description=vpc["description"],
-            gcp_update_tag=gcp_update_tag,
-        )
+    load(
+        neo4j_session,
+        GCPVpcSchema(),
+        vpcs,
+        PROJECT_ID=project_id,
+        LASTUPDATED=gcp_update_tag,
+    )
 
 
 @timeit
@@ -1159,6 +1131,12 @@ def cleanup_gcp_vpcs(neo4j_session: neo4j.Session, common_job_parameters: Dict) 
     :param common_job_parameters: dict of other job parameters to pass to Neo4j
     :return: Nothing
     """
+    GraphJob.from_node_schema(
+        GCPVpcSchema(),
+        common_job_parameters,
+    ).run(neo4j_session)
+
+    # TODO: remove this once we refactor GCP instances and add the instance to vpc rel as an object
     run_cleanup_job(
         "gcp_compute_vpc_cleanup.json",
         neo4j_session,
@@ -1267,8 +1245,7 @@ def sync_gcp_vpcs(
     """
     vpc_res = get_gcp_vpcs(project_id, compute)
     vpcs = transform_gcp_vpcs(vpc_res)
-    load_gcp_vpcs(neo4j_session, vpcs, gcp_update_tag)
-    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
+    load_gcp_vpcs(neo4j_session, vpcs, gcp_update_tag, project_id)
     cleanup_gcp_vpcs(neo4j_session, common_job_parameters)
 
 
