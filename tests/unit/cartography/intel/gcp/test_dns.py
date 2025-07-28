@@ -72,7 +72,7 @@ def create_stale_dns_data(neo4j_session, old_update_tag: int) -> None:
     )
 
 
-def get_common_job_parameters() -> dict[str, any]:
+def get_common_job_parameters() -> dict:
     """Get standard job parameters for testing."""
     return {
         "UPDATE_TAG": TEST_UPDATE_TAG,
