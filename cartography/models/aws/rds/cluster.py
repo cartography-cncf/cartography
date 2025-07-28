@@ -30,6 +30,7 @@ class RDSClusterNodeProperties(CartographyNodeProperties):
     multi_az: PropertyRef = PropertyRef("MultiAZ")
     engine: PropertyRef = PropertyRef("Engine")
     engine_version: PropertyRef = PropertyRef("EngineVersion")
+    engine_mode: PropertyRef = PropertyRef("EngineMode")
     latest_restorable_time: PropertyRef = PropertyRef("LatestRestorableTime")
     port: PropertyRef = PropertyRef("Port")
     master_username: PropertyRef = PropertyRef("MasterUsername")
@@ -49,7 +50,6 @@ class RDSClusterNodeProperties(CartographyNodeProperties):
         "BacktrackConsumedChangeRecords"
     )
     capacity: PropertyRef = PropertyRef("Capacity")
-    engine_mode: PropertyRef = PropertyRef("EngineMode")
     scaling_configuration_info_min_capacity: PropertyRef = PropertyRef(
         "ScalingConfigurationInfoMinCapacity"
     )
