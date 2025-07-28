@@ -36,7 +36,7 @@ def create_test_gcp_resources(neo4j_session) -> None:
         """,
         update_tag=TEST_UPDATE_TAG,
     )
-    
+
     # Create test load balancer
     neo4j_session.run(
         """
@@ -241,7 +241,7 @@ class TestGCPDNSSync:
         # Arrange
         gcp_client = MagicMock()
         create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-        
+
         old_update_tag = TEST_UPDATE_TAG - 1000
         create_stale_dns_data(neo4j_session, old_update_tag)
 
@@ -334,7 +334,7 @@ class TestGCPDNSSync:
         # Assert - Verify consistent node counts
         zones = check_nodes(neo4j_session, "GCPDNSZone", ["id"])
         records = check_nodes(neo4j_session, "GCPRecordSet", ["id"])
-        
+
         assert len(zones) == 2
         assert len(records) == 3
 
@@ -363,7 +363,7 @@ class TestGCPDNSLoaders:
         """Test basic DNS record loading functionality."""
         # Arrange
         create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-        
+
         # Load zones first (required for records)
         cartography.intel.gcp.dns.load_dns_zones(
             neo4j_session,
