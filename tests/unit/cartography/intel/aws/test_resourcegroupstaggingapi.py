@@ -42,6 +42,25 @@ def test_get_short_id_from_lb2_arn():
     assert "foo" == rgta.get_short_id_from_lb2_arn(arn)
 
 
+def test_get_resource_type_from_arn():
+    assert "ec2:instance" == rgta.get_resource_type_from_arn(
+        "arn:aws:ec2:us-east-1:1234:instance/i-01"
+    )
+    assert "s3" == rgta.get_resource_type_from_arn("arn:aws:s3:::bucket-1")
+    assert "elasticloadbalancing:loadbalancer/app" == rgta.get_resource_type_from_arn(
+        "arn:aws:elasticloadbalancing:us-east-1:1234:loadbalancer/app/foo/123"
+    )
+
+
+def test_group_tag_data_by_resource_type():
+    grouped = rgta._group_tag_data_by_resource_type(
+        copy.deepcopy(test_data.GET_RESOURCES_RESPONSE),
+        rgta.TAG_RESOURCE_TYPE_MAPPINGS,
+    )
+    assert len(grouped["ec2:instance"]) == 1
+    assert len(grouped["s3"]) == 1
+
+
 def test_transform_tags():
     get_resources_response = copy.deepcopy(test_data.GET_RESOURCES_RESPONSE)
     assert "resource_id" not in get_resources_response[0]

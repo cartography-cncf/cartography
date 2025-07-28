@@ -926,6 +926,28 @@ Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.
     (CloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(CloudWatchLogGroup)
     ```
 
+### GlueConnection
+Representation of an AWS [Glue Connection](https://docs.aws.amazon.com/glue/latest/webapi/API_GetConnections.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The name of the Glue connection definition |
+| arn | The name of the Glue connection definition |
+| region | The region of the Glue Connection |
+| description | The description of the connection |
+| connection_type | The type of the connection. Currently, SFTP is not supported |
+| status| The status of the connection. Can be one of: READY, IN_PROGRESS, or FAILED |
+| status_reason | The reason for the connection status |
+| authentication_type | A structure containing the authentication configuration |
+| secret_arn | The secret manager ARN to store credentials |
+#### Relationships
+- Glue Connections are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(GlueConnection)
+    ```
+
 ### CodeBuildProject
 Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
 

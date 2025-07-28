@@ -38,10 +38,10 @@ SAMPLE_GITHUB_ASSUME_ROLE_WITH_WEB_IDENTITY_EVENT = {
     "UserIdentity": {
         "type": "WebIdentityUser",
         "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main",
-        "userName": "sublimagesec/sublimage",
+        "userName": "repo:sublimagesec/sublimage:ref:refs/heads/main",
         "identityProvider": "token.actions.githubusercontent.com",
     },
-    "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main", "userName": "sublimagesec/sublimage", "identityProvider": "token.actions.githubusercontent.com"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/GitHubActionsRole", "roleSessionName": "GitHubActions"}}',
+    "CloudTrailEvent": '{"userIdentity": {"type": "WebIdentityUser", "principalId": "repo:sublimagesec/sublimage:ref:refs/heads/main", "userName": "repo:sublimagesec/sublimage:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/GitHubActionsRole", "roleSessionName": "GitHubActions"}}',
 }
 
 
