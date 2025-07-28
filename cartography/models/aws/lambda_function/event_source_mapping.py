@@ -6,10 +6,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import make_source_node_matcher
-from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import SourceNodeMatcher
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,9 @@ class AWSLambdaEventSourceMappingNodeProperties(CartographyNodeProperties):
     startingposition: PropertyRef = PropertyRef("StartingPosition")
     startingpositiontimestamp: PropertyRef = PropertyRef("StartingPositionTimestamp")
     parallelizationfactor: PropertyRef = PropertyRef("ParallelizationFactor")
-    maximumbatchingwindowinseconds: PropertyRef = PropertyRef("MaximumBatchingWindowInSeconds")
+    maximumbatchingwindowinseconds: PropertyRef = PropertyRef(
+        "MaximumBatchingWindowInSeconds"
+    )
     eventsourcearn: PropertyRef = PropertyRef("EventSourceArn")
     lastmodified: PropertyRef = PropertyRef("LastModified")
     lastprocessingresult: PropertyRef = PropertyRef("LastProcessingResult")
@@ -45,15 +47,19 @@ class AWSLambdaEventSourceMappingToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSLambdaEventSourceMappingToAWSAccountRelProperties = AWSLambdaEventSourceMappingToAWSAccountRelProperties()
+    properties: AWSLambdaEventSourceMappingToAWSAccountRelProperties = (
+        AWSLambdaEventSourceMappingToAWSAccountRelProperties()
+    )
 
 
-# Matchlink relationship: (:AWSLambda)-[:RESOURCE]->(:AWSLambdaEventSourceMapping) 
+# Matchlink relationship: (:AWSLambda)-[:RESOURCE]->(:AWSLambdaEventSourceMapping)
 # Note:The RESOURCE rel here is not the same as sub-resource relationship. Should rename eventually
 @dataclass(frozen=True)
 class AWSLambdaToEventSourceMappingRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
@@ -65,7 +71,9 @@ class AWSLambdaToEventSourceMappingRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: AWSLambdaToEventSourceMappingRelProperties = AWSLambdaToEventSourceMappingRelProperties()
+    properties: AWSLambdaToEventSourceMappingRelProperties = (
+        AWSLambdaToEventSourceMappingRelProperties()
+    )
     source_node_label: str = "AWSLambda"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("FunctionArn")},
@@ -75,5 +83,9 @@ class AWSLambdaToEventSourceMappingRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSLambdaEventSourceMappingSchema(CartographyNodeSchema):
     label: str = "AWSLambdaEventSourceMapping"
-    properties: AWSLambdaEventSourceMappingNodeProperties = AWSLambdaEventSourceMappingNodeProperties()
-    sub_resource_relationship: AWSLambdaEventSourceMappingToAWSAccountRel = AWSLambdaEventSourceMappingToAWSAccountRel() 
+    properties: AWSLambdaEventSourceMappingNodeProperties = (
+        AWSLambdaEventSourceMappingNodeProperties()
+    )
+    sub_resource_relationship: AWSLambdaEventSourceMappingToAWSAccountRel = (
+        AWSLambdaEventSourceMappingToAWSAccountRel()
+    )

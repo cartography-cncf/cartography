@@ -56,7 +56,9 @@ class AWSLambdaToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSLambdaToAWSAccountRelProperties = AWSLambdaToAWSAccountRelProperties()
+    properties: AWSLambdaToAWSAccountRelProperties = (
+        AWSLambdaToAWSAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -84,4 +86,4 @@ class AWSLambdaSchema(CartographyNodeSchema):
         [
             AWSLambdaToPrincipalRel(),
         ],
-    ) 
+    )

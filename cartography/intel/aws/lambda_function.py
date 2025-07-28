@@ -2,7 +2,6 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Tuple
 
 import boto3
 import botocore
@@ -10,14 +9,18 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
 from cartography.models.aws.lambda_function.alias import AWSLambdaFunctionAliasSchema
 from cartography.models.aws.lambda_function.alias import AWSLambdaToAliasRel
-from cartography.models.aws.lambda_function.event_source_mapping import AWSLambdaEventSourceMappingSchema
-from cartography.models.aws.lambda_function.event_source_mapping import AWSLambdaToEventSourceMappingRel
+from cartography.models.aws.lambda_function.event_source_mapping import (
+    AWSLambdaEventSourceMappingSchema,
+)
+from cartography.models.aws.lambda_function.event_source_mapping import (
+    AWSLambdaToEventSourceMappingRel,
+)
 from cartography.models.aws.lambda_function.lambda_function import AWSLambdaSchema
 from cartography.models.aws.lambda_function.layer import AWSLambdaLayerSchema
 from cartography.models.aws.lambda_function.layer import AWSLambdaToLayerRel
-from cartography.graph.job import GraphJob
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -39,23 +42,21 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     return lambda_functions
 
 
-
 def transform_lambda_functions(lambda_functions: List[Dict], region: str) -> List[Dict]:
     transformed_functions = []
-    
+
     for function_data in lambda_functions:
         transformed_function = function_data.copy()
-        
+
         # In API response, TracingConfig is a nested object so flatten it for use in the data model
         tracing_config = function_data.get("TracingConfig", {})
         transformed_function["TracingConfigMode"] = tracing_config.get("Mode")
-        
-        transformed_function["Region"] = region
-        
-        transformed_functions.append(transformed_function)
-    
-    return transformed_functions
 
+        transformed_function["Region"] = region
+
+        transformed_functions.append(transformed_function)
+
+    return transformed_functions
 
 
 def transform_lambda_aliases(aliases: List[Dict], function_arn: str) -> List[Dict]:
@@ -70,7 +71,6 @@ def transform_lambda_aliases(aliases: List[Dict], function_arn: str) -> List[Dic
     return transformed_aliases
 
 
-
 def transform_lambda_layers(layers: List[Dict], function_arn: str) -> List[Dict]:
     """
     Transform lambda layers by adding the parent function ARN.
@@ -83,11 +83,7 @@ def transform_lambda_layers(layers: List[Dict], function_arn: str) -> List[Dict]
     return transformed_layers
 
 
-
-
-
-
-@timeit 
+@timeit
 def load_lambda_functions(
     neo4j_session: neo4j.Session,
     data: List[Dict],
@@ -96,7 +92,7 @@ def load_lambda_functions(
     aws_update_tag: int,
 ) -> None:
     """
-    Load AWS Lambda functions using the data model 
+    Load AWS Lambda functions using the data model
     """
     load(
         neo4j_session,
@@ -106,7 +102,6 @@ def load_lambda_functions(
         Region=region,
         lastupdated=aws_update_tag,
     )
-
 
 
 @timeit
@@ -137,10 +132,6 @@ def get_event_source_mappings(
     return event_source_mappings
 
 
-
-
-
-
 @timeit
 def load_lambda_function_aliases(
     neo4j_session: neo4j.Session,
@@ -150,7 +141,7 @@ def load_lambda_function_aliases(
     update_tag: int,
 ) -> None:
     """
-    Load AWS Lambda function aliases using the data model 
+    Load AWS Lambda function aliases using the data model
     """
     # Load alias nodes
     load(
@@ -161,7 +152,7 @@ def load_lambda_function_aliases(
         Region=region,
         lastupdated=update_tag,
     )
-    
+
     # Load relationships between lambda functions and aliases
     load_matchlinks(
         neo4j_session,
@@ -191,7 +182,7 @@ def load_lambda_event_source_mappings(
         AWS_ID=current_aws_account_id,
         lastupdated=update_tag,
     )
-    
+
     # Load relationships between lambda functions and event source mappings
     load_matchlinks(
         neo4j_session,
@@ -221,7 +212,7 @@ def load_lambda_layers(
         AWS_ID=current_aws_account_id,
         lastupdated=update_tag,
     )
-    
+
     # Load relationships between lambda functions and layers
     load_matchlinks(
         neo4j_session,
@@ -236,17 +227,25 @@ def load_lambda_layers(
 @timeit
 def cleanup_lambda(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     """
-    Clean up Lambda resources 
+    Clean up Lambda resources
     """
     logger.info("Running Lambda cleanup")
-    
+
     # Clean up child entities first
-    GraphJob.from_node_schema(AWSLambdaFunctionAliasSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(AWSLambdaEventSourceMappingSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(AWSLambdaLayerSchema(), common_job_parameters).run(neo4j_session)
-    
+    GraphJob.from_node_schema(
+        AWSLambdaFunctionAliasSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        AWSLambdaEventSourceMappingSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(AWSLambdaLayerSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
     # Clean up parent Lambda nodes last
-    GraphJob.from_node_schema(AWSLambdaSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AWSLambdaSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -264,7 +263,7 @@ def sync(
             region,
             current_aws_account_id,
         )
-        
+
         # Get and load core lambda functions
         data = get_lambda_data(boto3_session, region)
         transformed_data = transform_lambda_functions(data, region)
@@ -275,40 +274,44 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
-        
+
         # Create Lambda client for sub-entity requests
         client = boto3_session.client("lambda", region_name=region)
-        
+
         # Process each lambda function for sub-entities
         all_aliases = []
         all_esms = []
         all_layers = []
-        
+
         for lambda_function in data:
             function_arn = lambda_function["FunctionArn"]
-            
+
             # Get, transform, and collect aliases
             aliases = get_function_aliases(lambda_function, client)
             if aliases:
                 transformed_aliases = transform_lambda_aliases(aliases, function_arn)
                 all_aliases.extend(transformed_aliases)
-            
+
             # Get and collect event source mappings (no transformation needed)
             esms = get_event_source_mappings(lambda_function, client)
             if esms:
                 all_esms.extend(esms)
-            
+
             # Get, transform, and collect layers (from function data)
             layers = lambda_function.get("Layers", [])
             if layers:
                 transformed_layers = transform_lambda_layers(layers, function_arn)
                 all_layers.extend(transformed_layers)
-        
+
         # Load all sub-entities
-        load_lambda_function_aliases(neo4j_session, all_aliases, region, current_aws_account_id, update_tag)
-        load_lambda_event_source_mappings(neo4j_session, all_esms, current_aws_account_id, update_tag)
-        load_lambda_layers(neo4j_session, all_layers, current_aws_account_id, update_tag)
+        load_lambda_function_aliases(
+            neo4j_session, all_aliases, region, current_aws_account_id, update_tag
+        )
+        load_lambda_event_source_mappings(
+            neo4j_session, all_esms, current_aws_account_id, update_tag
+        )
+        load_lambda_layers(
+            neo4j_session, all_layers, current_aws_account_id, update_tag
+        )
 
     cleanup_lambda(neo4j_session, common_job_parameters)
-
-

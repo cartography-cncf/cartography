@@ -6,8 +6,8 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import make_source_node_matcher
+from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
@@ -44,15 +44,21 @@ class AWSLambdaFunctionAliasToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AWSLambdaFunctionAliasSchema(CartographyNodeSchema):
     label: str = "AWSLambdaFunctionAlias"
-    properties: AWSLambdaFunctionAliasNodeProperties = AWSLambdaFunctionAliasNodeProperties()
-    sub_resource_relationship: AWSLambdaFunctionAliasToAWSAccountRel = AWSLambdaFunctionAliasToAWSAccountRel()
+    properties: AWSLambdaFunctionAliasNodeProperties = (
+        AWSLambdaFunctionAliasNodeProperties()
+    )
+    sub_resource_relationship: AWSLambdaFunctionAliasToAWSAccountRel = (
+        AWSLambdaFunctionAliasToAWSAccountRel()
+    )
 
 
 # Matchlink relationship: AWSLambda --[:KNOWN_AS]--> AWSLambdaFunctionAlias
 @dataclass(frozen=True)
 class AWSLambdaToAliasRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
 
@@ -68,4 +74,4 @@ class AWSLambdaToAliasRel(CartographyRelSchema):
     source_node_label: str = "AWSLambda"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("FunctionArn")},
-    ) 
+    )

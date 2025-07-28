@@ -10,7 +10,7 @@ TEST_UPDATE_TAG = 123456789
 
 def test_load_lambda_functions(neo4j_session):
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
-    
+
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
@@ -54,7 +54,7 @@ def test_load_lambda_relationships(neo4j_session):
 
     # Load Test Lambda Functions
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
-    
+
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
@@ -79,16 +79,46 @@ def test_load_lambda_relationships(neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-5"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-6"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-8"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10"),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-5",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-6",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-8",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10",
+        ),
     }
 
 
@@ -120,16 +150,25 @@ def test_load_lambda_function_aliases(neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3:LIVE"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9:LIVE"),
-        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10:LIVE"),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3:LIVE",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9:LIVE",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10:LIVE",
+        ),
     }
 
 
 def test_load_lambda_function_aliases_relationships(neo4j_session):
     # Create Test Lambda Function
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
-    
+
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
@@ -164,9 +203,18 @@ def test_load_lambda_function_aliases_relationships(neo4j_session):
         "KNOWN_AS",
         rel_direction_right=True,
     ) == {
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-3", "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3:LIVE"),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-9", "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9:LIVE"),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-10", "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10:LIVE"),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3:LIVE",
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9",
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9:LIVE",
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10",
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10:LIVE",
+        ),
     }
 
 
@@ -204,7 +252,7 @@ def test_load_lambda_event_source_mappings(neo4j_session):
 def test_load_lambda_event_source_mappings_relationships(neo4j_session):
     # Create Test Lambda Function
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
-    
+
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
@@ -279,7 +327,7 @@ def test_load_lambda_layers(neo4j_session):
 def test_load_lambda_layers_relationships(neo4j_session):
     # Create Test Lambda Function
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
-    
+
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
@@ -313,7 +361,16 @@ def test_load_lambda_layers_relationships(neo4j_session):
         "HAS",
         rel_direction_right=True,
     ) == {
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-2", "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-1"),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-3", "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-2"),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-4", "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-3"),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
+            "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-1",
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",
+            "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-2",
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4",
+            "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-3",
+        ),
     }
