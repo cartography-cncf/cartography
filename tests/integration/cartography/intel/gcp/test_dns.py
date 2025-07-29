@@ -121,4 +121,5 @@ def test_rrs_relationships(neo4j_session):
         """,
     )
     actual = {(r["n1.id"], r["n2.id"]) for r in result}
+    
     assert actual == expected
