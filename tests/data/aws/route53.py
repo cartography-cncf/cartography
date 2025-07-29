@@ -63,7 +63,7 @@ GET_ZONES_SAMPLE_RESPONSE = [
             },
             "Id": "/hostedzone/HOSTED_ZONE",
             "Name": "example.com.",
-            "ResourceRecordSetCount": 5,
+            "ResourceRecordSetCount": 7,
         },
         [
             {
@@ -125,6 +125,27 @@ GET_ZONES_SAMPLE_RESPONSE = [
                 },
                 "Name": "www.example.com.",
                 "Type": "CNAME",
+            },
+            # Add DNS records that will be pointed to by other DNS records
+            {
+                "Name": "_1f9ee9f5c4304947879ee77d0a995cc9.something.something.aws.",
+                "ResourceRecords": [
+                    {
+                        "Value": "5.6.7.8",
+                    },
+                ],
+                "TTL": 300,
+                "Type": "A",
+            },
+            {
+                "Name": "hello.what.example.com.",
+                "ResourceRecords": [
+                    {
+                        "Value": "9.10.11.12",
+                    },
+                ],
+                "TTL": 300,
+                "Type": "A",
             },
         ],
     ),
