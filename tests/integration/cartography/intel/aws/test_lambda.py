@@ -123,6 +123,17 @@ def test_load_lambda_relationships(neo4j_session):
 
 
 def test_load_lambda_function_aliases(neo4j_session):
+    # Create Test AWSAccount first for sub-resource relationships
+    neo4j_session.run(
+        """
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag
+        """,
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTION_ALIASES
 
     cartography.intel.aws.lambda_function.load_lambda_function_aliases(
@@ -166,6 +177,17 @@ def test_load_lambda_function_aliases(neo4j_session):
 
 
 def test_load_lambda_function_aliases_relationships(neo4j_session):
+    # Create Test AWSAccount first
+    neo4j_session.run(
+        """
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag
+        """,
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
     # Create Test Lambda Function
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
 
@@ -219,6 +241,17 @@ def test_load_lambda_function_aliases_relationships(neo4j_session):
 
 
 def test_load_lambda_event_source_mappings(neo4j_session):
+    # Create Test AWSAccount first for sub-resource relationships
+    neo4j_session.run(
+        """
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag
+        """,
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
     data = tests.data.aws.lambda_function.LIST_EVENT_SOURCE_MAPPINGS
 
     cartography.intel.aws.lambda_function.load_lambda_event_source_mappings(
@@ -250,6 +283,17 @@ def test_load_lambda_event_source_mappings(neo4j_session):
 
 
 def test_load_lambda_event_source_mappings_relationships(neo4j_session):
+    # Create Test AWSAccount first
+    neo4j_session.run(
+        """
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag
+        """,
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
     # Create Test Lambda Function
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
 
@@ -292,6 +336,17 @@ def test_load_lambda_event_source_mappings_relationships(neo4j_session):
 
 
 def test_load_lambda_layers(neo4j_session):
+    # Create Test AWSAccount first for sub-resource relationships
+    neo4j_session.run(
+        """
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag
+        """,
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
     data = tests.data.aws.lambda_function.LIST_LAYERS
 
     cartography.intel.aws.lambda_function.load_lambda_layers(
@@ -325,6 +380,17 @@ def test_load_lambda_layers(neo4j_session):
 
 
 def test_load_lambda_layers_relationships(neo4j_session):
+    # Create Test AWSAccount first
+    neo4j_session.run(
+        """
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag
+        """,
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
     # Create Test Lambda Function
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
 

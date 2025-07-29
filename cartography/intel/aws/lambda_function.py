@@ -8,19 +8,13 @@ import botocore
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.models.aws.lambda_function.alias import AWSLambdaFunctionAliasSchema
-from cartography.models.aws.lambda_function.alias import AWSLambdaToAliasRel
 from cartography.models.aws.lambda_function.event_source_mapping import (
     AWSLambdaEventSourceMappingSchema,
 )
-from cartography.models.aws.lambda_function.event_source_mapping import (
-    AWSLambdaToEventSourceMappingRel,
-)
 from cartography.models.aws.lambda_function.lambda_function import AWSLambdaSchema
 from cartography.models.aws.lambda_function.layer import AWSLambdaLayerSchema
-from cartography.models.aws.lambda_function.layer import AWSLambdaToLayerRel
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -143,23 +137,12 @@ def load_lambda_function_aliases(
     """
     Load AWS Lambda function aliases using the data model
     """
-    # Load alias nodes
     load(
         neo4j_session,
         AWSLambdaFunctionAliasSchema(),
         lambda_aliases,
         AWS_ID=current_aws_account_id,
         Region=region,
-        lastupdated=update_tag,
-    )
-
-    # Load relationships between lambda functions and aliases
-    load_matchlinks(
-        neo4j_session,
-        AWSLambdaToAliasRel(),
-        lambda_aliases,
-        _sub_resource_label="AWSAccount",
-        _sub_resource_id=current_aws_account_id,
         lastupdated=update_tag,
     )
 
@@ -174,22 +157,11 @@ def load_lambda_event_source_mappings(
     """
     Load AWS Lambda event source mappings using the data model approach.
     """
-    # Load event source mapping nodes
     load(
         neo4j_session,
         AWSLambdaEventSourceMappingSchema(),
         lambda_event_source_mappings,
         AWS_ID=current_aws_account_id,
-        lastupdated=update_tag,
-    )
-
-    # Load relationships between lambda functions and event source mappings
-    load_matchlinks(
-        neo4j_session,
-        AWSLambdaToEventSourceMappingRel(),
-        lambda_event_source_mappings,
-        _sub_resource_label="AWSAccount",
-        _sub_resource_id=current_aws_account_id,
         lastupdated=update_tag,
     )
 
@@ -204,22 +176,11 @@ def load_lambda_layers(
     """
     Load AWS Lambda layers using the data model approach.
     """
-    # Load layer nodes
     load(
         neo4j_session,
         AWSLambdaLayerSchema(),
         lambda_layers,
         AWS_ID=current_aws_account_id,
-        lastupdated=update_tag,
-    )
-
-    # Load relationships between lambda functions and layers
-    load_matchlinks(
-        neo4j_session,
-        AWSLambdaToLayerRel(),
-        lambda_layers,
-        _sub_resource_label="AWSAccount",
-        _sub_resource_id=current_aws_account_id,
         lastupdated=update_tag,
     )
 
