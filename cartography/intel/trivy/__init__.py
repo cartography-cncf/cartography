@@ -163,7 +163,12 @@ def sync_trivy_aws_ecr_from_dir(
 
 @timeit
 def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
-    """Start Trivy scan ingestion from S3 or local files."""
+    """Start Trivy scan ingestion from S3 or local files.
+
+    Args:
+        neo4j_session: Neo4j session for database operations
+        config: Configuration object containing S3 or directory paths
+    """
 
     if config.trivy_results_dir:
         common_job_parameters = {
