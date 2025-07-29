@@ -68,7 +68,7 @@ DESCRIBE_ALIASES = [
 
 DESCRIBE_GRANTS = [
     {
-        "KeyId": "9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        "KeyId": "arn:aws:kms:eu-west-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
         "GrantId": "key-consolepolicy-3",
         "Name": "Console Policy",
         "CreationDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
