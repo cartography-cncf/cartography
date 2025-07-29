@@ -152,6 +152,8 @@ class Config:
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
     :type trivy_s3_prefix: str
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
+    :type trivy_results_dir: str
+    :param trivy_results_dir: Local directory containing Trivy scan results. Optional.
     :type scaleway_access_key: str
     :param scaleway_access_key: Scaleway access key. Optional.
     :type scaleway_secret_key: str
@@ -243,6 +245,7 @@ class Config:
         airbyte_api_url=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
+        trivy_results_dir=None,
         scaleway_access_key=None,
         scaleway_secret_key=None,
         scaleway_org=None,
@@ -327,6 +330,7 @@ class Config:
         self.airbyte_api_url = airbyte_api_url
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
+        self.trivy_results_dir = trivy_results_dir
         self.scaleway_access_key = scaleway_access_key
         self.scaleway_secret_key = scaleway_secret_key
         self.scaleway_org = scaleway_org

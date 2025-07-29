@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from typing import Any
 
 import boto3
@@ -174,6 +175,18 @@ def get_json_files_in_s3(
         raise
 
     logger.info(f"Found {len(results)} json files in s3://{s3_bucket}/{s3_prefix}")
+    return results
+
+
+@timeit
+def get_json_files_in_dir(results_dir: str) -> set[str]:
+    """Return set of JSON file paths under a directory."""
+    results = set()
+    for root, _dirs, files in os.walk(results_dir):
+        for filename in files:
+            if filename.endswith(".json"):
+                results.add(os.path.join(root, filename))
+    logger.info(f"Found {len(results)} json files in {results_dir}")
     return results
 
 
@@ -361,3 +374,61 @@ def sync_single_image_from_s3(
             f"Failed to process S3 scan results for {image_uri} from {s3_object_key}: {e}"
         )
         raise
+
+
+@timeit
+def read_scan_results_from_file(
+    file_path: str,
+) -> tuple[str | None, list[dict], str | None]:
+    """Read and parse Trivy scan results from a local file."""
+    logger.debug(f"Reading scan results from file: {file_path}")
+    with open(file_path, encoding="utf-8") as f:
+        trivy_data = json.load(f)
+
+    artifact_name = trivy_data.get("ArtifactName")
+
+    if "Results" in trivy_data and trivy_data["Results"]:
+        results = trivy_data["Results"]
+    else:
+        stat_handler.incr("image_scan_no_results_count")
+        logger.warning(
+            f"File scan data did not contain a `Results` key for {file_path}; continuing."
+        )
+        results = []
+
+    image_digest = None
+    if "Metadata" in trivy_data and trivy_data["Metadata"]:
+        repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
+        if repo_digests:
+            repo_digest = repo_digests[0]
+            if "@" in repo_digest:
+                image_digest = repo_digest.split("@")[1]
+
+    return artifact_name, results, image_digest
+
+
+@timeit
+def sync_single_image_from_file(
+    neo4j_session: Session,
+    file_path: str,
+    update_tag: int,
+) -> tuple[str | None, str | None]:
+    """Read a Trivy JSON file from disk and sync to Neo4j."""
+    artifact_name, results, image_digest = read_scan_results_from_file(file_path)
+    if not artifact_name or not image_digest:
+        logger.warning(f"Skipping {file_path}; missing artifact name or digest")
+        return artifact_name, image_digest
+
+    findings_list, packages_list, fixes_list = transform_scan_results(
+        results,
+        image_digest,
+    )
+
+    num_findings = len(findings_list)
+    stat_handler.incr("image_scan_cve_count", num_findings)
+
+    load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
+    load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
+    load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
+    stat_handler.incr("images_processed_count")
+    return artifact_name, image_digest
