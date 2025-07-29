@@ -27,12 +27,13 @@ This guide teaches you how to write intel modules for Cartography using the mode
 4. @Data Model: Defining Nodes and Relationships
 5. @Advanced Node Schema Properties
 6. @One-to-Many Relationships
-7. @Configuration and Credentials
-8. @Error Handling
-9. @Testing Your Module
-10. @Common Patterns and Examples
-11. @Troubleshooting Guide
-12. @Quick Reference
+7. @MatchLinks: Connecting Existing Nodes
+8. @Configuration and Credentials
+9. @Error Handling
+10. @Testing Your Module
+11. @Common Patterns and Examples
+12. @Troubleshooting Guide
+13. @Quick Reference
 
 ## 🚀 Quick Start: Copy an Existing Module {#quick-start}
 
@@ -599,6 +600,177 @@ class MyNodeSchema(CartographyNodeSchema):
 - `scoped_cleanup`: bool (optional, defaults to True, almost should never be overridden. This is only used for intel modules that don't have a clear tenant-like entity.)
 
 If you need conditional behavior, handle it in your transform function by setting field values to `None` when relationships shouldn't be created, or by filtering your data before calling `load()`.
+
+## 🔗 MatchLinks: Connecting Existing Nodes {#matchlinks}
+
+**⚠️ IMPORTANT: Use MatchLinks sparingly due to performance impact!**
+
+MatchLinks are a specialized tool for creating relationships between existing nodes in the graph. They should be used **only** in these two specific scenarios:
+
+### Scenario 1: Connecting Two Existing Node Types
+
+When you need to connect two different types of nodes that already exist in the graph, and the relationship data comes from a separate API call or data source.
+
+**Example**: AWS Identity Center role assignments connecting users to roles:
+
+```python
+# Data from a separate API call that maps users to roles
+role_assignments = [
+    {
+        "UserId": "user-123",
+        "RoleArn": "arn:aws:iam::123456789012:role/AdminRole",
+        "AccountId": "123456789012",
+    },
+    {
+        "UserId": "user-456",
+        "RoleArn": "arn:aws:iam::123456789012:role/ReadOnlyRole",
+        "AccountId": "123456789012",
+    }
+]
+
+# MatchLink schema to connect existing AWSSSOUser nodes to existing AWSRole nodes
+@dataclass(frozen=True)
+class RoleAssignmentAllowedByMatchLink(CartographyRelSchema):
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "arn": PropertyRef("RoleArn"),
+    })
+    source_node_label: str = "AWSSSOUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher({
+        "id": PropertyRef("UserId"),
+    })
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ALLOWED_BY"
+    properties: RoleAssignmentRelProperties = RoleAssignmentRelProperties()
+
+# Load the relationships
+load_matchlinks(
+    neo4j_session,
+    RoleAssignmentAllowedByMatchLink(),
+    role_assignments,
+    lastupdated=update_tag,
+    _sub_resource_label="AWSAccount",
+    _sub_resource_id=aws_account_id,
+)
+```
+
+### Scenario 2: Rich Relationship Properties
+
+When you need to store detailed metadata on relationships that doesn't make sense as separate nodes.
+
+**Example**: AWS Inspector findings connecting to packages with remediation details:
+
+```python
+# Data with rich relationship properties
+finding_to_package_data = [
+    {
+        "findingarn": "arn:aws:inspector2:us-east-1:123456789012:finding/abc123",
+        "packageid": "openssl|0:1.1.1k-1.el8.x86_64",
+        "filePath": "/usr/lib64/libssl.so.1.1",
+        "fixedInVersion": "0:1.1.1l-1.el8",
+        "remediation": "Update OpenSSL to version 1.1.1l or later",
+    }
+]
+
+# MatchLink schema with rich properties
+@dataclass(frozen=True)
+class InspectorFindingToPackageMatchLink(CartographyRelSchema):
+    target_node_label: str = "AWSInspectorPackage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "id": PropertyRef("packageid"),
+    })
+    source_node_label: str = "AWSInspectorFinding"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher({
+        "id": PropertyRef("findingarn"),
+    })
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_VULNERABLE_PACKAGE"
+    properties: InspectorFindingToPackageRelProperties = InspectorFindingToPackageRelProperties()
+
+@dataclass(frozen=True)
+class InspectorFindingToPackageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+    # Rich relationship properties
+    filepath: PropertyRef = PropertyRef("filePath")
+    fixedinversion: PropertyRef = PropertyRef("fixedInVersion")
+    remediation: PropertyRef = PropertyRef("remediation")
+```
+
+### ⚠️ Performance Impact
+
+MatchLinks have significant performance overhead because they require:
+
+1. **API Call A** → Write Node A to graph
+2. **API Call B** → Write Node B to graph
+3. **Read Node A** from graph
+4. **Read Node B** from graph
+5. **Write relationship** between A and B to graph
+
+**Prefer standard node schemas + relationship schemas** whenever possible:
+
+```python
+# ✅ DO: Use standard node schema with relationships
+@dataclass(frozen=True)
+class YourNodeSchema(CartographyNodeSchema):
+    label: str = "YourNode"
+    properties: YourNodeProperties = YourNodeProperties()
+    sub_resource_relationship: YourNodeToTenantRel = YourNodeToTenantRel()
+    other_relationships: OtherRelationships = OtherRelationships([
+        YourNodeToOtherNodeRel(),  # Standard relationship
+    ])
+
+# ❌ DON'T: Use MatchLinks unless absolutely necessary
+# Only use when you can't define the relationship in the node schema
+```
+
+### When NOT to Use MatchLinks
+
+**❌ Don't use MatchLinks for:**
+- Standard parent-child relationships (use `other_relationships` in node schema)
+- Simple one-to-many relationships (use `one_to_many=True` in standard relationships)
+- When you can define the relationship in the node schema
+- Performance-critical scenarios
+
+**✅ Use MatchLinks only for:**
+- Connecting two existing node types from separate data sources
+- Relationships with rich metadata that doesn't belong in nodes
+
+### Required MatchLink Properties
+
+All MatchLink relationship properties must include these mandatory fields:
+
+```python
+@dataclass(frozen=True)
+class YourMatchLinkRelProperties(CartographyRelProperties):
+    # Required for all MatchLinks
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+    # Your custom properties here
+    custom_property: PropertyRef = PropertyRef("custom_property")
+```
+
+### MatchLink Cleanup
+
+Always implement cleanup for MatchLinks:
+
+```python
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+    # Standard node cleanup
+    GraphJob.from_node_schema(YourNodeSchema(), common_job_parameters).run(neo4j_session)
+
+    # MatchLink cleanup
+    GraphJob.from_matchlink(
+        YourMatchLinkSchema(),
+        "AWSAccount",  # _sub_resource_label
+        common_job_parameters["AWS_ID"],  # _sub_resource_id
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+```
 
 ## ⚙️ Configuration and Credentials {#configuration}
 
@@ -1176,11 +1348,12 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
 from cartography.models.core.relationships import (
     CartographyRelProperties, CartographyRelSchema, LinkDirection,
-    make_target_node_matcher, TargetNodeMatcher, OtherRelationships
+    make_target_node_matcher, TargetNodeMatcher, OtherRelationships,
+    make_source_node_matcher, SourceNodeMatcher  # For MatchLinks
 )
 
 # Loading and cleanup
-from cartography.client.core.tx import load
+from cartography.client.core.tx import load, load_matchlinks  # load_matchlinks for MatchLinks
 from cartography.graph.job import GraphJob
 
 # Utilities
@@ -1241,6 +1414,50 @@ direction: LinkDirection = LinkDirection.INWARD
 target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
     "id": PropertyRef("related_ids", one_to_many=True),
 })
+```
+
+### MatchLink Pattern (Use Sparingly!)
+```python
+# Only use for connecting existing nodes or rich relationship properties
+@dataclass(frozen=True)
+class YourMatchLinkSchema(CartographyRelSchema):
+    target_node_label: str = "TargetNode"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "id": PropertyRef("target_id"),
+    })
+    source_node_label: str = "SourceNode"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher({
+        "id": PropertyRef("source_id"),
+    })
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONNECTS_TO"
+    properties: YourMatchLinkRelProperties = YourMatchLinkRelProperties()
+
+# Required properties for MatchLinks
+@dataclass(frozen=True)
+class YourMatchLinkRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    # Your custom properties here
+
+# Load MatchLinks
+load_matchlinks(
+    neo4j_session,
+    YourMatchLinkSchema(),
+    mapping_data,
+    lastupdated=update_tag,
+    _sub_resource_label="AWSAccount",
+    _sub_resource_id=account_id,
+)
+
+# Cleanup MatchLinks
+GraphJob.from_matchlink(
+    YourMatchLinkSchema(),
+    "AWSAccount",
+    account_id,
+    update_tag,
+).run(neo4j_session)
 ```
 
 ### Configuration Validation Template

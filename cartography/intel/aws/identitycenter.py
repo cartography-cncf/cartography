@@ -7,6 +7,7 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.models.aws.identitycenter.awsidentitycenter import (
     AWSIdentityCenterInstanceSchema,
@@ -14,9 +15,11 @@ from cartography.models.aws.identitycenter.awsidentitycenter import (
 from cartography.models.aws.identitycenter.awspermissionset import (
     AWSPermissionSetSchema,
 )
+from cartography.models.aws.identitycenter.awspermissionset import (
+    RoleAssignmentAllowedByMatchLink,
+)
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -120,6 +123,8 @@ def load_permission_sets(
         InstanceArn=instance_arn,
         Region=region,
         AWS_ID=aws_account_id,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=aws_account_id,
     )
 
 
@@ -221,30 +226,63 @@ def get_role_assignments(
 
 
 @timeit
+def get_permset_roles(
+    neo4j_session: neo4j.Session,
+    role_assignments: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Enrich role assignments with exact role ARNs by querying existing permission set relationships.
+    Uses the ASSIGNED_TO_ROLE relationships created when permission sets were loaded.
+    """
+    # Get unique permission set ARNs from role assignments
+    permset_ids = list({ra["PermissionSetArn"] for ra in role_assignments})
+
+    query = """
+    MATCH (role:AWSRole)<-[:ASSIGNED_TO_ROLE]-(permset:AWSPermissionSet)
+    WHERE permset.arn IN $PermSetIds
+    RETURN permset.arn AS PermissionSetArn, role.arn AS RoleArn
+    """
+    result = neo4j_session.run(query, PermSetIds=permset_ids)
+    permset_to_role = [record.data() for record in result]
+
+    # Create mapping from permission set ARN to role ARN
+    permset_to_role_map = {
+        entry["PermissionSetArn"]: entry["RoleArn"] for entry in permset_to_role
+    }
+
+    # Enrich role assignments with exact role ARNs
+    enriched_assignments = []
+    for assignment in role_assignments:
+        role_arn = permset_to_role_map.get(assignment["PermissionSetArn"])
+        enriched_assignments.append(
+            {
+                **assignment,
+                "RoleArn": role_arn,
+            }
+        )
+
+    return enriched_assignments
+
+
+@timeit
 def load_role_assignments(
     neo4j_session: neo4j.Session,
     role_assignments: List[Dict],
+    aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     """
-    Load role assignments into the graph
+    Load role assignments into the graph using MatchLink schema
     """
     logger.info(f"Loading {len(role_assignments)} role assignments")
-    if role_assignments:
-        neo4j_session.run(
-            """
-            UNWIND $role_assignments AS ra
-            MATCH (acc:AWSAccount{id:ra.AccountId}) -[:RESOURCE]->
-            (role:AWSRole)<-[:ASSIGNED_TO_ROLE]-
-            (permset:AWSPermissionSet {id: ra.PermissionSetArn})
-            MATCH (sso:AWSSSOUser {id: ra.UserId})
-            MERGE (role)-[r:ALLOWED_BY]->(sso)
-            SET r.lastupdated = $aws_update_tag,
-            r.permission_set_arn = ra.PermissionSetArn
-            """,
-            role_assignments=role_assignments,
-            aws_update_tag=aws_update_tag,
-        )
+    load_matchlinks(
+        neo4j_session,
+        RoleAssignmentAllowedByMatchLink(),
+        role_assignments,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=aws_account_id,
+    )
 
 
 @timeit
@@ -262,11 +300,14 @@ def cleanup(
     GraphJob.from_node_schema(AWSSSOUserSchema(), common_job_parameters).run(
         neo4j_session,
     )
-    run_cleanup_job(
-        "aws_import_identity_center_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
-    )
+
+    # Clean up role assignment MatchLinks
+    GraphJob.from_matchlink(
+        RoleAssignmentAllowedByMatchLink(),
+        "AWSAccount",
+        common_job_parameters["AWS_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
 
 
 @timeit
@@ -327,9 +368,16 @@ def sync_identity_center_instances(
                 instance_arn,
                 region,
             )
-            load_role_assignments(
+
+            # Enrich role assignments with exact role ARNs using permission set relationships
+            enriched_role_assignments = get_permset_roles(
                 neo4j_session,
                 role_assignments,
+            )
+            load_role_assignments(
+                neo4j_session,
+                enriched_role_assignments,
+                current_aws_account_id,
                 update_tag,
             )
 

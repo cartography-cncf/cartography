@@ -39,6 +39,7 @@ Representation of an AWS Account.
                                 :ElasticIPAddress,
                                 :ESDomain,
                                 :GuardDutyFinding,
+                                :KMSAlias,
                                 :LaunchConfiguration,
                                 :LaunchTemplate,
                                 :LaunchTemplateVersion,
@@ -1076,6 +1077,28 @@ Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.
 - CloudWatchLogMetricFilter associated with CloudWatchLogGroup via the METRIC_FILTER_OF relationship
     ```
     (CloudWatchLogMetricFilter)-[METRIC_FILTER_OF]->(CloudWatchLogGroup)
+    ```
+
+### GlueConnection
+Representation of an AWS [Glue Connection](https://docs.aws.amazon.com/glue/latest/webapi/API_GetConnections.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The name of the Glue connection definition |
+| arn | The name of the Glue connection definition |
+| region | The region of the Glue Connection |
+| description | The description of the connection |
+| connection_type | The type of the connection. Currently, SFTP is not supported |
+| status| The status of the connection. Can be one of: READY, IN_PROGRESS, or FAILED |
+| status_reason | The reason for the connection status |
+| authentication_type | A structure containing the authentication configuration |
+| secret_arn | The secret manager ARN to store credentials |
+#### Relationships
+- Glue Connections are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(GlueConnection)
     ```
 
 ### CodeBuildProject
@@ -2690,11 +2713,25 @@ Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIRef
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The id of the key|
-| name |  The name of the key |
+| lastupdated |  Timestamp of the last time the node was updated by Cartography |
+| **id** | The KeyId of the key|
+| arn |  The ARN of the key |
+| key_id |  The KeyId of the key |
 | description |  The description of the key |
 | enabled |  Whether the key is enabled |
+| key_state |  The current state of the key (e.g., Enabled, Disabled, PendingDeletion) |
+| key_usage |  The permitted use of the key (e.g., ENCRYPT_DECRYPT, SIGN_VERIFY) |
+| key_manager |  The manager of the key (AWS or CUSTOMER) |
+| origin |  The source of the key material (AWS_KMS, EXTERNAL, AWS_CLOUDHSM) |
+| creation_date |  The date the key was created |
+| deletion_date |  The date the key is scheduled for deletion |
+| valid_to |  The expiration date for the key material |
+| custom_key_store_id |  The ID of the custom key store that contains the key |
+| cloud_hsm_cluster_id |  The cluster ID of the AWS CloudHSM cluster that contains the key material |
+| expiration_model |  Specifies whether key material expires |
+| customer_master_key_spec |  The type of key material in the CMK |
+| encryption_algorithms |  The encryption algorithms that AWS KMS supports for this key |
+| signing_algorithms |  The signing algorithms that AWS KMS supports for this key |
 | region | The region where key is created|
 | anonymous\_actions |  List of anonymous internet accessible actions that may be run on the key. |
 | anonymous\_access | True if this key has a policy applied to it that allows anonymous access or if it is open to the internet. |
@@ -2703,17 +2740,17 @@ Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIRef
 
 - AWS KMS Keys are resources in an AWS Account.
     ```
-    (AWSAccount)-[RESOURCE]->(KMSKey)
+    (AWSAccount)-[:RESOURCE]->(KMSKey)
     ```
 
 - AWS KMS Key may also be refered as KMSAlias via aliases.
     ```
-    (KMSKey)-[KNOWN_AS]->(KMSAlias)
+    (KMSAlias)-[:KNOWN_AS]->(KMSKey)
     ```
 
 - AWS KMS Key may also have KMSGrant based on grants.
     ```
-    (KMSGrant)-[APPLIED_ON]->(KMSKey)
+    (KMSGrant)-[:APPLIED_ON]->(KMSKey)
     ```
 
 ### KMSAlias
@@ -2723,16 +2760,25 @@ Representation of an AWS [KMS Key Alias](https://docs.aws.amazon.com/kms/latest/
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The arn of the alias|
-| aliasname |  The name of the alias |
-| targetkeyid |  The kms key id associated via this alias |
+| lastupdated |  Timestamp of the last time the node was updated by Cartography |
+| **id** | The ARN of the alias|
+| arn |  The ARN of the alias |
+| alias_name |  The name of the alias |
+| target_key_id |  The KMS key id associated via this alias |
+| creation_date |  The date the alias was created |
+| last_updated_date |  The date the alias was last updated by AWS |
+| region |  The AWS region where the alias is located |
 
 #### Relationships
 
+- AWS KMS Aliases belong to AWS Accounts.
+    ```
+    (AWSAccount)-[:RESOURCE]->(KMSAlias)
+    ```
+
 - AWS KMS Key may also be refered as KMSAlias via aliases.
     ```
-    (KMSKey)-[KNOWN_AS]->(KMSAlias)
+    (KMSAlias)-[KNOWN_AS]->(KMSKey)
     ```
 
 ### KMSGrant
@@ -2741,18 +2787,26 @@ Representation of an AWS [KMS Key Grant](https://docs.aws.amazon.com/kms/latest/
 
 | Field | Description |
 |-------|-------------|
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The id of the key grant|
-| name |  The name of the key grant |
-| granteeprincipal |  The principal associated with the key grant |
-| creationdate | ISO 8601 date-time string when the grant was created |
+| lastupdated | Timestamp of when the node was last updated by Cartography |
+| **id** | The unique identifier of the key grant |
+| grant_id | The grant identifier (indexed for performance) |
+| name | The name of the key grant |
+| grantee_principal | The principal associated with the key grant |
+| creation_date | Epoch timestamp when the grant was created |
+| key_id | The key identifier that the grant applies to |
+| issuing_account | The AWS account that issued the grant |
+| operations | List of operations that the grant allows |
 
 #### Relationships
 
-- AWS KMS Key may also have KMSGrant based on grants.
+- AWS KMS Grants are resources in an AWS Account.
     ```
-    (KMSGrant)-[APPLIED_ON]->(KMSKey)
+    (AWSAccount)-[:RESOURCE]->(KMSGrant)
+    ```
+
+- AWS KMS Grants are applied to KMS Keys.
+    ```
+    (KMSGrant)-[:APPLIED_ON]->(KMSKey)
     ```
 
 ### APIGatewayRestAPI
