@@ -413,7 +413,7 @@ Representation of an [AWSLambdaFunctionAlias](https://docs.aws.amazon.com/lambda
 
 #### Relationships
 
-- AWSLambdaFunctionAlias are sub-resources in an AWS Account.
+- AWSLambdaFunctionAlias belong to AWS Accounts.
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSLambdaFunctionAlias)
     ```
@@ -448,7 +448,7 @@ Representation of an [AWSLambdaEventSourceMapping](https://docs.aws.amazon.com/l
 
 #### Relationships
 
-- AWSLambdaEventSourceMapping are sub-resources in an AWS Account.
+- AWSLambdaEventSourceMapping belong to AWS Accounts.
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSLambdaEventSourceMapping)
     ```
