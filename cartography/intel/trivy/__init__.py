@@ -41,13 +41,13 @@ def get_scan_targets(
 
 
 def _get_intersection(
-    images_in_graph: set[str], json_files: set[str], trivy_s3_prefix: str
+    image_uris: set[str], json_files: set[str], trivy_s3_prefix: str
 ) -> list[tuple[str, str]]:
     """
     Get the intersection of ECR images in the graph and S3 scan results.
 
     Args:
-        images_in_graph: Set of ECR images in the graph
+        image_uris: Set of ECR images in the graph
         json_files: Set of S3 object keys for JSON files
         trivy_s3_prefix: S3 prefix path containing scan results
 
@@ -62,7 +62,7 @@ def _get_intersection(
         # Remove the prefix and the .json suffix
         image_uri = s3_object_key[prefix_len:-5]
 
-        if image_uri in images_in_graph:
+        if image_uri in image_uris:
             intersection.append((image_uri, s3_object_key))
 
     return intersection
@@ -92,12 +92,12 @@ def sync_trivy_aws_ecr_from_s3(
         f"Using Trivy scan results from s3://{trivy_s3_bucket}/{trivy_s3_prefix}"
     )
 
-    images_in_graph: set[str] = get_scan_targets(neo4j_session)
+    image_uris: set[str] = get_scan_targets(neo4j_session)
     json_files: set[str] = get_json_files_in_s3(
         trivy_s3_bucket, trivy_s3_prefix, boto3_session
     )
     intersection: list[tuple[str, str]] = _get_intersection(
-        images_in_graph, json_files, trivy_s3_prefix
+        image_uris, json_files, trivy_s3_prefix
     )
 
     if len(intersection) == 0:
@@ -136,7 +136,7 @@ def sync_trivy_aws_ecr_from_dir(
     """Sync Trivy scan results from local files for AWS ECR images."""
     logger.info(f"Using Trivy scan results from {results_dir}")
 
-    images_in_graph: set[str] = get_scan_targets(neo4j_session)
+    image_uris: set[str] = get_scan_targets(neo4j_session)
     json_files: set[str] = get_json_files_in_dir(results_dir)
 
     if not json_files:
@@ -153,7 +153,7 @@ def sync_trivy_aws_ecr_from_dir(
             file_path,
             update_tag,
         )
-        if artifact_name and artifact_name not in images_in_graph:
+        if artifact_name and artifact_name not in image_uris:
             logger.debug(
                 f"Skipping results for {artifact_name} since the image is not present in the graph"
             )

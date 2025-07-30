@@ -264,7 +264,7 @@ def read_scan_results_from_s3(
     s3_bucket: str,
     s3_object_key: str,
     image_uri: str,
-) -> tuple[list[dict], str | None]:
+) -> tuple[list[dict], str]:
     """
     Read and parse Trivy scan results from S3.
 
@@ -288,24 +288,33 @@ def read_scan_results_from_s3(
     trivy_data = json.loads(scan_data_json)
 
     # Extract results using the same logic as binary scanning
-    if "Results" in trivy_data and trivy_data["Results"]:
-        results = trivy_data["Results"]
-    else:
-        stat_handler.incr("image_scan_no_results_count")
-        logger.warning(
-            f"S3 scan data did not contain a `Results` key for URI = {image_uri}; continuing."
+    if "Results" not in trivy_data:
+        logger.error(
+            f"S3 scan data did not contain a `Results` key for URI = {image_uri}. This indicates a malformed scan result."
         )
-        results = []
+        raise ValueError(f"Missing 'Results' key in scan data for {image_uri}")
+    
+    results = trivy_data["Results"]
+    if not results:
+        stat_handler.incr("image_scan_no_results_count")
+        logger.info(f"No vulnerabilities found for URI = {image_uri}")
 
-    image_digest = None
-    if "Metadata" in trivy_data and trivy_data["Metadata"]:
-        repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
-        if repo_digests:
-            # Sample input: 000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository@sha256:88016
-            # Sample output: sha256:88016
-            repo_digest = repo_digests[0]
-            if "@" in repo_digest:
-                image_digest = repo_digest.split("@")[1]
+    if "Metadata" not in trivy_data or not trivy_data["Metadata"]:
+        raise ValueError(f"Missing 'Metadata' in scan data for {image_uri}")
+    
+    repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
+    if not repo_digests:
+        raise ValueError(f"Missing 'RepoDigests' in scan metadata for {image_uri}")
+    
+    # Sample input: 000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository@sha256:88016
+    # Sample output: sha256:88016
+    repo_digest = repo_digests[0]
+    if "@" not in repo_digest:
+        raise ValueError(f"Invalid repo digest format for {image_uri}: {repo_digest}")
+    
+    image_digest = repo_digest.split("@")[1]
+    if not image_digest:
+        raise ValueError(f"Empty image digest for {image_uri}")
 
     return results, image_digest
 
@@ -338,9 +347,6 @@ def sync_single_image_from_s3(
             s3_object_key,
             image_uri,
         )
-        if not image_digest:
-            logger.warning(f"No image digest found for {image_uri}; skipping over.")
-            return
 
         # Transform all data in one pass using existing function
         findings_list, packages_list, fixes_list = transform_scan_results(
@@ -379,30 +385,39 @@ def sync_single_image_from_s3(
 @timeit
 def read_scan_results_from_file(
     file_path: str,
-) -> tuple[str | None, list[dict], str | None]:
+) -> tuple[str, list[dict], str]:
     """Read and parse Trivy scan results from a local file."""
     logger.debug(f"Reading scan results from file: {file_path}")
     with open(file_path, encoding="utf-8") as f:
         trivy_data = json.load(f)
 
-    artifact_name = trivy_data.get("ArtifactName")
+    artifact_name = trivy_data["ArtifactName"]
 
-    if "Results" in trivy_data and trivy_data["Results"]:
-        results = trivy_data["Results"]
-    else:
-        stat_handler.incr("image_scan_no_results_count")
-        logger.warning(
-            f"File scan data did not contain a `Results` key for {file_path}; continuing."
+    if "Results" not in trivy_data:
+        logger.error(
+            f"File scan data did not contain a `Results` key for {file_path}. This indicates a malformed scan result."
         )
-        results = []
+        raise ValueError(f"Missing 'Results' key in scan data for {file_path}")
+    
+    results = trivy_data["Results"]
+    if not results:
+        stat_handler.incr("image_scan_no_results_count")
+        logger.info(f"No vulnerabilities found in {file_path}")
 
-    image_digest = None
-    if "Metadata" in trivy_data and trivy_data["Metadata"]:
-        repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
-        if repo_digests:
-            repo_digest = repo_digests[0]
-            if "@" in repo_digest:
-                image_digest = repo_digest.split("@")[1]
+    if "Metadata" not in trivy_data or not trivy_data["Metadata"]:
+        raise ValueError(f"Missing 'Metadata' in scan data for {file_path}")
+    
+    repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
+    if not repo_digests:
+        raise ValueError(f"Missing 'RepoDigests' in scan metadata for {file_path}")
+    
+    repo_digest = repo_digests[0]
+    if "@" not in repo_digest:
+        raise ValueError(f"Invalid repo digest format in {file_path}: {repo_digest}")
+    
+    image_digest = repo_digest.split("@")[1]
+    if not image_digest:
+        raise ValueError(f"Empty image digest in {file_path}")
 
     return artifact_name, results, image_digest
 
@@ -412,12 +427,14 @@ def sync_single_image_from_file(
     neo4j_session: Session,
     file_path: str,
     update_tag: int,
-) -> tuple[str | None, str | None]:
+) -> None:
     """Read a Trivy JSON file from disk and sync to Neo4j."""
-    artifact_name, results, image_digest = read_scan_results_from_file(file_path)
-    if not artifact_name or not image_digest:
-        logger.warning(f"Skipping {file_path}; missing artifact name or digest")
-        return artifact_name, image_digest
+    try:
+        artifact_name, results, image_digest = read_scan_results_from_file(file_path)
+    except KeyError as e:
+        logger.error(f"Missing required field in {file_path}: {e}")
+        raise
+    
 
     findings_list, packages_list, fixes_list = transform_scan_results(
         results,
@@ -431,4 +448,3 @@ def sync_single_image_from_file(
     load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
     load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
     stat_handler.incr("images_processed_count")
-    return artifact_name, image_digest
