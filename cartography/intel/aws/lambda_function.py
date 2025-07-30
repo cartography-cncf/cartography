@@ -210,6 +210,85 @@ def cleanup_lambda(neo4j_session: neo4j.Session, common_job_parameters: Dict) ->
 
 
 @timeit
+def sync_aliases(
+    neo4j_session: neo4j.Session,
+    lambda_functions: List[Dict],
+    client: Any,
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Sync Lambda function aliases for all functions in the region.
+    """
+    all_aliases = []
+
+    for lambda_function in lambda_functions:
+        function_arn = lambda_function["FunctionArn"]
+
+        # Get, transform, and collect aliases
+        aliases = get_function_aliases(lambda_function, client)
+        if aliases:
+            transformed_aliases = transform_lambda_aliases(aliases, function_arn)
+            all_aliases.extend(transformed_aliases)
+
+    # Load all aliases
+    load_lambda_function_aliases(
+        neo4j_session, all_aliases, region, current_aws_account_id, update_tag
+    )
+
+
+@timeit
+def sync_event_source_mappings(
+    neo4j_session: neo4j.Session,
+    lambda_functions: List[Dict],
+    client: Any,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Sync Lambda event source mappings for all functions in the region.
+    """
+    all_esms = []
+
+    for lambda_function in lambda_functions:
+        # Get and collect event source mappings (no transformation needed)
+        esms = get_event_source_mappings(lambda_function, client)
+        if esms:
+            all_esms.extend(esms)
+
+    # Load all event source mappings
+    load_lambda_event_source_mappings(
+        neo4j_session, all_esms, current_aws_account_id, update_tag
+    )
+
+
+@timeit
+def sync_lambda_layers(
+    neo4j_session: neo4j.Session,
+    lambda_functions: List[Dict],
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Sync Lambda layers for all functions in the region.
+    """
+    all_layers = []
+
+    for lambda_function in lambda_functions:
+        function_arn = lambda_function["FunctionArn"]
+
+        # Get, transform, and collect layers (from function data)
+        layers = lambda_function.get("Layers", [])
+        if layers:
+            transformed_layers = transform_lambda_layers(layers, function_arn)
+            all_layers.extend(transformed_layers)
+
+    # Load all layers
+    load_lambda_layers(neo4j_session, all_layers, current_aws_account_id, update_tag)
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -239,40 +318,29 @@ def sync(
         # Create Lambda client for sub-entity requests
         client = boto3_session.client("lambda", region_name=region)
 
-        # Process each lambda function for sub-entities
-        all_aliases = []
-        all_esms = []
-        all_layers = []
-
-        for lambda_function in data:
-            function_arn = lambda_function["FunctionArn"]
-
-            # Get, transform, and collect aliases
-            aliases = get_function_aliases(lambda_function, client)
-            if aliases:
-                transformed_aliases = transform_lambda_aliases(aliases, function_arn)
-                all_aliases.extend(transformed_aliases)
-
-            # Get and collect event source mappings (no transformation needed)
-            esms = get_event_source_mappings(lambda_function, client)
-            if esms:
-                all_esms.extend(esms)
-
-            # Get, transform, and collect layers (from function data)
-            layers = lambda_function.get("Layers", [])
-            if layers:
-                transformed_layers = transform_lambda_layers(layers, function_arn)
-                all_layers.extend(transformed_layers)
-
-        # Load all sub-entities
-        load_lambda_function_aliases(
-            neo4j_session, all_aliases, region, current_aws_account_id, update_tag
+        # Sync all sub-entities
+        sync_aliases(
+            neo4j_session,
+            data,
+            client,
+            region,
+            current_aws_account_id,
+            update_tag,
         )
-        load_lambda_event_source_mappings(
-            neo4j_session, all_esms, current_aws_account_id, update_tag
+
+        sync_event_source_mappings(
+            neo4j_session,
+            data,
+            client,
+            current_aws_account_id,
+            update_tag,
         )
-        load_lambda_layers(
-            neo4j_session, all_layers, current_aws_account_id, update_tag
+
+        sync_lambda_layers(
+            neo4j_session,
+            data,
+            current_aws_account_id,
+            update_tag,
         )
 
     cleanup_lambda(neo4j_session, common_job_parameters)

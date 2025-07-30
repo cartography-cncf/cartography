@@ -1,11 +1,251 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import cartography.intel.aws.lambda_function
 import tests.data.aws.lambda_function
+from tests.data.aws.lambda_function import mock_get_event_source_mappings_for_sync_test
+from tests.data.aws.lambda_function import mock_get_function_aliases_for_sync_test
+from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-west-2"
 TEST_UPDATE_TAG = 123456789
+
+
+@patch.object(
+    cartography.intel.aws.lambda_function,
+    "get_lambda_data",
+    return_value=tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS,
+)
+@patch.object(
+    cartography.intel.aws.lambda_function,
+    "get_function_aliases",
+    side_effect=mock_get_function_aliases_for_sync_test,
+)
+@patch.object(
+    cartography.intel.aws.lambda_function,
+    "get_event_source_mappings",
+    side_effect=mock_get_event_source_mappings_for_sync_test,
+)
+def test_sync_lambda_functions(
+    mock_get_lambda_data,
+    mock_get_function_aliases,
+    mock_get_event_source_mappings,
+    neo4j_session,
+):
+    """
+    Test that the complete Lambda sync function works end-to-end with mocked get functions.
+    """
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID}
+
+    # Act
+    cartography.intel.aws.lambda_function.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert - Check all node types were created correctly
+
+    assert check_nodes(neo4j_session, "AWSLambda", ["id"]) == {
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-4",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-5",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-6",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-8",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-9",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-10",),
+    }
+
+    assert check_nodes(neo4j_session, "AWSLambdaFunctionAlias", ["id"]) == {
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-3:LIVE",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-9:LIVE",),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-10:LIVE",),
+    }
+
+    assert check_nodes(neo4j_session, "AWSLambdaEventSourceMapping", ["id"]) == {
+        ("i01",),
+        ("i02",),
+    }
+
+    assert check_nodes(neo4j_session, "AWSLambdaLayer", ["id"]) == {
+        ("arn:aws:lambda:us-east-2:123456789012:layer:my-layer-1",),
+        ("arn:aws:lambda:us-east-2:123456789012:layer:my-layer-2",),
+        ("arn:aws:lambda:us-east-2:123456789012:layer:my-layer-3",),
+    }
+
+    # Assert - Check all relationship types were created correctly
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSLambda",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-5",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-6",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-8",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSLambdaFunctionAlias",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3:LIVE",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9:LIVE",
+        ),
+        (
+            TEST_ACCOUNT_ID,
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10:LIVE",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSLambdaEventSourceMapping",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "i01"),
+        (TEST_ACCOUNT_ID, "i02"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "AWSLambdaLayer",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-1"),
+        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-2"),
+        (TEST_ACCOUNT_ID, "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-3"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "AWSLambdaFunctionAlias",
+        "id",
+        "KNOWN_AS",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3:LIVE",
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9",
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9:LIVE",
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10",
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10:LIVE",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "AWSLambdaEventSourceMapping",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-7", "i01"),
+        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-8", "i02"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSLambda",
+        "id",
+        "AWSLambdaLayer",
+        "id",
+        "HAS",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
+            "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-1",
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",
+            "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-2",
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4",
+            "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-3",
+        ),
+    }
 
 
 def test_load_lambda_functions(neo4j_session):
