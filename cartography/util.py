@@ -295,7 +295,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             if error_code == "InvalidToken":
                 raise RuntimeError(
                     "AWS returned an InvalidToken error. Configure regional STS endpoints by "
-                    "setting AWS_STS_REGIONAL_ENDPOINTS=regional or adding "
+                    "setting environment variable AWS_STS_REGIONAL_ENDPOINTS=regional or adding "
                     "'sts_regional_endpoints = regional' to your AWS config file."
                 ) from e
             # The account is not authorized to use this service in this region
