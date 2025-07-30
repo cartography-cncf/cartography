@@ -23,6 +23,9 @@ Representation of an AWS Account.
                                 :AWSInspectorFinding,
                                 :AWSInspectorPackage,
                                 :AWSLambda,
+                                :AWSLambdaEventSourceMapping,
+                                :AWSLambdaFunctionAlias,
+                                :AWSLambdaLayer,
                                 :AWSPrincipal,
                                 :AWSUser,
                                 :AWSVpc,
@@ -360,6 +363,7 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 | architectures | The instruction set architecture that the function supports. Architecture is a string array with one of the valid values. |
 | masterarn | For Lambda@Edge functions, the ARN of the main function. |
 | kmskeyarn | The KMS key that's used to encrypt the function's environment variables. This key is only returned if you've configured a customer managed key. |
+| region | The AWS region where the Lambda function is deployed. |
 
 #### Relationships
 
@@ -401,18 +405,23 @@ Representation of an [AWSLambdaFunctionAlias](https://docs.aws.amazon.com/lambda
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The arn of the lambda function alias|
-| name |  The name of the lambda function alias |
+| arn | The arn of the lambda function alias|
+| aliasname |  The name of the lambda function alias |
 | functionversion | The function version that the alias invokes.|
 | revisionid |  A unique identifier that changes when you update the alias. |
 | description |  The description of the alias. |
 
 #### Relationships
 
-- AWSLambda functions may also have aliases.
+- AWSLambdaFunctionAlias belong to AWS Accounts.
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:AWSLambdaFunctionAlias)
+    ```
 
-        ```
-        (AWSLambda)-[KNOWN_AS]->(AWSLambdaFunctionAlias)
-        ```
+- AWSLambda functions may also have aliases.
+    ```cypher
+    (:AWSLambda)-[:KNOWN_AS]->(:AWSLambdaFunctionAlias)
+    ```
 
 ### AWSLambdaEventSourceMapping
 
@@ -439,10 +448,14 @@ Representation of an [AWSLambdaEventSourceMapping](https://docs.aws.amazon.com/l
 
 #### Relationships
 
-- AWSLambda functions may have the resource AWSLambdaEventSourceMapping.
-
+- AWSLambdaEventSourceMapping belong to AWS Accounts.
     ```cypher
-    (AWSLambda)-[RESOURCE]->(AWSLambdaEventSourceMapping)
+    (:AWSAccount)-[:RESOURCE]->(:AWSLambdaEventSourceMapping)
+    ```
+
+- AWSLambda functions may have the resource AWSLambdaEventSourceMapping.
+    ```cypher
+    (:AWSLambda)-[:RESOURCE]->(:AWSLambdaEventSourceMapping)
     ```
 
 ### AWSLambdaLayer
@@ -454,16 +467,21 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The arn of the lambda function layer|
+| arn | The arn of the lambda function layer|
 | codesize | The size of the layer archive in bytes.|
 | signingprofileversionarn | The Amazon Resource Name (ARN) for a signing profile version.|
 | signingjobarn | The Amazon Resource Name (ARN) of a signing job. |
 
 #### Relationships
 
-- AWSLambda functions has AWS Lambda Layers.
-
+- AWSLambdaLayer belong to AWS Accounts
     ```cypher
-    (AWSLambda)-[HAS]->(AWSLambdaLayer)
+    (:AWSAccount)-[:RESOURCE]->(:AWSLambdaLayer)
+    ```
+
+- AWSLambda functions has AWS Lambda Layers.
+    ```cypher
+    (:AWSLambda)-[:HAS]->(:AWSLambdaLayer)
     ```
 
 ### AWSPolicy
