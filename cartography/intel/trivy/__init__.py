@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 
@@ -148,15 +149,29 @@ def sync_trivy_aws_ecr_from_dir(
     logger.info(f"Processing {len(json_files)} local Trivy result files")
 
     for file_path in json_files:
-        artifact_name, image_digest = sync_single_image_from_file(
+        # First, check if the image exists in the graph before syncing
+        try:
+            # Peek at the artifact name without processing the file
+            with open(file_path, encoding="utf-8") as f:
+                trivy_data = json.load(f)
+                artifact_name = trivy_data.get("ArtifactName")
+                
+            if artifact_name and artifact_name not in image_uris:
+                logger.debug(
+                    f"Skipping results for {artifact_name} since the image is not present in the graph"
+                )
+                continue
+                
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"Failed to read artifact name from {file_path}: {e}")
+            continue
+            
+        # Now sync the file since we know the image exists in the graph
+        sync_single_image_from_file(
             neo4j_session,
             file_path,
             update_tag,
         )
-        if artifact_name and artifact_name not in image_uris:
-            logger.debug(
-                f"Skipping results for {artifact_name} since the image is not present in the graph"
-            )
 
     cleanup(neo4j_session, common_job_parameters)
 
