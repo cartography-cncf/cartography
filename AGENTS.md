@@ -1492,3 +1492,9 @@ tests/unit/cartography/intel/your_service/
 tests/integration/cartography/intel/your_service/
 └── test_entities.py     # Integration tests
 ```
+
+#### Analysis Job Skipped Due to Missing AWS_ID
+```text
+❌ Problem: aws_s3acl_analysis.json fails to run or is skipped with a warning about missing AWS_ID.
+✅ Solution: The aws_s3acl_analysis.json analysis job requires the AWS_ID parameter, which is only set if the AWS sync module is run in the same execution. If you run only the analysis job without running AWS sync, this job will be skipped and a warning will be logged. To enable this analysis, run the AWS sync module in the same execution as the analysis job.
+```

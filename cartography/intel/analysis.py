@@ -29,6 +29,14 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         return
     logger.info("Loading analysis jobs from directory: %s", analysis_job_directory)
     for path in analysis_job_directory.glob("**/*.json"):
+        job_name = path.name
+        # Minimal fix for aws_s3acl_analysis.json dependency on AWS_ID
+        if job_name == "aws_s3acl_analysis.json" and "AWS_ID" not in config.__dict__:
+            logger.warning(
+                "Skipping %s because AWS_ID is missing. Run the AWS sync module in the same execution to enable this analysis.",
+                job_name,
+            )
+            continue
         logger.info("Running discovered analysis job: %s", path)
         try:
             GraphJob.run_from_json_file(
