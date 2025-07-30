@@ -1,4 +1,7 @@
+import copy
+import json
 from unittest.mock import MagicMock
+from unittest.mock import mock_open
 from unittest.mock import patch
 
 import cartography.intel.aws.ecr
@@ -14,7 +17,18 @@ TEST_ACCOUNT_ID = "000000000000"
 TEST_UPDATE_TAG = 123456789
 TEST_REGION = "us-east-1"
 
+# Create a modified version of TRIVY_SAMPLE with the correct artifact name format
+TRIVY_SAMPLE_DISK = copy.deepcopy(TRIVY_SAMPLE)
+TRIVY_SAMPLE_DISK["ArtifactName"] = (
+    "000000000000.dkr.ecr.us-east-1/test-repository:1234567890"
+)
 
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(TRIVY_SAMPLE_DISK),
+)
 @patch.object(
     cartography.intel.trivy,
     "get_json_files_in_dir",
@@ -24,7 +38,7 @@ TEST_REGION = "us-east-1"
     cartography.intel.trivy.scanner,
     "read_scan_results_from_file",
     return_value=(
-        TRIVY_SAMPLE["ArtifactName"],
+        "000000000000.dkr.ecr.us-east-1/test-repository:1234567890",
         TRIVY_SAMPLE["Results"],
         "sha256:0000000000000000000000000000000000000000000000000000000000000000",
     ),
@@ -50,6 +64,7 @@ def test_sync_trivy_aws_ecr(
     mock_get_repos,
     mock_get_scan_results,
     mock_list_dir_scan_results,
+    mock_file_open,
     neo4j_session,
 ):
     """

@@ -182,11 +182,7 @@ def test_read_scan_results_from_s3_with_results(mock_boto3_session):
                 ],
             }
         ],
-        "Metadata": {
-            "RepoDigests": [
-                f"{image_uri.split(':')[0]}@sha256:abcdef123456"
-            ]
-        }
+        "Metadata": {"RepoDigests": [f"{image_uri.split(':')[0]}@sha256:abcdef123456"]},
     }
 
     mock_response_body = MagicMock()
@@ -224,11 +220,7 @@ def test_read_scan_results_from_s3_empty_results(mock_boto3_session):
 
     mock_scan_data = {
         "Results": [],
-        "Metadata": {
-            "RepoDigests": [
-                f"{image_uri.split(':')[0]}@sha256:fedcba098765"
-            ]
-        }
+        "Metadata": {"RepoDigests": [f"{image_uri.split(':')[0]}@sha256:fedcba098765"]},
     }
 
     mock_response_body = MagicMock()
@@ -265,11 +257,7 @@ def test_read_scan_results_from_s3_null_results(mock_boto3_session):
 
     mock_scan_data = {
         "Results": None,
-        "Metadata": {
-            "RepoDigests": [
-                f"{image_uri.split(':')[0]}@sha256:1234567890ab"
-            ]
-        }
+        "Metadata": {"RepoDigests": [f"{image_uri.split(':')[0]}@sha256:1234567890ab"]},
     }
 
     mock_response_body = MagicMock()

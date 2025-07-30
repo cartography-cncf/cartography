@@ -184,6 +184,9 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
         neo4j_session: Neo4j session for database operations
         config: Configuration object containing S3 or directory paths
     """
+    if not config.trivy_s3_bucket and not config.trivy_results_dir:
+        logger.info("Trivy configuration not provided. Skipping Trivy ingestion.")
+        return
 
     if config.trivy_results_dir:
         common_job_parameters = {
@@ -195,10 +198,6 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
         )
-        return
-
-    if not config.trivy_s3_bucket:
-        logger.info("Trivy configuration not provided. Skipping Trivy ingestion.")
         return
 
     if config.trivy_s3_prefix is None:
