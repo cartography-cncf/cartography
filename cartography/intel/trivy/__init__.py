@@ -155,17 +155,17 @@ def sync_trivy_aws_ecr_from_dir(
             with open(file_path, encoding="utf-8") as f:
                 trivy_data = json.load(f)
                 artifact_name = trivy_data.get("ArtifactName")
-                
+
             if artifact_name and artifact_name not in image_uris:
                 logger.debug(
                     f"Skipping results for {artifact_name} since the image is not present in the graph"
                 )
                 continue
-                
+
         except (json.JSONDecodeError, KeyError) as e:
             logger.error(f"Failed to read artifact name from {file_path}: {e}")
             continue
-            
+
         # Now sync the file since we know the image exists in the graph
         sync_single_image_from_file(
             neo4j_session,

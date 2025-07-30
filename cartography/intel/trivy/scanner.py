@@ -293,7 +293,7 @@ def read_scan_results_from_s3(
             f"S3 scan data did not contain a `Results` key for URI = {image_uri}. This indicates a malformed scan result."
         )
         raise ValueError(f"Missing 'Results' key in scan data for {image_uri}")
-    
+
     results = trivy_data["Results"]
     if not results:
         stat_handler.incr("image_scan_no_results_count")
@@ -301,17 +301,17 @@ def read_scan_results_from_s3(
 
     if "Metadata" not in trivy_data or not trivy_data["Metadata"]:
         raise ValueError(f"Missing 'Metadata' in scan data for {image_uri}")
-    
+
     repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
     if not repo_digests:
         raise ValueError(f"Missing 'RepoDigests' in scan metadata for {image_uri}")
-    
+
     # Sample input: 000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository@sha256:88016
     # Sample output: sha256:88016
     repo_digest = repo_digests[0]
     if "@" not in repo_digest:
         raise ValueError(f"Invalid repo digest format for {image_uri}: {repo_digest}")
-    
+
     image_digest = repo_digest.split("@")[1]
     if not image_digest:
         raise ValueError(f"Empty image digest for {image_uri}")
@@ -398,7 +398,7 @@ def read_scan_results_from_file(
             f"File scan data did not contain a `Results` key for {file_path}. This indicates a malformed scan result."
         )
         raise ValueError(f"Missing 'Results' key in scan data for {file_path}")
-    
+
     results = trivy_data["Results"]
     if not results:
         stat_handler.incr("image_scan_no_results_count")
@@ -406,15 +406,15 @@ def read_scan_results_from_file(
 
     if "Metadata" not in trivy_data or not trivy_data["Metadata"]:
         raise ValueError(f"Missing 'Metadata' in scan data for {file_path}")
-    
+
     repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
     if not repo_digests:
         raise ValueError(f"Missing 'RepoDigests' in scan metadata for {file_path}")
-    
+
     repo_digest = repo_digests[0]
     if "@" not in repo_digest:
         raise ValueError(f"Invalid repo digest format in {file_path}: {repo_digest}")
-    
+
     image_digest = repo_digest.split("@")[1]
     if not image_digest:
         raise ValueError(f"Empty image digest in {file_path}")
@@ -434,7 +434,6 @@ def sync_single_image_from_file(
     except KeyError as e:
         logger.error(f"Missing required field in {file_path}: {e}")
         raise
-    
 
     findings_list, packages_list, fixes_list = transform_scan_results(
         results,
