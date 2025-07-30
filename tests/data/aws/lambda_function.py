@@ -58,6 +58,12 @@ LIST_LAMBDA_FUNCTIONS = [
             "Mode": "PassThrough",
         },
         "RevisionId": "57f403c6-e199-4dda-8905-6108f36f4798",
+        "Layers": [
+            {
+                "Arn": "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-1",
+                "CodeSize": 123,
+            }
+        ],
     },
     {
         "FunctionName": "sample-function-3",
@@ -83,6 +89,12 @@ LIST_LAMBDA_FUNCTIONS = [
             "Mode": "PassThrough",
         },
         "RevisionId": "43b3eaa2-96a4-4070-a6b1-e7a2020d61f5",
+        "Layers": [
+            {
+                "Arn": "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-2",
+                "CodeSize": 123,
+            }
+        ],
     },
     {
         "FunctionName": "sample-function-4",
@@ -112,6 +124,12 @@ LIST_LAMBDA_FUNCTIONS = [
             "Mode": "PassThrough",
         },
         "RevisionId": "5e56c7d0-6f2c-4343-b511-19fda4aa2a4d",
+        "Layers": [
+            {
+                "Arn": "arn:aws:lambda:us-east-2:123456789012:layer:my-layer-3",
+                "CodeSize": 123,
+            }
+        ],
     },
     {
         "FunctionName": "sample-function-5",
@@ -349,3 +367,30 @@ LIST_LAYERS = [
         "FunctionArn": "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4",
     },
 ]
+
+
+# Mock functions for comprehensive sync test
+def mock_get_function_aliases_for_sync_test(lambda_function, client):
+    """Return aliases only for functions that have them"""
+    all_aliases = LIST_LAMBDA_FUNCTION_ALIASES
+
+    # Return only aliases that belong to this specific function
+    function_aliases = []
+    for alias in all_aliases:
+        if alias["FunctionArn"] == lambda_function["FunctionArn"]:
+            function_aliases.append(alias)
+
+    return function_aliases
+
+
+def mock_get_event_source_mappings_for_sync_test(lambda_function, client):
+    """Return event source mappings only for functions that have them"""
+    all_mappings = LIST_EVENT_SOURCE_MAPPINGS
+
+    # Return only mappings that belong to this specific function
+    function_mappings = []
+    for mapping in all_mappings:
+        if mapping["FunctionArn"] == lambda_function["FunctionArn"]:
+            function_mappings.append(mapping)
+
+    return function_mappings
