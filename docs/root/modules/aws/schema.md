@@ -474,7 +474,7 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
 
 #### Relationships
 
-- AWSLambdaLayer are sub-resources in an AWS Account.
+- AWSLambdaLayer belong to AWS Accounts
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSLambdaLayer)
     ```
