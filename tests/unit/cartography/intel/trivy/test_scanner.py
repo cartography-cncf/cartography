@@ -181,7 +181,12 @@ def test_read_scan_results_from_s3_with_results(mock_boto3_session):
                     {"VulnerabilityID": "CVE-2023-1234", "Severity": "HIGH"}
                 ],
             }
-        ]
+        ],
+        "Metadata": {
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:abcdef123456"
+            ]
+        }
     }
 
     mock_response_body = MagicMock()
@@ -202,7 +207,7 @@ def test_read_scan_results_from_s3_with_results(mock_boto3_session):
     assert results[0]["Target"] == "test-image"
     assert len(results[0]["Vulnerabilities"]) == 1
     assert results[0]["Vulnerabilities"][0]["VulnerabilityID"] == "CVE-2023-1234"
-    assert image_digest is None  # No image digest in the mock data
+    assert image_digest == "sha256:abcdef123456"
 
     mock_boto3_session.return_value.client.assert_called_once_with("s3")
     mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
@@ -217,7 +222,14 @@ def test_read_scan_results_from_s3_empty_results(mock_boto3_session):
     image_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-app:v1.2.3"
     s3_object_key = f"{image_uri}.json"
 
-    mock_scan_data = {"Results": []}
+    mock_scan_data = {
+        "Results": [],
+        "Metadata": {
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:fedcba098765"
+            ]
+        }
+    }
 
     mock_response_body = MagicMock()
     mock_response_body.read.return_value.decode.return_value = json.dumps(
@@ -234,7 +246,7 @@ def test_read_scan_results_from_s3_empty_results(mock_boto3_session):
 
     # Assert
     assert results == []
-    assert image_digest is None
+    assert image_digest == "sha256:fedcba098765"
 
     mock_boto3_session.return_value.client.assert_called_once_with("s3")
     mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
@@ -251,7 +263,14 @@ def test_read_scan_results_from_s3_null_results(mock_boto3_session):
     )
     s3_object_key = f"{image_uri}.json"
 
-    mock_scan_data = {"Results": None}
+    mock_scan_data = {
+        "Results": None,
+        "Metadata": {
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:1234567890ab"
+            ]
+        }
+    }
 
     mock_response_body = MagicMock()
     mock_response_body.read.return_value.decode.return_value = json.dumps(
@@ -267,8 +286,8 @@ def test_read_scan_results_from_s3_null_results(mock_boto3_session):
     )
 
     # Assert
-    assert results == []
-    assert image_digest is None
+    assert results is None
+    assert image_digest == "sha256:1234567890ab"
 
     mock_boto3_session.return_value.client.assert_called_once_with("s3")
     mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
@@ -293,14 +312,11 @@ def test_read_scan_results_from_s3_missing_results_key(mock_boto3_session):
         "Body": mock_response_body
     }
 
-    # Act
-    results, image_digest = read_scan_results_from_s3(
-        mock_boto3_session.return_value, s3_bucket, s3_object_key, image_uri
-    )
-
-    # Assert
-    assert results == []
-    assert image_digest is None
+    # Act & Assert
+    with pytest.raises(ValueError, match="Missing 'Results' key in scan data"):
+        read_scan_results_from_s3(
+            mock_boto3_session.return_value, s3_bucket, s3_object_key, image_uri
+        )
 
     mock_boto3_session.return_value.client.assert_called_once_with("s3")
     mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
