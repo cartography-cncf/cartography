@@ -22,7 +22,7 @@ TRIVY_SAMPLE = {
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890"
         ],
         "RepoDigests": [
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository@sha256:88016fd13f6aa39b702c1714662"
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository@sha256:0000000000000000000000000000000000000000000000000000000000000000"
         ],
         "ImageConfig": {
             "architecture": "amd64",
