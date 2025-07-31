@@ -27,6 +27,7 @@ class ECSTaskNodeProperties(CartographyNodeProperties):
     enable_execute_command: PropertyRef = PropertyRef("enableExecuteCommand")
     execution_stopped_at: PropertyRef = PropertyRef("executionStoppedAt")
     group: PropertyRef = PropertyRef("group")
+    service_name: PropertyRef = PropertyRef("serviceName")
     health_status: PropertyRef = PropertyRef("healthStatus")
     last_status: PropertyRef = PropertyRef("lastStatus")
     launch_type: PropertyRef = PropertyRef("launchType")
@@ -120,6 +121,25 @@ class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSTaskToECSServiceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSTaskToECSServiceRel(CartographyRelSchema):
+    target_node_label: str = "ECSService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cluster_arn": PropertyRef("clusterArn"),
+            "name": PropertyRef("serviceName"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_TASK"
+    properties: ECSTaskToECSServiceRelProperties = ECSTaskToECSServiceRelProperties()
+
+
+@dataclass(frozen=True)
 class ECSTaskSchema(CartographyNodeSchema):
     label: str = "ECSTask"
     properties: ECSTaskNodeProperties = ECSTaskNodeProperties()
@@ -129,5 +149,6 @@ class ECSTaskSchema(CartographyNodeSchema):
             ECSTaskToContainerInstanceRel(),
             ECSTaskToECSClusterRel(),
             ECSTaskToNetworkInterfaceRel(),
+            ECSTaskToECSServiceRel(),
         ]
     )

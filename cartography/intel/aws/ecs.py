@@ -182,6 +182,9 @@ def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         task["networkInterfaceId"] = detail.get("value")
                         break
                 break
+        group = task.get("group")
+        if group and group.startswith("service:"):
+            task["serviceName"] = group.split("service:", 1)[1]
     return tasks
 
 

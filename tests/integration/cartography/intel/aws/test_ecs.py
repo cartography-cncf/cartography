@@ -281,6 +281,17 @@ def test_transform_ecs_tasks(neo4j_session):
         ),
     }
 
+    assert check_nodes(
+        neo4j_session,
+        "ECSTask",
+        ["id", "service_name"],
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
+            "test_service",
+        ),
+    }
+
 
 def test_load_ecs_task_definitions(neo4j_session, *args):
     # Arrange
@@ -566,6 +577,22 @@ def test_sync_ecs_comprehensive(
             "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
         ),
     }, "ECSService to ECSTaskDefinitions"
+
+    # ECSService to ECSTasks
+    assert check_rels(
+        neo4j_session,
+        "ECSService",
+        "id",
+        "ECSTask",
+        "id",
+        "HAS_TASK",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
+            "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
+        ),
+    }, "ECSService to ECSTasks"
 
     # 8. ECSTasks to ECSClusters (sub-resource relationship)
     assert check_rels(
