@@ -1,11 +1,12 @@
 import json
 from unittest.mock import MagicMock
+from unittest.mock import mock_open
 from unittest.mock import patch
 
 import cartography.intel.aws.ecr
 import cartography.intel.trivy
 import tests.data.aws.ecr
-from cartography.intel.trivy import sync_trivy_aws_ecr_from_s3
+from cartography.intel.trivy import sync_trivy_aws_ecr_from_dir
 from tests.data.trivy.trivy_sample import TRIVY_SAMPLE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.cartography.intel.trivy.test_helpers import (
@@ -19,12 +20,15 @@ TEST_UPDATE_TAG = 123456789
 TEST_REGION = "us-east-1"
 
 
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(TRIVY_SAMPLE),
+)
 @patch.object(
     cartography.intel.trivy,
-    "get_json_files_in_s3",
-    return_value={
-        "trivy-scans/000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890.json"
-    },
+    "get_json_files_in_dir",
+    return_value={"/tmp/scan.json"},
 )
 @patch.object(
     cartography.intel.aws.ecr,
@@ -45,7 +49,8 @@ TEST_REGION = "us-east-1"
 def test_sync_trivy_aws_ecr(
     mock_get_images,
     mock_get_repos,
-    mock_list_s3_scan_results,
+    mock_list_dir_scan_results,
+    mock_file_open,
     neo4j_session,
 ):
     """
@@ -65,27 +70,15 @@ def test_sync_trivy_aws_ecr(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Mock boto3 to return our test data
-    with patch("boto3.Session") as mock_boto3:
-        s3_client_mock = MagicMock()
-        mock_boto3.return_value.client.return_value = s3_client_mock
+    # Act
+    sync_trivy_aws_ecr_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
 
-        # Mock the S3 get_object response
-        mock_response_body = MagicMock()
-        mock_response_body.read.return_value = json.dumps(TRIVY_SAMPLE).encode("utf-8")
-        s3_client_mock.get_object.return_value = {"Body": mock_response_body}
-
-        # Act
-        sync_trivy_aws_ecr_from_s3(
-            neo4j_session,
-            "test-bucket",
-            "trivy-scans/",
-            TEST_UPDATE_TAG,
-            {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-            mock_boto3.return_value,
-        )
-
-        # Assert using shared helpers
-        assert_trivy_findings(neo4j_session)
-        assert_trivy_packages(neo4j_session)
-        assert_all_trivy_relationships(neo4j_session)
+    # Assert using shared helpers
+    assert_trivy_findings(neo4j_session)
+    assert_trivy_packages(neo4j_session)
+    assert_all_trivy_relationships(neo4j_session)

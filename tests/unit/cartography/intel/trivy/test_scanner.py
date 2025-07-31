@@ -7,7 +7,6 @@ import pytest
 from cartography.intel.trivy import _get_intersection
 from cartography.intel.trivy import sync_trivy_aws_ecr_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
-from cartography.intel.trivy.scanner import read_scan_results_from_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 
 
@@ -166,118 +165,11 @@ def test_list_s3_scan_results_s3_error(mock_boto3_session):
         assert str(e) == "S3 API Error"
 
 
+@patch("cartography.intel.trivy.scanner.sync_single_image")
 @patch("boto3.Session")
-def test_read_scan_results_from_s3_with_results(mock_boto3_session):
-    # Arrange
-    s3_bucket = "test-bucket"
-    image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/test-repo:latest"
-    s3_object_key = f"{image_uri}.json"
-
-    mock_scan_data = {
-        "Results": [
-            {
-                "Target": "test-image",
-                "Vulnerabilities": [
-                    {"VulnerabilityID": "CVE-2023-1234", "Severity": "HIGH"}
-                ],
-            }
-        ]
-    }
-
-    mock_response_body = MagicMock()
-    mock_response_body.read.return_value.decode.return_value = json.dumps(
-        mock_scan_data
-    )
-    mock_boto3_session.return_value.client.return_value.get_object.return_value = {
-        "Body": mock_response_body
-    }
-
-    # Act
-    results, image_digest = read_scan_results_from_s3(
-        mock_boto3_session.return_value, s3_bucket, s3_object_key, image_uri
-    )
-
-    # Assert
-    assert len(results) == 1
-    assert results[0]["Target"] == "test-image"
-    assert len(results[0]["Vulnerabilities"]) == 1
-    assert results[0]["Vulnerabilities"][0]["VulnerabilityID"] == "CVE-2023-1234"
-    assert image_digest is None  # No image digest in the mock data
-
-    mock_boto3_session.return_value.client.assert_called_once_with("s3")
-    mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
-        Bucket=s3_bucket, Key=s3_object_key
-    )
-
-
-@patch("boto3.Session")
-def test_read_scan_results_from_s3_empty_results(mock_boto3_session):
-    # Arrange
-    s3_bucket = "test-bucket"
-    image_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-app:v1.2.3"
-    s3_object_key = f"{image_uri}.json"
-
-    mock_scan_data = {"Results": []}
-
-    mock_response_body = MagicMock()
-    mock_response_body.read.return_value.decode.return_value = json.dumps(
-        mock_scan_data
-    )
-    mock_boto3_session.return_value.client.return_value.get_object.return_value = {
-        "Body": mock_response_body
-    }
-
-    # Act
-    results, image_digest = read_scan_results_from_s3(
-        mock_boto3_session.return_value, s3_bucket, s3_object_key, image_uri
-    )
-
-    # Assert
-    assert results == []
-    assert image_digest is None
-
-    mock_boto3_session.return_value.client.assert_called_once_with("s3")
-    mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
-        Bucket=s3_bucket, Key=s3_object_key
-    )
-
-
-@patch("boto3.Session")
-def test_read_scan_results_from_s3_null_results(mock_boto3_session):
-    # Arrange
-    s3_bucket = "test-bucket"
-    image_uri = (
-        "987654321098.dkr.ecr.eu-west-1.amazonaws.com/backend-service:sha256-abcd1234"
-    )
-    s3_object_key = f"{image_uri}.json"
-
-    mock_scan_data = {"Results": None}
-
-    mock_response_body = MagicMock()
-    mock_response_body.read.return_value.decode.return_value = json.dumps(
-        mock_scan_data
-    )
-    mock_boto3_session.return_value.client.return_value.get_object.return_value = {
-        "Body": mock_response_body
-    }
-
-    # Act
-    results, image_digest = read_scan_results_from_s3(
-        mock_boto3_session.return_value, s3_bucket, s3_object_key, image_uri
-    )
-
-    # Assert
-    assert results == []
-    assert image_digest is None
-
-    mock_boto3_session.return_value.client.assert_called_once_with("s3")
-    mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
-        Bucket=s3_bucket, Key=s3_object_key
-    )
-
-
-@patch("boto3.Session")
-def test_read_scan_results_from_s3_missing_results_key(mock_boto3_session):
+def test_sync_single_image_from_s3_missing_results_key(
+    mock_boto3_session, mock_sync_single_image
+):
     # Arrange
     s3_bucket = "test-bucket"
     image_uri = "555666777888.dkr.ecr.ap-southeast-2.amazonaws.com/microservice:latest"
@@ -293,28 +185,98 @@ def test_read_scan_results_from_s3_missing_results_key(mock_boto3_session):
         "Body": mock_response_body
     }
 
+    # Make sync_single_image raise the error when called
+    mock_sync_single_image.side_effect = ValueError(
+        "Missing 'Results' key in scan data"
+    )
+
+    # Act & Assert
+    with pytest.raises(ValueError, match="Missing 'Results' key in scan data"):
+        sync_single_image_from_s3(
+            MagicMock(),  # neo4j_session
+            image_uri,
+            12345,  # update_tag
+            s3_bucket,
+            s3_object_key,
+            mock_boto3_session.return_value,
+        )
+
+
+@patch("cartography.intel.trivy.scanner.sync_single_image")
+@patch("boto3.Session")
+def test_sync_single_image_from_s3_success(
+    mock_boto3_session,
+    mock_sync_single_image,
+):
+    # Arrange
+    mock_neo4j_session = MagicMock()
+
+    image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3"
+    update_tag = 12345
+    s3_bucket = "trivy-scan-results"
+    s3_object_key = f"{image_uri}.json"
+
+    # Mock S3 response
+    mock_scan_data = {
+        "Results": [
+            {
+                "Target": "test-app",
+                "Vulnerabilities": [
+                    {"VulnerabilityID": "CVE-2023-1234", "Severity": "HIGH"}
+                ],
+            }
+        ],
+        "Metadata": {
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:abcd1234efgh5678abcd1234efgh5678abcd1234efgh5678abcd1234efgh5678"
+            ]
+        },
+    }
+
+    mock_response_body = MagicMock()
+    mock_response_body.read.return_value.decode.return_value = json.dumps(
+        mock_scan_data
+    )
+    mock_boto3_session.return_value.client.return_value.get_object.return_value = {
+        "Body": mock_response_body
+    }
+
     # Act
-    results, image_digest = read_scan_results_from_s3(
-        mock_boto3_session.return_value, s3_bucket, s3_object_key, image_uri
+    sync_single_image_from_s3(
+        mock_neo4j_session,
+        image_uri,
+        update_tag,
+        s3_bucket,
+        s3_object_key,
+        mock_boto3_session.return_value,
     )
 
     # Assert
-    assert results == []
-    assert image_digest is None
-
     mock_boto3_session.return_value.client.assert_called_once_with("s3")
     mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
         Bucket=s3_bucket, Key=s3_object_key
     )
 
+    # Verify sync_single_image was called with the correct data
+    mock_sync_single_image.assert_called_once_with(
+        mock_neo4j_session,
+        mock_scan_data,
+        image_uri,
+        update_tag,
+    )
+
 
 @patch("boto3.Session")
-def test_read_scan_results_from_s3_s3_error(mock_boto3_session):
+def test_sync_single_image_from_s3_read_error(mock_boto3_session):
     # Arrange
-    s3_bucket = "test-bucket"
-    image_uri = "111222333444.dkr.ecr.ca-central-1.amazonaws.com/frontend:v2.0.0"
+    mock_neo4j_session = MagicMock()
+
+    image_uri = "987654321098.dkr.ecr.eu-west-1.amazonaws.com/backend:latest"
+    update_tag = 67890
+    s3_bucket = "trivy-scan-results"
     s3_object_key = f"{image_uri}.json"
 
+    # Mock S3 read error
     from botocore.exceptions import ClientError
 
     mock_boto3_session.return_value.client.return_value.get_object.side_effect = (
@@ -326,166 +288,29 @@ def test_read_scan_results_from_s3_s3_error(mock_boto3_session):
 
     # Act & Assert
     with pytest.raises(ClientError):
-        read_scan_results_from_s3(
-            mock_boto3_session.return_value, s3_bucket, s3_object_key, image_uri
-        )
-
-
-@patch("boto3.Session")
-def test_read_scan_results_from_s3_invalid_json(mock_boto3_session):
-    # Arrange
-    s3_bucket = "test-bucket"
-    image_uri = (
-        "999888777666.dkr.ecr.us-east-2.amazonaws.com/data-processor:sha256-xyz789"
-    )
-    s3_object_key = f"{image_uri}.json"
-
-    mock_response_body = MagicMock()
-    mock_response_body.read.return_value.decode.return_value = "invalid json content"
-    mock_boto3_session.return_value.client.return_value.get_object.return_value = {
-        "Body": mock_response_body
-    }
-
-    # Act & Assert
-    with pytest.raises(json.JSONDecodeError):
-        read_scan_results_from_s3(
-            mock_boto3_session.return_value, s3_bucket, s3_object_key, image_uri
-        )
-
-
-@patch("cartography.intel.trivy.scanner.load_scan_fixes")
-@patch("cartography.intel.trivy.scanner.load_scan_packages")
-@patch("cartography.intel.trivy.scanner.load_scan_vulns")
-@patch("cartography.intel.trivy.scanner.transform_scan_results")
-@patch("cartography.intel.trivy.scanner.read_scan_results_from_s3")
-def test_sync_single_image_from_s3_success(
-    mock_read_scan_results,
-    mock_transform_scan_results,
-    mock_load_scan_vulns,
-    mock_load_scan_packages,
-    mock_load_scan_fixes,
-):
-    # Arrange
-    mock_neo4j_session = MagicMock()
-    mock_boto3_session = MagicMock()
-
-    image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3"
-    update_tag = 12345
-    s3_bucket = "trivy-scan-results"
-    s3_object_key = f"{image_uri}.json"
-
-    # Mock scan results from S3
-    mock_scan_results = [
-        {
-            "Target": "test-app",
-            "Vulnerabilities": [
-                {"VulnerabilityID": "CVE-2023-1234", "Severity": "HIGH"}
-            ],
-        }
-    ]
-    mock_read_scan_results.return_value = (mock_scan_results, "sha256:abcd1234efgh5678")
-
-    # Mock transformation results
-    mock_findings = [{"finding_id": "CVE-2023-1234", "severity": "HIGH"}]
-    mock_packages = [{"package_name": "test-package", "version": "1.0.0"}]
-    mock_fixes = [{"fix_id": "fix-123", "package": "test-package"}]
-    mock_transform_scan_results.return_value = (
-        mock_findings,
-        mock_packages,
-        mock_fixes,
-    )
-
-    # Act
-    sync_single_image_from_s3(
-        mock_neo4j_session,
-        image_uri,
-        update_tag,
-        s3_bucket,
-        s3_object_key,
-        mock_boto3_session,
-    )
-
-    # Assert
-    mock_read_scan_results.assert_called_once_with(
-        mock_boto3_session,
-        s3_bucket,
-        s3_object_key,
-        image_uri,
-    )
-
-    mock_transform_scan_results.assert_called_once_with(
-        mock_scan_results,
-        "sha256:abcd1234efgh5678",
-    )
-
-    mock_load_scan_vulns.assert_called_once_with(
-        mock_neo4j_session,
-        mock_findings,
-        update_tag=update_tag,
-    )
-
-    mock_load_scan_packages.assert_called_once_with(
-        mock_neo4j_session,
-        mock_packages,
-        update_tag=update_tag,
-    )
-
-    mock_load_scan_fixes.assert_called_once_with(
-        mock_neo4j_session,
-        mock_fixes,
-        update_tag=update_tag,
-    )
-
-
-@patch("cartography.intel.trivy.scanner.read_scan_results_from_s3")
-def test_sync_single_image_from_s3_read_error(mock_read_scan_results):
-    # Arrange
-    mock_neo4j_session = MagicMock()
-    mock_boto3_session = MagicMock()
-
-    image_uri = "987654321098.dkr.ecr.eu-west-1.amazonaws.com/backend:latest"
-    update_tag = 67890
-    s3_bucket = "trivy-scan-results"
-    s3_object_key = f"{image_uri}.json"
-
-    # Mock S3 read error
-    from botocore.exceptions import ClientError
-
-    mock_read_scan_results.side_effect = ClientError(
-        error_response={"Error": {"Code": "NoSuchKey", "Message": "Key not found"}},
-        operation_name="GetObject",
-    )
-
-    # Act & Assert
-    with pytest.raises(ClientError):
         sync_single_image_from_s3(
             mock_neo4j_session,
             image_uri,
             update_tag,
             s3_bucket,
             s3_object_key,
-            mock_boto3_session,
+            mock_boto3_session.return_value,
         )
 
-    mock_read_scan_results.assert_called_once_with(
-        mock_boto3_session,
-        s3_bucket,
-        s3_object_key,
-        image_uri,
+    mock_boto3_session.return_value.client.assert_called_once_with("s3")
+    mock_boto3_session.return_value.client.return_value.get_object.assert_called_once_with(
+        Bucket=s3_bucket, Key=s3_object_key
     )
 
 
-@patch("cartography.intel.trivy.scanner.load_scan_vulns")
-@patch("cartography.intel.trivy.scanner.transform_scan_results")
-@patch("cartography.intel.trivy.scanner.read_scan_results_from_s3")
+@patch("cartography.intel.trivy.scanner.sync_single_image")
+@patch("boto3.Session")
 def test_sync_single_image_from_s3_transform_error(
-    mock_read_scan_results,
-    mock_transform_scan_results,
-    mock_load_scan_vulns,
+    mock_boto3_session,
+    mock_sync_single_image,
 ):
     # Arrange
     mock_neo4j_session = MagicMock()
-    mock_boto3_session = MagicMock()
 
     image_uri = "555666777888.dkr.ecr.ap-southeast-2.amazonaws.com/worker:sha256-def456"
     update_tag = 11111
@@ -493,11 +318,25 @@ def test_sync_single_image_from_s3_transform_error(
     s3_object_key = f"{image_uri}.json"
 
     # Mock successful S3 read
-    mock_scan_results = [{"Target": "worker", "Vulnerabilities": []}]
-    mock_read_scan_results.return_value = (mock_scan_results, "sha256:def456ghi789")
+    mock_scan_data = {
+        "Results": [{"Target": "worker", "Vulnerabilities": []}],
+        "Metadata": {
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:def456ghi789def456ghi789def456ghi789def456ghi789def456ghi789def4"
+            ]
+        },
+    }
 
-    # Mock transformation error
-    mock_transform_scan_results.side_effect = KeyError("Missing required field")
+    mock_response_body = MagicMock()
+    mock_response_body.read.return_value.decode.return_value = json.dumps(
+        mock_scan_data
+    )
+    mock_boto3_session.return_value.client.return_value.get_object.return_value = {
+        "Body": mock_response_body
+    }
+
+    # Mock transformation error in sync_single_image
+    mock_sync_single_image.side_effect = KeyError("Missing required field")
 
     # Act & Assert
     with pytest.raises(KeyError):
@@ -507,51 +346,46 @@ def test_sync_single_image_from_s3_transform_error(
             update_tag,
             s3_bucket,
             s3_object_key,
-            mock_boto3_session,
+            mock_boto3_session.return_value,
         )
 
-    mock_read_scan_results.assert_called_once()
-    mock_transform_scan_results.assert_called_once_with(
-        mock_scan_results,
-        "sha256:def456ghi789",
-    )
-    mock_load_scan_vulns.assert_not_called()
+    mock_sync_single_image.assert_called_once()
 
 
-@patch("cartography.intel.trivy.scanner.load_scan_vulns")
-@patch("cartography.intel.trivy.scanner.load_scan_packages")
-@patch("cartography.intel.trivy.scanner.transform_scan_results")
-@patch("cartography.intel.trivy.scanner.read_scan_results_from_s3")
+@patch("cartography.intel.trivy.scanner.sync_single_image")
+@patch("boto3.Session")
 def test_sync_single_image_from_s3_load_error(
-    mock_read_scan_results,
-    mock_transform_scan_results,
-    mock_load_scan_packages,
-    mock_load_scan_vulns,
+    mock_boto3_session,
+    mock_sync_single_image,
 ):
     # Arrange
     mock_neo4j_session = MagicMock()
-    mock_boto3_session = MagicMock()
 
     image_uri = "111222333444.dkr.ecr.ca-central-1.amazonaws.com/api:v3.0.0-beta"
     update_tag = 99999
     s3_bucket = "trivy-scan-results"
     s3_object_key = f"{image_uri}.json"
 
-    # Mock successful S3 read and transform
-    mock_scan_results = [{"Target": "api", "Vulnerabilities": []}]
-    mock_read_scan_results.return_value = (mock_scan_results, "sha256:beta123abc456")
+    # Mock successful S3 read
+    mock_scan_data = {
+        "Results": [{"Target": "api", "Vulnerabilities": []}],
+        "Metadata": {
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:beta123abc456beta123abc456beta123abc456beta123abc456beta123abc456"
+            ]
+        },
+    }
 
-    mock_findings = []
-    mock_packages = []
-    mock_fixes = []
-    mock_transform_scan_results.return_value = (
-        mock_findings,
-        mock_packages,
-        mock_fixes,
+    mock_response_body = MagicMock()
+    mock_response_body.read.return_value.decode.return_value = json.dumps(
+        mock_scan_data
     )
+    mock_boto3_session.return_value.client.return_value.get_object.return_value = {
+        "Body": mock_response_body
+    }
 
-    # Mock load error
-    mock_load_scan_vulns.side_effect = Exception("Database connection failed")
+    # Mock load error in sync_single_image
+    mock_sync_single_image.side_effect = Exception("Database connection failed")
 
     # Act & Assert
     with pytest.raises(Exception, match="Database connection failed"):
@@ -561,17 +395,10 @@ def test_sync_single_image_from_s3_load_error(
             update_tag,
             s3_bucket,
             s3_object_key,
-            mock_boto3_session,
+            mock_boto3_session.return_value,
         )
 
-    mock_read_scan_results.assert_called_once()
-    mock_transform_scan_results.assert_called_once()
-    mock_load_scan_vulns.assert_called_once_with(
-        mock_neo4j_session,
-        mock_findings,
-        update_tag=update_tag,
-    )
-    mock_load_scan_packages.assert_not_called()
+    mock_sync_single_image.assert_called_once()
 
 
 def test_get_intersection():
