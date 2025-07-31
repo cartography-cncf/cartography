@@ -6,8 +6,8 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -44,7 +44,7 @@ class CognitoIdentityPoolToAWSRoleRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class CognitoIdentityPoolToAWSRoleRel (CartographyRelSchema):
+class CognitoIdentityPoolToAWSRoleRel(CartographyRelSchema):
     target_node_label: str = "AWSRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("Roles", one_to_many=True)},
@@ -56,7 +56,6 @@ class CognitoIdentityPoolToAWSRoleRel (CartographyRelSchema):
     )
 
 
-
 @dataclass(frozen=True)
 class CognitoIdentityPoolSchema(CartographyNodeSchema):
     label: str = "CognitoIdentityPool"
@@ -64,6 +63,8 @@ class CognitoIdentityPoolSchema(CartographyNodeSchema):
     sub_resource_relationship: CognitoIdentityPoolToAWSAccountRel = (
         CognitoIdentityPoolToAWSAccountRel()
     )
-    other_relationships: OtherRelationships = OtherRelationships([
-        CognitoIdentityPoolToAWSRoleRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            CognitoIdentityPoolToAWSRoleRel(),
+        ]
+    )

@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import cartography.intel.aws.cognito
 from cartography.intel.aws.cognito import sync
-from tests.data.aws.cognito import GET_POOLS
 from tests.data.aws.cognito import GET_COGNITO_IDENTITY_POOLS
+from tests.data.aws.cognito import GET_POOLS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels

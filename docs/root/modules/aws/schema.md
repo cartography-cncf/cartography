@@ -953,7 +953,7 @@ Representation of an AWS [Cognito Identity Pool](https://docs.aws.amazon.com/cog
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | id | The id of Cognito Identity Pool |
-| arn | Unique id of Cognito Identity Pool |
+| arn | The Amazon Resource Name (ARN) of the Cognito Identity Pool |
 | region | The region of the Cognito Identity Pool |
 | roles | list of aws roles associated with Cognito Identity Pool |
 #### Relationships

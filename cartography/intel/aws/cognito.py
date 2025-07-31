@@ -37,7 +37,8 @@ def get_identity_pools(
 @timeit
 @aws_handle_regions
 def get_identity_pool_roles(
-    boto3_session: boto3.Session, identity_pools: List[Dict[str, Any]], region: str) -> List[Dict[str, Any]]:
+    boto3_session: boto3.Session, identity_pools: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
     client = boto3_session.client(
         "cognito-identity", region_name=region, config=get_botocore_config()
     )
