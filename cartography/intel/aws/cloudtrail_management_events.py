@@ -402,7 +402,7 @@ def transform_web_identity_role_events_to_role_assumptions(
 
             # Only process GitHub Actions events
             if "token.actions.githubusercontent.com" in identity_provider:
-                # Extract GitHub repo fullname from userName format: "repo:owner/repo:context"
+                # Extract GitHub repo fullname from userName format: "repo:{organization}/{repository}:{context}"
                 user_name = user_identity.get("userName", "")
                 if not user_name:
                     logger.debug(
@@ -410,7 +410,6 @@ def transform_web_identity_role_events_to_role_assumptions(
                     )
                     continue
 
-                # Parse GitHub repo fullname from format like "repo:owner/repo:pull_request"
                 github_repo = _extract_github_repo_from_username(user_name)
                 key = (github_repo, destination_principal)
 
