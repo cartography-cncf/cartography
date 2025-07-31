@@ -65,7 +65,6 @@ def test_sync_trivy_aws_ecr(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-
     # Mock boto3 to return our test data
     with patch("boto3.Session") as mock_boto3:
         s3_client_mock = MagicMock()
@@ -73,9 +72,7 @@ def test_sync_trivy_aws_ecr(
 
         # Mock the S3 get_object response
         mock_response_body = MagicMock()
-        mock_response_body.read.return_value = json.dumps(TRIVY_SAMPLE).encode(
-            "utf-8"
-        )
+        mock_response_body.read.return_value = json.dumps(TRIVY_SAMPLE).encode("utf-8")
         s3_client_mock.get_object.return_value = {"Body": mock_response_body}
 
         # Act

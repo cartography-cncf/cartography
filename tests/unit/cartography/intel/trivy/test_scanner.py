@@ -165,18 +165,6 @@ def test_list_s3_scan_results_s3_error(mock_boto3_session):
         assert str(e) == "S3 API Error"
 
 
-# Test removed - read_scan_results_from_s3 functionality is now integrated into sync_single_image_from_s3
-
-
-# Test removed - read_scan_results_from_s3 functionality is now integrated into sync_single_image_from_s3
-
-
-# Test removed - read_scan_results_from_s3 functionality is now integrated into sync_single_image_from_s3
-
-
-# Test removed - read_scan_results_from_s3 functionality is now integrated into sync_single_image_from_s3
-
-
 @patch("cartography.intel.trivy.scanner.sync_single_image")
 @patch("boto3.Session")
 def test_sync_single_image_from_s3_missing_results_key(
@@ -214,12 +202,6 @@ def test_sync_single_image_from_s3_missing_results_key(
         )
 
 
-# Test removed - read_scan_results_from_s3 functionality is now integrated into sync_single_image_from_s3
-
-
-# Test removed - read_scan_results_from_s3 functionality is now integrated into sync_single_image_from_s3
-
-
 @patch("cartography.intel.trivy.scanner.sync_single_image")
 @patch("boto3.Session")
 def test_sync_single_image_from_s3_success(
@@ -245,7 +227,9 @@ def test_sync_single_image_from_s3_success(
             }
         ],
         "Metadata": {
-            "RepoDigests": [f"{image_uri.split(':')[0]}@sha256:abcd1234efgh5678"]
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:abcd1234efgh5678abcd1234efgh5678abcd1234efgh5678abcd1234efgh5678"
+            ]
         },
     }
 
@@ -336,7 +320,11 @@ def test_sync_single_image_from_s3_transform_error(
     # Mock successful S3 read
     mock_scan_data = {
         "Results": [{"Target": "worker", "Vulnerabilities": []}],
-        "Metadata": {"RepoDigests": [f"{image_uri.split(':')[0]}@sha256:def456ghi789"]},
+        "Metadata": {
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:def456ghi789def456ghi789def456ghi789def456ghi789def456ghi789def4"
+            ]
+        },
     }
 
     mock_response_body = MagicMock()
@@ -382,7 +370,9 @@ def test_sync_single_image_from_s3_load_error(
     mock_scan_data = {
         "Results": [{"Target": "api", "Vulnerabilities": []}],
         "Metadata": {
-            "RepoDigests": [f"{image_uri.split(':')[0]}@sha256:beta123abc456"]
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:beta123abc456beta123abc456beta123abc456beta123abc456beta123abc456"
+            ]
         },
     }
 
