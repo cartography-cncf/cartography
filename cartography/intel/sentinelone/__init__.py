@@ -55,6 +55,11 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
             common_job_parameters,
         )
 
+        cartography.intel.sentinelone.cve.sync(
+            neo4j_session,
+            common_job_parameters,
+        )
+
         # Clean up account-specific parameters
         del common_job_parameters["S1_ACCOUNT_ID"]
 
