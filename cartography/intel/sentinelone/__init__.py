@@ -4,6 +4,7 @@ import neo4j
 
 import cartography.intel.sentinelone.agent
 import cartography.intel.sentinelone.application
+import cartography.intel.sentinelone.cve
 from cartography.config import Config
 from cartography.intel.sentinelone.account import sync_accounts
 from cartography.stats import get_stats_client

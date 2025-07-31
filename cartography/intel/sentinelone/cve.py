@@ -34,7 +34,6 @@ def get(api_url: str, api_token: str, account_id: str) -> list[dict[str, Any]]:
     return cves
 
 
-@timeit
 def transform(cves_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Transform SentinelOne CVE data for loading into Neo4j
