@@ -291,9 +291,16 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         try:
             return func(*args, **kwargs)
         except botocore.exceptions.ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code == "InvalidToken":
+                raise RuntimeError(
+                    "AWS returned an InvalidToken error. Configure regional STS endpoints by "
+                    "setting environment variable AWS_STS_REGIONAL_ENDPOINTS=regional or adding "
+                    "'sts_regional_endpoints = regional' to your AWS config file."
+                ) from e
             # The account is not authorized to use this service in this region
             # so we can continue without raising an exception
-            if e.response["Error"]["Code"] in ERROR_CODES:
+            if error_code in ERROR_CODES:
                 logger.warning(
                     "{} in this region. Skipping...".format(
                         e.response["Error"]["Message"],
