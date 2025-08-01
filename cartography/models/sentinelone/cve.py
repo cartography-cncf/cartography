@@ -14,6 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class S1CVENodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
+    application_version_id: PropertyRef = PropertyRef("application_version_id")
     base_score: PropertyRef = PropertyRef("base_score")
     cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
     cvss_version: PropertyRef = PropertyRef("cvss_version")
