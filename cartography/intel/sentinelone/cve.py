@@ -41,9 +41,9 @@ def transform(cves_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
     transformed_cves = []
     for cve in cves_list:
         app_version_id = get_application_version_id(
-            cve.get("applicationName", ""),
-            cve.get("applicationVendor", ""),
-            cve.get("version", ""),
+            cve.get("applicationName", "unknown"),
+            cve.get("applicationVendor", "unknown"),
+            cve.get("applicationVersion", "unknown"),
         )
         transformed_cve = {
             # Required fields - let them fail if missing

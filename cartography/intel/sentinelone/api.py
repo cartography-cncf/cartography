@@ -3,15 +3,15 @@ from typing import Any
 
 import requests
 
-from cartography.util import timeit
+from cartography.util import backoff_handler
+from cartography.util import retries_with_backoff
 
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each
 _TIMEOUT = (60, 60)
 
 
-@timeit
-def call_sentinelone_api(
+def _call_sentinelone_api_base(
     api_url: str,
     endpoint: str,
     api_token: str,
@@ -37,33 +37,52 @@ def call_sentinelone_api(
         "Content-Type": "application/json",
     }
 
-    try:
-        logger.debug(
-            "SentinelOne: %s %s",
-            method,
-            full_url,
-        )
+    logger.debug(
+        "SentinelOne: %s %s",
+        method,
+        full_url,
+    )
 
-        response = requests.request(
-            method=method,
-            url=full_url,
-            headers=headers,
-            params=params,
-            json=data,
-            timeout=_TIMEOUT,
-        )
+    response = requests.request(
+        method=method,
+        url=full_url,
+        headers=headers,
+        params=params,
+        json=data,
+        timeout=_TIMEOUT,
+    )
 
-        # Raise an exception for HTTP errors
-        response.raise_for_status()
-
-    except requests.exceptions.Timeout:
-        logger.warning(f"SentinelOne: Request to '{full_url}' timed out.")
-        raise
-    except requests.exceptions.RequestException as e:
-        logger.error(f"SentinelOne API request failed: {e}")
-        raise
+    # Raise an exception for HTTP errors (this will be caught by backoff wrapper)
+    response.raise_for_status()
 
     return response.json()
+
+
+def call_sentinelone_api(
+    api_url: str,
+    endpoint: str,
+    api_token: str,
+    method: str = "GET",
+    params: dict[str, Any] | None = None,
+    data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Call the SentinelOne API with backoff functionality
+    :param api_url: The base URL for the SentinelOne API
+    :param endpoint: The API endpoint to call
+    :param api_token: The API token for authentication
+    :param method: The HTTP method to use (default is GET)
+    :param params: Query parameters to include in the request
+    :param data: Data to include in the request body for POST/PUT methods
+    :return: The JSON response from the API
+    """
+    wrapped_func = retries_with_backoff(
+        func=_call_sentinelone_api_base,
+        exception_type=requests.exceptions.RequestException,  # Covers Timeout and HTTPError as subclasses
+        max_tries=5,  # Maximum number of retry attempts
+        on_backoff=backoff_handler,
+    )
+    return wrapped_func(api_url, endpoint, api_token, method, params, data)
 
 
 def get_paginated_results(

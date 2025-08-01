@@ -18,7 +18,7 @@ CVES_DATA = [
         "status": "active",
         "applicationName": "OpenSSL",
         "applicationVendor": "OpenSSL Foundation",
-        "version": "1.1.1k",
+        "applicationVersion": "1.1.1k",
     },
     {
         "id": CVE_ID_2,
@@ -34,7 +34,7 @@ CVES_DATA = [
         "status": "active",
         "applicationName": "Apache HTTP Server",
         "applicationVendor": "Apache Software Foundation",
-        "version": "2.4.41",
+        "applicationVersion": "2.4.41",
     },
     {
         "id": CVE_ID_3,
@@ -50,7 +50,7 @@ CVES_DATA = [
         "status": "resolved",
         "applicationName": "Node.js",
         "applicationVendor": "Node.js Foundation",
-        "version": "16.14.2",
+        "applicationVersion": "16.14.2",
     },
 ]
 

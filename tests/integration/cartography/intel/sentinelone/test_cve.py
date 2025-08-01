@@ -11,6 +11,13 @@ from tests.data.sentinelone.cve import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
+# Expected application version IDs based on the test data
+EXPECTED_APP_VERSION_IDS = {
+    CVE_ID_1: "openssl_foundation:openssl:1.1.1k",
+    CVE_ID_2: "apache_software_foundation:apache_http_server:2.4.41",
+    CVE_ID_3: "nodejs_foundation:nodejs:16.14.2",
+}
+
 
 @patch.object(
     cartography.intel.sentinelone.cve,
@@ -19,6 +26,7 @@ from tests.integration.util import check_rels
 def test_sync_cves(mock_get_paginated_results, neo4j_session):
     """
     Test that CVE sync works properly by syncing CVEs and verifying nodes and relationships
+    including relationships between S1CVE and S1ApplicationVersion
     """
     # Mock the API call to return test data
     mock_get_paginated_results.return_value = CVES_DATA
@@ -30,6 +38,14 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
+    # Create prerequisite S1ApplicationVersion nodes for the relationships
+    for app_version_id in EXPECTED_APP_VERSION_IDS.values():
+        neo4j_session.run(
+            "CREATE (av:S1ApplicationVersion {id: $app_version_id, lastupdated: $update_tag})",
+            app_version_id=app_version_id,
+            update_tag=TEST_UPDATE_TAG,
+        )
+
     # Run the sync
     cartography.intel.sentinelone.cve.sync(
         neo4j_session,
@@ -40,6 +56,7 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
     expected_nodes = {
         (
             CVE_ID_1,
+            EXPECTED_APP_VERSION_IDS[CVE_ID_1],
             "CVE-2023-1234",
             7.5,
             "3.1",
@@ -53,6 +70,7 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
         ),
         (
             CVE_ID_2,
+            EXPECTED_APP_VERSION_IDS[CVE_ID_2],
             "CVE-2023-5678",
             9.8,
             "3.1",
@@ -66,6 +84,7 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
         ),
         (
             CVE_ID_3,
+            EXPECTED_APP_VERSION_IDS[CVE_ID_3],
             "CVE-2023-9012",
             5.3,
             "3.1",
@@ -84,6 +103,7 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
         "S1CVE",
         [
             "id",
+            "application_version_id",
             "cve_id",
             "base_score",
             "cvss_version",
@@ -117,6 +137,25 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
     )
 
     assert actual_rels == expected_rels
+
+    # Verify that relationships to application versions were created
+    expected_app_rels = {
+        (CVE_ID_1, EXPECTED_APP_VERSION_IDS[CVE_ID_1]),
+        (CVE_ID_2, EXPECTED_APP_VERSION_IDS[CVE_ID_2]),
+        (CVE_ID_3, EXPECTED_APP_VERSION_IDS[CVE_ID_3]),
+    }
+
+    actual_app_rels = check_rels(
+        neo4j_session,
+        "S1CVE",
+        "id",
+        "S1ApplicationVersion",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,  # (:S1CVE)-[:AFFECTS]->(:S1ApplicationVersion)
+    )
+
+    assert actual_app_rels == expected_app_rels
 
     # Verify that the lastupdated field was set correctly
     result = neo4j_session.run(
