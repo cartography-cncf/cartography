@@ -398,6 +398,10 @@ Older intel modules still do this process with hand-written cleanup jobs that wo
 
 - Only catch exceptions when your code can resolve the issue. Otherwise, allow exceptions to bubble up.
 
+When encountering errors, Cartography tries to fail loudly and as early as possible. This way, the sync job does not continue to run with partial or incorrect data. This is especially important because Cartography has cleanup jobs that delete nodes and relationships that it believes are stale, so if we don't fail early, we may delete nodes and relationships that we should not have.
+
+This behavior can be overriden with a `--*-best-effort-mode` flag. For example, some modules like AWS and Entra ID have `--aws-best-effort-mode` and `--entra-best-effort-mode` flags that instruct Cartography to continue running even if exceptions are encountered.
+
 ## Schema
 
 - Update the [schema](https://github.com/cartography-cncf/cartography/tree/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/docs/schema)
