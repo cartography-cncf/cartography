@@ -829,30 +829,95 @@ def start_your_service_ingestion(neo4j_session: neo4j.Session, config: Config) -
 
 ## 🚨 Error Handling {#error-handling}
 
-Follow these principles for robust error handling:
+### Core Principles
 
-### DO: Catch Specific Exceptions
+**Fail Loudly and Early**: Cartography follows the principle of failing loudly and as early as possible. This ensures sync jobs don't continue with partial or incorrect data, which is critical because Cartography has cleanup jobs that delete nodes and relationships it believes are stale. If we don't fail early, we may delete data that we shouldn't have.
+
+**Never Bury Exceptions**: We should never preemptively catch base exceptions unless we know specifically how to handle them. This helps with traceability and debugging.
+
+### GET Functions: Keep It Simple
+
+All `get_*` functions should be "dumb" - just fetch data and let exceptions propagate naturally:
+
 ```python
-import requests
-
-
+@timeit
 def get_users(api_key: str) -> dict[str, Any]:
-    try:
-        response = requests.get(f"https://api.service.com/users", headers={"Authorization": f"Bearer {api_key}"})
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 401:
-            logger.error("Invalid API key")
-        elif e.response.status_code == 429:
-            logger.error("Rate limit exceeded")
-        raise
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Network error: {e}")
-        raise
+    """
+    Fetch data from external API
+    Should be simple and let exceptions propagate naturally
+    """
+    response = requests.get(
+        "https://api.service.com/users",
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=(60, 60),
+    )
+    response.raise_for_status()  # Let HTTP errors propagate
+    return response.json()
 ```
 
-### DON'T: Catch Base Exception
+**Key Principles for `get()` Functions:**
+
+1. **No Preemptive Exception Handling**: Avoid adding try/except blocks in `get()` functions unless you know the specific ways the code can fail and how to handle them.
+   ```python
+   # ❌ DON'T: Preemptively add complex error handling in get()
+   def get_users(api_key: str) -> dict[str, Any]:
+       try:
+           response = requests.get(...)
+           response.raise_for_status()
+           return response.json()
+       except requests.exceptions.HTTPError as e:
+           if e.response.status_code == 401:
+               logger.error("Invalid API key")
+           elif e.response.status_code == 429:
+               logger.error("Rate limit exceeded")
+           raise
+       except requests.exceptions.RequestException as e:
+           logger.error(f"Network error: {e}")
+           raise
+
+   # ✅ DO: Code for the happy path. Keep it simple and let errors propagate.
+   def get_users(api_key: str) -> dict[str, Any]:
+       response = requests.get(...)
+       response.raise_for_status()
+       return response.json()
+   ```
+
+2. **Use Decorators for Common Patterns**: For AWS modules, use `@aws_handle_regions` to handle common AWS errors:
+   ```python
+   @timeit
+   @aws_handle_regions  # Handles region availability, throttling, etc.
+   def get_ec2_instances(boto3_session: boto3.session.Session, region: str) -> list[dict[str, Any]]:
+       client = boto3_session.client("ec2", region_name=region)
+       return client.describe_instances()["Reservations"]
+   ```
+
+3. **Fail Loudly**: If an error occurs, let it propagate up to the caller. This helps users identify and fix issues quickly:
+   ```python
+   # ❌ DON'T: Silently continue on error
+   def get_data() -> dict[str, Any]:
+       try:
+           return api.get_data()
+       except Exception:
+           return {}  # Silently continue with empty data
+
+   # ✅ DO: Let errors propagate
+   def get_data() -> dict[str, Any]:
+       return api.get_data()  # Let errors propagate to caller
+   ```
+
+4. **Timeout Configuration**: Set appropriate timeouts to avoid hanging:
+   ```python
+   # ✅ DO: Set timeouts
+   response = session.post(
+       "https://api.service.com/users",
+       json=payload,
+       timeout=(60, 60),  # (connect_timeout, read_timeout)
+   )
+   ```
+
+### Exception Handling Guidelines
+
+**DON'T: Catch Base Exception**
 ```python
 # ❌ Don't do this - makes debugging impossible
 try:
@@ -861,6 +926,32 @@ except Exception:
     logger.error("Something went wrong")
     pass  # Silently continue - BAD!
 ```
+
+**DON'T: Prematurely Optimize Error Handling**
+```python
+# ❌ Don't add complex error handling unless you know the specific failure modes
+def get_data() -> dict[str, Any]:
+    try:
+        # Complex error handling for unknown failure modes
+        response = api.get_data()
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 401:
+            # Handle auth error
+            pass
+        elif response.status_code == 429:
+            # Handle rate limiting
+            pass
+        # ... more unknown error cases
+    except Exception as e:
+        # Generic exception handling
+        logger.error(f"Unknown error: {e}")
+        raise
+```
+
+### Best-Effort Mode
+
+Some modules support best-effort mode via flags like `--aws-best-effort-mode` and `--entra-best-effort-mode`. These modes allow the user to override and continue running even if exceptions are encountered. This works well together with Cartography's main error handling principle: fail loudly and early, so you should not feel bad about not handling all possible exceptions.
 
 ### Required vs Optional Field Access
 
