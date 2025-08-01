@@ -1869,6 +1869,10 @@ Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbri
     ```
     (AWSAccount)-[RESOURCE]->(EventBridgeRule)
     ```
+ - EventBridge Rules are associated with the AWS Role.
+    ```
+    (EventBridgeRule)-[ASSOCIATED_WITH]->(AWSRole)
+    ```
 
 ### Ip
 
