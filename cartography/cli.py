@@ -1130,6 +1130,8 @@ class CLI:
             config.sentinelone_api_token = os.environ.get(
                 config.sentinelone_api_token_env_var
             )
+        else:
+            config.sentinelone_api_token = None
 
         # Run cartography
         try:
