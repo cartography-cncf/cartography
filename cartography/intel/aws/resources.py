@@ -19,6 +19,7 @@ from . import elasticache
 from . import elasticsearch
 from . import emr
 from . import eventbridge
+from . import glue
 from . import guardduty
 from . import iam
 from . import identitycenter
@@ -116,4 +117,5 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "guardduty": guardduty.sync,
     "codebuild": codebuild.sync,
     "eventbridge": eventbridge.sync,
+    "glue": glue.sync,
 }

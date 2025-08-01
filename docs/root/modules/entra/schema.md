@@ -76,6 +76,11 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
     (:EntraUser)-[:MANAGES]->(:EntraUser)
     ```
 
+- Entra users can be owners of groups
+
+    ```cypher
+    (:EntraUser)-[:OWNER_OF]->(:EntraGroup)
+    ```
 
 ### EntraOU
 Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/administrativeunit-get?view=graph-rest-1.0&tabs=http).
@@ -135,6 +140,12 @@ Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/g
 
     ```cypher
     (:EntraGroup)-[:MEMBER_OF]->(:EntraGroup)
+    ```
+
+- Entra groups can have owners
+
+    ```cypher
+    (:EntraGroup)-[:OWNER_OF]->(:EntraUser)
     ```
 
 ### EntraApplication
