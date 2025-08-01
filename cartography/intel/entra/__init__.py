@@ -68,7 +68,7 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
                         exc_info=True,
                     )
                 else:
-                    logger.error(f"Error during Entra sync: {str(e)}")
+                    logger.error("Error during Entra sync", exc_info=True)
                     raise
 
         for name, func in RESOURCE_FUNCTIONS:

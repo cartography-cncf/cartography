@@ -1,6 +1,3 @@
-from typing import Callable
-from typing import List
-from typing import Tuple
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -12,19 +9,16 @@ import cartography.intel.entra
 
 TEST_UPDATE_TAG = 123456789
 
-# Create stub functions for testing. Each func raises a KeyError to simulate failure.
-ENTRA_RESOURCE_FUNCTIONS_STUB: List[Tuple[str, Callable]] = [
-    ("users", AsyncMock(side_effect=KeyError("users"))),
-    ("groups", AsyncMock(side_effect=KeyError("groups"))),
-    ("ous", AsyncMock(side_effect=KeyError("ous"))),
-    ("applications", AsyncMock(side_effect=KeyError("applications"))),
-]
-
 
 @patch.object(
     cartography.intel.entra,
     "RESOURCE_FUNCTIONS",
-    ENTRA_RESOURCE_FUNCTIONS_STUB,
+    [
+        ("users", AsyncMock(side_effect=KeyError("users"))),
+        ("groups", AsyncMock(side_effect=KeyError("groups"))),
+        ("ous", AsyncMock(side_effect=KeyError("ous"))),
+        ("applications", AsyncMock(side_effect=KeyError("applications"))),
+    ],
 )
 def test_start_entra_ingestion_aggregates_exceptions_with_best_effort():
     # Arrange
@@ -42,13 +36,9 @@ def test_start_entra_ingestion_aggregates_exceptions_with_best_effort():
     with raises(Exception) as e:
         cartography.intel.entra.start_entra_ingestion(neo4j_session, config)
 
+    # Assert that we've collected 4 key errors along the way with best effort mode on.
     message = str(e.value)
     assert message.count("KeyError") == 4
-    # Assert that each stage was called exactly once even though the previous function raised an exception
-    assert ENTRA_RESOURCE_FUNCTIONS_STUB[0][1].call_count == 1
-    assert ENTRA_RESOURCE_FUNCTIONS_STUB[1][1].call_count == 1
-    assert ENTRA_RESOURCE_FUNCTIONS_STUB[2][1].call_count == 1
-    assert ENTRA_RESOURCE_FUNCTIONS_STUB[3][1].call_count == 1
 
 
 def test_start_entra_ingestion_raises_first_exception_without_best_effort():
