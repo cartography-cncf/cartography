@@ -52,14 +52,14 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
     # Make sure the expected assets are created
     expected_nodes = {
-        (1373, "C02ZJ48XXXXX"),
-        (1372, "72ec94a8-b6dc-37f1-b2a9-0907806e8db7"),
+        (1373, "C02ZJ48XXXXX", "Ready to Deploy"),
+        (1372, "72ec94a8-b6dc-37f1-b2a9-0907806e8db7", "Ready to Deploy"),
     }
     assert (
         check_nodes(
             neo4j_session,
             "SnipeitAsset",
-            ["id", "serial"],
+            ["id", "serial", "status"],
         )
         == expected_nodes
     )
