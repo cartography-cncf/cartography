@@ -33,6 +33,7 @@ Representation of a SnipeIT asset.
 |manufacturer | Manufacturer of the asset |
 |model | Model of the device|
 |serial | Serial number of the asset|
+|status | Status label of the asset |
 
 #### Relationships
 

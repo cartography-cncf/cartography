@@ -29,6 +29,7 @@ class SnipeitAssetNodeProperties(CartographyNodeProperties):
     manufacturer: PropertyRef = PropertyRef("manufacturer.name")
     model: PropertyRef = PropertyRef("model.name")
     serial: PropertyRef = PropertyRef("serial", extra_index=True)
+    status: PropertyRef = PropertyRef("status_label.name")
 
 
 ###
