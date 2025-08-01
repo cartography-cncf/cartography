@@ -30,7 +30,7 @@ def get(api_url: str, api_token: str, account_id: str) -> list[dict[str, Any]]:
         },
     )
 
-    logger.info(f"Retrieved {len(cves)} CVEs from SentinelOne")
+    logger.info("Retrieved %d CVEs from SentinelOne", len(cves))
     return cves
 
 
