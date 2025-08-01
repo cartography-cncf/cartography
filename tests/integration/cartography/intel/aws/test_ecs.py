@@ -675,7 +675,7 @@ def test_sync_ecs_comprehensive(
         ),
     }, "ECSContainers to ECRImage (HAS_IMAGE)"
 
-    # ECSService to ECSTasks (new relationship)
+    # ECSService to ECSTasks
     assert check_rels(
         neo4j_session,
         "ECSService",
