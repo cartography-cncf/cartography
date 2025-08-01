@@ -255,6 +255,14 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--entra-best-effort-mode",
+            action="store_true",
+            help=(
+                "Enable Entra ID sync best effort mode. This will allow cartography to continue "
+                "syncing other Entra ID entities and delay raising an exception until the end of the sync."
+            ),
+        )
+        parser.add_argument(
             "--aws-requested-syncs",
             type=str,
             default=None,
@@ -1130,6 +1138,8 @@ class CLI:
             config.sentinelone_api_token = os.environ.get(
                 config.sentinelone_api_token_env_var
             )
+        else:
+            config.sentinelone_api_token = None
 
         # Run cartography
         try:

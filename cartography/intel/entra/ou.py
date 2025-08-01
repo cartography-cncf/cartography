@@ -43,7 +43,7 @@ async def get_entra_ous(client: GraphServiceClient) -> list[AdministrativeUnit]:
                 current_request = None
         except Exception as e:
             logger.error(f"Failed to retrieve administrative units: {str(e)}")
-            current_request = None
+            raise
 
     return all_units
 
