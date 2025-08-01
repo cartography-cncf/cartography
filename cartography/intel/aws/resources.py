@@ -18,6 +18,7 @@ from . import eks
 from . import elasticache
 from . import elasticsearch
 from . import emr
+from . import eventbridge
 from . import glue
 from . import guardduty
 from . import iam
@@ -115,5 +116,6 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "efs": efs.sync,
     "guardduty": guardduty.sync,
     "codebuild": codebuild.sync,
+    "eventbridge": eventbridge.sync,
     "glue": glue.sync,
 }
