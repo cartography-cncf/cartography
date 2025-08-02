@@ -658,7 +658,7 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 - GCPServiceAccounts are resources of GCPProjects.
 
     ```
-    (GCPServiceAccount)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[RESOURCE]->(GCPServiceAccount)
     ```
 
 ### GCPRole
@@ -683,5 +683,44 @@ Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/
 - GCPRoles are resources of GCPProjects.
 
     ```
-    (GCPRole)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[RESOURCE]->(GCPRole)
     ```
+
+### GCPCloudFunction
+
+Representation of a Google [Cloud Function](https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions).
+
+| Field                 | Description                                                                 |
+| --------------------  | --------------------------------------------------------------------------- |
+| id                    | The full, unique resource name of the function.                             |
+| display_name          | The user-friendly name of the function.                                     |
+| description           | A description of the function.                                              |
+| runtime               | The language runtime environment for the function (e.g., python310).        |
+| entry_point           | The name of the function within the source code to be executed.             |
+| status                | The current state of the function (e.g., ACTIVE, FAILED).                   |
+| create_time           | The timestamp when the function was created.                                |
+| update_time	        | The timestamp when the function was last modified.                          |
+| service_account_email | The email of the service account the function runs as.                      |
+| https_trigger_url	    | The public URL if the function is triggered by an HTTP request.             |
+| event_trigger_type    | The type of event that triggers the function (e.g., a Pub/Sub message).     |
+| event_trigger_resource| The specific resource the event trigger monitors.                           |
+| lastupdated           | The timestamp of the last update.                                           |
+| project_id            | The ID of the GCP project to which the function belongs.                    |
+|region	                | The GCP region where the function is deployed.
+
+#### Relationships
+
+- GCPCloudFunctions are resources of GCPProjects.
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPCloudFunction)
+    ```
+
+- GCPCloudFunctions run as GCPServiceAccounts.
+
+    ```
+    (GCPCloudFunction)-[RUNS_AS]->(GCPServiceAccount)
+    ```
+
+
+
