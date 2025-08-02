@@ -30,14 +30,13 @@ def main(force_flag: bool) -> None:
         )
     else:
         neo4j_driver = neo4j.GraphDatabase.driver(NEO4J_URL)
-    neo4j_session = neo4j_driver.session()
-
+    with neo4j_driver.session() as neo4j_session:
     # Config
-    config = Config(
-        neo4j_uri=NEO4J_URL,
-        neo4j_user=NEO4J_USER,
-        neo4j_password=NEO4J_PASSWORD,
-    )
+        config = Config(
+            neo4j_uri=NEO4J_URL,
+            neo4j_user=NEO4J_USER,
+            neo4j_password=NEO4J_PASSWORD,
+        )
 
     # Check if the database is empty
     logger.info("Checking if the database is empty...")
