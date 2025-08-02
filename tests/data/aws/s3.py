@@ -186,3 +186,28 @@ GET_BUCKET_OWNERSHIP_CONTROLS = {
     "bucket": "bucket-1",
     "object_ownership": "BucketOwnerPreferred",
 }
+
+GET_BUCKET_LOGGING_ENABLED = {
+    "LoggingEnabled": {
+        "TargetBucket": "log-bucket",
+        "TargetPrefix": "logs/",
+        "TargetGrants": [
+            {
+                "Grantee": {
+                    "DisplayName": "my-display-name-1",
+                    "EmailAddress": "my-email-address-1@domain.com",
+                    "ID": "test-grantee-id",
+                    "Type": "CanonicalUser",
+                    "URI": "",
+                },
+                "Permission": "WRITE",
+            }
+        ],
+        "TargetObjectKeyFormat": {
+            "SimplePrefix": {},
+            "PartitionedPrefix": {"PartitionDateSource": "EventTime"},
+        },
+    }
+}
+
+GET_BUCKET_LOGGING_DISABLED: dict = {}

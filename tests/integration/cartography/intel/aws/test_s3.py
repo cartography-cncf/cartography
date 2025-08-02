@@ -255,3 +255,86 @@ def test_s3_sns_relationship(neo4j_session):
     ) == {
         ("bucket-1", "arn:aws:sns:us-east-1:123456789012:test-topic"),
     }
+
+
+def test_load_s3_bucket_logging(neo4j_session):
+    """
+    Ensure that expected bucket gets loaded with their bucket logging fields.
+    """
+    # Test enabled logging
+    parsed_data_enabled = cartography.intel.aws.s3.parse_bucket_logging(
+        "bucket-1", tests.data.aws.s3.GET_BUCKET_LOGGING_ENABLED
+    )
+    cartography.intel.aws.s3._load_bucket_logging(
+        neo4j_session, [parsed_data_enabled], TEST_UPDATE_TAG
+    )
+
+    expected_nodes_enabled = {
+        (
+            parsed_data_enabled["bucket"],
+            parsed_data_enabled["logging_enabled"],
+            parsed_data_enabled["target_bucket"],
+            parsed_data_enabled["target_prefix"],
+            parsed_data_enabled["target_grants"],
+            parsed_data_enabled["target_object_key_format"],
+        ),
+    }
+
+    nodes = neo4j_session.run(
+        """
+        MATCH (s:S3Bucket)
+        WHERE s.name = 'bucket-1'
+        RETURN s.name, s.logging_enabled, s.logging_target_bucket, s.logging_target_prefix, s.logging_target_grants, s.logging_target_object_key_format
+        """,
+    )
+    actual_nodes = {
+        (
+            n["s.name"],
+            n["s.logging_enabled"],
+            n["s.logging_target_bucket"],
+            n["s.logging_target_prefix"],
+            n["s.logging_target_grants"],
+            n["s.logging_target_object_key_format"],
+        )
+        for n in nodes
+    }
+    assert actual_nodes == expected_nodes_enabled
+
+    # Test disabled logging
+    parsed_data_disabled = cartography.intel.aws.s3.parse_bucket_logging(
+        "bucket-2", tests.data.aws.s3.GET_BUCKET_LOGGING_DISABLED
+    )
+    cartography.intel.aws.s3._load_bucket_logging(
+        neo4j_session, [parsed_data_disabled], TEST_UPDATE_TAG
+    )
+
+    expected_nodes_disabled = {
+        (
+            parsed_data_disabled["bucket"],
+            parsed_data_disabled["logging_enabled"],
+            parsed_data_disabled["target_bucket"],
+            parsed_data_disabled["target_prefix"],
+            parsed_data_disabled["target_grants"],
+            parsed_data_disabled["target_object_key_format"],
+        ),
+    }
+
+    nodes = neo4j_session.run(
+        """
+        MATCH (s:S3Bucket)
+        WHERE s.name = 'bucket-2'
+        RETURN s.name, s.logging_enabled, s.logging_target_bucket, s.logging_target_prefix, s.logging_target_grants, s.logging_target_object_key_format
+        """,
+    )
+    actual_nodes = {
+        (
+            n["s.name"],
+            n["s.logging_enabled"],
+            n["s.logging_target_bucket"],
+            n["s.logging_target_prefix"],
+            n["s.logging_target_grants"],
+            n["s.logging_target_object_key_format"],
+        )
+        for n in nodes
+    }
+    assert actual_nodes == expected_nodes_disabled
