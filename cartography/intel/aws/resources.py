@@ -9,6 +9,7 @@ from . import cloudtrail
 from . import cloudtrail_management_events
 from . import cloudwatch
 from . import codebuild
+from . import cognito
 from . import config
 from . import dynamodb
 from . import ecr
@@ -116,6 +117,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "efs": efs.sync,
     "guardduty": guardduty.sync,
     "codebuild": codebuild.sync,
+    "cognito": cognito.sync,
     "eventbridge": eventbridge.sync,
     "glue": glue.sync,
 }
