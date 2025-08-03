@@ -147,6 +147,16 @@ GET_ZONES_SAMPLE_RESPONSE = [
                 "TTL": 300,
                 "Type": "A",
             },
+            {
+                "Name": "elasticip.example.com.",
+                "ResourceRecords": [
+                    {
+                        "Value": "192.168.1.1",
+                    },
+                ],
+                "TTL": 300,
+                "Type": "A",
+            },
         ],
     ),
 ]
