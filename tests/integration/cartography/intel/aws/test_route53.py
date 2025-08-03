@@ -239,11 +239,11 @@ def test_load_dnspointsto_elasticip_relationships(neo4j_session):
     # Verify that the expected DNS record points to the expected ElasticIP
     result = neo4j_session.run(
         """
-        MATCH (n:AWSDNSRecord{id:"/hostedzone/HOSTED_ZONE/elasticip.example.com/A"})
+        MATCH (n:AWSDNSRecord{id:"/hostedzone/HOSTED_ZONE/hello.what.example.com/A"})
         -[:DNS_POINTS_TO]->(e:ElasticIPAddress{id:"192.168.1.1"})
         return n.name, e.public_ip
         """,
     )
-    expected = {("elasticip.example.com", "192.168.1.1")}
+    expected = {("hello.what.example.com", "192.168.1.1")}
     actual = {(r["n.name"], r["e.public_ip"]) for r in result}
     assert actual == expected
