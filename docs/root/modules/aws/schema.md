@@ -3456,9 +3456,9 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
     (:ECSCluster)-[:HAS_SERVICE]->(:ECSService)
     ```
 
-- An ECSCluster has ECSContainerInstances
+- An ECSService has ECSTasks
     ```
-    (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(:ECSContainerInstance)
+    (:ECSService)-[:HAS_TASK]->(:ECSTask)
     ```
 
 ### ECSTaskDefinition
