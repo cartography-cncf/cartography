@@ -56,6 +56,30 @@ def get_all_groups(admin: Resource) -> List[Dict]:
 
 
 @timeit
+def get_owners_for_group(admin: Resource, group_email: str) -> List[Dict]:
+    """Get all owners for a google group
+
+    :param group_email: A string representing the email address for the group
+
+    :return: List of dictionaries representing Users or Groups that are owners.
+    """
+    request = admin.groups().get(
+        groupKey=group_email,
+        fields="owners"
+    )
+    try:
+        resp = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        return resp.get("owners", [])
+    except HttpError as e:
+        if e.resp.status == 403:
+            logger.warning(f"Permission denied when fetching owners for group {group_email}: {e}")
+            return []
+        else:
+            logger.error(f"Error fetching owners for group {group_email}: {e}")
+            return []
+
+
+@timeit
 def transform_groups(response_objects: List[Dict]) -> List[Dict]:
     """Strips list of API response objects to return list of group objects only
 
@@ -258,6 +282,49 @@ def load_gsuite_members(
 
 
 @timeit
+def load_gsuite_owners(
+    neo4j_session: neo4j.Session,
+    group: Dict,
+    owners: List[Dict],
+    gsuite_update_tag: int,
+) -> None:
+    """Load owner relationships between GSuite users and groups."""
+    # Handle user owners
+    user_owner_qry = """
+        UNWIND $OwnerData as owner
+        MATCH (user:GSuiteUser {id: owner.id}),(group:GSuiteGroup {id: $GroupID })
+        MERGE (user)-[r:OWNER_OF]->(group)
+        ON CREATE SET
+        r.firstseen = $UpdateTag
+        SET
+        r.lastupdated = $UpdateTag
+    """
+    neo4j_session.run(
+        user_owner_qry,
+        OwnerData=owners,
+        GroupID=group.get("id"),
+        UpdateTag=gsuite_update_tag,
+    )
+    
+    # Handle group owners (groups can own other groups)
+    group_owner_qry = """
+        UNWIND $OwnerData as owner
+        MATCH(group_1: GSuiteGroup{id: owner.id}), (group_2:GSuiteGroup {id: $GroupID})
+        MERGE (group_1)-[r:OWNER_OF]->(group_2)
+        ON CREATE SET
+        r.firstseen = $UpdateTag
+        SET
+        r.lastupdated = $UpdateTag
+    """
+    neo4j_session.run(
+        group_owner_qry,
+        OwnerData=owners,
+        GroupID=group.get("id"),
+        UpdateTag=gsuite_update_tag,
+    )
+
+
+@timeit
 def cleanup_gsuite_users(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
@@ -328,6 +395,7 @@ def sync_gsuite_groups(
     load_gsuite_groups(neo4j_session, groups, gsuite_update_tag)
     cleanup_gsuite_groups(neo4j_session, common_job_parameters)
     sync_gsuite_members(groups, neo4j_session, admin, gsuite_update_tag)
+    sync_gsuite_owners(groups, neo4j_session, admin, gsuite_update_tag)
 
 
 @timeit
@@ -340,3 +408,15 @@ def sync_gsuite_members(
     for group in groups:
         members = get_members_for_group(admin, group["email"])
         load_gsuite_members(neo4j_session, group, members, gsuite_update_tag)
+
+
+@timeit
+def sync_gsuite_owners(
+    groups: List[Dict],
+    neo4j_session: neo4j.Session,
+    admin: Resource,
+    gsuite_update_tag: int,
+) -> None:
+    for group in groups:
+        owners = get_owners_for_group(admin, group["email"])
+        load_gsuite_owners(neo4j_session, group, owners, gsuite_update_tag)

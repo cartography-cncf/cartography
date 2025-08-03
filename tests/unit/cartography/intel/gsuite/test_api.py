@@ -1,6 +1,8 @@
 from unittest import mock
 from unittest.mock import patch
 
+from googleapiclient.errors import HttpError
+
 from cartography.intel.gsuite import api
 
 
@@ -100,6 +102,7 @@ def test_sync_gsuite_users(get_all_users, load_gsuite_users, cleanup_gsuite_user
     cleanup_gsuite_users.assert_called_once()
 
 
+@patch("cartography.intel.gsuite.api.sync_gsuite_owners")
 @patch("cartography.intel.gsuite.api.sync_gsuite_members")
 @patch("cartography.intel.gsuite.api.cleanup_gsuite_groups")
 @patch("cartography.intel.gsuite.api.load_gsuite_groups")
@@ -125,6 +128,7 @@ def test_sync_gsuite_groups(
     load_gsuite_groups,
     cleanup_gsuite_groups,
     sync_gsuite_members,
+    sync_gsuite_owners,
 ):
     admin_client = mock.MagicMock()
     session = mock.MagicMock()
@@ -137,6 +141,12 @@ def test_sync_gsuite_groups(
     load_gsuite_groups.assert_called_with(session, groups, gsuite_update_tag)
     cleanup_gsuite_groups.assert_called_once()
     sync_gsuite_members.assert_called_with(
+        groups,
+        session,
+        admin_client,
+        gsuite_update_tag,
+    )
+    sync_gsuite_owners.assert_called_with(
         groups,
         session,
         admin_client,
@@ -267,3 +277,88 @@ def test_transform_users():
     ]
     result = api.transform_users(param)
     assert result == expected
+
+
+def test_get_owners_for_group():
+    client = mock.MagicMock()
+    raw_request = mock.MagicMock()
+
+    owner1 = {"id": "user1@test.lyft.com", "email": "user1@test.lyft.com"}
+    owner2 = {"id": "group1@test.lyft.com", "email": "group1@test.lyft.com"}
+
+    client.groups().get.return_value = raw_request
+    raw_request.execute.return_value = {"owners": [owner1, owner2]}
+
+    result = api.get_owners_for_group(client, "testgroup@test.lyft.com")
+    assert result == [owner1, owner2]
+
+
+def test_get_owners_for_group_permission_denied():
+    client = mock.MagicMock()
+    raw_request = mock.MagicMock()
+
+    client.groups().get.return_value = raw_request
+    raw_request.execute.side_effect = HttpError(
+        resp=mock.MagicMock(status=403),
+        content=b"Permission denied"
+    )
+
+    result = api.get_owners_for_group(client, "testgroup@test.lyft.com")
+    assert result == []
+
+
+def test_load_gsuite_owners():
+    session = mock.MagicMock()
+    group = {"id": "group1@test.lyft.com"}
+    owners = [
+        {"id": "user1@test.lyft.com"},
+        {"id": "group2@test.lyft.com"}
+    ]
+    update_tag = 1
+
+    api.load_gsuite_owners(session, group, owners, update_tag)
+
+    # Verify that both user and group owner queries were executed
+    assert session.run.call_count == 2
+    
+    # Check the first call (user owners)
+    first_call = session.run.call_args_list[0]
+    assert "OwnerData" in first_call[1]
+    assert "GroupID" in first_call[1]
+    assert first_call[1]["GroupID"] == "group1@test.lyft.com"
+    
+    # Check the second call (group owners)
+    second_call = session.run.call_args_list[1]
+    assert "OwnerData" in second_call[1]
+    assert "GroupID" in second_call[1]
+    assert second_call[1]["GroupID"] == "group1@test.lyft.com"
+
+
+def test_sync_gsuite_owners():
+    groups = [
+        {"email": "group1@test.lyft.com", "id": "group1@test.lyft.com"},
+        {"email": "group2@test.lyft.com", "id": "group2@test.lyft.com"}
+    ]
+    session = mock.MagicMock()
+    admin_client = mock.MagicMock()
+    update_tag = 1
+
+    # Mock the get_owners_for_group function
+    with patch("cartography.intel.gsuite.api.get_owners_for_group") as mock_get_owners:
+        with patch("cartography.intel.gsuite.api.load_gsuite_owners") as mock_load_owners:
+            mock_get_owners.side_effect = [
+                [{"id": "user1@test.lyft.com"}],  # owners for group1
+                [{"id": "group3@test.lyft.com"}]  # owners for group2
+            ]
+            
+            api.sync_gsuite_owners(groups, session, admin_client, update_tag)
+            
+            # Verify get_owners_for_group was called for each group
+            assert mock_get_owners.call_count == 2
+            mock_get_owners.assert_any_call(admin_client, "group1@test.lyft.com")
+            mock_get_owners.assert_any_call(admin_client, "group2@test.lyft.com")
+            
+            # Verify load_gsuite_owners was called for each group
+            assert mock_load_owners.call_count == 2
+            mock_load_owners.assert_any_call(session, groups[0], [{"id": "user1@test.lyft.com"}], update_tag)
+            mock_load_owners.assert_any_call(session, groups[1], [{"id": "group3@test.lyft.com"}], update_tag)

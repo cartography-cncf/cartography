@@ -76,3 +76,10 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
     ```
     (GSuiteUser)-[MEMBER_OF]->(GSuiteGroup)
     ```
+
+- GSuiteGroup can have owners that are GSuiteUsers or GSuiteGroups.
+
+    ```
+    (GSuiteUser)-[OWNER_OF]->(GSuiteGroup)
+    (GSuiteGroup)-[OWNER_OF]->(GSuiteGroup)
+    ```
