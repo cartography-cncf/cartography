@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.iam_instance_profiles
 from cartography.intel.aws.ec2.instances import sync_ec2_instances
-from cartography.intel.aws.iam import load_roles
+from cartography.intel.aws.iam import sync_role_assumptions
 from cartography.intel.aws.iam_instance_profiles import sync_iam_instance_profiles
 from cartography.util import run_scoped_analysis_job
 from tests.data.aws.ec2.instances import INSTANCE_WITH_IAM_PROFILE
@@ -40,9 +40,9 @@ def test_sync_iam_instance_profiles(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID}
-    load_roles(
+    sync_role_assumptions(
         neo4j_session,
-        ROLES["Roles"],
+        ROLES,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
