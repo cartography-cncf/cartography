@@ -343,3 +343,45 @@ EXPECTED_TRANSFORM_RESULTS = [
         "resource_id": None,  # AccessKey doesn't have resource_id
     },
 ]
+
+# Mock response for get_detector API call
+GET_DETECTORS = [
+    {
+        "DetectorId": "12abc34d567e8fa901bc2d34e56789f0",
+        "Status": "ENABLED",
+        "ServiceRole": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
+        "FindingPublishingFrequency": "SIX_HOURS",
+        "CreatedAt": datetime(2023, 1, 15, 10, 30, 0),
+        "UpdatedAt": datetime(2023, 1, 20, 14, 45, 0),
+    },
+    {
+        "DetectorId": "98zyx76w543u2ty109sr8q76p54321o0",
+        "Status": "ENABLED",
+        "ServiceRole": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
+        "FindingPublishingFrequency": "FIFTEEN_MINUTES",
+        "CreatedAt": datetime(2023, 2, 1, 9, 15, 0),
+        "UpdatedAt": datetime(2023, 2, 10, 11, 20, 0),
+    },
+]
+
+# Expected transformed detector results
+EXPECTED_DETECTOR_TRANSFORM_RESULTS = [
+    {
+        "DetectorId": "12abc34d567e8fa901bc2d34e56789f0",
+        "Status": "ENABLED",
+        "ServiceRole": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
+        "FindingPublishingFrequency": "SIX_HOURS",
+        "CreatedAt": datetime(2023, 1, 15, 10, 30, 0),
+        "UpdatedAt": datetime(2023, 1, 20, 14, 45, 0),
+        "Region": "us-east-1",
+    },
+    {
+        "DetectorId": "98zyx76w543u2ty109sr8q76p54321o0",
+        "Status": "ENABLED",
+        "ServiceRole": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
+        "FindingPublishingFrequency": "FIFTEEN_MINUTES",
+        "CreatedAt": datetime(2023, 2, 1, 9, 15, 0),
+        "UpdatedAt": datetime(2023, 2, 10, 11, 20, 0),
+        "Region": "us-east-1",
+    },
+]
