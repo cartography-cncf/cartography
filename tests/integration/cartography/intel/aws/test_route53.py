@@ -237,13 +237,16 @@ def test_load_dnspointsto_elasticip_relationships(neo4j_session):
     _ensure_local_neo4j_has_test_route53_records(neo4j_session)
 
     # Verify that the expected DNS record points to the expected ElasticIP
-    result = neo4j_session.run(
-        """
-        MATCH (n:AWSDNSRecord{id:"/hostedzone/HOSTED_ZONE/hello.what.example.com/A"})
-        -[:DNS_POINTS_TO]->(e:ElasticIPAddress{id:"192.168.1.1"})
-        return n.name, e.public_ip
-        """,
+    from tests.integration.util import check_rels
+    
+    actual = check_rels(
+        neo4j_session,
+        "AWSDNSRecord",
+        "name",
+        "ElasticIPAddress", 
+        "public_ip",
+        "DNS_POINTS_TO",
+        rel_direction_right=True,
     )
     expected = {("hello.what.example.com", "192.168.1.1")}
-    actual = {(r["n.name"], r["e.public_ip"]) for r in result}
     assert actual == expected
