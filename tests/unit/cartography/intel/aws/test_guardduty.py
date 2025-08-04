@@ -1,6 +1,9 @@
 from cartography.intel.aws.guardduty import transform_findings
+from cartography.intel.aws.guardduty import transform_detector_details
 from tests.data.aws.guardduty import EXPECTED_TRANSFORM_RESULTS
+from tests.data.aws.guardduty import EXPECTED_DETECTOR_TRANSFORM_RESULTS
 from tests.data.aws.guardduty import GET_FINDINGS
+from tests.data.aws.guardduty import GET_DETECTORS
 
 TEST_UPDATE_TAG = 123456789
 
@@ -25,3 +28,27 @@ def test_transform_findings():
     # Expected IAM AccessKey finding
     expected_iam_finding = EXPECTED_TRANSFORM_RESULTS[2]
     assert transformed[2] == expected_iam_finding
+
+
+def test_transform_detector_details():
+    """Test transform_detector_details function with mock API response data."""
+    # Use the full mock API response data
+    detector_data = GET_DETECTORS
+    transformed = transform_detector_details(detector_data, "us-east-1")
+
+    # Should transform 2 detectors
+    assert len(transformed) == 2
+
+    # Expected first detector
+    expected_first_detector = EXPECTED_DETECTOR_TRANSFORM_RESULTS[0]
+    assert transformed[0] == expected_first_detector
+
+    # Expected second detector
+    expected_second_detector = EXPECTED_DETECTOR_TRANSFORM_RESULTS[1]
+    assert transformed[1] == expected_second_detector
+
+    # Verify all detectors have the correct region
+    for detector in transformed:
+        assert detector["Region"] == "us-east-1"
+        assert "DetectorId" in detector
+        assert "Status" in detector
