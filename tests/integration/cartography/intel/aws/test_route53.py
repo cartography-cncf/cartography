@@ -1,8 +1,8 @@
 import cartography.intel.aws.route53
 import cartography.util
+import tests.data.aws.ec2.elastic_ip_addresses
 import tests.data.aws.ec2.load_balancers
 import tests.data.aws.route53
-import tests.data.aws.ec2.elastic_ip_addresses
 
 TEST_UPDATE_TAG = 123456789
 TEST_ZONE_ID = "TESTZONEID"
@@ -49,6 +49,7 @@ def _ensure_local_neo4j_has_test_ec2_records(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
+
 def _ensure_local_neo4j_has_test_elasticip_records(neo4j_session):
     """Ensure that the test ElasticIP records are loaded in the database."""
     data = tests.data.aws.ec2.elastic_ip_addresses.GET_ELASTIC_IP_ADDRESSES
@@ -59,6 +60,7 @@ def _ensure_local_neo4j_has_test_elasticip_records(neo4j_session):
         TEST_AWS_ACCOUNTID,
         TEST_UPDATE_TAG,
     )
+
 
 def test_transform_and_load_ns(neo4j_session):
     # Test that NS records can be parsed and loaded
@@ -229,21 +231,37 @@ def test_cleanup_dnspointsto_relationships(neo4j_session):
 
 def test_load_dnspointsto_elasticip_relationships(neo4j_session):
     """
-    1. Load DNS and ElasticIP resources
-    2. Ensure that the expected :DNS_POINTS_TO relationships have been created
+    1. Start with a clean database
+    2. Load DNS and ElasticIP resources
+    3. Ensure that the expected :DNS_POINTS_TO relationships have been created
     """
-    # ElasticIP resources must be loaded first; it's the Route53 module that links DNS to ElasticIP resources.
-    _ensure_local_neo4j_has_test_elasticip_records(neo4j_session)
-    _ensure_local_neo4j_has_test_route53_records(neo4j_session)
 
-    # Verify that the expected DNS record points to the expected ElasticIP
+    # Start with a clean db
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    cartography.intel.aws.ec2.elastic_ip_addresses.load_elastic_ip_addresses(
+        neo4j_session,
+        tests.data.aws.ec2.elastic_ip_addresses.GET_ELASTIC_IP_ADDRESSES,
+        TEST_AWS_REGION,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.aws.route53.load_dns_details(
+        neo4j_session,
+        tests.data.aws.route53.CLEAN_SLATE_ELASTICIP_ROUTE53_DATA,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Verify that the expected DNS record points to the expected ElasticIP using check_rels
     from tests.integration.util import check_rels
-    
+
     actual = check_rels(
         neo4j_session,
         "AWSDNSRecord",
         "name",
-        "ElasticIPAddress", 
+        "ElasticIPAddress",
         "public_ip",
         "DNS_POINTS_TO",
         rel_direction_right=True,

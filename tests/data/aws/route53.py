@@ -141,6 +141,32 @@ GET_ZONES_SAMPLE_RESPONSE = [
                 "Name": "hello.what.example.com.",
                 "ResourceRecords": [
                     {
+                        "Value": "9.10.11.12",
+                    },
+                ],
+                "TTL": 300,
+                "Type": "A",
+            },
+        ],
+    ),
+]
+
+ELASTIC_IP_RELATIONSHIP_TEST_RECORDS = [
+    (
+        {
+            "CallerReference": "test-ref-123",
+            "Config": {
+                "PrivateZone": False,
+            },
+            "Id": "/hostedzone/TESTZONE",
+            "Name": "test.example.com.",
+            "ResourceRecordSetCount": 1,
+        },
+        [
+            {
+                "Name": "hello.what.example.com.",
+                "ResourceRecords": [
+                    {
                         "Value": "192.168.1.1",
                     },
                 ],
