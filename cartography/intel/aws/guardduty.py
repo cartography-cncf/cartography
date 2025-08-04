@@ -222,7 +222,7 @@ def get_detector_details(
     for detector_id in detector_ids:
         try:
             response = client.get_detector(DetectorId=detector_id)
-            detector_details.append(response)
+            detector_details.append({"DetectorId": detector_id, **response})
         except Exception as e:
             logger.warning(f"Failed to get detector details for {detector_id}: {e}")
             continue
