@@ -47,7 +47,7 @@ def get_eventbridge_targets(
         paginator = client.get_paginator("list_targets_by_rule")
         for page in paginator.paginate(Rule=rule["Name"]):
             for target in page.get("Targets", []):
-                target["RuleName"] = rule["Name"]
+                target["RuleArn"] = rule["Arn"]
                 targets.append(target)
     return targets
 
@@ -62,9 +62,9 @@ def transform_eventbridge_targets(
     transformed_data = []
     for target in targets:
         transformed_target = {
-            "Id": target["Id"],
+            "Id": target["Arn"],
             "Arn": target["Arn"],
-            "RuleName": target["RuleName"],
+            "RuleArn": target["RuleArn"],
             "RoleArn": target.get("RoleArn"),
             "Region": region,
         }

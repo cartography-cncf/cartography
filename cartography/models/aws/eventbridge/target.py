@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class EventBridgeTargetNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("Id")
     arn: PropertyRef = PropertyRef("Arn", extra_index=True)
-    rule_name: PropertyRef = PropertyRef("RuleName")
+    rule_arn: PropertyRef = PropertyRef("RuleArn")
     role_arn: PropertyRef = PropertyRef("RoleArn")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -48,7 +48,7 @@ class EventBridgeTargetToEventBridgeRuleRelProperties(CartographyRelProperties):
 class EventBridgeTargetToEventBridgeRuleRel(CartographyRelSchema):
     target_node_label: str = "EventBridgeRule"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("RuleName")},
+        {"arn": PropertyRef("RuleArn")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "LINKED_TO_RULE"

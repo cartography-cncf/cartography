@@ -127,16 +127,16 @@ def test_sync_eventbridge(
         "EventBridgeTarget",
         "arn",
         "EventBridgeRule",
-        "name",
+        "arn",
         "LINKED_TO_RULE",
         rel_direction_right=True,
     ) == {
         (
             "arn:aws:lambda:us-east-1:123456789012:function:ProcessSignup",
-            "UserSignupRule",
+            "arn:aws:events:us-east-1:123456789012:rule/UserSignupRule",
         ),
         (
             "arn:aws:sns:us-east-1:123456789012:NotifyAdmin",
-            "DailyCleanupRule",
+            "arn:aws:events:us-east-1:123456789012:rule/DailyCleanupRule",
         ),
     }

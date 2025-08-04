@@ -27,7 +27,7 @@ GET_EVENTBRIDGE_TARGETS = [
     {
         "Id": "Target1",
         "Arn": "arn:aws:lambda:us-east-1:123456789012:function:ProcessSignup",
-        "RuleName": "UserSignupRule",
+        "RuleArn": "arn:aws:events:us-east-1:123456789012:rule/UserSignupRule",
         "RoleArn": "arn:aws:iam::1234:role/cartography-read-only",
         "Input": '{"userId": "$.detail.userId"}',
         "InputPath": "$.detail",
@@ -37,7 +37,7 @@ GET_EVENTBRIDGE_TARGETS = [
     {
         "Id": "Target2",
         "Arn": "arn:aws:sns:us-east-1:123456789012:NotifyAdmin",
-        "RuleName": "DailyCleanupRule",
+        "RuleArn": "arn:aws:events:us-east-1:123456789012:rule/DailyCleanupRule",
         "RoleArn": "arn:aws:iam::1234:role/cartography-service",
         "Input": None,
         "InputPath": None,
