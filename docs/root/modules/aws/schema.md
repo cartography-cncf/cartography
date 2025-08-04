@@ -41,6 +41,7 @@ Representation of an AWS Account.
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
                                 :ESDomain,
+                                :GuardDutyDetector,
                                 :GuardDutyFinding,
                                 :KMSAlias,
                                 :LaunchConfiguration,
@@ -183,6 +184,31 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings may affect S3 Buckets
     ```cypher
     (:GuardDutyFinding)-[:AFFECTS]->(:S3Bucket)
+    ```
+
+### GuardDutyDetector
+
+Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_GetDetector.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The Amazon Resource Name (ARN) of the detector |
+| arn | The Amazon Resource Name (ARN) of the detector |
+| detector_id | The unique identifier of the detector |
+| status | The status of the detector (ENABLED or DISABLED) |
+| service_role | The service role associated with the detector |
+| finding_publishing_frequency | How frequently findings are exported (SIX_HOURS, ONE_HOUR, or FIFTEEN_MINUTES) |
+| created_at | Timestamp when the detector was created |
+| updated_at | Timestamp when the detector was last updated |
+| region | The AWS Region where the detector is located |
+
+#### Relationships
+
+- GuardDuty detectors belong to AWS Accounts
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:GuardDutyDetector)
     ```
 
 ### AWSInspectorFinding
