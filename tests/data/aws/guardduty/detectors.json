@@ -1,0 +1,18 @@
+[
+    {
+        "DetectorId": "12abc34d567e8fa901bc2d34e56789f0",
+        "Status": "ENABLED",
+        "ServiceRole": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
+        "FindingPublishingFrequency": "SIX_HOURS",
+        "CreatedAt": "2023-01-15T10:30:00.000000+00:00",
+        "UpdatedAt": "2023-01-20T14:45:00.000000+00:00"
+    },
+    {
+        "DetectorId": "98zyx76w543u2ty109sr8q76p54321o0",
+        "Status": "ENABLED",
+        "ServiceRole": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
+        "FindingPublishingFrequency": "FIFTEEN_MINUTES",
+        "CreatedAt": "2023-02-01T09:15:00.000000+00:00",
+        "UpdatedAt": "2023-02-10T11:20:00.000000+00:00"
+    }
+]
