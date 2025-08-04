@@ -52,7 +52,7 @@ machine to pull data from AWS.
     **Notes:**
     - You can view a full list of Cartography's CLI arguments by running `docker-compose run cartography --help`.
 
-    - Also see the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) to set up each data source. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.
+    - Refer to the configuration sections of the relevant intel modules - such as [AWS](https://cartography-cncf.github.io/cartography/modules/aws/index.html), [GCP](https://cartography-cncf.github.io/cartography/modules/gcp/index.html), [Azure](https://cartography-cncf.github.io/cartography/modules/azure/index.html), and others - to properly set up each data source. The instructions for configuring additional modules can be found in the sidebar menu under the "Intel Modules" section. This generally involves specifying environment variables to cartography, or making a config/credential file on the host available to the container.
 
         - You can pass in environment variables to the cartography container using the docker-compose format like this: `-e VARIABLE1 -e VARIABLE2=value2`.
         - You can make files available to the cartography container by editing the volumes in the docker-compose.yml file. See docker-compose documentation on how to do that.

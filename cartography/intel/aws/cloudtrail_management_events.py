@@ -223,6 +223,13 @@ def transform_assume_role_events_to_role_assumptions(
 
         cloudtrail_event = json.loads(event["CloudTrailEvent"])
 
+        # Skip events with null requestParameters since we can't extract roleArn
+        if not cloudtrail_event.get("requestParameters"):
+            logger.debug(
+                f"Skipping CloudTrail AssumeRole event due to missing requestParameters. Event: {event.get('EventId', 'unknown')}"
+            )
+            continue
+
         if cloudtrail_event.get("userIdentity", {}).get("arn"):
             source_principal = cloudtrail_event["userIdentity"]["arn"]
             destination_principal = cloudtrail_event["requestParameters"]["roleArn"]
@@ -298,6 +305,13 @@ def transform_saml_role_events_to_role_assumptions(
 
         cloudtrail_event = json.loads(event["CloudTrailEvent"])
 
+        # Skip events with null requestParameters since we can't extract roleArn
+        if not cloudtrail_event.get("requestParameters"):
+            logger.debug(
+                f"Skipping CloudTrail AssumeRoleWithSAML event due to missing requestParameters. Event: {event.get('EventId', 'unknown')}"
+            )
+            continue
+
         response_elements = cloudtrail_event.get("responseElements", {})
         assumed_role_user = response_elements.get("assumedRoleUser", {})
 
@@ -369,6 +383,13 @@ def transform_web_identity_role_events_to_role_assumptions(
     for event in events:
 
         cloudtrail_event = json.loads(event["CloudTrailEvent"])
+
+        # Skip events with null requestParameters since we can't extract roleArn
+        if not cloudtrail_event.get("requestParameters"):
+            logger.debug(
+                f"Skipping CloudTrail AssumeRoleWithWebIdentity event due to missing requestParameters. Event: {event.get('EventId', 'unknown')}"
+            )
+            continue
 
         user_identity = cloudtrail_event.get("userIdentity", {})
 
