@@ -42,7 +42,7 @@ def test_sync_vpc(mock_get_vpcs, neo4j_session):
     ) == {
         ("vpc-038cf", "172.31.0.0/16", True),
         ("vpc-0f510", "10.1.0.0/16", False),
-        ("vpc-0a1b2", "10.2.0.0/16", False),
+        ("vpc-0a1b2", "2001:db8::/32", False),
     }
 
     # Assert VPCs are connected to AWS Account
@@ -72,7 +72,7 @@ def test_sync_vpc(mock_get_vpcs, neo4j_session):
     ) == {
         ("vpc-038cf", "vpc-038cf|172.31.0.0/16"),
         ("vpc-0f510", "vpc-0f510|10.1.0.0/16"),
-        ("vpc-0a1b2", "vpc-0a1b2|10.2.0.0/16"),
+        ("vpc-0a1b2", "vpc-0a1b2|2001:db8::/32"),
     }
 
     # Assert CIDR blocks have correct properties
@@ -89,8 +89,8 @@ def test_sync_vpc(mock_get_vpcs, neo4j_session):
         ),
         ("vpc-0f510|10.1.0.0/16", "10.1.0.0/16", "vpc-cidr-assoc-087ee", "associated"),
         (
-            "vpc-0a1b2|10.2.0.0/16",
-            "10.2.0.0/16",
+            "vpc-0a1b2|2001:db8::/32",
+            "2001:db8::/32",
             "vpc-ipv6-cidr-assoc-0a1b2",
             "associated",
         ),
@@ -118,8 +118,8 @@ def test_sync_vpc(mock_get_vpcs, neo4j_session):
         ["id", "cidr_block", "association_id", "block_state"],
     ) == {
         (
-            "vpc-0a1b2|10.2.0.0/16",
-            "10.2.0.0/16",
+            "vpc-0a1b2|2001:db8::/32",
+            "2001:db8::/32",
             "vpc-ipv6-cidr-assoc-0a1b2",
             "associated",
         ),

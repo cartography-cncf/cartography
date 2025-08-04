@@ -39,7 +39,7 @@ TEST_VPCS = [
         "Ipv6CidrBlockAssociationSet": [
             {
                 "AssociationId": "vpc-ipv6-cidr-assoc-0a1b2",
-                "Ipv6CidrBlock": "10.2.0.0/16",
+                "Ipv6CidrBlock": "2001:db8::/32",
                 "Ipv6CidrBlockState": {"State": "associated"},
             }
         ],
@@ -47,7 +47,7 @@ TEST_VPCS = [
         "BlockPublicAccessStates": {"InternetGatewayBlockMode": "on"},
         "VpcId": "vpc-0a1b2",
         "State": "available",
-        "CidrBlock": "10.2.0.0/16",
+        "CidrBlock": "2001:db8::/32",
         "DhcpOptionsId": "dopt-036d",
     },
 ]
