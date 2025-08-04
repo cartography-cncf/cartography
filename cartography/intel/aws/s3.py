@@ -521,9 +521,6 @@ def _load_bucket_logging(
     MATCH (bucket:S3Bucket{name: bucket_logging.bucket})
     SET bucket.logging_enabled = bucket_logging.logging_enabled,
         bucket.logging_target_bucket = bucket_logging.target_bucket,
-        bucket.logging_target_prefix = bucket_logging.target_prefix,
-        bucket.logging_target_grants = bucket_logging.target_grants,
-        bucket.logging_target_object_key_format = bucket_logging.target_object_key_format,
         bucket.lastupdated = $update_tag
     """
     neo4j_session.run(
@@ -911,7 +908,6 @@ def parse_bucket_ownership_controls(
     }
 
 
-@timeit
 def parse_bucket_logging(bucket: str, bucket_logging: Optional[Dict]) -> Optional[Dict]:
     """Parses the S3 bucket logging status configuration and returns a dict of the relevant data"""
     # Logging status object JSON looks like:
@@ -949,26 +945,12 @@ def parse_bucket_logging(bucket: str, bucket_logging: Optional[Dict]) -> Optiona
             "bucket": bucket,
             "logging_enabled": False,
             "target_bucket": None,
-            "target_prefix": None,
-            "target_grants": None,
-            "target_object_key_format": None,
         }
 
     return {
         "bucket": bucket,
         "logging_enabled": True,
         "target_bucket": logging_config.get("TargetBucket"),
-        "target_prefix": logging_config.get("TargetPrefix"),
-        "target_grants": (
-            json.dumps(logging_config.get("TargetGrants"))
-            if logging_config.get("TargetGrants")
-            else None
-        ),
-        "target_object_key_format": (
-            json.dumps(logging_config.get("TargetObjectKeyFormat"))
-            if logging_config.get("TargetObjectKeyFormat")
-            else None
-        ),
     }
 
 

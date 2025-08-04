@@ -2552,10 +2552,6 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 | object_ownership | The bucket's [Object Ownership](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html) setting. `BucketOwnerEnforced` indicates that ACLs on the bucket and its objects are ignored. `BucketOwnerPreferred` and `ObjectWriter` indicate that ACLs still function; see [the AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html#object-ownership-overview) for details.|
 | logging_enabled | True if this bucket has [logging enabled](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLogging.html) enabled. |
 | logging_target_bucket | The name of the target bucket where access logs are stored. Only defined if logging is enabled. |
-| logging_target_prefix | The prefix for log objects in the target bucket. Only defined if logging is enabled. |
-| logging_target_grants | JSON string containing target grants that control access to log files. Only defined if logging is enabled. |
-| logging_target_object_key_format | JSON string containing object key format configuration for log files. Only defined if logging is enabled. |
-
 
 #### Relationships
 
