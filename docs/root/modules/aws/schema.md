@@ -786,7 +786,7 @@ More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describ
   ```
 - `AWSVpc` and `EC2SecurityGroup` membership association
   ```
-  (AWSVpc)<-[MEMBER_OF_EC2_SECURITY_GROUP]-(EC2SecurityGroup)
+  (AWSVpc)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
   ```
 -  AWS VPCs can be tagged with AWSTags.
     ```
