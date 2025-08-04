@@ -24,6 +24,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+          persist-credentials: false
       # https://github.com/marketplace/actions/setup-python
       # ^-- This gives info on matrix testing.
       - name: Install Python
@@ -72,11 +73,13 @@ jobs:
           !contains(github.ref, env.DEFAULT_BRANCH)
         run: |
           set -x
-          brname="${{github.ref}}"
+          brname="${GITHUB_REF}"
           brname="${brname##refs/heads/}"
           brdir=${brname//\//--}   # replace '/' with '--'
           rm -rf   _gh-pages/branch/${brdir}
           rsync -a generated/docs/ _gh-pages/branch/${brdir}
+        env:
+          GITHUB_REF: ${{ github.ref }}
       # Go through each branch in _gh-pages/branch/, if it's not a
       # ref, then delete it.
       - name: Delete old feature branches
