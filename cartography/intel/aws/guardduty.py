@@ -9,8 +9,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.aws.guardduty.findings import GuardDutyFindingSchema
 from cartography.models.aws.guardduty.detector import GuardDutyDetectorSchema
+from cartography.models.aws.guardduty.findings import GuardDutyFindingSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
@@ -230,12 +230,14 @@ def get_detector_details(
     return detector_details
 
 
-def transform_detector_details(detector_details: List[Dict[str, Any]], region: str) -> List[Dict[str, Any]]:
+def transform_detector_details(
+    detector_details: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
     """
     Transform GuardDuty detector details from API response to schema format.
     """
     transformed_detectors = []
-    
+
     for detector in detector_details:
         # Extract detector ID from the response
         detector_id = detector.get("DetectorId")
@@ -252,9 +254,9 @@ def transform_detector_details(detector_details: List[Dict[str, Any]], region: s
             "UpdatedAt": detector.get("UpdatedAt"),
             "Region": region,
         }
-        
+
         transformed_detectors.append(transformed_detector)
-    
+
     return transformed_detectors
 
 
@@ -273,7 +275,9 @@ def load_guardduty_detectors(
     for detector in data:
         detector_id = detector.get("DetectorId")
         if detector_id:
-            detector["Arn"] = f"arn:aws:guardduty:{region}:{aws_account_id}:detector/{detector_id}"
+            detector["Arn"] = (
+                f"arn:aws:guardduty:{region}:{aws_account_id}:detector/{detector_id}"
+            )
 
     load(
         neo4j_session,
@@ -298,7 +302,7 @@ def cleanup_guardduty(
         GuardDutyFindingSchema(), common_job_parameters
     )
     cleanup_job.run(neo4j_session)
-    
+
     # Cleanup detectors
     detector_cleanup_job = GraphJob.from_node_schema(
         GuardDutyDetectorSchema(), common_job_parameters

@@ -1,9 +1,9 @@
-from cartography.intel.aws.guardduty import transform_findings
 from cartography.intel.aws.guardduty import transform_detector_details
-from tests.data.aws.guardduty import EXPECTED_TRANSFORM_RESULTS
+from cartography.intel.aws.guardduty import transform_findings
 from tests.data.aws.guardduty import EXPECTED_DETECTOR_TRANSFORM_RESULTS
-from tests.data.aws.guardduty import GET_FINDINGS
+from tests.data.aws.guardduty import EXPECTED_TRANSFORM_RESULTS
 from tests.data.aws.guardduty import GET_DETECTORS
+from tests.data.aws.guardduty import GET_FINDINGS
 
 TEST_UPDATE_TAG = 123456789
 

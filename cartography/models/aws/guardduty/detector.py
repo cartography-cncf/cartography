@@ -17,7 +17,9 @@ class GuardDutyDetectorNodeProperties(CartographyNodeProperties):
     detector_id: PropertyRef = PropertyRef("DetectorId")
     status: PropertyRef = PropertyRef("Status")
     service_role: PropertyRef = PropertyRef("ServiceRole")
-    finding_publishing_frequency: PropertyRef = PropertyRef("FindingPublishingFrequency")
+    finding_publishing_frequency: PropertyRef = PropertyRef(
+        "FindingPublishingFrequency"
+    )
     created_at: PropertyRef = PropertyRef("CreatedAt")
     updated_at: PropertyRef = PropertyRef("UpdatedAt")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
