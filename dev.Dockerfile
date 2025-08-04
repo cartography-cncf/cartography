@@ -23,8 +23,12 @@ COPY --from=ghcr.io/astral-sh/uv@sha256:87a04222b228501907f487b338ca6fc1514a9336
 # Install dependencies.
 WORKDIR /var/cartography
 COPY . /var/cartography
-RUN uv sync --dev && uv venv
-RUN chmod -R a+w /var/cartography
+# Install python dev dependencies globally to the container with an editable install
+# Note that the python interpreter is located at /var/cartography/.venv/bin/python
+RUN uv sync --dev && uv pip install -e .
+
+# The following line exists only to help on Windows Subsystem for Linux permissions issues
+# RUN chmod -R a+w /var/cartography
 
 # Now copy the entire source tree.
 ENV HOME=/var/cartography
