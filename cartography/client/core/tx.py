@@ -345,4 +345,6 @@ def load_matchlinks(
     ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
     matchlink_query = build_matchlink_query(rel_schema)
     logger.debug(f"Matchlink query: {matchlink_query}")
+    for idx, data_dict in enumerate(dict_list):
+        dict_list[idx] = data_dict_cleanup(rel_schema, data_dict)
     load_graph_data(neo4j_session, matchlink_query, dict_list, **kwargs)

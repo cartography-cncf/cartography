@@ -83,7 +83,6 @@ def test_node_schema_to_property_refs():
     assert isinstance(property_refs, dict)
     assert list(property_refs.keys()) == [
         "id",
-        "lastupdated",
         "name",
         "nested.number",
         "multi_nested.deep.float",
@@ -91,7 +90,6 @@ def test_node_schema_to_property_refs():
         "list_value",
         "lastseen",
         "rel_property",
-        "PARENT_ID",
         "others_id",
     ]
 

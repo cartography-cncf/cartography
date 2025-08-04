@@ -1,9 +1,9 @@
 """
 Data sanitization and formatting utilities for Cartography node schemas.
 
-This module provides functionality to clean up and format data dictionaries based on 
-CartographyNodeSchema definitions. It ensures that data conforms to the expected 
-structure and types defined in the schema, while automatically formatting values 
+This module provides functionality to clean up and format data dictionaries based on
+CartographyNodeSchema definitions. It ensures that data conforms to the expected
+structure and types defined in the schema, while automatically formatting values
 according to their PropertyRef specifications.
 
 The main functionality includes:
@@ -22,12 +22,13 @@ from dateutil.parser import parse as parse_date
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelSchema
 
 logger = logging.getLogger(__name__)
 
 
 def data_dict_cleanup(
-    node_schema: CartographyNodeSchema, data: dict[str, Any]
+    schema: CartographyNodeSchema | CartographyRelSchema, data: dict[str, Any]
 ) -> dict[str, Any]:
     """
     Clean up and sanitize a data dictionary based on a CartographyNodeSchema.
@@ -39,23 +40,23 @@ def data_dict_cleanup(
     4. Ensuring data consistency and type safety
 
     Args:
-        node_schema (CartographyNodeSchema): The schema defining the expected 
-            properties and structure of the node. This schema contains PropertyRef 
+        node_schema (CartographyNodeSchema): The schema defining the expected
+            properties and structure of the node. This schema contains PropertyRef
             definitions that specify how each field should be formatted.
-        data (dict[str, Any]): The raw data dictionary to be cleaned up. This 
+        data (dict[str, Any]): The raw data dictionary to be cleaned up. This
             may contain extra fields, incorrectly typed values, or nested structures
             that need to be sanitized.
 
     Returns:
-        dict[str, Any]: A cleaned-up dictionary containing only the properties 
-            defined in the node schema, with values auto-formatted according to 
-            the schema's PropertyRef definitions. Nested objects are recursively 
+        dict[str, Any]: A cleaned-up dictionary containing only the properties
+            defined in the node schema, with values auto-formatted according to
+            the schema's PropertyRef definitions. Nested objects are recursively
             processed.
 
     Example:
         >>> from cartography.models.core.nodes import CartographyNodeSchema
         >>> from cartography.models.core.common import PropertyRef
-        >>> 
+        >>>
         >>> # Assuming we have a schema with auto_format specifications
         >>> schema = CartographyNodeSchema(...)
         >>> raw_data = {
@@ -67,30 +68,39 @@ def data_dict_cleanup(
         >>> cleaned = data_dict_cleanup(schema, raw_data)
         >>> # Result contains only schema-defined fields with proper types
     """
-    keys = _node_schema_to_property_refs(node_schema)
+    if isinstance(schema, CartographyNodeSchema):
+        keys = _node_schema_to_property_refs(schema)
+    elif isinstance(schema, CartographyRelSchema):
+        keys = _relationship_schema_to_property_refs(schema)
+        print("DEBUG: keys", keys)
+    else:
+        raise TypeError(
+            f"Unsupported schema type: {type(schema)}. Expected CartographyNodeSchema or CartographyRelSchema."
+        )
+
     return _recursive_cleanup(data, keys)
 
 
 def _recursive_cleanup(data: dict, keys: dict[str, PropertyRef]) -> dict:
     """
     Recursively clean up a data dictionary based on provided property references.
-    
+
     This function handles both simple properties and nested data structures by:
     - Processing simple keys directly with auto-formatting
     - Identifying nested keys (containing dots) and grouping them by prefix
     - Recursively processing nested dictionaries
-    
+
     Args:
-        data (dict): The data dictionary to clean up. Can contain both simple 
+        data (dict): The data dictionary to clean up. Can contain both simple
             key-value pairs and nested dictionaries.
-        keys (dict[str, PropertyRef]): A mapping of property names to their 
-            PropertyRef definitions. Nested properties are represented with 
+        keys (dict[str, PropertyRef]): A mapping of property names to their
+            PropertyRef definitions. Nested properties are represented with
             dot notation (e.g., "address.street").
-    
+
     Returns:
         dict: A cleaned dictionary containing only the specified properties,
             with nested structures properly processed.
-            
+
     Note:
         This function preserves the original data structure while filtering
         and formatting according to the provided property references.
@@ -123,26 +133,26 @@ def _node_schema_to_property_refs(
 ) -> dict[str, PropertyRef]:
     """
     Extract property references from a CartographyNodeSchema.
-    
+
     This function comprehensively collects PropertyRef definitions from all parts
     of a node schema, including:
     - Direct node properties
     - Sub-resource relationship properties and target node matchers
     - Other relationship properties and target node matchers
-    
-    Properties marked with `set_in_kwargs=True` are excluded as they are 
+
+    Properties marked with `set_in_kwargs=True` are excluded as they are
     typically handled separately in the data processing pipeline.
-    
+
     Args:
         node_schema (CartographyNodeSchema): The schema to extract properties from.
             This schema may contain various types of relationships and property
             definitions.
-    
+
     Returns:
         dict[str, PropertyRef]: A mapping of property names to their PropertyRef
             definitions. The keys are property names and values are PropertyRef
             instances containing formatting and validation rules.
-            
+
     Note:
         This function flattens the hierarchical schema structure into a single
         dictionary for easier processing during data cleanup.
@@ -155,27 +165,37 @@ def _node_schema_to_property_refs(
         results[p_ref.name] = p_ref
 
     if node_schema.sub_resource_relationship:
-        for p_ref in asdict(node_schema.sub_resource_relationship.properties).values():
-            if p_ref.set_in_kwargs:
-                continue
-            results[p_ref.name] = p_ref
-        for p_ref in asdict(
-            node_schema.sub_resource_relationship.target_node_matcher
-        ).values():
-            if p_ref.set_in_kwargs:
-                continue
-            results[p_ref.name] = p_ref
+        results = results | _relationship_schema_to_property_refs(
+            node_schema.sub_resource_relationship
+        )
 
     if node_schema.other_relationships:
         for rel in node_schema.other_relationships.rels:
-            for p_ref in asdict(rel.properties).values():
-                if p_ref.set_in_kwargs:
-                    continue
-                results[p_ref.name] = p_ref
-            for p_ref in asdict(rel.target_node_matcher).values():
-                if p_ref.set_in_kwargs:
-                    continue
-                results[p_ref.name] = p_ref
+            results = results | _relationship_schema_to_property_refs(rel)
+
+    return results
+
+
+def _relationship_schema_to_property_refs(
+    rel_schema: CartographyRelSchema,
+) -> dict[str, PropertyRef]:
+    results: dict[str, PropertyRef] = {}
+
+    for p_ref in asdict(rel_schema.properties).values():
+        if p_ref.set_in_kwargs:
+            continue
+        results[p_ref.name] = p_ref
+
+    for p_ref in asdict(rel_schema.target_node_matcher).values():
+        if p_ref.set_in_kwargs:
+            continue
+        results[p_ref.name] = p_ref
+
+    if rel_schema.source_node_matcher:
+        for p_ref in asdict(rel_schema.source_node_matcher).values():
+            if p_ref.set_in_kwargs:
+                continue
+            results[p_ref.name] = p_ref
 
     return results
 
@@ -183,7 +203,7 @@ def _node_schema_to_property_refs(
 def _auto_format_field(p_ref: PropertyRef, value: Any) -> Any:
     """
     Auto-format a field value based on its PropertyRef specification.
-    
+
     This function performs type conversion and formatting based on the `auto_format`
     attribute of the PropertyRef. It handles various data types including:
     - String conversion with empty string handling
@@ -191,35 +211,35 @@ def _auto_format_field(p_ref: PropertyRef, value: Any) -> Any:
     - DateTime parsing from multiple formats (timestamps, ISO strings)
     - Boolean conversion with multiple string representations
     - Collection types (dict, list) with empty value handling
-    
+
     Args:
         p_ref (PropertyRef): The property reference containing formatting rules.
             The `auto_format` attribute specifies the target type for conversion.
         value (Any): The raw value to be formatted. Can be of any type.
-    
+
     Returns:
         Any: The formatted value according to the PropertyRef specification.
             Returns None for empty strings, empty collections, or null values.
             On formatting errors, returns a string representation as fallback.
-    
+
     Raises:
         ValueError: When boolean conversion fails for unsupported value types.
-        
+
     Examples:
         >>> # String conversion
         >>> p_ref = PropertyRef(auto_format=str)
         >>> _auto_format_field(p_ref, 123) == "123"
-        
+
         >>> # DateTime conversion from timestamp
         >>> p_ref = PropertyRef(auto_format=datetime)
         >>> result = _auto_format_field(p_ref, 1640995200)
         >>> isinstance(result, datetime)
-        
+
         >>> # Boolean conversion from string
         >>> p_ref = PropertyRef(auto_format=bool)
         >>> _auto_format_field(p_ref, "true") == True
         >>> _auto_format_field(p_ref, "false") == False
-        
+
     Note:
         This function is designed to be error-resilient. If any conversion fails,
         it logs a warning and returns a string representation of the value to
