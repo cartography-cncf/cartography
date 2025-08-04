@@ -243,10 +243,6 @@ def transform_detector_details(detector_details: List[Dict[str, Any]], region: s
             logger.warning(f"Detector missing DetectorId in region {region}")
             continue
 
-        # Create ARN for the detector
-        # GuardDuty detector ARN format: arn:aws:guardduty:region:account-id:detector/detector-id
-        # We'll construct this in the load function since we have the account ID there
-        
         transformed_detector = {
             "DetectorId": detector_id,
             "Status": detector.get("Status"),
