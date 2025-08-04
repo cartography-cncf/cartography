@@ -45,6 +45,14 @@ To use Trivy with Cartography,
 
     The `--trivy-s3-prefix` parameter is optional and defaults to an empty string.
 
+1. Alternatively, place the JSON results on disk and point Cartography at the directory.
+
+    ```bash
+    cartography --selected-modules trivy --trivy-results-dir /path/to/trivy-results
+    ```
+
+    Cartography will ingest every `.json` file under the provided directory. The image URI is read from the `ArtifactName` field inside each file, so file names may contain any characters.
+
 ## Notes on running Trivy
 
 - You can use [custom OPA policies](https://trivy.dev/latest/docs/configuration/filtering/#by-rego) with Trivy to filter the results. To do this, specify the path to your policy file using `--trivy-opa-policy-file-path`

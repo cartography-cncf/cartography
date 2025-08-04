@@ -2,6 +2,39 @@
 
 MatchLinks are a way to create relationships between two existing nodes in the graph.
 
+## Important: Use MatchLinks Sparingly
+
+**WARNING: MatchLinks can have significant performance impact and should be used only in specific scenarios.**
+
+MatchLinks require a 5-step process that makes them expensive:
+1. Call API A, write Node A to the graph
+2. Call API B, write Node B to the graph
+3. Read Node A from graph
+4. Read Node B from graph
+5. Write relationship between A and B to graph
+
+**Prefer standard node schemas + relationship schemas** whenever possible. Only use MatchLinks in these two specific scenarios:
+
+### When to Use MatchLinks
+
+**Scenario 1: Connecting Two Existing Node Types**
+When you need to connect two different types of nodes that already exist in the graph, and the relationship data comes from a separate API call or data source.
+
+**Scenario 2: Rich Relationship Properties**
+When you need to store detailed metadata on relationships and it doesn't make sense to break out that data to separate nodes.
+
+### When NOT to Use MatchLinks
+
+**Don't use MatchLinks for:**
+- Standard parent-child relationships (use `other_relationships` in node schema)
+- Simple one-to-many relationships (use `one_to_many=True` in standard relationships)
+- When you can define the relationship in the node schema
+- Performance-critical scenarios
+
+**Use MatchLinks only for:**
+- Connecting two existing node types from separate data sources where it is impractical to connect them using standard node schemas and relationships
+- Relationships with rich metadata where it doesn't make sense to break out that data to separate nodes
+
 ## Example
 
 Suppose we have a graph that has AWSPrincipals and S3Buckets. We want to create a relationship between an AWSPrincipal and an S3Bucket if the AWSPrincipal has access to the S3Bucket.
@@ -64,6 +97,11 @@ Let's say we have the following data that maps principals with the S3Buckets the
         permission_action: PropertyRef = PropertyRef("permission_action")
     ```
 
+**Note: All MatchLink relationship properties must include these mandatory fields:**
+- `lastupdated`: PropertyRef = PropertyRef("UPDATE_TAG", set_in_kwargs=True)
+- `_sub_resource_label`: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
+- `_sub_resource_id`: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
 1. Load the matchlinks to the graph
     ```python
     load_matchlinks(
@@ -83,6 +121,8 @@ Let's say we have the following data that maps principals with the S3Buckets the
     cleanup_job = GraphJob.from_matchlink(matchlink, "AWSAccount", ACCOUNT_ID, UPDATE_TAG)
     cleanup_job.run(neo4j_session)
     ```
+
+**Important: Always implement cleanup for MatchLinks to remove stale relationships.**
 
 1. Enjoy!
     ![matchlinks](../images/alice-bob-matchlinks.png)

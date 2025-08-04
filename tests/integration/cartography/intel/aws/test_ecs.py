@@ -22,29 +22,17 @@ def test_load_ecs_clusters(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session,
+        "ECSCluster",
+        ["id", "name", "status"],
+    ) == {
         (
             CLUSTER_ARN,
             "test_cluster",
             "ACTIVE",
         ),
     }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:ECSCluster)
-        RETURN n.id, n.name, n.status
-        """,
-    )
-    actual_nodes = {
-        (
-            n["n.id"],
-            n["n.name"],
-            n["n.status"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
 
 
 def test_load_ecs_container_instances(neo4j_session, *args):
@@ -65,7 +53,11 @@ def test_load_ecs_container_instances(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session,
+        "ECSContainerInstance",
+        ["id", "ec2_instance_id", "status", "version"],
+    ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
             "i-00000000000000000",
@@ -74,31 +66,20 @@ def test_load_ecs_container_instances(neo4j_session, *args):
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:ECSContainerInstance)
-        RETURN n.id, n.ec2_instance_id, n.status, n.version
-        """,
-    )
-    actual_nodes = {
+    assert check_rels(
+        neo4j_session,
+        "ECSCluster",
+        "id",
+        "ECSContainerInstance",
+        "id",
+        "HAS_CONTAINER_INSTANCE",
+        rel_direction_right=True,
+    ) == {
         (
-            n["n.id"],
-            n["n.ec2_instance_id"],
-            n["n.status"],
-            n["n.version"],
-        )
-        for n in nodes
+            CLUSTER_ARN,
+            "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
+        ),
     }
-    assert actual_nodes == expected_nodes
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (:ECSCluster)-[:HAS_CONTAINER_INSTANCE]->(n:ECSContainerInstance)
-        RETURN count(n.id) AS c
-        """,
-    )
-    for n in nodes:
-        assert n["c"] == 1
 
 
 def test_load_ecs_services(neo4j_session, *args):
@@ -119,7 +100,11 @@ def test_load_ecs_services(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session,
+        "ECSService",
+        ["id", "name", "cluster_arn", "status"],
+    ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
             "test_service",
@@ -128,31 +113,20 @@ def test_load_ecs_services(neo4j_session, *args):
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:ECSService)
-        RETURN n.id, n.name, n.cluster_arn, n.status
-        """,
-    )
-    actual_nodes = {
+    assert check_rels(
+        neo4j_session,
+        "ECSCluster",
+        "id",
+        "ECSService",
+        "id",
+        "HAS_SERVICE",
+        rel_direction_right=True,
+    ) == {
         (
-            n["n.id"],
-            n["n.name"],
-            n["n.cluster_arn"],
-            n["n.status"],
-        )
-        for n in nodes
+            CLUSTER_ARN,
+            "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
+        ),
     }
-    assert actual_nodes == expected_nodes
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (:ECSCluster)-[:HAS_SERVICE]->(n:ECSService)
-        RETURN count(n.id) AS c
-        """,
-    )
-    for n in nodes:
-        assert n["c"] == 1
 
 
 def test_load_ecs_tasks(neo4j_session, *args):
@@ -178,7 +152,11 @@ def test_load_ecs_tasks(neo4j_session, *args):
     )
 
     # Assert
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session,
+        "ECSTask",
+        ["id", "task_definition_arn", "cluster_arn", "group"],
+    ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
             "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
@@ -187,24 +165,11 @@ def test_load_ecs_tasks(neo4j_session, *args):
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:ECSTask)
-        RETURN n.id, n.task_definition_arn, n.cluster_arn, n.group
-        """,
-    )
-    actual_nodes = {
-        (
-            n["n.id"],
-            n["n.task_definition_arn"],
-            n["n.cluster_arn"],
-            n["n.group"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
-
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session,
+        "ECSContainer",
+        ["id", "name", "image", "image_digest"],
+    ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",  # noqa:E501
             "test-task_container",
@@ -213,31 +178,20 @@ def test_load_ecs_tasks(neo4j_session, *args):
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:ECSContainer)
-        RETURN n.id, n.name, n.image, n.image_digest
-        """,
-    )
-    actual_nodes = {
+    assert check_rels(
+        neo4j_session,
+        "ECSTask",
+        "id",
+        "ECSContainer",
+        "id",
+        "HAS_CONTAINER",
+        rel_direction_right=True,
+    ) == {
         (
-            n["n.id"],
-            n["n.name"],
-            n["n.image"],
-            n["n.image_digest"],
-        )
-        for n in nodes
+            "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
+            "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
+        ),
     }
-    assert actual_nodes == expected_nodes
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (:ECSTask)-[:HAS_CONTAINER]->(n:ECSContainer)
-        RETURN count(n.id) AS c
-        """,
-    )
-    for n in nodes:
-        assert n["c"] == 1
 
 
 def test_transform_ecs_tasks(neo4j_session):
@@ -306,7 +260,11 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
     )
 
     # Assert
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session,
+        "ECSTaskDefinition",
+        ["id", "family", "status", "revision"],
+    ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
             "test_family",
@@ -315,24 +273,11 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:ECSTaskDefinition)
-        RETURN n.id, n.family, n.status, n.revision
-        """,
-    )
-    actual_nodes = {
-        (
-            n["n.id"],
-            n["n.family"],
-            n["n.status"],
-            n["n.revision"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
-
-    expected_nodes = {
+    assert check_nodes(
+        neo4j_session,
+        "ECSContainerDefinition",
+        ["id", "name", "image"],
+    ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0-test",
             "test",
@@ -340,30 +285,20 @@ def test_load_ecs_task_definitions(neo4j_session, *args):
         ),
     }
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:ECSContainerDefinition)
-        RETURN n.id, n.name, n.image
-        """,
-    )
-    actual_nodes = {
+    assert check_rels(
+        neo4j_session,
+        "ECSTaskDefinition",
+        "id",
+        "ECSContainerDefinition",
+        "id",
+        "HAS_CONTAINER_DEFINITION",
+        rel_direction_right=True,
+    ) == {
         (
-            n["n.id"],
-            n["n.name"],
-            n["n.image"],
-        )
-        for n in nodes
+            "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0",
+            "arn:aws:ecs:us-east-1:000000000000:task-definition/test_definition:0-test",
+        ),
     }
-    assert actual_nodes == expected_nodes
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (:ECSTaskDefinition)-[:HAS_CONTAINER_DEFINITION]->(n:ECSContainerDefinition)
-        RETURN count(n.id) AS c
-        """,
-    )
-    for n in nodes:
-        assert n["c"] == 1
 
 
 @patch.object(
@@ -739,6 +674,22 @@ def test_sync_ecs_comprehensive(
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
     }, "ECSContainers to ECRImage (HAS_IMAGE)"
+
+    # ECSService to ECSTasks
+    assert check_rels(
+        neo4j_session,
+        "ECSService",
+        "id",
+        "ECSTask",
+        "id",
+        "HAS_TASK",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:service/test_instance/test_service",
+            "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
+        ),
+    }, "ECSService to ECSTasks"
 
     # Verify that all expected nodes were created
     assert check_nodes(
