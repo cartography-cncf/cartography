@@ -249,7 +249,7 @@ def test_load_dnspointsto_elasticip_relationships(neo4j_session):
 
     cartography.intel.aws.route53.load_dns_details(
         neo4j_session,
-        tests.data.aws.route53.CLEAN_SLATE_ELASTICIP_ROUTE53_DATA,
+        tests.data.aws.route53.ELASTIC_IP_RELATIONSHIP_TEST_RECORDS,
         TEST_AWS_ACCOUNTID,
         TEST_UPDATE_TAG,
     )
