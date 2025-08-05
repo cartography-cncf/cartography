@@ -172,12 +172,11 @@ async def get_app_role_assignments(
             )
             continue
         except Exception as e:
-            # Only catch truly unexpected errors - these should be rare
             logger.error(
                 f"Unexpected error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}",
                 exc_info=True,
             )
-            continue
+            raise
 
     logger.info(f"Retrieved {len(assignments)} app role assignments total")
     return assignments

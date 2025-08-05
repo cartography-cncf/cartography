@@ -1,13 +1,14 @@
 import asyncio
+import datetime
 import logging
+from traceback import TracebackException
+from typing import Awaitable
+from typing import Callable
 
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.entra.applications import sync_entra_applications
-from cartography.intel.entra.groups import sync_entra_groups
-from cartography.intel.entra.ou import sync_entra_ous
-from cartography.intel.entra.users import sync_entra_users
+from cartography.intel.entra.resources import RESOURCE_FUNCTIONS
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -39,45 +40,46 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     async def main() -> None:
-        # Run user sync
-        await sync_entra_users(
-            neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
-            config.update_tag,
-            common_job_parameters,
-        )
+        failed_stages = []
+        exception_tracebacks = []
 
-        # Run group sync
-        await sync_entra_groups(
-            neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
-            config.update_tag,
-            common_job_parameters,
-        )
+        async def run_stage(name: str, func: Callable[..., Awaitable[None]]) -> None:
+            try:
+                await func(
+                    neo4j_session,
+                    config.entra_tenant_id,
+                    config.entra_client_id,
+                    config.entra_client_secret,
+                    config.update_tag,
+                    common_job_parameters,
+                )
+            except Exception as e:
+                if config.entra_best_effort_mode:
+                    timestamp = datetime.datetime.now()
+                    failed_stages.append(name)
+                    exception_traceback = TracebackException.from_exception(e)
+                    traceback_string = "".join(exception_traceback.format())
+                    exception_tracebacks.append(
+                        f"{timestamp} - Exception for stage {name}\n{traceback_string}"
+                    )
+                    logger.warning(
+                        f"Caught exception syncing {name}. entra-best-effort-mode is on so we are continuing "
+                        "on to the next Entra sync. All exceptions will be aggregated and re-logged at the end of the sync.",
+                        exc_info=True,
+                    )
+                else:
+                    logger.error("Error during Entra sync", exc_info=True)
+                    raise
 
-        # Run OU sync
-        await sync_entra_ous(
-            neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
-            config.update_tag,
-            common_job_parameters,
-        )
+        for name, func in RESOURCE_FUNCTIONS:
+            await run_stage(name, func)
 
-        # Run application sync
-        await sync_entra_applications(
-            neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
-            config.update_tag,
-            common_job_parameters,
-        )
+        if failed_stages:
+            logger.error(
+                f"Entra sync failed for the following stages: {', '.join(failed_stages)}. "
+                "See the logs for more details.",
+            )
+            raise Exception("\n".join(exception_tracebacks))
 
-    # Execute both syncs in sequence
+    # Execute all syncs in sequence
     asyncio.run(main())

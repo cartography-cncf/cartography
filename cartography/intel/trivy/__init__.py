@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 
@@ -8,7 +9,9 @@ from cartography.client.aws import list_accounts
 from cartography.client.aws.ecr import get_ecr_images
 from cartography.config import Config
 from cartography.intel.trivy.scanner import cleanup
+from cartography.intel.trivy.scanner import get_json_files_in_dir
 from cartography.intel.trivy.scanner import get_json_files_in_s3
+from cartography.intel.trivy.scanner import sync_single_image_from_file
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -39,13 +42,13 @@ def get_scan_targets(
 
 
 def _get_intersection(
-    images_in_graph: set[str], json_files: set[str], trivy_s3_prefix: str
+    image_uris: set[str], json_files: set[str], trivy_s3_prefix: str
 ) -> list[tuple[str, str]]:
     """
     Get the intersection of ECR images in the graph and S3 scan results.
 
     Args:
-        images_in_graph: Set of ECR images in the graph
+        image_uris: Set of ECR images in the graph
         json_files: Set of S3 object keys for JSON files
         trivy_s3_prefix: S3 prefix path containing scan results
 
@@ -60,7 +63,7 @@ def _get_intersection(
         # Remove the prefix and the .json suffix
         image_uri = s3_object_key[prefix_len:-5]
 
-        if image_uri in images_in_graph:
+        if image_uri in image_uris:
             intersection.append((image_uri, s3_object_key))
 
     return intersection
@@ -90,12 +93,12 @@ def sync_trivy_aws_ecr_from_s3(
         f"Using Trivy scan results from s3://{trivy_s3_bucket}/{trivy_s3_prefix}"
     )
 
-    images_in_graph: set[str] = get_scan_targets(neo4j_session)
+    image_uris: set[str] = get_scan_targets(neo4j_session)
     json_files: set[str] = get_json_files_in_s3(
         trivy_s3_bucket, trivy_s3_prefix, boto3_session
     )
     intersection: list[tuple[str, str]] = _get_intersection(
-        images_in_graph, json_files, trivy_s3_prefix
+        image_uris, json_files, trivy_s3_prefix
     )
 
     if len(intersection) == 0:
@@ -125,20 +128,78 @@ def sync_trivy_aws_ecr_from_s3(
 
 
 @timeit
+def sync_trivy_aws_ecr_from_dir(
+    neo4j_session: Session,
+    results_dir: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """Sync Trivy scan results from local files for AWS ECR images."""
+    logger.info(f"Using Trivy scan results from {results_dir}")
+
+    image_uris: set[str] = get_scan_targets(neo4j_session)
+    json_files: set[str] = get_json_files_in_dir(results_dir)
+
+    if not json_files:
+        logger.error(
+            f"Trivy sync was configured, but no json files were found in {results_dir}."
+        )
+        raise ValueError("No Trivy json results found on disk")
+
+    logger.info(f"Processing {len(json_files)} local Trivy result files")
+
+    for file_path in json_files:
+        # First, check if the image exists in the graph before syncing
+        try:
+            # Peek at the artifact name without processing the file
+            with open(file_path, encoding="utf-8") as f:
+                trivy_data = json.load(f)
+                artifact_name = trivy_data.get("ArtifactName")
+
+            if artifact_name and artifact_name not in image_uris:
+                logger.debug(
+                    f"Skipping results for {artifact_name} since the image is not present in the graph"
+                )
+                continue
+
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"Failed to read artifact name from {file_path}: {e}")
+            continue
+
+        # Now sync the file since we know the image exists in the graph
+        sync_single_image_from_file(
+            neo4j_session,
+            file_path,
+            update_tag,
+        )
+
+    cleanup(neo4j_session, common_job_parameters)
+
+
+@timeit
 def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
-    """
-    Start Trivy scan ingestion from S3.
+    """Start Trivy scan ingestion from S3 or local files.
 
     Args:
         neo4j_session: Neo4j session for database operations
-        config: Configuration object containing S3 settings
+        config: Configuration object containing S3 or directory paths
     """
-    # Check if S3 configuration is provided
-    if not config.trivy_s3_bucket:
-        logger.info("Trivy S3 configuration not provided. Skipping Trivy ingestion.")
+    if not config.trivy_s3_bucket and not config.trivy_results_dir:
+        logger.info("Trivy configuration not provided. Skipping Trivy ingestion.")
         return
 
-    # Default to empty string if s3 prefix is not provided
+    if config.trivy_results_dir:
+        common_job_parameters = {
+            "UPDATE_TAG": config.update_tag,
+        }
+        sync_trivy_aws_ecr_from_dir(
+            neo4j_session,
+            config.trivy_results_dir,
+            config.update_tag,
+            common_job_parameters,
+        )
+        return
+
     if config.trivy_s3_prefix is None:
         config.trivy_s3_prefix = ""
 
@@ -146,7 +207,6 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
     }
 
-    # Get ECR images to scan
     boto3_session = boto3.Session()
 
     sync_trivy_aws_ecr_from_s3(
