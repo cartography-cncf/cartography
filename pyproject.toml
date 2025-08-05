@@ -83,7 +83,7 @@ dev = [
     "pytest-asyncio",
     "types-PyYAML",
     "black==25.1.0",
-    "types-requests<2.32.0.20250329",
+    "types-requests<2.32.4.20250612",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",
