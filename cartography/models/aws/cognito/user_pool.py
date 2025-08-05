@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from os import name
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
