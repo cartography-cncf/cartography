@@ -10,6 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.cognito.identity_pool import CognitoIdentityPoolSchema
+from cartography.models.aws.cognito.user_pool import CognitoUserPoolSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -51,6 +52,21 @@ def get_identity_pool_roles(
     return all_identity_pool_details
 
 
+@timeit
+@aws_handle_regions
+def get_user_pools(boto3_session: boto3.Session, region: str) -> List[Dict[str, Any]]:
+    client = boto3_session.client(
+        "cognito-idp", region_name=region, config=get_botocore_config()
+    )
+    paginator = client.get_paginator("list_user_pools")
+    all_user_pools = []
+
+    for page in paginator.paginate(MaxResults=50):
+        user_pools = page.get("UserPools", [])
+        all_user_pools.extend(user_pools)
+    return all_user_pools
+
+
 def transform_identity_pools(
     identity_pools: List[Dict[str, Any]], region: str
 ) -> List[Dict[str, Any]]:
@@ -63,6 +79,21 @@ def transform_identity_pools(
         }
         transformed_identity_pools.append(transformed_pool)
     return transformed_identity_pools
+
+
+def transform_user_pools(
+    user_pools: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
+    transformed_user_pools = []
+    for pool in user_pools:
+        transformed_pool = {
+            "Id": pool["Id"],
+            "Region": region,
+            "Name": pool["Name"],
+            "Status": pool.get("Status"),
+        }
+        transformed_user_pools.append(transformed_pool)
+    return transformed_user_pools
 
 
 @timeit
@@ -87,12 +118,36 @@ def load_identity_pools(
 
 
 @timeit
+def load_user_pools(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        f"Loading Cognito User Pools {len(data)} for region '{region}' into graph.",
+    )
+    load(
+        neo4j_session,
+        CognitoUserPoolSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
     logger.debug("Running Efs cleanup job.")
     GraphJob.from_node_schema(CognitoIdentityPoolSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(CognitoUserPoolSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -127,6 +182,17 @@ def sync(
             load_identity_pools(
                 neo4j_session,
                 transformed_identity_pools,
+                region,
+                current_aws_account_id,
+                update_tag,
+            )
+
+            user_pools = get_user_pools(boto3_session, region)
+            transformed_user_pools = transform_user_pools(user_pools, region)
+
+            load_user_pools(
+                neo4j_session,
+                transformed_user_pools,
                 region,
                 current_aws_account_id,
                 update_tag,
