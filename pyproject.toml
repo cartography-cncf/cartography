@@ -78,7 +78,7 @@ dev = [
     "pre-commit",
     "pytest>=6.2.4",
     "pytest-mock",
-    "pytest-cov==6.1.1",
+    "pytest-cov==6.2.1",
     "pytest-rerunfailures",
     "pytest-asyncio",
     "types-PyYAML",
