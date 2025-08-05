@@ -4,6 +4,8 @@ from typing import Dict
 from typing import List
 
 import neo4j
+from kubernetes.client import V1ClusterRole
+from kubernetes.client import V1ClusterRoleBinding
 from kubernetes.client import V1Role
 from kubernetes.client import V1RoleBinding
 from kubernetes.client import V1ServiceAccount
@@ -13,6 +15,10 @@ from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
+from cartography.models.kubernetes.clusterrolebindings import (
+    KubernetesClusterRoleBindingSchema,
+)
+from cartography.models.kubernetes.clusterroles import KubernetesClusterRoleSchema
 from cartography.models.kubernetes.rolebindings import KubernetesRoleBindingSchema
 from cartography.models.kubernetes.roles import KubernetesRoleSchema
 from cartography.models.kubernetes.serviceaccounts import KubernetesServiceAccountSchema
@@ -22,31 +28,35 @@ logger = logging.getLogger(__name__)
 
 
 def get_service_accounts(k8s_client: K8sClient) -> List[V1ServiceAccount]:
-    """
-    Get all ServiceAccounts across all namespaces.
-    """
+
     return k8s_paginate(k8s_client.core.list_service_account_for_all_namespaces)
 
 
 def get_roles(k8s_client: K8sClient) -> List[V1Role]:
-    """
-    Get all Roles across all namespaces.
-    """
+
     return k8s_paginate(k8s_client.rbac.list_role_for_all_namespaces)
 
 
 def get_role_bindings(k8s_client: K8sClient) -> List[V1RoleBinding]:
-    """
-    Get all RoleBindings across all namespaces.
-    """
+
     return k8s_paginate(k8s_client.rbac.list_role_binding_for_all_namespaces)
+
+
+def get_cluster_roles(k8s_client: K8sClient) -> List[V1ClusterRole]:
+
+    return k8s_paginate(k8s_client.rbac.list_cluster_role)
+
+
+def get_cluster_role_bindings(k8s_client: K8sClient) -> List[V1ClusterRoleBinding]:
+
+    return k8s_paginate(k8s_client.rbac.list_cluster_role_binding)
 
 
 def transform_service_accounts(
     service_accounts: List[V1ServiceAccount],
 ) -> List[Dict[str, Any]]:
     """
-    Transform Kubernetes ServiceAccounts into a list of dictionaries for Neo4j ingestion.
+    Transform Kubernetes ServiceAccounts into a list of dictionaries.
     """
     result = []
     for sa in service_accounts:
@@ -65,7 +75,7 @@ def transform_service_accounts(
 
 def transform_roles(roles: List[V1Role]) -> List[Dict[str, Any]]:
     """
-    Transform Kubernetes Roles into a list of dictionaries for Neo4j ingestion.
+    Transform Kubernetes Roles into a list of dictionaries.
     Flattens rules into separate api_groups, resources, and verbs lists.
     """
     result = []
@@ -114,8 +124,7 @@ def transform_roles(roles: List[V1Role]) -> List[Dict[str, Any]]:
 
 def transform_role_bindings(role_bindings: List[V1RoleBinding]) -> List[Dict[str, Any]]:
     """
-    Transform Kubernetes RoleBindings into a list of dictionaries for Neo4j ingestion.
-    Creates one record per ServiceAccount subject for cleaner relationships.
+    Transform Kubernetes RoleBindings into a list of dictionaries.
     """
     result = []
     for rb in role_bindings:
@@ -141,6 +150,91 @@ def transform_role_bindings(role_bindings: List[V1RoleBinding]) -> List[Dict[str
                     "subject_namespace": subject.namespace,
                     "subject_service_account_id": f"{subject.namespace}/{subject.name}",
                     "role_id": f"{rb.metadata.namespace}/{rb.role_ref.name}",
+                }
+            )
+    return result
+
+
+def transform_cluster_roles(cluster_roles: List[V1ClusterRole]) -> List[Dict[str, Any]]:
+    """
+    Transform Kubernetes ClusterRoles into a list of dictionaries.
+    Flattens rules into separate api_groups, resources, and verbs lists.
+    """
+    result = []
+    for cluster_role in cluster_roles:
+        # Flatten all rules into combined lists
+        all_api_groups = []
+        all_resources = []
+        all_verbs = []
+
+        for rule in cluster_role.rules or []:
+            # Extend api_groups, handling None and empty string cases
+            if rule.api_groups:
+                for api_group in rule.api_groups:
+                    # Empty string represents core API group
+                    api_group_name = "core" if api_group == "" else api_group
+                    if api_group_name not in all_api_groups:
+                        all_api_groups.append(api_group_name)
+
+            # Extend resources
+            if rule.resources:
+                for resource in rule.resources:
+                    if resource not in all_resources:
+                        all_resources.append(resource)
+
+            # Extend verbs
+            if rule.verbs:
+                for verb in rule.verbs:
+                    if verb not in all_verbs:
+                        all_verbs.append(verb)
+
+        result.append(
+            {
+                "id": cluster_role.metadata.name,
+                "name": cluster_role.metadata.name,
+                "uid": cluster_role.metadata.uid,
+                "creation_timestamp": get_epoch(
+                    cluster_role.metadata.creation_timestamp
+                ),
+                "resource_version": cluster_role.metadata.resource_version,
+                "api_groups": all_api_groups,
+                "resources": all_resources,
+                "verbs": all_verbs,
+            }
+        )
+    return result
+
+
+def transform_cluster_role_bindings(
+    cluster_role_bindings: List[V1ClusterRoleBinding],
+) -> List[Dict[str, Any]]:
+    """
+    Transform Kubernetes ClusterRoleBindings into a list of dictionaries.
+    """
+    result = []
+    for crb in cluster_role_bindings:
+        # Only process ServiceAccount subjects
+        service_account_subjects = [
+            subject
+            for subject in (crb.subjects or [])
+            if subject.kind == "ServiceAccount"
+        ]
+
+        for subject in service_account_subjects:
+            result.append(
+                {
+                    "id": f"{crb.metadata.name}/{subject.namespace}/{subject.name}",  # ClusterRoleBinding name + subject namespace/name
+                    "name": crb.metadata.name,
+                    "namespace": subject.namespace,
+                    "uid": crb.metadata.uid,
+                    "creation_timestamp": get_epoch(crb.metadata.creation_timestamp),
+                    "resource_version": crb.metadata.resource_version,
+                    "role_name": crb.role_ref.name,
+                    "role_kind": crb.role_ref.kind,
+                    "subject_name": subject.name,
+                    "subject_namespace": subject.namespace,
+                    "subject_service_account_id": f"{subject.namespace}/{subject.name}",
+                    "role_id": crb.role_ref.name,
                 }
             )
     return result
@@ -204,6 +298,44 @@ def load_role_bindings(
 
 
 @timeit
+def load_cluster_roles(
+    session: neo4j.Session,
+    cluster_roles: List[Dict[str, Any]],
+    update_tag: int,
+    cluster_id: str,
+    cluster_name: str,
+) -> None:
+    logger.info(f"Loading {len(cluster_roles)} KubernetesClusterRoles")
+    load(
+        session,
+        KubernetesClusterRoleSchema(),
+        cluster_roles,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
+        CLUSTER_NAME=cluster_name,
+    )
+
+
+@timeit
+def load_cluster_role_bindings(
+    session: neo4j.Session,
+    cluster_role_bindings: List[Dict[str, Any]],
+    update_tag: int,
+    cluster_id: str,
+    cluster_name: str,
+) -> None:
+    logger.info(f"Loading {len(cluster_role_bindings)} KubernetesClusterRoleBindings")
+    load(
+        session,
+        KubernetesClusterRoleBindingSchema(),
+        cluster_role_bindings,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
+        CLUSTER_NAME=cluster_name,
+    )
+
+
+@timeit
 def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     logger.debug("Running cleanup job for Kubernetes RBAC resources")
     cleanup_job = GraphJob.from_node_schema(
@@ -221,6 +353,16 @@ def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> No
     )
     cleanup_job.run(session)
 
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesClusterRoleSchema(), common_job_parameters
+    )
+    cleanup_job.run(session)
+
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesClusterRoleBindingSchema(), common_job_parameters
+    )
+    cleanup_job.run(session)
+
 
 @timeit
 def sync_kubernetes_rbac(
@@ -231,13 +373,25 @@ def sync_kubernetes_rbac(
 ) -> None:
     logger.info(f"Syncing Kubernetes RBAC resources for cluster {client.name}")
 
+    # Get namespace-scoped resources
     service_accounts = get_service_accounts(client)
     roles = get_roles(client)
     role_bindings = get_role_bindings(client)
 
+    # Get cluster-scoped resources
+    cluster_roles = get_cluster_roles(client)
+    cluster_role_bindings = get_cluster_role_bindings(client)
+
+    # Transform namespace-scoped resources
     transformed_service_accounts = transform_service_accounts(service_accounts)
     transformed_roles = transform_roles(roles)
     transformed_role_bindings = transform_role_bindings(role_bindings)
+
+    # Transform cluster-scoped resources
+    transformed_cluster_roles = transform_cluster_roles(cluster_roles)
+    transformed_cluster_role_bindings = transform_cluster_role_bindings(
+        cluster_role_bindings
+    )
 
     cluster_id = common_job_parameters["CLUSTER_ID"]
     cluster_name = client.name
@@ -258,10 +412,25 @@ def sync_kubernetes_rbac(
         cluster_name=cluster_name,
     )
 
-    # Load RoleBindings last (depends on ServiceAccounts and Roles)
+    load_cluster_roles(
+        session=session,
+        cluster_roles=transformed_cluster_roles,
+        update_tag=update_tag,
+        cluster_id=cluster_id,
+        cluster_name=cluster_name,
+    )
+
     load_role_bindings(
         session=session,
         role_bindings=transformed_role_bindings,
+        update_tag=update_tag,
+        cluster_id=cluster_id,
+        cluster_name=cluster_name,
+    )
+
+    load_cluster_role_bindings(
+        session=session,
+        cluster_role_bindings=transformed_cluster_role_bindings,
         update_tag=update_tag,
         cluster_id=cluster_id,
         cluster_name=cluster_name,
