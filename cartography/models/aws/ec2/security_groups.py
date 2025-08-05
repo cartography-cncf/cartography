@@ -50,7 +50,7 @@ class EC2SecurityGroupToVpcRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"vpcid": PropertyRef("VpcId")}
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
     properties: EC2SecurityGroupToVpcRelProperties = (
         EC2SecurityGroupToVpcRelProperties()
