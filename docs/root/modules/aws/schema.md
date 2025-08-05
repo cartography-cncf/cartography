@@ -786,7 +786,7 @@ More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describ
   ```
 - `AWSVpc` and `EC2SecurityGroup` membership association
   ```
-  (AWSVpc)<-[MEMBER_OF_EC2_SECURITY_GROUP]-(EC2SecurityGroup)
+  (AWSVpc)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
   ```
 -  AWS VPCs can be tagged with AWSTags.
     ```
@@ -1082,6 +1082,10 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
     (AWSDNSRecord)-[DNS_POINTS_TO]->(LoadBalancer, ESDomain)
     ```
 
+- AWSDNSRecords can point to ElasticIPAddresses.
+    ```
+    (AWSDNSRecord)-[DNS_POINTS_TO]->(ElasticIPAddress)
+    ```
 
 - AWSDNSRecords can be members of AWSDNSZones.
     ```
@@ -3350,6 +3354,11 @@ Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AW
 - Elastic IPs can be attached to NetworkInterfaces
     ```
     (NetworkInterface)-[ELASTIC_IP_ADDRESS]->(ElasticIPAddress)
+    ```
+
+- AWSDNSRecords can point to ElasticIPAddresses
+    ```
+    (AWSDNSRecord)-[DNS_POINTS_TO]->(ElasticIPAddress)
     ```
 
 ### ECSCluster
