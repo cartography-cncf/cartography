@@ -44,5 +44,9 @@ class KubernetesClusterRoleToClusterRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesClusterRoleSchema(CartographyNodeSchema):
     label: str = "KubernetesClusterRole"
-    properties: KubernetesClusterRoleNodeProperties = KubernetesClusterRoleNodeProperties()
-    sub_resource_relationship: KubernetesClusterRoleToClusterRel = KubernetesClusterRoleToClusterRel() 
+    properties: KubernetesClusterRoleNodeProperties = (
+        KubernetesClusterRoleNodeProperties()
+    )
+    sub_resource_relationship: KubernetesClusterRoleToClusterRel = (
+        KubernetesClusterRoleToClusterRel()
+    )

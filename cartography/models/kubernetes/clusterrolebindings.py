@@ -65,7 +65,9 @@ class KubernetesClusterRoleBindingToClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class KubernetesClusterRoleBindingToServiceAccountRelProperties(CartographyRelProperties):
+class KubernetesClusterRoleBindingToServiceAccountRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -115,4 +117,4 @@ class KubernetesClusterRoleBindingSchema(CartographyNodeSchema):
             KubernetesClusterRoleBindingToServiceAccountRel(),
             KubernetesClusterRoleBindingToClusterRoleRel(),
         ]
-    ) 
+    )
