@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema
-from cartography.models.core.relationships import (
-    CartographyRelProperties,
-    CartographyRelSchema,
-    LinkDirection,
-    make_target_node_matcher,
-    TargetNodeMatcher,
-)
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,8 @@ class KubernetesRoleBindingNodeProperties(CartographyNodeProperties):
     role_kind: PropertyRef = PropertyRef("role_kind")
     subject_name: PropertyRef = PropertyRef("subject_name")
     subject_namespace: PropertyRef = PropertyRef("subject_namespace")
+    subject_service_account_id: PropertyRef = PropertyRef("subject_service_account_id")
+    role_id: PropertyRef = PropertyRef("role_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -53,7 +55,7 @@ class KubernetesRoleBindingToClusterRelProperties(CartographyRelProperties):
 class KubernetesRoleBindingToClusterRel(CartographyRelSchema):
     target_node_label: str = "KubernetesCluster"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("cluster_id", set_in_kwargs=True)}
+        {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -71,7 +73,7 @@ class KubernetesRoleBindingToServiceAccountRelProperties(CartographyRelPropertie
 class KubernetesRoleBindingToServiceAccountRel(CartographyRelSchema):
     target_node_label: str = "KubernetesServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("subject_namespace") + "/" + PropertyRef("subject_name")}
+        {"id": PropertyRef("subject_service_account_id")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SUBJECT"
@@ -89,10 +91,10 @@ class KubernetesRoleBindingToRoleRelProperties(CartographyRelProperties):
 class KubernetesRoleBindingToRoleRel(CartographyRelSchema):
     target_node_label: str = "KubernetesRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("namespace") + "/" + PropertyRef("role_name")}
+        {"id": PropertyRef("role_id")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "BINDS_ROLE"
+    rel_label: str = "ROLE_REF"
     properties: KubernetesRoleBindingToRoleRelProperties = (
         KubernetesRoleBindingToRoleRelProperties()
     )
@@ -101,10 +103,16 @@ class KubernetesRoleBindingToRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesRoleBindingSchema(CartographyNodeSchema):
     label: str = "KubernetesRoleBinding"
-    properties: KubernetesRoleBindingNodeProperties = KubernetesRoleBindingNodeProperties()
-    sub_resource_relationship: KubernetesRoleBindingToClusterRel = KubernetesRoleBindingToClusterRel()
-    other_relationships: tuple = (
-        KubernetesRoleBindingToNamespaceRel(),
-        KubernetesRoleBindingToServiceAccountRel(),
-        KubernetesRoleBindingToRoleRel(),
-    ) 
+    properties: KubernetesRoleBindingNodeProperties = (
+        KubernetesRoleBindingNodeProperties()
+    )
+    sub_resource_relationship: KubernetesRoleBindingToClusterRel = (
+        KubernetesRoleBindingToClusterRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            KubernetesRoleBindingToNamespaceRel(),
+            KubernetesRoleBindingToServiceAccountRel(),
+            KubernetesRoleBindingToRoleRel(),
+        ]
+    )
