@@ -220,18 +220,14 @@ def get_detector_details(
     detector_details = []
 
     for detector_id in detector_ids:
-        try:
-            response = client.get_detector(DetectorId=detector_id)
-            detector_details.append({"DetectorId": detector_id, **response})
-        except Exception as e:
-            logger.warning(f"Failed to get detector details for {detector_id}: {e}")
-            continue
+        response = client.get_detector(DetectorId=detector_id)
+        detector_details.append({"DetectorId": detector_id, **response})
 
     return detector_details
 
 
 def transform_detector_details(
-    detector_details: List[Dict[str, Any]], region: str
+    detector_details: List[Dict[str, Any]], region: str, aws_account_id: str
 ) -> List[Dict[str, Any]]:
     """
     Transform GuardDuty detector details from API response to schema format.
@@ -247,6 +243,7 @@ def transform_detector_details(
 
         transformed_detector = {
             "DetectorId": detector_id,
+            "Arn": f"arn:aws:guardduty:{region}:{aws_account_id}:detector/{detector_id}",
             "Status": detector.get("Status"),
             "ServiceRole": detector.get("ServiceRole"),
             "FindingPublishingFrequency": detector.get("FindingPublishingFrequency"),
@@ -271,14 +268,6 @@ def load_guardduty_detectors(
     """
     Load GuardDuty detector information into the graph.
     """
-    # Add ARN to each detector
-    for detector in data:
-        detector_id = detector.get("DetectorId")
-        if detector_id:
-            detector["Arn"] = (
-                f"arn:aws:guardduty:{region}:{aws_account_id}:detector/{detector_id}"
-            )
-
     load(
         neo4j_session,
         GuardDutyDetectorSchema(),
@@ -339,7 +328,9 @@ def sync(
 
         # Sync detectors first
         detector_details = get_detector_details(boto3_session, region, detector_ids)
-        transformed_detectors = transform_detector_details(detector_details, region)
+        transformed_detectors = transform_detector_details(
+            detector_details, region, current_aws_account_id
+        )
         load_guardduty_detectors(
             neo4j_session,
             transformed_detectors,

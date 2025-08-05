@@ -34,7 +34,7 @@ def test_transform_detector_details():
     """Test transform_detector_details function with mock API response data."""
     # Use the full mock API response data
     detector_data = GET_DETECTORS
-    transformed = transform_detector_details(detector_data, "us-east-1")
+    transformed = transform_detector_details(detector_data, "us-east-1", "123456789012")
 
     # Should transform 2 detectors
     assert len(transformed) == 2

@@ -368,6 +368,7 @@ GET_DETECTORS = [
 EXPECTED_DETECTOR_TRANSFORM_RESULTS = [
     {
         "DetectorId": "12abc34d567e8fa901bc2d34e56789f0",
+        "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/12abc34d567e8fa901bc2d34e56789f0",
         "Status": "ENABLED",
         "ServiceRole": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
         "FindingPublishingFrequency": "SIX_HOURS",
@@ -377,6 +378,7 @@ EXPECTED_DETECTOR_TRANSFORM_RESULTS = [
     },
     {
         "DetectorId": "98zyx76w543u2ty109sr8q76p54321o0",
+        "Arn": "arn:aws:guardduty:us-east-1:123456789012:detector/98zyx76w543u2ty109sr8q76p54321o0",
         "Status": "ENABLED",
         "ServiceRole": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
         "FindingPublishingFrequency": "FIFTEEN_MINUTES",
