@@ -5,6 +5,7 @@ from string import Template
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Pattern
 from typing import Tuple
 
@@ -431,9 +432,12 @@ def extract_properties_from_arn(arn: str, schema: str) -> Dict[str, str]:
             escaped_pattern, f"(?P<{prop}>{capture_pattern})"
         )
 
-    pattern = re.compile(schema_regex)
+        pattern = re.compile(schema_regex)
     match = pattern.match(arn)
-
+    
+    if match is None:
+        return {}
+    
     return match.groupdict()
 
 
