@@ -1,13 +1,13 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import httpx
 import neo4j
 from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
 from msgraph.graph_service_client import GraphServiceClient
+from msgraph.generated.models.application import Application
+from msgraph.generated.models.app_role_assignment import AppRoleAssignment
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -37,7 +37,7 @@ HIGH_ASSIGNMENT_COUNT_THRESHOLD = 100
 
 
 @timeit
-async def get_entra_applications(client: GraphServiceClient) -> List[Any]:
+async def get_entra_applications(client: GraphServiceClient) -> list[Application]:
     """
     Gets Entra applications using the Microsoft Graph API.
 
@@ -68,8 +68,8 @@ async def get_entra_applications(client: GraphServiceClient) -> List[Any]:
 
 @timeit
 async def get_app_role_assignments(
-    client: GraphServiceClient, applications: List[Any]
-) -> List[Any]:
+    client: GraphServiceClient, applications: list[Application]
+) -> list[AppRoleAssignment]:
     """
     Gets app role assignments efficiently by querying each application's service principal.
 
@@ -183,7 +183,7 @@ async def get_app_role_assignments(
     return assignments
 
 
-def transform_applications(applications: List[Any]) -> List[Dict[str, Any]]:
+def transform_applications(applications: list[Application]) -> list[dict[str, Any]]:
     """
     Transform application data for graph loading.
 
@@ -204,8 +204,8 @@ def transform_applications(applications: List[Any]) -> List[Dict[str, Any]]:
 
 
 def transform_app_role_assignments(
-    assignments: List[Any],
-) -> List[Dict[str, Any]]:
+    assignments: list[AppRoleAssignment],
+) -> list[dict[str, Any]]:
     """
     Transform app role assignment data for graph loading.
 
@@ -238,7 +238,7 @@ def transform_app_role_assignments(
 @timeit
 def load_applications(
     neo4j_session: neo4j.Session,
-    applications_data: List[Dict[str, Any]],
+    applications_data: list[dict[str, Any]],
     update_tag: int,
     tenant_id: str,
 ) -> None:
@@ -262,7 +262,7 @@ def load_applications(
 @timeit
 def load_app_role_assignments(
     neo4j_session: neo4j.Session,
-    assignments_data: List[Dict[str, Any]],
+    assignments_data: list[dict[str, Any]],
     update_tag: int,
     tenant_id: str,
 ) -> None:
@@ -285,7 +285,7 @@ def load_app_role_assignments(
 
 @timeit
 def cleanup_applications(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
     Delete Entra applications and their relationships from the graph if they were not updated in the last sync.
@@ -300,7 +300,7 @@ def cleanup_applications(
 
 @timeit
 def cleanup_app_role_assignments(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
     Delete Entra app role assignments and their relationships from the graph if they were not updated in the last sync.
@@ -320,7 +320,7 @@ async def sync_entra_applications(
     client_id: str,
     client_secret: str,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync Entra applications and their app role assignments to the graph.
