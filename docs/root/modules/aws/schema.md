@@ -986,6 +986,45 @@ Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebui
     (AWSAccount)-[RESOURCE]->(CodeBuildProject)
     ```
 
+### CognitoIdentityPool
+Representation of an AWS [Cognito Identity Pool](https://docs.aws.amazon.com/cognitoidentity/latest/APIReference/API_ListIdentityPools.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The id of Cognito Identity Pool |
+| arn | The Amazon Resource Name (ARN) of the Cognito Identity Pool |
+| region | The region of the Cognito Identity Pool |
+| roles | list of aws roles associated with Cognito Identity Pool |
+#### Relationships
+- Cognito Identity Pools are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CognitoIdentityPool)
+    ```
+- Cognito Identity Pools are associated with AWS Roles.
+    ```
+    (CognitoIdentityPool)-[ASSOCIATED_WITH]->(AWSRole)
+    ```
+
+### CognitoUserPool
+Representation of an AWS [Cognito User Pool](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ListUserPools.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The id of Cognito User Pool |
+| arn | The Amazon Resource Name (ARN) of the Cognito User Pool |
+| region | The region of the Cognito User Pool |
+| name | Name of Cognito User Pool |
+| status | Status of User Pool |
+#### Relationships
+- Cognito User Pools are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CognitoUserPool)
+    ```
+
 ### DBSubnetGroup
 
 Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSubnetGroup.html).  For more information on how RDS instances interact with these, please see [this article](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html).
