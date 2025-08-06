@@ -193,6 +193,26 @@ class AWSDNSRecordToIpRel(CartographyRelSchema):
     properties: AWSDNSRecordToIpRelProperties = AWSDNSRecordToIpRelProperties()
 
 
+@dataclass(frozen=True)
+class AWSDNSRecordToElasticIPAddressRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSDNSRecordToElasticIPAddressRel(CartographyRelSchema):
+    target_node_label: str = "ElasticIPAddress"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "public_ip": PropertyRef("value"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DNS_POINTS_TO"
+    properties: AWSDNSRecordToElasticIPAddressRelProperties = (
+        AWSDNSRecordToElasticIPAddressRelProperties()
+    )
+
+
 class AWSDNSRecordSchema(CartographyNodeSchema):
     label: str = "AWSDNSRecord"
     properties: AWSDNSRecordNodeProperties = AWSDNSRecordNodeProperties()
@@ -210,5 +230,6 @@ class AWSDNSRecordSchema(CartographyNodeSchema):
             AWSDNSRecordToDNSRecordRel(),
             AWSDNSRecordToZoneRel(),
             AWSDNSRecordToIpRel(),
+            AWSDNSRecordToElasticIPAddressRel(),
         ]
     )
