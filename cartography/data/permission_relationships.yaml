@@ -38,4 +38,4 @@
   relationship_name: CAN_SSM_ACCESS
   conditional_target_relations:
    - HAS_INFORMATION
-  resource_arn_schema: "arn:aws:ec2:{{region}}:371849554186:instance/{{instanceid}}"
+  resource_arn_schema: "arn:aws:ec2:{{region}}:*:instance/{{instanceid}}"
