@@ -205,7 +205,7 @@ def test_sync_guardduty_detectors(
         TEST_UPDATE_TAG,
     )
 
-    # ✅ DO: Test outcomes - verify detector nodes have correct properties
+    # Test outcomes - verify detector nodes have correct properties
     expected_detector_nodes = {
         ("12abc34d567e8fa901bc2d34e56789f0", "ENABLED"),
         ("98zyx76w543u2ty109sr8q76p54321o0", "ENABLED"),
@@ -215,7 +215,7 @@ def test_sync_guardduty_detectors(
     )
     assert actual_detector_nodes == expected_detector_nodes
 
-    # ✅ DO: Test outcomes - verify ARN construction is correct
+    # Test outcomes - verify ARN construction is correct
     detectors = neo4j_session.run(
         "MATCH (d:GuardDutyDetector) RETURN d.detector_id as detector_id, d.arn as arn"
     ).data()
@@ -226,7 +226,7 @@ def test_sync_guardduty_detectors(
             detector["arn"] == expected_arn
         ), f"ARN mismatch for detector {detector['detector_id']}"
 
-    # ✅ DO: Test outcomes - verify relationships are created correctly
+    # Test outcomes - verify relationships are created correctly
     expected_detector_rels = {
         (TEST_ACCOUNT_ID, "12abc34d567e8fa901bc2d34e56789f0"),
         (TEST_ACCOUNT_ID, "98zyx76w543u2ty109sr8q76p54321o0"),
