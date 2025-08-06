@@ -78,8 +78,9 @@ def get_policy(key: Dict, client: botocore.client.BaseClient) -> Any:
     except ClientError as e:
         if e.response["Error"]["Code"] == "AccessDeniedException":
             policy = None
-            logger.info(
-                f"Skipping KMS key {key['KeyId']} policy due to AccessDenied; will use default policy values"
+            logger.warning(
+                f"kms:get_key_policy on key id {key['KeyId']} failed with AccessDeniedException; continuing sync.",
+                exc_info=True,
             )
         else:
             raise
@@ -112,8 +113,9 @@ def get_grants(key: Dict, client: botocore.client.BaseClient) -> List[Any]:
             grants.extend(page["Grants"])
     except ClientError as e:
         if e.response["Error"]["Code"] == "AccessDeniedException":
-            logger.info(
-                f"Skipping KMS key {key['KeyId']} grants due to AccessDenied; will use empty grants list"
+            logger.warning(
+                f'kms:list_grants on key_id {key["KeyId"]} failed with AccessDeniedException; continuing sync.',
+                exc_info=True,
             )
         else:
             raise
@@ -185,13 +187,15 @@ def transform_kms_key_policies(
     policy_data = {}
 
     for key_id, policy, *_ in policy_alias_grants_data:
-        # Skip keys with null policy since we can't parse it
+        # Handle keys with null policy (access denied)
         if policy is None:
-            # Add default empty policy data for keys with null policies
+            logger.info(
+                f"Skipping KMS key {key_id} policy due to AccessDenied; policy analysis properties will be null"
+            )
             policy_data[key_id] = {
                 "kms_key": key_id,
-                "anonymous_access": False,
-                "anonymous_actions": [],
+                "anonymous_access": None,
+                "anonymous_actions": None,
             }
             continue
 
