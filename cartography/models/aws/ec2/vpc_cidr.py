@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AWSIPv4CidrBlockNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("Id")
-    vpc_id: PropertyRef = PropertyRef("VpcId")  # Extra index ?
+    vpcid: PropertyRef = PropertyRef("VpcId")  # Extra index ?
     association_id: PropertyRef = PropertyRef("AssociationId")
     cidr_block: PropertyRef = PropertyRef("CidrBlock")
     block_state: PropertyRef = PropertyRef("BlockState")
@@ -54,7 +54,7 @@ class AWSIPv4CidrBlockSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class AWSIPv6CidrBlockNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("Id")
-    vpc_id: PropertyRef = PropertyRef("VpcId")  # Extra index ?
+    vpcid: PropertyRef = PropertyRef("VpcId")  # Extra index ?
     association_id: PropertyRef = PropertyRef("AssociationId")
     cidr_block: PropertyRef = PropertyRef("CidrBlock")
     block_state: PropertyRef = PropertyRef("BlockState")

@@ -351,7 +351,7 @@ def test_sync_vpc(
         "AWSVpc",
         "id",
         "MEMBER_OF_EC2_SECURITY_GROUP",
-        rel_direction_right=True,
+        rel_direction_right=False,
     ) == {
         (
             "sg-web-server-12345",
@@ -429,3 +429,35 @@ def test_sync_vpc(
             "my_vpc",
         ),  # AWSVpc created by RedshiftCluster sync,  Redshift cluster has a special way of assigning arn
     }  # it takes the region, account id, and cluster name and creates an arn -> thats why it maches this test
+
+    # Assert VPC peering connections are connected to their requester CIDR blocks
+    assert check_rels(
+        neo4j_session,
+        "AWSPeeringConnection",
+        "id",
+        "AWSCidrBlock",
+        "id",
+        "REQUESTER_CIDR",
+        rel_direction_right=True,
+    ) == {
+        (
+            "pcx-09969456d9ec69ab6",
+            "vpc-055d355d6d2e498fa|10.1.0.0/16",
+        ),  # Requester CIDR block for VPC peering
+    }
+
+    # Assert VPC peering connections are connected to their accepter CIDR blocks
+    assert check_rels(
+        neo4j_session,
+        "AWSPeeringConnection",
+        "id",
+        "AWSCidrBlock",
+        "id",
+        "ACCEPTER_CIDR",
+        rel_direction_right=True,
+    ) == {
+        (
+            "pcx-09969456d9ec69ab6",
+            "vpc-0015dc961e537676a|10.0.0.0/16",
+        ),  # Accepter CIDR block for VPC peering
+    }
