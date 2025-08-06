@@ -27,15 +27,3 @@
   - redshift:GetClusterCredentials
   - redshift:JoinGroup
   relationship_name: CAN_ADMINISTER
-
-
-# Map principals that can start SSM sessions on EC2 instances.
-# The resource_arn_schema field defines how to construct the resource ARN from node properties.
-# Properties in {{}} will be substituted with actual node property values.
-- target_label: EC2Instance
-  permissions:
-  - ssm:StartSession
-  relationship_name: CAN_SSM_ACCESS
-#  conditional_target_relations:
-#   - HAS_INFORMATION
-  resource_arn_schema: "arn:aws:ec2:{{region}}:*:instance/{{instanceid}}"
