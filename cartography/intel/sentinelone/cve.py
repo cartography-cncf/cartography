@@ -112,14 +112,7 @@ def sync(
     account_id = str(common_job_parameters.get("S1_ACCOUNT_ID"))
     update_tag = int(common_job_parameters.get("UPDATE_TAG", 0))
 
-    # 1. GET - Fetch data from API
     cves = get(api_url, api_token, account_id)
-
-    # 2. TRANSFORM - Shape data for ingestion
     transformed_cves = transform(cves)
-
-    # 3. LOAD - Ingest to Neo4j using data model
     load_cves(neo4j_session, transformed_cves, account_id, update_tag)
-
-    # 4. CLEANUP - Remove stale data
     cleanup(neo4j_session, common_job_parameters)
