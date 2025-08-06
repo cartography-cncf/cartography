@@ -255,3 +255,80 @@ def test_s3_sns_relationship(neo4j_session):
     ) == {
         ("bucket-1", "arn:aws:sns:us-east-1:123456789012:test-topic"),
     }
+
+
+def test_load_s3_bucket_logging(neo4j_session):
+    """
+    Ensure that expected bucket gets loaded with their bucket logging fields.
+    """
+    # Test enabled logging
+    # Arrange
+    parsed_data_enabled = cartography.intel.aws.s3.parse_bucket_logging(
+        "bucket-1", tests.data.aws.s3.GET_BUCKET_LOGGING_ENABLED
+    )
+    expected_nodes_enabled = {
+        (
+            parsed_data_enabled["bucket"],
+            parsed_data_enabled["logging_enabled"],
+            parsed_data_enabled["target_bucket"],
+        ),
+    }
+
+    # Act
+    cartography.intel.aws.s3._load_bucket_logging(
+        neo4j_session, [parsed_data_enabled], TEST_UPDATE_TAG
+    )
+
+    # Assert
+    nodes = neo4j_session.run(
+        """
+        MATCH (s:S3Bucket)
+        WHERE s.name = 'bucket-1'
+        RETURN s.name, s.logging_enabled, s.logging_target_bucket
+        """,
+    )
+    actual_nodes = {
+        (
+            n["s.name"],
+            n["s.logging_enabled"],
+            n["s.logging_target_bucket"],
+        )
+        for n in nodes
+    }
+    assert actual_nodes == expected_nodes_enabled
+
+    # Test disabled logging
+    # Arrange
+    parsed_data_disabled = cartography.intel.aws.s3.parse_bucket_logging(
+        "bucket-2", tests.data.aws.s3.GET_BUCKET_LOGGING_DISABLED
+    )
+    expected_nodes_disabled = {
+        (
+            parsed_data_disabled["bucket"],
+            parsed_data_disabled["logging_enabled"],
+            parsed_data_disabled["target_bucket"],
+        ),
+    }
+
+    # Act
+    cartography.intel.aws.s3._load_bucket_logging(
+        neo4j_session, [parsed_data_disabled], TEST_UPDATE_TAG
+    )
+
+    # Assert
+    nodes = neo4j_session.run(
+        """
+        MATCH (s:S3Bucket)
+        WHERE s.name = 'bucket-2'
+        RETURN s.name, s.logging_enabled, s.logging_target_bucket
+        """,
+    )
+    actual_nodes = {
+        (
+            n["s.name"],
+            n["s.logging_enabled"],
+            n["s.logging_target_bucket"],
+        )
+        for n in nodes
+    }
+    assert actual_nodes == expected_nodes_disabled
