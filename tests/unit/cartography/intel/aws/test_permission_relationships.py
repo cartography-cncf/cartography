@@ -528,3 +528,89 @@ def test_permissions_list():
         assert False
     except ValueError:
         assert True
+
+
+def test_extract_properties_from_arn_deafult():
+    schema = "{{arn}}"
+    arn = "arn:aws:s3:::testbucket"
+
+    result = permission_relationships.extract_properties_from_arn(arn, schema)
+    expected = {"arn": "arn:aws:s3:::testbucket"}
+    assert result == expected
+
+
+def test_extract_properties_from_arn_custom_schema():
+    schema = "arn:aws:ec2:{{region}}:*:instance/{{instanceid}}"
+    arn = "arn:aws:ec2:us-east-1:*:instance/i-1234567890abcdef0"
+
+    result = permission_relationships.extract_properties_from_arn(arn, schema)
+    expected = {"region": "us-east-1", "instanceid": "i-1234567890abcdef0"}
+    assert result == expected
+
+
+def test_extract_properties_from_arn_s3path():
+    schema = "{{arn}}/*"
+    arn = "arn:aws:s3:::testbucket/*"
+
+    result = permission_relationships.extract_properties_from_arn(arn, schema)
+    expected = {"arn": "arn:aws:s3:::testbucket"}
+    assert result == expected
+
+
+def test_calculate_condition_clause_with_relations():
+    """Test calculate_condition_clause with conditional target relations"""
+    conditional_target_relations = ["HAS_INFORMATION", "BELONGS_TO"]
+
+    result = permission_relationships.calculate_condition_clause(
+        conditional_target_relations
+    )
+
+    expected = " WHERE ((resource)-[:HAS_INFORMATION]->() OR ()-[:HAS_INFORMATION]->(resource)) AND ((resource)-[:BELONGS_TO]->() OR ()-[:BELONGS_TO]->(resource))"
+    assert result == expected
+
+
+def test_calculate_condition_clause_with_single_relation():
+    conditional_target_relations = ["HAS_INFORMATION"]
+
+    result = permission_relationships.calculate_condition_clause(
+        conditional_target_relations
+    )
+
+    expected = " WHERE ((resource)-[:HAS_INFORMATION]->() OR ()-[:HAS_INFORMATION]->(resource))"
+    assert result == expected
+
+
+def test_calculate_condition_clause_without_relations():
+    conditional_target_relations = None
+
+    result = permission_relationships.calculate_condition_clause(
+        conditional_target_relations
+    )
+
+    assert result == ""
+
+
+def test_calculate_condition_clause_with_empty_list():
+    conditional_target_relations = []
+
+    result = permission_relationships.calculate_condition_clause(
+        conditional_target_relations
+    )
+
+    assert result == ""
+
+
+def test_validate_resource_arn_schema_with_properties():
+    schema = "arn:aws:ec2:{{region}}:{{accountid}}:instance/{{instanceid}}"
+
+    result = permission_relationships.validate_resource_arn_schema(schema)
+
+    assert result == schema
+
+
+def test_validate_resource_arn_schema_without_properties():
+    schema = "arn:aws:s3:::bucket"
+
+    result = permission_relationships.validate_resource_arn_schema(schema)
+
+    assert result == "{{arn}}"
