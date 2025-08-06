@@ -789,7 +789,7 @@ More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describ
   ```
 - `AWSVpc` and `EC2SecurityGroup` membership association
   ```
-  (AWSVpc)<-[MEMBER_OF_EC2_SECURITY_GROUP]-(EC2SecurityGroup)
+  (AWSVpc)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
   ```
 -  AWS VPCs can be tagged with AWSTags.
     ```
@@ -989,6 +989,45 @@ Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebui
     (AWSAccount)-[RESOURCE]->(CodeBuildProject)
     ```
 
+### CognitoIdentityPool
+Representation of an AWS [Cognito Identity Pool](https://docs.aws.amazon.com/cognitoidentity/latest/APIReference/API_ListIdentityPools.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The id of Cognito Identity Pool |
+| arn | The Amazon Resource Name (ARN) of the Cognito Identity Pool |
+| region | The region of the Cognito Identity Pool |
+| roles | list of aws roles associated with Cognito Identity Pool |
+#### Relationships
+- Cognito Identity Pools are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CognitoIdentityPool)
+    ```
+- Cognito Identity Pools are associated with AWS Roles.
+    ```
+    (CognitoIdentityPool)-[ASSOCIATED_WITH]->(AWSRole)
+    ```
+
+### CognitoUserPool
+Representation of an AWS [Cognito User Pool](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_ListUserPools.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The id of Cognito User Pool |
+| arn | The Amazon Resource Name (ARN) of the Cognito User Pool |
+| region | The region of the Cognito User Pool |
+| name | Name of Cognito User Pool |
+| status | Status of User Pool |
+#### Relationships
+- Cognito User Pools are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(CognitoUserPool)
+    ```
+
 ### DBSubnetGroup
 
 Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSubnetGroup.html).  For more information on how RDS instances interact with these, please see [this article](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html).
@@ -1085,6 +1124,10 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
     (AWSDNSRecord)-[DNS_POINTS_TO]->(LoadBalancer, ESDomain)
     ```
 
+- AWSDNSRecords can point to ElasticIPAddresses.
+    ```
+    (AWSDNSRecord)-[DNS_POINTS_TO]->(ElasticIPAddress)
+    ```
 
 - AWSDNSRecords can be members of AWSDNSZones.
     ```
@@ -2553,6 +2596,8 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 | block\_public\_acls | Specifies whether Amazon S3 should block public bucket policies for this bucket. |
 | restrict\_public\_buckets | Specifies whether Amazon S3 should restrict public bucket policies for this bucket. |
 | object_ownership | The bucket's [Object Ownership](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html) setting. `BucketOwnerEnforced` indicates that ACLs on the bucket and its objects are ignored. `BucketOwnerPreferred` and `ObjectWriter` indicate that ACLs still function; see [the AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html#object-ownership-overview) for details.|
+| logging_enabled | True if this bucket has [logging enabled](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLogging.html) enabled. |
+| logging_target_bucket | The name of the target bucket where access logs are stored. Only defined if logging is enabled. |
 
 #### Relationships
 
@@ -3351,6 +3396,11 @@ Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AW
 - Elastic IPs can be attached to NetworkInterfaces
     ```
     (NetworkInterface)-[ELASTIC_IP_ADDRESS]->(ElasticIPAddress)
+    ```
+
+- AWSDNSRecords can point to ElasticIPAddresses
+    ```
+    (AWSDNSRecord)-[DNS_POINTS_TO]->(ElasticIPAddress)
     ```
 
 ### ECSCluster
