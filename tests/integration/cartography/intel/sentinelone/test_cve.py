@@ -53,6 +53,7 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
         TEST_COMMON_JOB_PARAMETERS,
     )
 
+    # Assert:
     # Verify that the correct CVE nodes were created
     expected_nodes = {
         (
