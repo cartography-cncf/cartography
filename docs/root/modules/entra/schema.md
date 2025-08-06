@@ -185,7 +185,7 @@ Representation of an Entra [Application](https://learn.microsoft.com/en-us/graph
 - An Entra service principal is an instance of an Entra application deployed in an Entra tenant
 
     ```cypher
-    (:EntraServicePrincipal)-[:SERVICE_PRINCIPAL]->(:EntraApplication)
+    (:EntraServicePrincipal)<-[:SERVICE_PRINCIPAL]-(:EntraApplication)
     ```
 
 ### EntraAppRoleAssignment
@@ -266,7 +266,7 @@ Representation of an Entra [Service Principal](https://learn.microsoft.com/en-us
 - An Entra service principal is an instance of an Entra application deployed in an Entra tenant
 
     ```cypher
-    (:EntraServicePrincipal)-[:SERVICE_PRINCIPAL]->(:EntraApplication)
+    (:EntraServicePrincipal)<-[:SERVICE_PRINCIPAL]-(:EntraApplication)
     ```
 
 - Service principals can federate to AWS Identity Center via SAML
