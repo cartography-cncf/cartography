@@ -20,7 +20,7 @@ Each RPR consists of
 - Permissions (list(string)) - The list of permissions to map. If any of these permissions are present between a resource and a permission then the relationship is created.
 - RelationshipName (string) - The name of the relationship cartography will create
 - **[OPTIONAL]** ConditionalRelations (list(string)) - Additional relations the node label must have when defining relationships. Defaults to None.
-- **[OPTIONAL]** ResourceArnSchema (string) - The schema pattern for constructing resource ARNs from node properties. Uses `{{property}}` placeholders to reference node properties. Defaults to '{{arn}}'.
+- **[OPTIONAL]** resource_arn_schema (string) - The schema pattern for constructing resource ARNs from node properties. Uses `{{property}}` placeholders to reference node properties. Defaults to '{{arn}}'.
 
 #### Resource ARN Schema
 The `resource_arn_schema` field allows you to define how resource ARNs should be constructed from target node properties. This is useful when the node's `arn` property doesn't match the format expected by IAM policies. Like in the case of EC2 instances.
