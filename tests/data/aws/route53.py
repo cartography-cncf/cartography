@@ -176,3 +176,58 @@ ELASTIC_IP_RELATIONSHIP_TEST_RECORDS = [
         ],
     ),
 ]
+
+
+GET_ZONES_FOR_CYCLE_TEST = [
+    (
+        # The Parent Zone
+        {
+            'Id': '/hostedzone/PARENT_ZONE',
+            'Name': 'example.com.',
+            'ResourceRecordSetCount': 1,  
+            'Config': {'PrivateZone': False},
+        },
+        [
+            # This NS record correctly delegates the subzone
+            {
+                'Name': 'sub.example.com.',
+                'Type': 'NS',
+                'ResourceRecords': [{'Value': 'ns.shared-nameserver.com.'}],
+            },
+        ],
+    ),
+    (
+        # The valid Subzone
+        {
+            'Id': '/hostedzone/SUB_ZONE',
+            'Name': 'sub.example.com.',
+            'ResourceRecordSetCount': 1, 
+            'Config': {'PrivateZone': False},
+        },
+        [
+            # The subzone's own NS record, pointing to the shared nameserver
+            {
+                'Name': 'sub.example.com.',
+                'Type': 'NS',
+                'ResourceRecords': [{'Value': 'ns.shared-nameserver.com.'}],
+            },
+        ],
+    ),
+    (
+        # The unrelated Zone that would have caused the bug
+        {
+            'Id': '/hostedzone/UNRELATED_ZONE',
+            'Name': 'unrelated.io.',
+            'ResourceRecordSetCount': 1, 
+            'Config': {'PrivateZone': False},
+        },
+        [
+            # This zone ALSO uses the same nameserver
+            {
+                'Name': 'unrelated.io.',
+                'Type': 'NS',
+                'ResourceRecords': [{'Value': 'ns.shared-nameserver.com.'}],
+            },
+        ],
+    ),
+]
