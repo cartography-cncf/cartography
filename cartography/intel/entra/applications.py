@@ -1,19 +1,27 @@
 import logging
+import re
 from typing import Any
 
 import httpx
 import neo4j
 from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
-from msgraph.graph_service_client import GraphServiceClient
-from msgraph.generated.models.application import Application
 from msgraph.generated.models.app_role_assignment import AppRoleAssignment
+from msgraph.generated.models.application import Application
+from msgraph.generated.models.service_principal import ServicePrincipal
+from msgraph.graph_service_client import GraphServiceClient
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.entra.users import load_tenant
 from cartography.models.entra.app_role_assignment import EntraAppRoleAssignmentSchema
 from cartography.models.entra.application import EntraApplicationSchema
+from cartography.models.entra.entra_user_to_aws_sso import (
+    EntraUserToAWSSSOUserMatchLink,
+)
+from cartography.models.entra.service_principal import EntraServicePrincipalSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -69,7 +77,7 @@ async def get_entra_applications(client: GraphServiceClient) -> list[Application
 @timeit
 async def get_app_role_assignments(
     client: GraphServiceClient, applications: list[Application]
-) -> list[AppRoleAssignment]:
+) -> tuple[list[AppRoleAssignment], list[ServicePrincipal]]:
     """
     Gets app role assignments efficiently by querying each application's service principal.
 
@@ -77,7 +85,8 @@ async def get_app_role_assignments(
     :param applications: List of Application objects (from get_entra_applications)
     :return: List of raw app role assignment objects from Microsoft Graph
     """
-    assignments = []
+    assignments: list[AppRoleAssignment] = []
+    service_principals: list[ServicePrincipal] = []
 
     for app in applications:
         if not app.app_id:
@@ -102,6 +111,7 @@ async def get_app_role_assignments(
                 continue
 
             service_principal = service_principals_page.value[0]
+            service_principals.append(service_principal)
 
             # Ensure service principal has an ID
             if not service_principal.id:
@@ -177,10 +187,10 @@ async def get_app_role_assignments(
                 f"Unexpected error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}",
                 exc_info=True,
             )
-            continue
+            raise
 
     logger.info(f"Retrieved {len(assignments)} app role assignments total")
-    return assignments
+    return assignments, service_principals
 
 
 def transform_applications(applications: list[Application]) -> list[dict[str, Any]]:
@@ -235,6 +245,44 @@ def transform_app_role_assignments(
     return result
 
 
+def transform_service_principals(
+    service_principals: list[ServicePrincipal],
+) -> list[dict[str, Any]]:
+    result = []
+    for spn in service_principals:
+        aws_identity_center_instance_id = None
+        match = re.search(r"d-[a-z0-9]{10}", spn.login_url or "")
+        aws_identity_center_instance_id = match.group(0) if match else None
+        transformed = {
+            "id": spn.id,
+            "app_id": spn.app_id,
+            "account_enabled": spn.account_enabled,
+            # uuid.UUID to string
+            "app_owner_organization_id": (
+                str(spn.app_owner_organization_id)
+                if spn.app_owner_organization_id
+                else None
+            ),
+            "aws_identity_center_instance_id": aws_identity_center_instance_id,
+            "display_name": spn.display_name,
+            "login_url": spn.login_url,
+            "preferred_single_sign_on_mode": spn.preferred_single_sign_on_mode,
+            "preferred_token_signing_key_thumbprint": spn.preferred_token_signing_key_thumbprint,
+            "reply_urls": spn.reply_urls,
+            "service_principal_type": spn.service_principal_type,
+            "sign_in_audience": spn.sign_in_audience,
+            "tags": spn.tags,
+            # uuid.UUID to string
+            "token_encryption_key_id": (
+                str(spn.token_encryption_key_id)
+                if spn.token_encryption_key_id
+                else None
+            ),
+        }
+        result.append(transformed)
+    return result
+
+
 @timeit
 def load_applications(
     neo4j_session: neo4j.Session,
@@ -284,6 +332,22 @@ def load_app_role_assignments(
 
 
 @timeit
+def load_service_principals(
+    neo4j_session: neo4j.Session,
+    service_principal_data: list[dict[str, Any]],
+    update_tag: int,
+    tenant_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        EntraServicePrincipalSchema(),
+        service_principal_data,
+        lastupdated=update_tag,
+        TENANT_ID=tenant_id,
+    )
+
+
+@timeit
 def cleanup_applications(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
@@ -311,6 +375,92 @@ def cleanup_app_role_assignments(
     GraphJob.from_node_schema(
         EntraAppRoleAssignmentSchema(), common_job_parameters
     ).run(neo4j_session)
+
+
+@timeit
+def cleanup_service_principals(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    """
+    Delete Entra service principals from the graph if they were not updated in the last sync.
+
+    :param neo4j_session: Neo4j session
+    :param common_job_parameters: Common job parameters containing UPDATE_TAG and TENANT_ID
+    """
+    GraphJob.from_node_schema(EntraServicePrincipalSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def cleanup_entra_user_to_aws_sso_user_matchlinks(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_matchlink(
+        EntraUserToAWSSSOUserMatchLink(),
+        "EntraTenant",
+        common_job_parameters["TENANT_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+
+
+@timeit
+async def sync_entra_apps_roles_spns(
+    neo4j_session: neo4j.Session,
+    client: GraphServiceClient,
+    update_tag: int,
+    tenant_id: str,
+) -> None:
+    # Applications
+    applications_data = await get_entra_applications(client)
+    transformed_applications = transform_applications(applications_data)
+    load_applications(neo4j_session, transformed_applications, update_tag, tenant_id)
+
+    # App roles
+    assignments_data, service_principals_data = await get_app_role_assignments(
+        client, applications_data
+    )
+    transformed_assignments = transform_app_role_assignments(assignments_data)
+    load_app_role_assignments(
+        neo4j_session, transformed_assignments, update_tag, tenant_id
+    )
+
+    # Service principals
+    transformed_service_principals = transform_service_principals(
+        service_principals_data
+    )
+    load_service_principals(
+        neo4j_session, transformed_service_principals, update_tag, tenant_id
+    )
+
+
+@timeit
+def sync_entra_to_aws_identity_center(
+    neo4j_session: neo4j.Session, update_tag: int, tenant_id: str
+) -> None:
+    query = """
+    MATCH (:EntraTenant{id: $TENANT_ID})-[:RESOURCE]->(e:EntraUser)
+          -[:HAS_APP_ROLE]->(ar:EntraAppRoleAssignment)
+          -[:ASSIGNED_TO]->(n:EntraApplication)
+          -[:SERVICE_PRINCIPAL]->(spn:EntraServicePrincipal)
+          -[:FEDERATES_TO]->(ic:AWSIdentityCenter)
+    MATCH (sso:AWSSSOUser{identity_store_id:ic.identity_store_id})
+    WHERE e.user_principal_name = sso.user_name
+    RETURN e.user_principal_name as entra_user_principal_name, sso.user_name as aws_user_name
+    """
+    entrauser_to_awssso_users = neo4j_session.execute_read(
+        read_list_of_dicts_tx, query, TENANT_ID=tenant_id
+    )
+
+    # Load MatchLink relationships from Entra users to AWS SSO users
+    load_matchlinks(
+        neo4j_session,
+        EntraUserToAWSSSOUserMatchLink(),
+        entrauser_to_awssso_users,
+        lastupdated=update_tag,
+        _sub_resource_label="EntraTenant",
+        _sub_resource_id=tenant_id,
+    )
 
 
 @timeit
@@ -347,20 +497,14 @@ async def sync_entra_applications(
     # Load tenant (prerequisite)
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
 
-    # Get and transform applications data
-    applications_data = await get_entra_applications(client)
-    transformed_applications = transform_applications(applications_data)
+    # Applications, app roles, and service principals
+    await sync_entra_apps_roles_spns(neo4j_session, client, update_tag, tenant_id)
 
-    # Get and transform app role assignments data
-    assignments_data = await get_app_role_assignments(client, applications_data)
-    transformed_assignments = transform_app_role_assignments(assignments_data)
-
-    # Load applications and assignments
-    load_applications(neo4j_session, transformed_applications, update_tag, tenant_id)
-    load_app_role_assignments(
-        neo4j_session, transformed_assignments, update_tag, tenant_id
-    )
+    # Attach sign-on relationships
+    sync_entra_to_aws_identity_center(neo4j_session, update_tag, tenant_id)
 
     # Cleanup stale data
     cleanup_applications(neo4j_session, common_job_parameters)
     cleanup_app_role_assignments(neo4j_session, common_job_parameters)
+    cleanup_service_principals(neo4j_session, common_job_parameters)
+    cleanup_entra_user_to_aws_sso_user_matchlinks(neo4j_session, common_job_parameters)
