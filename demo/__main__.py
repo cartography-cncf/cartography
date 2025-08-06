@@ -110,17 +110,21 @@ def main(force_flag: bool) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description=(
-            "Cartography Demo: Load demo data into a Neo4j database for testing and development purposes."
-            " This script will clear the existing database and load a predefined set of demo data."
-            " Ensure you have a Neo4j instance running and accessible at the specified NEO4J_URL."
-            " The default URL is 'bolt://localhost:7687'."
-            " You can change this by setting the NEO4J_URL environment variable."
-            " Use the -v or --verbose flag for detailed logging, or -q or --quiet to suppress most logs."
-            " The script will prompt for confirmation if the database is not empty."
-            " Use with caution as it will delete all existing data in the Neo4j database."
-            " You can bypass the confirmation prompt by using the --force flag."
-        )
+        description="""\
+Cartography Demo: Load demo data into a Neo4j database for testing and development purposes.
+
+This script will clear the existing database and load a predefined set of demo data.
+
+Ensure you have a Neo4j instance running and accessible at the specified NEO4J_URL.
+The default URL is 'bolt://localhost:7687'. You can change this by setting the NEO4J_URL
+environment variable.
+
+Use the -v or --verbose flag for detailed logging, or -q or --quiet to suppress most logs.
+The script will prompt for confirmation if the database is not empty. Use with caution
+as it will delete all existing data in the Neo4j database.
+
+You can bypass the confirmation prompt by using the --force flag.
+"""
     )
     parser.add_argument(
         "-v",
