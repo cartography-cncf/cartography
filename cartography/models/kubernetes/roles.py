@@ -22,6 +22,9 @@ class KubernetesRoleNodeProperties(CartographyNodeProperties):
     api_groups: PropertyRef = PropertyRef("api_groups")
     resources: PropertyRef = PropertyRef("resources")
     verbs: PropertyRef = PropertyRef("verbs")
+    cluster_name: PropertyRef = PropertyRef(
+        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -34,7 +37,10 @@ class KubernetesRoleToNamespaceRelProperties(CartographyRelProperties):
 class KubernetesRoleToNamespaceRel(CartographyRelSchema):
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("namespace")}
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "name": PropertyRef("namespace"),
+        }
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"

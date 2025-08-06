@@ -37,7 +37,10 @@ class KubernetesRoleBindingToNamespaceRelProperties(CartographyRelProperties):
 class KubernetesRoleBindingToNamespaceRel(CartographyRelSchema):
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("namespace")}
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "name": PropertyRef("namespace"),
+        }
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"

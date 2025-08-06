@@ -321,7 +321,7 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
         == expected_sa_to_cluster_rels
     )
 
-    # Assert: Test Role relationships
+    # Assert: Test Cluster to Role relationships
     expected_role_to_cluster_rels = {
         (KUBERNETES_CLUSTER_IDS[0], "demo-ns/pod-reader"),
         (KUBERNETES_CLUSTER_IDS[0], "demo-ns/secret-manager"),

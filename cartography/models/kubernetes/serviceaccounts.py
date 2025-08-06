@@ -19,6 +19,9 @@ class KubernetesServiceAccountNodeProperties(CartographyNodeProperties):
     uid: PropertyRef = PropertyRef("uid")
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     resource_version: PropertyRef = PropertyRef("resource_version")
+    cluster_name: PropertyRef = PropertyRef(
+        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
+    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -31,7 +34,10 @@ class KubernetesServiceAccountToNamespaceRelProperties(CartographyRelProperties)
 class KubernetesServiceAccountToNamespaceRel(CartographyRelSchema):
     target_node_label: str = "KubernetesNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("namespace")}
+        {
+            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
+            "name": PropertyRef("namespace"),
+        }
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
