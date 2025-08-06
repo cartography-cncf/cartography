@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -65,6 +66,7 @@ class S1CVEAffectsApplicationVersion(CartographyRelSchema):
 @dataclass(frozen=True)
 class S1CVESchema(CartographyNodeSchema):
     label: str = "S1CVE"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "CVE"])
     properties: S1CVENodeProperties = S1CVENodeProperties()
     sub_resource_relationship: S1CVEToAccount = S1CVEToAccount()
     other_relationships: OtherRelationships = OtherRelationships(
