@@ -315,15 +315,33 @@ def safe_substitute_schema(schema: str, properties: Dict[str, Any]) -> str:
     return template.safe_substitute(properties)
 
 
+def validate_relationship_name(relation: str) -> bool:
+    """Validate that a relationship name is safe for use in Cypher queries."""
+    safe_pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
+    return bool(safe_pattern.match(relation))
+
+
 def calculate_condition_clause(
     conditional_target_relations: Optional[List[str]] = None,
 ) -> str:
     if not conditional_target_relations:
         return ""
+
+    # Validate all relationship names before using them in the query
+    safe_relations = []
+    for relation in conditional_target_relations:
+        if not validate_relationship_name(relation):
+            logger.warning(f"Skipping invalid relationship name: {relation}")
+            continue
+        safe_relations.append(relation)
+
+    if not safe_relations:
+        return ""
+
     return " WHERE " + " AND ".join(
         [
             f"((resource)-[:{relation}]->() OR ()-[:{relation}]->(resource))"
-            for relation in conditional_target_relations
+            for relation in safe_relations
         ]
     )
 
@@ -371,9 +389,16 @@ def get_resource_arns(
         )
     )
 
-    if results and any(value is None for value in results[0].values()):
+    # Check all results for missing properties, not just the first one
+    missing_properties = set()
+    for i, result in enumerate(results):
+        for prop, value in result.items():
+            if value is None:
+                missing_properties.add(prop)
+
+    if missing_properties:
         logger.warning(
-            f"Skipping... The target node label '{node_label}' doesn't have the following properties: {[prop for prop, value in results[0].items() if value is None]}."
+            f"Skipping... The target node label '{node_label}' doesn't have the following properties: {list(missing_properties)}."
             f"Please add/update the resource_arn_schema value in the permission_relationships.yaml file, to make sure the target node has the required properties."
         )
         return []
@@ -458,10 +483,13 @@ def load_principal_mappings(
         resource_arn = mapping["resource_arn"]
         extracted_props = extract_properties_from_arn(resource_arn, resource_arn_schema)
 
-        # Create WHERE conditions for each property
+        # Create WHERE conditions, then follow parameterised substitution
         where_conditions = []
-        for prop_name, prop_value in extracted_props.items():
-            where_conditions.append(f"resource.{prop_name} = '{prop_value}'")
+        parameters = {}
+        for i, (prop_name, prop_value) in enumerate(extracted_props.items()):
+            param_name = f"prop_{i}"
+            where_conditions.append(f"resource.{prop_name} = ${param_name}")
+            parameters[param_name] = prop_value
 
         where_clause = " AND ".join(where_conditions)
 
@@ -479,10 +507,17 @@ def load_principal_mappings(
             relationship_name=relationship_name,
             where_clause=where_clause,
         )
+
+        # Combine all parameters
+        all_parameters = {
+            "principal_arn": mapping["principal_arn"],
+            "aws_update_tag": update_tag,
+            **parameters,
+        }
+
         neo4j_session.run(
             map_policy_query_template,
-            principal_arn=mapping["principal_arn"],
-            aws_update_tag=update_tag,
+            **all_parameters,
         )
 
 
