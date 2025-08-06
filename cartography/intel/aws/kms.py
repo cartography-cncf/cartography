@@ -76,8 +76,8 @@ def get_policy(key: Dict, client: botocore.client.BaseClient) -> Any:
     try:
         policy = client.get_key_policy(KeyId=key["KeyId"], PolicyName="default")
     except ClientError as e:
-        policy = None
         if e.response["Error"]["Code"] == "AccessDeniedException":
+            policy = None
             logger.warning(
                 f"kms:get_key_policy on key id {key['KeyId']} failed with AccessDeniedException; continuing sync.",
                 exc_info=True,
@@ -187,6 +187,18 @@ def transform_kms_key_policies(
     policy_data = {}
 
     for key_id, policy, *_ in policy_alias_grants_data:
+        # Handle keys with null policy (access denied)
+        if policy is None:
+            logger.info(
+                f"Skipping KMS key {key_id} policy due to AccessDenied; policy analysis properties will be null"
+            )
+            policy_data[key_id] = {
+                "kms_key": key_id,
+                "anonymous_access": None,
+                "anonymous_actions": None,
+            }
+            continue
+
         parsed_policy = parse_policy(key_id, policy)
         policy_data[key_id] = parsed_policy
 
