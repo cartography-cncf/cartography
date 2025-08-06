@@ -171,6 +171,14 @@ class Config:
     :param sentinelone_api_token_env_var: The name of an environment variable containing the SentinelOne API token. Optional.
     :type sentinelone_account_ids: list[str]
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
+    :type keycloak_client_id: str
+    :param keycloak_client_id: Keycloak client ID for API authentication. Optional.
+    :type keycloak_client_secret: str
+    :param keycloak_client_secret: Keycloak client secret for API authentication. Optional.
+    :type keycloak_realm: str
+    :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
+    :type keycloak_url: str
+    :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
     """
 
     def __init__(
@@ -259,6 +267,10 @@ class Config:
         sentinelone_api_token=None,
         sentinelone_api_token_env_var=None,
         sentinelone_account_ids=None,
+        keycloak_client_id=None,
+        keycloak_client_secret=None,
+        keycloak_realm=None,
+        keycloak_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -346,3 +358,7 @@ class Config:
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_api_token_env_var = sentinelone_api_token_env_var
         self.sentinelone_account_ids = sentinelone_account_ids
+        self.keycloak_client_id = None
+        self.keycloak_client_secret = None
+        self.keycloak_realm = None
+        self.keycloak_url = None

@@ -1,0 +1,6 @@
+# Keycloak
+
+```{toctree}
+config
+schema
+```
