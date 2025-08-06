@@ -558,7 +558,9 @@ def test_extract_properties_from_arn_s3path():
 
 
 def test_calculate_condition_clause_with_relations():
-    """Test calculate_condition_clause with conditional target relations"""
+    ###
+    # Test calculate_condition_clause with conditional target relations
+    ###
     conditional_target_relations = ["HAS_INFORMATION", "BELONGS_TO"]
 
     result = permission_relationships.calculate_condition_clause(
@@ -614,3 +616,17 @@ def test_validate_resource_arn_schema_without_properties():
     result = permission_relationships.validate_resource_arn_schema(schema)
 
     assert result == "{{arn}}"
+
+
+def test_extract_properties_from_arn_with_invalid_match():
+    ###
+    # Test extract_properties_from_arn when regex match fails, to ensure regex pattern functions as intended.
+    ###
+
+    schema = "arn:aws:ec2:{{region}}:*:instance/{{instanceid}}"
+    arn = "invalid-arn-format"  # Doesn't match the schema
+
+    result = permission_relationships.extract_properties_from_arn(arn, schema)
+
+    # Should return empty dict when no match
+    assert result == {}
