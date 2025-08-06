@@ -148,7 +148,7 @@ def principal_allowed_on_resource(
     resource_arn: str,
     permissions: List[str],
 ) -> bool:
-    """Evaluates an enture set of policies for a specific resource for a specific permission.
+    """Evaluates an entire set of policies for a specific resource for a specific permission.
 
 
     Arguments:
@@ -297,26 +297,144 @@ def get_principals_for_account(neo4j_session: neo4j.Session, account_id: str) ->
     return principals
 
 
+def safe_substitute_schema(schema: str, properties: Dict[str, Any]) -> str:
+    """Safely substitute properties into the schema template.
+
+    Arguments:
+        schema {str} -- The resource ARN schema template
+        properties {Dict[str, Any]} -- The properties to substitute
+
+    Returns:
+        str -- The schema with properties substituted
+    """
+    property_pattern = r"\{\{([^}]+)\}\}"
+    template_schema = re.sub(property_pattern, r"$\1", schema)
+
+    template = Template(template_schema)
+    return template.safe_substitute(properties)
+
+
+def calculate_condition_clause(conditional_target_relations: List[str] = None) -> str:
+    if not conditional_target_relations:
+        return ""
+    return " WHERE " + " AND ".join(
+        [
+            f"((resource)-[:{relation}]->() OR ()-[:{relation}]->(resource))"
+            for relation in conditional_target_relations
+        ]
+    )
+
+
+def extract_property_names_from_schema(schema: str) -> List[str]:
+    property_pattern = r"\{\{([^}]+)\}\}"
+    return re.findall(property_pattern, schema)
+
+
 def get_resource_arns(
     neo4j_session: neo4j.Session,
     account_id: str,
     node_label: str,
-) -> List[Any]:
+    conditional_target_relations: List[str] = None,
+    resource_arn_schema: str = "{{arn}}",
+) -> List[str]:
+    if not isinstance(resource_arn_schema, str):
+        raise ValueError("resource_arn_schema is not a string")
+
+    # Extract properties from the schema to form the return clause
+    properties = extract_property_names_from_schema(resource_arn_schema)
+    return_clause = "RETURN " + ", ".join(
+        f"resource.{prop} as {prop}" for prop in properties
+    )
+
     get_resource_query = Template(
         """
     MATCH (acc:AWSAccount{id:$AccountId})-[:RESOURCE]->(resource:$node_label)
-    return resource.arn as arn
-    """,
+    $condition_clause
+    $return_clause
+    """
     )
+
+    condition_clause = calculate_condition_clause(conditional_target_relations)
+
     get_resource_query_template = get_resource_query.safe_substitute(
         node_label=node_label,
+        return_clause=return_clause,
+        condition_clause=condition_clause,
     )
-    results = neo4j_session.run(
-        get_resource_query_template,
-        AccountId=account_id,
+    results = list(
+        neo4j_session.run(
+            get_resource_query_template,
+            AccountId=account_id,
+        )
     )
-    arns = [r["arn"] for r in results]
-    return arns
+
+    if results and any(value is None for value in results[0].values()):
+        logger.warning(
+            f"Skipping... The target node label '{node_label}' doesn't have the following properties: {[prop for prop, value in results[0].items() if value is None]}."
+            f"Please add/update the resource_arn_schema value in the permission_relationships.yaml file, to make sure the target node has the required properties."
+        )
+        return []
+
+    # Generate ARN strings by safe substituting properties into the schema
+    resource_arns = []
+    for r in results:
+        properties_dict = dict(r)
+
+        resource_arn = safe_substitute_schema(resource_arn_schema, properties_dict)
+        if resource_arn:
+            resource_arns.append(resource_arn)
+
+    if not resource_arns:
+        logger.warning(
+            f"Could not fetch associated resources properties for target node '{node_label}'. "
+            f"If 'resource_arn_schema' is defined, "
+            f"make sure it follows the format of the resource ARN in your policy's resource definition."
+        )
+        return []
+
+    return resource_arns
+
+
+def extract_properties_from_arn(arn: str, schema: str) -> Dict[str, str]:
+    # Not to proud of this regex function, but it works for now
+    # TODO: Refactor this to use a more efficient regex
+    properties = extract_property_names_from_schema(schema)
+    schema_regex = schema
+
+    prop_patterns = {}
+
+    for prop in properties:
+        prop_start = schema.find(f"{{{{{prop}}}}}")
+        prop_end = prop_start + len(f"{{{{{prop}}}}}")
+
+        next_chars = []
+        for i in range(prop_end, len(schema)):
+            if schema[i] not in ["{", "}"]:
+                next_chars.append(schema[i])
+                break
+
+        if next_chars:
+            capture_pattern = f"[^{''.join(next_chars)}]+"
+        else:
+            capture_pattern = ".*"
+
+        prop_patterns[prop] = capture_pattern
+        schema_regex = schema_regex.replace(
+            f"{{{{{prop}}}}}", f"(?P<{prop}>{capture_pattern})"
+        )
+
+    schema_regex = re.escape(schema_regex)
+
+    for prop, capture_pattern in prop_patterns.items():
+        escaped_pattern = re.escape(f"(?P<{prop}>{capture_pattern})")
+        schema_regex = schema_regex.replace(
+            escaped_pattern, f"(?P<{prop}>{capture_pattern})"
+        )
+
+    pattern = re.compile(schema_regex)
+    match = pattern.match(arn)
+
+    return match.groupdict()
 
 
 def load_principal_mappings(
@@ -325,27 +443,41 @@ def load_principal_mappings(
     node_label: str,
     relationship_name: str,
     update_tag: int,
+    resource_arn_schema: str = "{{arn}}",
 ) -> None:
-    map_policy_query = Template(
-        """
-    UNWIND $Mapping as mapping
-    MATCH (principal:AWSPrincipal{arn:mapping.principal_arn})
-    MATCH (resource:$node_label{arn:mapping.resource_arn})
-    MERGE (principal)-[r:$relationship_name]->(resource)
-    SET r.lastupdated = $aws_update_tag
-    """,
-    )
     if not principal_mappings:
         return
-    map_policy_query_template = map_policy_query.safe_substitute(
-        node_label=node_label,
-        relationship_name=relationship_name,
-    )
-    neo4j_session.run(
-        map_policy_query_template,
-        Mapping=principal_mappings,
-        aws_update_tag=update_tag,
-    )
+
+    for mapping in principal_mappings:
+        resource_arn = mapping["resource_arn"]
+        extracted_props = extract_properties_from_arn(resource_arn, resource_arn_schema)
+
+        # Create WHERE conditions for each property
+        where_conditions = []
+        for prop_name, prop_value in extracted_props.items():
+            where_conditions.append(f"resource.{prop_name} = '{prop_value}'")
+
+        where_clause = " AND ".join(where_conditions)
+
+        map_policy_query = Template(
+            """
+        MATCH (principal:AWSPrincipal{arn:$principal_arn})
+        MATCH (resource:$node_label)
+        WHERE $where_clause
+        MERGE (principal)-[r:$relationship_name]->(resource)
+        SET r.lastupdated = $aws_update_tag
+        """,
+        )
+        map_policy_query_template = map_policy_query.safe_substitute(
+            node_label=node_label,
+            relationship_name=relationship_name,
+            where_clause=where_clause,
+        )
+        neo4j_session.run(
+            map_policy_query_template,
+            principal_arn=mapping["principal_arn"],
+            aws_update_tag=update_tag,
+        )
 
 
 def cleanup_rpr(
@@ -400,6 +532,19 @@ def parse_permission_relationships_file(file_path: str) -> List[Any]:
         return []
 
 
+def validate_resource_arn_schema(raw_resource_arn_schema: str) -> str:
+    """To validate the resource ARN schema"""
+    if not isinstance(raw_resource_arn_schema, str):
+        return "{{arn}}"
+    properties = extract_property_names_from_schema(raw_resource_arn_schema)
+    if not properties:
+        logger.warning(
+            f"No properties found in resource ARN schema: {raw_resource_arn_schema}.Defaulting to '{{arn}}'."
+        )
+        return "{{arn}}"
+    return raw_resource_arn_schema
+
+
 def is_valid_rpr(rpr: Dict) -> bool:
     required_fields = ["permissions", "relationship_name", "target_label"]
     for field in required_fields:
@@ -442,16 +587,28 @@ def sync(
         permissions = rpr["permissions"]
         relationship_name = rpr["relationship_name"]
         target_label = rpr["target_label"]
-        resource_arns = get_resource_arns(
-            neo4j_session,
-            current_aws_account_id,
-            target_label,
-        )
+
+        # Extract optional fields
+        conditional_target_relations = rpr.get("conditional_target_relations")
+        raw_resource_arn_schema = rpr.get("resource_arn_schema", "{{arn}}")
+        resource_arn_schema = validate_resource_arn_schema(raw_resource_arn_schema)
+
         logger.info(
             "Syncing relationship '%s' for node label '%s'",
             relationship_name,
             target_label,
         )
+
+        resource_arns = get_resource_arns(
+            neo4j_session,
+            current_aws_account_id,
+            target_label,
+            conditional_target_relations,
+            resource_arn_schema,
+        )
+
+        logger.info(f"Resource ARNs: {resource_arns}")
+
         allowed_mappings = calculate_permission_relationships(
             principals,
             resource_arns,
@@ -463,6 +620,7 @@ def sync(
             target_label,
             relationship_name,
             update_tag,
+            resource_arn_schema,
         )
         cleanup_rpr(
             neo4j_session,
