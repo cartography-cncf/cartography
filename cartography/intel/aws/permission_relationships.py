@@ -5,6 +5,7 @@ from string import Template
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Pattern
 from typing import Tuple
 
@@ -314,7 +315,9 @@ def safe_substitute_schema(schema: str, properties: Dict[str, Any]) -> str:
     return template.safe_substitute(properties)
 
 
-def calculate_condition_clause(conditional_target_relations: List[str] = None) -> str:
+def calculate_condition_clause(
+    conditional_target_relations: Optional[List[str]] = None,
+) -> str:
     if not conditional_target_relations:
         return ""
     return " WHERE " + " AND ".join(
@@ -334,7 +337,7 @@ def get_resource_arns(
     neo4j_session: neo4j.Session,
     account_id: str,
     node_label: str,
-    conditional_target_relations: List[str] = None,
+    conditional_target_relations: Optional[List[str]] = None,
     resource_arn_schema: str = "{{arn}}",
 ) -> List[str]:
     if not isinstance(resource_arn_schema, str):
@@ -433,6 +436,9 @@ def extract_properties_from_arn(arn: str, schema: str) -> Dict[str, str]:
 
     pattern = re.compile(schema_regex)
     match = pattern.match(arn)
+
+    if match is None:
+        return {}
 
     return match.groupdict()
 
@@ -606,8 +612,6 @@ def sync(
             conditional_target_relations,
             resource_arn_schema,
         )
-
-        logger.info(f"Resource ARNs: {resource_arns}")
 
         allowed_mappings = calculate_permission_relationships(
             principals,
