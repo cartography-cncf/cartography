@@ -47,7 +47,7 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
             update_tag=TEST_UPDATE_TAG,
         )
 
-    # Run the sync
+    # Act: Run the sync
     cartography.intel.sentinelone.cve.sync(
         neo4j_session,
         TEST_COMMON_JOB_PARAMETERS,
