@@ -13,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class VPCNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("VpcId")
-    vpc_id: PropertyRef = PropertyRef("VpcId", extra_index=True)
+    vpcid: PropertyRef = PropertyRef("VpcId", extra_index=True)
     primary_cidr_block: PropertyRef = PropertyRef("PrimaryCIDRBlock")
     instance_tenancy: PropertyRef = PropertyRef("InstanceTenancy")
     state: PropertyRef = PropertyRef("State")
