@@ -1,0 +1,6 @@
+# SentinelOne
+
+```{toctree}
+config
+schema
+```
