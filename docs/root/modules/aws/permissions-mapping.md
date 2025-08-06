@@ -54,3 +54,4 @@ This example shows how to map SSM access permissions for EC2 instances with cond
   - HAS_INFORMATION
   resource_arn_schema: "arn:aws:ec2:{{region}}:*:instance/{{instanceid}}"
 ```
+If the principal has any of the permission, the target node has the required relation (skips if relation is not valid) and resource_arn_schema matches that of the policy resource arn, it will be mapped
