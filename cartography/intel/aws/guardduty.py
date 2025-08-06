@@ -300,6 +300,43 @@ def cleanup_guardduty(
 
 
 @timeit
+def sync_detectors_function(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Sync GuardDuty detectors for all regions.
+    """
+    for region in regions:
+        logger.info(
+            f"Syncing GuardDuty detectors for {region} in account {current_aws_account_id}"
+        )
+
+        # Get all detectors in the region
+        detector_ids = get_detectors(boto3_session, region)
+
+        if not detector_ids:
+            logger.info(f"No GuardDuty detectors found in region {region}, skipping.")
+            continue
+
+        # Sync detectors
+        detector_details = get_detector_details(boto3_session, region, detector_ids)
+        transformed_detectors = transform_detector_details(
+            detector_details, region, current_aws_account_id
+        )
+        load_guardduty_detectors(
+            neo4j_session,
+            transformed_detectors,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -314,30 +351,22 @@ def sync(
     """
     # Get severity threshold from common job parameters
     severity_threshold = common_job_parameters.get("aws_guardduty_severity_threshold")
+
+    # Sync detectors first
+    sync_detectors_function(
+        neo4j_session, boto3_session, regions, current_aws_account_id, update_tag
+    )
+
     for region in regions:
         logger.info(
-            f"Syncing GuardDuty detectors and findings for {region} in account {current_aws_account_id}"
+            f"Syncing GuardDuty findings for {region} in account {current_aws_account_id}"
         )
 
-        # Get all detectors in the region
+        # Get all detectors in the region for findings sync
         detector_ids = get_detectors(boto3_session, region)
 
         if not detector_ids:
-            logger.info(f"No GuardDuty detectors found in region {region}, skipping.")
             continue
-
-        # Sync detectors first
-        detector_details = get_detector_details(boto3_session, region, detector_ids)
-        transformed_detectors = transform_detector_details(
-            detector_details, region, current_aws_account_id
-        )
-        load_guardduty_detectors(
-            neo4j_session,
-            transformed_detectors,
-            region,
-            current_aws_account_id,
-            update_tag,
-        )
 
         # Then sync findings
         all_findings = []

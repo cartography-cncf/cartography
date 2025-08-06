@@ -4,6 +4,8 @@ from unittest.mock import patch
 import cartography.intel.aws.guardduty
 from cartography.intel.aws.guardduty import _get_severity_range_for_threshold
 from cartography.intel.aws.guardduty import sync
+from cartography.intel.aws.guardduty import sync_detectors_function
+from tests.data.aws.guardduty import GET_DETECTORS
 from tests.data.aws.guardduty import GET_FINDINGS
 from tests.data.aws.guardduty import LIST_DETECTORS
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -172,3 +174,70 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
     assert (
         len(findings) == 2
     ), f"Expected 2 HIGH+ severity findings, got {len(findings)}"
+
+
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detectors",
+    return_value=LIST_DETECTORS["DetectorIds"],
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
+    "get_detector_details",
+    return_value=GET_DETECTORS,
+)
+def test_sync_guardduty_detectors(
+    mock_get_detector_details, mock_get_detectors, neo4j_session
+):
+    """
+    Test that GuardDuty detectors sync correctly and create proper nodes and relationships.
+    Tests outcomes, not implementation details.
+    """
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Act
+    sync_detectors_function(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # ✅ DO: Test outcomes - verify detector nodes have correct properties
+    expected_detector_nodes = {
+        ("12abc34d567e8fa901bc2d34e56789f0", "ENABLED"),
+        ("98zyx76w543u2ty109sr8q76p54321o0", "ENABLED"),
+    }
+    actual_detector_nodes = check_nodes(
+        neo4j_session, "GuardDutyDetector", ["detector_id", "status"]
+    )
+    assert actual_detector_nodes == expected_detector_nodes
+
+    # ✅ DO: Test outcomes - verify ARN construction is correct
+    detectors = neo4j_session.run(
+        "MATCH (d:GuardDutyDetector) RETURN d.detector_id as detector_id, d.arn as arn"
+    ).data()
+
+    for detector in detectors:
+        expected_arn = f"arn:aws:guardduty:{TEST_REGION}:{TEST_ACCOUNT_ID}:detector/{detector['detector_id']}"
+        assert (
+            detector["arn"] == expected_arn
+        ), f"ARN mismatch for detector {detector['detector_id']}"
+
+    # ✅ DO: Test outcomes - verify relationships are created correctly
+    expected_detector_rels = {
+        (TEST_ACCOUNT_ID, "12abc34d567e8fa901bc2d34e56789f0"),
+        (TEST_ACCOUNT_ID, "98zyx76w543u2ty109sr8q76p54321o0"),
+    }
+    actual_detector_rels = check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "GuardDutyDetector",
+        "detector_id",
+        "RESOURCE",
+        rel_direction_right=True,
+    )
+    assert actual_detector_rels == expected_detector_rels
