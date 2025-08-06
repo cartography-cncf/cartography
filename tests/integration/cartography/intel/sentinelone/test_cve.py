@@ -31,6 +31,7 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
     # Mock the API call to return test data
     mock_get_paginated_results.return_value = CVES_DATA
 
+# Arrange
     # Create prerequisite account node for the relationship
     neo4j_session.run(
         "CREATE (a:S1Account {id: $account_id, lastupdated: $update_tag})",
