@@ -6,7 +6,10 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
+TEST_JOB_PARAMS = {
+    "UPDATE_TAG": TEST_UPDATE_TAG,
+    "GITHUB_ORG_URL": "https://github.com/simpsoncorp",
+}
 TEST_GITHUB_URL = "https://fake.github.net/graphql/"
 
 

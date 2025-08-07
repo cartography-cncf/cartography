@@ -38,9 +38,9 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             # Add org url to common job params for cleanup
             gh_cleanup_params = {
                 **common_job_parameters,
-                "GITHUB_ORG_URL": f"https://github.com/{auth_data['name']}"
+                "GITHUB_ORG_URL": f"https://github.com/{auth_data['name']}",
             }
-            
+
             cartography.intel.github.users.sync(
                 neo4j_session,
                 gh_cleanup_params,
