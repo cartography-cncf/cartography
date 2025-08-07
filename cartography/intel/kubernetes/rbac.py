@@ -80,31 +80,21 @@ def transform_roles(roles: List[V1Role]) -> List[Dict[str, Any]]:
     """
     result = []
     for role in roles:
-        # Flatten all rules into combined lists
-        all_api_groups = []
-        all_resources = []
-        all_verbs = []
+        # Flatten all rules into combined sets
+        all_api_groups: set[str] = set()
+        all_resources: set[str] = set()
+        all_verbs: set[str] = set()
 
         for rule in role.rules or []:
-            # Extend api_groups, handling None and empty string cases
-            if rule.api_groups:
-                for api_group in rule.api_groups:
-                    # Empty string represents core API group
-                    api_group_name = "core" if api_group == "" else api_group
-                    if api_group_name not in all_api_groups:
-                        all_api_groups.append(api_group_name)
-
-            # Extend resources
-            if rule.resources:
-                for resource in rule.resources:
-                    if resource not in all_resources:
-                        all_resources.append(resource)
-
-            # Extend verbs
-            if rule.verbs:
-                for verb in rule.verbs:
-                    if verb not in all_verbs:
-                        all_verbs.append(verb)
+            # Update api_groups, handling None and empty string cases
+            all_api_groups.update(
+                {
+                    "core" if api_group == "" else api_group
+                    for api_group in rule.api_groups or []
+                }
+            )
+            all_resources.update(rule.resources or [])
+            all_verbs.update(rule.verbs or [])
 
         result.append(
             {
@@ -114,31 +104,43 @@ def transform_roles(roles: List[V1Role]) -> List[Dict[str, Any]]:
                 "uid": role.metadata.uid,
                 "creation_timestamp": get_epoch(role.metadata.creation_timestamp),
                 "resource_version": role.metadata.resource_version,
-                "api_groups": all_api_groups,
-                "resources": all_resources,
-                "verbs": all_verbs,
+                "api_groups": sorted(
+                    all_api_groups
+                ),  # sorts to keep consistent ordering and converts to list to appease neo4j
+                "resources": sorted(all_resources),
+                "verbs": sorted(all_verbs),
             }
         )
     return result
 
 
-def transform_role_bindings(role_bindings: List[V1RoleBinding]) -> List[Dict[str, Any]]:
+def transform_role_bindings(
+    role_bindings: List[V1RoleBinding], cluster_name: str
+) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes RoleBindings into a list of dictionaries.
+    Creates one RoleBinding node per Kubernetes RoleBinding with lists of subject IDs.
     """
     result = []
     for rb in role_bindings:
-        # Only process ServiceAccount subjects
+        # Collect all subjects by type
         service_account_subjects = [
             subject
             for subject in (rb.subjects or [])
             if subject.kind == "ServiceAccount"
         ]
+        user_subjects = [
+            subject for subject in (rb.subjects or []) if subject.kind == "User"
+        ]
+        group_subjects = [
+            subject for subject in (rb.subjects or []) if subject.kind == "Group"
+        ]
 
-        for subject in service_account_subjects:
+        # Only create a RoleBinding node if it has at least one subject
+        if rb.subjects:
             result.append(
                 {
-                    "id": f"{rb.metadata.namespace}/{rb.metadata.name}/{subject.namespace}/{subject.name}",  # same role binding can be used for different service accounts so need a unique id
+                    "id": f"{rb.metadata.namespace}/{rb.metadata.name}",
                     "name": rb.metadata.name,
                     "namespace": rb.metadata.namespace,
                     "uid": rb.metadata.uid,
@@ -146,9 +148,16 @@ def transform_role_bindings(role_bindings: List[V1RoleBinding]) -> List[Dict[str
                     "resource_version": rb.metadata.resource_version,
                     "role_name": rb.role_ref.name,
                     "role_kind": rb.role_ref.kind,
-                    "subject_name": subject.name,
-                    "subject_namespace": subject.namespace,
-                    "subject_service_account_id": f"{subject.namespace}/{subject.name}",
+                    "service_account_ids": [
+                        f"{subject.namespace}/{subject.name}"
+                        for subject in service_account_subjects
+                    ],
+                    "user_ids": [
+                        f"{cluster_name}/{subject.name}" for subject in user_subjects
+                    ],
+                    "group_ids": [
+                        f"{cluster_name}/{subject.name}" for subject in group_subjects
+                    ],
                     "role_id": f"{rb.metadata.namespace}/{rb.role_ref.name}",
                 }
             )
@@ -162,31 +171,21 @@ def transform_cluster_roles(cluster_roles: List[V1ClusterRole]) -> List[Dict[str
     """
     result = []
     for cluster_role in cluster_roles:
-        # Flatten all rules into combined lists
-        all_api_groups = []
-        all_resources = []
-        all_verbs = []
+        # Flatten all rules into combined sets
+        all_api_groups: set[str] = set()
+        all_resources: set[str] = set()
+        all_verbs: set[str] = set()
 
         for rule in cluster_role.rules or []:
-            # Extend api_groups, handling None and empty string cases
-            if rule.api_groups:
-                for api_group in rule.api_groups:
-                    # Empty string represents core API group
-                    api_group_name = "core" if api_group == "" else api_group
-                    if api_group_name not in all_api_groups:
-                        all_api_groups.append(api_group_name)
-
-            # Extend resources
-            if rule.resources:
-                for resource in rule.resources:
-                    if resource not in all_resources:
-                        all_resources.append(resource)
-
-            # Extend verbs
-            if rule.verbs:
-                for verb in rule.verbs:
-                    if verb not in all_verbs:
-                        all_verbs.append(verb)
+            # Update api_groups, handling None and empty string cases
+            all_api_groups.update(
+                {
+                    "core" if api_group == "" else api_group
+                    for api_group in rule.api_groups or []
+                }
+            )
+            all_resources.update(rule.resources or [])
+            all_verbs.update(rule.verbs or [])
 
         result.append(
             {
@@ -197,44 +196,60 @@ def transform_cluster_roles(cluster_roles: List[V1ClusterRole]) -> List[Dict[str
                     cluster_role.metadata.creation_timestamp
                 ),
                 "resource_version": cluster_role.metadata.resource_version,
-                "api_groups": all_api_groups,
-                "resources": all_resources,
-                "verbs": all_verbs,
+                "api_groups": sorted(
+                    all_api_groups
+                ),  # sorts to keep consistent ordering and converts to list to appease neo4j
+                "resources": sorted(all_resources),
+                "verbs": sorted(all_verbs),
             }
         )
     return result
 
 
 def transform_cluster_role_bindings(
-    cluster_role_bindings: List[V1ClusterRoleBinding],
+    cluster_role_bindings: List[V1ClusterRoleBinding], cluster_name: str
 ) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes ClusterRoleBindings into a list of dictionaries.
+    Creates one ClusterRoleBinding node per Kubernetes ClusterRoleBinding with lists of subject IDs.
     """
     result = []
     for crb in cluster_role_bindings:
-        # Only process ServiceAccount subjects
+        # Collect all subjects by type
         service_account_subjects = [
             subject
             for subject in (crb.subjects or [])
             if subject.kind == "ServiceAccount"
         ]
+        user_subjects = [
+            subject for subject in (crb.subjects or []) if subject.kind == "User"
+        ]
+        group_subjects = [
+            subject for subject in (crb.subjects or []) if subject.kind == "Group"
+        ]
 
-        for subject in service_account_subjects:
+        # Only create a ClusterRoleBinding node if it has at least one subject
+        if crb.subjects:
             result.append(
                 {
-                    "id": f"{crb.metadata.name}/{subject.namespace}/{subject.name}",  # ClusterRoleBinding name + subject namespace/name
+                    "id": f"{crb.metadata.name}",  # ClusterRoleBinding is cluster-scoped, so just use name
                     "name": crb.metadata.name,
-                    "namespace": subject.namespace,
                     "uid": crb.metadata.uid,
                     "creation_timestamp": get_epoch(crb.metadata.creation_timestamp),
                     "resource_version": crb.metadata.resource_version,
                     "role_name": crb.role_ref.name,
                     "role_kind": crb.role_ref.kind,
-                    "subject_name": subject.name,
-                    "subject_namespace": subject.namespace,
-                    "subject_service_account_id": f"{subject.namespace}/{subject.name}",
-                    "role_id": crb.role_ref.name,
+                    "service_account_ids": [
+                        f"{subject.namespace}/{subject.name}"
+                        for subject in service_account_subjects
+                    ],
+                    "user_ids": [
+                        f"{cluster_name}/{subject.name}" for subject in user_subjects
+                    ],
+                    "group_ids": [
+                        f"{cluster_name}/{subject.name}" for subject in group_subjects
+                    ],
+                    "role_id": crb.role_ref.name,  # ClusterRole ID is just the name
                 }
             )
     return result
@@ -385,12 +400,12 @@ def sync_kubernetes_rbac(
     # Transform namespace-scoped resources
     transformed_service_accounts = transform_service_accounts(service_accounts)
     transformed_roles = transform_roles(roles)
-    transformed_role_bindings = transform_role_bindings(role_bindings)
+    transformed_role_bindings = transform_role_bindings(role_bindings, client.name)
 
     # Transform cluster-scoped resources
     transformed_cluster_roles = transform_cluster_roles(cluster_roles)
     transformed_cluster_role_bindings = transform_cluster_role_bindings(
-        cluster_role_bindings
+        cluster_role_bindings, client.name
     )
 
     cluster_id = common_job_parameters["CLUSTER_ID"]

@@ -22,9 +22,6 @@ class KubernetesRoleNodeProperties(CartographyNodeProperties):
     api_groups: PropertyRef = PropertyRef("api_groups")
     resources: PropertyRef = PropertyRef("resources")
     verbs: PropertyRef = PropertyRef("verbs")
-    cluster_name: PropertyRef = PropertyRef(
-        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
-    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

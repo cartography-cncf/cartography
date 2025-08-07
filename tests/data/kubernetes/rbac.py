@@ -326,8 +326,8 @@ KUBERNETES_CLUSTER_1_ROLE_IDS = [
 ]
 
 KUBERNETES_CLUSTER_1_ROLE_BINDING_IDS = [
-    "demo-ns/bind-demo-sa/demo-ns/demo-sa",
-    "demo-ns/bind-another-sa/demo-ns/another-sa",
+    "demo-ns/bind-demo-sa",
+    "demo-ns/bind-another-sa",
 ]
 
 KUBERNETES_CLUSTER_2_SERVICE_ACCOUNT_IDS = [
@@ -339,7 +339,7 @@ KUBERNETES_CLUSTER_2_ROLE_IDS = [
 ]
 
 KUBERNETES_CLUSTER_2_ROLE_BINDING_IDS = [
-    "test-ns/bind-test-sa/test-ns/test-sa",
+    "test-ns/bind-test-sa",
 ]
 
 # Expected ClusterRole IDs after transformation
@@ -354,13 +354,12 @@ KUBERNETES_CLUSTER_2_CLUSTER_ROLE_IDS = [
 
 # Expected ClusterRoleBinding IDs after transformation
 KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDING_IDS = [
-    "admin-binding/demo-ns/demo-sa",
-    "viewer-binding/demo-ns/another-sa",
-    "viewer-binding/test-ns/test-sa",  # Cross-namespace binding
+    "admin-binding",
+    "viewer-binding",
 ]
 
 KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDING_IDS = [
-    "cluster-viewer-binding/test-ns/test-sa",
+    "cluster-viewer-binding",
 ]
 
 # Test namespace data for RBAC integration tests

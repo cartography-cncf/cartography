@@ -15,38 +15,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class KubernetesClusterRoleBindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
-    namespace: PropertyRef = PropertyRef("namespace")  # Subject namespace, can be None
     uid: PropertyRef = PropertyRef("uid")
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     resource_version: PropertyRef = PropertyRef("resource_version")
     role_name: PropertyRef = PropertyRef("role_name")
     role_kind: PropertyRef = PropertyRef("role_kind")
-    subject_name: PropertyRef = PropertyRef("subject_name")
-    subject_namespace: PropertyRef = PropertyRef("subject_namespace")
-    subject_service_account_id: PropertyRef = PropertyRef("subject_service_account_id")
+    service_account_ids: PropertyRef = PropertyRef("service_account_ids")
     role_id: PropertyRef = PropertyRef("role_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class KubernetesClusterRoleBindingToNamespaceRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class KubernetesClusterRoleBindingToNamespaceRel(CartographyRelSchema):
-    target_node_label: str = "KubernetesNamespace"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {
-            "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
-            "name": PropertyRef("namespace"),
-        }
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
-    properties: KubernetesClusterRoleBindingToNamespaceRelProperties = (
-        KubernetesClusterRoleBindingToNamespaceRelProperties()
-    )
 
 
 @dataclass(frozen=True)
@@ -78,7 +54,7 @@ class KubernetesClusterRoleBindingToServiceAccountRelProperties(
 class KubernetesClusterRoleBindingToServiceAccountRel(CartographyRelSchema):
     target_node_label: str = "KubernetesServiceAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("subject_service_account_id")}
+        {"id": PropertyRef("service_account_ids", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SUBJECT"
@@ -116,7 +92,6 @@ class KubernetesClusterRoleBindingSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            KubernetesClusterRoleBindingToNamespaceRel(),
             KubernetesClusterRoleBindingToServiceAccountRel(),
             KubernetesClusterRoleBindingToClusterRoleRel(),
         ]
