@@ -35,23 +35,29 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     # run sync for the provided github tokens
     for auth_data in auth_tokens["organization"]:
         try:
+            # Add org url to common job params for cleanup
+            gh_cleanup_params = {
+                **common_job_parameters,
+                "GITHUB_ORG_URL": f"https://github.com/{auth_data['name']}"
+            }
+            
             cartography.intel.github.users.sync(
                 neo4j_session,
-                common_job_parameters,
+                gh_cleanup_params,
                 auth_data["token"],
                 auth_data["url"],
                 auth_data["name"],
             )
             cartography.intel.github.repos.sync(
                 neo4j_session,
-                common_job_parameters,
+                gh_cleanup_params,
                 auth_data["token"],
                 auth_data["url"],
                 auth_data["name"],
             )
             cartography.intel.github.teams.sync_github_teams(
                 neo4j_session,
-                common_job_parameters,
+                gh_cleanup_params,
                 auth_data["token"],
                 auth_data["url"],
                 auth_data["name"],
