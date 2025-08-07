@@ -117,19 +117,23 @@ def test_load_rbac_nodes(neo4j_session, _create_test_cluster):
         KUBERNETES_CLUSTER_1_SERVICE_ACCOUNTS_RAW
     )
     cluster_1_roles_data = transform_roles(KUBERNETES_CLUSTER_1_ROLES_RAW)
-    cluster_1_rb_data = transform_role_bindings(KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW)
+    cluster_1_rb_data = transform_role_bindings(
+        KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[0]
+    )
     cluster_1_cr_data = transform_cluster_roles(KUBERNETES_CLUSTER_1_CLUSTER_ROLES_RAW)
     cluster_1_crb_data = transform_cluster_role_bindings(
-        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW
+        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[0]
     )
     cluster_2_sa_data = transform_service_accounts(
         KUBERNETES_CLUSTER_2_SERVICE_ACCOUNTS_RAW
     )
     cluster_2_roles_data = transform_roles(KUBERNETES_CLUSTER_2_ROLES_RAW)
-    cluster_2_rb_data = transform_role_bindings(KUBERNETES_CLUSTER_2_ROLE_BINDINGS_RAW)
+    cluster_2_rb_data = transform_role_bindings(
+        KUBERNETES_CLUSTER_2_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[1]
+    )
     cluster_2_cr_data = transform_cluster_roles(KUBERNETES_CLUSTER_2_CLUSTER_ROLES_RAW)
     cluster_2_crb_data = transform_cluster_role_bindings(
-        KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDINGS_RAW
+        KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[1]
     )
 
     # Act: Load transformed data
@@ -245,7 +249,6 @@ def test_load_rbac_nodes(neo4j_session, _create_test_cluster):
     expected_cluster_role_bindings = {
         (KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDING_IDS[0],),
         (KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDING_IDS[1],),
-        (KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDING_IDS[2],),
         (KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDING_IDS[0],),
     }
     assert (
@@ -260,10 +263,12 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
         KUBERNETES_CLUSTER_1_SERVICE_ACCOUNTS_RAW
     )
     cluster_1_roles_data = transform_roles(KUBERNETES_CLUSTER_1_ROLES_RAW)
-    cluster_1_rb_data = transform_role_bindings(KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW)
+    cluster_1_rb_data = transform_role_bindings(
+        KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[0]
+    )
     cluster_1_cr_data = transform_cluster_roles(KUBERNETES_CLUSTER_1_CLUSTER_ROLES_RAW)
     cluster_1_crb_data = transform_cluster_role_bindings(
-        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW
+        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[0]
     )
 
     # Act: Load RBAC resources for cluster 1
@@ -340,8 +345,8 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
 
     # Assert: Test RoleBinding to ServiceAccount relationships
     expected_rb_to_sa_rels = {
-        ("demo-ns/bind-demo-sa/demo-ns/demo-sa", "demo-ns/demo-sa"),
-        ("demo-ns/bind-another-sa/demo-ns/another-sa", "demo-ns/another-sa"),
+        ("demo-ns/bind-demo-sa", "demo-ns/demo-sa"),
+        ("demo-ns/bind-another-sa", "demo-ns/another-sa"),
     }
     assert (
         check_rels(
@@ -357,8 +362,8 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
 
     # Assert: Test RoleBinding to Role relationships
     expected_rb_to_role_rels = {
-        ("demo-ns/bind-demo-sa/demo-ns/demo-sa", "demo-ns/pod-reader"),
-        ("demo-ns/bind-another-sa/demo-ns/another-sa", "demo-ns/secret-manager"),
+        ("demo-ns/bind-demo-sa", "demo-ns/pod-reader"),
+        ("demo-ns/bind-another-sa", "demo-ns/secret-manager"),
     }
     assert (
         check_rels(
@@ -409,8 +414,8 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
 
     # Assert: Test Namespace contains RoleBinding relationships
     expected_ns_to_rb_rels = {
-        ("demo-ns", "demo-ns/bind-demo-sa/demo-ns/demo-sa"),
-        ("demo-ns", "demo-ns/bind-another-sa/demo-ns/another-sa"),
+        ("demo-ns", "demo-ns/bind-demo-sa"),
+        ("demo-ns", "demo-ns/bind-another-sa"),
     }
     assert (
         check_rels(
@@ -443,9 +448,8 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
 
     # Assert: Test ClusterRoleBinding to Cluster relationships
     expected_crb_to_cluster_rels = {
-        (KUBERNETES_CLUSTER_IDS[0], "admin-binding/demo-ns/demo-sa"),
-        (KUBERNETES_CLUSTER_IDS[0], "viewer-binding/demo-ns/another-sa"),
-        (KUBERNETES_CLUSTER_IDS[0], "viewer-binding/test-ns/test-sa"),
+        (KUBERNETES_CLUSTER_IDS[0], "admin-binding"),
+        (KUBERNETES_CLUSTER_IDS[0], "viewer-binding"),
     }
     assert (
         check_rels(
@@ -461,9 +465,9 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
 
     # Assert: Test ClusterRoleBinding to ServiceAccount relationships
     expected_crb_to_sa_rels = {
-        ("admin-binding/demo-ns/demo-sa", "demo-ns/demo-sa"),
-        ("viewer-binding/demo-ns/another-sa", "demo-ns/another-sa"),
-        ("viewer-binding/test-ns/test-sa", "test-ns/test-sa"),
+        ("admin-binding", "demo-ns/demo-sa"),
+        ("viewer-binding", "demo-ns/another-sa"),
+        ("viewer-binding", "test-ns/test-sa"),
     }
     assert (
         check_rels(
@@ -479,9 +483,8 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
 
     # Assert: Test ClusterRoleBinding to ClusterRole relationships
     expected_crb_to_cr_rels = {
-        ("admin-binding/demo-ns/demo-sa", "cluster-admin"),
-        ("viewer-binding/demo-ns/another-sa", "pod-viewer"),
-        ("viewer-binding/test-ns/test-sa", "pod-viewer"),
+        ("admin-binding", "cluster-admin"),
+        ("viewer-binding", "pod-viewer"),
     }
     assert (
         check_rels(
@@ -495,24 +498,6 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
         == expected_crb_to_cr_rels
     )
 
-    # Assert: Test Namespace contains ClusterRoleBinding relationships (cross-namespace bindings)
-    expected_ns_to_crb_rels = {
-        ("demo-ns", "admin-binding/demo-ns/demo-sa"),
-        ("demo-ns", "viewer-binding/demo-ns/another-sa"),
-        ("test-ns", "viewer-binding/test-ns/test-sa"),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "KubernetesNamespace",
-            "name",
-            "KubernetesClusterRoleBinding",
-            "id",
-            "CONTAINS",
-        )
-        == expected_ns_to_crb_rels
-    )
-
 
 def test_rbac_cleanup(neo4j_session, _create_test_cluster):
     # Arrange: Transform raw API data and load it
@@ -520,10 +505,12 @@ def test_rbac_cleanup(neo4j_session, _create_test_cluster):
         KUBERNETES_CLUSTER_1_SERVICE_ACCOUNTS_RAW
     )
     cluster_1_roles_data = transform_roles(KUBERNETES_CLUSTER_1_ROLES_RAW)
-    cluster_1_rb_data = transform_role_bindings(KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW)
+    cluster_1_rb_data = transform_role_bindings(
+        KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[0]
+    )
     cluster_1_cr_data = transform_cluster_roles(KUBERNETES_CLUSTER_1_CLUSTER_ROLES_RAW)
     cluster_1_crb_data = transform_cluster_role_bindings(
-        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW
+        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[0]
     )
 
     load_service_accounts(
@@ -685,17 +672,6 @@ def test_rbac_cleanup(neo4j_session, _create_test_cluster):
             "KubernetesClusterRole",
             "id",
             "ROLE_REF",
-        )
-        == set()
-    )
-    assert (
-        check_rels(
-            neo4j_session,
-            "KubernetesNamespace",
-            "name",
-            "KubernetesClusterRoleBinding",
-            "id",
-            "CONTAINS",
         )
         == set()
     )
