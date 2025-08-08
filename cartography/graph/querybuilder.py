@@ -703,8 +703,16 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
 
 
 def _get_cartography_version() -> str:
-    # DOC
-    # TESTS
+    """
+    Get the current version of the cartography package.
+
+    This function attempts to retrieve the version of the installed cartography package
+    using importlib.metadata. If the package is not found (typically in development
+    or testing environments), it returns 'dev' as a fallback.
+
+    Returns:
+        The version string of the cartography package, or 'dev' if not found
+    """
     try:
         return version("cartography")
     except PackageNotFoundError:
@@ -717,8 +725,21 @@ def _get_cartography_version() -> str:
 def _get_module_from_schema(
     schema,  #: "CartographyNodeSchema" | "CartographyRelSchema",
 ) -> str:
-    # DOC
-    # TESTS
+    """
+    Extract the module name from a Cartography schema object.
+
+    This function extracts and formats the module name from a CartographyNodeSchema
+    or CartographyRelSchema object. It expects schemas to be part of the official
+    cartography.models package hierarchy and returns a formatted string indicating
+    the specific cartography module.
+
+    Args:
+        schema: A CartographyNodeSchema or CartographyRelSchema object
+
+    Returns:
+        A formatted module name string in the format 'cartography:<module_name>'
+        or 'unknown:<full_module_path>' if the schema is not from cartography.models
+    """
     # If the entity schema does not belong to the cartography.models package,
     # we log a warning and return the full module path.
     if not schema.__module__.startswith("cartography.models."):
