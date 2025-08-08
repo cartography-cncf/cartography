@@ -18,21 +18,12 @@ class KeycloakUserNodeProperties(CartographyNodeProperties):
     last_name: PropertyRef = PropertyRef("lastName")
     email: PropertyRef = PropertyRef("email")
     email_verified: PropertyRef = PropertyRef("emailVerified")
-    self: PropertyRef = PropertyRef("self")  # WIP: Check if needed
     origin: PropertyRef = PropertyRef("origin")
     created_timestamp: PropertyRef = PropertyRef("createdTimestamp")
     enabled: PropertyRef = PropertyRef("enabled")
     totp: PropertyRef = PropertyRef("totp")
-    federation_link: PropertyRef = PropertyRef("federationLink")  # WIP: Check if needed
     service_account_client_id: PropertyRef = PropertyRef("serviceAccountClientId")
     not_before: PropertyRef = PropertyRef("notBefore")
-    # WIP: Check if we need that or a link to other entities
-    user_profile_metadata_id: PropertyRef = PropertyRef("userProfileMetadata.id")
-    credentials_id: PropertyRef = PropertyRef("credentials.id")
-    federated_identities_id: PropertyRef = PropertyRef("federatedIdentities.id")
-    client_consents_id: PropertyRef = PropertyRef("clientConsents.id")
-    social_links_id: PropertyRef = PropertyRef("socialLinks.id")
-
     lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 

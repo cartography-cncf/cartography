@@ -3,9 +3,12 @@ import logging
 import neo4j
 import requests
 
+import cartography.intel.keycloak.authenticationexecutions
+import cartography.intel.keycloak.authenticationflows
 import cartography.intel.keycloak.clients
 import cartography.intel.keycloak.groups
 import cartography.intel.keycloak.identityproviders
+import cartography.intel.keycloak.organizations
 import cartography.intel.keycloak.realms
 import cartography.intel.keycloak.roles
 import cartography.intel.keycloak.scopes
@@ -62,6 +65,7 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         realm_scopped_job_parameters = {
             "UPDATE_TAG": config.update_tag,
             "REALM": realm["realm"],
+            "REALM_ID": realm["id"],
         }
         cartography.intel.keycloak.users.sync(
             neo4j_session,
@@ -75,17 +79,35 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             config.keycloak_url,
             realm_scopped_job_parameters,
         )
-        # WIP: Do protocol mappers before scopes
-        # WIP: Authentication Flows
-        # WIP: Authentication Executions
-
-        scopes = cartography.intel.keycloak.scopes.sync(
+        cartography.intel.keycloak.scopes.sync(
             neo4j_session,
             api_session,
             config.keycloak_url,
             realm_scopped_job_parameters,
         )
-        scope_ids = [s["id"] for s in scopes]
+        flows = cartography.intel.keycloak.authenticationflows.sync(
+            neo4j_session,
+            api_session,
+            config.keycloak_url,
+            realm_scopped_job_parameters,
+        )
+        flow_aliases = [f["alias"] for f in flows]
+        cartography.intel.keycloak.authenticationexecutions.sync(
+            neo4j_session,
+            api_session,
+            config.keycloak_url,
+            realm_scopped_job_parameters,
+            flow_aliases,
+        )
+        # WIP: Use realm data to do a MatchLink for DEFAULT_FLOW
+        #  "browserFlow": "browser",
+        # "registrationFlow": "registration",
+        # "directGrantFlow": "direct grant", => direct_grant
+        # "resetCredentialsFlow": "reset credentials", => reset_credentials
+        # "clientAuthenticationFlow": "clients", => client_authentication
+        # "dockerAuthenticationFlow": "docker auth", => docker_auth
+        # "firstBrokerLoginFlow": "first broker login", => first_broker_login
+        # Or look into: authenticationFlowBindingOverrides
         clients = cartography.intel.keycloak.clients.sync(
             neo4j_session,
             api_session,
@@ -100,11 +122,19 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             realm_scopped_job_parameters,
             client_ids,
         )
-        # WIP: Scope Mappings
-
+        # WIP: TODO: Scope/Role mapping
         cartography.intel.keycloak.groups.sync(
             neo4j_session,
             api_session,
             config.keycloak_url,
             realm_scopped_job_parameters,
         )
+
+        # Organizations if they are enabled
+        if realm.get("organizationsEnabled", False):
+            cartography.intel.keycloak.organizations.sync(
+                neo4j_session,
+                api_session,
+                config.keycloak_url,
+                realm_scopped_job_parameters,
+            )

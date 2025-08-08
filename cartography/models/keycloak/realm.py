@@ -93,7 +93,6 @@ class KeycloakRealmNodeProperties(CartographyNodeProperties):
         "internationalizationEnabled"
     )
     default_locale: PropertyRef = PropertyRef("defaultLocale")
-    # WIP: Check if we need that or a lik to Policy Entities
     password_policy: PropertyRef = PropertyRef("passwordPolicy")
     otp_policy_type: PropertyRef = PropertyRef("otpPolicyType")
     otp_policy_algorithm: PropertyRef = PropertyRef("otpPolicyAlgorithm")
@@ -148,15 +147,6 @@ class KeycloakRealmNodeProperties(CartographyNodeProperties):
     web_authn_policy_passwordless_avoid_same_authenticator_register: PropertyRef = (
         PropertyRef("webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister")
     )
-    # WIP: Check if we do not prefer a link to Flows
-    # browser_flow: PropertyRef = PropertyRef("browserFlow")
-    # registration_flow: PropertyRef = PropertyRef("registrationFlow")
-    # direct_grant_flow: PropertyRef = PropertyRef("directGrantFlow")
-    # reset_credentials_flow: PropertyRef = PropertyRef("resetCredentialsFlow")
-    # client_authentication_flow: PropertyRef = PropertyRef("clientAuthenticationFlow")
-    # docker_authentication_flow: PropertyRef = PropertyRef("dockerAuthenticationFlow")
-    # first_broker_login_flow: PropertyRef = PropertyRef("firstBrokerLoginFlow")
-
     keycloak_version: PropertyRef = PropertyRef("keycloakVersion")
     user_managed_access_allowed: PropertyRef = PropertyRef("userManagedAccessAllowed")
     organizations_enabled: PropertyRef = PropertyRef("organizationsEnabled")

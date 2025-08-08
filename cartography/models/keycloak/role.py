@@ -20,8 +20,6 @@ class KeycloakRoleNodeProperties(CartographyNodeProperties):
     composite: PropertyRef = PropertyRef("composite")
     client_role: PropertyRef = PropertyRef("clientRole")
     container_id: PropertyRef = PropertyRef("containerId")
-    # WIP: Check for rel instead
-    # composites_id: PropertyRef = PropertyRef('composites.id')
     # We need to store the realm name because role are often referenced by name
     # and not by id, so we need to be able to find the role by name (that is not unique across realms)
     realm: PropertyRef = PropertyRef("REALM", set_in_kwargs=True, extra_index=True)
@@ -63,10 +61,27 @@ class KeycloakRoleToClientRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KeycloakRoleToRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KeycloakRole)-[:INCLUDES]->(:KeycloakRole)
+class KeycloakRoleToRoleRel(CartographyRelSchema):
+    target_node_label: str = "KeycloakRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_composite_roles", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "INCLUDES"
+    properties: KeycloakRoleToRoleRelProperties = KeycloakRoleToRoleRelProperties()
+
+
+@dataclass(frozen=True)
 class KeycloakRoleSchema(CartographyNodeSchema):
     label: str = "KeycloakRole"
     properties: KeycloakRoleNodeProperties = KeycloakRoleNodeProperties()
     sub_resource_relationship: KeycloakRoleToRealmRel = KeycloakRoleToRealmRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [KeycloakRoleToClientRel()],
+        [KeycloakRoleToClientRel(), KeycloakRoleToRoleRel()],
     )

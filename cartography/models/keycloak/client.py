@@ -47,8 +47,6 @@ class KeycloakClientNodeProperties(CartographyNodeProperties):
     use_template_scope: PropertyRef = PropertyRef("useTemplateScope")
     use_template_mappers: PropertyRef = PropertyRef("useTemplateMappers")
     origin: PropertyRef = PropertyRef("origin")
-    # WIP: protocol_mappers_id: PropertyRef = PropertyRef('protocolMappers.id')
-    # WIP: authorization_settings_id: PropertyRef = PropertyRef('authorizationSettings.id')
     lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 
