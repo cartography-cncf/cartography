@@ -19,6 +19,8 @@ Each RPR consists of
 - ResourceType (string) - The node Label that permissions will be built for
 - Permissions (list(string)) - The list of permissions to map. If any of these permissions are present between a resource and a permission then the relationship is created.
 - RelationshipName - (string) - The name of the relationship cartography will create
+- conditional_target_related_node (string, optional) - Optional related node label to filter by connection. Only creates relationships for resources that are connected to this specified node type.
+
 
 It can also be used to absract many different permissions into one. This example combines all of the permissions that would allow a dynamodb table to be queried.
 ```yaml
