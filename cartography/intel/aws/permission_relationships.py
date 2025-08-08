@@ -459,7 +459,7 @@ def sync(
         conditional_target_related_node = mapping.get("conditional_target_related_node")
 
         logger.info(
-            "Processing relationship '%s' for node label '%s'",
+            "Syncing relationship '%s' for node label '%s'",
             relationship_name,
             target_label,
         )
