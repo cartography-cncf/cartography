@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from urllib.parse import quote
 
 import neo4j
 import requests
@@ -22,14 +23,19 @@ def sync(
     base_url: str,
     common_job_parameters: dict[str, Any],
     client_ids: list[str],
+    scope_ids: list[str],
 ) -> None:
     roles = get(api_session, base_url, common_job_parameters["REALM"], client_ids)
-    ordered_roles = _order_dicts_dfs(
-        roles, children_key="_composite_roles", ignore_unknown_children=True
+    scope_role_mapping = get_mapping(
+        api_session,
+        base_url,
+        common_job_parameters["REALM"],
+        scope_ids,
     )
+    transformed_roles = transform(roles, scope_role_mapping)
     load_roles(
         neo4j_session,
-        ordered_roles,
+        transformed_roles,
         common_job_parameters["REALM"],
         common_job_parameters["UPDATE_TAG"],
     )
@@ -54,6 +60,12 @@ def get(
             role["_composite_roles"] = [
                 composite_role["id"] for composite_role in composite_roles
             ]
+        # Get the direct members
+        direct_members = get_paginated(
+            api_session,
+            f"{base_url}/admin/realms/{realm}/roles/{quote(role['name'])}/users",
+        )
+        role["_direct_members"] = [member["id"] for member in direct_members]
         roles_by_id[role["id"]] = role
 
     # Get roles for each client
@@ -63,15 +75,65 @@ def get(
             api_session, url, params={"briefRepresentation": False}
         ):
             # If the role is composite, we need to get its composites
-            composite_roles = get_paginated(
+            if role.get("composite", False):
+                composite_roles = get_paginated(
+                    api_session,
+                    f"{base_url}/admin/realms/{realm}/roles-by-id/{role['id']}/composites",
+                )
+                role["_composite_roles"] = [
+                    composite_role["id"] for composite_role in composite_roles
+                ]
+            # Get the direct members
+            direct_members = get_paginated(
                 api_session,
-                f"{base_url}/admin/realms/{realm}/roles-by-id/{role['id']}/composites",
+                f"{base_url}/admin/realms/{realm}/clients/{client_id}/roles/{quote(role['name'])}/users",
             )
-            role["_composite_roles"] = [
-                composite_role["id"] for composite_role in composite_roles
-            ]
+            role["_direct_members"] = [member["id"] for member in direct_members]
             roles_by_id[role["id"]] = role
     return list(roles_by_id.values())
+
+
+@timeit
+def get_mapping(
+    api_session: requests.Session,
+    base_url: str,
+    realm: str,
+    scope_ids: list[str],
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for scope_id in scope_ids:
+        mappings_url = (
+            f"{base_url}/admin/realms/{realm}/client-scopes/{scope_id}/scope-mappings"
+        )
+        req = api_session.get(
+            mappings_url,
+            timeout=_TIMEOUT,
+        )
+        result[scope_id] = req.json()
+    return result
+
+
+def transform(
+    roles: list[dict[str, Any]], scope_role_mapping: dict[str, Any]
+) -> list[dict[str, Any]]:
+    transformed_roles = []
+
+    # Transform the mapping of scopes to roles
+    scopes_by_roles: dict[str, list[str]] = {}
+    for scope_id, mapping in scope_role_mapping.items():
+        for client_details in mapping.get("clientMappings", {}).values():
+            for mapping in client_details.get("mappings", []):
+                scopes_by_roles.setdefault(mapping["id"], []).append(scope_id)
+        for realm_mapping in mapping.get("realmMappings", []):
+            scopes_by_roles.setdefault(realm_mapping["id"], []).append(scope_id)
+
+    for role in roles:
+        role["_scope_ids"] = scopes_by_roles.get(role["id"], None)
+        transformed_roles.append(role)
+
+    return _order_dicts_dfs(
+        transformed_roles, children_key="_composite_roles", ignore_unknown_children=True
+    )
 
 
 @timeit

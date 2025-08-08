@@ -79,12 +79,13 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             config.keycloak_url,
             realm_scopped_job_parameters,
         )
-        cartography.intel.keycloak.scopes.sync(
+        scopes = cartography.intel.keycloak.scopes.sync(
             neo4j_session,
             api_session,
             config.keycloak_url,
             realm_scopped_job_parameters,
         )
+        scope_ids = [s["id"] for s in scopes]
         flows = cartography.intel.keycloak.authenticationflows.sync(
             neo4j_session,
             api_session,
@@ -121,8 +122,8 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             config.keycloak_url,
             realm_scopped_job_parameters,
             client_ids,
+            scope_ids,
         )
-        # WIP: TODO: Scope/Role mapping
         cartography.intel.keycloak.groups.sync(
             neo4j_session,
             api_session,

@@ -78,10 +78,49 @@ class KeycloakRoleToRoleRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KeycloakRoleToScopeRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KeycloakRole)-[:GRANTS]->(:KeycloakScope)
+class KeycloakRoleToScopeRel(CartographyRelSchema):
+    target_node_label: str = "KeycloakScope"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_scope_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "GRANTS"
+    properties: KeycloakRoleToScopeRelProperties = KeycloakRoleToScopeRelProperties()
+
+
+@dataclass(frozen=True)
+class KeycloakRoleToUserRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KeycloakRole)<-[:ASSIGNED_TO]-(:KeycloakUser)
+class KeycloakRoleToUserRel(CartographyRelSchema):
+    target_node_label: str = "KeycloakUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_direct_members", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "ASSIGNED_TO"
+    properties: KeycloakRoleToUserRelProperties = KeycloakRoleToUserRelProperties()
+
+
+@dataclass(frozen=True)
 class KeycloakRoleSchema(CartographyNodeSchema):
     label: str = "KeycloakRole"
     properties: KeycloakRoleNodeProperties = KeycloakRoleNodeProperties()
     sub_resource_relationship: KeycloakRoleToRealmRel = KeycloakRoleToRealmRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [KeycloakRoleToClientRel(), KeycloakRoleToRoleRel()],
+        [
+            KeycloakRoleToClientRel(),
+            KeycloakRoleToRoleRel(),
+            KeycloakRoleToScopeRel(),
+            KeycloakRoleToUserRel(),
+        ],
     )
