@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.config import Config
 from cartography.intel import create_indexes
+import cartography.intel.analysis
 from demo import seeds
 from demo.seeds.base import AsyncSeed
 from demo.seeds.base import Seed
@@ -37,6 +38,7 @@ def main(force_flag: bool) -> None:
         neo4j_uri=NEO4J_URL,
         neo4j_user=NEO4J_USER,
         neo4j_password=NEO4J_PASSWORD,
+        analysis_job_directory="cartography/data/jobs/analysis"
     )
 
     # Check if the database is empty
@@ -102,7 +104,8 @@ def main(force_flag: bool) -> None:
         except Exception:
             logger.exception("Seed %s failed", seed_cls.__name__)
 
-    # TODO: Analysis: blocked due to https://github.com/cartography-cncf/cartography/issues/1591
+    logger.info("Running analysis...")
+    cartography.intel.analysis.run(neo4j_session, config)
 
     # Close the session
     neo4j_session.close()
