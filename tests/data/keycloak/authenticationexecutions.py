@@ -394,7 +394,7 @@ KEYCLOAK_AUTHENTICATIONEXECUTIONS = {
             "priority": 40,
         },
     ],
-    "direct%20grant": [
+    "direct grant": [
         {
             "id": "042c4718-69cc-4525-a402-363a8313c175",
             "requirement": "REQUIRED",
@@ -518,7 +518,7 @@ KEYCLOAK_AUTHENTICATIONEXECUTIONS = {
             "priority": 70,
         },
     ],
-    "reset%20credentials": [
+    "reset credentials": [
         {
             "id": "a635151d-937d-49fe-b545-b9b567ff5b15",
             "requirement": "REQUIRED",
@@ -639,7 +639,7 @@ KEYCLOAK_AUTHENTICATIONEXECUTIONS = {
             "priority": 40,
         },
     ],
-    "first%20broker%20login": [
+    "first broker login": [
         {
             "id": "b65787c9-5702-4828-89af-62548ff6a49d",
             "requirement": "REQUIRED",
@@ -874,7 +874,7 @@ KEYCLOAK_AUTHENTICATIONEXECUTIONS = {
             "priority": 20,
         },
     ],
-    "docker%20auth": [
+    "docker auth": [
         {
             "id": "c9b9e39b-dad7-4769-a6a7-98ae5b87add9",
             "requirement": "REQUIRED",
@@ -886,5 +886,51 @@ KEYCLOAK_AUTHENTICATIONEXECUTIONS = {
             "index": 0,
             "priority": 10,
         }
+    ],
+    "wrong-worflow": [
+        {
+            "id": "378a41dc-1b89-473f-81d3-82902722a479",
+            "requirement": "REQUIRED",
+            "displayName": "Cookie",
+            "requirementChoices": ["REQUIRED", "ALTERNATIVE", "DISABLED"],
+            "configurable": False,
+            "providerId": "auth-cookie",
+            "level": 0,
+            "index": 0,
+            "priority": 0,
+        },
+        {
+            "id": "ffd35871-b965-49c2-aa8c-d5d59df057cf",
+            "requirement": "REQUIRED",
+            "displayName": "Kerberos",
+            "requirementChoices": ["REQUIRED", "ALTERNATIVE", "DISABLED"],
+            "configurable": False,
+            "providerId": "auth-spnego",
+            "level": 0,
+            "index": 1,
+            "priority": 1,
+        },
+        {
+            "id": "4bf3305f-e060-426d-bf96-b6c36dea2e33",
+            "requirement": "ALTERNATIVE",
+            "displayName": "WebAuthn Authenticator",
+            "requirementChoices": ["REQUIRED", "ALTERNATIVE", "DISABLED"],
+            "configurable": False,
+            "providerId": "webauthn-authenticator",
+            "level": 0,
+            "index": 2,
+            "priority": 2,
+        },
+        {
+            "id": "e79e47aa-d9fb-4cb6-9bd5-dbdc4fff8495",
+            "requirement": "ALTERNATIVE",
+            "displayName": "Conditional OTP Form",
+            "requirementChoices": ["REQUIRED", "ALTERNATIVE", "DISABLED"],
+            "configurable": True,
+            "providerId": "auth-conditional-otp-form",
+            "level": 0,
+            "index": 3,
+            "priority": 3,
+        },
     ],
 }

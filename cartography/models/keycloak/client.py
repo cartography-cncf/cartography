@@ -112,6 +112,7 @@ class KeycloakClientToOptionalScopeRel(CartographyRelSchema):
         KeycloakClientToOptionalScopeRelProperties()
     )
 
+
 @dataclass(frozen=True)
 class KeycloakClientToServiceAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)

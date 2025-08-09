@@ -29,7 +29,6 @@ def sync(
         common_job_parameters["REALM"],
     )
     transformed_clients, service_accounts = transform(clients)
-
     # WIP: Flows override:
     """
       "authenticationFlowBindingOverrides": {
@@ -44,7 +43,7 @@ def sync(
     )
     load_clients(
         neo4j_session,
-        clients,
+        transformed_clients,
         common_job_parameters["REALM"],
         common_job_parameters["UPDATE_TAG"],
     )
@@ -88,8 +87,8 @@ def transform(
         sa = client.get("service_account_user")
         if sa:
             service_accounts.append(sa)
-            client.pop("service_account_user", None)
             client["_service_account_user_id"] = sa["id"]
+            client.pop("service_account_user", None)
         transformed_clients.append(client)
     return transformed_clients, service_accounts
 

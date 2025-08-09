@@ -5,11 +5,18 @@ import requests
 import cartography.intel.keycloak.roles
 import tests.data.keycloak.clients
 import tests.data.keycloak.roles
+import tests.data.keycloak.scopes
 from tests.integration.cartography.intel.keycloak.test_clients import (
     _ensure_local_neo4j_has_test_clients,
 )
 from tests.integration.cartography.intel.keycloak.test_realms import (
     _ensure_local_neo4j_has_test_realms,
+)
+from tests.integration.cartography.intel.keycloak.test_scopes import (
+    _ensure_local_neo4j_has_test_scopes,
+)
+from tests.integration.cartography.intel.keycloak.test_users import (
+    _ensure_local_neo4j_has_test_users,
 )
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -19,9 +26,13 @@ TEST_REALM = "simpson-corp"
 
 
 def _ensure_local_neo4j_has_test_roles(neo4j_session):
+    transformed_roles = cartography.intel.keycloak.roles.transform(
+        tests.data.keycloak.roles.KEYCLOAK_ROLES,
+        tests.data.keycloak.roles.KEYCLOAK_ROLES_MAPPING,
+    )
     cartography.intel.keycloak.roles.load_roles(
         neo4j_session,
-        tests.data.keycloak.roles.KEYCLOAK_ROLES,
+        transformed_roles,
         TEST_REALM,
         TEST_UPDATE_TAG,
     )
@@ -32,432 +43,115 @@ def _ensure_local_neo4j_has_test_roles(neo4j_session):
     "get",
     return_value=tests.data.keycloak.roles.KEYCLOAK_ROLES,
 )
-def test_load_keycloak_roles(mock_api, neo4j_session):
+@patch.object(
+    cartography.intel.keycloak.roles,
+    "get_mapping",
+    return_value=tests.data.keycloak.roles.KEYCLOAK_ROLES_MAPPING,
+)
+def test_load_keycloak_roles(_, __, neo4j_session):
     # Arrange
     api_session = requests.Session()
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "REALM": TEST_REALM}
     _ensure_local_neo4j_has_test_realms(neo4j_session)
+    _ensure_local_neo4j_has_test_users(neo4j_session)
     _ensure_local_neo4j_has_test_clients(neo4j_session)
+    _ensure_local_neo4j_has_test_scopes(neo4j_session)
     client_ids = [c["id"] for c in tests.data.keycloak.clients.KEYCLOAK_CLIENTS]
+    scope_ids = [s["id"] for s in tests.data.keycloak.scopes.KEYCLOAK_SCOPES]
 
     # Act
     cartography.intel.keycloak.roles.sync(
-        neo4j_session, api_session, "", common_job_parameters, client_ids
+        neo4j_session, api_session, "", common_job_parameters, client_ids, scope_ids
     )
 
     # Assert Roles exist
-    expected_nodes = {
-        (
-            "034a8bed-4099-4f66-a9f4-e987421f909f",
-            "read-token",
-        ),
-        (
-            "146b3577-05a5-45f5-b484-6d4af235e8d8",
-            "view-groups",
-        ),
-        (
-            "174ab56d-57be-413e-a8f7-d370091be3df",
-            "springfield-voter",
-        ),
-        (
-            "1ab5d5aa-dc9c-4ac2-96e3-a84d2aa2b608",
-            "impersonation",
-        ),
-        (
-            "1cc0f04e-9205-4350-b8ad-53d2ad39aaa9",
-            "query-groups",
-        ),
-        (
-            "1d34f59d-7791-4d63-85de-ced2d74c5be1",
-            "query-users",
-        ),
-        (
-            "23c5d05f-ffe4-456a-ac52-d1eef94eb2f7",
-            "manage-account-links",
-        ),
-        (
-            "264c76e4-0c1a-4c50-8501-3da6990150cd",
-            "view-events",
-        ),
-        (
-            "326c1d2d-8105-4f7a-920f-76566d2a4537",
-            "view-clients",
-        ),
-        (
-            "3346b9e9-0877-4252-85a8-5b510ccc9b1e",
-            "view-consent",
-        ),
-        (
-            "4034a19c-8105-4c10-93f5-90fdf39a0a05",
-            "manage-events",
-        ),
-        (
-            "4165fbe4-cd67-45c8-9ed0-9d097ba51715",
-            "manage-realm",
-        ),
-        (
-            "56e730f2-3c2d-40b4-bb25-d2e1a568ee85",
-            "view-authorization",
-        ),
-        (
-            "69975539-73a6-4a9f-bd3c-13f4c27cf2b5",
-            "view-identity-providers",
-        ),
-        (
-            "7927ce46-0f40-4e00-b8bb-0c0c89594f8e",
-            "uma_authorization",
-        ),
-        (
-            "809b60f0-9e8c-40f9-878c-98e5f92d8db2",
-            "view-profile",
-        ),
-        (
-            "858363de-710b-40f8-9086-d8b2f303dfc4",
-            "offline_access",
-        ),
-        (
-            "86969f53-cbfe-403f-9dc4-590008d1a4fc",
-            "query-clients",
-        ),
-        (
-            "8f709fca-a593-4652-b573-87ba880a4299",
-            "view-users",
-        ),
-        (
-            "9ee8f144-012d-414b-a6e8-063a8f96ebea",
-            "view-applications",
-        ),
-        (
-            "a3071b12-0399-46df-91db-554dd690d3b5",
-            "realm-admin",
-        ),
-        (
-            "b10a459a-7814-40ab-8be9-462dac4431d1",
-            "manage-authorization",
-        ),
-        (
-            "b274683b-eb4a-4e59-8e28-c9da001ad842",
-            "manage-clients",
-        ),
-        (
-            "b31f09b1-18f1-42b0-bbd4-4da5134da573",
-            "powerplant-employee",
-        ),
-        (
-            "bdd15697-8ed0-4a4a-a4cc-8039c045de40",
-            "manage-identity-providers",
-        ),
-        (
-            "bf609631-cec9-4776-8715-baa3e50be901",
-            "default-roles-example",
-        ),
-        (
-            "d5065b68-e949-49a3-89c8-4d18b6ea951d",
-            "manage-account",
-        ),
-        (
-            "d823fe4a-9b6e-4c76-9a43-94ffe380418f",
-            "view-realm",
-        ),
-        (
-            "dd5f6ccd-2757-43c2-9aef-00848777a52b",
-            "query-realms",
-        ),
-        (
-            "e0028103-85ea-4994-b9ad-b5c8136b8e8a",
-            "manage-consent",
-        ),
-        (
-            "e3440658-af5e-4997-ae64-02ee815920d1",
-            "create-client",
-        ),
-        (
-            "f37468b5-e862-45de-aadd-735b3c640b43",
-            "delete-account",
-        ),
-        (
-            "ffa8570e-95a9-4962-8b76-357546ca5dac",
-            "manage-users",
-        ),
-    }
-    assert check_nodes(neo4j_session, "KeycloakRole", ["id", "name"]) == expected_nodes
+    expected_nodes = [
+        (r["id"], r["name"]) for r in tests.data.keycloak.roles.KEYCLOAK_ROLES
+    ]
+    assert len(expected_nodes) > 0
+    assert check_nodes(neo4j_session, "KeycloakRole", ["id", "name"]) == set(
+        expected_nodes
+    )
 
     # Assert Roles are connected with Realm
-    expected_rels = {
-        (
-            "034a8bed-4099-4f66-a9f4-e987421f909f",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "146b3577-05a5-45f5-b484-6d4af235e8d8",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "174ab56d-57be-413e-a8f7-d370091be3df",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "1ab5d5aa-dc9c-4ac2-96e3-a84d2aa2b608",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "1cc0f04e-9205-4350-b8ad-53d2ad39aaa9",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "1d34f59d-7791-4d63-85de-ced2d74c5be1",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "23c5d05f-ffe4-456a-ac52-d1eef94eb2f7",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "264c76e4-0c1a-4c50-8501-3da6990150cd",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "326c1d2d-8105-4f7a-920f-76566d2a4537",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "3346b9e9-0877-4252-85a8-5b510ccc9b1e",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "4034a19c-8105-4c10-93f5-90fdf39a0a05",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "4165fbe4-cd67-45c8-9ed0-9d097ba51715",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "56e730f2-3c2d-40b4-bb25-d2e1a568ee85",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "69975539-73a6-4a9f-bd3c-13f4c27cf2b5",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "7927ce46-0f40-4e00-b8bb-0c0c89594f8e",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "809b60f0-9e8c-40f9-878c-98e5f92d8db2",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "858363de-710b-40f8-9086-d8b2f303dfc4",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "86969f53-cbfe-403f-9dc4-590008d1a4fc",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "8f709fca-a593-4652-b573-87ba880a4299",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "9ee8f144-012d-414b-a6e8-063a8f96ebea",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "a3071b12-0399-46df-91db-554dd690d3b5",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "b10a459a-7814-40ab-8be9-462dac4431d1",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "b274683b-eb4a-4e59-8e28-c9da001ad842",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "b31f09b1-18f1-42b0-bbd4-4da5134da573",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "bdd15697-8ed0-4a4a-a4cc-8039c045de40",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "bf609631-cec9-4776-8715-baa3e50be901",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "d5065b68-e949-49a3-89c8-4d18b6ea951d",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "d823fe4a-9b6e-4c76-9a43-94ffe380418f",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "dd5f6ccd-2757-43c2-9aef-00848777a52b",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "e0028103-85ea-4994-b9ad-b5c8136b8e8a",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "e3440658-af5e-4997-ae64-02ee815920d1",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "f37468b5-e862-45de-aadd-735b3c640b43",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-        (
-            "ffa8570e-95a9-4962-8b76-357546ca5dac",
-            "a18ee71e-2991-4987-8a9b-2ee3a338455b",
-        ),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "KeycloakRole",
-            "id",
-            "KeycloakRealm",
-            "id",
-            "RESOURCE",
-            rel_direction_right=False,
-        )
-        == expected_rels
-    )
+    expected_rels = [
+        (r["id"], TEST_REALM) for r in tests.data.keycloak.roles.KEYCLOAK_ROLES
+    ]
+    assert len(expected_rels) > 0
+    assert check_rels(
+        neo4j_session,
+        "KeycloakRole",
+        "id",
+        "KeycloakRealm",
+        "name",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == set(expected_rels)
 
     # Assert Roles are connected with Client
-    expected_rels = {
-        (
-            "034a8bed-4099-4f66-a9f4-e987421f909f",
-            "d042a0a5-1776-434a-a318-3f14ccd07ac9",
-        ),
-        (
-            "146b3577-05a5-45f5-b484-6d4af235e8d8",
-            "fa694007-ef2d-46e4-8e36-257ba5c23308",
-        ),
-        (
-            "1ab5d5aa-dc9c-4ac2-96e3-a84d2aa2b608",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "1cc0f04e-9205-4350-b8ad-53d2ad39aaa9",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "1d34f59d-7791-4d63-85de-ced2d74c5be1",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "23c5d05f-ffe4-456a-ac52-d1eef94eb2f7",
-            "fa694007-ef2d-46e4-8e36-257ba5c23308",
-        ),
-        (
-            "264c76e4-0c1a-4c50-8501-3da6990150cd",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "326c1d2d-8105-4f7a-920f-76566d2a4537",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "3346b9e9-0877-4252-85a8-5b510ccc9b1e",
-            "fa694007-ef2d-46e4-8e36-257ba5c23308",
-        ),
-        (
-            "4034a19c-8105-4c10-93f5-90fdf39a0a05",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "4165fbe4-cd67-45c8-9ed0-9d097ba51715",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "56e730f2-3c2d-40b4-bb25-d2e1a568ee85",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "69975539-73a6-4a9f-bd3c-13f4c27cf2b5",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "809b60f0-9e8c-40f9-878c-98e5f92d8db2",
-            "fa694007-ef2d-46e4-8e36-257ba5c23308",
-        ),
-        (
-            "86969f53-cbfe-403f-9dc4-590008d1a4fc",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "8f709fca-a593-4652-b573-87ba880a4299",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "9ee8f144-012d-414b-a6e8-063a8f96ebea",
-            "fa694007-ef2d-46e4-8e36-257ba5c23308",
-        ),
-        (
-            "a3071b12-0399-46df-91db-554dd690d3b5",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "b10a459a-7814-40ab-8be9-462dac4431d1",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "b274683b-eb4a-4e59-8e28-c9da001ad842",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "b31f09b1-18f1-42b0-bbd4-4da5134da573",
-            "92b51cf6-e996-4263-b375-67bcf9bab926",
-        ),
-        (
-            "bdd15697-8ed0-4a4a-a4cc-8039c045de40",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "d5065b68-e949-49a3-89c8-4d18b6ea951d",
-            "fa694007-ef2d-46e4-8e36-257ba5c23308",
-        ),
-        (
-            "d823fe4a-9b6e-4c76-9a43-94ffe380418f",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "dd5f6ccd-2757-43c2-9aef-00848777a52b",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "e0028103-85ea-4994-b9ad-b5c8136b8e8a",
-            "fa694007-ef2d-46e4-8e36-257ba5c23308",
-        ),
-        (
-            "e3440658-af5e-4997-ae64-02ee815920d1",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-        (
-            "f37468b5-e862-45de-aadd-735b3c640b43",
-            "fa694007-ef2d-46e4-8e36-257ba5c23308",
-        ),
-        (
-            "ffa8570e-95a9-4962-8b76-357546ca5dac",
-            "6876f461-9d47-4880-ae05-15c7023fbada",
-        ),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "KeycloakRole",
-            "id",
-            "KeycloakClient",
-            "id",
-            "DEFINES",
-            rel_direction_right=False,
-        )
-        == expected_rels
-    )
+    expected_rels = []
+    for role in tests.data.keycloak.roles.KEYCLOAK_ROLES:
+        if not role.get("clientRole", False):
+            continue
+        expected_rels.append((role["id"], role["containerId"]))
+    assert len(expected_rels) > 0
+    assert check_rels(
+        neo4j_session,
+        "KeycloakRole",
+        "id",
+        "KeycloakClient",
+        "id",
+        "DEFINES",
+        rel_direction_right=False,
+    ) == set(expected_rels)
+
+    # Check composite roles are correctly loaded
+    expected_rels = []
+    for role in tests.data.keycloak.roles.KEYCLOAK_ROLES:
+        for cr in role.get("_composite_roles", []):
+            expected_rels.append((role["id"], cr))
+    assert len(expected_rels) > 0
+    assert check_rels(
+        neo4j_session,
+        "KeycloakRole",
+        "id",
+        "KeycloakRole",
+        "id",
+        "INCLUDES",
+        rel_direction_right=True,
+    ) == set(expected_rels)
+
+    # Check roles direct member
+    expected_rels = []
+    for role in tests.data.keycloak.roles.KEYCLOAK_ROLES:
+        for member in role.get("_direct_members", []):
+            expected_rels.append((role["id"], member))
+    assert len(expected_rels) > 0
+    assert check_rels(
+        neo4j_session,
+        "KeycloakRole",
+        "id",
+        "KeycloakUser",
+        "id",
+        "ASSUME_ROLE",
+        rel_direction_right=False,
+    ) == set(expected_rels)
+
+    # Check roles / scopes mapping
+    expected_rels = []
+    for role_id, mappings in tests.data.keycloak.roles.KEYCLOAK_ROLES_MAPPING.items():
+        for mapping in mappings.get("clientMappings", {}).values():
+            for element in mapping.get("mappings", []):
+                expected_rels.append((role_id, element["id"]))
+        for mapping in mappings.get("realmMappings", {}):
+            expected_rels.append((role_id, mapping["id"]))
+    assert len(expected_rels) > 0
+    assert check_rels(
+        neo4j_session,
+        "KeycloakScope",
+        "id",
+        "KeycloakRole",
+        "id",
+        "GRANTS",
+        rel_direction_right=False,
+    ) == set(expected_rels)

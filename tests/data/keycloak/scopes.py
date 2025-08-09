@@ -99,7 +99,7 @@ KEYCLOAK_SCOPES = [
     },
     {
         "id": "17f2be1d-e95a-4f55-b56e-c60576f5cbf6",
-        "name": "shutdown_control",
+        "name": "shutdown-control",
         "description": "No more power.",
         "protocol": "openid-connect",
         "attributes": {

@@ -25,10 +25,10 @@ KEYCLOAK_ORGANIZATIONS = [
         ],
         "_identity_providers": [
             {
-                "alias": "clevercloud",
-                "displayName": "",
-                "internalId": "1522c1c3-a98c-45e5-99ee-948c666e37bf",
-                "providerId": "clevercloud",
+                "alias": "linkedin-openid-connect",
+                "displayName": "LinkedIn",
+                "internalId": "8e6bcacd-9592-4009-8fb2-aca89656ccc0",
+                "providerId": "linkedin-openid-connect",
                 "enabled": True,
                 "updateProfileFirstLoginMode": "on",
                 "trustEmail": False,
@@ -37,17 +37,10 @@ KEYCLOAK_ORGANIZATIONS = [
                 "authenticateByDefault": False,
                 "linkOnly": False,
                 "hideOnLogin": False,
-                "organizationId": "6f326c1f-5c52-4293-9d33-b15eed19c220",
                 "config": {
-                    "acceptsPromptNoneForwardFromClient": "False",
-                    "clientId": "brYEI5jqq3yB3BPkqgSzIJbZV60KQB",
-                    "disableUserInfo": "False",
-                    "filteredByClaim": "False",
                     "syncMode": "LEGACY",
                     "clientSecret": "**********",
-                    "caseSensitiveOriginalUsername": "False",
-                    "kc.org.broker.redirect.mode.email-matches": "True",
-                    "kc.org.domain": "burns-lovers.com",
+                    "clientId": "cdbbc355-f259-4ff5-a631-f32a541c4535",
                 },
             }
         ],

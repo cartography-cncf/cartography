@@ -309,4 +309,46 @@ KEYCLOAK_AUTHENTICATIONFLOWS = [
             }
         ],
     },
+    {
+        "id": "5675abd4-4822-4c0e-a38a-1a9ea9688ef3",
+        "alias": "wrong-worflow",
+        "description": "Bad worflow for tests purpose",
+        "providerId": "basic-flow",
+        "topLevel": True,
+        "builtIn": False,
+        "authenticationExecutions": [
+            {
+                "authenticator": "auth-cookie",
+                "authenticatorFlow": False,
+                "requirement": "REQUIRED",
+                "priority": 0,
+                "autheticatorFlow": False,
+                "userSetupAllowed": False,
+            },
+            {
+                "authenticator": "auth-spnego",
+                "authenticatorFlow": False,
+                "requirement": "REQUIRED",
+                "priority": 1,
+                "autheticatorFlow": False,
+                "userSetupAllowed": False,
+            },
+            {
+                "authenticator": "webauthn-authenticator",
+                "authenticatorFlow": False,
+                "requirement": "ALTERNATIVE",
+                "priority": 2,
+                "autheticatorFlow": False,
+                "userSetupAllowed": False,
+            },
+            {
+                "authenticator": "auth-conditional-otp-form",
+                "authenticatorFlow": False,
+                "requirement": "ALTERNATIVE",
+                "priority": 3,
+                "autheticatorFlow": False,
+                "userSetupAllowed": False,
+            },
+        ],
+    },
 ]

@@ -16,6 +16,18 @@ TEST_UPDATE_TAG = 123456789
 TEST_REALM = "simpson-corp"
 
 
+def _ensure_local_neo4j_has_test_identity_providers(neo4j_session):
+    idps = cartography.intel.keycloak.identityproviders.transform(
+        tests.data.keycloak.identityproviders.KEYCLOAK_IDPS
+    )
+    cartography.intel.keycloak.identityproviders.load_identityproviders(
+        neo4j_session,
+        idps,
+        TEST_REALM,
+        TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.keycloak.identityproviders,
     "get",
