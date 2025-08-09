@@ -346,6 +346,7 @@ def _load_s3_acls(
         "aws_s3acl_analysis.json",
         neo4j_session,
         {"AWS_ID": aws_account_id},
+        package="cartography.data.jobs.scoped_analysis",
     )
 
 
