@@ -112,6 +112,24 @@ class KeycloakClientToOptionalScopeRel(CartographyRelSchema):
         KeycloakClientToOptionalScopeRelProperties()
     )
 
+@dataclass(frozen=True)
+class KeycloakClientToServiceAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KeycloakClient)-[:HAS_SERVICE_ACCOUNT]->(:KeycloakUser)
+class KeycloakClientToServiceAccountRel(CartographyRelSchema):
+    target_node_label: str = "KeycloakUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_service_account_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_SERVICE_ACCOUNT"
+    properties: KeycloakClientToServiceAccountRelProperties = (
+        KeycloakClientToServiceAccountRelProperties()
+    )
+
 
 @dataclass(frozen=True)
 class KeycloakClientSchema(CartographyNodeSchema):
@@ -122,5 +140,6 @@ class KeycloakClientSchema(CartographyNodeSchema):
         [
             KeycloakClientToDefaultScopeRel(),
             KeycloakClientToOptionalScopeRel(),
+            KeycloakClientToServiceAccountRel(),
         ]
     )
