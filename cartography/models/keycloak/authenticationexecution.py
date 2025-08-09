@@ -26,6 +26,7 @@ class KeycloakAuthenticationExecutionNodeProperties(CartographyNodeProperties):
     level: PropertyRef = PropertyRef("level")
     index: PropertyRef = PropertyRef("index")
     priority: PropertyRef = PropertyRef("priority")
+    is_terminal_step: PropertyRef = PropertyRef("is_terminal_step")
     lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
 
 

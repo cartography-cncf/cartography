@@ -8,6 +8,10 @@ R -- RESOURCE --> U(KeycloakUser)
 R -- RESOURCE --> ROLE(KeycloakRole)
 R -- RESOURCE --> S(KeycloakScope)
 R -- RESOURCE --> IDP(KeycloakIdentityProvider)
+R -- RESOURCE --> O(KeycloakOrganization)
+R -- RESOURCE --> OD(KeycloakOrganizationDomain)
+R -- RESOURCE --> AF(KeycloakAuthenticationFlow)
+R -- RESOURCE --> AE(KeycloakAuthenticationExecution)
 C -- HAS_DEFAULT_SCOPE --> S
 C -- HAS_OPTIONAL_SCOPE --> S
 C -- DEFINES --> ROLE
@@ -15,7 +19,21 @@ G -- SUBGROUP_OF --> G
 U -- MEMBER_OF --> G
 G -- GRANTS --> ROLE
 ROLE -- GRANTS --> S
+ROLE -- INCLUDES --> ROLE
 U -- HAS_IDENTITY --> IDP
+U -- MANAGED_MEMBER_OF --> O
+U -- UNMANAGED_MEMBER_OF --> O
+U == ASSUME_ROLE ==> ROLE
+O -- ENFORCES --> IDP
+OD -- BELONGS_TO --> O
+AF -- HAS_STEP --> AE
+AE -- HAS_STEP --> AE
+AF == NEXT_STEP ==> AE
+AE == NEXT_STEP ==> AE
+```
+
+```{note}
+Regular links shows relationships pulled from Keycloak API, think links are infered by Cartography.
 ```
 
 ### KeycloakRealm
@@ -175,7 +193,7 @@ Represents a Keycloak client application that can request authentication and aut
 #### Relationships
 - `KeycloakClient` belongs to a `KeycloakRealm`
     ```
-    (:KeycloakClient)-[:RESOURCE]->(:KeycloakRealm)
+    (:KeycloakClient)<-[:RESOURCE]-(:KeycloakRealm)
     ```
 - `KeycloakClient` has default and optional scopes
     ```
@@ -200,7 +218,7 @@ Represents a group of users in Keycloak that can be used for organizing users an
 #### Relationships
 - `KeycloakGroup` belongs to a `KeycloakRealm`
     ```
-    (:KeycloakGroup)-[:RESOURCE]->(:KeycloakRealm)
+    (:KeycloakGroup)<-[:RESOURCE]-(:KeycloakRealm)
     ```
 - `KeycloakGroup` can be a member of another group (hierarchical structure)
     ```
@@ -247,7 +265,7 @@ Represents a user in the Keycloak realm with authentication and profile informat
 #### Relationships
 - `KeycloakUser` belongs to a `KeycloakRealm`
     ```
-    (:KeycloakUser)-[:RESOURCE]->(:KeycloakRealm)
+    (:KeycloakUser)<-[:RESOURCE]-(:KeycloakRealm)
     ```
 - `KeycloakUser` can be a member of groups
     ```
@@ -256,6 +274,10 @@ Represents a user in the Keycloak realm with authentication and profile informat
 - `KeycloakUser` can have identity providers
     ```
     (:KeycloakUser)-[:HAS_IDENTITY]->(:KeycloakIdentityProvider)
+    ```
+- `KeycloakUser` can assume Role (this can be direct definition or inherited from groups)
+    ```
+    (:KeycloakUser)-[:ASSUME_ROLE]->(:KeycloakRole)
     ```
 
 
@@ -279,7 +301,7 @@ Represents a role in Keycloak that defines permissions and can be assigned to us
 #### Relationships
 - `KeycloakRole` belongs to a `KeycloakRealm`
     ```
-    (:KeycloakRole)-[:RESOURCE]->(:KeycloakRealm)
+    (:KeycloakRole)<-[:RESOURCE]-(:KeycloakRealm)
     ```
 - `KeycloakRole` can be defined by a client
     ```
@@ -292,6 +314,14 @@ Represents a role in Keycloak that defines permissions and can be assigned to us
 - `KeycloakRole` can grant scopes
     ```
     (:KeycloakRole)-[:GRANTS]->(:KeycloakScope)
+    ```
+- `KeycloakRole` can includes an other Role (composite roles)
+    ```
+    (:KeycloakRole)-[:INCLUDES]->(:KeycloakRole)
+    ```
+- `KeycloakUser` can assume Role (this can be direct definition or inherited from groups)
+    ```
+    (:KeycloakUser)-[:ASSUME_ROLE]->(:KeycloakRole)
     ```
 
 
@@ -314,16 +344,16 @@ Represents a client scope in Keycloak that defines what access is requested or g
 #### Relationships
 - `KeycloakScope` belongs to a `KeycloakRealm`
     ```
-    (:KeycloakScope)-[:RESOURCE]->(:KeycloakRealm)
+    (:KeycloakScope)<-[:RESOURCE]-(:KeycloakRealm)
     ```
 - `KeycloakClient` has default and optional scopes
     ```
     (:KeycloakClient)-[:HAS_DEFAULT_SCOPE]->(:KeycloakScope)
     (:KeycloakClient)-[:HAS_OPTIONAL_SCOPE]->(:KeycloakScope)
     ```
-- `KeycloakScope` can grant roles
+- `KeycloakScope` can be granted by roles
     ```
-    (:KeycloakScope)-[:GRANTS]->(:KeycloakRole)
+    (:KeycloakRoal)-[:GRANTS]->(:KeycloakScope)
     ```
 
 
@@ -356,9 +386,152 @@ Represents an external identity provider configured in Keycloak for federated au
 #### Relationships
 - `KeycloakIdentityProvider` belongs to a `KeycloakRealm`
     ```
-    (:KeycloakIdentityProvider)-[:RESOURCE]->(:KeycloakRealm)
+    (:KeycloakIdentityProvider)<<-[:RESOURCE]-(:KeycloakRealm)
     ```
 - `KeycloakUser` can have identity providers
     ```
     (:KeycloakUser)-[:HAS_IDENTITY]->(:KeycloakIdentityProvider)
+    ```
+
+
+### KeycloakOrganization
+
+Represents a Keycloak organization, which is a logical grouping of users, domains, and identity providers within a realm. Organizations provide a way to isolate and manage different business entities or departments within the same Keycloak realm.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The unique identifier of the organization |
+| name | The name of the organization |
+| alias | The alias of the organization |
+| enabled | Whether the organization is enabled |
+| description | The description of the organization |
+| redirect_url | The redirect URL for the organization |
+
+#### Relationships
+- `KeycloakOrganization` belongs to a `KeycloakRealm`
+    ```
+    (:KeycloakOrganization)<-[:RESOURCE]-(:KeycloakRealm)
+    ```
+- `KeycloakOrganization` can have managed and unmanaged user members
+    ```
+    (:KeycloakUser)<-[:MANAGED_MEMBER_OF]-(:KeycloakOrganization)
+    (:KeycloakUser)<-[:UNMANAGED_MEMBER_OF]-(:KeycloakOrganization)
+    ```
+- `KeycloakOrganization` can enforce identity providers
+    ```
+    (:KeycloakOrganization)-[:ENFORCES]->(:KeycloakIdentityProvider)
+    ```
+
+
+### KeycloakOrganizationDomain
+
+Represents a domain that belongs to a Keycloak organization. Organization domains define which email domains are associated with an organization, and can be verified to ensure proper domain ownership.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The unique identifier of the organization domain |
+| name | The domain name (indexed for queries) |
+| verified | Whether the domain has been verified |
+
+#### Relationships
+- `KeycloakOrganizationDomain` is a sub resource of a `KeycloakRealm`
+    ```
+    (:KeycloakOrganizationDomain)<-[:RESOURCE]-(:KeycloakRealm)
+    ```
+- `KeycloakOrganizationDomain` belongs to an organization
+    ```
+    (:KeycloakOrganizationDomain)-[:BELONGS_TO]->(:KeycloakOrganization)
+    ```
+
+
+
+### KeycloakAuthenticationFlow
+
+Represents an authentication flow in Keycloak that defines the sequence of authentication steps and requirements for user authentication. Authentication flows control how users authenticate to the realm and can include various authentication mechanisms and requirements.
+
+```{important}
+Only `root` flows are modeled as a `KeycloakAuthenticationFlow`. In Keycloak, there’s also the concept of a `subflow`, which is tied one-to-one to an Execution. For simplicity in Cartography, these subflows are represented solely by a `KeycloakAuthenticationExecution` node. However, the subflow ID is still preserved as a field on the node.
+```
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The unique identifier of the authentication flow |
+| alias | The alias of the authentication flow (indexed for queries) |
+| description | The description of the authentication flow |
+| provider_id | The provider identifier for the authentication flow |
+| top_level | Whether this is a top-level authentication flow |
+| built_in | Whether this is a built-in authentication flow |
+| realm | The realm name for flow lookup (indexed) |
+
+#### Relationships
+- `KeycloakAuthenticationFlow` belongs to a `KeycloakRealm`
+    ```
+    (:KeycloakAuthenticationFlow)<-[:RESOURCE]-(:KeycloakRealm)
+    ```
+- `KeycloakAuthenticationFlow` has authentication execution steps
+    ```
+    (:KeycloakAuthenticationFlow)-[:HAS_STEP]->(:KeycloakAuthenticationExecution)
+    ```
+- `KeycloakAuthenticationFlow` is the starting point of an autentication flow
+    ```
+    (:KeycloakAuthenticationFlow)-[:NEXT_STEP]->(:KeycloakAuthenticationExecution)
+    ```
+
+```{important}
+Cartography uses two distinct relationship types between Flows and Executions:
+
+* `HAS_STEP` is used to describe the composition as defined in Keycloak (e.g., a subflow will be linked to its two REQUIRED executions).
+* `NEXT_STEP` is used to describe the possible authentication flows. These are relationships inferred by Cartography (e.g., the subflow will only be connected to the first REQUIRED execution, which will in turn be connected to the third).
+```
+
+```mermaid
+graph LR
+F(KeycloakAuthenticationFlow) -- HAS_STEP --> E1(KeycloakAuthetiationExecution::REQUIRED_1)
+F -- HAS_STEP --> E2(KeycloakAuthetiationExecution::REQUIRED_2)
+F == NEXT_STEP ==> E1 == NEXT_STEP ==> E2
+```
+
+### KeycloakAuthenticationExecution
+
+Represents an individual authentication execution step within a Keycloak authentication flow. Authentication executions define specific authentication mechanisms, requirements, and their order within an authentication flow.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The unique identifier of the authentication execution |
+| display_name | The display name of the authentication execution |
+| requirement | The requirement level (REQUIRED, OPTIONAL, ALTERNATIVE, DISABLED) |
+| description | The description of the authentication execution |
+| configurable | Whether this execution is configurable |
+| authentication_flow | Whether this execution references an authentication flow |
+| provider_id | The provider identifier for the authentication execution |
+| flow_id | The flow identifier if this execution references a flow |
+| level | The nesting level of the execution |
+| index | The index position within the flow |
+| priority | The priority order of the execution |
+| is_terminal_step | Flag to indicate if the Execution can be a terminal step in the workflow execution (this is infered by Cartography) |
+
+#### Relationships
+- `KeycloakAuthenticationExecution` belongs to a `KeycloakRealm`
+    ```
+    (:KeycloakAuthenticationExecution)<-[:RESOURCE]-(:KeycloakRealm)
+    ```
+- `KeycloakAuthenticationExecution` is a part of an `KeycloakAuthenticationFlow`
+    ```
+    (:KeycloakAuthenticationFlow)-[:HAS_STEP]->(:KeycloakAuthenticationExecution)
+    ```
+- `KeycloakAuthenticationExecution` can have sub-executions (for sub flows)
+    ```
+    (:KeycloakAuthenticationExecution)-[:HAS_STEP]->(:KeycloakAuthenticationExecution)
+    ```
+- `KeycloakAuthenticationExecution` is an element of an autentication flow
+    ```
+    (:KeycloakAuthenticationExecution|KeycloakAuthenticationFlow)-[:NEXT_STEP]->(:KeycloakAuthenticationExecution)
     ```

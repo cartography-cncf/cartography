@@ -3,4 +3,5 @@
 ```{toctree}
 config
 schema
+analysis
 ```

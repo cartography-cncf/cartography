@@ -100,14 +100,14 @@ class KeycloakRoleToUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:KeycloakRole)<-[:ASSIGNED_TO]-(:KeycloakUser)
+# (:KeycloakRole)<-[:ASSUME_ROLE]-(:KeycloakUser)
 class KeycloakRoleToUserRel(CartographyRelSchema):
     target_node_label: str = "KeycloakUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_direct_members", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "ASSIGNED_TO"
+    rel_label: str = "ASSUME_ROLE"
     properties: KeycloakRoleToUserRelProperties = KeycloakRoleToUserRelProperties()
 
 
