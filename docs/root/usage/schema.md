@@ -104,3 +104,6 @@
 
 ```{include} ../modules/tailscale/schema.md
 ```
+
+```{include} ../modules/keycloak/schema.md
+```

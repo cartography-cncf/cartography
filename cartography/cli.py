@@ -762,6 +762,42 @@ class CLI:
                 "Required if you are using the SentinelOne intel module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--keycloak-client-id",
+            type=str,
+            default=None,
+            help=(
+                "The Keycloak client ID to sync. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-client-secret-env-var",
+            type=str,
+            default="KEYCLOAK_CLIENT_SECRET",
+            help=(
+                "The name of an environment variable containing the Keycloak client secret. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-url",
+            type=str,
+            help=(
+                "The base URL for the Keycloak instance. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise. "
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-realm",
+            type=str,
+            default="master",
+            help=(
+                "The Keycloak realm used for authentication (note: all available realms will be synced). "
+                "Should be `master` (default value) in most of the cases. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise. "
+            ),
+        )
 
         return parser
 
@@ -1132,6 +1168,16 @@ class CLI:
             )
         else:
             config.sentinelone_api_token = None
+
+        if config.keycloak_client_secret_env_var:
+            logger.debug(
+                f"Reading Client Secret for Keycloak from environment variable {config.keycloak_client_secret_env_var}",
+            )
+            config.keycloak_client_secret = os.environ.get(
+                config.keycloak_client_secret_env_var
+            )
+        else:
+            config.keycloak_client_secret = None
 
         # Run cartography
         try:
