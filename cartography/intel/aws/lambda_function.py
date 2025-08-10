@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 from typing import Dict
@@ -6,6 +7,7 @@ from typing import List
 import boto3
 import botocore
 import neo4j
+from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -15,6 +17,7 @@ from cartography.models.aws.lambda_function.event_source_mapping import (
 )
 from cartography.models.aws.lambda_function.lambda_function import AWSLambdaSchema
 from cartography.models.aws.lambda_function.layer import AWSLambdaLayerSchema
+from cartography.models.aws.lambda_function.permission import AWSLambdaPermissionSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -127,6 +130,74 @@ def get_event_source_mappings(
 
 
 @timeit
+@aws_handle_regions
+def get_lambda_permissions(
+    lambda_functions: List[Dict],
+    boto3_session: boto3.Session,
+    region: str,
+) -> List[Dict[str, Any]]:
+    """
+    Get Lambda permissions for the given functions in the specified region.
+    """
+    client = boto3_session.client("lambda", region_name=region)
+    all_permissions = []
+    for function in lambda_functions:
+        function_name = function["FunctionName"]
+        response = client.get_policy(FunctionName=function_name)
+        policy_metadata = {
+            "FunctionArn": function["FunctionArn"],
+            "Policy": response.get("Policy"),
+        }
+        all_permissions.append(policy_metadata)
+
+    return all_permissions
+
+
+@timeit
+def parse_policy(function_arn: str, policy: str) -> Dict[str, Any]:
+    """
+    Parse the Lambda permission policy to extract anonymous access and actions.
+    """
+    policy_obj = Policy(json.loads(policy))
+    inet_actions = policy_obj.internet_accessible_actions()
+
+    return {
+        "FunctionArn": function_arn,
+        "AnonymousAccess": policy_obj.is_internet_accessible(),
+        "AnonymousActions": list(inet_actions) if inet_actions else [],
+    }
+
+
+def transform_lambda_permissions(
+    permissions: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
+    """
+    Transform Lambda permissions for ingestion
+    """
+    transformed_permissions = []
+    for permission in permissions:
+        if not permission.get("Policy"):
+            transformed_permission = {
+                "FunctionArn": permission["FunctionArn"],
+                "AnonymousAccess": None,
+                "AnonymousActions": None,
+                "Region": region,
+            }
+            transformed_permissions.append(transformed_permission)
+            continue
+        parsed_policy = parse_policy(permission["FunctionArn"], permission["Policy"])
+        transformed_permissions.append(
+            {
+                "FunctionArn": permission["FunctionArn"],
+                "AnonymousAccess": parsed_policy.get("AnonymousAccess"),
+                "AnonymousActions": parsed_policy.get("AnonymousActions"),
+                "Region": region,
+            }
+        )
+    return transformed_permissions
+
+
+@timeit
 def load_lambda_function_aliases(
     neo4j_session: neo4j.Session,
     lambda_aliases: List[Dict],
@@ -185,6 +256,26 @@ def load_lambda_layers(
     )
 
 
+def load_lambda_permissions(
+    neo4j_session: neo4j.Session,
+    lambda_permissions: List[Dict],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Load AWS Lambda permissions using the data model approach.
+    """
+    load(
+        neo4j_session,
+        AWSLambdaPermissionSchema(),
+        lambda_permissions,
+        AWS_ID=current_aws_account_id,
+        Region=region,
+        lastupdated=update_tag,
+    )
+
+
 @timeit
 def cleanup_lambda(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     """
@@ -200,6 +291,9 @@ def cleanup_lambda(neo4j_session: neo4j.Session, common_job_parameters: Dict) ->
         AWSLambdaEventSourceMappingSchema(), common_job_parameters
     ).run(neo4j_session)
     GraphJob.from_node_schema(AWSLambdaLayerSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(AWSLambdaPermissionSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -310,6 +404,16 @@ def sync(
         load_lambda_functions(
             neo4j_session,
             transformed_data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+        permissions = get_lambda_permissions(data, boto3_session, region)
+        transformed_permissions = transform_lambda_permissions(permissions, region)
+        load_lambda_permissions(
+            neo4j_session,
+            transformed_permissions,
             region,
             current_aws_account_id,
             update_tag,
