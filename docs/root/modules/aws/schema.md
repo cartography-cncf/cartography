@@ -2856,7 +2856,7 @@ Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazo
 
 ### APIGatewayDeployment
 
-Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazon.com/apigateway/api-reference/resource/client-certificate/).
+Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/apigateway/latest/api/API_GetDeployments.html).
 
 | Field | Description |
 |-------|-------------|

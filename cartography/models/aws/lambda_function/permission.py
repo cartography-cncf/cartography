@@ -52,14 +52,18 @@ class AWSLambdaPermissionToAWSLambdaRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_PERMISSION_POLICY"
-    properties: AWSLambdaPermissionToAWSLambdaRelProperties = AWSLambdaPermissionToAWSLambdaRelProperties()
+    properties: AWSLambdaPermissionToAWSLambdaRelProperties = (
+        AWSLambdaPermissionToAWSLambdaRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class AWSLambdaPermissionSchema(CartographyNodeSchema):
     label: str = "AWSLambdaPermission"
     properties: AWSLambdaPermissionNodeProperties = AWSLambdaPermissionNodeProperties()
-    sub_resource_relationship: AWSLambdaPermissionToAWSAccountRel = AWSLambdaPermissionToAWSAccountRel()
+    sub_resource_relationship: AWSLambdaPermissionToAWSAccountRel = (
+        AWSLambdaPermissionToAWSAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AWSLambdaPermissionToAWSLambdaRel(),

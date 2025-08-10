@@ -61,7 +61,9 @@ class APIGatewayDeploymentToRestAPIRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class APIGatewayDeploymentSchema(CartographyNodeSchema):
     label: str = "APIGatewayDeployment"
-    properties: APIGatewayDeploymentNodeProperties = APIGatewayDeploymentNodeProperties()
+    properties: APIGatewayDeploymentNodeProperties = (
+        APIGatewayDeploymentNodeProperties()
+    )
     sub_resource_relationship: APIGatewayDeploymentToAWSAccountRel = (
         APIGatewayDeploymentToAWSAccountRel()
     )
