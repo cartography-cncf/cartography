@@ -36,9 +36,7 @@ class GlueJobToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GlueJobToAwsAccountRelProperties = (
-        GlueJobToAwsAccountRelProperties()
-    )
+    properties: GlueJobToAwsAccountRelProperties = GlueJobToAwsAccountRelProperties()
 
 
 @dataclass(frozen=True)
@@ -63,9 +61,7 @@ class GlueJobToGlueConnectionRel(CartographyRelSchema):
 class GlueJobSchema(CartographyNodeSchema):
     label: str = "GlueJob"
     properties: GlueJobNodeProperties = GlueJobNodeProperties()
-    sub_resource_relationship: GlueJobToAWSAccountRel = (
-        GlueJobToAWSAccountRel()
-    )
+    sub_resource_relationship: GlueJobToAWSAccountRel = GlueJobToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GlueJobToGlueConnectionRel(),
