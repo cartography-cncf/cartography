@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -17,9 +18,8 @@ TEST_REALM = "simpson-corp"
 
 
 def _ensure_local_neo4j_has_test_identity_providers(neo4j_session):
-    idps = cartography.intel.keycloak.identityproviders.transform(
-        tests.data.keycloak.identityproviders.KEYCLOAK_IDPS
-    )
+    original_data = deepcopy(tests.data.keycloak.identityproviders.KEYCLOAK_IDPS)
+    idps = cartography.intel.keycloak.identityproviders.transform(original_data)
     cartography.intel.keycloak.identityproviders.load_identityproviders(
         neo4j_session,
         idps,
@@ -31,7 +31,7 @@ def _ensure_local_neo4j_has_test_identity_providers(neo4j_session):
 @patch.object(
     cartography.intel.keycloak.identityproviders,
     "get",
-    return_value=tests.data.keycloak.identityproviders.KEYCLOAK_IDPS,
+    return_value=deepcopy(tests.data.keycloak.identityproviders.KEYCLOAK_IDPS),
 )
 def test_load_keycloak_identityproviders(mock_api, neo4j_session):
     # Arrange

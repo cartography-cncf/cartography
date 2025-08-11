@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -20,9 +21,8 @@ TEST_REALM = "simpson-corp"
 
 
 def _ensure_local_neo4j_has_test_organizations(neo4j_session):
-    orgs, domains = cartography.intel.keycloak.organizations.transform(
-        tests.data.keycloak.organizations.KEYCLOAK_ORGANIZATIONS
-    )
+    original_data = deepcopy(tests.data.keycloak.organizations.KEYCLOAK_ORGANIZATIONS)
+    orgs, domains = cartography.intel.keycloak.organizations.transform(original_data)
     cartography.intel.keycloak.organizations.load_organizations(
         neo4j_session,
         orgs,

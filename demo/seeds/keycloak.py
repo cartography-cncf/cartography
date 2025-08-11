@@ -98,7 +98,9 @@ class KeycloakSeed(Seed):
             self._seed_identity_providers(api_session, realm_name)
             auth_flows = self._seed_authentication_flows(api_session, realm_name)
             flow_aliases = [flow["alias"] for flow in auth_flows]
-            self._seed_authentication_executions(api_session, realm_name, realm_id, flow_aliases)
+            self._seed_authentication_executions(
+                api_session, realm_name, realm_id, flow_aliases
+            )
             self._seed_organizations(api_session, realm_name)
 
     def _seed_realms(self, api_session: Mock) -> list[dict]:
@@ -133,7 +135,13 @@ class KeycloakSeed(Seed):
             },
         )
 
-    def _seed_roles(self, api_session: Mock, realm_name: str, client_ids: list[str], scope_ids: list[str]) -> None:
+    def _seed_roles(
+        self,
+        api_session: Mock,
+        realm_name: str,
+        client_ids: list[str],
+        scope_ids: list[str],
+    ) -> None:
         cartography.intel.keycloak.roles.sync(
             self.neo4j_session,
             api_session,
@@ -179,7 +187,9 @@ class KeycloakSeed(Seed):
             },
         )
 
-    def _seed_authentication_flows(self, api_session: Mock, realm_name: str) -> list[dict]:
+    def _seed_authentication_flows(
+        self, api_session: Mock, realm_name: str
+    ) -> list[dict]:
         return cartography.intel.keycloak.authenticationflows.sync(
             self.neo4j_session,
             api_session,
@@ -190,7 +200,9 @@ class KeycloakSeed(Seed):
             },
         )
 
-    def _seed_authentication_executions(self, api_session: Mock, realm_name: str, realm_id: str, flow_aliases: list[str]) -> None:
+    def _seed_authentication_executions(
+        self, api_session: Mock, realm_name: str, realm_id: str, flow_aliases: list[str]
+    ) -> None:
         cartography.intel.keycloak.authenticationexecutions.sync(
             self.neo4j_session,
             api_session,
