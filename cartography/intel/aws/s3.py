@@ -71,6 +71,7 @@ def get_s3_bucket_details(
         Dict[str, Any],
         Dict[str, Any],
         Dict[str, Any],
+        Dict[str, Any],
     ]
 
     async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetail:
@@ -88,6 +89,7 @@ def get_s3_bucket_details(
             versioning,
             public_access_block,
             bucket_ownership_controls,
+            bucket_logging,
         ) = await asyncio.gather(
             to_asynchronous(get_acl, bucket, client),
             to_asynchronous(get_policy, bucket, client),
@@ -95,6 +97,7 @@ def get_s3_bucket_details(
             to_asynchronous(get_versioning, bucket, client),
             to_asynchronous(get_public_access_block, bucket, client),
             to_asynchronous(get_bucket_ownership_controls, bucket, client),
+            to_asynchronous(get_bucket_logging, bucket, client),
         )
         return (
             bucket["Name"],
@@ -104,6 +107,7 @@ def get_s3_bucket_details(
             versioning,
             public_access_block,
             bucket_ownership_controls,
+            bucket_logging,
         )
 
     bucket_details = to_synchronous(
@@ -242,6 +246,29 @@ def get_bucket_ownership_controls(
 
 
 @timeit
+@aws_handle_regions
+def get_bucket_logging(
+    bucket: Dict, client: botocore.client.BaseClient
+) -> Optional[Dict]:
+    """
+    Gets the S3 bucket logging status configuration.
+    """
+    bucket_logging = None
+    try:
+        bucket_logging = client.get_bucket_logging(Bucket=bucket["Name"])
+    except ClientError as e:
+        if _is_common_exception(e, bucket):
+            pass
+        else:
+            raise
+    except EndpointConnectionError:
+        logger.warning(
+            f"Failed to retrieve S3 bucket logging status for {bucket['Name']} - Could not connect to the endpoint URL",
+        )
+    return bucket_logging
+
+
+@timeit
 def _is_common_exception(e: Exception, bucket: Dict) -> bool:
     error_msg = "Failed to retrieve S3 bucket detail"
     if "AccessDenied" in e.args[0]:
@@ -319,7 +346,7 @@ def _load_s3_acls(
         "aws_s3acl_analysis.json",
         neo4j_session,
         {"AWS_ID": aws_account_id},
-        package="cartography.data.jobs.scoped_analysis"
+        package="cartography.data.jobs.scoped_analysis",
     )
 
 
@@ -480,6 +507,30 @@ def _load_bucket_ownership_controls(
     )
 
 
+@timeit
+def _load_bucket_logging(
+    neo4j_session: neo4j.Session,
+    bucket_logging_configs: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Ingest S3 bucket logging status configuration into neo4j.
+    """
+    # Load basic logging status
+    ingest_bucket_logging = """
+    UNWIND $bucket_logging_configs AS bucket_logging
+    MATCH (bucket:S3Bucket{name: bucket_logging.bucket})
+    SET bucket.logging_enabled = bucket_logging.logging_enabled,
+        bucket.logging_target_bucket = bucket_logging.target_bucket,
+        bucket.lastupdated = $update_tag
+    """
+    neo4j_session.run(
+        ingest_bucket_logging,
+        bucket_logging_configs=bucket_logging_configs,
+        update_tag=update_tag,
+    )
+
+
 def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> None:
     set_defaults = """
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) where s.anonymous_actions IS NULL
@@ -517,6 +568,7 @@ def load_s3_details(
     versioning_configs: List[Dict] = []
     public_access_block_configs: List[Dict] = []
     bucket_ownership_controls_configs: List[Dict] = []
+    bucket_logging_configs: List[Dict] = []
     for (
         bucket,
         acl,
@@ -525,6 +577,7 @@ def load_s3_details(
         versioning,
         public_access_block,
         bucket_ownership_controls,
+        bucket_logging,
     ) in s3_details_iter:
         parsed_acls = parse_acl(acl, bucket, aws_account_id)
         if parsed_acls is not None:
@@ -552,6 +605,9 @@ def load_s3_details(
         )
         if parsed_bucket_ownership_controls is not None:
             bucket_ownership_controls_configs.append(parsed_bucket_ownership_controls)
+        parsed_bucket_logging = parse_bucket_logging(bucket, bucket_logging)
+        if parsed_bucket_logging is not None:
+            bucket_logging_configs.append(parsed_bucket_logging)
 
     # cleanup existing policy properties set on S3 Buckets
     run_cleanup_job(
@@ -570,6 +626,7 @@ def load_s3_details(
     _load_bucket_ownership_controls(
         neo4j_session, bucket_ownership_controls_configs, update_tag
     )
+    _load_bucket_logging(neo4j_session, bucket_logging_configs, update_tag)
     _set_default_values(neo4j_session, aws_account_id)
 
 
@@ -849,6 +906,52 @@ def parse_bucket_ownership_controls(
         "object_ownership": bucket_ownership_controls.get("OwnershipControls", {})
         .get("Rules", [{}])[0]
         .get("ObjectOwnership"),
+    }
+
+
+def parse_bucket_logging(bucket: str, bucket_logging: Optional[Dict]) -> Optional[Dict]:
+    """Parses the S3 bucket logging status configuration and returns a dict of the relevant data"""
+    # Logging status object JSON looks like:
+    # {
+    #     'LoggingEnabled': {
+    #         'TargetBucket': 'string',
+    #         'TargetGrants': [
+    #             {
+    #                 'Grantee': {
+    #                     'DisplayName': 'string',
+    #                     'EmailAddress': 'string',
+    #                     'ID': 'string',
+    #                     'Type': 'CanonicalUser'|'AmazonCustomerByEmail'|'Group',
+    #                     'URI': 'string'
+    #                 },
+    #                 'Permission': 'FULL_CONTROL'|'READ'|'WRITE'
+    #             },
+    #         ],
+    #         'TargetPrefix': 'string',
+    #         'TargetObjectKeyFormat': {
+    #             'SimplePrefix': {},
+    #             'PartitionedPrefix': {
+    #                 'PartitionDateSource': 'EventTime'|'DeliveryTime'
+    #             }
+    #         }
+    #     }
+    # }
+    # Or empty dict {} if logging is not enabled
+    if bucket_logging is None:
+        return None
+
+    logging_config = bucket_logging.get("LoggingEnabled", {})
+    if not logging_config:
+        return {
+            "bucket": bucket,
+            "logging_enabled": False,
+            "target_bucket": None,
+        }
+
+    return {
+        "bucket": bucket,
+        "logging_enabled": True,
+        "target_bucket": logging_config.get("TargetBucket"),
     }
 
 

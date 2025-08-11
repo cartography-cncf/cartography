@@ -51,9 +51,6 @@ class Config:
     :param entra_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
     :type entra_client_secret: str
     :param entra_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
-    :type entra_best_effort_mode: bool
-    :param entra_best_effort_mode: If True, Entra ID sync will continue on errors and raise an aggregated
-        exception at the end of the sync. If False (default), exceptions will be raised immediately.
     :type aws_requested_syncs: str
     :param aws_requested_syncs: Comma-separated list of AWS resources to sync. Optional.
     :type aws_guardduty_severity_threshold: str
@@ -167,8 +164,6 @@ class Config:
     :param sentinelone_api_url: SentinelOne API URL. Optional.
     :type sentinelone_api_token: string
     :param sentinelone_api_token: SentinelOne API token for authentication. Optional.
-    :type sentinelone_api_token_env_var: string
-    :param sentinelone_api_token_env_var: The name of an environment variable containing the SentinelOne API token. Optional.
     :type sentinelone_account_ids: list[str]
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
     :type keycloak_client_id: str
@@ -202,7 +197,6 @@ class Config:
         entra_tenant_id=None,
         entra_client_id=None,
         entra_client_secret=None,
-        entra_best_effort_mode=False,
         aws_requested_syncs=None,
         aws_guardduty_severity_threshold=None,
         analysis_job_directory=None,
@@ -265,7 +259,6 @@ class Config:
         scaleway_org=None,
         sentinelone_api_url=None,
         sentinelone_api_token=None,
-        sentinelone_api_token_env_var=None,
         sentinelone_account_ids=None,
         keycloak_client_id=None,
         keycloak_client_secret=None,
@@ -293,7 +286,6 @@ class Config:
         self.entra_tenant_id = entra_tenant_id
         self.entra_client_id = entra_client_id
         self.entra_client_secret = entra_client_secret
-        self.entra_best_effort_mode = entra_best_effort_mode
         self.aws_requested_syncs = aws_requested_syncs
         self.aws_guardduty_severity_threshold = aws_guardduty_severity_threshold
         self.analysis_job_directory = analysis_job_directory
@@ -356,7 +348,6 @@ class Config:
         self.scaleway_org = scaleway_org
         self.sentinelone_api_url = sentinelone_api_url
         self.sentinelone_api_token = sentinelone_api_token
-        self.sentinelone_api_token_env_var = sentinelone_api_token_env_var
         self.sentinelone_account_ids = sentinelone_account_ids
         self.keycloak_client_id = None
         self.keycloak_client_secret = None
