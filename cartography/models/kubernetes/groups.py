@@ -7,7 +7,8 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import TargetNodeMatcher, OtherRelationships
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,9 @@ class KubernetesGroupToClusterRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: KubernetesGroupToClusterRelProperties = KubernetesGroupToClusterRelProperties()
+    properties: KubernetesGroupToClusterRelProperties = (
+        KubernetesGroupToClusterRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -48,16 +51,20 @@ class KubernetesGroupToAWSRoleRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MAPS_TO"
-    properties: KubernetesGroupToAWSRoleRelProperties = KubernetesGroupToAWSRoleRelProperties()
+    properties: KubernetesGroupToAWSRoleRelProperties = (
+        KubernetesGroupToAWSRoleRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class KubernetesGroupSchema(CartographyNodeSchema):
     label: str = "KubernetesGroup"
     properties: KubernetesGroupNodeProperties = KubernetesGroupNodeProperties()
-    sub_resource_relationship: KubernetesGroupToClusterRel = KubernetesGroupToClusterRel()
+    sub_resource_relationship: KubernetesGroupToClusterRel = (
+        KubernetesGroupToClusterRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KubernetesGroupToAWSRoleRel(),
         ]
-    ) 
+    )

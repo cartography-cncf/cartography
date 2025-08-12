@@ -39,39 +39,39 @@ MOCK_AWS_ROLES = [
         "RoleId": "AROABC123DEF456GHI789",
         "CreateDate": "2023-01-01T00:00:00Z",
         "MaxSessionDuration": 3600,
-        "AssumeRolePolicyDocument": {"Statement": []}
+        "AssumeRolePolicyDocument": {"Statement": []},
     },
     {
-        "Arn": "arn:aws:iam::123456789012:role/EKSAdminRole", 
+        "Arn": "arn:aws:iam::123456789012:role/EKSAdminRole",
         "RoleName": "EKSAdminRole",
         "Path": "/",
         "RoleId": "AROABC123DEF456GHI790",
         "CreateDate": "2023-01-01T00:00:00Z",
         "MaxSessionDuration": 3600,
-        "AssumeRolePolicyDocument": {"Statement": []}
+        "AssumeRolePolicyDocument": {"Statement": []},
     },
     {
         "Arn": "arn:aws:iam::123456789012:role/EKSViewerRole",
-        "RoleName": "EKSViewerRole", 
+        "RoleName": "EKSViewerRole",
         "Path": "/",
         "RoleId": "AROABC123DEF456GHI791",
         "CreateDate": "2023-01-01T00:00:00Z",
         "MaxSessionDuration": 3600,
-        "AssumeRolePolicyDocument": {"Statement": []}
+        "AssumeRolePolicyDocument": {"Statement": []},
     },
     {
         "Arn": "arn:aws:iam::123456789012:role/EKSGroupOnlyRole",
         "RoleName": "EKSGroupOnlyRole",
-        "Path": "/", 
+        "Path": "/",
         "RoleId": "AROABC123DEF456GHI792",
         "CreateDate": "2023-01-01T00:00:00Z",
         "MaxSessionDuration": 3600,
-        "AssumeRolePolicyDocument": {"Statement": []}
-    }
+        "AssumeRolePolicyDocument": {"Statement": []},
+    },
 ]
 
 # Test constants
 TEST_CLUSTER_NAME = "test-cluster"
 TEST_CLUSTER_ID = "test-cluster-id-12345"
 TEST_UPDATE_TAG = 123456789
-TEST_ACCOUNT_ID = "123456789012" 
+TEST_ACCOUNT_ID = "123456789012"
