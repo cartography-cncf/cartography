@@ -16,6 +16,7 @@ C -- HAS_DEFAULT_SCOPE --> S
 C -- HAS_OPTIONAL_SCOPE --> S
 C -- DEFINES --> ROLE
 C -- HAS_SERVICE_ACCOUNT --> U
+C -- USES --> AF
 G -- SUBGROUP_OF --> G
 U -- MEMBER_OF --> G
 U ==> INHERITED_MEMBER_OF ==> G
@@ -206,6 +207,10 @@ Represents a Keycloak client application that can request authentication and aut
 - `KeycloackClient` can have service account
     ```
     (:KeycloakClient)-[:HAS_SERVICE_ACCOUNT]->(:KeycloakUser)
+    ```
+- `KeycloakClient` uses Authentication flows
+    ```
+    (:KeycloakClient)-[:USES]->(:KeycloakAuthenticationFlow)
     ```
 
 
@@ -507,6 +512,10 @@ Only `root` flows are modeled as a `KeycloakAuthenticationFlow`. In Keycloak, th
 - `KeycloakAuthenticationFlow` is the starting point of an autentication flow
     ```
     (:KeycloakAuthenticationFlow)-[:NEXT_STEP]->(:KeycloakAuthenticationExecution)
+    ```
+- `KeycloakClient` uses `KeycloakAuthenticationFlow`
+    ```
+    (:KeycloakClient)-[:USES]->(:KeycloakAuthenticationFlow)
     ```
 
 ```{important}

@@ -90,7 +90,7 @@ class KeycloakSeed(Seed):
             realm_id = realm["id"]
             self._seed_users(api_session, realm_name)
             self._seed_groups(api_session, realm_name)
-            clients = self._seed_clients(api_session, realm_name)
+            clients = self._seed_clients(api_session, realm_name, realm_id)
             client_ids = [client["id"] for client in clients]
             scopes = self._seed_scopes(api_session, realm_name)
             scope_ids = [scope["id"] for scope in scopes]
@@ -154,7 +154,45 @@ class KeycloakSeed(Seed):
             scope_ids=scope_ids,
         )
 
-    def _seed_clients(self, api_session: Mock, realm_name: str) -> list[dict]:
+    def _seed_clients(
+        self, api_session: Mock, realm_name: str, realm_id: str
+    ) -> list[dict]:
+        # Default flows for the realm
+        FLOWS_BY_ALIAS = {
+            f["alias"]: f["id"]
+            for f in tests.data.keycloak.authenticationflows.KEYCLOAK_AUTHENTICATIONFLOWS
+        }
+        REALM_DEFAULT_FLOWS = {
+            "browser": FLOWS_BY_ALIAS[
+                tests.data.keycloak.realms.KEYCLOAK_REALMS[0].get("browserFlow")
+            ],
+            "registration": FLOWS_BY_ALIAS[
+                tests.data.keycloak.realms.KEYCLOAK_REALMS[0].get("registrationFlow")
+            ],
+            "direct_grant": FLOWS_BY_ALIAS[
+                tests.data.keycloak.realms.KEYCLOAK_REALMS[0].get("directGrantFlow")
+            ],
+            "reset_credentials": FLOWS_BY_ALIAS[
+                tests.data.keycloak.realms.KEYCLOAK_REALMS[0].get(
+                    "resetCredentialsFlow"
+                )
+            ],
+            "client_authentication": FLOWS_BY_ALIAS[
+                tests.data.keycloak.realms.KEYCLOAK_REALMS[0].get(
+                    "clientAuthenticationFlow"
+                )
+            ],
+            "docker_authentication": FLOWS_BY_ALIAS[
+                tests.data.keycloak.realms.KEYCLOAK_REALMS[0].get(
+                    "dockerAuthenticationFlow"
+                )
+            ],
+            "first_broker_login": FLOWS_BY_ALIAS[
+                tests.data.keycloak.realms.KEYCLOAK_REALMS[0].get(
+                    "firstBrokerLoginFlow"
+                )
+            ],
+        }
         return cartography.intel.keycloak.clients.sync(
             self.neo4j_session,
             api_session,
@@ -162,7 +200,9 @@ class KeycloakSeed(Seed):
             common_job_parameters={
                 "UPDATE_TAG": self.update_tag,
                 "REALM": realm_name,
+                "REALM_ID": realm_id,
             },
+            realm_default_flows=REALM_DEFAULT_FLOWS,
         )
 
     def _seed_scopes(self, api_session: Mock, realm_name: str) -> list[dict]:

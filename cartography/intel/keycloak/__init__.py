@@ -92,28 +92,38 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
             config.keycloak_url,
             realm_scopped_job_parameters,
         )
-        flow_aliases = [f["alias"] for f in flows]
+        flow_aliases_to_id = {f["alias"]: f["id"] for f in flows}
         cartography.intel.keycloak.authenticationexecutions.sync(
             neo4j_session,
             api_session,
             config.keycloak_url,
             realm_scopped_job_parameters,
-            flow_aliases,
+            list(flow_aliases_to_id.keys()),
         )
-        # WIP: Use realm data to do a MatchLink for DEFAULT_FLOW
-        #  "browserFlow": "browser",
-        # "registrationFlow": "registration",
-        # "directGrantFlow": "direct grant", => direct_grant
-        # "resetCredentialsFlow": "reset credentials", => reset_credentials
-        # "clientAuthenticationFlow": "clients", => client_authentication
-        # "dockerAuthenticationFlow": "docker auth", => docker_auth
-        # "firstBrokerLoginFlow": "first broker login", => first_broker_login
-        # Or look into: authenticationFlowBindingOverrides
+        realm_default_flows = {
+            "browser": flow_aliases_to_id.get(realm.get("browserFlow")),
+            "registration": flow_aliases_to_id.get(realm.get("registrationFlow")),
+            "direct_grant": flow_aliases_to_id.get(realm.get("directGrantFlow")),
+            "reset_credentials": flow_aliases_to_id.get(
+                realm.get("resetCredentialsFlow")
+            ),
+            "client_authentication": flow_aliases_to_id.get(
+                realm.get("clientAuthenticationFlow")
+            ),
+            "docker_authentication": flow_aliases_to_id.get(
+                realm.get("dockerAuthenticationFlow")
+            ),
+            "first_broker_login": flow_aliases_to_id.get(
+                realm.get("firstBrokerLoginFlow")
+            ),
+        }
+
         clients = cartography.intel.keycloak.clients.sync(
             neo4j_session,
             api_session,
             config.keycloak_url,
             realm_scopped_job_parameters,
+            realm_default_flows,
         )
         client_ids = [c["id"] for c in clients]
         cartography.intel.keycloak.roles.sync(

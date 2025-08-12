@@ -6,8 +6,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -144,3 +146,32 @@ class KeycloakClientSchema(CartographyNodeSchema):
             KeycloakClientToServiceAccountRel(),
         ]
     )
+
+
+# The following relationships are MatchLinks to enable batch loading with rel properties
+@dataclass(frozen=True)
+class KeycloakClientToFlowRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("LASTUPDATED", set_in_kwargs=True)
+    flow_name: PropertyRef = PropertyRef("flow_name")
+    default_flow: PropertyRef = PropertyRef("default_flow")
+    # Mandatory fields for MatchLinks
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KeycloakClient)-[:USES]->(:KeycloakAuthenticationFlow)
+class KeycloakClientToFlowMatchLink(CartographyRelSchema):
+    source_node_label: str = "KeycloakClient"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("client_id")},
+    )
+    target_node_label: str = "KeycloakAuthenticationFlow"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("flow_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES"
+    properties: KeycloakClientToFlowRelProperties = KeycloakClientToFlowRelProperties()
