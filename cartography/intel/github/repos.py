@@ -11,6 +11,7 @@ import neo4j
 from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
+from string import Template
 
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
@@ -23,6 +24,7 @@ from cartography.models.github.manifests import DependencyGraphManifestSchema
 from cartography.models.github.orgs import GitHubOrganizationSchema
 from cartography.models.github.python_libraries import PythonLibrarySchema
 from cartography.models.github.repos import GithubRepositorySchema
+from cartography.models.github.users import GitHubUnaffiliatedUserSchema
 from cartography.util import backoff_handler
 from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
@@ -337,6 +339,7 @@ def transform(
     transformed_requirements_files: List[Dict] = []
     transformed_dependencies: List[Dict] = []
     transformed_manifests: List[Dict] = []
+    transformed_branches: List[Dict] = []
     for repo_object in repos_json:
         _transform_repo_languages(
             repo_object["url"],
@@ -385,12 +388,15 @@ def transform(
             repo_url,
             transformed_dependencies,
         )
+
+        _transform_repo_branches(repo_object, repo_url, transformed_branches)
     results = {
         "repos": transformed_repo_list,
         "repo_languages": transformed_repo_languages,
         "repo_owners": transformed_repo_owners,
         "repo_outside_collaborators": transformed_outside_collaborators,
         "repo_direct_collaborators": transformed_direct_collaborators,
+        "branches": transformed_branches,
         "python_requirements": transformed_requirements_files,
         "dependencies": transformed_dependencies,
         "manifests": transformed_manifests,
@@ -433,14 +439,17 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
     ssh_url = input_repo_object.get("sshUrl")
     git_url = _create_git_url_from_ssh_url(ssh_url) if ssh_url else None
 
+    primary_language = input_repo_object["primaryLanguage"]
+    if isinstance(primary_language, dict) and "name" in primary_language:
+        primary_language = primary_language["name"]
+
     out_repo_list.append(
         {
             "id": input_repo_object["url"],
-            "createdat": input_repo_object["createdAt"],
             "name": input_repo_object["name"],
             "fullname": input_repo_object["nameWithOwner"],
             "description": input_repo_object["description"],
-            "primarylanguage": input_repo_object["primaryLanguage"],
+            "primarylanguage": primary_language,
             "homepage": input_repo_object["homepageUrl"],
             "defaultbranch": default_branch_name,
             "defaultbranchid": default_branch_id,
@@ -452,7 +461,8 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "url": input_repo_object["url"],
             "sshurl": ssh_url,
             "updatedat": input_repo_object["updatedAt"],
-            "owner_id": input_repo_object["owner"]["url"],  # Add this line
+            "createdat": input_repo_object["createdAt"],
+            "owner_id": input_repo_object["owner"]["url"],
         },
     )
 
@@ -467,10 +477,10 @@ def _transform_repo_owners(owner_id: str, repo: Dict, repo_owners: List[Dict]) -
     """
     repo_owners.append(
         {
-            "repo_id": repo["url"],
-            "owner": repo["owner"]["login"],
-            "owner_id": owner_id,
-            "type": repo["owner"]["__typename"],
+            "url": owner_id,                    # Schema expects 'url'
+            "login": repo["owner"]["login"],    # Schema expects 'login'
+            "repo_id": repo["url"],             # Schema expects 'repo_id'
+            "type": repo["owner"]["__typename"], # Keep type for filtering
         },
     )
 
@@ -491,8 +501,9 @@ def _transform_repo_languages(
         for language in repo["languages"]["nodes"]:
             repo_languages.append(
                 {
-                    "repo_id": repo_url,
-                    "language_name": language["name"],
+                    "id": language["name"],           # Schema expects 'id'
+                    "name": language["name"],         # Schema expects 'name'
+                    "repo_id": repo_url,              # Schema expects 'repo_id'
                 },
             )
 
@@ -837,6 +848,29 @@ def _parse_setup_cfg_requirements(reqs: str, separator: str = ";") -> List[str]:
     return [req.strip() for req in reqs_list if req.strip()]
 
 
+def _transform_repo_branches(
+    repo: Dict,
+    repo_url: str,
+    repo_branches: List[Dict],
+) -> None:
+    """
+    function to transform the default branch of a GitHub repo.
+    :param repo_url: The URL of the repo.
+    :param repo: The repo object; see tests.data.github.repos.GET_REPOS for data shape.
+    :param repo_branches: Output array to append transformed results to.
+    :return: Nothing.
+    """
+    dbr = repo.get("defaultBranchRef")
+    if dbr and dbr.get("name") and dbr.get("id"):
+        repo_branches.append(
+            {
+                "id": _create_default_branch_id(repo_url, dbr["id"]),
+                "name": dbr["name"],
+                "repo_id": repo_url,
+            },
+        )
+
+
 @timeit
 def load_github_repos(
     neo4j_session: neo4j.Session,
@@ -845,51 +879,10 @@ def load_github_repos(
     github_org_url: Optional[str] = None,
 ) -> None:
     """
-    Ingest the GitHub repository information GithubRepository schema
+    Ingest the GitHub repository information using GithubRepository schema
     """
-    transformed_repos = []
+    
     for repo in repo_data:
-        owner_id = repo.get("owner_id")
-
-        primary_language = repo.get("primarylanguage")
-        if isinstance(primary_language, dict) and "name" in primary_language:
-            primary_language = primary_language["name"]
-
-        default_branch = repo.get("defaultbranch")
-        default_branch_id = repo.get("defaultbranchid")
-        if isinstance(default_branch, dict):
-            default_branch = default_branch.get("name")
-            if (
-                not default_branch_id
-                and isinstance(default_branch, dict)
-                and "id" in default_branch
-            ):
-                default_branch_id = default_branch["id"]
-
-        transformed_repos.append(
-            {
-                "id": repo["id"],
-                "name": repo["name"],
-                "fullname": repo["fullname"],
-                "description": repo["description"],
-                "primarylanguage": primary_language,
-                "homepage": repo["homepage"],
-                "defaultbranch": default_branch,
-                "defaultbranchid": default_branch_id,
-                "private": repo["private"],
-                "disabled": repo["disabled"],
-                "archived": repo["archived"],
-                "locked": repo["locked"],
-                "giturl": repo["giturl"],
-                "url": repo["url"],
-                "sshurl": repo["sshurl"],
-                "updatedat": repo["updatedat"],
-                "createdat": repo["createdat"],
-                "owner_id": owner_id,
-            }
-        )
-
-    for repo in transformed_repos:
         load_data(
             neo4j_session,
             GithubRepositorySchema(),
@@ -913,23 +906,17 @@ def load_github_languages(
     :param repo_languages: list of language to repo mappings
     :return: Nothing
     """
-
-    transformed_languages = []
+    # The repo_languages data is already in the correct format from _transform_repo_languages
+    # No transformation needed - just load directly
+    
     for lang in repo_languages:
-        transformed_languages.append(
-            {
-                "id": lang["language_name"],
-                "name": lang["language_name"],
-                "repo_id": lang["repo_id"],
-            }
+        load_data(
+            neo4j_session,
+            ProgrammingLanguageSchema(),
+            [lang],
+            lastupdated=update_tag,
+            repo_id=lang["repo_id"],
         )
-
-    load_data(
-        neo4j_session,
-        ProgrammingLanguageSchema(),
-        transformed_languages,
-        lastupdated=update_tag,
-    )
 
 
 @timeit
@@ -938,30 +925,14 @@ def load_github_owners(
     update_tag: int,
     repo_owners: List[Dict],
 ) -> None:
-    """
-    Ingest the relationships for repo owners using new schema
-    :param neo4j_session: Neo4J session object for server communication
-    :param update_tag: Timestamp used to determine data freshness
-    :param repo_owners: list of owner to repo mappings
-    :return: Nothing
-    """
-    transformed_owners = []
+    """Load GitHub repository owners into Neo4j"""
     for owner in repo_owners:
-        transformed_owners.append(
-            {
-                "url": owner["owner_id"],
-                "login": owner["owner"],
-                "repo_id": owner["repo_id"],
-                "owner_type": owner["type"],
-            }
-        )
-
-    load_data(
-        neo4j_session,
-        GitHubOrganizationSchema(),
-        transformed_owners,
-        lastupdated=update_tag,
-    )
+        if owner["type"] == "Organization":
+            load_data(neo4j_session, GitHubOrganizationSchema(), [owner], lastupdated=update_tag)
+        elif owner["type"] == "User":
+            load_data(neo4j_session, GitHubUnaffiliatedUserSchema(), [owner], lastupdated=update_tag)
+        else:
+            logger.warning(f"Unknown owner type: {owner['type']} for owner {owner['login']}")
 
 
 @timeit
@@ -971,47 +942,31 @@ def load_collaborators(
     collaborators: Dict,
     affiliation: str,
 ) -> None:
-    """
-    Ingest collaborator relationships using direct Cypher approach for dynamic relationship types
-    """
-    for permission_level, users in collaborators.items():
-        for user in users:
-            if affiliation == "DIRECT":
-                rel_type = f"DIRECT_COLLAB_{permission_level}"
-            else:
-                rel_type = f"OUTSIDE_COLLAB_{permission_level}"
-
-            user_query = """
-            MERGE (user:GitHubUser {id: $user_id})
-            SET user.name = $name,
-                user.login = $login,
-                user.username = $login,
-                user.email = $email,
-                user.company = $company,
-                user.lastupdated = $update_tag
-            """
-            neo4j_session.run(
-                user_query,
-                user_id=user["url"],
-                name=user.get("name"),
-                login=user.get("login"),
-                email=user.get("email"),
-                company=user.get("company"),
-                update_tag=update_tag,
-            )
-
-            rel_query = f"""
-            MATCH (user:GitHubUser {{id: $user_id}})
-            MATCH (repo:GitHubRepository {{id: $repo_url}})
-            MERGE (user)-[r:{rel_type}]->(repo)
-            SET r.lastupdated = $update_tag
-            """
-            neo4j_session.run(
-                rel_query,
-                user_id=user["url"],
-                repo_url=user["repo_url"],
-                update_tag=update_tag,
-            )
+    query = Template(
+        """
+    UNWIND $UserData as user
+    MERGE (u:GitHubUser{id: user.url})
+    ON CREATE SET u.firstseen = timestamp()
+    SET u.fullname = user.name,
+    u.username = user.login,
+    u.permission = user.permission,
+    u.email = user.email,
+    u.company = user.company,
+    u.lastupdated = $UpdateTag
+    WITH u, user
+    MATCH (repo:GitHubRepository{id: user.repo_url})
+    MERGE (repo)<-[o:$rel_label]-(u)
+    ON CREATE SET o.firstseen = timestamp()
+    SET o.lastupdated = $UpdateTag
+    """,
+    )
+    for collab_type in collaborators.keys():
+        relationship_label = f"{affiliation}_COLLAB_{collab_type}"
+        neo4j_session.run(
+            query.safe_substitute(rel_label=relationship_label),
+            UserData=collaborators[collab_type],
+            UpdateTag=update_tag,
+        )
 
 
 @timeit
@@ -1023,56 +978,34 @@ def load_python_requirements(
     """
     Ingest Python requirements using new schema
     """
-    transformed_requirements = []
     for req in requirements_objects:
-        transformed_requirements.append(
-            {
-                "id": req["id"],
-                "repo_url": req["repo_url"],
-                "name": req["name"],
-                "version": req.get("version"),
-                "specifier": req.get("specifier"),
-            }
+        load_data(
+            neo4j_session,
+            PythonLibrarySchema(),
+            [req],
+            lastupdated=update_tag,
+            repo_url=req["repo_url"],
         )
-
-    load_data(
-        neo4j_session,
-        PythonLibrarySchema(),
-        transformed_requirements,
-        lastupdated=update_tag,
-    )
 
 
 @timeit
 def load_github_branches(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    repos_data: List[Dict],
+    branches: List[Dict],
 ) -> None:
     """
-    Ingest the relationships for repo branches using new schema
-    :param neo4j_session: Neo4J session object for server communication
-    :param update_tag: Timestamp used to determine data freshness
-    :param repos_data: list of repository data containing branch information
-    :return: Nothing
+    Ingest the relationships for repo branches using new schema.
+    Expects pre-transformed branch dicts with id, name, repo_id.
     """
-    transformed_branches = []
-    for repo in repos_data:
-        if repo.get("defaultbranch") and repo.get("defaultbranchid"):
-            transformed_branches.append(
-                {
-                    "id": repo["defaultbranchid"],
-                    "name": repo["defaultbranch"],
-                    "repo_id": repo["url"],
-                }
-            )
-
-    load_data(
-        neo4j_session,
-        GitHubBranchSchema(),
-        transformed_branches,
-        lastupdated=update_tag,
-    )
+    for branch in branches:
+        load_data(
+            neo4j_session,
+            GitHubBranchSchema(),
+            [branch],
+            lastupdated=update_tag,
+            repo_id=branch["repo_id"],
+        )
 
 
 @timeit
@@ -1220,7 +1153,7 @@ def load(
     load_github_branches(
         neo4j_session,
         common_job_parameters["UPDATE_TAG"],
-        repo_data["repos"],
+        repo_data["branches"],
     )
     load_github_dependency_manifests(
         neo4j_session,

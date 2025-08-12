@@ -29,17 +29,21 @@ class PythonLibraryToRepositoryRelProperties(CartographyRelProperties):
 class PythonLibraryToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url")}
+        {"id": PropertyRef("repo_url", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REQUIRES"
-    properties: PythonLibraryToRepositoryRelProperties = PythonLibraryToRepositoryRelProperties()
+    properties: PythonLibraryToRepositoryRelProperties = (
+        PythonLibraryToRepositoryRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class PythonLibrarySchema(CartographyNodeSchema):
     label: str = "PythonLibrary"
     properties: PythonLibraryNodeProperties = PythonLibraryNodeProperties()
-    other_relationships: OtherRelationships = OtherRelationships([
-        PythonLibraryToRepositoryRel(),
-    ]) 
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            PythonLibraryToRepositoryRel(),
+        ]
+    )

@@ -46,13 +46,17 @@ class GithubRepositoryToGitHubOrganizationRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "OWNER"
-    properties: GithubRepositoryToGitHubOrganizationRelProperties = GithubRepositoryToGitHubOrganizationRelProperties()
+    properties: GithubRepositoryToGitHubOrganizationRelProperties = (
+        GithubRepositoryToGitHubOrganizationRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class GithubRepositorySchema(CartographyNodeSchema):
     label: str = "GitHubRepository"
     properties: GithubRepositoryNodeProperties = GithubRepositoryNodeProperties()
-    other_relationships: OtherRelationships = OtherRelationships([
-        GithubRepositoryToGitHubOrganizationRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GithubRepositoryToGitHubOrganizationRel(),
+        ]
+    )

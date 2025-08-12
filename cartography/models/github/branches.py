@@ -27,17 +27,21 @@ class GitHubBranchToRepositoryRelProperties(CartographyRelProperties):
 class GitHubBranchToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_id")}
+        {"id": PropertyRef("repo_id", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "BRANCH"
-    properties: GitHubBranchToRepositoryRelProperties = GitHubBranchToRepositoryRelProperties()
+    properties: GitHubBranchToRepositoryRelProperties = (
+        GitHubBranchToRepositoryRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class GitHubBranchSchema(CartographyNodeSchema):
     label: str = "GitHubBranch"
     properties: GitHubBranchNodeProperties = GitHubBranchNodeProperties()
-    other_relationships: OtherRelationships = OtherRelationships([
-        GitHubBranchToRepositoryRel(),
-    ]) 
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GitHubBranchToRepositoryRel(),
+        ]
+    )
