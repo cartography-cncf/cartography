@@ -5,14 +5,18 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.rbac import cleanup
 from cartography.intel.kubernetes.rbac import load_cluster_role_bindings
 from cartography.intel.kubernetes.rbac import load_cluster_roles
+from cartography.intel.kubernetes.rbac import load_groups
 from cartography.intel.kubernetes.rbac import load_role_bindings
 from cartography.intel.kubernetes.rbac import load_roles
 from cartography.intel.kubernetes.rbac import load_service_accounts
+from cartography.intel.kubernetes.rbac import load_users
 from cartography.intel.kubernetes.rbac import transform_cluster_role_bindings
 from cartography.intel.kubernetes.rbac import transform_cluster_roles
+from cartography.intel.kubernetes.rbac import transform_groups
 from cartography.intel.kubernetes.rbac import transform_role_bindings
 from cartography.intel.kubernetes.rbac import transform_roles
 from cartography.intel.kubernetes.rbac import transform_service_accounts
+from cartography.intel.kubernetes.rbac import transform_users
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
@@ -20,22 +24,26 @@ from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDING
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_CLUSTER_ROLE_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_CLUSTER_ROLES_RAW
+from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_GROUP_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLE_BINDING_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLE_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_ROLES_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_SERVICE_ACCOUNTS_RAW
+from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_1_USER_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDING_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDINGS_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_CLUSTER_ROLE_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_CLUSTER_ROLES_RAW
+from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_GROUP_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_ROLE_BINDING_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_ROLE_BINDINGS_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_ROLE_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_ROLES_RAW
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_SERVICE_ACCOUNT_IDS
 from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_SERVICE_ACCOUNTS_RAW
+from tests.data.kubernetes.rbac import KUBERNETES_CLUSTER_2_USER_IDS
 from tests.data.kubernetes.rbac import RBAC_TEST_NAMESPACES_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -99,6 +107,18 @@ def _create_test_cluster(neo4j_session):
     )
     neo4j_session.run(
         """
+        MATCH (k:KubernetesUser)
+        DETACH DELETE k
+        """,
+    )
+    neo4j_session.run(
+        """
+        MATCH (k:KubernetesGroup)
+        DETACH DELETE k
+        """,
+    )
+    neo4j_session.run(
+        """
         MATCH (k:KubernetesNamespace)
         DETACH DELETE k
         """,
@@ -135,8 +155,57 @@ def test_load_rbac_nodes(neo4j_session, _create_test_cluster):
     cluster_2_crb_data = transform_cluster_role_bindings(
         KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[1]
     )
+    cluster_1_users_data = transform_users(
+        KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
+    cluster_2_users_data = transform_users(
+        KUBERNETES_CLUSTER_2_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_NAMES[1],
+    )
+    cluster_1_groups_data = transform_groups(
+        KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
+    cluster_2_groups_data = transform_groups(
+        KUBERNETES_CLUSTER_2_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_NAMES[1],
+    )
 
     # Act: Load transformed data
+    # Load Users first so RoleBindings/ClusterRoleBindings can reference them
+    load_users(
+        neo4j_session,
+        cluster_1_users_data,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[0],
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
+    load_users(
+        neo4j_session,
+        cluster_2_users_data,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[1],
+        KUBERNETES_CLUSTER_NAMES[1],
+    )
+    load_groups(
+        neo4j_session,
+        cluster_1_groups_data,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[0],
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
+    load_groups(
+        neo4j_session,
+        cluster_2_groups_data,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[1],
+        KUBERNETES_CLUSTER_NAMES[1],
+    )
     load_service_accounts(
         neo4j_session,
         cluster_1_sa_data,
@@ -151,16 +220,16 @@ def test_load_rbac_nodes(neo4j_session, _create_test_cluster):
         KUBERNETES_CLUSTER_IDS[0],
         KUBERNETES_CLUSTER_NAMES[0],
     )
-    load_role_bindings(
+    load_cluster_roles(
         neo4j_session,
-        cluster_1_rb_data,
+        cluster_1_cr_data,
         TEST_UPDATE_TAG,
         KUBERNETES_CLUSTER_IDS[0],
         KUBERNETES_CLUSTER_NAMES[0],
     )
-    load_cluster_roles(
+    load_role_bindings(
         neo4j_session,
-        cluster_1_cr_data,
+        cluster_1_rb_data,
         TEST_UPDATE_TAG,
         KUBERNETES_CLUSTER_IDS[0],
         KUBERNETES_CLUSTER_NAMES[0],
@@ -186,16 +255,16 @@ def test_load_rbac_nodes(neo4j_session, _create_test_cluster):
         KUBERNETES_CLUSTER_IDS[1],
         KUBERNETES_CLUSTER_NAMES[1],
     )
-    load_role_bindings(
+    load_cluster_roles(
         neo4j_session,
-        cluster_2_rb_data,
+        cluster_2_cr_data,
         TEST_UPDATE_TAG,
         KUBERNETES_CLUSTER_IDS[1],
         KUBERNETES_CLUSTER_NAMES[1],
     )
-    load_cluster_roles(
+    load_role_bindings(
         neo4j_session,
-        cluster_2_cr_data,
+        cluster_2_rb_data,
         TEST_UPDATE_TAG,
         KUBERNETES_CLUSTER_IDS[1],
         KUBERNETES_CLUSTER_NAMES[1],
@@ -212,12 +281,13 @@ def test_load_rbac_nodes(neo4j_session, _create_test_cluster):
     expected_service_accounts = {
         (KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[0],),
         (KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[1],),
+        (KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS[2],),
         (KUBERNETES_CLUSTER_2_SERVICE_ACCOUNT_IDS[0],),
     }
-    assert (
-        check_nodes(neo4j_session, "KubernetesServiceAccount", ["id"])
-        == expected_service_accounts
+    actual_service_accounts = check_nodes(
+        neo4j_session, "KubernetesServiceAccount", ["id"]
     )
+    assert expected_service_accounts.issubset(actual_service_accounts)
 
     expected_roles = {
         (KUBERNETES_CLUSTER_1_ROLE_IDS[0],),
@@ -256,6 +326,20 @@ def test_load_rbac_nodes(neo4j_session, _create_test_cluster):
         == expected_cluster_role_bindings
     )
 
+    expected_users = {
+        (KUBERNETES_CLUSTER_1_USER_IDS[0],),
+        (KUBERNETES_CLUSTER_1_USER_IDS[1],),
+        (KUBERNETES_CLUSTER_2_USER_IDS[0],),
+    }
+    assert check_nodes(neo4j_session, "KubernetesUser", ["id"]) == expected_users
+
+    expected_groups = {
+        (KUBERNETES_CLUSTER_1_GROUP_IDS[0],),
+        (KUBERNETES_CLUSTER_1_GROUP_IDS[1],),
+        (KUBERNETES_CLUSTER_2_GROUP_IDS[0],),
+    }
+    assert check_nodes(neo4j_session, "KubernetesGroup", ["id"]) == expected_groups
+
 
 def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
     # Arrange: Transform raw API data
@@ -270,8 +354,33 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
     cluster_1_crb_data = transform_cluster_role_bindings(
         KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[0]
     )
+    cluster_1_users_data = transform_users(
+        KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
+    cluster_1_groups_data = transform_groups(
+        KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
 
     # Act: Load RBAC resources for cluster 1
+    # Load Users first so RoleBindings/ClusterRoleBindings can reference them
+    load_users(
+        neo4j_session,
+        cluster_1_users_data,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[0],
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
+    load_groups(
+        neo4j_session,
+        cluster_1_groups_data,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[0],
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
     load_service_accounts(
         neo4j_session,
         cluster_1_sa_data,
@@ -286,16 +395,16 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
         KUBERNETES_CLUSTER_IDS[0],
         KUBERNETES_CLUSTER_NAMES[0],
     )
-    load_role_bindings(
+    load_cluster_roles(
         neo4j_session,
-        cluster_1_rb_data,
+        cluster_1_cr_data,
         TEST_UPDATE_TAG,
         KUBERNETES_CLUSTER_IDS[0],
         KUBERNETES_CLUSTER_NAMES[0],
     )
-    load_cluster_roles(
+    load_role_bindings(
         neo4j_session,
-        cluster_1_cr_data,
+        cluster_1_rb_data,
         TEST_UPDATE_TAG,
         KUBERNETES_CLUSTER_IDS[0],
         KUBERNETES_CLUSTER_NAMES[0],
@@ -498,6 +607,87 @@ def test_load_rbac_relationships(neo4j_session, _create_test_cluster):
         == expected_crb_to_cr_rels
     )
 
+    # Assert: Test User to Cluster relationships
+    expected_user_to_cluster_rels = {
+        (KUBERNETES_CLUSTER_IDS[0], "my-cluster-1/admin@company.com"),
+        (KUBERNETES_CLUSTER_IDS[0], "my-cluster-1/john.doe"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesCluster",
+            "id",
+            "KubernetesUser",
+            "id",
+            "RESOURCE",
+        )
+        == expected_user_to_cluster_rels
+    )
+
+    # Assert: Test RoleBinding to User relationships
+    expected_rb_to_user_rels = {
+        ("demo-ns/bind-demo-sa", "my-cluster-1/john.doe"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesRoleBinding",
+            "id",
+            "KubernetesUser",
+            "id",
+            "SUBJECT",
+        )
+        == expected_rb_to_user_rels
+    )
+
+    # Assert: Test ClusterRoleBinding to User relationships
+    expected_crb_to_user_rels = {
+        ("admin-binding", "my-cluster-1/admin@company.com"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesClusterRoleBinding",
+            "id",
+            "KubernetesUser",
+            "id",
+            "SUBJECT",
+        )
+        == expected_crb_to_user_rels
+    )
+
+    # Assert: Test RoleBinding to Group relationships
+    expected_rb_to_group_rels = {
+        ("demo-ns/bind-demo-sa", "my-cluster-1/developers"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesRoleBinding",
+            "id",
+            "KubernetesGroup",
+            "id",
+            "SUBJECT",
+        )
+        == expected_rb_to_group_rels
+    )
+
+    # Assert: Test ClusterRoleBinding to Group relationships
+    expected_crb_to_group_rels = {
+        ("admin-binding", "my-cluster-1/admins"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesClusterRoleBinding",
+            "id",
+            "KubernetesGroup",
+            "id",
+            "SUBJECT",
+        )
+        == expected_crb_to_group_rels
+    )
+
 
 def test_rbac_cleanup(neo4j_session, _create_test_cluster):
     # Arrange: Transform raw API data and load it
@@ -512,7 +702,32 @@ def test_rbac_cleanup(neo4j_session, _create_test_cluster):
     cluster_1_crb_data = transform_cluster_role_bindings(
         KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW, KUBERNETES_CLUSTER_NAMES[0]
     )
+    cluster_1_users_data = transform_users(
+        KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
+    cluster_1_groups_data = transform_groups(
+        KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDINGS_RAW,
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
 
+    # Load Users first so RoleBindings/ClusterRoleBindings can reference them
+    load_users(
+        neo4j_session,
+        cluster_1_users_data,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[0],
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
+    load_groups(
+        neo4j_session,
+        cluster_1_groups_data,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[0],
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
     load_service_accounts(
         neo4j_session,
         cluster_1_sa_data,
@@ -527,16 +742,16 @@ def test_rbac_cleanup(neo4j_session, _create_test_cluster):
         KUBERNETES_CLUSTER_IDS[0],
         KUBERNETES_CLUSTER_NAMES[0],
     )
-    load_role_bindings(
+    load_cluster_roles(
         neo4j_session,
-        cluster_1_rb_data,
+        cluster_1_cr_data,
         TEST_UPDATE_TAG,
         KUBERNETES_CLUSTER_IDS[0],
         KUBERNETES_CLUSTER_NAMES[0],
     )
-    load_cluster_roles(
+    load_role_bindings(
         neo4j_session,
-        cluster_1_cr_data,
+        cluster_1_rb_data,
         TEST_UPDATE_TAG,
         KUBERNETES_CLUSTER_IDS[0],
         KUBERNETES_CLUSTER_NAMES[0],
@@ -563,6 +778,8 @@ def test_rbac_cleanup(neo4j_session, _create_test_cluster):
     assert check_nodes(neo4j_session, "KubernetesRoleBinding", ["id"]) == set()
     assert check_nodes(neo4j_session, "KubernetesClusterRole", ["id"]) == set()
     assert check_nodes(neo4j_session, "KubernetesClusterRoleBinding", ["id"]) == set()
+    assert check_nodes(neo4j_session, "KubernetesUser", ["id"]) == set()
+    assert check_nodes(neo4j_session, "KubernetesGroup", ["id"]) == set()
 
     # Assert: Expect no RBAC relationships in the graph
     assert (

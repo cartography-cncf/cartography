@@ -26,6 +26,8 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
                                        :KubernetesContainer,
                                        :KubernetesService,
                                        :KubernetesSecret,
+                                       :KubernetesUser,
+                                       :KubernetesGroup,
                                        :KubernetesServiceAccount,
                                        :KubernetesRole,
                                        :KubernetesRoleBinding,
@@ -164,6 +166,72 @@ Representation of a [Kubernetes Secret.](https://kubernetes.io/docs/concepts/con
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesSecret)
     ```
 
+### KubernetesUser
+Representation of a [Kubernetes User.](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#users-in-kubernetes) Kubernetes Users are entities that can be authenticated and authorized to access the cluster. They are typically extracted from RoleBindings and ClusterRoleBindings that reference user subjects.
+
+| Field | Description |
+|-------|-------------|
+| id | Identifier for the User derived from cluster name and username (e.g. `my-cluster/john.doe`) |
+| name | Name of the Kubernetes User |
+| cluster\_name | Name of the Kubernetes cluster where this User is defined |
+| aws\_role\_arn | ARN of the AWS IAM Role that maps to this Kubernetes User (populated from EKS aws-auth ConfigMap) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesUser` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` is used as a subject in `KubernetesRoleBinding`.
+    ```
+    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` is used as a subject in `KubernetesClusterRoleBinding`.
+    ```
+    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` can be mapped from AWS IAM Roles (EKS clusters only).
+    ```
+    (:AWSRole)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
+### KubernetesGroup
+Representation of a [Kubernetes Group.](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#groups) Kubernetes Groups are collections of users that can be granted permissions collectively. They are typically extracted from RoleBindings and ClusterRoleBindings that reference group subjects.
+
+| Field | Description |
+|-------|-------------|
+| id | Identifier for the Group derived from cluster name and group name (e.g. `my-cluster/system:masters`) |
+| name | Name of the Kubernetes Group |
+| cluster\_name | Name of the Kubernetes cluster where this Group is defined |
+| aws\_role\_arn | ARN of the AWS IAM Role that maps to this Kubernetes Group (populated from EKS aws-auth ConfigMap) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesGroup` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` is used as a subject in `KubernetesRoleBinding`.
+    ```
+    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` is used as a subject in `KubernetesClusterRoleBinding`.
+    ```
+    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` can be mapped from AWS IAM Roles (EKS clusters only).
+    ```
+    (:AWSRole)-[:MAPS_TO]->(:KubernetesGroup)
+    ```
+
 ### KubernetesServiceAccount
 Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/concepts/security/service-accounts/)
 
@@ -269,8 +337,8 @@ Representation of a [Kubernetes RoleBinding.](https://kubernetes.io/docs/referen
 
 - `KubernetesRoleBinding` binds a subject to a role.
     ```
-    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
-    (:KubernetesRoleBinding)-[:ROLE_REF]->(:KubernetesRole)
+    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount, :KubernetesUser, :KubernetesGroup)
+    (:KubernetesRoleBinding)-[:ROLE_REF]->(:KubernetesRole, :KubernetesClusterRole)
     ```
 
 ### KubernetesClusterRole
@@ -333,6 +401,6 @@ Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/
 
 - `KubernetesClusterRoleBinding` binds a subject to a cluster role.
     ```
-    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
+    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount, :KubernetesUser, :KubernetesGroup)
     (:KubernetesClusterRoleBinding)-[:ROLE_REF]->(:KubernetesClusterRole)
     ```
