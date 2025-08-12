@@ -966,6 +966,31 @@ Representation of an AWS [Glue Connection](https://docs.aws.amazon.com/glue/late
     (AWSAccount)-[RESOURCE]->(GlueConnection)
     ```
 
+### GlueJob
+Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/webapi/API_GetJobs.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The name you assign to this job definition |
+| arn | The name you assign to this job definition |
+| region | The region of the Glue job |
+| description | The description of the job |
+| profile_name | The name of an AWS Glue usage profile associated with the job |
+| job_mode | A mode that describes how a job was created |
+| connections | The connections used for this job |
+#### Relationships
+- Glue Jobs are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(GlueJob)
+    ```
+- Glue Jobs are used by Glue Connections.
+    ```
+    (GlueConnection)-[USES]->(GlueJob)
+    ```
+
+
 ### CodeBuildProject
 Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
 
