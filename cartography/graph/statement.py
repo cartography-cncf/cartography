@@ -56,7 +56,7 @@ class GraphStatement:
 
         self.parent_job_name = parent_job_name if parent_job_name else None
         self.parent_job_sequence_num = (
-            parent_job_sequence_num if parent_job_sequence_num else None
+            parent_job_sequence_num if parent_job_sequence_num else 1
         )
 
     def merge_parameters(self, parameters: Dict) -> None:

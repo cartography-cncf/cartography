@@ -13,6 +13,9 @@ U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
+R -- REQUIRES --> D(Dependency)
+R -- HAS_MANIFEST --> M(DependencyGraphManifest)
+M -- HAS_DEP --> D
 T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
@@ -284,6 +287,70 @@ Representation of a single Programming Language [language object](https://develo
     (ProgrammingLanguage)<-[LANGUAGE]-(GitHubRepository)
     ```
 
+
+### DependencyGraphManifest
+
+Represents a dependency manifest file (e.g., package.json, requirements.txt, pom.xml) from GitHub's dependency graph API.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier: `{repo_url}#{blob_path}` |
+| **blob_path** | Path to the manifest file in the repository (e.g., "/package.json") |
+| **filename** | Name of the manifest file (e.g., "package.json") |
+| **dependencies_count** | Number of dependencies listed in this manifest |
+| **repo_url** | URL of the GitHub repository containing this manifest |
+
+#### Relationships
+
+- **GitHubRepository** via **HAS_MANIFEST** relationship
+  - GitHubRepositories can have multiple dependency manifests
+
+    ```
+    (GitHubRepository)-[:HAS_MANIFEST]->(DependencyGraphManifest)
+    ```
+
+- **Dependency** via **HAS_DEP** relationship
+  - Each manifest lists specific dependencies
+
+    ```
+    (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
+    ```
+
+### Dependency
+https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency
+Represents a software dependency from GitHub's dependency graph manifests. This node contains information about a package dependency within a repository
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Simple identifier: `{canonical_name}|{version}` or `{canonical_name}` - same dependency shared across repos |
+| **name** | Canonical name of the dependency (ecosystem-specific normalization) |
+| **original_name** | Original name as specified in the manifest file |
+| **version** | Pinned version if specified, otherwise null |
+| **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
+| **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
+| **repo_name** | Repository name extracted from repo URL |
+| **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
+
+#### Relationships
+
+- **GitHubRepository** via **REQUIRES** relationship
+  - **requirements**: Original requirement string from manifest
+  - **manifest_path**: Path to manifest file in repository
+
+    ```
+    (GitHubRepository)-[:REQUIRES]->(Dependency)
+    ```
+
+- **DependencyGraphManifest** via **HAS_DEP** relationship
+  - Dependencies are linked to their specific manifest files
+
+    ```
+    (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
+    ```
 
 ### Dependency::PythonLibrary
 

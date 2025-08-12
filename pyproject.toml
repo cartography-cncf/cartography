@@ -65,6 +65,7 @@ dependencies = [
     "xmltodict",
     "duo-client",
     "cloudflare (>=4.1.0,<5.0.0)",
+    "scaleway>=2.9.0",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
@@ -77,12 +78,12 @@ dev = [
     "pre-commit",
     "pytest>=6.2.4",
     "pytest-mock",
-    "pytest-cov==6.1.1",
+    "pytest-cov==6.2.1",
     "pytest-rerunfailures",
     "pytest-asyncio",
     "types-PyYAML",
     "black==25.1.0",
-    "types-requests<2.32.0.20250329",
+    "types-requests<2.32.4.20250612",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",

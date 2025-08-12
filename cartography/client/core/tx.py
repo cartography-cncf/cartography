@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -8,9 +9,14 @@ from typing import Union
 import neo4j
 
 from cartography.graph.querybuilder import build_create_index_queries
+from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_ingestion_query
+from cartography.graph.querybuilder import build_matchlink_query
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelSchema
 from cartography.util import batch
+
+logger = logging.getLogger(__name__)
 
 
 def read_list_of_values_tx(
@@ -255,6 +261,25 @@ def ensure_indexes(
         neo4j_session.run(query)
 
 
+def ensure_indexes_for_matchlinks(
+    neo4j_session: neo4j.Session,
+    rel_schema: CartographyRelSchema,
+) -> None:
+    """
+    Creates indexes for node fields if they don't exist for the given CartographyRelSchema object.
+    This is only used for load_rels() where we match on and connect existing nodes.
+    This is not used for CartographyNodeSchema objects.
+    """
+    queries = build_create_index_queries_for_matchlink(rel_schema)
+    logger.debug(f"CREATE INDEX queries for {rel_schema.rel_label}: {queries}")
+    for query in queries:
+        if not query.startswith("CREATE INDEX IF NOT EXISTS"):
+            raise ValueError(
+                'Query provided to `ensure_indexes_for_matchlinks()` does not start with "CREATE INDEX IF NOT EXISTS".',
+            )
+        neo4j_session.run(query)
+
+
 def load(
     neo4j_session: neo4j.Session,
     node_schema: CartographyNodeSchema,
@@ -276,3 +301,40 @@ def load(
     ensure_indexes(neo4j_session, node_schema)
     ingestion_query = build_ingestion_query(node_schema)
     load_graph_data(neo4j_session, ingestion_query, dict_list, **kwargs)
+
+
+def load_matchlinks(
+    neo4j_session: neo4j.Session,
+    rel_schema: CartographyRelSchema,
+    dict_list: list[dict[str, Any]],
+    **kwargs,
+) -> None:
+    """
+    Main entrypoint for intel modules to write relationships to the graph between two existing nodes.
+    :param neo4j_session: The Neo4j session
+    :param rel_schema: The CartographyRelSchema object to generate a query.
+    :param dict_list: The data to load to the graph represented as a list of dicts. The dicts must contain the source and
+    target node ids.
+    :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
+    :return: None
+    """
+    if len(dict_list) == 0:
+        # If there is no data to load, save some time.
+        return
+
+    # Validate that required kwargs are provided for cleanup queries
+    if "_sub_resource_label" not in kwargs:
+        raise ValueError(
+            f"Required kwarg '_sub_resource_label' not provided for {rel_schema.rel_label}. "
+            "This is needed for cleanup queries."
+        )
+    if "_sub_resource_id" not in kwargs:
+        raise ValueError(
+            f"Required kwarg '_sub_resource_id' not provided for {rel_schema.rel_label}. "
+            "This is needed for cleanup queries."
+        )
+
+    ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
+    matchlink_query = build_matchlink_query(rel_schema)
+    logger.debug(f"Matchlink query: {matchlink_query}")
+    load_graph_data(neo4j_session, matchlink_query, dict_list, **kwargs)

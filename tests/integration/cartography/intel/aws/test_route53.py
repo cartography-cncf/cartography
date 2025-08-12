@@ -1,5 +1,7 @@
 import cartography.intel.aws.route53
 import cartography.util
+import tests.data.aws.ec2.elastic_ip_addresses
+import tests.data.aws.ec2.load_balancers
 import tests.data.aws.route53
 
 TEST_UPDATE_TAG = 123456789
@@ -33,13 +35,27 @@ def _ensure_local_neo4j_has_test_route53_records(neo4j_session):
         TEST_AWS_ACCOUNTID,
         TEST_UPDATE_TAG,
     )
-    cartography.intel.aws.route53.link_sub_zones(neo4j_session, TEST_UPDATE_TAG)
+    cartography.intel.aws.route53.link_sub_zones(
+        neo4j_session, TEST_UPDATE_TAG, TEST_AWS_ACCOUNTID
+    )
 
 
 def _ensure_local_neo4j_has_test_ec2_records(neo4j_session):
     cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
         neo4j_session,
         tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA,
+        TEST_AWS_REGION,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+
+def _ensure_local_neo4j_has_test_elasticip_records(neo4j_session):
+    """Ensure that the test ElasticIP records are loaded in the database."""
+    data = tests.data.aws.ec2.elastic_ip_addresses.GET_ELASTIC_IP_ADDRESSES
+    cartography.intel.aws.ec2.elastic_ip_addresses.load_elastic_ip_addresses(
+        neo4j_session,
+        data,
         TEST_AWS_REGION,
         TEST_AWS_ACCOUNTID,
         TEST_UPDATE_TAG,
@@ -68,9 +84,9 @@ def test_transform_and_load_zones(neo4j_session):
 
     for zone in data:
         parsed_zone = cartography.intel.aws.route53.transform_zone(zone)
-        cartography.intel.aws.route53.load_zone(
+        cartography.intel.aws.route53.load_zones(
             neo4j_session,
-            parsed_zone,
+            [parsed_zone],
             TEST_AWS_ACCOUNTID,
             TEST_UPDATE_TAG,
         )
@@ -89,8 +105,9 @@ def test_transform_and_load_cname_records(neo4j_session):
     )
     cartography.intel.aws.route53.load_cname_records(
         neo4j_session,
-        first_data,
+        [first_data],
         TEST_UPDATE_TAG,
+        TEST_AWS_ACCOUNTID,
     )
 
     second_data = cartography.intel.aws.route53.transform_record_set(
@@ -100,8 +117,9 @@ def test_transform_and_load_cname_records(neo4j_session):
     )
     cartography.intel.aws.route53.load_cname_records(
         neo4j_session,
-        second_data,
+        [second_data],
         TEST_UPDATE_TAG,
+        TEST_AWS_ACCOUNTID,
     )
     result = neo4j_session.run(
         "MATCH (n:AWSDNSRecord{name:'subdomain.lyft.com'}) return count(n) as recordcount",
@@ -161,22 +179,6 @@ def test_load_dnspointsto_ec2_relationships(neo4j_session):
     assert actual == expected
 
 
-def test_load_dnspointsto_relationships(neo4j_session):
-    # Act: load dns resources
-    _ensure_local_neo4j_has_test_route53_records(neo4j_session)
-
-    # Assert: Verify that the expected AWS DNS records point to each other
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AWSDNSRecord{id:"/hostedzone/HOSTED_ZONE/example.com/NS"})-[:DNS_POINTS_TO]->(n2:AWSDNSRecord)
-        RETURN n1.name, n2.id
-        """,
-    )
-    expected = {("example.com", "/hostedzone/HOSTED_ZONE/example.com/A")}
-    actual = {(r["n1.name"], r["n2.id"]) for r in result}
-    assert actual == expected
-
-
 def test_cleanup_dnspointsto_relationships(neo4j_session):
     # Arrange: load dns resources with update tag of TEST_UPDATE_TAG
     _ensure_local_neo4j_has_test_route53_records(neo4j_session)
@@ -224,4 +226,45 @@ def test_cleanup_dnspointsto_relationships(neo4j_session):
     )
     actual = {(r["n1.id"], r["n2.name"]) for r in result}
     expected = {("/hostedzone/HOSTED_ZONE/example.com/NS", "hello")}
+    assert actual == expected
+
+
+def test_load_dnspointsto_elasticip_relationships(neo4j_session):
+    """
+    1. Start with a clean database
+    2. Load DNS and ElasticIP resources
+    3. Ensure that the expected :DNS_POINTS_TO relationships have been created
+    """
+
+    # Start with a clean db
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    cartography.intel.aws.ec2.elastic_ip_addresses.load_elastic_ip_addresses(
+        neo4j_session,
+        tests.data.aws.ec2.elastic_ip_addresses.GET_ELASTIC_IP_ADDRESSES,
+        TEST_AWS_REGION,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.aws.route53.load_dns_details(
+        neo4j_session,
+        tests.data.aws.route53.ELASTIC_IP_RELATIONSHIP_TEST_RECORDS,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Verify that the expected DNS record points to the expected ElasticIP using check_rels
+    from tests.integration.util import check_rels
+
+    actual = check_rels(
+        neo4j_session,
+        "AWSDNSRecord",
+        "name",
+        "ElasticIPAddress",
+        "public_ip",
+        "DNS_POINTS_TO",
+        rel_direction_right=True,
+    )
+    expected = {("hello.what.example.com", "192.168.1.1")}
     assert actual == expected

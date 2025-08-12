@@ -12,7 +12,7 @@ DESCRIBE_CLOUDTRAIL_TRAILS = [
         "HasCustomEventSelectors": False,
         "HasInsightSelectors": False,
         "KmsKeyId": "arn:aws:kms:us-east-1:123456789012:key/test-key",
-        "CloudWatchLogsLogGroupArn": "arn:aws:logs:us-east-1:123456789012:log-group:test-log-group",
+        "CloudWatchLogsLogGroupArn": "arn:aws:logs:eu-west-1:123456789012:log-group:/aws/lambda/process-orders:*",
     }
 ]
 

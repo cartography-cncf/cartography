@@ -4,6 +4,53 @@ from typing import List
 
 from cartography.intel.github.repos import UserAffiliationAndRepoPermission
 
+# Dependency graph test data for unit tests
+DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
+    "nodes": [
+        {
+            "blobPath": "/package.json",
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "react",
+                        "requirements": "18.2.0",
+                        "packageManager": "NPM",
+                    },
+                    {
+                        "packageName": "lodash",
+                        "requirements": "^4.17.21",
+                        "packageManager": "NPM",
+                    },
+                ],
+            },
+        },
+        {
+            "blobPath": "/requirements.txt",
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "Django",
+                        "requirements": "==4.2.0",
+                        "packageManager": "PIP",
+                    },
+                ],
+            },
+        },
+        {
+            "blobPath": "/pom.xml",
+            "dependencies": {
+                "nodes": [
+                    {
+                        "packageName": "org.springframework:spring-core",
+                        "requirements": "5.3.21",
+                        "packageManager": "MAVEN",
+                    },
+                ],
+            },
+        },
+    ],
+}
+
 GET_REPOS: List[dict[str, Any]] = [
     {
         "name": "sample_repo",
@@ -131,6 +178,7 @@ GET_REPOS: List[dict[str, Any]] = [
             """,
             ),
         },
+        "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
     },
 ]
 

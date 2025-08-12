@@ -1,48 +1,76 @@
+import json
 from uuid import uuid4
 
-from tests.data.kubernetes.namespaces import GET_CLUSTER_DATA
-from tests.data.kubernetes.namespaces import GET_NAMESPACES_DATA
+from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 
 RANDOM_ID = [uuid4().hex, uuid4().hex]
-GET_PODS_DATA = [
+
+
+KUBERNETES_CONTAINER_DATA = [
+    {
+        "name": "my-pod-container",
+        "image": "my-image",
+        "uid": f"{RANDOM_ID[0]}-my-pod-container",
+        "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+        "pod_id": RANDOM_ID[0],
+        "imagePullPolicy": "always",
+        "status_image_id": "my-image-id",
+        "status_image_sha": "my-image-sha",
+        "status_ready": True,
+        "status_started": True,
+        "status_state": "running",
+    },
+    {
+        "name": "my-service-pod-container",
+        "image": "my-image-1:latest",
+        "uid": f"{RANDOM_ID[1]}-my-pod-container",
+        "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+        "pod_id": RANDOM_ID[1],
+        "imagePullPolicy": "always",
+        "status_image_id": "my-image-id",
+        "status_image_sha": "my-image-sha",
+        "status_ready": False,
+        "status_started": True,
+        "status_state": "terminated",
+    },
+]
+
+
+KUBERNETES_PODS_DATA = [
     {
         "uid": RANDOM_ID[0],
         "name": "my-pod",
+        "status_phase": "running",
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
-        "namespace": GET_NAMESPACES_DATA[-1]["name"],
+        "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
         "node": "my-node",
-        "cluster_uid": GET_CLUSTER_DATA["uid"],
-        "labels": {
-            "key1": "val1",
-            "key2": "val2",
-        },
-        "containers": [
+        "labels": json.dumps(
             {
-                "name": "my-pod-container",
-                "image": "my-image",
-                "uid": f"{RANDOM_ID[0]}-my-pod-container",
-            },
+                "key1": "val1",
+                "key2": "val2",
+            }
+        ),
+        "containers": [
+            KUBERNETES_CONTAINER_DATA[0],
         ],
     },
     {
         "uid": RANDOM_ID[1],
         "name": "my-service-pod",
+        "status_phase": "running",
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
-        "namespace": GET_NAMESPACES_DATA[-1]["name"],
+        "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
         "node": "my-node",
-        "cluster_uid": GET_CLUSTER_DATA["uid"],
-        "labels": {
-            "key1": "val3",
-            "key2": "val4",
-        },
-        "containers": [
+        "labels": json.dumps(
             {
-                "name": "my-service-pod-container",
-                "image": "my-image",
-                "uid": f"{RANDOM_ID[1]}-my-pod-container",
-            },
+                "key1": "val3",
+                "key2": "val4",
+            }
+        ),
+        "containers": [
+            KUBERNETES_CONTAINER_DATA[1],
         ],
     },
 ]

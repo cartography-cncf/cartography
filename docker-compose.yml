@@ -61,6 +61,10 @@ services:
     # See dev instructions: we assume that you have built this with
     # `docker build -t cartography-cncf/cartography-dev -f dev.Dockerfile ./`
     image: cartography-cncf/cartography-dev
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    pull_policy: never # SECURITY: this prevents pulling the image from the registry that does not exist (prevents takeover)
     init: true
     restart: on-failure
     depends_on:

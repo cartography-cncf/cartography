@@ -27,15 +27,17 @@ def test_load_snipeit_user_relationship(neo4j_session):
     )
 
     # Assert
-
     # Make sure the expected Tenant is created
     expected_nodes = {
         ("SimpsonCorp",),
     }
-    check_nodes(
-        neo4j_session,
-        "SnipeitTenant",
-        ["id"],
+    assert (
+        check_nodes(
+            neo4j_session,
+            "SnipeitTenant",
+            ["id"],
+        )
+        == expected_nodes
     )
 
     # Make sure the expected Devices are created

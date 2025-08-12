@@ -26,6 +26,10 @@
 ```{include} ../modules/_cartography-metadata/schema.md
 ```
 
+```{include} ../modules/airbyte/schema.md
+```
+
+
 ```{include} ../modules/anthropic/schema.md
 ```
 
@@ -86,7 +90,13 @@
 ```{include} ../modules/pagerduty/schema.md
 ```
 
+```{include} ../modules/scaleway/schema.md
+```
+
 ```{include} ../modules/semgrep/schema.md
+```
+
+```{include} ../modules/sentinelone/schema.md
 ```
 
 ```{include} ../modules/snipeit/schema.md
