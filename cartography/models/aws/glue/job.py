@@ -50,7 +50,7 @@ class GlueJobToGlueConnectionRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("Connections", one_to_many=True)},
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES"
     properties: GlueJobToGlueConnectionRelProperties = (
         GlueJobToGlueConnectionRelProperties()

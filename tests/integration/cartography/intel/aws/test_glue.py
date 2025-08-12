@@ -84,12 +84,12 @@ def test_sync_glue(
 
     assert check_rels(
         neo4j_session,
-        "GlueConnection",
-        "id",
         "GlueJob",
+        "id",
+        "GlueConnection",
         "id",
         "USES",
         rel_direction_right=True,
     ) == {
-        ("test-jdbc-connection", "sample-etl-job"),
+        ("sample-etl-job", "test-jdbc-connection"),
     }
