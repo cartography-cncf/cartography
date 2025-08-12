@@ -85,7 +85,7 @@ def get(
 
 def transform(
     clients: list[dict[str, Any]], default_flows: dict[str, Any]
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any], dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     transformed_clients = []
     service_accounts = []
     flow_bindings = []
