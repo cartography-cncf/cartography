@@ -1,0 +1,22 @@
+nodes:
+  - label: GCPProject
+    properties:
+      - name: id
+  - label: GCPInstance
+    properties:
+      - name: id
+      - name: name
+      - name: zone
+      - name: status
+  - label: GCPBucket
+    properties:
+      - name: name
+      - name: location
+      - name: storageClass
+relationships:
+  - start_label: GCPProject
+    end_label: GCPInstance
+    type: HAS_INSTANCE
+  - start_label: GCPProject
+    end_label: GCPBucket
+    type: HAS_BUCKET
