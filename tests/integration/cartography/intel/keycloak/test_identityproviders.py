@@ -18,8 +18,8 @@ TEST_REALM = "simpson-corp"
 
 
 def _ensure_local_neo4j_has_test_identity_providers(neo4j_session):
-    original_data = deepcopy(tests.data.keycloak.identityproviders.KEYCLOAK_IDPS)
-    idps = cartography.intel.keycloak.identityproviders.transform(original_data)
+    raw_data = deepcopy(tests.data.keycloak.identityproviders.KEYCLOAK_IDPS)
+    idps = cartography.intel.keycloak.identityproviders.transform(raw_data)
     cartography.intel.keycloak.identityproviders.load_identityproviders(
         neo4j_session,
         idps,

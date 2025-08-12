@@ -58,7 +58,7 @@ class KeycloakScopeToRoleRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("_role_ids", one_to_many=True)},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "GRANTS"
     properties: KeycloakScopeToRoleRelProperties = KeycloakScopeToRoleRelProperties()
 

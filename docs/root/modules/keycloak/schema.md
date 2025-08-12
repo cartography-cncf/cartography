@@ -380,7 +380,7 @@ Represents a client scope in Keycloak that defines what access is requested or g
     ```
 - `KeycloakScope` can be granted by roles
     ```
-    (:KeycloakRoal)-[:GRANTS]->(:KeycloakScope)
+    (:KeycloakRole)-[:GRANTS]->(:KeycloakScope)
     ```
 - `KeycloakUser` can assume Scope (drawn by analysis job)
     ```

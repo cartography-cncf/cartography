@@ -349,7 +349,7 @@ class Config:
         self.sentinelone_api_url = sentinelone_api_url
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
-        self.keycloak_client_id = None
-        self.keycloak_client_secret = None
-        self.keycloak_realm = None
-        self.keycloak_url = None
+        self.keycloak_client_id = keycloak_client_id
+        self.keycloak_client_secret = keycloak_client_secret
+        self.keycloak_realm = keycloak_realm
+        self.keycloak_url = keycloak_url

@@ -19,12 +19,12 @@ TEST_REALM_ID = "abcd1234-efgh-5678-ijkl-9012mnop3456"
 
 
 def _ensure_local_neo4j_has_test_authenticationexecutions(neo4j_session):
-    original_data = deepcopy(
+    raw_data = deepcopy(
         tests.data.keycloak.authenticationexecutions.KEYCLOAK_AUTHENTICATIONEXECUTIONS
     )
     transformed_exec, flow_steps, initial_flow_steps = (
         cartography.intel.keycloak.authenticationexecutions.transform(
-            original_data, TEST_REALM
+            raw_data, TEST_REALM
         )
     )
     cartography.intel.keycloak.authenticationexecutions.load_authenticationexecutions(

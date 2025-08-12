@@ -67,7 +67,6 @@ def get(
     for client in get_paginated(
         api_session, url, params={"briefRepresentation": False}
     ):
-        result.append(client)
         # Check if the client has a service account user
         if "service_account" in client.get("defaultClientScopes", []):
             # Get service account user for each client

@@ -22,7 +22,7 @@ UPDATE_TAG = 0
 logger = logging.getLogger(__name__)
 
 
-def main(force_flag: bool) -> None:
+def main(force_flag: bool, analysis_job_directory: str) -> None:
     # Set up Neo4j connection
     if NEO4J_USER and NEO4J_PASSWORD:
         neo4j_driver = neo4j.GraphDatabase.driver(
@@ -38,7 +38,7 @@ def main(force_flag: bool) -> None:
         neo4j_uri=NEO4J_URL,
         neo4j_user=NEO4J_USER,
         neo4j_password=NEO4J_PASSWORD,
-        analysis_job_directory="cartography/data/jobs/analysis",
+        analysis_job_directory=analysis_job_directory,
     )
 
     # Check if the database is empty
@@ -142,6 +142,18 @@ if __name__ == "__main__":
         action="store_true",
         help="Force the script to run without confirmation, even if the database is not empty.",
     )
+    parser.add_argument(
+        "--analysis-job-directory",
+        type=str,
+        default="cartography/data/jobs/analysis",
+        help=(
+            "A path to a directory containing analysis jobs to run at the conclusion of the sync. cartography will "
+            "discover all JSON files in the given directory (and its subdirectories) and pass them to the GraphJob "
+            "API to execute against the graph. This allows you to apply data transformation and augmentation at "
+            "the end of a sync run without writing code. cartography does not guarantee the order in which the "
+            "jobs are executed."
+        ),
+    )
     args = parser.parse_args()
 
     logging.basicConfig()
@@ -152,4 +164,4 @@ if __name__ == "__main__":
     else:
         logger.setLevel(logging.INFO)
 
-    main(args.force)
+    main(args.force, args.analysis_job_directory)

@@ -1,4 +1,3 @@
-from copy import deepcopy
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -18,23 +17,6 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_REALM = "simpson-corp"
-
-
-def _ensure_local_neo4j_has_test_organizations(neo4j_session):
-    original_data = deepcopy(tests.data.keycloak.organizations.KEYCLOAK_ORGANIZATIONS)
-    orgs, domains = cartography.intel.keycloak.organizations.transform(original_data)
-    cartography.intel.keycloak.organizations.load_organizations(
-        neo4j_session,
-        orgs,
-        TEST_REALM,
-        TEST_UPDATE_TAG,
-    )
-    cartography.intel.keycloak.organizations.load_org_domains(
-        neo4j_session,
-        domains,
-        TEST_REALM,
-        TEST_UPDATE_TAG,
-    )
 
 
 @patch.object(

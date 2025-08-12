@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import patch
 
 import requests
@@ -53,9 +54,11 @@ TEST_REALM_DEFAULT_FLOWS = {
 
 
 def _ensure_local_neo4j_has_test_clients(neo4j_session):
+    raw_data = deepcopy(tests.data.keycloak.clients.KEYCLOAK_CLIENTS)
+
     transformed_clients, service_accounts, flows_bindings = (
         cartography.intel.keycloak.clients.transform(
-            tests.data.keycloak.clients.KEYCLOAK_CLIENTS,
+            raw_data,
             TEST_REALM_DEFAULT_FLOWS,
         )
     )

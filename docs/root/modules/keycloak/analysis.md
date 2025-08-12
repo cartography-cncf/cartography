@@ -21,7 +21,7 @@ SET r.lastupdated = $UPDATE_TAG
 ```mermaid
 graph LR
     U(KeycloakUser) -- MEMBER_OF --> SG(KeycloakGroup)
-    SG -- SUBGROUP_OF --> PG(KeycloakUser)
+    SG -- SUBGROUP_OF --> PG(KeycloakGroup)
     U == INHERITED_MEMBER_OF ==> PG
 ```
 

@@ -109,6 +109,7 @@ def get_mapping(
             mappings_url,
             timeout=_TIMEOUT,
         )
+        req.raise_for_status()
         result[scope_id] = req.json()
     return result
 
@@ -122,8 +123,8 @@ def transform(
     scopes_by_roles: dict[str, list[str]] = {}
     for scope_id, mapping in scope_role_mapping.items():
         for client_details in mapping.get("clientMappings", {}).values():
-            for mapping in client_details.get("mappings", []):
-                scopes_by_roles.setdefault(mapping["id"], []).append(scope_id)
+            for client_mapping in client_details.get("mappings", []):
+                scopes_by_roles.setdefault(client_mapping["id"], []).append(scope_id)
         for realm_mapping in mapping.get("realmMappings", []):
             scopes_by_roles.setdefault(realm_mapping["id"], []).append(scope_id)
 

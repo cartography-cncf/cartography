@@ -1,6 +1,6 @@
+from copy import deepcopy
+from unittest.mock import Mock
 from unittest.mock import patch
-
-import requests
 
 import cartography.intel.keycloak.groups
 import tests.data.keycloak.groups
@@ -23,11 +23,11 @@ TEST_REALM = "simpson-corp"
 @patch.object(
     cartography.intel.keycloak.groups,
     "get",
-    return_value=tests.data.keycloak.groups.KEYCLOAK_GROUPS,
+    return_value=deepcopy(tests.data.keycloak.groups.KEYCLOAK_GROUPS),
 )
 def test_load_keycloak_groups(mock_api, neo4j_session):
     # Arrange
-    api_session = requests.Session()
+    api_session = Mock()
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "REALM": TEST_REALM,
