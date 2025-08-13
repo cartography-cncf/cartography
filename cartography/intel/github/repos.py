@@ -657,7 +657,7 @@ def _transform_dependency_graph(
 
             # Create simple dependency ID using canonical name and requirements
             # This allows the same dependency to be shared across multiple repos
-            requirements_for_id = requirements.strip() if requirements else ""
+            requirements_for_id = (requirements or "").strip()
             dependency_id = (
                 f"{canonical_name}|{requirements_for_id}"
                 if requirements_for_id

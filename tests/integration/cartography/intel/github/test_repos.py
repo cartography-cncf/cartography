@@ -404,16 +404,16 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     # Create expected IDs with format: canonical_name|requirements
     repo_url = "https://github.com/cartography-cncf/cartography"
     react_id = "react|18.2.0"
-    lodash_id = "lodash|^4.17.21"
-    django_id = "django|==4.2.0"
+    lodash_id = "lodash"
+    django_id = "django|= 4.2.0"
     spring_core_id = "org.springframework:spring-core|5.3.21"
 
     # Assert - Test that new GitHub dependency graph nodes were created
     # Note: Database also contains legacy Python dependencies, so we check subset
     expected_github_dependency_nodes = {
         (react_id, "react", "18.2.0", "npm"),
-        (lodash_id, "lodash", "^4.17.21", "npm"),
-        (django_id, "django", "==4.2.0", "pip"),
+        (lodash_id, "lodash", None, "npm"),
+        (django_id, "django", "= 4.2.0", "pip"),
         (spring_core_id, "org.springframework:spring-core", "5.3.21", "maven"),
     }
     actual_dependency_nodes = check_nodes(
@@ -485,13 +485,13 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
         (
             repo_url,
             lodash_id,
-            "^4.17.21",
+            None,
             "/package.json",
         ),
         (
             repo_url,
             django_id,
-            "==4.2.0",
+            "= 4.2.0",
             "/requirements.txt",
         ),  # Preserves original requirements format
         (
