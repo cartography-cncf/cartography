@@ -541,7 +541,7 @@ def _test_dependency_relationship_properties(neo4j_session):
         (repo_url, django_id, "==4.2.0", "/requirements.txt"),
         (repo_url, spring_core_id, "5.3.21", "/pom.xml"),
     }
-    
+
     # Act
     result = neo4j_session.run(
         """
@@ -560,6 +560,6 @@ def _test_dependency_relationship_properties(neo4j_session):
         )
         for record in result
     }
-    
+
     # Assert
     assert expected_github_relationship_props.issubset(actual_github_relationship_props)
