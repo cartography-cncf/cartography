@@ -50,6 +50,7 @@ Representation of an AWS Account.
                                 :RDSCluster,
                                 :RDSInstance,
                                 :RDSSnapshot,
+                                :RDSEventSubscription,
                                 :SecretsManagerSecret,
                                 :SecurityHub,
                                 :SQSQueue,
@@ -2501,6 +2502,53 @@ Representation of an AWS Relational Database Service [DBSnapshot](https://docs.a
 -  RDS Snapshots can be tagged with AWSTags.
     ```
     (RDSSnapshot)-[TAGGED]->(AWSTag)
+    ```
+
+### RDSEventSubscription
+
+Representation of an AWS Relational Database Service [EventSubscription](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_EventSubscription.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The customer subscription identifier |
+| **arn** | The Amazon Resource Name (ARN) for the event subscription |
+| customer_aws_id | The AWS customer account associated with the event subscription |
+| sns_topic_arn | The ARN of the SNS topic to which notifications are sent |
+| source_type | The type of source that is generating the events (db-instance, db-cluster, db-snapshot) |
+| status | The status of the event subscription (active, inactive) |
+| enabled | Whether the event subscription is enabled |
+| subscription_creation_time | The time the event subscription was created |
+| event_categories | List of event categories for which to receive notifications |
+| source_ids | List of source identifiers for which to receive notifications |
+| region | The AWS region where the event subscription is located |
+
+#### Relationships
+
+- RDS Event Subscriptions are part of AWS Accounts.
+    ```
+    (AWSAccount)-[:RESOURCE]->(RDSEventSubscription)
+    ```
+
+- RDS Event Subscriptions send notifications to SNS Topics.
+    ```
+    (RDSEventSubscription)-[:NOTIFIES]->(SNSTopic)
+    ```
+
+- RDS Event Subscriptions monitor RDS Instances.
+    ```
+    (RDSEventSubscription)-[:MONITORS]->(RDSInstance)
+    ```
+
+- RDS Event Subscriptions monitor RDS Clusters.
+    ```
+    (RDSEventSubscription)-[:MONITORS]->(RDSCluster)
+    ```
+
+- RDS Event Subscriptions monitor RDS Snapshots.
+    ```
+    (RDSEventSubscription)-[:MONITORS]->(RDSSnapshot)
     ```
 
 ### ElasticacheCluster
