@@ -9,21 +9,48 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 
 def get_aws_admin_like_principals(neo4j_session: Session) -> List[Dict[str, Any]]:
     """
-    Return information on AWS principals that have admin-like privileges - that is, they have IAM policies that allow
-    resource=* and action=*.
+    Retrieve AWS principals with admin-like privileges.
 
-    Credit to
-    https://github.com/marco-lancini/cartography-queries/blob/4d1f3913facdce7a4011141a4c7a15997c03553f/queries/
-    queries.json#L236
+    This function identifies AWS principals that have IAM policies allowing broad access
+    with both ``resource=*`` and ``action=*`` permissions, indicating administrator-level
+    privileges.
 
-    Returned data shape: [
-        {
-            'account_name': 'my_account',
-            'account_id': '1234',
-            'principal_name': 'admin_role',
-            'policy_name': 'highly_privileged_policy',
-        },
-    ]
+    Args:
+        neo4j_session (Session): The Neo4j session object for database queries.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries containing information about
+            admin-like principals. Each dictionary contains:
+
+            - ``account_name`` (str): The name of the AWS account
+            - ``account_id`` (str): The AWS account ID
+            - ``principal_name`` (str): The name of the principal (user, role, etc.)
+            - ``policy_name`` (str): The name of the policy granting admin privileges
+
+    Examples:
+        >>> principals = get_aws_admin_like_principals(session)
+        >>> print(principals)
+        [
+            {
+                'account_name': 'my_account',
+                'account_id': '1234',
+                'principal_name': 'admin_role',
+                'policy_name': 'highly_privileged_policy',
+            },
+        ]
+
+    Note:
+        The function specifically looks for IAM policy statements with:
+
+        - ``effect = 'Allow'``
+        - ``resource`` containing ``*`` (wildcard)
+        - ``action`` containing ``*`` (wildcard)
+
+        Results are ordered by account name and principal name for consistent output.
+
+    See Also:
+        Original query implementation by Marco Lancini:
+        https://github.com/marco-lancini/cartography-queries/blob/4d1f3913facdce7a4011141a4c7a15997c03553f/queries/queries.json#L236
     """
     query = """
     MATCH (stat:AWSPolicyStatement)<-[:STATEMENT]-(policy:AWSPolicy)<-[:POLICY]-(p:AWSPrincipal)
