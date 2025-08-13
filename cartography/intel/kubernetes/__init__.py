@@ -4,8 +4,10 @@ from neo4j import Session
 
 from cartography.config import Config
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
+from cartography.intel.kubernetes.eks import sync as sync_eks
 from cartography.intel.kubernetes.namespaces import sync_namespaces
 from cartography.intel.kubernetes.pods import sync_pods
+from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.util import get_k8s_clients
@@ -38,6 +40,16 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             common_job_parameters["CLUSTER_ID"] = cluster_info.get("id")
 
             sync_namespaces(session, client, config.update_tag, common_job_parameters)
+            sync_kubernetes_rbac(
+                session, client, config.update_tag, common_job_parameters
+            )
+            sync_eks(
+                session,
+                client,
+                config.update_tag,
+                cluster_info.get("id", ""),
+                client.name,
+            )
             all_pods = sync_pods(
                 session,
                 client,
