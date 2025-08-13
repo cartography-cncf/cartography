@@ -1,12 +1,15 @@
 from unittest.mock import patch
 
+import cartography.intel.github.repos
 import cartography.intel.github.teams
 from cartography.intel.github.teams import sync_github_teams
+from tests.data.github.repos import DIRECT_COLLABORATORS
+from tests.data.github.repos import GET_REPOS
+from tests.data.github.repos import OUTSIDE_COLLABORATORS
 from tests.data.github.teams import GH_TEAM_CHILD_TEAM
 from tests.data.github.teams import GH_TEAM_DATA
 from tests.data.github.teams import GH_TEAM_REPOS
 from tests.data.github.teams import GH_TEAM_USERS
-from tests.integration.cartography.intel.github import test_repos
 from tests.integration.cartography.intel.github import test_users
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -33,15 +36,33 @@ FAKE_API_KEY = "asdf"
     return_value=GH_TEAM_REPOS,
 )
 @patch.object(cartography.intel.github.teams, "get_teams", return_value=GH_TEAM_DATA)
+@patch.object(
+    cartography.intel.github.repos,
+    "get",
+    return_value=GET_REPOS,
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    side_effect=[DIRECT_COLLABORATORS, OUTSIDE_COLLABORATORS],
+)
 def test_sync_github_teams(
     mock_teams,
     mock_team_repos,
     mock_team_users,
     mock_child_teams,
+    mock_repos_get,
+    mock_repos_collabs,
     neo4j_session,
 ):
     # Arrange
-    test_repos._ensure_local_neo4j_has_test_data(neo4j_session)
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        "simpsoncorp",
+    )
     test_users._ensure_local_neo4j_has_test_data(neo4j_session)
     # Arrange: Add another org to make sure we don't attach a node to the wrong org
     neo4j_session.run(
@@ -157,6 +178,34 @@ def test_sync_github_teams(
         (
             "https://github.com/orgs/simpsoncorp/teams/team-b",
             "https://github.com/cartography-cncf/cartography",
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GitHubTeam",
+        "id",
+        "GitHubRepository",
+        "id",
+        "MAINTAIN",
+        rel_direction_right=True,
+    ) == {
+        (
+            "https://github.com/orgs/simpsoncorp/teams/team-b",
+            "https://github.com/johndoe/personal-repo",
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GitHubTeam",
+        "id",
+        "GitHubRepository",
+        "id",
+        "TRIAGE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "https://github.com/orgs/simpsoncorp/teams/team-b",
+            "https://github.com/simpsoncorp/another-repo",
         ),
     }
     assert check_rels(

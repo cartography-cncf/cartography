@@ -15,7 +15,7 @@ GH_TEAM_DATA = (
                 "slug": "team-b",
                 "url": "https://github.com/orgs/simpsoncorp/teams/team-b",
                 "description": None,
-                "repositories": {"totalCount": 3},
+                "repositories": {"totalCount": 5},
                 "members": {"totalCount": 0},
                 "childTeams": {"totalCount": 0},
             },
@@ -57,11 +57,15 @@ GH_TEAM_REPOS = PaginatedGraphqlData(
         {"url": "https://github.com/simpsoncorp/sample_repo"},
         {"url": "https://github.com/simpsoncorp/SampleRepo2"},
         {"url": "https://github.com/cartography-cncf/cartography"},
+        {"url": "https://github.com/johndoe/personal-repo"},
+        {"url": "https://github.com/simpsoncorp/another-repo"},
     ],
     edges=[
         {"permission": "ADMIN"},
         {"permission": "WRITE"},
         {"permission": "READ"},
+        {"permission": "MAINTAIN"},
+        {"permission": "TRIAGE"},
     ],
 )
 

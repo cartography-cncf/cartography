@@ -180,6 +180,81 @@ GET_REPOS: List[dict[str, Any]] = [
         },
         "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
     },
+    {
+        "name": "personal-repo",
+        "nameWithOwner": "johndoe/personal-repo",
+        "primaryLanguage": {
+            "name": "JavaScript",
+        },
+        "url": "https://github.com/johndoe/personal-repo",
+        "sshUrl": "git@github.com:johndoe/personal-repo.git",
+        "createdAt": "2023-01-15T10:30:00Z",
+        "description": "A personal repository",
+        "updatedAt": "2023-12-01T14:22:00Z",
+        "homepageUrl": "https://johndoe.dev",
+        "languages": {
+            "totalCount": 2,
+            "nodes": [
+                {"name": "JavaScript"},
+                {"name": "TypeScript"},
+            ],
+        },
+        "defaultBranchRef": {
+            "name": "main",
+            "id": "personal_branch_ref_id==",
+        },
+        "isPrivate": False,
+        "isArchived": False,
+        "isDisabled": False,
+        "isLocked": False,
+        "owner": {
+            "url": "https://github.com/johndoe",
+            "login": "johndoe",
+            "__typename": "User",
+        },
+        "directCollaborators": {"totalCount": 0},
+        "outsideCollaborators": {"totalCount": 0},
+        "requirements": None,
+        "setupCfg": None,
+        "dependencyGraphManifests": None,
+    },
+    {
+        "name": "another-repo",
+        "nameWithOwner": "simpsoncorp/another-repo",
+        "primaryLanguage": {
+            "name": "Go",
+        },
+        "url": "https://github.com/simpsoncorp/another-repo",
+        "sshUrl": "git@github.com:simpsoncorp/another-repo.git",
+        "createdAt": "2023-06-15T08:15:00Z",
+        "description": "Another test repository",
+        "updatedAt": "2023-12-15T09:30:00Z",
+        "homepageUrl": "",
+        "languages": {
+            "totalCount": 1,
+            "nodes": [
+                {"name": "Go"},
+            ],
+        },
+        "defaultBranchRef": {
+            "name": "main",
+            "id": "another_branch_ref_id==",
+        },
+        "isPrivate": False,
+        "isArchived": False,
+        "isDisabled": False,
+        "isLocked": False,
+        "owner": {
+            "url": "https://github.com/simpsoncorp",
+            "login": "SimpsonCorp",
+            "__typename": "Organization",
+        },
+        "directCollaborators": {"totalCount": 0},
+        "outsideCollaborators": {"totalCount": 0},
+        "requirements": None,
+        "setupCfg": None,
+        "dependencyGraphManifests": None,
+    },
 ]
 
 
@@ -247,6 +322,8 @@ OUTSIDE_COLLABORATORS: dict[str, List[UserAffiliationAndRepoPermission]] = {
             affiliation="OUTSIDE",
         ),
     ],
+    GET_REPOS[3]["url"]: [],
+    GET_REPOS[4]["url"]: [],
 }
 
 
@@ -305,4 +382,6 @@ DIRECT_COLLABORATORS: dict[str, List[UserAffiliationAndRepoPermission]] = {
             affiliation="DIRECT",
         ),
     ],
+    GET_REPOS[3]["url"]: [],
+    GET_REPOS[4]["url"]: [],
 }
