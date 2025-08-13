@@ -4,3 +4,4 @@ venv/
 .compose
 .cache
 .local
+.venv
