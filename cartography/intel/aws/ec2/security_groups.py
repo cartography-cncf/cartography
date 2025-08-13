@@ -121,7 +121,7 @@ def transform_ec2_security_group_data(
         for rule in rules:
             rule_id = rule.get("RuleId") or rule.get("SecurityGroupRuleId")
             if not rule_id:
-                logger.warning("Skipping rule with no ID: %s", rule)
+                logger.warning("Skipping security group rule with missing ID in group %s", group_id)
                 continue
 
             is_egress = rule.get("IsEgress", False)
