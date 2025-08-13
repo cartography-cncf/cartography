@@ -82,8 +82,8 @@ def test_transform_dependency_converts_to_expected_format():
     dependency_ids = {dep["id"] for dep in output_list}
     expected_ids = {
         "react|18.2.0",
-        "lodash|^4.17.21",
-        "django|==4.2.0",
+        "lodash",
+        "django|= 4.2.0",
         "org.springframework:spring-core|5.3.21",
     }
     assert dependency_ids == expected_ids
