@@ -14,12 +14,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class IpRuleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("RuleId")
+    id: PropertyRef = PropertyRef("Arn")
+    arn: PropertyRef = PropertyRef("Arn")
     ruleid: PropertyRef = PropertyRef("RuleId", extra_index=True)
     groupid: PropertyRef = PropertyRef("GroupId", extra_index=True)
     protocol: PropertyRef = PropertyRef("Protocol")
     fromport: PropertyRef = PropertyRef("FromPort")
     toport: PropertyRef = PropertyRef("ToPort")
+    isegress: PropertyRef = PropertyRef("IsEgress")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
