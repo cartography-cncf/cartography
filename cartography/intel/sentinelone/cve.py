@@ -110,7 +110,6 @@ def sync(
     api_url = str(common_job_parameters.get("API_URL"))
     api_token = str(common_job_parameters.get("API_TOKEN"))
     account_id = str(common_job_parameters.get("S1_ACCOUNT_ID"))
-    update_tag = int(common_job_parameters.get("UPDATE_TAG", 0))
 
     cves = get(api_url, api_token, account_id)
     transformed_cves = transform(cves)
