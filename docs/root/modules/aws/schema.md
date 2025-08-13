@@ -1998,21 +1998,15 @@ Represents a generic IP rule. The creation of this node is derived from ingestin
 
 #### Relationships
 
-- IpRules have membership relationships to EC2SecurityGroups.
+- IpRules are defined from EC2SecurityGroups.
     ```
-    (IpRule)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
-    ```
-- IpRange nodes can be members of IpRules.
-    ```
-    (IpRange)-[MEMBER_OF_IP_RULE]->(IpRule)
+    (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
 
-### IpRule::IpPermissionInbound and IpPermissionEgress
+### IpRule::IpPermissionInbound
 
-IpPermissionInbound and IpPermissionEgress are specific types of IpRule nodes. They represent inbound and outbound IP-based rules respectively. 
-
-An IpRule node will have the IpPermissionInbound label when its `isegress` property is `false`, and the IpPermissionEgress label when its `isegress` property is `true`. These nodes are created from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+An IpPermissionInbound node is a specific type of IpRule.  It represents a generic inbound IP-based rules.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
 
 | Field | Description |
 |-------|-------------|
@@ -2029,17 +2023,10 @@ An IpRule node will have the IpPermissionInbound label when its `isegress` prope
 
 #### Relationships
 
-- IpPermissionInbound and IpPermissionEgress rules have membership relationships to EC2SecurityGroups.
+- IpPermissionInbound rules are defined from EC2SecurityGroups.
     ```
-    (IpRule:IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
-    (IpRule:IpPermissionEgress)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
-- IpRange nodes can be members of IpPermissionInbound and IpPermissionEgress rules.
-    ```
-    (IpRange)-[MEMBER_OF_IP_RULE]->(IpRule:IpPermissionInbound)
-    (IpRange)-[MEMBER_OF_IP_RULE]->(IpRule:IpPermissionEgress)
-    ```
-
 
 
 ### LoadBalancer
