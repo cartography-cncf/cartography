@@ -1980,47 +1980,66 @@ Represents a generic IP address.
 
 ### IpRule
 
-Represents a generic IP rule.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+Represents a generic IP rule. The creation of this node is derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules using the AWS EC2 API's SecurityGroupRule objects.
 
 | Field | Description |
 |-------|-------------|
-| **ruleid** | `{group_id}/{rule_type}/{from_port}{to_port}{protocol}` |
-| groupid | The groupid of the EC2 Security Group that this was derived from |
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| protocol | The protocol this rule applies to |
-| fromport | Lowest port in the range defined by this rule|
-| toport | Highest port in the range defined by this rule|
+| **ruleid** | The AWS SecurityGroupRuleId (e.g., 'sgr-0123456789abcdef') which uniquely identifies the rule |
+| **arn** | The ARN of the security group rule (e.g., 'arn:aws:ec2:region:account-id:security-group-rule/sgr-0123456789abcdef') |
+| **id** | Same as the ARN |
+| groupid | The groupid of the EC2 Security Group that this rule belongs to |
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| protocol | The protocol this rule applies to (e.g., 'tcp', 'udp', '-1' for all) |
+| fromport | Lowest port in the range defined by this rule |
+| toport | Highest port in the range defined by this rule |
+| isegress | Boolean indicating if this is an egress rule (true) or an ingress rule (false) |
 
 
 #### Relationships
 
-- IpRules are defined from EC2SecurityGroups.
+- IpRules have membership relationships to EC2SecurityGroups.
     ```
-    (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (IpRule)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    ```
+- IpRange nodes can be members of IpRules.
+    ```
+    (IpRange)-[MEMBER_OF_IP_RULE]->(IpRule)
     ```
 
 
-### IpRule::IpPermissionInbound
+### IpRule::IpPermissionInbound and IpPermissionEgress
 
-An IpPermissionInbound node is a specific type of IpRule.  It represents a generic inbound IP-based rules.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+IpPermissionInbound and IpPermissionEgress are specific types of IpRule nodes. They represent inbound and outbound IP-based rules respectively. 
+
+An IpRule node will have the IpPermissionInbound label when its `isegress` property is `false`, and the IpPermissionEgress label when its `isegress` property is `true`. These nodes are created from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
 
 | Field | Description |
 |-------|-------------|
-| **ruleid** | `{group_id}/{rule_type}/{from_port}{to_port}{protocol}` |
-| groupid |  The groupid of the EC2 Security Group that this was derived from |
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| protocol | The protocol this rule applies to |
-| fromport | Lowest port in the range defined by this rule|
-| toport | Highest port in the range defined by this rule|
+| **ruleid** | The AWS SecurityGroupRuleId (e.g., 'sgr-0123456789abcdef') which uniquely identifies the rule |
+| **arn** | The ARN of the security group rule |
+| **id** | Same as the ARN |
+| groupid | The groupid of the EC2 Security Group that this rule belongs to |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| protocol | The protocol this rule applies to (e.g., 'tcp', 'udp', '-1' for all) |
+| fromport | Lowest port in the range defined by this rule |
+| toport | Highest port in the range defined by this rule |
+| isegress | Always `false` for IpPermissionInbound nodes, `true` for IpPermissionEgress nodes |
 
 #### Relationships
 
-- IpPermissionInbound rules are defined from EC2SecurityGroups.
+- IpPermissionInbound and IpPermissionEgress rules have membership relationships to EC2SecurityGroups.
     ```
-    (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (IpRule:IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (IpRule:IpPermissionEgress)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
+- IpRange nodes can be members of IpPermissionInbound and IpPermissionEgress rules.
+    ```
+    (IpRange)-[MEMBER_OF_IP_RULE]->(IpRule:IpPermissionInbound)
+    (IpRange)-[MEMBER_OF_IP_RULE]->(IpRule:IpPermissionEgress)
+    ```
+
 
 
 ### LoadBalancer
