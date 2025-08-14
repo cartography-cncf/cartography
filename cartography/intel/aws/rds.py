@@ -9,6 +9,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.rds.cluster import RDSClusterSchema
+from cartography.models.aws.rds.event_subscription import RDSEventSubscriptionSchema
 from cartography.models.aws.rds.instance import RDSInstanceSchema
 from cartography.models.aws.rds.snapshot import RDSSnapshotSchema
 from cartography.models.aws.rds.subnet_group import DBSubnetGroupSchema
@@ -129,6 +130,38 @@ def load_rds_snapshots(
     load(
         neo4j_session,
         RDSSnapshotSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+@aws_handle_regions
+def get_rds_event_subscription_data(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict[str, Any]]:
+    client = boto3_session.client("rds", region_name=region)
+    paginator = client.get_paginator("describe_event_subscriptions")
+    subscriptions = []
+    for page in paginator.paginate():
+        subscriptions.extend(page["EventSubscriptionsList"])
+    return subscriptions
+
+
+@timeit
+def load_rds_event_subscriptions(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        RDSEventSubscriptionSchema(),
         data,
         lastupdated=aws_update_tag,
         Region=region,
@@ -292,6 +325,28 @@ def transform_rds_instances(
     return instances
 
 
+def transform_rds_event_subscriptions(data: List[Dict]) -> List[Dict]:
+    subscriptions = []
+    for subscription in data:
+        transformed = {
+            "CustSubscriptionId": subscription.get("CustSubscriptionId"),
+            "EventSubscriptionArn": subscription.get("EventSubscriptionArn"),
+            "CustomerAwsId": subscription.get("CustomerAwsId"),
+            "SnsTopicArn": subscription.get("SnsTopicArn"),
+            "SourceType": subscription.get("SourceType"),
+            "Status": subscription.get("Status"),
+            "Enabled": subscription.get("Enabled"),
+            "SubscriptionCreationTime": dict_value_to_str(
+                subscription, "SubscriptionCreationTime"
+            ),
+            "event_categories": subscription.get("EventCategoriesList") or None,
+            "source_ids": subscription.get("SourceIdsList") or None,
+            "lastupdated": None,  # This will be set by the loader
+        }
+        subscriptions.append(transformed)
+    return subscriptions
+
+
 def transform_rds_subnet_groups(
     data: List[Dict], region: str, current_aws_account_id: str
 ) -> List[Dict]:
@@ -413,6 +468,20 @@ def cleanup_rds_snapshots(
 
 
 @timeit
+def cleanup_rds_event_subscriptions(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Remove RDS event subscriptions that weren't updated in this sync run
+    """
+    logger.debug("Running RDS event subscriptions cleanup job")
+    GraphJob.from_node_schema(RDSEventSubscriptionSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
 def sync_rds_clusters(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -499,6 +568,32 @@ def sync_rds_snapshots(
 
 
 @timeit
+def sync_rds_event_subscriptions(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Grab RDS event subscription data from AWS, ingest to neo4j, and run the cleanup job.
+    """
+    for region in regions:
+        logger.info(
+            "Syncing RDS event subscriptions for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
+        )
+        data = get_rds_event_subscription_data(boto3_session, region)
+        transformed = transform_rds_event_subscriptions(data)
+        load_rds_event_subscriptions(
+            neo4j_session, transformed, region, current_aws_account_id, update_tag
+        )
+    cleanup_rds_event_subscriptions(neo4j_session, common_job_parameters)
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -531,6 +626,16 @@ def sync(
         update_tag,
         common_job_parameters,
     )
+
+    sync_rds_event_subscriptions(
+        neo4j_session,
+        boto3_session,
+        regions,
+        current_aws_account_id,
+        update_tag,
+        common_job_parameters,
+    )
+
     merge_module_sync_metadata(
         neo4j_session,
         group_type="AWSAccount",

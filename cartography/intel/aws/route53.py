@@ -398,7 +398,9 @@ def link_sub_zones(
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(z:AWSDNSZone)
         <-[:MEMBER_OF_DNS_ZONE]-(record:DNSRecord{type:"NS"})
         -[:DNS_POINTS_TO]->(ns:NameServer)<-[:NAMESERVER]-(z2:AWSDNSZone)
-    WHERE record.name=z2.name AND NOT z=z2
+        WHERE record.name = z2.name AND
+        z2.name ENDS WITH '.' + z.name AND
+        NOT z = z2
     RETURN z.id as zone_id, z2.id as subzone_id
     """
     zone_to_subzone = neo4j_session.read_transaction(
