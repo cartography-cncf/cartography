@@ -19,9 +19,6 @@ class KubernetesServiceAccountNodeProperties(CartographyNodeProperties):
     uid: PropertyRef = PropertyRef("uid")
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
     resource_version: PropertyRef = PropertyRef("resource_version")
-    cluster_name: PropertyRef = PropertyRef(
-        "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
-    )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

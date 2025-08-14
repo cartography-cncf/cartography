@@ -321,13 +321,13 @@ KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS = [
 ]
 
 KUBERNETES_CLUSTER_1_ROLE_IDS = [
-    "demo-ns/pod-reader",
-    "demo-ns/secret-manager",
+    "my-cluster-1/demo-ns/pod-reader",
+    "my-cluster-1/demo-ns/secret-manager",
 ]
 
 KUBERNETES_CLUSTER_1_ROLE_BINDING_IDS = [
-    "demo-ns/bind-demo-sa",
-    "demo-ns/bind-another-sa",
+    "my-cluster-1/demo-ns/bind-demo-sa",
+    "my-cluster-1/demo-ns/bind-another-sa",
 ]
 
 KUBERNETES_CLUSTER_2_SERVICE_ACCOUNT_IDS = [
@@ -335,31 +335,31 @@ KUBERNETES_CLUSTER_2_SERVICE_ACCOUNT_IDS = [
 ]
 
 KUBERNETES_CLUSTER_2_ROLE_IDS = [
-    "test-ns/test-reader",
+    "my-cluster-2/test-ns/test-reader",
 ]
 
 KUBERNETES_CLUSTER_2_ROLE_BINDING_IDS = [
-    "test-ns/bind-test-sa",
+    "my-cluster-2/test-ns/bind-test-sa",
 ]
 
 # Expected ClusterRole IDs after transformation
 KUBERNETES_CLUSTER_1_CLUSTER_ROLE_IDS = [
-    "cluster-admin",
-    "pod-viewer",
+    "my-cluster-1/cluster-admin",
+    "my-cluster-1/pod-viewer",
 ]
 
 KUBERNETES_CLUSTER_2_CLUSTER_ROLE_IDS = [
-    "cluster-viewer",
+    "my-cluster-2/cluster-viewer",
 ]
 
 # Expected ClusterRoleBinding IDs after transformation
 KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDING_IDS = [
-    "admin-binding",
-    "viewer-binding",
+    "my-cluster-1/admin-binding",
+    "my-cluster-1/viewer-binding",
 ]
 
 KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDING_IDS = [
-    "cluster-viewer-binding",
+    "my-cluster-2/cluster-viewer-binding",
 ]
 
 # Test namespace data for RBAC integration tests

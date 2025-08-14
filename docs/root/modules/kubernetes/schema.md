@@ -176,7 +176,6 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 | creation\_timestamp | Timestamp of the creation time of the Kubernetes ServiceAccount |
 | resource\_version | The resource version of the ServiceAccount for optimistic concurrency control |
 | automount\_service\_account\_token | Whether the ServiceAccount token should be automatically mounted in pods |
-| cluster\_name | Name of the Kubernetes cluster where this ServiceAccount is deployed |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 

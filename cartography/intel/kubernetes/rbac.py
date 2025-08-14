@@ -73,7 +73,7 @@ def transform_service_accounts(
     return result
 
 
-def transform_roles(roles: List[V1Role]) -> List[Dict[str, Any]]:
+def transform_roles(roles: List[V1Role], cluster_name: str) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes Roles into a list of dictionaries.
     Flattens rules into separate api_groups, resources, and verbs lists.
@@ -98,7 +98,7 @@ def transform_roles(roles: List[V1Role]) -> List[Dict[str, Any]]:
 
         result.append(
             {
-                "id": f"{role.metadata.namespace}/{role.metadata.name}",
+                "id": f"{cluster_name}/{role.metadata.namespace}/{role.metadata.name}",
                 "name": role.metadata.name,
                 "namespace": role.metadata.namespace,
                 "uid": role.metadata.uid,
@@ -140,7 +140,7 @@ def transform_role_bindings(
         if rb.subjects:
             result.append(
                 {
-                    "id": f"{rb.metadata.namespace}/{rb.metadata.name}",
+                    "id": f"{cluster_name}/{rb.metadata.namespace}/{rb.metadata.name}",
                     "name": rb.metadata.name,
                     "namespace": rb.metadata.namespace,
                     "uid": rb.metadata.uid,
@@ -158,13 +158,15 @@ def transform_role_bindings(
                     "group_ids": [
                         f"{cluster_name}/{subject.name}" for subject in group_subjects
                     ],
-                    "role_id": f"{rb.metadata.namespace}/{rb.role_ref.name}",
+                    "role_id": f"{cluster_name}/{rb.metadata.namespace}/{rb.role_ref.name}",
                 }
             )
     return result
 
 
-def transform_cluster_roles(cluster_roles: List[V1ClusterRole]) -> List[Dict[str, Any]]:
+def transform_cluster_roles(
+    cluster_roles: List[V1ClusterRole], cluster_name: str
+) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes ClusterRoles into a list of dictionaries.
     Flattens rules into separate api_groups, resources, and verbs lists.
@@ -189,7 +191,7 @@ def transform_cluster_roles(cluster_roles: List[V1ClusterRole]) -> List[Dict[str
 
         result.append(
             {
-                "id": cluster_role.metadata.name,
+                "id": f"{cluster_name}/{cluster_role.metadata.name}",
                 "name": cluster_role.metadata.name,
                 "uid": cluster_role.metadata.uid,
                 "creation_timestamp": get_epoch(
@@ -232,7 +234,7 @@ def transform_cluster_role_bindings(
         if crb.subjects:
             result.append(
                 {
-                    "id": f"{crb.metadata.name}",  # ClusterRoleBinding is cluster-scoped, so just use name
+                    "id": f"{cluster_name}/{crb.metadata.name}",
                     "name": crb.metadata.name,
                     "uid": crb.metadata.uid,
                     "creation_timestamp": get_epoch(crb.metadata.creation_timestamp),
@@ -249,7 +251,7 @@ def transform_cluster_role_bindings(
                     "group_ids": [
                         f"{cluster_name}/{subject.name}" for subject in group_subjects
                     ],
-                    "role_id": crb.role_ref.name,  # ClusterRole ID is just the name
+                    "role_id": f"{cluster_name}/{crb.role_ref.name}",
                 }
             )
     return result
@@ -399,11 +401,11 @@ def sync_kubernetes_rbac(
 
     # Transform namespace-scoped resources
     transformed_service_accounts = transform_service_accounts(service_accounts)
-    transformed_roles = transform_roles(roles)
+    transformed_roles = transform_roles(roles, client.name)
     transformed_role_bindings = transform_role_bindings(role_bindings, client.name)
 
     # Transform cluster-scoped resources
-    transformed_cluster_roles = transform_cluster_roles(cluster_roles)
+    transformed_cluster_roles = transform_cluster_roles(cluster_roles, client.name)
     transformed_cluster_role_bindings = transform_cluster_role_bindings(
         cluster_role_bindings, client.name
     )
