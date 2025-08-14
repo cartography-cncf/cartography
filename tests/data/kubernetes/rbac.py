@@ -315,9 +315,9 @@ KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDINGS_RAW = [
 
 # Expected node IDs after transformation (for test assertions)
 KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS = [
-    "demo-ns/demo-sa",
-    "demo-ns/another-sa",
-    "test-ns/test-sa",
+    "my-cluster-1/demo-ns/demo-sa",
+    "my-cluster-1/demo-ns/another-sa",
+    "my-cluster-1/test-ns/test-sa",
 ]
 
 KUBERNETES_CLUSTER_1_ROLE_IDS = [
@@ -331,7 +331,7 @@ KUBERNETES_CLUSTER_1_ROLE_BINDING_IDS = [
 ]
 
 KUBERNETES_CLUSTER_2_SERVICE_ACCOUNT_IDS = [
-    "test-ns/test-sa",
+    "my-cluster-2/test-ns/test-sa",
 ]
 
 KUBERNETES_CLUSTER_2_ROLE_IDS = [

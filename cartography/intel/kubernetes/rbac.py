@@ -27,42 +27,48 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+@timeit
 def get_service_accounts(k8s_client: K8sClient) -> List[V1ServiceAccount]:
 
     return k8s_paginate(k8s_client.core.list_service_account_for_all_namespaces)
 
 
+@timeit
 def get_roles(k8s_client: K8sClient) -> List[V1Role]:
 
     return k8s_paginate(k8s_client.rbac.list_role_for_all_namespaces)
 
 
+@timeit
 def get_role_bindings(k8s_client: K8sClient) -> List[V1RoleBinding]:
 
     return k8s_paginate(k8s_client.rbac.list_role_binding_for_all_namespaces)
 
 
+@timeit
 def get_cluster_roles(k8s_client: K8sClient) -> List[V1ClusterRole]:
 
     return k8s_paginate(k8s_client.rbac.list_cluster_role)
 
 
+@timeit
 def get_cluster_role_bindings(k8s_client: K8sClient) -> List[V1ClusterRoleBinding]:
 
     return k8s_paginate(k8s_client.rbac.list_cluster_role_binding)
 
 
 def transform_service_accounts(
-    service_accounts: List[V1ServiceAccount],
+    service_accounts: List[V1ServiceAccount], cluster_name: str
 ) -> List[Dict[str, Any]]:
     """
     Transform Kubernetes ServiceAccounts into a list of dictionaries.
+    Uses cluster-scoped IDs to prevent collisions across multiple clusters.
     """
     result = []
     for sa in service_accounts:
         result.append(
             {
-                "id": f"{sa.metadata.namespace}/{sa.metadata.name}",
+                "id": f"{cluster_name}/{sa.metadata.namespace}/{sa.metadata.name}",
                 "name": sa.metadata.name,
                 "namespace": sa.metadata.namespace,
                 "uid": sa.metadata.uid,
@@ -149,7 +155,7 @@ def transform_role_bindings(
                     "role_name": rb.role_ref.name,
                     "role_kind": rb.role_ref.kind,
                     "service_account_ids": [
-                        f"{subject.namespace}/{subject.name}"
+                        f"{cluster_name}/{subject.namespace}/{subject.name}"
                         for subject in service_account_subjects
                     ],
                     "user_ids": [
@@ -242,7 +248,7 @@ def transform_cluster_role_bindings(
                     "role_name": crb.role_ref.name,
                     "role_kind": crb.role_ref.kind,
                     "service_account_ids": [
-                        f"{subject.namespace}/{subject.name}"
+                        f"{cluster_name}/{subject.namespace}/{subject.name}"
                         for subject in service_account_subjects
                     ],
                     "user_ids": [
@@ -400,7 +406,9 @@ def sync_kubernetes_rbac(
     cluster_role_bindings = get_cluster_role_bindings(client)
 
     # Transform namespace-scoped resources
-    transformed_service_accounts = transform_service_accounts(service_accounts)
+    transformed_service_accounts = transform_service_accounts(
+        service_accounts, client.name
+    )
     transformed_roles = transform_roles(roles, client.name)
     transformed_role_bindings = transform_role_bindings(role_bindings, client.name)
 

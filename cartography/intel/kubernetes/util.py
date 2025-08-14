@@ -18,11 +18,6 @@ class KubernetesContextNotFound(Exception):
     pass
 
 
-def _create_api_client(name: str, config_file: str) -> ApiClient:
-    """Create a Kubernetes API client for the given context."""
-    return config.new_client_from_config(context=name, config_file=config_file)
-
-
 class K8CoreApiClient(CoreV1Api):
     def __init__(
         self,
@@ -32,7 +27,9 @@ class K8CoreApiClient(CoreV1Api):
     ) -> None:
         self.name = name
         if not api_client:
-            api_client = _create_api_client(name, config_file)
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
         super().__init__(api_client=api_client)
 
 
@@ -45,7 +42,9 @@ class K8NetworkingApiClient(NetworkingV1Api):
     ) -> None:
         self.name = name
         if not api_client:
-            api_client = _create_api_client(name, config_file)
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
         super().__init__(api_client=api_client)
 
 
@@ -58,7 +57,9 @@ class K8VersionApiClient(VersionApi):
     ) -> None:
         self.name = name
         if not api_client:
-            api_client = _create_api_client(name, config_file)
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
         super().__init__(api_client=api_client)
 
 
@@ -71,7 +72,9 @@ class K8RbacApiClient(RbacAuthorizationV1Api):
     ) -> None:
         self.name = name
         if not api_client:
-            api_client = _create_api_client(name, config_file)
+            api_client = config.new_client_from_config(
+                context=name, config_file=config_file
+            )
         super().__init__(api_client=api_client)
 
 
