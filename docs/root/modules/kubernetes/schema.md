@@ -26,6 +26,11 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
                                        :KubernetesContainer,
                                        :KubernetesService,
                                        :KubernetesSecret,
+                                       :KubernetesServiceAccount,
+                                       :KubernetesRole,
+                                       :KubernetesRoleBinding,
+                                       :KubernetesClusterRole,
+                                       :KubernetesClusterRoleBinding,
                                        ...)
     ```
 
@@ -55,6 +60,10 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
                                          :KubernetesContainer,
                                          :KubernetesService,
                                          :KubernetesSecret,
+                                         :KubernetesServiceAccount,
+                                         :KubernetesRole,
+                                         :KubernetesRoleBinding,
+                                         :KubernetesClusterRoleBinding,
                                          ...)
     ```
 
@@ -153,4 +162,176 @@ Representation of a [Kubernetes Secret.](https://kubernetes.io/docs/concepts/con
 - `KubernetesNamespace` has `KubernetesSecret`.
     ```
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesSecret)
+    ```
+
+### KubernetesServiceAccount
+Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/concepts/security/service-accounts/)
+
+| Field | Description |
+|-------|-------------|
+| id | Identifier for the ServiceAccount derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-service-account`) |
+| name | Name of the Kubernetes ServiceAccount |
+| namespace | The Kubernetes namespace where this ServiceAccount is deployed |
+| uid | UID of the Kubernetes ServiceAccount |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes ServiceAccount |
+| resource\_version | The resource version of the ServiceAccount for optimistic concurrency control |
+| automount\_service\_account\_token | Whether the ServiceAccount token should be automatically mounted in pods |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesServiceAccount` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesServiceAccount)
+    ```
+
+- `KubernetesServiceAccount` is contained in a `KubernetesNamespace`.
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesServiceAccount)
+    ```
+
+- `KubernetesServiceAccount` is used as a subject in `KubernetesRoleBinding`.
+    ```
+    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
+    ```
+
+- `KubernetesServiceAccount` is used as a subject in `KubernetesClusterRoleBinding`.
+    ```
+    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
+    ```
+
+### KubernetesRole
+Representation of a [Kubernetes Role.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole)
+
+| Field | Description |
+|-------|-------------|
+| id | Identifier for the Role derived from cluster_name, namespace and name (e.g. `my-cluster/default/pod-reader`) |
+| name | Name of the Kubernetes Role |
+| namespace | The Kubernetes namespace where this Role is deployed |
+| uid | UID of the Kubernetes Role |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes Role |
+| resource\_version | The resource version of the Role for optimistic concurrency control |
+| api\_groups | List of API groups that this Role grants access to (e.g. `["core", "apps"]`) |
+| resources | List of resources that this Role grants access to (e.g. `["pods", "services"]`) |
+| verbs | List of verbs/actions that this Role allows (e.g. `["get", "list", "create"]`) |
+| cluster\_name | Name of the Kubernetes cluster where this Role is deployed |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesRole` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesRole)
+    ```
+
+- `KubernetesRole` is contained in a `KubernetesNamespace`.
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesRole)
+    ```
+
+- `KubernetesRole` is referenced by `KubernetesRoleBinding`.
+    ```
+    (:KubernetesRoleBinding)-[:ROLE_REF]->(:KubernetesRole)
+    ```
+
+### KubernetesRoleBinding
+Representation of a [Kubernetes RoleBinding.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding)
+
+| Field | Description |
+|-------|-------------|
+| id | Identifier for the RoleBinding derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-binding`) |
+| name | Name of the Kubernetes RoleBinding |
+| namespace | The Kubernetes namespace where this RoleBinding is deployed |
+| uid | UID of the Kubernetes RoleBinding |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes RoleBinding |
+| resource\_version | The resource version of the RoleBinding for optimistic concurrency control |
+| role\_name | Name of the Role that this RoleBinding references |
+| role\_kind | Kind of the role reference (e.g. `Role` or `ClusterRole`) |
+| subject\_name | Name of the subject (ServiceAccount, User, or Group) |
+| subject\_namespace | Namespace of the subject (for ServiceAccounts) |
+| subject\_service\_account\_id | Identifier for the target ServiceAccount (used for relationship matching) |
+| role\_id | Identifier for the target Role (used for relationship matching) |
+| cluster\_name | Name of the Kubernetes cluster where this RoleBinding is deployed |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesRoleBinding` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesRoleBinding)
+    ```
+
+- `KubernetesRoleBinding` is contained in a `KubernetesNamespace`.
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesRoleBinding)
+    ```
+
+- `KubernetesRoleBinding` binds a subject to a role.
+    ```
+    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
+    (:KubernetesRoleBinding)-[:ROLE_REF]->(:KubernetesRole)
+    ```
+
+### KubernetesClusterRole
+Representation of a [Kubernetes ClusterRole.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole)
+
+| Field | Description |
+|-------|-------------|
+| id | Identifier for the ClusterRole derived from cluster_name and name (e.g. `my-cluster/cluster-admin`) |
+| name | Name of the Kubernetes ClusterRole |
+| uid | UID of the Kubernetes ClusterRole |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes ClusterRole |
+| resource\_version | The resource version of the ClusterRole for optimistic concurrency control |
+| api\_groups | List of API groups that this ClusterRole grants access to (e.g. `["core", "apps"]`) |
+| resources | List of resources that this ClusterRole grants access to (e.g. `["pods", "services"]`) |
+| verbs | List of verbs/actions that this ClusterRole allows (e.g. `["get", "list", "create"]`) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesClusterRole` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesClusterRole)
+    ```
+
+- `KubernetesClusterRole` is referenced by `KubernetesClusterRoleBinding`.
+    ```
+    (:KubernetesClusterRoleBinding)-[:ROLE_REF]->(:KubernetesClusterRole)
+    ```
+
+### KubernetesClusterRoleBinding
+Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding)
+
+| Field | Description |
+|-------|-------------|
+| id | Identifier for the ClusterRoleBinding derived from cluster_name and name (e.g. `my-cluster/cluster-admin-binding`) |
+| name | Name of the Kubernetes ClusterRoleBinding |
+| namespace | The namespace of the subject (for cross-namespace subject references) |
+| uid | UID of the Kubernetes ClusterRoleBinding |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes ClusterRoleBinding |
+| resource\_version | The resource version of the ClusterRoleBinding for optimistic concurrency control |
+| role\_name | Name of the ClusterRole that this ClusterRoleBinding references |
+| role\_kind | Kind of the role reference (typically `ClusterRole`) |
+| subject\_name | Name of the subject (ServiceAccount, User, or Group) |
+| subject\_namespace | Namespace of the subject (for ServiceAccounts) |
+| subject\_service\_account\_id | Identifier for the target ServiceAccount (used for relationship matching) |
+| role\_id | Identifier for the target ClusterRole (used for relationship matching) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesClusterRoleBinding` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesClusterRoleBinding)
+    ```
+
+- `KubernetesClusterRoleBinding` is contained in a `KubernetesNamespace` (for subject namespace association).
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesClusterRoleBinding)
+    ```
+
+- `KubernetesClusterRoleBinding` binds a subject to a cluster role.
+    ```
+    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
+    (:KubernetesClusterRoleBinding)-[:ROLE_REF]->(:KubernetesClusterRole)
     ```
