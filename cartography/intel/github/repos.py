@@ -404,8 +404,6 @@ def _create_default_branch_id(repo_url: str, default_branch_ref_id: str) -> str:
     return f"{repo_url}:{default_branch_ref_id}"
 
 
-
-
 def _create_git_url_from_ssh_url(ssh_url: str) -> str:
     """
     Return a git:// URL from the given ssh_url.
@@ -413,11 +411,11 @@ def _create_git_url_from_ssh_url(ssh_url: str) -> str:
         git@github.com:cartography-cncf/cartography.git
         -> git://github.com/cartography-cncf/cartography.git
     """
-    match = re.match(r'^git@([^:]+):(.+)$', ssh_url)
+    match = re.match(r"^git@([^:]+):(.+)$", ssh_url)
     if match:
         host = match.group(1)
         path = match.group(2)
-        return f'git://{host}/{path}'
+        return f"git://{host}/{path}"
     return ssh_url  # fallback if not matching expected pattern
 
 
