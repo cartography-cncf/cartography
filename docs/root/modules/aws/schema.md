@@ -50,6 +50,7 @@ Representation of an AWS Account.
                                 :RDSCluster,
                                 :RDSInstance,
                                 :RDSSnapshot,
+                                :RDSEventSubscription,
                                 :SecretsManagerSecret,
                                 :SecurityHub,
                                 :SQSQueue,
@@ -965,6 +966,31 @@ Representation of an AWS [Glue Connection](https://docs.aws.amazon.com/glue/late
     ```
     (AWSAccount)-[RESOURCE]->(GlueConnection)
     ```
+
+### GlueJob
+Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/webapi/API_GetJobs.html)
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The name you assign to this job definition |
+| arn | The name you assign to this job definition |
+| region | The region of the Glue job |
+| description | The description of the job |
+| profile_name | The name of an AWS Glue usage profile associated with the job |
+| job_mode | A mode that describes how a job was created |
+| connections | The connections used for this job |
+#### Relationships
+- Glue Jobs are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(GlueJob)
+    ```
+- Glue Jobs are used by Glue Connections.
+    ```
+    (GlueConnection)-[USES]->(GlueJob)
+    ```
+
 
 ### CodeBuildProject
 Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebuild/latest/APIReference/API_Project.html)
@@ -2476,6 +2502,53 @@ Representation of an AWS Relational Database Service [DBSnapshot](https://docs.a
 -  RDS Snapshots can be tagged with AWSTags.
     ```
     (RDSSnapshot)-[TAGGED]->(AWSTag)
+    ```
+
+### RDSEventSubscription
+
+Representation of an AWS Relational Database Service [EventSubscription](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_EventSubscription.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The customer subscription identifier |
+| **arn** | The Amazon Resource Name (ARN) for the event subscription |
+| customer_aws_id | The AWS customer account associated with the event subscription |
+| sns_topic_arn | The ARN of the SNS topic to which notifications are sent |
+| source_type | The type of source that is generating the events (db-instance, db-cluster, db-snapshot) |
+| status | The status of the event subscription (active, inactive) |
+| enabled | Whether the event subscription is enabled |
+| subscription_creation_time | The time the event subscription was created |
+| event_categories | List of event categories for which to receive notifications |
+| source_ids | List of source identifiers for which to receive notifications |
+| region | The AWS region where the event subscription is located |
+
+#### Relationships
+
+- RDS Event Subscriptions are part of AWS Accounts.
+    ```
+    (AWSAccount)-[:RESOURCE]->(RDSEventSubscription)
+    ```
+
+- RDS Event Subscriptions send notifications to SNS Topics.
+    ```
+    (RDSEventSubscription)-[:NOTIFIES]->(SNSTopic)
+    ```
+
+- RDS Event Subscriptions monitor RDS Instances.
+    ```
+    (RDSEventSubscription)-[:MONITORS]->(RDSInstance)
+    ```
+
+- RDS Event Subscriptions monitor RDS Clusters.
+    ```
+    (RDSEventSubscription)-[:MONITORS]->(RDSCluster)
+    ```
+
+- RDS Event Subscriptions monitor RDS Snapshots.
+    ```
+    (RDSEventSubscription)-[:MONITORS]->(RDSSnapshot)
     ```
 
 ### ElasticacheCluster
