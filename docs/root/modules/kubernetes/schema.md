@@ -169,7 +169,7 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the ServiceAccount derived from namespace and name (e.g. `default/my-service-account`) |
+| id | Identifier for the ServiceAccount derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-service-account`) |
 | name | Name of the Kubernetes ServiceAccount |
 | namespace | The Kubernetes namespace where this ServiceAccount is deployed |
 | uid | UID of the Kubernetes ServiceAccount |
@@ -205,7 +205,7 @@ Representation of a [Kubernetes Role.](https://kubernetes.io/docs/reference/acce
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the Role derived from namespace and name (e.g. `default/pod-reader`) |
+| id | Identifier for the Role derived from cluster_name, namespace and name (e.g. `my-cluster/default/pod-reader`) |
 | name | Name of the Kubernetes Role |
 | namespace | The Kubernetes namespace where this Role is deployed |
 | uid | UID of the Kubernetes Role |
@@ -239,7 +239,7 @@ Representation of a [Kubernetes RoleBinding.](https://kubernetes.io/docs/referen
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the RoleBinding derived from namespace, binding name, and subject (e.g. `default/my-binding/default/my-service-account`) |
+| id | Identifier for the RoleBinding derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-binding`) |
 | name | Name of the Kubernetes RoleBinding |
 | namespace | The Kubernetes namespace where this RoleBinding is deployed |
 | uid | UID of the Kubernetes RoleBinding |
@@ -277,7 +277,7 @@ Representation of a [Kubernetes ClusterRole.](https://kubernetes.io/docs/referen
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the ClusterRole (same as name since ClusterRoles are cluster-scoped) |
+| id | Identifier for the ClusterRole derived from cluster_name and name (e.g. `my-cluster/cluster-admin`) |
 | name | Name of the Kubernetes ClusterRole |
 | uid | UID of the Kubernetes ClusterRole |
 | creation\_timestamp | Timestamp of the creation time of the Kubernetes ClusterRole |
@@ -304,7 +304,7 @@ Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the ClusterRoleBinding derived from binding name and subject (e.g. `cluster-admin-binding/kube-system/admin-sa`) |
+| id | Identifier for the ClusterRoleBinding derived from cluster_name and name (e.g. `my-cluster/cluster-admin-binding`) |
 | name | Name of the Kubernetes ClusterRoleBinding |
 | namespace | The namespace of the subject (for cross-namespace subject references) |
 | uid | UID of the Kubernetes ClusterRoleBinding |
