@@ -8,8 +8,11 @@ import neo4j
 from okta import UsersClient
 from okta.models.user import User
 
+from cartography.client.core.tx import load
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
+from cartography.models.okta.human import HumanSchema
+from cartography.models.okta.user import OktaUserSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -140,45 +143,18 @@ def _load_okta_users(
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :return: Nothing
     """
-
-    ingest_statement = """
-    MATCH (org:OktaOrganization{id: $ORG_ID})
-    WITH org
-    UNWIND $USER_LIST as user_data
-    MERGE (new_user:OktaUser{id: user_data.id})
-    ON CREATE SET new_user.firstseen = timestamp()
-    SET new_user.first_name = user_data.first_name,
-    new_user.last_name = user_data.last_name,
-    new_user.login = user_data.login,
-    new_user.email = user_data.email,
-    new_user.second_email = user_data.second_email,
-    new_user.created = user_data.created,
-    new_user.activated = user_data.activated,
-    new_user.status_changed = user_data.status_changed,
-    new_user.last_login = user_data.last_login,
-    new_user.okta_last_updated = user_data.okta_last_updated,
-    new_user.password_changed = user_data.password_changed,
-    new_user.transition_to_status = user_data.transition_to_status,
-    new_user.lastupdated = $okta_update_tag,
-    new_user :UserAccount
-    WITH new_user, org
-    MERGE (org)-[org_r:RESOURCE]->(new_user)
-    ON CREATE SET org_r.firstseen = timestamp()
-    SET org_r.lastupdated = $okta_update_tag
-    WITH new_user
-    MERGE (h:Human{email: new_user.email})
-    ON CREATE SET new_user.firstseen = timestamp()
-    SET h.lastupdated = $okta_update_tag
-    MERGE (h)-[r:IDENTITY_OKTA]->(new_user)
-    ON CREATE SET new_user.firstseen = timestamp()
-    SET h.lastupdated = $okta_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_statement,
+    load(
+        neo4j_session,
+        OktaUserSchema(),
+        user_list,
+        lastupdated=okta_update_tag,
         ORG_ID=okta_org_id,
-        USER_LIST=user_list,
-        okta_update_tag=okta_update_tag,
+    )
+    load(
+        neo4j_session,
+        HumanSchema(),
+        user_list,
+        lastupdated=okta_update_tag,
     )
 
 
