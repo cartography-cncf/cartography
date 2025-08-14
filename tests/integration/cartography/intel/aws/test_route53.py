@@ -270,6 +270,7 @@ def test_load_dnspointsto_elasticip_relationships(neo4j_session):
     expected = {("hello.what.example.com", "192.168.1.1")}
     assert actual == expected
 
+
 def test_link_sub_zones_handles_cycles(neo4j_session):
     """
     Test that link_sub_zones correctly creates a valid [:SUBZONE] relationship
@@ -295,28 +296,22 @@ def test_link_sub_zones_handles_cycles(neo4j_session):
 
     # Act: Run the subzone linking function that contains the fix.
     cartography.intel.aws.route53.link_sub_zones(
-        neo4j_session, TEST_UPDATE_TAG, TEST_AWS_ACCOUNTID,
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        TEST_AWS_ACCOUNTID,
     )
 
-    
     # Assert: Verify the graph state is correct after the run.
     # This single check verifies that the correct relationship `(example.com)->[:SUBZONE]->(sub.example.com)` exists
     # and that no incorrect relationships (e.g. to 'unrelated.io') exist.
-    expected = {('example.com', 'sub.example.com')}
+    expected = {("example.com", "sub.example.com")}
     actual = check_rels(
         neo4j_session,
-        'AWSDNSZone',
-        'name',
-        'AWSDNSZone',
-        'name',
-        'SUBZONE',
+        "AWSDNSZone",
+        "name",
+        "AWSDNSZone",
+        "name",
+        "SUBZONE",
         rel_direction_right=True,
     )
     assert actual == expected
-
-
-
-
-
-
-
