@@ -46,8 +46,6 @@ def get_apigateway_rest_apis(
     return apis
 
 
-@timeit
-@aws_handle_regions
 def get_rest_api_ids(
     rest_apis: List[Dict],
 ) -> List[str]:

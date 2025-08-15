@@ -363,6 +363,8 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 | architectures | The instruction set architecture that the function supports. Architecture is a string array with one of the valid values. |
 | masterarn | For Lambda@Edge functions, the ARN of the main function. |
 | kmskeyarn | The KMS key that's used to encrypt the function's environment variables. This key is only returned if you've configured a customer managed key. |
+| anonymous_actions |  List of anonymous internet accessible actions that may be run on the function. |
+| anonymous_access | True if this function has a policy applied to it that allows anonymous access or if it is open to the internet. |
 | region | The AWS region where the Lambda function is deployed. |
 
 #### Relationships
@@ -484,31 +486,6 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
     (:AWSLambda)-[:HAS]->(:AWSLambdaLayer)
     ```
 
-### AWSLambdaPermission
-
-Representation of an [AWSLambdaPermission](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda/client/get_policy.html).
-
-| Field | Description |
-|-------|-------------|
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The arn of the lambda function |
-| function_arn | The arn of the lambda function |
-| region | The region where permission is created|
-| anonymous_actions |  List of anonymous internet accessible actions that may be run on the function. |
-| anonymous_access | True if this function has a policy applied to it that allows anonymous access or if it is open to the internet. |
-
-#### Relationships
-
-- AWSLambdaPermission belong to AWS Accounts
-    ```cypher
-    (:AWSAccount)-[:RESOURCE]->(:AWSLambdaPermission)
-    ```
-
-- AWSLambda functions has permission policy AWS LambdaPermission.
-    ```cypher
-    (:AWSLambda)-[:HAS_PERMISSION_POLICY]->(:AWSLambdaPermission)
-    ```
 
 ### AWSPolicy
 

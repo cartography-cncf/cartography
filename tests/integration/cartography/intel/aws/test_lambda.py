@@ -91,11 +91,6 @@ def test_sync_lambda_functions(
         ("arn:aws:lambda:us-east-2:123456789012:layer:my-layer-3",),
     }
 
-    assert check_nodes(neo4j_session, "AWSLambdaPermission", ["id"]) == {
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",),
-    }
-
     # Assert - Check all relationship types were created correctly
 
     assert check_rels(
@@ -258,51 +253,15 @@ def test_sync_lambda_functions(
         ),
     }
 
-    assert check_rels(
-        neo4j_session,
-        "AWSAccount",
-        "id",
-        "AWSLambdaPermission",
-        "id",
-        "RESOURCE",
-        rel_direction_right=True,
-    ) == {
-        (
-            TEST_ACCOUNT_ID,
-            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
-        ),
-        (
-            TEST_ACCOUNT_ID,
-            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
-        ),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "AWSLambda",
-        "id",
-        "AWSLambdaPermission",
-        "id",
-        "HAS_PERMISSION_POLICY",
-        rel_direction_right=True,
-    ) == {
-        (
-            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
-            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
-        ),
-        (
-            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
-            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
-        ),
-    }
-
 
 def test_load_lambda_functions(neo4j_session):
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
+    permissions = tests.data.aws.lambda_function.LIST_LAMBDA_PERMISSIONS
 
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
+        permissions,
         TEST_REGION,
     )
 
@@ -343,10 +302,12 @@ def test_load_lambda_relationships(neo4j_session):
 
     # Load Test Lambda Functions
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
+    permissions = tests.data.aws.lambda_function.LIST_LAMBDA_PERMISSIONS
 
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
+        permissions,
         TEST_REGION,
     )
 
@@ -479,10 +440,12 @@ def test_load_lambda_function_aliases_relationships(neo4j_session):
 
     # Create Test Lambda Function
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
+    permissions = tests.data.aws.lambda_function.LIST_LAMBDA_PERMISSIONS
 
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
+        permissions,
         TEST_REGION,
     )
 
@@ -585,10 +548,12 @@ def test_load_lambda_event_source_mappings_relationships(neo4j_session):
 
     # Create Test Lambda Function
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
+    permissions = tests.data.aws.lambda_function.LIST_LAMBDA_PERMISSIONS
 
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
+        permissions,
         TEST_REGION,
     )
 
@@ -682,10 +647,12 @@ def test_load_lambda_layers_relationships(neo4j_session):
 
     # Create Test Lambda Function
     data = tests.data.aws.lambda_function.LIST_LAMBDA_FUNCTIONS
+    permissions = tests.data.aws.lambda_function.LIST_LAMBDA_PERMISSIONS
 
     # Transform the data first
     transformed_data = cartography.intel.aws.lambda_function.transform_lambda_functions(
         data,
+        permissions,
         TEST_REGION,
     )
 

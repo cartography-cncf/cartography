@@ -17,7 +17,6 @@ from cartography.models.aws.lambda_function.event_source_mapping import (
 )
 from cartography.models.aws.lambda_function.lambda_function import AWSLambdaSchema
 from cartography.models.aws.lambda_function.layer import AWSLambdaLayerSchema
-from cartography.models.aws.lambda_function.permission import AWSLambdaPermissionSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -39,7 +38,11 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     return lambda_functions
 
 
-def transform_lambda_functions(lambda_functions: List[Dict], region: str) -> List[Dict]:
+def transform_lambda_functions(
+    lambda_functions: List[Dict],
+    permissions_by_arn: Dict[str, Dict[str, Any]],
+    region: str,
+) -> List[Dict]:
     transformed_functions = []
 
     for function_data in lambda_functions:
@@ -50,6 +53,17 @@ def transform_lambda_functions(lambda_functions: List[Dict], region: str) -> Lis
         transformed_function["TracingConfigMode"] = tracing_config.get("Mode")
 
         transformed_function["Region"] = region
+
+        function_arn = function_data["FunctionArn"]
+        if function_arn in permissions_by_arn:
+            permission_data = permissions_by_arn[function_arn]
+            transformed_function["AnonymousAccess"] = permission_data["AnonymousAccess"]
+            transformed_function["AnonymousActions"] = permission_data[
+                "AnonymousActions"
+            ]
+        else:
+            transformed_function["AnonymousAccess"] = None
+            transformed_function["AnonymousActions"] = None
 
         transformed_functions.append(transformed_function)
 
@@ -135,20 +149,29 @@ def get_lambda_permissions(
     lambda_functions: List[Dict],
     boto3_session: boto3.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Get Lambda permissions for the given functions in the specified region.
     """
     client = boto3_session.client("lambda", region_name=region)
-    all_permissions = []
+    all_permissions = {}
     for function in lambda_functions:
         function_name = function["FunctionName"]
+        function_arn = function["FunctionArn"]
         response = client.get_policy(FunctionName=function_name)
-        policy_metadata = {
-            "FunctionArn": function["FunctionArn"],
-            "Policy": response.get("Policy"),
-        }
-        all_permissions.append(policy_metadata)
+        policy = response.get("Policy")
+
+        if policy:
+            parsed_policy = parse_policy(function_arn, policy)
+            all_permissions[function_arn] = {
+                "AnonymousAccess": parsed_policy.get("AnonymousAccess"),
+                "AnonymousActions": parsed_policy.get("AnonymousActions"),
+            }
+        else:
+            all_permissions[function_arn] = {
+                "AnonymousAccess": None,
+                "AnonymousActions": None,
+            }
 
     return all_permissions
 
@@ -162,39 +185,9 @@ def parse_policy(function_arn: str, policy: str) -> Dict[str, Any]:
     inet_actions = policy_obj.internet_accessible_actions()
 
     return {
-        "FunctionArn": function_arn,
         "AnonymousAccess": policy_obj.is_internet_accessible(),
         "AnonymousActions": list(inet_actions) if inet_actions else [],
     }
-
-
-def transform_lambda_permissions(
-    permissions: List[Dict[str, Any]], region: str
-) -> List[Dict[str, Any]]:
-    """
-    Transform Lambda permissions for ingestion
-    """
-    transformed_permissions = []
-    for permission in permissions:
-        if not permission.get("Policy"):
-            transformed_permission = {
-                "FunctionArn": permission["FunctionArn"],
-                "AnonymousAccess": None,
-                "AnonymousActions": None,
-                "Region": region,
-            }
-            transformed_permissions.append(transformed_permission)
-            continue
-        parsed_policy = parse_policy(permission["FunctionArn"], permission["Policy"])
-        transformed_permissions.append(
-            {
-                "FunctionArn": permission["FunctionArn"],
-                "AnonymousAccess": parsed_policy.get("AnonymousAccess"),
-                "AnonymousActions": parsed_policy.get("AnonymousActions"),
-                "Region": region,
-            }
-        )
-    return transformed_permissions
 
 
 @timeit
@@ -256,26 +249,6 @@ def load_lambda_layers(
     )
 
 
-def load_lambda_permissions(
-    neo4j_session: neo4j.Session,
-    lambda_permissions: List[Dict],
-    region: str,
-    current_aws_account_id: str,
-    update_tag: int,
-) -> None:
-    """
-    Load AWS Lambda permissions using the data model approach.
-    """
-    load(
-        neo4j_session,
-        AWSLambdaPermissionSchema(),
-        lambda_permissions,
-        AWS_ID=current_aws_account_id,
-        Region=region,
-        lastupdated=update_tag,
-    )
-
-
 @timeit
 def cleanup_lambda(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     """
@@ -291,9 +264,6 @@ def cleanup_lambda(neo4j_session: neo4j.Session, common_job_parameters: Dict) ->
         AWSLambdaEventSourceMappingSchema(), common_job_parameters
     ).run(neo4j_session)
     GraphJob.from_node_schema(AWSLambdaLayerSchema(), common_job_parameters).run(
-        neo4j_session
-    )
-    GraphJob.from_node_schema(AWSLambdaPermissionSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -400,20 +370,11 @@ def sync(
 
         # Get and load core lambda functions
         data = get_lambda_data(boto3_session, region)
-        transformed_data = transform_lambda_functions(data, region)
+        permissions_by_arn = get_lambda_permissions(data, boto3_session, region)
+        transformed_data = transform_lambda_functions(data, permissions_by_arn, region)
         load_lambda_functions(
             neo4j_session,
             transformed_data,
-            region,
-            current_aws_account_id,
-            update_tag,
-        )
-
-        permissions = get_lambda_permissions(data, boto3_session, region)
-        transformed_permissions = transform_lambda_permissions(permissions, region)
-        load_lambda_permissions(
-            neo4j_session,
-            transformed_permissions,
             region,
             current_aws_account_id,
             update_tag,
