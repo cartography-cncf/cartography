@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class AWSIPv4CidrBlockNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("Id")
-    vpcid: PropertyRef = PropertyRef("VpcId")  # Extra index ?
+    vpcid: PropertyRef = PropertyRef("VpcId")
     association_id: PropertyRef = PropertyRef("AssociationId")
     cidr_block: PropertyRef = PropertyRef("CidrBlock")
     block_state: PropertyRef = PropertyRef("BlockState")
@@ -43,6 +43,12 @@ class AWSIPv4CidrBlockToAWSVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSIPv4CidrBlockSchema(CartographyNodeSchema):
+    """
+    There is no sub-resource relationship here because a
+    CIDR block can be associated with more than one account
+    and it doesn't make sense to scope it to one.
+    """
+
     label: str = "AWSCidrBlock"
     properties: AWSIPv4CidrBlockNodeProperties = AWSIPv4CidrBlockNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -54,7 +60,7 @@ class AWSIPv4CidrBlockSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class AWSIPv6CidrBlockNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("Id")
-    vpcid: PropertyRef = PropertyRef("VpcId")  # Extra index ?
+    vpcid: PropertyRef = PropertyRef("VpcId")
     association_id: PropertyRef = PropertyRef("AssociationId")
     cidr_block: PropertyRef = PropertyRef("CidrBlock")
     block_state: PropertyRef = PropertyRef("BlockState")
@@ -82,6 +88,12 @@ class AWSIPv6CidrBlockToAWSVpcRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class AWSIPv6CidrBlockSchema(CartographyNodeSchema):
+    """
+    There is no sub-resource relationship here because a
+    CIDR block can be associated with more than one account
+    and it doesn't make sense to scope it to one.
+    """
+
     label: str = "AWSCidrBlock"
     properties: AWSIPv6CidrBlockNodeProperties = AWSIPv6CidrBlockNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(

@@ -165,13 +165,13 @@ def load_ipv6_cidr_blocks(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(AWSVpcSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(AWSIPv4CidrBlockSchema(), common_job_parameters).run(
-        neo4j_session
-    )
     GraphJob.from_node_schema(AWSIPv6CidrBlockSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(AWSIPv4CidrBlockSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(AWSVpcSchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit
