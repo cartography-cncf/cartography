@@ -51,8 +51,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:AWSTransitGatewayAttachment) ON (n.lastupdated
 CREATE INDEX IF NOT EXISTS FOR (n:AWSUser) ON (n.arn);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSUser) ON (n.name);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSUser) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:AWSVpc) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:AWSVpc) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:AccountAccessKey) ON (n.accesskeyid);
 CREATE INDEX IF NOT EXISTS FOR (n:AccountAccessKey) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:AutoScalingGroup) ON (n.arn);
