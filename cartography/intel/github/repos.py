@@ -647,9 +647,6 @@ def _transform_dependency_graph(
             requirements = dep.get("requirements", "")
             package_manager = dep.get("packageManager", "").upper()
 
-            # Extract version from requirements string if available
-            pinned_version = _extract_version_from_requirements(requirements)
-
             # Create ecosystem-specific canonical name
             canonical_name = _canonicalize_dependency_name(
                 package_name, package_manager
@@ -658,11 +655,12 @@ def _transform_dependency_graph(
             # Create ecosystem identifier
             ecosystem = package_manager.lower() if package_manager else "unknown"
 
-            # Create simple dependency ID using canonical name and version
+            # Create simple dependency ID using canonical name and requirements
             # This allows the same dependency to be shared across multiple repos
+            requirements_for_id = (requirements or "").strip()
             dependency_id = (
-                f"{canonical_name}|{pinned_version}"
-                if pinned_version
+                f"{canonical_name}|{requirements_for_id}"
+                if requirements_for_id
                 else canonical_name
             )
 
@@ -677,15 +675,12 @@ def _transform_dependency_graph(
                     "id": dependency_id,
                     "name": canonical_name,
                     "original_name": package_name,  # Keep original for reference
-                    "version": pinned_version,
                     "requirements": normalized_requirements,
                     "ecosystem": ecosystem,
                     "package_manager": package_manager,
                     "manifest_path": manifest_path,
                     "manifest_id": manifest_id,
                     "repo_url": repo_url,
-                    # Add separate fields for easier querying
-                    "repo_name": repo_url.split("/")[-1] if repo_url else "",
                     "manifest_file": (
                         manifest_path.split("/")[-1] if manifest_path else ""
                     ),
@@ -696,33 +691,6 @@ def _transform_dependency_graph(
     if dependencies_added > 0:
         repo_name = repo_url.split("/")[-1] if repo_url else "repository"
         logger.info(f"Found {dependencies_added} dependencies in {repo_name}")
-
-
-def _extract_version_from_requirements(requirements: Optional[str]) -> Optional[str]:
-    """
-    Extract a pinned version from a requirements string if it exists.
-    Examples: "1.2.3" -> "1.2.3", "^1.2.3" -> None, ">=1.0,<2.0" -> None
-    """
-    if not requirements or not requirements.strip():
-        return None
-
-    # Handle exact version specifications (no operators)
-    if requirements and not any(
-        op in requirements for op in ["^", "~", ">", "<", "=", "*"]
-    ):
-        stripped = requirements.strip()
-        return stripped if stripped else None
-
-    # Handle == specifications
-    if "==" in requirements:
-        parts = requirements.split("==")
-        if len(parts) == 2:
-            version = parts[1].strip()
-            # Remove any trailing constraints
-            version = version.split(",")[0].split(" ")[0]
-            return version if version else None
-
-    return None
 
 
 def _canonicalize_dependency_name(name: str, package_manager: Optional[str]) -> str:
