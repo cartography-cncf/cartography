@@ -365,6 +365,8 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 | architectures | The instruction set architecture that the function supports. Architecture is a string array with one of the valid values. |
 | masterarn | For Lambda@Edge functions, the ARN of the main function. |
 | kmskeyarn | The KMS key that's used to encrypt the function's environment variables. This key is only returned if you've configured a customer managed key. |
+| anonymous_actions |  List of anonymous internet accessible actions that may be run on the function. |
+| anonymous_access | True if this function has a policy applied to it that allows anonymous access or if it is open to the internet. |
 | region | The AWS region where the Lambda function is deployed. |
 
 #### Relationships
@@ -485,6 +487,7 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
     ```cypher
     (:AWSLambda)-[:HAS]->(:AWSLambdaLayer)
     ```
+
 
 ### AWSPolicy
 
@@ -2923,6 +2926,30 @@ Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazo
 - AWS API Gateway Stage may also contain a Client Certificate.
     ```
     (APIGatewayStage)-[HAS_CERTIFICATE]->(APIGatewayClientCertificate)
+    ```
+
+### APIGatewayDeployment
+
+Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/apigateway/latest/api/API_GetDeployments.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The identifier for the deployment resource. |
+| arn | The identifier for the deployment resource. |
+| description | The description for the deployment resource. |
+| region |  The region for the deployment resource. |
+
+#### Relationships
+
+- AWS API Gateway Deployments are resources in an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(APIGatewayDeployment)
+    ```
+- AWS API Gateway REST APIs have deployments API Gateway Deployments.
+    ```
+    (APIGatewayRestAPI)-[HAS_DEPLOYMENT]->(APIGatewayDeployment)
     ```
 
 ### ACMCertificate

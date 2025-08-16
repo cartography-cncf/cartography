@@ -368,6 +368,17 @@ LIST_LAYERS = [
     },
 ]
 
+LIST_LAMBDA_PERMISSIONS = [
+    {
+        "FunctionArn": "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
+        "Policy": '{"Version":"2012-10-17","Statement":[{"Sid":"AllowExecutionFromCloudWatch","Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"lambda:InvokeFunction","Resource":"arn:aws:lambda:us-west-2:000000000000:function:sample-function-1"}]}',
+    },
+    {
+        "FunctionArn": "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
+        "Policy": '{"Version":"2012-10-17","Statement":[{"Sid":"AllowExecutionFromCloudWatch","Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"lambda:InvokeFunction","Resource":"arn:aws:lambda:us-west-2:000000000000:function:sample-function-2"}]}',
+    },
+]
+
 
 # Mock functions for comprehensive sync test
 def mock_get_function_aliases_for_sync_test(lambda_function, client):
