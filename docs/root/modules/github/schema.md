@@ -326,13 +326,12 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Simple identifier: `{canonical_name}|{version}` or `{canonical_name}` - same dependency shared across repos |
+| **id** | Identifier: `{canonical_name}|{requirements}` when a requirements string exists, otherwise `{canonical_name}` |
 | **name** | Canonical name of the dependency (ecosystem-specific normalization) |
 | **original_name** | Original name as specified in the manifest file |
-| **version** | Pinned version if specified, otherwise null |
+| **requirements** | Unparsed requirement string from the manifest (e.g., `"18.2.0"`, `"==4.2.0"`, `"^4.17.21"`, `"1.*.*"`) |
 | **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
 | **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
-| **repo_name** | Repository name extracted from repo URL |
 | **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
 
 #### Relationships

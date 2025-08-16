@@ -3,6 +3,7 @@ import cartography.util
 import tests.data.aws.ec2.elastic_ip_addresses
 import tests.data.aws.ec2.load_balancers
 import tests.data.aws.route53
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_ZONE_ID = "TESTZONEID"
@@ -267,4 +268,50 @@ def test_load_dnspointsto_elasticip_relationships(neo4j_session):
         rel_direction_right=True,
     )
     expected = {("hello.what.example.com", "192.168.1.1")}
+    assert actual == expected
+
+
+def test_link_sub_zones_handles_cycles(neo4j_session):
+    """
+    Test that link_sub_zones correctly creates a valid [:SUBZONE] relationship
+    but does NOT create an incorrect one between unrelated zones that share a name server.
+    """
+    # Arrange: Create the AWSAccount node that the link_sub_zones query depends on.
+    neo4j_session.run(
+        """
+        MERGE (a:AWSAccount{id:$AccountId})
+        SET a.lastupdated=$UpdateTag
+        """,
+        AccountId=TEST_AWS_ACCOUNTID,
+        UpdateTag=TEST_UPDATE_TAG,
+    )
+
+    # Arrange: Load the test DNS data. This will now correctly link to the account created above.
+    cartography.intel.aws.route53.load_dns_details(
+        neo4j_session,
+        tests.data.aws.route53.GET_ZONES_FOR_CYCLE_TEST,
+        TEST_AWS_ACCOUNTID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act: Run the subzone linking function that contains the fix.
+    cartography.intel.aws.route53.link_sub_zones(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        TEST_AWS_ACCOUNTID,
+    )
+
+    # Assert: Verify the graph state is correct after the run.
+    # This single check verifies that the correct relationship `(example.com)->[:SUBZONE]->(sub.example.com)` exists
+    # and that no incorrect relationships (e.g. to 'unrelated.io') exist.
+    expected = {("example.com", "sub.example.com")}
+    actual = check_rels(
+        neo4j_session,
+        "AWSDNSZone",
+        "name",
+        "AWSDNSZone",
+        "name",
+        "SUBZONE",
+        rel_direction_right=True,
+    )
     assert actual == expected

@@ -17,6 +17,8 @@ updates:
           - "minor"
           - "patch"
   # Maintain dependencies for Python
+  # TODO: Remove when uv ecosystem supports updating pyproject.toml
+  # https://github.com/dependabot/dependabot-core/issues/12609
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -33,9 +35,26 @@ updates:
           - "minor"
           - "patch"
     # Loose versioning strategy, increase the version only if necessary
-    # This should be removed if we stick to a pinned version strategy
-    # Ref: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/controlling-dependencies-updated#defining-a-versioning-strategy
+    # As we use uv.lock for build reproducibility, we can be more permissive with version updates
     versioning-strategy: increase-if-necessary
+    # TODO: Remove when #857 is fixed
+    ignore:
+      - dependency-name: "okta"
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "master"
+    commit-message:
+      # Prefix all commit messages with "chore: "
+      prefix: "chore: "
+    groups:
+      # Group all minor and patch updates for Python
+      # Keep individual updates for major updates
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
     # TODO: Remove when #857 is fixed
     ignore:
       - dependency-name: "okta"
