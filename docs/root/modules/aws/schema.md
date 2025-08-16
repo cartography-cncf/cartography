@@ -1987,6 +1987,27 @@ Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbri
     (EventBridgeRule)-[ASSOCIATED_WITH]->(AWSRole)
     ```
 
+### EventBridgeTarget
+Representation of an AWS [EventBridge Target](https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_ListTargetsByRule.html)
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | System-assigned eventbridge target ID |
+| arn | The Amazon Resource Name (ARN) of the target |
+| region | The region of the target |
+| rule_arn | The arn of the rule which is associated with target |
+| role_arn | The Amazon Resource Name (ARN) of the role that is used for target invocation |
+#### Relationships
+- EventBridge Targets are resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(EventBridgeTarget)
+    ```
+ - EventBridge Targets are linked with the EventBridge Rules.
+    ```
+    (EventBridgeTarget)-[LINKED_TO_RULE]->(EventBridgeRule)
+    ```
+
 ### Ip
 
 Represents a generic IP address.
