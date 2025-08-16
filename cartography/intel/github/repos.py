@@ -416,6 +416,7 @@ def _create_git_url_from_ssh_url(ssh_url: str) -> str:
     host, path = host_and_path.split(":", 1)
     return f"git://{host}/{path}"
 
+
 def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) -> None:
     """
     Performs data transforms including creating necessary IDs for unique nodes in the graph related to GitHub repos,

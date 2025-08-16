@@ -1,8 +1,7 @@
+from cartography.intel.github.repos import _create_git_url_from_ssh_url
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
-from cartography.intel.github.repos import _create_git_url_from_ssh_url
-
 
 TEST_UPDATE_TAG = 123456789
 
@@ -101,6 +100,7 @@ def test_transform_dependency_converts_to_expected_format():
     assert react_dep["repo_url"] == repo_url
     assert react_dep["manifest_file"] == "package.json"
 
+
 def test_create_git_url_from_ssh_url():
     """
     Test that _create_git_url_from_ssh_url correctly converts SSH URLs to git:// format.
@@ -108,14 +108,13 @@ def test_create_git_url_from_ssh_url():
     # Arrange
     ssh_url = "git@github.com:cartography-cncf/cartography.git"
     expected_result = "git://github.com/cartography-cncf/cartography.git"
-    
+
     # Act
     result = _create_git_url_from_ssh_url(ssh_url)
-    
+
     # Assert
     assert result == expected_result
-    
-    
+
     # Test with nested path (monorepo case)
     ssh_url_nested = "git@github.com:user/nested/path/repo.git"
     expected_nested = "git://github.com/user/nested/path/repo.git"
