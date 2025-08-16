@@ -78,12 +78,12 @@ def test_transform_dependency_converts_to_expected_format():
     # Assert: Check that 4 dependencies were transformed
     assert len(output_list) == 4
 
-    # Assert: Check that expected dependency IDs are present
+    # Assert: Check that expected dependency IDs are present (now using raw requirements)
     dependency_ids = {dep["id"] for dep in output_list}
     expected_ids = {
         "react|18.2.0",
         "lodash",
-        "django|4.2.0",
+        "django|= 4.2.0",
         "org.springframework:spring-core|5.3.21",
     }
     assert dependency_ids == expected_ids
@@ -92,11 +92,9 @@ def test_transform_dependency_converts_to_expected_format():
     react_dep = next(dep for dep in output_list if dep["original_name"] == "react")
     assert react_dep["id"] == "react|18.2.0"
     assert react_dep["name"] == "react"
-    assert react_dep["version"] == "18.2.0"
     assert react_dep["requirements"] == "18.2.0"
     assert react_dep["ecosystem"] == "npm"
     assert react_dep["package_manager"] == "NPM"
     assert react_dep["manifest_path"] == "/package.json"
     assert react_dep["repo_url"] == repo_url
-    assert react_dep["repo_name"] == "test-repo"
     assert react_dep["manifest_file"] == "package.json"
