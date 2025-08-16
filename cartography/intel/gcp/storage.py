@@ -1,13 +1,17 @@
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 import neo4j
-from googleapiclient.discovery import HttpError, Resource
+from googleapiclient.discovery import HttpError
+from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.gcp.storage import GCPBucketLabelSchema, GCPStorageBucketSchema
+from cartography.models.gcp.storage.bucket import GCPStorageBucketSchema
+from cartography.models.gcp.storage.label import GCPBucketLabelSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -26,18 +30,18 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> List[Dict[str, Any]]:
         request = storage.buckets().list(project=project_id)
         while request is not None:
             response = request.execute()
-            if 'items' in response:
-                collected_buckets.extend(response['items'])
+            if "items" in response:
+                collected_buckets.extend(response["items"])
             request = storage.buckets().list_next(
-                previous_request=request, previous_response=response,
+                previous_request=request,
+                previous_response=response,
             )
         return collected_buckets
     except HttpError as e:
         error_json = json.loads(e.content.decode("utf-8"))
         err = error_json.get("error", {})
-        if (
-            err.get("status", "") == "PERMISSION_DENIED"
-            or (err.get("message") and "API has not been used" in err.get("message"))
+        if err.get("status", "") == "PERMISSION_DENIED" or (
+            err.get("message") and "API has not been used" in err.get("message")
         ):
             logger.warning(
                 (
@@ -64,7 +68,9 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> List[Dict[str, Any]]:
 
 
 @timeit
-def transform_gcp_buckets(buckets_response: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def transform_gcp_buckets(
+    buckets_response: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     """
     Transforms the GCP Storage Bucket response list for Neo4j ingestion by flattening
     and preparing label data.
@@ -73,17 +79,19 @@ def transform_gcp_buckets(buckets_response: List[Dict[str, Any]]) -> List[Dict[s
     for b in buckets_response:
         transformed_labels: List[Dict[str, Any]] = []
         for key, val in b.get("labels", {}).items():
-            transformed_labels.append({
-                "id": f"{b['id']}_{key}",
-                "key": key,
-                "value": val,
-                "bucket_id": b["id"],
-                "project_number": b["projectNumber"],
-            })
+            transformed_labels.append(
+                {
+                    "id": f"{b['id']}_{key}",
+                    "key": key,
+                    "value": val,
+                    "bucket_id": b["id"],
+                    "project_number": int(b["projectNumber"]),
+                }
+            )
 
         transformed_bucket = {
             "id": b["id"],
-            "project_number": b["projectNumber"],
+            "project_number": int(b["projectNumber"]),
             "etag": b.get("etag"),
             "owner_entity": b.get("owner", {}).get("entity"),
             "owner_entity_id": b.get("owner", {}).get("entityId"),
@@ -101,50 +109,60 @@ def transform_gcp_buckets(buckets_response: List[Dict[str, Any]]) -> List[Dict[s
             "default_kms_key_name": b.get("encryption", {}).get("defaultKmsKeyName"),
             "log_bucket": b.get("logging", {}).get("logBucket"),
             "requester_pays": b.get("billing", {}).get("requesterPays"),
-            "iam_config_bucket_policy_only": b.get("iamConfiguration", {}).get("bucketPolicyOnly", {}).get("enabled"),
+            "iam_config_bucket_policy_only": b.get("iamConfiguration", {})
+            .get("bucketPolicyOnly", {})
+            .get("enabled"),
             "labels": transformed_labels,
-            "label_ids": [label['id'] for label in transformed_labels],
+            "label_ids": [label["id"] for label in transformed_labels],
         }
 
         bucket_list.append(transformed_bucket)
     return bucket_list
 
 
+@timeit
+def load_gcp_labels(
+    neo4j_session: neo4j.Session,
+    labels: List[Dict[str, Any]],
+    project_number: int,
+    gcp_update_tag: int,
+) -> None:
+    """
+    Ingests GCP Storage Bucket Labels.
+    """
+    logger.info(
+        f"Loading {len(labels)} GCP Storage Bucket Labels for project {project_number}."
+    )
+    load(
+        neo4j_session,
+        GCPBucketLabelSchema(),
+        labels,
+        lastupdated=gcp_update_tag,
+        project_number=project_number,
+    )
+
 
 @timeit
 def load_gcp_buckets(
     neo4j_session: neo4j.Session,
     buckets: List[Dict[str, Any]],
-    project_id: str,
+    project_number: int,
     gcp_update_tag: int,
 ) -> None:
     """
-    Ingests GCP Storage Buckets and their associated Labels to Neo4j using the declarative loader.
+    Ingests GCP Storage Buckets.
     """
-    # FIRST, load all the GCPBucketLabel nodes so they exist in the graph.
-    all_labels: List[Dict[str, Any]] = []
-    for bucket in buckets:
-        all_labels.extend(bucket.get("labels", []))
-
-    if all_labels:
-        logger.info(f"Loading {len(all_labels)} GCP Storage Bucket Labels for project {project_id}.")
-        load(
-            neo4j_session,
-            GCPBucketLabelSchema(),
-            all_labels,
-            lastupdated=gcp_update_tag,
-            project_number=project_id,
-        )
-
-    # SECOND, load the GCPStorageBucket nodes.
-    logger.info(f"Loading {len(buckets)} GCP Storage Buckets for project {project_id}.")
+    logger.info(
+        f"Loading {len(buckets)} GCP Storage Buckets for project {project_number}."
+    )
     load(
         neo4j_session,
         GCPStorageBucketSchema(),
         buckets,
         lastupdated=gcp_update_tag,
-        project_number=project_id,
+        project_number=project_number,
     )
+
 
 @timeit
 def cleanup_gcp_buckets(
@@ -155,8 +173,12 @@ def cleanup_gcp_buckets(
     Deletes out-of-date GCP Storage Bucket and GCPBucketLabel nodes using the modern GraphJob.
     """
     logger.debug("Running GCP Storage Bucket cleanup job.")
-    GraphJob.from_node_schema(GCPStorageBucketSchema(), common_job_parameters).run(neo4j_session)
-    GraphJob.from_node_schema(GCPBucketLabelSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(GCPStorageBucketSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(GCPBucketLabelSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -168,17 +190,30 @@ def sync_gcp_buckets(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
-    The main orchestration function to get, transform, load, and clean up GCP Storage Buckets.
+    The main orchestration function.
     """
     logger.info(f"Syncing GCP Storage Buckets for project {project_id}.")
     buckets_response = get_gcp_buckets(storage, project_id)
 
     if not buckets_response:
-        logger.info(f"No Storage Buckets found for project {project_id}, skipping transform and load.")
-    else:
-        bucket_list = transform_gcp_buckets(buckets_response)
-        load_gcp_buckets(neo4j_session, bucket_list, project_id, gcp_update_tag)
+        logger.info(
+            f"No Storage Buckets found for project {project_id}, running cleanup."
+        )
+        cleanup_gcp_buckets(neo4j_session, common_job_parameters)
+        return
+
+    bucket_list = transform_gcp_buckets(buckets_response)
+    project_number = bucket_list[0]["project_number"]
+
+    all_labels: List[Dict[str, Any]] = []
+    for bucket in bucket_list:
+        all_labels.extend(bucket.get("labels", []))
+
+    if all_labels:
+        load_gcp_labels(neo4j_session, all_labels, project_number, gcp_update_tag)
+    load_gcp_buckets(neo4j_session, bucket_list, project_number, gcp_update_tag)
 
     cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["project_number"] = project_id
+    if project_number:
+        cleanup_job_params["project_number"] = project_number
     cleanup_gcp_buckets(neo4j_session, cleanup_job_params)
