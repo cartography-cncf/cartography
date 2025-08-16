@@ -405,9 +405,16 @@ def _create_default_branch_id(repo_url: str, default_branch_ref_id: str) -> str:
 
 def _create_git_url_from_ssh_url(ssh_url: str) -> str:
     """
-    Return a git:// URL from the given ssh_url
+    Convert SSH URL to git:// URL.
+    Example:
+        git@github.com:cartography-cncf/cartography.git
+        -> git://github.com/cartography-cncf/cartography.git
     """
-    return ssh_url.replace("/", ":").replace("git@", "git://")
+    # Remove the user part (e.g., "git@")
+    _, host_and_path = ssh_url.split("@", 1)
+    # Replace first ':' (separating host and repo) with '/'
+    host, path = host_and_path.split(":", 1)
+    return f"git://{host}/{path}"
 
 
 def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) -> None:
