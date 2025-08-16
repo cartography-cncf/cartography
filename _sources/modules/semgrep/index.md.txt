@@ -1,0 +1,6 @@
+# Semgrep
+
+```{toctree}
+config
+schema
+```
