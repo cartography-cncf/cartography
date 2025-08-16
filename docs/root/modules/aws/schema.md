@@ -84,6 +84,7 @@ type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
 |cidr\_block| The CIDR block|
 |block\_state| The state of the block|
 |association\_id| the association id if the block is associated to a VPC
+|block\_state\_message| A message about the status of the CIDR block, if applicable|
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| Unique identifier defined with the VPC association and the cidr\_block
 
@@ -773,6 +774,8 @@ More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describ
 |primary\_cidr\_block|The primary IPv4 CIDR block for the VPC.|
 |instance\_tenancy| The allowed tenancy of instances launched into the VPC.|
 |state| The current state of the VPC.|
+|is\_default| Indicates whether the VPC is the default VPC.|
+|dhcp\_options\_id| The ID of a set of DHCP options.|
 |region| (optional) the region of this VPC.  This field is only available on VPCs in your account.  It is not available on VPCs that are external to your account and linked via a VPC peering relationship.
 |**id**| Unique identifier defined VPC node (vpcid)
 
