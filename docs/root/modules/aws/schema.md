@@ -2925,6 +2925,30 @@ Representation of an AWS [API Gateway Client Certificate](https://docs.aws.amazo
     (APIGatewayStage)-[HAS_CERTIFICATE]->(APIGatewayClientCertificate)
     ```
 
+### APIGatewayDeployment
+
+Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/apigateway/latest/api/API_GetDeployments.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The identifier for the deployment resource as string of api id and deployment id |
+| arn | The identifier for the deployment resource. |
+| description | The description for the deployment resource. |
+| region |  The region for the deployment resource. |
+
+#### Relationships
+
+- AWS API Gateway Deployments are resources in an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(APIGatewayDeployment)
+    ```
+- AWS API Gateway REST APIs have deployments API Gateway Deployments.
+    ```
+    (APIGatewayRestAPI)-[HAS_DEPLOYMENT]->(APIGatewayDeployment)
+    ```
+
 ### ACMCertificate
 
 Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html).
