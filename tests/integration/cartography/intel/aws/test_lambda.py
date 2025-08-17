@@ -35,9 +35,9 @@ TEST_UPDATE_TAG = 123456789
     side_effect=mock_get_event_source_mappings_for_sync_test,
 )
 def test_sync_lambda_functions(
-    mock_get_lambda_data,
-    mock_get_function_aliases,
     mock_get_event_source_mappings,
+    mock_get_function_aliases,
+    mock_get_event_source_data,
     mock_get_lambda_permissions,
     neo4j_session,
 ):

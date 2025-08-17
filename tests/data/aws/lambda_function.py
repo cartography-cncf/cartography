@@ -368,16 +368,16 @@ LIST_LAYERS = [
     },
 ]
 
-LIST_LAMBDA_PERMISSIONS = [
-    {
-        "FunctionArn": "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
-        "Policy": '{"Version":"2012-10-17","Statement":[{"Sid":"AllowExecutionFromCloudWatch","Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"lambda:InvokeFunction","Resource":"arn:aws:lambda:us-west-2:000000000000:function:sample-function-1"}]}',
+LIST_LAMBDA_PERMISSIONS = {
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1": {
+        "AnonymousAccess": False,
+        "AnonymousActions": [],
     },
-    {
-        "FunctionArn": "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
-        "Policy": '{"Version":"2012-10-17","Statement":[{"Sid":"AllowExecutionFromCloudWatch","Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"lambda:InvokeFunction","Resource":"arn:aws:lambda:us-west-2:000000000000:function:sample-function-2"}]}',
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2": {
+        "AnonymousAccess": True,
+        "AnonymousActions": ["lambda:InvokeFunction"],
     },
-]
+}
 
 
 # Mock functions for comprehensive sync test
