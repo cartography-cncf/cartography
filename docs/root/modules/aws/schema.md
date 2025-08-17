@@ -3007,7 +3007,7 @@ Representation of an AWS [API Gateway Method](https://docs.aws.amazon.com/apigat
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The id represented as ApiId/ResourceId/Method/HttpMethod |
+| **id** | The id represented as ApiId/ResourceId/HttpMethod |
 | httpmethod |  The method's HTTP verb |
 | resource_id |  Identifier for respective resource |
 | api_id |  The  identifier for the API |

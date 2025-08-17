@@ -328,7 +328,7 @@ def transform_rest_api_details(
         if len(method_list) > 0:
             for method in method_list:
                 method["id"] = (
-                    f"{method['apiId']}/{method['resourceId']}/{"Method"}/{method['httpMethod']}"
+                    f"{method['apiId']}/{method['resourceId']}/{method['httpMethod']}"
                 )
                 method["authorizationType"] = method.get("authorizationType")
                 method["authorizerId"] = method.get("authorizerId")
