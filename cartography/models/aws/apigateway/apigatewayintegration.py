@@ -26,7 +26,9 @@ class APIGatewayIntegrationNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class APIGatewayIntegrationToAPIGatewayResourceRelRelProperties(CartographyRelProperties):
+class APIGatewayIntegrationToAPIGatewayResourceRelRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -65,7 +67,9 @@ class APIGatewayIntegrationToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class APIGatewayIntegrationSchema(CartographyNodeSchema):
     label: str = "APIGatewayIntegration"
-    properties: APIGatewayIntegrationNodeProperties = APIGatewayIntegrationNodeProperties()
+    properties: APIGatewayIntegrationNodeProperties = (
+        APIGatewayIntegrationNodeProperties()
+    )
     sub_resource_relationship: APIGatewayIntegrationToAWSAccountRel = (
         APIGatewayIntegrationToAWSAccountRel()
     )
