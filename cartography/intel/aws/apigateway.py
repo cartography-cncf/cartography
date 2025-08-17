@@ -292,7 +292,7 @@ def transform_apigateway_deployments(
     transformed_deployments = []
     for deployment in deployments:
         transformed_deployment = {
-            "id": deployment["id"],
+            "id": f"{deployment['api_id']}/{deployment['id']}",
             "api_id": deployment["api_id"],
             "description": deployment.get("description"),
             "region": region,

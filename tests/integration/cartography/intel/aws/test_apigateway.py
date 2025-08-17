@@ -344,8 +344,8 @@ def test_sync_apigateway(
     }
 
     assert check_nodes(neo4j_session, "APIGatewayDeployment", ["id"]) == {
-        ("dep1",),
-        ("dep2",),
+        ("test-001/dep1",),
+        ("test-002/dep2",),
     }
 
     # Assert AWS Account to REST API relationships
@@ -411,8 +411,8 @@ def test_sync_apigateway(
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_ACCOUNT_ID, "dep1"),
-        (TEST_ACCOUNT_ID, "dep2"),
+        (TEST_ACCOUNT_ID, "test-001/dep1"),
+        (TEST_ACCOUNT_ID, "test-002/dep2"),
     }
 
     assert check_rels(
@@ -424,6 +424,6 @@ def test_sync_apigateway(
         "HAS_DEPLOYMENT",
         rel_direction_right=True,
     ) == {
-        ("test-001", "dep1"),
-        ("test-002", "dep2"),
+        ("test-001", "test-001/dep1"),
+        ("test-002", "test-002/dep2"),
     }

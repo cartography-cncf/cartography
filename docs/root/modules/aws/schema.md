@@ -2836,7 +2836,7 @@ Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/ap
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The identifier for the deployment resource. |
+| **id** | The identifier for the deployment resource as string of api id and deployment id |
 | arn | The identifier for the deployment resource. |
 | description | The description for the deployment resource. |
 | region |  The region for the deployment resource. |
