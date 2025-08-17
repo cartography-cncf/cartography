@@ -36,6 +36,7 @@ from . import s3
 from . import s3accountpublicaccessblock
 from . import secretsmanager
 from . import securityhub
+from . import ses
 from . import sns
 from . import sqs
 from . import ssm
@@ -104,6 +105,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "secretsmanager": secretsmanager.sync,
     "securityhub": securityhub.sync,
     "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
+    "ses": ses.sync,
     "sns": sns.sync,
     "sqs": sqs.sync,
     "ssm": ssm.sync,
