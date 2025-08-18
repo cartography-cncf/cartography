@@ -12,6 +12,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
+from cartography.models.trivy.image_layer import ImageLayerSchema
 from cartography.models.trivy.package import TrivyPackageSchema
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -200,56 +201,44 @@ def _pairwise(seq: List[str]) -> Iterable[tuple[str, str]]:
 
 
 @timeit
-def _upsert_layers_and_image_links(
+def _load_layers_via_model(
     neo4j_session: Session,
     image_id: str,
     diff_ids: list[str],
     update_tag: int,
 ) -> None:
     """
-    Persist ContainerLayer nodes, NEXT edges, and attach HEAD/TAIL to ECRImage. Also set image length.
-    Idempotent operations using MERGE.
+    Use ImageLayerSchema to load ImageLayer nodes, NEXT edges, and HEAD/TAIL links to ECRImage.
+    Also updates ECRImage.length.
     """
     if not diff_ids:
         return
+    records: list[dict[str, Any]] = []
+    for i, d in enumerate(diff_ids):
+        rec: dict[str, Any] = {"diff_id": d}
+        if i < len(diff_ids) - 1:
+            rec["next_diff_id"] = diff_ids[i + 1]
+        if i == 0:
+            rec["head_image_ids"] = [image_id]
+        if i == len(diff_ids) - 1:
+            rec["tail_image_ids"] = [image_id]
+        records.append(rec)
 
-    # MERGE all layers and increment usage
-    neo4j_session.run(
-        """
-        UNWIND $diff_ids AS d
-        MERGE (l:ContainerLayer {diff_id: d})
-        ON CREATE SET l.usage = 1
-        ON MATCH  SET l.usage = coalesce(l.usage, 0) + 1
-        """,
-        diff_ids=diff_ids,
+    load(
+        neo4j_session,
+        ImageLayerSchema(),
+        records,
+        lastupdated=update_tag,
     )
 
-    # MERGE adjacency
-    pairs = list(_pairwise(diff_ids))
-    if pairs:
-        neo4j_session.run(
-            """
-            UNWIND $pairs AS pr
-            MATCH (a:ContainerLayer {diff_id: pr[0]}), (b:ContainerLayer {diff_id: pr[1]})
-            MERGE (a)-[:NEXT]->(b)
-            """,
-            pairs=pairs,
-        )
-
-    # Attach to image and set length
+    # Maintain ECRImage.length
     neo4j_session.run(
         """
-        WITH $image_id AS image_id, $length AS length, $head AS head, $tail AS tail
-        MATCH (h:ContainerLayer {diff_id: head}), (t:ContainerLayer {diff_id: tail})
-        MERGE (img:ECRImage {id: image_id})
-        SET img.length = length
-        MERGE (img)-[:HEAD]->(h)
-        MERGE (img)-[:TAIL]->(t)
+        MATCH (img:ECRImage {id: $image_id})
+        SET img.length = $length
         """,
         image_id=image_id,
         length=len(diff_ids),
-        head=diff_ids[0],
-        tail=diff_ids[-1],
     )
 
 
@@ -260,30 +249,10 @@ def _attribute_packages_to_layers(
     packages_list: list[dict[str, Any]],
 ) -> None:
     """
-    For packages that include LayerDiffID, connect Package-[:INTRODUCED_IN]->ContainerLayer and ensure DEPLOYED.
+    INTRODUCED_IN edges are created via TrivyPackageSchema using LayerDiffID.
+    This function is retained for clarity but does nothing.
     """
-    data = [
-        {
-            "pkg_id": p["id"],
-            "layer_diff": p.get("LayerDiffID"),
-        }
-        for p in packages_list
-        if p.get("LayerDiffID")
-    ]
-    if not data:
-        return
-    neo4j_session.run(
-        """
-        UNWIND $rows AS row
-        MATCH (img:ECRImage {id: $image_id})
-        MERGE (p:Package {id: row.pkg_id})
-        MERGE (l:ContainerLayer {diff_id: row.layer_diff})
-        MERGE (p)-[:INTRODUCED_IN]->(l)
-        MERGE (p)-[:DEPLOYED]->(img)
-        """,
-        rows=data,
-        image_id=image_id,
-    )
+    return
 
 
 @timeit
@@ -353,17 +322,10 @@ def sync_single_image(
         load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
         load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
 
-        # New: persist layer graph, image HEAD/TAIL and length
+        # Persist layer graph, image HEAD/TAIL and length via model; derive lineage
         if diff_ids:
-            _upsert_layers_and_image_links(
-                neo4j_session, image_digest, diff_ids, update_tag
-            )
-
-            # New: derive lineage for this image only
+            _load_layers_via_model(neo4j_session, image_digest, diff_ids, update_tag)
             _compute_and_write_lineage(neo4j_session, image_digest)
-
-        # New: attribute packages to introducing layer (when available)
-        _attribute_packages_to_layers(neo4j_session, image_digest, packages_list)
         stat_handler.incr("images_processed_count")
 
     except Exception as e:
@@ -447,6 +409,42 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     )
     GraphJob.from_node_schema(TrivyFixSchema(), common_job_parameters).run(
         neo4j_session
+    )
+    # Custom cleanup for ImageLayer graph: remove stale NEXT/HEAD/TAIL rels tied to layers touched this run,
+    # then delete orphan layers not referenced by any image or package.
+    update_tag = common_job_parameters["UPDATE_TAG"]
+    # Remove stale NEXT edges among updated layers
+    neo4j_session.run(
+        """
+        MATCH (a:ImageLayer)-[r:NEXT]->(b:ImageLayer)
+        WHERE (a.lastupdated = $UPDATE_TAG OR b.lastupdated = $UPDATE_TAG)
+          AND r.lastupdated <> $UPDATE_TAG
+        DELETE r
+        """,
+        UPDATE_TAG=update_tag,
+    )
+    # Remove stale HEAD/TAIL edges from images to updated layers
+    neo4j_session.run(
+        """
+        MATCH (:ECRImage)-[r:HEAD|TAIL]->(l:ImageLayer)
+        WHERE l.lastupdated = $UPDATE_TAG AND r.lastupdated <> $UPDATE_TAG
+        DELETE r
+        """,
+        UPDATE_TAG=update_tag,
+    )
+    # Remove orphan layers that were not updated this run and have no links
+    neo4j_session.run(
+        """
+        MATCH (l:ImageLayer)
+        WHERE l.lastupdated <> $UPDATE_TAG
+          AND NOT (l)-[:NEXT]-()
+          AND NOT ()-[:NEXT]->(l)
+          AND NOT ()-[:HEAD]->(l)
+          AND NOT ()-[:TAIL]->(l)
+          AND NOT ()-[:INTRODUCED_IN]->(l)
+        DETACH DELETE l
+        """,
+        UPDATE_TAG=update_tag,
     )
 
 

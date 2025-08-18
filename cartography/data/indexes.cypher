@@ -334,4 +334,3 @@ CREATE INDEX IF NOT EXISTS FOR (n:AzureDisk) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AzureDisk) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:AzureSnapshot) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AzureSnapshot) ON (n.lastupdated);
-CREATE CONSTRAINT IF NOT EXISTS FOR (n:ContainerLayer) REQUIRE n.diff_id IS UNIQUE; // Container layer graph constraint

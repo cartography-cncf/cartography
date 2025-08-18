@@ -63,19 +63,27 @@ def test_trivy_layers_and_lineage_from_sample(neo4j_session: Session) -> None:
     other_metadata["DiffIDs"] = other_diff_ids
 
     # Act: process base, child, other
+    # Seed required ECRImage nodes so relationships can be created by the model
+    neo4j_session.run(
+        """
+        UNWIND $ids AS id
+        MERGE (:ECRImage {id: id})
+        """,
+        ids=[base_digest, child_digest, other_digest],
+    )
     sync_single_image(neo4j_session, base_doc, "base", TEST_UPDATE_TAG)
     sync_single_image(neo4j_session, child_doc, "child", TEST_UPDATE_TAG)
     sync_single_image(neo4j_session, other_doc, "other", TEST_UPDATE_TAG)
 
     # Assert: layer nodes are unique and shared
-    res = neo4j_session.run("MATCH (l:ContainerLayer) RETURN count(l) AS c").single()
+    res = neo4j_session.run("MATCH (l:ImageLayer) RETURN count(l) AS c").single()
     assert res["c"] == len(set(base_diff_ids)) + 2  # new_tail + other_first
 
     # Assert: image length and HEAD/TAIL
     rows = neo4j_session.run(
         """
-        MATCH (i:ECRImage)-[:HEAD]->(h:ContainerLayer)
-        MATCH (i)-[:TAIL]->(t:ContainerLayer)
+        MATCH (i:ECRImage)-[:HEAD]->(h:ImageLayer)
+        MATCH (i)-[:TAIL]->(t:ImageLayer)
         WHERE i.id IN $ids
         RETURN i.id AS id, i.length AS length, h.diff_id AS head, t.diff_id AS tail
         """,
@@ -102,6 +110,6 @@ def test_trivy_layers_and_lineage_from_sample(neo4j_session: Session) -> None:
 
     # Assert: package INTRODUCED_IN edges exist for at least one package
     intro = neo4j_session.run(
-        "MATCH (p:Package)-[:INTRODUCED_IN]->(l:ContainerLayer) RETURN count(*) AS c"
+        "MATCH (p:Package)-[:INTRODUCED_IN]->(l:ImageLayer) RETURN count(*) AS c"
     ).single()
     assert intro["c"] >= 1
