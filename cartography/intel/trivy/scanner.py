@@ -2,6 +2,8 @@ import json
 import logging
 import os
 from typing import Any
+from typing import Iterable
+from typing import List
 
 import boto3
 from neo4j import Session
@@ -109,6 +111,12 @@ def transform_scan_results(
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
                         "FindingId": finding["id"],  # For AFFECTS relationship
+                        # If Trivy provides layer attribution for the package, capture it
+                        "LayerDiffID": (
+                            result.get("Layer", {}).get("DiffID")
+                            if isinstance(result.get("Layer"), dict)
+                            else None
+                        ),
                     }
                 )
 
@@ -130,7 +138,7 @@ def transform_scan_results(
 
 def _parse_trivy_data(
     trivy_data: dict, source: str
-) -> tuple[str | None, list[dict], str]:
+) -> tuple[str | None, list[dict], str, list[str]]:
     """
     Parse Trivy scan data and extract common fields.
 
@@ -139,7 +147,7 @@ def _parse_trivy_data(
         source: Source identifier for error messages (file path or S3 URI)
 
     Returns:
-        Tuple of (artifact_name, results, image_digest)
+        Tuple of (artifact_name, results, image_digest, diff_ids)
     """
     # Extract artifact name if present (only for file-based)
     artifact_name = trivy_data.get("ArtifactName")
@@ -170,7 +178,146 @@ def _parse_trivy_data(
     if not image_digest:
         raise ValueError(f"Empty image digest for {source}")
 
-    return artifact_name, results, image_digest
+    # Extract ordered diff_ids, prefer Metadata.rootfs.diff_ids, then Metadata.DiffIDs
+    diff_ids: list[str] = []
+    metadata = trivy_data.get("Metadata", {})
+    rootfs = metadata.get("rootfs") or metadata.get("RootFS") or {}
+    # Try multiple casings/keys for compatibility
+    if isinstance(rootfs, dict):
+        ids = rootfs.get("diff_ids") or rootfs.get("DiffIDs")
+        if isinstance(ids, list):
+            diff_ids = [d for d in ids if isinstance(d, str)]
+    if not diff_ids:
+        ids = metadata.get("diff_ids") or metadata.get("DiffIDs")
+        if isinstance(ids, list):
+            diff_ids = [d for d in ids if isinstance(d, str)]
+
+    return artifact_name, results, image_digest, diff_ids
+
+
+def _pairwise(seq: List[str]) -> Iterable[tuple[str, str]]:
+    return zip(seq, seq[1:])
+
+
+@timeit
+def _upsert_layers_and_image_links(
+    neo4j_session: Session,
+    image_id: str,
+    diff_ids: list[str],
+    update_tag: int,
+) -> None:
+    """
+    Persist ContainerLayer nodes, NEXT edges, and attach HEAD/TAIL to ECRImage. Also set image length.
+    Idempotent operations using MERGE.
+    """
+    if not diff_ids:
+        return
+
+    # MERGE all layers and increment usage
+    neo4j_session.run(
+        """
+        UNWIND $diff_ids AS d
+        MERGE (l:ContainerLayer {diff_id: d})
+        ON CREATE SET l.usage = 1
+        ON MATCH  SET l.usage = coalesce(l.usage, 0) + 1
+        """,
+        diff_ids=diff_ids,
+    )
+
+    # MERGE adjacency
+    pairs = list(_pairwise(diff_ids))
+    if pairs:
+        neo4j_session.run(
+            """
+            UNWIND $pairs AS pr
+            MATCH (a:ContainerLayer {diff_id: pr[0]}), (b:ContainerLayer {diff_id: pr[1]})
+            MERGE (a)-[:NEXT]->(b)
+            """,
+            pairs=pairs,
+        )
+
+    # Attach to image and set length
+    neo4j_session.run(
+        """
+        WITH $image_id AS image_id, $length AS length, $head AS head, $tail AS tail
+        MATCH (h:ContainerLayer {diff_id: head}), (t:ContainerLayer {diff_id: tail})
+        MERGE (img:ECRImage {id: image_id})
+        SET img.length = length
+        MERGE (img)-[:HEAD]->(h)
+        MERGE (img)-[:TAIL]->(t)
+        """,
+        image_id=image_id,
+        length=len(diff_ids),
+        head=diff_ids[0],
+        tail=diff_ids[-1],
+    )
+
+
+@timeit
+def _attribute_packages_to_layers(
+    neo4j_session: Session,
+    image_id: str,
+    packages_list: list[dict[str, Any]],
+) -> None:
+    """
+    For packages that include LayerDiffID, connect Package-[:INTRODUCED_IN]->ContainerLayer and ensure DEPLOYED.
+    """
+    data = [
+        {
+            "pkg_id": p["id"],
+            "layer_diff": p.get("LayerDiffID"),
+        }
+        for p in packages_list
+        if p.get("LayerDiffID")
+    ]
+    if not data:
+        return
+    neo4j_session.run(
+        """
+        UNWIND $rows AS row
+        MATCH (img:ECRImage {id: $image_id})
+        MERGE (p:Package {id: row.pkg_id})
+        MERGE (l:ContainerLayer {diff_id: row.layer_diff})
+        MERGE (p)-[:INTRODUCED_IN]->(l)
+        MERGE (p)-[:DEPLOYED]->(img)
+        """,
+        rows=data,
+        image_id=image_id,
+    )
+
+
+@timeit
+def _compute_and_write_lineage(
+    neo4j_session: Session,
+    image_id: str,
+) -> None:
+    """
+    Compute longest-prefix base (if any) and MERGE (child)-[:BUILT_FROM]->(base).
+    """
+    # Find candidate base image id
+    res = neo4j_session.run(
+        """
+        MATCH (t:ECRImage {id: $image_id})-[:HEAD]->(h)
+        MATCH path=(h)-[:NEXT*0..]->(x)
+        MATCH (base:ECRImage)-[:TAIL]->(x)
+        WHERE length(path) = base.length - 1 AND base.id <> $image_id
+        RETURN base.id AS base_id
+        ORDER BY base.length DESC
+        LIMIT 1
+        """,
+        image_id=image_id,
+    )
+    record = res.single()
+    if record and record.get("base_id"):
+        base_id = record["base_id"]
+        neo4j_session.run(
+            """
+            MATCH (child:ECRImage {id:$child}), (base:ECRImage {id:$base})
+            MERGE (child)-[:BUILT_FROM]->(base)
+            """,
+            child=image_id,
+            base=base_id,
+        )
 
 
 @timeit
@@ -190,7 +337,7 @@ def sync_single_image(
         update_tag: Update tag for tracking
     """
     try:
-        _, results, image_digest = _parse_trivy_data(trivy_data, source)
+        _, results, image_digest, diff_ids = _parse_trivy_data(trivy_data, source)
 
         # Transform all data in one pass
         findings_list, packages_list, fixes_list = transform_scan_results(
@@ -205,6 +352,18 @@ def sync_single_image(
         load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
         load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
         load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
+
+        # New: persist layer graph, image HEAD/TAIL and length
+        if diff_ids:
+            _upsert_layers_and_image_links(
+                neo4j_session, image_digest, diff_ids, update_tag
+            )
+
+            # New: derive lineage for this image only
+            _compute_and_write_lineage(neo4j_session, image_digest)
+
+        # New: attribute packages to introducing layer (when available)
+        _attribute_packages_to_layers(neo4j_session, image_digest, packages_list)
         stat_handler.incr("images_processed_count")
 
     except Exception as e:
