@@ -177,14 +177,15 @@ def get_rest_api_resources_methods_integrations(
                 method["apiId"] = api["id"]
                 method["httpMethod"] = http_method
                 methods.append(method)
-                response = client.get_integration(
+                integration = client.get_integration(
                     restApiId=api["id"],
                     resourceId=resource_id,
                     httpMethod=http_method,
                 )
-                integration = response.get("integration", {})
                 integration["resourceId"] = resource_id
                 integration["apiId"] = api["id"]
+                integration["integrationHttpMethod"] = integration.get("httpMethod")
+                integration["httpMethod"] = http_method
                 integrations.append(integration)
 
     return resources, methods, integrations
@@ -339,10 +340,10 @@ def transform_rest_api_details(
 
         if len(integration_list) > 0:
             for integration in integration_list:
-                integration["httpMethod"] = integration.get("httpMethod")
-                integration["id"] = (
-                    f"{integration['apiId']}/{integration['resourceId']}"
-                )
+                if not integration.get("id"):
+                    integration["id"] = (
+                        f"{integration['apiId']}/{integration['resourceId']}/{integration['httpMethod']}"
+                    )
                 integration["type"] = integration.get("type")
                 integration["uri"] = integration.get("uri")
                 integration["connectionType"] = integration.get("connectionType")

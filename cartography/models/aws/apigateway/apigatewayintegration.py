@@ -15,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class APIGatewayIntegrationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     httpmethod: PropertyRef = PropertyRef("httpMethod")
+    integration_http_method: PropertyRef = PropertyRef("integrationHttpMethod")
     resource_id: PropertyRef = PropertyRef("resourceId")
     api_id: PropertyRef = PropertyRef("apiId")
     type: PropertyRef = PropertyRef("type")

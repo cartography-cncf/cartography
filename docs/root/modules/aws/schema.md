@@ -3036,8 +3036,9 @@ Representation of an AWS [API Gateway Integration](https://docs.aws.amazon.com/a
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The id represented as ApiId/ResourceId |
-| httpmethod |  Specifies the integration's HTTP method type |
+| **id** | The id represented as ApiId/ResourceId/HttpMethod |
+| httpmethod |  Specifies a get integration request's HTTP method |
+| integration_http_method | Specifies the integration's HTTP method type |
 | resource_id |  Identifier for respective resource |
 | api_id |  The  identifier for the API |
 | type | Specifies an API method integration type |

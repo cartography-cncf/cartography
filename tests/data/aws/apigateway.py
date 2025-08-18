@@ -166,7 +166,7 @@ GET_INTEGRATIONS = [
         "uri": "arn:aws:apigateway:us-east-1:mock",
         "resourceId": "3kzxbg5sa2",
         "apiId": "test-001",
-        "httpMethod": "POST",
+        "httpMethod": "GET",
     },
 ]
 
