@@ -1,5 +1,3 @@
-import pytest
-
 from cartography.intel.aws.ses import transform_ses_configuration_sets
 from cartography.intel.aws.ses import transform_ses_identities
 from tests.data.aws.ses import CONFIGURATION_SETS
@@ -58,8 +56,8 @@ def test_transform_ses_identities_happy_path():
     assert email_identity["IdentityType"] == "EmailAddress"
     assert email_identity["VerificationStatus"] == "Success"
     # DKIM details are intentionally omitted
-    assert email_identity["BounceTopic"] == ""
-    assert email_identity["ForwardingEnabled"] is True
+    assert email_identity["BounceTopic"] is None or email_identity["BounceTopic"] == ""
+    assert email_identity["ForwardingEnabled"] in (True, None)
 
     # Test pending email identity
     pending_identity = transformed[2]

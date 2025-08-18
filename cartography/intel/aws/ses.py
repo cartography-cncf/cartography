@@ -1,8 +1,6 @@
 import logging
-from typing import Any
 from typing import Dict
 from typing import List
-from typing import Optional
 
 import boto3
 import neo4j
@@ -22,7 +20,7 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 @aws_handle_regions
-def get_ses_identities(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
+def get_ses_identities(boto3_session: boto3.session.Session, region: str) -> List[str]:
     """
     Get all SES identities (email addresses and domains) for a region.
     """
@@ -101,10 +99,16 @@ def transform_ses_identities(
         attrs = identity_attributes.get(identity, {})
         verification_attrs = attrs.get("verification", {})
         notification_attrs = attrs.get("notification", {})
-        dkim_attrs = attrs.get("dkim", {})
+        # DKIM attributes are fetched but not stored
 
         # Determine identity type (email or domain)
-        identity_type = "EmailAddress" if "@" in identity else "Domain"
+        if "@" in identity:
+            identity_type = "EmailAddress"
+        elif "." in identity:
+            identity_type = "Domain"
+        else:
+            # Fallback: default to EmailAddress when ambiguous
+            identity_type = "EmailAddress"
 
         # Create ARN-like identifier for the identity
         identity_arn = f"carto:ses:identity:{region}:{account_id}:{identity}"

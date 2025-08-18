@@ -45,7 +45,7 @@ IDENTITY_NOTIFICATION_ATTRIBUTES = {
     },
 }
 
-IDENTITY_DKIM_ATTRIBUTES = {
+IDENTITY_DKIM_ATTRIBUTES: dict[str, dict] = {
     "example.com": {},
     "test@example.com": {},
     "noreply@testdomain.org": {},
