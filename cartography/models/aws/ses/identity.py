@@ -17,17 +17,19 @@ class SESIdentityNodeProperties(CartographyNodeProperties):
     identity: PropertyRef = PropertyRef("Identity", extra_index=True)
     identity_type: PropertyRef = PropertyRef("IdentityType")
     verification_status: PropertyRef = PropertyRef("VerificationStatus")
-    verification_token: PropertyRef = PropertyRef("VerificationToken")
-    dkim_enabled: PropertyRef = PropertyRef("DkimEnabled")
-    dkim_verification_status: PropertyRef = PropertyRef("DkimVerificationStatus")
-    dkim_tokens: PropertyRef = PropertyRef("DkimTokens")
     bounce_topic: PropertyRef = PropertyRef("BounceTopic")
     complaint_topic: PropertyRef = PropertyRef("ComplaintTopic")
     delivery_topic: PropertyRef = PropertyRef("DeliveryTopic")
     forwarding_enabled: PropertyRef = PropertyRef("ForwardingEnabled")
-    headers_in_bounce_notifications_enabled: PropertyRef = PropertyRef("HeadersInBounceNotificationsEnabled")
-    headers_in_complaint_notifications_enabled: PropertyRef = PropertyRef("HeadersInComplaintNotificationsEnabled")
-    headers_in_delivery_notifications_enabled: PropertyRef = PropertyRef("HeadersInDeliveryNotificationsEnabled")
+    headers_in_bounce_notifications_enabled: PropertyRef = PropertyRef(
+        "HeadersInBounceNotificationsEnabled"
+    )
+    headers_in_complaint_notifications_enabled: PropertyRef = PropertyRef(
+        "HeadersInComplaintNotificationsEnabled"
+    )
+    headers_in_delivery_notifications_enabled: PropertyRef = PropertyRef(
+        "HeadersInDeliveryNotificationsEnabled"
+    )
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -45,7 +47,9 @@ class SESIdentityToAWSAccount(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SESIdentityToAwsAccountRelProperties = SESIdentityToAwsAccountRelProperties()
+    properties: SESIdentityToAwsAccountRelProperties = (
+        SESIdentityToAwsAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)

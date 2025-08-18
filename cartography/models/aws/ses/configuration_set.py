@@ -12,8 +12,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SESConfigurationSetNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("ConfigurationSetArn")
-    arn: PropertyRef = PropertyRef("ConfigurationSetArn", extra_index=True)
+    id: PropertyRef = PropertyRef("ConfigurationSetId")
     name: PropertyRef = PropertyRef("Name", extra_index=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -32,11 +31,15 @@ class SESConfigurationSetToAWSAccount(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SESConfigurationSetToAwsAccountRelProperties = SESConfigurationSetToAwsAccountRelProperties()
+    properties: SESConfigurationSetToAwsAccountRelProperties = (
+        SESConfigurationSetToAwsAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class SESConfigurationSetSchema(CartographyNodeSchema):
     label: str = "SESConfigurationSet"
     properties: SESConfigurationSetNodeProperties = SESConfigurationSetNodeProperties()
-    sub_resource_relationship: SESConfigurationSetToAWSAccount = SESConfigurationSetToAWSAccount()
+    sub_resource_relationship: SESConfigurationSetToAWSAccount = (
+        SESConfigurationSetToAWSAccount()
+    )
