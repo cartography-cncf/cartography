@@ -23,7 +23,7 @@ class KubernetesOIDCProviderNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     arn: PropertyRef = PropertyRef(
         "arn"
-    )  # AWS-specific, will be None for other platforms
+    )  # AWSEKS-specific, will be None for other platforms
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
