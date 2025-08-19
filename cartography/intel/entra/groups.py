@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, AsyncIterator, Iterable, Iterator
 
 import neo4j
 from azure.identity import ClientSecretCredential
@@ -17,22 +17,18 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-async def get_entra_groups(client: GraphServiceClient) -> list[Group]:
-    """Get all groups from Microsoft Graph API with pagination."""
-    all_groups: list[Group] = []
-
+async def get_entra_groups(client: GraphServiceClient) -> AsyncIterator[list[Group]]:
+    """Yield pages of groups from Microsoft Graph API."""
     request_configuration = client.groups.GroupsRequestBuilderGetRequestConfiguration(
         query_parameters=client.groups.GroupsRequestBuilderGetQueryParameters(top=999)
     )
     page = await client.groups.get(request_configuration=request_configuration)
     while page:
         if page.value:
-            all_groups.extend(page.value)
+            yield page.value
         if not page.odata_next_link:
             break
         page = await client.groups.with_url(page.odata_next_link).get()
-
-    return all_groups
 
 
 @timeit
@@ -78,15 +74,14 @@ async def get_group_owners(client: GraphServiceClient, group_id: str) -> list[st
 
 
 def transform_groups(
-    groups: list[Group],
+    groups: Iterable[Group],
     user_member_map: dict[str, list[str]],
     group_member_map: dict[str, list[str]],
     group_owner_map: dict[str, list[str]],
-) -> list[dict[str, Any]]:
+) -> Iterator[dict[str, Any]]:
     """Transform API responses into dictionaries for ingestion."""
-    result: list[dict[str, Any]] = []
     for g in groups:
-        transformed = {
+        yield {
             "id": g.id,
             "display_name": g.display_name,
             "description": g.description,
@@ -103,22 +98,21 @@ def transform_groups(
             "member_group_ids": group_member_map.get(g.id, []),
             "owner_ids": group_owner_map.get(g.id, []),
         }
-        result.append(transformed)
-    return result
 
 
 @timeit
 def load_groups(
     neo4j_session: neo4j.Session,
-    groups: list[dict[str, Any]],
+    groups: Iterable[dict[str, Any]],
     update_tag: int,
     tenant_id: str,
 ) -> None:
-    logger.info(f"Loading {len(groups)} Entra groups")
+    group_list = list(groups)
+    logger.info(f"Loading {len(group_list)} Entra groups")
     load(
         neo4j_session,
         EntraGroupSchema(),
-        groups,
+        group_list,
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
     )
@@ -150,30 +144,33 @@ async def sync_entra_groups(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
 
-    groups = await get_entra_groups(client)
-
-    user_member_map: dict[str, list[str]] = {}
-    group_member_map: dict[str, list[str]] = {}
-    group_owner_map: dict[str, list[str]] = {}
-
-    for group in groups:
-        owners = await get_group_owners(client, group.id)
-        group_owner_map[group.id] = owners
-
-    for group in groups:
-        try:
-            users, subgroups = await get_group_members(client, group.id)
-            user_member_map[group.id] = users
-            group_member_map[group.id] = subgroups
-        except Exception as e:
-            logger.error(f"Failed to fetch members for group {group.id}: {e}")
-            user_member_map[group.id] = []
-            group_member_map[group.id] = []
-
-    transformed_groups = transform_groups(
-        groups, user_member_map, group_member_map, group_owner_map
-    )
-
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
-    load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
+
+    total_groups = 0
+    async for groups_page in get_entra_groups(client):
+        user_member_map: dict[str, list[str]] = {}
+        group_member_map: dict[str, list[str]] = {}
+        group_owner_map: dict[str, list[str]] = {}
+
+        for group in groups_page:
+            owners = await get_group_owners(client, group.id)
+            group_owner_map[group.id] = owners
+
+        for group in groups_page:
+            try:
+                users, subgroups = await get_group_members(client, group.id)
+                user_member_map[group.id] = users
+                group_member_map[group.id] = subgroups
+            except Exception as e:
+                logger.error(f"Failed to fetch members for group {group.id}: {e}")
+                user_member_map[group.id] = []
+                group_member_map[group.id] = []
+
+        transformed_groups = list(
+            transform_groups(groups_page, user_member_map, group_member_map, group_owner_map)
+        )
+        load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
+        total_groups += len(transformed_groups)
+
+    logger.info(f"Loaded {total_groups} Entra groups")
     cleanup_groups(neo4j_session, common_job_parameters)
