@@ -5,7 +5,7 @@ from tests.data.entra.groups import MOCK_GROUP_OWNERS
 
 
 def test_transform_groups():
-    result = transform_groups(
+    result = list(transform_groups(
         MOCK_ENTRA_GROUPS,
         {
             gid: [u.id for u in members if u.odata_type == "#microsoft.graph.user"]
@@ -19,7 +19,7 @@ def test_transform_groups():
             gid: [o.id for o in owners if o.odata_type == "#microsoft.graph.user"]
             for gid, owners in MOCK_GROUP_OWNERS.items()
         },
-    )
+    ))
     assert len(result) == 2
     group1 = next(
         g for g in result if g["id"] == "11111111-1111-1111-1111-111111111111"

@@ -18,7 +18,7 @@ from tests.data.entra.applications import MOCK_ENTRA_APPLICATIONS
 
 
 def test_transform_applications():
-    result = transform_applications(MOCK_ENTRA_APPLICATIONS)
+    result = list(transform_applications(MOCK_ENTRA_APPLICATIONS))
     assert len(result) == 2
 
     app1 = next(a for a in result if a["id"] == "11111111-1111-1111-1111-111111111111")
@@ -29,7 +29,7 @@ def test_transform_applications():
 
 
 def test_transform_app_role_assignments():
-    result = transform_app_role_assignments(MOCK_APP_ROLE_ASSIGNMENTS)
+    result = list(transform_app_role_assignments(MOCK_APP_ROLE_ASSIGNMENTS))
     assert len(result) == 4
 
     # Test user assignment
@@ -109,16 +109,13 @@ def test_cleanup_app_role_assignments(mock_graph_job):
 @patch(
     "cartography.intel.entra.applications.get_app_role_assignments",
     new_callable=AsyncMock,
-    return_value=MOCK_APP_ROLE_ASSIGNMENTS,
 )
 @patch(
     "cartography.intel.entra.applications.get_entra_applications",
-    new_callable=AsyncMock,
-    return_value=MOCK_ENTRA_APPLICATIONS,
 )
 @pytest.mark.asyncio
 async def test_sync_entra_applications(
-    mock_get,
+    mock_get_apps,
     mock_get_assignments,
     mock_cred,
     mock_graph,
@@ -128,6 +125,14 @@ async def test_sync_entra_applications(
     mock_load_assignments,
     mock_cleanup_assignments,
 ):
+    async def app_gen(*args, **kwargs):
+        yield MOCK_ENTRA_APPLICATIONS
+
+    mock_get_apps.side_effect = app_gen
+    mock_get_assignments.side_effect = [
+        [MOCK_APP_ROLE_ASSIGNMENTS[0], MOCK_APP_ROLE_ASSIGNMENTS[2]],
+        [MOCK_APP_ROLE_ASSIGNMENTS[1], MOCK_APP_ROLE_ASSIGNMENTS[3]],
+    ]
     session = MagicMock()
     await sync_entra_applications(
         session,
@@ -146,13 +151,20 @@ async def test_sync_entra_applications(
         mock_cred.return_value,
         scopes=["https://graph.microsoft.com/.default"],
     )
-    mock_get.assert_called_with(mock_graph.return_value)
-    mock_get_assignments.assert_called_with(
-        mock_graph.return_value, MOCK_ENTRA_APPLICATIONS
-    )
+    mock_get_apps.assert_called_with(mock_graph.return_value)
+    assert mock_get_assignments.call_count == 2
 
-    expected_apps = transform_applications(MOCK_ENTRA_APPLICATIONS)
-    expected_assignments = transform_app_role_assignments(MOCK_APP_ROLE_ASSIGNMENTS)
+    expected_apps = list(transform_applications(MOCK_ENTRA_APPLICATIONS))
+    expected_assignments = list(
+        transform_app_role_assignments(
+            [
+                MOCK_APP_ROLE_ASSIGNMENTS[0],
+                MOCK_APP_ROLE_ASSIGNMENTS[2],
+                MOCK_APP_ROLE_ASSIGNMENTS[1],
+                MOCK_APP_ROLE_ASSIGNMENTS[3],
+            ]
+        )
+    )
 
     mock_load_tenant.assert_called_with(session, {"id": "tid"}, 1)
     mock_load_apps.assert_called_with(session, expected_apps, 1, "tid")
