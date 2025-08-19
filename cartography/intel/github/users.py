@@ -79,17 +79,7 @@ GITHUB_ENTERPRISE_OWNER_USERS_PAGINATED_GRAPHQL = """
 
 @timeit
 def get_users(token: str, api_url: str, organization: str) -> Tuple[List[Dict], Dict]:
-    """
-    Retrieve a list of users from the given GitHub organization as described in
-    https://docs.github.com/en/graphql/reference/objects#organizationmemberedge.
-    :param token: The Github API token as string.
-    :param api_url: The Github v4 API endpoint as string.
-    :param organization: The name of the target Github organization as string.
-    :return: A 2-tuple containing
-        1. a list of dicts representing users and
-        2. data on the owning GitHub organization
-        see tests.data.github.users.GITHUB_USER_DATA for shape of both
-    """
+
     logger.info(f"Retrieving users from GitHub organization {organization}")
     users, org = fetch_all(
         token,
@@ -102,21 +92,8 @@ def get_users(token: str, api_url: str, organization: str) -> Tuple[List[Dict], 
 
 
 def get_enterprise_owners(
-    token: str,
-    api_url: str,
-    organization: str,
+    token: str, api_url: str, organization: str
 ) -> Tuple[List[Dict], Dict]:
-    """
-    Retrieve a list of enterprise owners from the given GitHub organization as described in
-    https://docs.github.com/en/graphql/reference/objects#organizationenterpriseowneredge.
-    :param token: The Github API token as string.
-    :param api_url: The Github v4 API endpoint as string.
-    :param organization: The name of the target Github organization as string.
-    :return: A 2-tuple containing
-        1. a list of dicts representing users who are enterprise owners
-        3. data on the owning GitHub organization
-        see tests.data.github.users.GITHUB_ENTERPRISE_OWNER_DATA for shape
-    """
     logger.info(f"Retrieving enterprise owners from GitHub organization {organization}")
     owners, org = fetch_all(
         token,
@@ -130,33 +107,16 @@ def get_enterprise_owners(
 
 @timeit
 def transform_users(
-    user_data: List[Dict],
-    owners_data: List[Dict],
-    org_data: Dict,
+    user_data: List[Dict], owners_data: List[Dict], org_data: Dict
 ) -> Tuple[List[Dict], List[Dict]]:
-    """
-    Taking raw user and owner data, return two lists of processed user data:
-    * organization users aka affiliated users (users directly affiliated with an organization)
-    * unaffiliated users (user who, for example, are enterprise owners but not members of the target organization).
-
-    :param token: The Github API token as string.
-    :param api_url: The Github v4 API endpoint as string.
-    :param organization: The name of the target Github organization as string.
-    :return: A 2-tuple containing
-        1. a list of dicts representing users who are affiliated with the target org
-           see tests.data.github.users.GITHUB_USER_DATA for shape
-        2. a list of dicts representing users who are not affiliated (e.g. enterprise owners who are not also in
-           the target org) — see tests.data.github.users.GITHUB_ENTERPRISE_OWNER_DATA for shape
-        3. data on the owning GitHub organization
-    """
-
     users_dict = {}
+
     for user in user_data:
-        # all members get the 'MEMBER_OF' relationship
+
         processed_user = deepcopy(user["node"])
         processed_user["hasTwoFactorEnabled"] = user["hasTwoFactorEnabled"]
         processed_user["MEMBER_OF"] = org_data["url"]
-        # admins get a second relationship expressing them as such
+
         if user["role"] == "ADMIN":
             processed_user["ADMIN_OF"] = org_data["url"]
         users_dict[processed_user["url"]] = processed_user
@@ -171,12 +131,12 @@ def transform_users(
             processed_owner["MEMBER_OF"] = org_data["url"]
         owners_dict[processed_owner["url"]] = processed_owner
 
-    affiliated_users = []  # users affiliated with the target org
+    affiliated_users = []
     for url, user in users_dict.items():
         user["isEnterpriseOwner"] = url in owners_dict
         affiliated_users.append(user)
 
-    unaffiliated_users = []  # users not affiliated with the target org
+    unaffiliated_users = []
     for url, owner in owners_dict.items():
         if url not in users_dict:
             unaffiliated_users.append(owner)
@@ -221,7 +181,7 @@ def load_organization(
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     logger.info("Cleaning up GitHub users")
     GraphJob.from_node_schema(
@@ -243,17 +203,40 @@ def sync(
     organization: str,
 ) -> None:
     logger.info("Syncing GitHub users")
-    user_data, org_data = get_users(github_api_key, github_url, organization)
-    owners_data, org_data = get_enterprise_owners(
-        github_api_key,
-        github_url,
-        organization,
-    )
+
+    try:
+        user_data, org_data = get_users(github_api_key, github_url, organization)
+        owners_data, org_data = get_enterprise_owners(
+            github_api_key,
+            github_url,
+            organization,
+        )
+
+        # Single, clear check for hard failures: no data retrieved
+        if not user_data and not owners_data:
+            logger.error(
+                "GitHub sync retrieved no user or owner data - this is a hard failure"
+            )
+            raise RuntimeError(
+                "GitHub sync failed to retrieve any user or enterprise owner data"
+            )
+
+        if not org_data:
+            logger.error(
+                "GitHub sync retrieved no organization data - this is a hard failure"
+            )
+            raise RuntimeError("GitHub sync failed to retrieve organization data")
+
+    except Exception as e:
+        logger.error(f"GitHub sync hard failure: {e}")
+        raise
+
     processed_affiliated_user_data, processed_unaffiliated_user_data = transform_users(
         user_data,
         owners_data,
         org_data,
     )
+
     load_organization(
         neo4j_session,
         GitHubOrganizationSchema(),
