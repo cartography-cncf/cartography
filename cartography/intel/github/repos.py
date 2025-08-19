@@ -41,12 +41,12 @@ UserAffiliationAndRepoPermission = namedtuple(
 
 
 GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
-    query($login: String!, $cursor: String) {
+    query($login: String!, $cursor: String, $count: Int!) {
     organization(login: $login)
         {
             url
             login
-            repositories(first: 50, after: $cursor){
+            repositories(first: $count, after: $cursor){
                 pageInfo{
                     endCursor
                     hasNextPage
@@ -290,6 +290,7 @@ def get(token: str, api_url: str, organization: str) -> List[Dict]:
         organization,
         GITHUB_ORG_REPOS_PAGINATED_GRAPHQL,
         "repositories",
+        count=50,
     )
     return repos.nodes
 
