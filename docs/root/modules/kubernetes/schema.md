@@ -26,15 +26,12 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
                                        :KubernetesContainer,
                                        :KubernetesService,
                                        :KubernetesSecret,
-                                       :KubernetesUser,
-                                       :KubernetesGroup,
                                        :KubernetesServiceAccount,
                                        :KubernetesRole,
                                        :KubernetesRoleBinding,
                                        :KubernetesClusterRole,
                                        :KubernetesClusterRoleBinding,
                                        ...)
-    (:KubernetesCluster)-[:TRUSTS]->(:KubernetesOIDCProvider)
     ```
 
 - A `KubernetesPod` belongs to a `KubernetesCluster`
@@ -167,95 +164,18 @@ Representation of a [Kubernetes Secret.](https://kubernetes.io/docs/concepts/con
     (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesSecret)
     ```
 
-### KubernetesUser
-Representation of a [Kubernetes User.](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#users-in-kubernetes) Kubernetes Users are entities that can be authenticated and authorized to access the cluster. They are typically extracted from RoleBindings and ClusterRoleBindings that reference user subjects.
-
-| Field | Description |
-|-------|-------------|
-| id | Identifier for the User derived from cluster name and username (e.g. `my-cluster/john.doe`) |
-| name | Name of the Kubernetes User |
-| cluster\_name | Name of the Kubernetes cluster where this User is defined |
-| aws\_role\_arn | ARN of the AWS IAM Role that maps to this Kubernetes User (populated from EKS aws-auth ConfigMap) |
-| firstseen | Timestamp of when a sync job first discovered this node |
-| lastupdated | Timestamp of the last time the node was updated |
-
-#### Relationships
-- `KubernetesUser` belongs to a `KubernetesCluster`.
-    ```
-    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesUser)
-    ```
-
-- `KubernetesUser` is used as a subject in `KubernetesRoleBinding`.
-    ```
-    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesUser)
-    ```
-
-- `KubernetesUser` is used as a subject in `KubernetesClusterRoleBinding`.
-    ```
-    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesUser)
-    ```
-
-- `KubernetesUser` can be mapped from AWS IAM Roles (EKS clusters only).
-    ```
-    (:AWSRole)-[:MAPS_TO]->(:KubernetesUser)
-    ```
-
-- `KubernetesUser` can be mapped from Okta Users based on email/username matching.
-    ```
-    (:OktaUser)-[:MAPS_TO]->(:KubernetesUser)
-    ```
-
-### KubernetesGroup
-Representation of a [Kubernetes Group.](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#groups) Kubernetes Groups are collections of users that can be granted permissions collectively. They are typically extracted from RoleBindings and ClusterRoleBindings that reference group subjects.
-
-| Field | Description |
-|-------|-------------|
-| id | Identifier for the Group derived from cluster name and group name (e.g. `my-cluster/system:masters`) |
-| name | Name of the Kubernetes Group |
-| cluster\_name | Name of the Kubernetes cluster where this Group is defined |
-| aws\_role\_arn | ARN of the AWS IAM Role that maps to this Kubernetes Group (populated from EKS aws-auth ConfigMap) |
-| firstseen | Timestamp of when a sync job first discovered this node |
-| lastupdated | Timestamp of the last time the node was updated |
-
-#### Relationships
-- `KubernetesGroup` belongs to a `KubernetesCluster`.
-    ```
-    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesGroup)
-    ```
-
-- `KubernetesGroup` is used as a subject in `KubernetesRoleBinding`.
-    ```
-    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesGroup)
-    ```
-
-- `KubernetesGroup` is used as a subject in `KubernetesClusterRoleBinding`.
-    ```
-    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesGroup)
-    ```
-
-- `KubernetesGroup` can be mapped from AWS IAM Roles (EKS clusters only).
-    ```
-    (:AWSRole)-[:MAPS_TO]->(:KubernetesGroup)
-    ```
-
-- `KubernetesGroup` can be mapped from Okta Groups based on name matching.
-    ```
-    (:OktaGroup)-[:MAPS_TO]->(:KubernetesGroup)
-    ```
-
 ### KubernetesServiceAccount
 Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/concepts/security/service-accounts/)
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the ServiceAccount derived from namespace and name (e.g. `default/my-service-account`) |
+| id | Identifier for the ServiceAccount derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-service-account`) |
 | name | Name of the Kubernetes ServiceAccount |
 | namespace | The Kubernetes namespace where this ServiceAccount is deployed |
 | uid | UID of the Kubernetes ServiceAccount |
 | creation\_timestamp | Timestamp of the creation time of the Kubernetes ServiceAccount |
 | resource\_version | The resource version of the ServiceAccount for optimistic concurrency control |
 | automount\_service\_account\_token | Whether the ServiceAccount token should be automatically mounted in pods |
-| cluster\_name | Name of the Kubernetes cluster where this ServiceAccount is deployed |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
@@ -285,7 +205,7 @@ Representation of a [Kubernetes Role.](https://kubernetes.io/docs/reference/acce
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the Role derived from namespace and name (e.g. `default/pod-reader`) |
+| id | Identifier for the Role derived from cluster_name, namespace and name (e.g. `my-cluster/default/pod-reader`) |
 | name | Name of the Kubernetes Role |
 | namespace | The Kubernetes namespace where this Role is deployed |
 | uid | UID of the Kubernetes Role |
@@ -319,7 +239,7 @@ Representation of a [Kubernetes RoleBinding.](https://kubernetes.io/docs/referen
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the RoleBinding derived from namespace, binding name, and subject (e.g. `default/my-binding/default/my-service-account`) |
+| id | Identifier for the RoleBinding derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-binding`) |
 | name | Name of the Kubernetes RoleBinding |
 | namespace | The Kubernetes namespace where this RoleBinding is deployed |
 | uid | UID of the Kubernetes RoleBinding |
@@ -348,8 +268,8 @@ Representation of a [Kubernetes RoleBinding.](https://kubernetes.io/docs/referen
 
 - `KubernetesRoleBinding` binds a subject to a role.
     ```
-    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount, :KubernetesUser, :KubernetesGroup)
-    (:KubernetesRoleBinding)-[:ROLE_REF]->(:KubernetesRole, :KubernetesClusterRole)
+    (:KubernetesRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
+    (:KubernetesRoleBinding)-[:ROLE_REF]->(:KubernetesRole)
     ```
 
 ### KubernetesClusterRole
@@ -357,7 +277,7 @@ Representation of a [Kubernetes ClusterRole.](https://kubernetes.io/docs/referen
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the ClusterRole (same as name since ClusterRoles are cluster-scoped) |
+| id | Identifier for the ClusterRole derived from cluster_name and name (e.g. `my-cluster/cluster-admin`) |
 | name | Name of the Kubernetes ClusterRole |
 | uid | UID of the Kubernetes ClusterRole |
 | creation\_timestamp | Timestamp of the creation time of the Kubernetes ClusterRole |
@@ -384,7 +304,7 @@ Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/
 
 | Field | Description |
 |-------|-------------|
-| id | Identifier for the ClusterRoleBinding derived from binding name and subject (e.g. `cluster-admin-binding/kube-system/admin-sa`) |
+| id | Identifier for the ClusterRoleBinding derived from cluster_name and name (e.g. `my-cluster/cluster-admin-binding`) |
 | name | Name of the Kubernetes ClusterRoleBinding |
 | namespace | The namespace of the subject (for cross-namespace subject references) |
 | uid | UID of the Kubernetes ClusterRoleBinding |
@@ -412,30 +332,6 @@ Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/
 
 - `KubernetesClusterRoleBinding` binds a subject to a cluster role.
     ```
-    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount, :KubernetesUser, :KubernetesGroup)
+    (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
     (:KubernetesClusterRoleBinding)-[:ROLE_REF]->(:KubernetesClusterRole)
     ```
-
-### KubernetesOIDCProvider
-Representation of an external OIDC identity provider infrastructure configuration for a Kubernetes cluster. This node contains the technical configuration details of how the cluster is set up to trust external identity systems (such as Auth0, Okta, Azure AD). The actual identity mapping between external users/groups and Kubernetes RBAC identities is handled by direct relationships from the external identity provider modules.
-
-| Field | Description |
-|-------|-------------|
-| id | Identifier for the OIDC Provider derived from cluster name and provider name (e.g. `my-cluster/oidc/auth0-provider`) |
-| issuer_url | URL of the OIDC issuer (e.g. `https://company.auth0.com/`) |
-| cluster_name | Name of the Kubernetes cluster this provider is associated with |
-| k8s_platform | Type of Kubernetes platform managing this OIDC configuration (e.g. `eks` for AWS EKS, `aks` for Azure AKS) |
-| client_id | OIDC client ID used for authentication |
-| status | Status of the OIDC provider configuration (e.g. `ACTIVE`) |
-| name | Name of the OIDC provider configuration |
-| arn | AWS ARN of the identity provider configuration (for EKS providers) |
-| firstseen | Timestamp of when a sync job first discovered this node |
-| lastupdated | Timestamp of the last time the node was updated |
-
-#### Relationships
-- `KubernetesOIDCProvider` is trusted by a `KubernetesCluster`.
-    ```
-    (:KubernetesCluster)-[:TRUSTS]->(:KubernetesOIDCProvider)
-    ```
-
-Note: Identity mapping between external OIDC providers (Okta, Auth0, etc.) and Kubernetes users/groups is handled through direct relationships from the external identity provider nodes to Kubernetes nodes, not through the `KubernetesOIDCProvider` infrastructure node.

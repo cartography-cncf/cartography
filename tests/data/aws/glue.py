@@ -32,3 +32,50 @@ GET_GLUE_CONNECTIONS_LIST = [
         "CompatibleComputeEnvironments": ["SPARK", "PYTHON"],
     }
 ]
+
+GET_GLUE_JOBS_LIST = [
+    {
+        "Name": "sample-etl-job",
+        "CreatedOn": "2025-08-01T10:30:00",
+        "LastModifiedOn": "2025-08-05T14:15:00",
+        "GlueVersion": "3.0",
+        "Command": {
+            "Name": "glueetl",
+            "ScriptLocation": "s3://my-glue-scripts/sample-etl-script.py",
+            "PythonVersion": "3",
+        },
+        "DefaultArguments": {
+            "--job-language": "python",
+            "--TempDir": "s3://my-temp-bucket/temp-dir/",
+        },
+        "MaxCapacity": 10.0,
+        "WorkerType": "G.1X",
+        "NumberOfWorkers": 5,
+        "ExecutionProperty": {"MaxConcurrentRuns": 2},
+        "Timeout": 2880,
+        "MaxRetries": 1,
+        "Description": "ETL job for processing sales data",
+        "Connections": {"Connections": ["test-jdbc-connection"]},
+    },
+    {
+        "Name": "sample-streaming-job",
+        "CreatedOn": "2025-08-02T09:00:00",
+        "LastModifiedOn": "2025-08-06T12:45:00",
+        "GlueVersion": "4.0",
+        "Command": {
+            "Name": "gluestreaming",
+            "ScriptLocation": "s3://my-glue-scripts/sample-streaming-script.py",
+            "PythonVersion": "3",
+        },
+        "DefaultArguments": {
+            "--job-language": "python",
+            "--TempDir": "s3://my-temp-bucket/temp-dir/",
+        },
+        "WorkerType": "G.025X",
+        "NumberOfWorkers": 2,
+        "ExecutionProperty": {"MaxConcurrentRuns": 1},
+        "Timeout": 1440,
+        "MaxRetries": 0,
+        "Description": "Streaming ETL job for processing real-time events",
+    },
+]
