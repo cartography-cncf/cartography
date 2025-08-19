@@ -339,51 +339,51 @@ KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDINGS_RAW = [
 
 # Expected node IDs after transformation (for test assertions)
 KUBERNETES_CLUSTER_1_SERVICE_ACCOUNT_IDS = [
-    "demo-ns/demo-sa",
-    "demo-ns/another-sa",
-    "test-ns/test-sa",
+    "my-cluster-1/demo-ns/demo-sa",
+    "my-cluster-1/demo-ns/another-sa",
+    "my-cluster-1/test-ns/test-sa",
 ]
 
 KUBERNETES_CLUSTER_1_ROLE_IDS = [
-    "demo-ns/pod-reader",
-    "demo-ns/secret-manager",
+    "my-cluster-1/demo-ns/pod-reader",
+    "my-cluster-1/demo-ns/secret-manager",
 ]
 
 KUBERNETES_CLUSTER_1_ROLE_BINDING_IDS = [
-    "demo-ns/bind-demo-sa",
-    "demo-ns/bind-another-sa",
+    "my-cluster-1/demo-ns/bind-demo-sa",
+    "my-cluster-1/demo-ns/bind-another-sa",
 ]
 
 KUBERNETES_CLUSTER_2_SERVICE_ACCOUNT_IDS = [
-    "test-ns/test-sa",
+    "my-cluster-2/test-ns/test-sa",
 ]
 
 KUBERNETES_CLUSTER_2_ROLE_IDS = [
-    "test-ns/test-reader",
+    "my-cluster-2/test-ns/test-reader",
 ]
 
 KUBERNETES_CLUSTER_2_ROLE_BINDING_IDS = [
-    "test-ns/bind-test-sa",
+    "my-cluster-2/test-ns/bind-test-sa",
 ]
 
 # Expected ClusterRole IDs after transformation
 KUBERNETES_CLUSTER_1_CLUSTER_ROLE_IDS = [
-    "cluster-admin",
-    "pod-viewer",
+    "my-cluster-1/cluster-admin",
+    "my-cluster-1/pod-viewer",
 ]
 
 KUBERNETES_CLUSTER_2_CLUSTER_ROLE_IDS = [
-    "cluster-viewer",
+    "my-cluster-2/cluster-viewer",
 ]
 
 # Expected ClusterRoleBinding IDs after transformation
 KUBERNETES_CLUSTER_1_CLUSTER_ROLE_BINDING_IDS = [
-    "admin-binding",
-    "viewer-binding",
+    "my-cluster-1/admin-binding",
+    "my-cluster-1/viewer-binding",
 ]
 
 KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDING_IDS = [
-    "cluster-viewer-binding",
+    "my-cluster-2/cluster-viewer-binding",
 ]
 
 # Expected User IDs after transformation
@@ -421,5 +421,57 @@ RBAC_TEST_NAMESPACES_DATA = [
         "creation_timestamp": 1725476601,
         "deletion_timestamp": None,
         "status_phase": "Active",
+    },
+]
+
+# Mock Okta Users for identity mapping tests
+# These map to existing Kubernetes users in the RBAC test data
+MOCK_OKTA_USERS = [
+    {
+        "id": "okta-user-1",
+        "email": "john.doe",  # Maps to existing K8s user "john.doe"
+        "firstName": "John",
+        "lastName": "Doe",
+        "login": "john.doe",
+        "status": "ACTIVE",
+    },
+    {
+        "id": "okta-user-2",
+        "email": "admin@company.com",  # Maps to existing K8s user "admin@company.com"
+        "firstName": "Admin",
+        "lastName": "User",
+        "login": "admin@company.com",
+        "status": "ACTIVE",
+    },
+    {
+        "id": "okta-user-3",
+        "email": "viewer@company.com",  # Maps to existing K8s user "viewer@company.com" (cluster 2)
+        "firstName": "Viewer",
+        "lastName": "User",
+        "login": "viewer@company.com",
+        "status": "ACTIVE",
+    },
+]
+
+# Mock Okta Groups for identity mapping tests
+# These map to existing Kubernetes groups in the RBAC test data
+MOCK_OKTA_GROUPS = [
+    {
+        "id": "okta-group-1",
+        "name": "developers",  # Maps to existing K8s group "developers"
+        "description": "Development team",
+        "type": "OKTA_GROUP",
+    },
+    {
+        "id": "okta-group-2",
+        "name": "admins",  # Maps to existing K8s group "admins"
+        "description": "System administrators",
+        "type": "OKTA_GROUP",
+    },
+    {
+        "id": "okta-group-3",
+        "name": "viewers",  # Maps to existing K8s group "viewers" (cluster 2)
+        "description": "Viewer access group",
+        "type": "OKTA_GROUP",
     },
 ]

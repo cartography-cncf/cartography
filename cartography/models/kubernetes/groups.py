@@ -39,8 +39,26 @@ class KubernetesGroupToClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesGroupToOktaGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class KubernetesGroupToAWSRoleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesGroupToOktaGroupRel(CartographyRelSchema):
+    target_node_label: str = "OktaGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("name")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAPS_TO"
+    properties: KubernetesGroupToOktaGroupRelProperties = (
+        KubernetesGroupToOktaGroupRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -65,6 +83,7 @@ class KubernetesGroupSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            KubernetesGroupToOktaGroupRel(),
             KubernetesGroupToAWSRoleRel(),
         ]
     )

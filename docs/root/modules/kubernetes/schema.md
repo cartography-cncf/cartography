@@ -34,6 +34,7 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
                                        :KubernetesClusterRole,
                                        :KubernetesClusterRoleBinding,
                                        ...)
+    (:KubernetesCluster)-[:TRUSTS]->(:KubernetesOIDCProvider)
     ```
 
 - A `KubernetesPod` belongs to a `KubernetesCluster`
@@ -199,6 +200,11 @@ Representation of a [Kubernetes User.](https://kubernetes.io/docs/reference/acce
     (:AWSRole)-[:MAPS_TO]->(:KubernetesUser)
     ```
 
+- `KubernetesUser` can be mapped from Okta Users based on email/username matching.
+    ```
+    (:OktaUser)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
 ### KubernetesGroup
 Representation of a [Kubernetes Group.](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#groups) Kubernetes Groups are collections of users that can be granted permissions collectively. They are typically extracted from RoleBindings and ClusterRoleBindings that reference group subjects.
 
@@ -230,6 +236,11 @@ Representation of a [Kubernetes Group.](https://kubernetes.io/docs/reference/acc
 - `KubernetesGroup` can be mapped from AWS IAM Roles (EKS clusters only).
     ```
     (:AWSRole)-[:MAPS_TO]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` can be mapped from Okta Groups based on name matching.
+    ```
+    (:OktaGroup)-[:MAPS_TO]->(:KubernetesGroup)
     ```
 
 ### KubernetesServiceAccount
@@ -404,3 +415,27 @@ Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/
     (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount, :KubernetesUser, :KubernetesGroup)
     (:KubernetesClusterRoleBinding)-[:ROLE_REF]->(:KubernetesClusterRole)
     ```
+
+### KubernetesOIDCProvider
+Representation of an external OIDC identity provider infrastructure configuration for a Kubernetes cluster. This node contains the technical configuration details of how the cluster is set up to trust external identity systems (such as Auth0, Okta, Azure AD). The actual identity mapping between external users/groups and Kubernetes RBAC identities is handled by direct relationships from the external identity provider modules.
+
+| Field | Description |
+|-------|-------------|
+| id | Identifier for the OIDC Provider derived from cluster name and provider name (e.g. `my-cluster/oidc/auth0-provider`) |
+| issuer_url | URL of the OIDC issuer (e.g. `https://company.auth0.com/`) |
+| cluster_name | Name of the Kubernetes cluster this provider is associated with |
+| k8s_platform | Type of Kubernetes platform managing this OIDC configuration (e.g. `eks` for AWS EKS, `aks` for Azure AKS) |
+| client_id | OIDC client ID used for authentication |
+| status | Status of the OIDC provider configuration (e.g. `ACTIVE`) |
+| name | Name of the OIDC provider configuration |
+| arn | AWS ARN of the identity provider configuration (for EKS providers) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesOIDCProvider` is trusted by a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:TRUSTS]->(:KubernetesOIDCProvider)
+    ```
+
+Note: Identity mapping between external OIDC providers (Okta, Auth0, etc.) and Kubernetes users/groups is handled through direct relationships from the external identity provider nodes to Kubernetes nodes, not through the `KubernetesOIDCProvider` infrastructure node.

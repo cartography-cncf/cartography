@@ -3,6 +3,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+import boto3
 import neo4j
 import yaml
 from kubernetes.client.models import V1ConfigMap
@@ -11,6 +12,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.groups import KubernetesGroupSchema
+from cartography.models.kubernetes.oidc import KubernetesOIDCProviderSchema
 from cartography.models.kubernetes.users import KubernetesUserSchema
 from cartography.util import timeit
 
@@ -100,6 +102,98 @@ def transform_aws_role_mappings(
 
 
 @timeit
+def get_oidc_providers(
+    boto3_session: boto3.session.Session,
+    region: str,
+    cluster_name: str,
+) -> List[Dict[str, Any]]:
+    """
+    Get external OIDC identity provider configurations for an EKS cluster.
+
+    Returns raw AWS API responses for configured external identity providers.
+    """
+    client = boto3_session.client("eks", region_name=region)
+    oidc_providers = []
+
+    # Extract just the cluster name from ARN if needed
+    # ARN format: arn:aws:eks:region:account:cluster/cluster-name
+    if cluster_name.startswith("arn:aws:eks:"):
+        cluster_name = cluster_name.split("/")[-1]
+
+    # Get configured external identity provider configs
+    configs_response = client.list_identity_provider_configs(clusterName=cluster_name)
+
+    for config in configs_response["identityProviderConfigs"]:
+        if config["type"] == "oidc":
+            # Get detailed config for this OIDC provider
+            detail_response = client.describe_identity_provider_config(
+                clusterName=cluster_name,
+                identityProviderConfig={"type": "oidc", "name": config["name"]},
+            )
+
+            oidc_providers.append(detail_response["identityProviderConfig"]["oidc"])
+
+    return oidc_providers
+
+
+def transform_oidc_providers(
+    oidc_providers: List[Dict[str, Any]],
+    cluster_name: str,
+) -> List[Dict[str, Any]]:
+    """
+    Transform raw AWS OIDC provider data into standardized format.
+
+    Takes raw AWS API responses and creates OIDC provider nodes that match
+    the KubernetesOIDCProvider data model for infrastructure metadata.
+    """
+    transformed_providers = []
+
+    for provider in oidc_providers:
+        # Extract fields from raw AWS API response
+        provider_name = provider["identityProviderConfigName"]
+        issuer_url = provider["issuerUrl"]
+
+        # Create a unique ID for the external OIDC provider
+        # Format: cluster_name/oidc/provider_name
+        provider_id = f"{cluster_name}/oidc/{provider_name}"
+
+        transformed_provider = {
+            "id": provider_id,
+            "issuer_url": issuer_url,
+            "cluster_name": cluster_name,
+            "k8s_platform": "eks",
+            "client_id": provider.get("clientId", ""),
+            "status": provider.get("status", "UNKNOWN"),
+            "name": provider_name,
+            "arn": provider.get("identityProviderConfigArn", ""),
+        }
+
+        transformed_providers.append(transformed_provider)
+
+    return transformed_providers
+
+
+def load_oidc_providers(
+    neo4j_session: neo4j.Session,
+    oidc_providers: List[Dict[str, Any]],
+    update_tag: int,
+    cluster_id: str,
+    cluster_name: str,
+) -> None:
+    """
+    Load OIDC providers and their relationships to users and groups into Neo4j.
+    """
+    logger.info(f"Loading {len(oidc_providers)} EKS OIDC providers")
+    load(
+        neo4j_session,
+        KubernetesOIDCProviderSchema(),
+        oidc_providers,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
+        CLUSTER_NAME=cluster_name,
+    )
+
+
 def load_aws_role_mappings(
     neo4j_session: neo4j.Session,
     users: List[Dict[str, Any]],
@@ -138,7 +232,6 @@ def load_aws_role_mappings(
         )
 
 
-@timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
@@ -155,45 +248,74 @@ def cleanup(
     cleanup_job.run(neo4j_session)
 
 
-@timeit
 def sync(
     neo4j_session: neo4j.Session,
     k8s_client: K8sClient,
+    boto3_session: boto3.session.Session,
+    region: str,
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
 ) -> None:
     """
-    Sync EKS aws-auth ConfigMap role mappings to create AWS Role to Kubernetes User/Group relationships.
-
-    This function should be called AFTER the main Kubernetes RBAC sync to ensure Users and Groups
-    already exist in the graph. It will update existing Users/Groups with AWS Role relationships.
+    Sync EKS identity providers:
+    1. AWS IAM role mappings (aws-auth ConfigMap)
+    2. External OIDC providers (EKS API)
     """
-    logger.info(f"Starting EKS aws-auth sync for cluster {cluster_name}")
+    logger.info(f"Starting EKS identity provider sync for cluster {cluster_name}")
 
+    # 1. Sync AWS IAM role mappings (aws-auth ConfigMap)
+    logger.info("Syncing AWS IAM role mappings from aws-auth ConfigMap")
     configmap = get_aws_auth_configmap(k8s_client)
-
     role_mappings = parse_role_mappings(configmap)
 
-    if not role_mappings:
+    if role_mappings:
+        transformed_data = transform_aws_role_mappings(role_mappings, cluster_name)
+        load_aws_role_mappings(
+            neo4j_session,
+            transformed_data["users"],
+            transformed_data["groups"],
+            update_tag,
+            cluster_id,
+            cluster_name,
+        )
+        logger.info(f"Successfully synced {len(role_mappings)} AWS IAM role mappings")
+    else:
         logger.info("No role mappings found in aws-auth ConfigMap")
-        return
 
-    transformed_data = transform_aws_role_mappings(role_mappings, cluster_name)
+    # 2. Sync External OIDC providers (EKS API)
+    logger.info("Syncing external OIDC providers from EKS API")
 
-    load_aws_role_mappings(
-        neo4j_session,
-        transformed_data["users"],
-        transformed_data["groups"],
-        update_tag,
-        cluster_id,
-        cluster_name,
-    )
+    # Get OIDC providers from EKS API
+    oidc_providers = get_oidc_providers(boto3_session, region, cluster_name)
 
+    if oidc_providers:
+        # Transform OIDC providers (infrastructure metadata only)
+        transformed_oidc_providers = transform_oidc_providers(
+            oidc_providers, cluster_name
+        )
+
+        # Load OIDC providers
+        load_oidc_providers(
+            neo4j_session,
+            transformed_oidc_providers,
+            update_tag,
+            cluster_id,
+            cluster_name,
+        )
+        logger.info(
+            f"Successfully synced {len(oidc_providers)} external OIDC providers"
+        )
+    else:
+        logger.info("No external OIDC providers found for cluster")
+
+    # Cleanup
     common_job_parameters = {
         "UPDATE_TAG": update_tag,
         "CLUSTER_ID": cluster_id,
     }
     cleanup(neo4j_session, common_job_parameters)
 
-    logger.info(f"Successfully completed EKS aws-auth sync for cluster {cluster_name}")
+    logger.info(
+        f"Successfully completed EKS identity provider sync for cluster {cluster_name}"
+    )

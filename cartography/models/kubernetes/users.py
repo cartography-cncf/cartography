@@ -39,8 +39,26 @@ class KubernetesUserToClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesUserToOktaUserRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class KubernetesUserToAWSRoleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesUserToOktaUserRel(CartographyRelSchema):
+    target_node_label: str = "OktaUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("name")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAPS_TO"
+    properties: KubernetesUserToOktaUserRelProperties = (
+        KubernetesUserToOktaUserRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -63,6 +81,7 @@ class KubernetesUserSchema(CartographyNodeSchema):
     sub_resource_relationship: KubernetesUserToClusterRel = KubernetesUserToClusterRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            KubernetesUserToOktaUserRel(),
             KubernetesUserToAWSRoleRel(),
         ]
     )

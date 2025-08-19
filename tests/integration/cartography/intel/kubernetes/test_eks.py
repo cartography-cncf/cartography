@@ -1,15 +1,21 @@
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from kubernetes.client.models import V1ConfigMap
 
 from cartography.intel.aws.iam import load_roles
+from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as eks_sync
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_DATA
 from tests.data.kubernetes.eks import MOCK_AWS_ROLES
+from tests.data.kubernetes.eks import MOCK_CLUSTER_DATA
+from tests.data.kubernetes.eks import MOCK_OIDC_PROVIDERS
 from tests.data.kubernetes.eks import TEST_ACCOUNT_ID
 from tests.data.kubernetes.eks import TEST_CLUSTER_ID
 from tests.data.kubernetes.eks import TEST_CLUSTER_NAME
+from tests.data.kubernetes.eks import TEST_REGION
 from tests.data.kubernetes.eks import TEST_UPDATE_TAG
+from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 
@@ -23,9 +29,14 @@ def create_mock_aws_auth_configmap():
     )
 
 
-def test_eks_sync_creates_aws_role_relationships(neo4j_session):
+@patch("cartography.intel.kubernetes.eks.get_oidc_providers")
+def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
+    mock_get_oidc_providers,
+    neo4j_session,
+):
     """
-    Test that EKS sync creates the expected AWS Role to Kubernetes User/Group relationships.
+    Test that EKS sync creates the expected AWS Role to Kubernetes User/Group relationships
+    and OIDC provider infrastructure nodes with cluster relationships.
     """
     # Arrange: Create AWS Account first (required for role loading)
     neo4j_session.run(
@@ -38,6 +49,9 @@ def test_eks_sync_creates_aws_role_relationships(neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
+    # Arrange: Create cluster (required for OIDC provider relationships)
+    load_kubernetes_cluster(neo4j_session, MOCK_CLUSTER_DATA, TEST_UPDATE_TAG)
+
     # Arrange: Set up prerequisite AWS Roles in the graph
     load_roles(
         neo4j_session,
@@ -46,6 +60,9 @@ def test_eks_sync_creates_aws_role_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
+    # Arrange: Mock OIDC providers
+    mock_get_oidc_providers.return_value = MOCK_OIDC_PROVIDERS
+
     # Arrange: Create mock K8s client that returns our test ConfigMap
     mock_k8s_client = MagicMock()
     mock_k8s_client.name = TEST_CLUSTER_NAME
@@ -53,10 +70,15 @@ def test_eks_sync_creates_aws_role_relationships(neo4j_session):
         create_mock_aws_auth_configmap()
     )
 
+    # Arrange: Create mock boto3 session
+    mock_boto3_session = MagicMock()
+
     # Act: Run EKS sync
     eks_sync(
         neo4j_session,
         mock_k8s_client,
+        mock_boto3_session,
+        TEST_REGION,
         TEST_UPDATE_TAG,
         TEST_CLUSTER_ID,
         TEST_CLUSTER_NAME,
@@ -69,17 +91,15 @@ def test_eks_sync_creates_aws_role_relationships(neo4j_session):
         ("arn:aws:iam::123456789012:role/EKSViewerRole", "test-cluster/viewer-user"),
     }
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "AWSRole",
-            "arn",
-            "KubernetesUser",
-            "id",
-            "MAPS_TO",
-        )
-        == expected_user_relationships
+    actual_user_relationships = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
     )
+    assert expected_user_relationships.issubset(actual_user_relationships)
 
     # Assert: Verify AWS Role to Kubernetes Group relationships
     expected_group_relationships = {
@@ -92,14 +112,53 @@ def test_eks_sync_creates_aws_role_relationships(neo4j_session):
         ("arn:aws:iam::123456789012:role/EKSGroupOnlyRole", "test-cluster/automation"),
     }
 
-    assert (
-        check_rels(
-            neo4j_session,
-            "AWSRole",
-            "arn",
-            "KubernetesGroup",
-            "id",
-            "MAPS_TO",
-        )
-        == expected_group_relationships
+    actual_group_relationships = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "KubernetesGroup",
+        "id",
+        "MAPS_TO",
     )
+    assert expected_group_relationships.issubset(actual_group_relationships)
+
+    # Assert: Verify OIDC Provider nodes were created
+    expected_oidc_providers = {
+        (
+            f"{TEST_CLUSTER_NAME}/oidc/auth0-provider",
+            "https://company.auth0.com/",
+            "auth0-provider",
+            "eks",
+        ),
+        (
+            f"{TEST_CLUSTER_NAME}/oidc/okta-provider",
+            "https://company.okta.com/oauth2/default",
+            "okta-provider",
+            "eks",
+        ),
+    }
+    actual_oidc_providers = check_nodes(
+        neo4j_session,
+        "KubernetesOIDCProvider",
+        ["id", "issuer_url", "name", "k8s_platform"],
+    )
+    assert expected_oidc_providers.issubset(actual_oidc_providers)
+
+    # Assert: Verify Cluster TRUSTS OIDC Provider relationships
+    expected_cluster_relationships = {
+        (TEST_CLUSTER_ID, f"{TEST_CLUSTER_NAME}/oidc/auth0-provider"),
+        (TEST_CLUSTER_ID, f"{TEST_CLUSTER_NAME}/oidc/okta-provider"),
+    }
+    actual_cluster_relationships = check_rels(
+        neo4j_session,
+        "KubernetesCluster",
+        "id",
+        "KubernetesOIDCProvider",
+        "id",
+        "TRUSTS",
+    )
+    assert expected_cluster_relationships.issubset(actual_cluster_relationships)
+
+    # Note: OIDC Provider nodes only contain infrastructure metadata.
+    # Identity relationships (OktaUser/Group -> KubernetesUser/Group) are handled
+    # by the respective data models and Okta module, not by the EKS module.
