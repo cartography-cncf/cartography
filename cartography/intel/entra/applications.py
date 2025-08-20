@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, AsyncGenerator, Generator
 from typing import Dict
 from typing import List
 
@@ -37,15 +37,14 @@ HIGH_ASSIGNMENT_COUNT_THRESHOLD = 100
 
 
 @timeit
-async def get_entra_applications(client: GraphServiceClient) -> List[Any]:
+async def get_entra_applications(client: GraphServiceClient) -> AsyncGenerator[Any, None]:
     """
-    Gets Entra applications using the Microsoft Graph API.
+    Gets Entra applications using the Microsoft Graph API with a generator.
 
     :param client: GraphServiceClient
-    :return: List of raw Application objects from Microsoft Graph
+    :return: Generator of raw Application objects from Microsoft Graph
     """
-    applications = []
-
+    count = 0
     # Get all applications with pagination
     request_configuration = client.applications.ApplicationsRequestBuilderGetRequestConfiguration(
         query_parameters=client.applications.ApplicationsRequestBuilderGetQueryParameters(
@@ -56,14 +55,15 @@ async def get_entra_applications(client: GraphServiceClient) -> List[Any]:
 
     while page:
         if page.value:
-            applications.extend(page.value)
+            for app in page.value:
+                count += 1
+                yield app
 
         if not page.odata_next_link:
             break
         page = await client.applications.with_url(page.odata_next_link).get()
 
-    logger.info(f"Retrieved {len(applications)} Entra applications total")
-    return applications
+    logger.info(f"Retrieved {count} Entra applications total")
 
 
 @timeit
@@ -183,38 +183,34 @@ async def get_app_role_assignments(
     return assignments
 
 
-def transform_applications(applications: List[Any]) -> List[Dict[str, Any]]:
+def transform_applications(applications: List[Any]) -> Generator[Dict[str, Any], None, None]:
     """
-    Transform application data for graph loading.
+    Transform application data for graph loading using a generator.
 
     :param applications: Raw Application objects from Microsoft Graph API
-    :return: Transformed application data for graph loading
+    :return: Generator of transformed application data for graph loading
     """
-    result = []
     for app in applications:
-        transformed = {
+        yield {
             "id": app.id,
             "app_id": app.app_id,
             "display_name": app.display_name,
             "publisher_domain": getattr(app, "publisher_domain", None),
             "sign_in_audience": app.sign_in_audience,
         }
-        result.append(transformed)
-    return result
 
 
 def transform_app_role_assignments(
     assignments: List[Any],
-) -> List[Dict[str, Any]]:
+) -> Generator[Dict[str, Any], None, None]:
     """
-    Transform app role assignment data for graph loading.
+    Transform app role assignment data for graph loading using a generator.
 
     :param assignments: Raw app role assignment objects from Microsoft Graph API
-    :return: Transformed assignment data for graph loading
+    :return: Generator of transformed assignment data for graph loading
     """
-    result = []
     for assignment in assignments:
-        transformed = {
+        yield {
             "id": assignment.id,
             "app_role_id": (
                 str(assignment.app_role_id) if assignment.app_role_id else None
@@ -231,8 +227,6 @@ def transform_app_role_assignments(
             ),
             "application_app_id": getattr(assignment, "application_app_id", None),
         }
-        result.append(transformed)
-    return result
 
 
 @timeit
@@ -347,16 +341,35 @@ async def sync_entra_applications(
     # Load tenant (prerequisite)
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
 
-    # Get and transform applications data
-    applications_data = await get_entra_applications(client)
-    transformed_applications = transform_applications(applications_data)
-
-    # Get and transform app role assignments data
-    assignments_data = await get_app_role_assignments(client, applications_data)
-    transformed_assignments = transform_app_role_assignments(assignments_data)
-
-    # Load applications and assignments
-    load_applications(neo4j_session, transformed_applications, update_tag, tenant_id)
+    # Process applications and their assignments in batches
+    batch_size = 50  # Smaller batch for applications as they have associated role assignments
+    apps_batch = []
+    all_assignments = []
+    
+    async for app in get_entra_applications(client):
+        apps_batch.append(app)
+        
+        if len(apps_batch) >= batch_size:
+            # Get role assignments for this batch
+            batch_assignments = await get_app_role_assignments(client, apps_batch)
+            all_assignments.extend(batch_assignments)
+            
+            # Transform and load this batch
+            transformed_apps = list(transform_applications(apps_batch))
+            load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
+            
+            apps_batch.clear()
+    
+    # Process remaining applications
+    if apps_batch:
+        batch_assignments = await get_app_role_assignments(client, apps_batch)
+        all_assignments.extend(batch_assignments)
+        
+        transformed_apps = list(transform_applications(apps_batch))
+        load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
+    
+    # Load all role assignments (these are already batched by application)
+    transformed_assignments = list(transform_app_role_assignments(all_assignments))
     load_app_role_assignments(
         neo4j_session, transformed_assignments, update_tag, tenant_id
     )
