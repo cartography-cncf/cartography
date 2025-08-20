@@ -51,6 +51,7 @@ USER_SELECT_FIELDS = [
     "department",
     "officeLocation",
     "city",
+    "state",
     "country",
     "companyName",
     "preferredLanguage",

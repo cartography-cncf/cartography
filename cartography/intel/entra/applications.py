@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 # - You want to minimize API calls (increase values up to 999)
 # - You're hitting rate limits (decrease values)
 APPLICATIONS_PAGE_SIZE = 999
-APP_ROLE_ASSIGNMENTS_PAGE_SIZE = (
-    999  # Currently not used, but reserved for future pagination improvements
-)
+# Flush transformed assignments to Neo4j once this buffer size is reached.
+# Keep this comfortably below tx.py's internal 10k batching to limit memory.
+ASSIGNMENT_BUFFER_SIZE = 1000
 
 # Warning thresholds for potential data completeness issues
 # Log warnings when individual users/groups have more assignments than this threshold
@@ -40,8 +40,15 @@ async def get_entra_applications(client: GraphServiceClient) -> AsyncIterator[Li
 
     request_configuration = client.applications.ApplicationsRequestBuilderGetRequestConfiguration(
         query_parameters=client.applications.ApplicationsRequestBuilderGetQueryParameters(
-            top=APPLICATIONS_PAGE_SIZE
-        )
+            top=APPLICATIONS_PAGE_SIZE,
+            select=[
+                "id",
+                "appId",
+                "displayName",
+                "signInAudience",
+                "publisherDomain",
+            ],
+        ),
     )
     page = await client.applications.get(request_configuration=request_configuration)
 
@@ -67,9 +74,10 @@ async def get_app_role_assignments(
         service_principals_page = await client.service_principals.get(
             request_configuration=client.service_principals.ServicePrincipalsRequestBuilderGetRequestConfiguration(
                 query_parameters=client.service_principals.ServicePrincipalsRequestBuilderGetQueryParameters(
-                    filter=f"appId eq '{app.app_id}'"
-                )
-            )
+                    filter=f"appId eq '{app.app_id}'",
+                    select=["id"],
+                ),
+            ),
         )
 
         if not service_principals_page or not service_principals_page.value:
@@ -88,7 +96,26 @@ async def get_app_role_assignments(
 
         assignments_page = await client.service_principals.by_service_principal_id(
             service_principal.id
-        ).app_role_assigned_to.get()
+        ).app_role_assigned_to.get(
+            request_configuration=client.service_principals.by_service_principal_id(
+                service_principal.id,
+            ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetRequestConfiguration(
+                query_parameters=client.service_principals.by_service_principal_id(
+                    service_principal.id,
+                ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetQueryParameters(
+                    select=[
+                        "id",
+                        "appRoleId",
+                        "createdDateTime",
+                        "principalId",
+                        "principalDisplayName",
+                        "principalType",
+                        "resourceDisplayName",
+                        "resourceId",
+                    ],
+                ),
+            ),
+        )
 
         app_assignments: List[Any] = []
         while assignments_page:
@@ -287,23 +314,34 @@ async def sync_entra_applications(
 
     total_apps = 0
     total_assignments = 0
+    # Buffer for transformed assignments to avoid holding very large lists
+    assignments_buffer: List[Dict[str, Any]] = []
     async for apps_page in get_entra_applications(client):
         transformed_apps = list(transform_applications(apps_page))
         load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
         total_apps += len(transformed_apps)
 
-        assignments_collected: List[Any] = []
+        # For memory safety, fetch -> transform -> buffer -> flush in chunks per app
         for app in apps_page:
-            assignments_collected.extend(await get_app_role_assignments(client, app))
+            raw_assignments = await get_app_role_assignments(client, app)
+            if not raw_assignments:
+                continue
+            for ta in transform_app_role_assignments(raw_assignments):
+                assignments_buffer.append(ta)
+                if len(assignments_buffer) >= ASSIGNMENT_BUFFER_SIZE:
+                    load_app_role_assignments(
+                        neo4j_session, assignments_buffer, update_tag, tenant_id
+                    )
+                    total_assignments += len(assignments_buffer)
+                    assignments_buffer.clear()
 
-        if assignments_collected:
-            transformed_assignments = list(
-                transform_app_role_assignments(assignments_collected)
-            )
-            load_app_role_assignments(
-                neo4j_session, transformed_assignments, update_tag, tenant_id
-            )
-            total_assignments += len(transformed_assignments)
+    # Flush any remaining assignment records
+    if assignments_buffer:
+        load_app_role_assignments(
+            neo4j_session, assignments_buffer, update_tag, tenant_id
+        )
+        total_assignments += len(assignments_buffer)
+        assignments_buffer.clear()
 
     logger.info(
         f"Loaded {total_apps} Entra applications and {total_assignments} role assignments"
