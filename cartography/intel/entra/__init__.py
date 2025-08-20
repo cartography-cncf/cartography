@@ -69,15 +69,15 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             common_job_parameters,
         )
 
-        # # Run application sync
-        # await sync_entra_applications(
-        #     neo4j_session,
-        #     config.entra_tenant_id,
-        #     config.entra_client_id,
-        #     config.entra_client_secret,
-        #     config.update_tag,
-        #     common_job_parameters,
-        # )
+        # Run application sync
+        await sync_entra_applications(
+            neo4j_session,
+            config.entra_tenant_id,
+            config.entra_client_id,
+            config.entra_client_secret,
+            config.update_tag,
+            common_job_parameters,
+        )
 
     # Execute syncs in sequence
     asyncio.run(main())
