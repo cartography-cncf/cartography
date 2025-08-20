@@ -17,8 +17,8 @@ This privilege escalation method could allow a user to gain full administrator a
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:CreatePolicyVersion") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:CreatePolicyVersion")
 RETURN p
 ```
 
@@ -39,8 +39,8 @@ The potential impact is associated with the level of permissions that the inacti
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:SetDefaultPolicyVersion") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:SetDefaultPolicyVersion")
 RETURN p
 ```
 
@@ -62,8 +62,8 @@ This attack would give an attacker access to the set of permissions that the ins
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "ec2:RunInstances")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "ec2:RunInstances"))
 RETURN p
 ```
 
@@ -84,8 +84,8 @@ This method would give an attacker the same level of permissions as any user the
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:CreateAccessKey") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:CreateAccessKey")
 RETURN p
 ```
 
@@ -106,8 +106,8 @@ This method would give an attacker the same level of permissions as any user the
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:CreateLoginProfile") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:CreateLoginProfile")
 RETURN p
 ```
 
@@ -128,8 +128,8 @@ This method would give an attacker the same level of permissions as any user the
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:UpdateLoginProfile") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:UpdateLoginProfile")
 RETURN p
 ```
 
@@ -150,8 +150,8 @@ An attacker would be able to use this method to attach the AdministratorAccess A
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:AttachUserPolicy") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:AttachUserPolicy")
 RETURN p
 ```
 
@@ -172,8 +172,8 @@ An attacker would be able to use this method to attach the AdministratorAccess A
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:AttachGroupPolicy") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:AttachGroupPolicy")
 RETURN p
 ```
 
@@ -194,8 +194,8 @@ An attacker would be able to use this method to attach the AdministratorAccess A
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:AttachRolePolicy") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:AttachRolePolicy")
 RETURN p
 ```
 
@@ -216,8 +216,8 @@ Due to the ability to specify an arbitrary policy document with this method, the
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:PutUserPolicy") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:PutUserPolicy")
 RETURN p
 ```
 
@@ -238,8 +238,8 @@ Due to the ability to specify an arbitrary policy document with this method, the
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:PutGroupPolicy") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:PutGroupPolicy")
 RETURN p
 ```
 
@@ -260,8 +260,8 @@ Due to the ability to specify an arbitrary policy document with this method, the
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:PutRolePolicy") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:PutRolePolicy")
 RETURN p
 ```
 
@@ -282,8 +282,8 @@ The attacker would be able to gain privileges of any existing group in the accou
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:AddUserToGroup") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "iam:AddUserToGroup")
 RETURN p
 ```
 
@@ -305,8 +305,8 @@ This would give the attacker the privileges that are attached to any role in the
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:UpdateAssumeRolePolicy") AND any(x in stmt.action WHERE x = "sts:AssumeRole")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:UpdateAssumeRolePolicy") AND any(x in stmt.action WHERE x = "sts:AssumeRole"))
 RETURN p
 ```
 
@@ -329,8 +329,8 @@ This would give a user access to the privileges associated with any Lambda servi
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:CreateFunction") AND any(x in stmt.action WHERE x = "lambda:InvokeFunction")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:CreateFunction") AND any(x in stmt.action WHERE x = "lambda:InvokeFunction"))
 RETURN p
 ```
 
@@ -353,8 +353,8 @@ This would give a user access to the privileges associated with any Lambda servi
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:AddPermission") AND any(x in stmt.action WHERE x = "lambda:InvokeFunction")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:AddPermission") AND any(x in stmt.action WHERE x = "lambda:InvokeFunction"))
 RETURN p
 ```
 
@@ -379,8 +379,8 @@ This would give an attacker access to the privileges associated with any Lambda 
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:CreateEventSourceMapping") AND any(x in stmt.action WHERE x = "lambda:InvokeFunction" AND any(x in stmt.action WHERE x = "dynamodb:PutItem") AND any(x in stmt.action WHERE x = "dynamodb:CreateTable"))) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "lambda:CreateEventSourceMapping") AND any(x in stmt.action WHERE x = "lambda:InvokeFunction" AND any(x in stmt.action WHERE x = "dynamodb:PutItem") AND any(x in stmt.action WHERE x = "dynamodb:CreateTable")))
 RETURN p
 ```
 
@@ -401,8 +401,8 @@ This would give an attacker access to the privileges associated with the Lambda 
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "lambda:UpdateFunctionCode") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "lambda:UpdateFunctionCode")
 RETURN p
 ```
 
@@ -424,8 +424,8 @@ This would give an attacker access to the privileges associated with any Glue se
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "glue:CreateDevEndpoint")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "glue:CreateDevEndpoint"))
 RETURN p
 ```
 
@@ -446,8 +446,8 @@ This would give an attacker access to the privileges associated with the role at
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "glue:UpdateDevEndpoint") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "glue:UpdateDevEndpoint")
 RETURN p
 ```
 
@@ -469,8 +469,8 @@ This would give an attacker access to the privileges associated with the role th
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "cloudformation:CreateStack")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "cloudformation:CreateStack"))
 RETURN p
 ```
 
@@ -493,8 +493,8 @@ This would give the attacker access to the privileges associated with the role t
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "datapipeline:CreatePipeline") AND any(x in stmt.action WHERE x = "datapipeline:PutPipelineDefinition")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "iam:PassRole") AND any(x in stmt.action WHERE x = "datapipeline:CreatePipeline") AND any(x in stmt.action WHERE x = "datapipeline:PutPipelineDefinition"))
 RETURN p
 ```
 
@@ -502,7 +502,7 @@ RETURN p
 
 ## 23. Creating a CodeStar Project from a Template
 
-**How-To/Exploit Link(s):** 
+**How-To/Exploit Link(s):**
 - [Escalating AWS IAM Privileges with an Undocumented CodeStar API](https://rhinosecuritylabs.com/aws/escalating-aws-iam-privileges-undocumented-codestar-api/)
 - [CodeStar Privilege Escalation Script](https://github.com/RhinoSecurityLabs/Cloud-Security-Research/blob/master/AWS/codestar_createprojectfromtemplate_privesc/CodeStarPrivEsc.py)
 
@@ -517,8 +517,8 @@ This would give the attacker access to the privileges associated with the CodeSt
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "codestar:CreateProjectFromTemplate") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "codestar:CreateProjectFromTemplate")
 RETURN p
 ```
 
@@ -540,8 +540,8 @@ This would give the attacker the ability to escalate to a full administrator, be
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "codestar:CreateProject") AND any(x in stmt.action WHERE x = "iam:PassRole")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "codestar:CreateProject") AND any(x in stmt.action WHERE x = "iam:PassRole"))
 RETURN p
 ```
 
@@ -563,8 +563,8 @@ This would give the attacker read-only access to multiple different AWS services
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "codestar:CreateProject") AND any(x in stmt.action WHERE x = "codestar:AssociateTeamMember")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "codestar:CreateProject") AND any(x in stmt.action WHERE x = "codestar:AssociateTeamMember"))
 RETURN p
 ```
 
@@ -585,8 +585,8 @@ This would give an attacker access to the privileges associated with the Lambda 
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "lambda:UpdateFunctionConfiguration") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "lambda:UpdateFunctionConfiguration")
 RETURN p
 ```
 
@@ -609,8 +609,8 @@ This would give an attacker access to the privileges associated with the SageMak
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "sagemaker:CreateNotebookInstance") AND any(x in stmt.action WHERE x = "sagemaker:CreatePresignedNotebookInstanceUrl") AND any(x in stmt.action WHERE x = "iam:PassRole")) 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND (any(x in stmt.action WHERE x = "sagemaker:CreateNotebookInstance") AND any(x in stmt.action WHERE x = "sagemaker:CreatePresignedNotebookInstanceUrl") AND any(x in stmt.action WHERE x = "iam:PassRole"))
 RETURN p
 ```
 
@@ -631,7 +631,7 @@ This would give an attacker access to the privileges associated with the SageMak
 
 **Cartography Query:**
 ```cypher
-MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount) 
-WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "sagemaker:CreatePresignedNotebookInstanceUrl") 
+MATCH p=(stmt:AWSPolicyStatement)--(pol:AWSPolicy)--(principal:AWSPrincipal)--(a:AWSAccount)
+WHERE stmt.effect = "Allow" AND any(x in stmt.action WHERE x = "sagemaker:CreatePresignedNotebookInstanceUrl")
 RETURN p
 ```
