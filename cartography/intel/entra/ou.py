@@ -1,6 +1,6 @@
 # cartography/intel/entra/ou.py
 import logging
-from typing import Any, AsyncIterator, Iterable, Iterator
+from typing import Any, AsyncGenerator, Generator
 
 import neo4j
 from azure.identity import ClientSecretCredential
@@ -17,15 +17,21 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-async def get_entra_ous(client: GraphServiceClient) -> AsyncIterator[list[AdministrativeUnit]]:
-    """Yield pages of OUs from Microsoft Graph API."""
-
+async def get_entra_ous(client: GraphServiceClient) -> AsyncGenerator[AdministrativeUnit, None]:
+    """
+    Get all OUs from Microsoft Graph API with pagination support using a generator
+    """
+    # Initialize first page request
     current_request = client.directory.administrative_units
+
     while current_request:
         try:
             response = await current_request.get()
             if response and response.value:
-                yield response.value
+                for unit in response.value:
+                    yield unit
+
+                # Handle next page using OData link
                 if response.odata_next_link:
                     current_request = client.directory.administrative_units.with_url(
                         response.odata_next_link
@@ -40,9 +46,11 @@ async def get_entra_ous(client: GraphServiceClient) -> AsyncIterator[list[Admini
 
 
 def transform_ous(
-    units: Iterable[AdministrativeUnit], tenant_id: str
-) -> Iterator[dict[str, Any]]:
-    """Transform the API response into the format expected by our schema"""
+    units: list[AdministrativeUnit], tenant_id: str
+) -> Generator[dict[str, Any], None, None]:
+    """
+    Transform the API response into the format expected by our schema using a generator
+    """
     for unit in units:
         yield {
             "id": unit.id,
@@ -59,21 +67,19 @@ def transform_ous(
 @timeit
 def load_ous(
     neo4j_session: neo4j.Session,
-    units: Iterable[dict[str, Any]],
+    units: list[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> int:
-    unit_list = list(units)
-    logger.info(f"Loading {len(unit_list)} Entra OUs")
+) -> None:
+    logger.info(f"Loading {len(units)} Entra OUs")
     load(
         neo4j_session,
         EntraOUSchema(),
-        unit_list,
+        units,
         lastupdated=update_tag,
         TENANT_ID=common_job_parameters["TENANT_ID"],
         UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
     )
-    return len(unit_list)
 
 
 def cleanup_ous(
@@ -104,17 +110,25 @@ async def sync_entra_ous(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
 
+    # Load tenant first
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
 
-    total_units = 0
-    async for units_page in get_entra_ous(client):
-        count = load_ous(
-            neo4j_session,
-            transform_ous(units_page, tenant_id),
-            update_tag,
-            common_job_parameters,
-        )
-        total_units += count
+    # Process OUs in batches
+    batch_size = 100  # OUs are typically fewer than users/groups
+    units_batch = []
+    
+    async for unit in get_entra_ous(client):
+        units_batch.append(unit)
+        
+        if len(units_batch) >= batch_size:
+            transformed_units = list(transform_ous(units_batch, tenant_id))
+            load_ous(neo4j_session, transformed_units, update_tag, common_job_parameters)
+            units_batch.clear()
+    
+    # Process any remaining OUs
+    if units_batch:
+        transformed_units = list(transform_ous(units_batch, tenant_id))
+        load_ous(neo4j_session, transformed_units, update_tag, common_job_parameters)
 
-    logger.info(f"Loaded {total_units} Entra OUs")
+    # Cleanup stale data
     cleanup_ous(neo4j_session, common_job_parameters)

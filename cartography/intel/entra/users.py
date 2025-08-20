@@ -1,5 +1,5 @@
 import logging
-from typing import Any, AsyncIterator, Iterable, Iterator
+from typing import Any, AsyncGenerator, Generator
 
 import neo4j
 from azure.identity import ClientSecretCredential
@@ -51,7 +51,6 @@ USER_SELECT_FIELDS = [
     "department",
     "officeLocation",
     "city",
-    "state",
     "country",
     "companyName",
     "preferredLanguage",
@@ -72,11 +71,11 @@ async def get_tenant(client: GraphServiceClient) -> Organization:
 
 
 @timeit
-async def get_users(client: GraphServiceClient) -> AsyncIterator[list[User]]:
-    """Yield pages of users with their manager reference.
+async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
+    """Fetch all users with their manager reference in as few requests as possible.
 
     We leverage `$expand=manager($select=id)` so the manager's *id* is hydrated
-    alongside every user record. This avoids making a second round-trip per
+    alongside every user record.  This avoids making a second round-trip per
     user – vastly reducing latency and eliminating the noisy 404s that occur
     when a user has no manager assigned.
     """
@@ -92,9 +91,11 @@ async def get_users(client: GraphServiceClient) -> AsyncIterator[list[User]]:
     page = await client.users.get(request_configuration=request_configuration)
     while page:
         if page.value:
-            yield page.value
+            for user in page.value:
+                yield user
         if not page.odata_next_link:
             break
+
         try:
             page = await client.users.with_url(page.odata_next_link).get()
         except Exception as e:
@@ -108,7 +109,7 @@ async def get_users(client: GraphServiceClient) -> AsyncIterator[list[User]]:
 @timeit
 # The manager reference is now embedded in the user objects courtesy of the
 # `$expand` we added above, so we no longer need a separate `manager_map`.
-def transform_users(users: Iterable[User]) -> Iterator[dict[str, Any]]:
+def transform_users(users: list[User]) -> Generator[dict[str, Any], None, None]:
     """Convert MS Graph SDK `User` models into dicts matching our schema."""
 
     for user in users:
@@ -183,20 +184,18 @@ def load_tenant(
 @timeit
 def load_users(
     neo4j_session: neo4j.Session,
-    users: Iterable[dict[str, Any]],
+    users: list[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
-) -> int:
-    user_list = list(users)
-    logger.info(f"Loading {len(user_list)} Entra users")
+) -> None:
+    logger.info(f"Loading {len(users)} Entra users")
     load(
         neo4j_session,
         EntraUserSchema(),
-        user_list,
+        users,
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
     )
-    return len(user_list)
 
 
 def cleanup(
@@ -236,19 +235,26 @@ async def sync_entra_users(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
 
-    # Fetch tenant and stream users (with manager reference already populated by `$expand`)
+    # Fetch tenant and load it first
     tenant = await get_tenant(client)
     transformed_tenant = transform_tenant(tenant, tenant_id)
     load_tenant(neo4j_session, transformed_tenant, update_tag)
 
-    total_loaded = 0
-    async for users_page in get_users(client):
-        total_loaded += load_users(
-            neo4j_session,
-            transform_users(users_page),
-            tenant_id,
-            update_tag,
-        )
+    # Process users in batches to reduce memory consumption
+    batch_size = 500  # Process users in larger batches since they're simpler than groups
+    users_batch = []
+    
+    async for user in get_users(client):
+        users_batch.append(user)
+        
+        if len(users_batch) >= batch_size:
+            transformed_users = list(transform_users(users_batch))
+            load_users(neo4j_session, transformed_users, tenant_id, update_tag)
+            users_batch.clear()
+    
+    # Process any remaining users
+    if users_batch:
+        transformed_users = list(transform_users(users_batch))
+        load_users(neo4j_session, transformed_users, tenant_id, update_tag)
 
-    logger.info(f"Loaded {total_loaded} Entra users")
     cleanup(neo4j_session, common_job_parameters)

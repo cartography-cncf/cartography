@@ -1,12 +1,11 @@
 import logging
-from typing import Any, AsyncIterator, Iterable, Iterator, List
+from typing import Any, AsyncGenerator, Generator
 
 import neo4j
 from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.directory_object import DirectoryObject
 from msgraph.generated.models.group import Group
-from msgraph.generated.models.user import User
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -16,37 +15,18 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-GROUP_BUFFER_SIZE = 5000  # Fewer DB transactions while staying memory-safe
 
 @timeit
-async def get_entra_groups(client: GraphServiceClient) -> AsyncIterator[list[Group]]:
-    """Yield pages of groups from Microsoft Graph API."""
+async def get_entra_groups(client: GraphServiceClient) -> AsyncGenerator[Group, None]:
+    """Get all groups from Microsoft Graph API with pagination using a generator."""
     request_configuration = client.groups.GroupsRequestBuilderGetRequestConfiguration(
-        query_parameters=client.groups.GroupsRequestBuilderGetQueryParameters(
-            top=999,
-            select=[
-                "id",
-                "displayName",
-                "description",
-                "mail",
-                "mailNickname",
-                "mailEnabled",
-                "securityEnabled",
-                "groupTypes",
-                "visibility",
-                "isAssignableToRole",
-                "createdDateTime",
-                "deletedDateTime",
-            ],
-            # Graph allows only one expand in many cases; expand members per-page,
-            # and fetch owners separately per group if needed.
-            expand=["members($select=id)"],
-        )
+        query_parameters=client.groups.GroupsRequestBuilderGetQueryParameters(top=999)
     )
     page = await client.groups.get(request_configuration=request_configuration)
     while page:
         if page.value:
-            yield page.value
+            for group in page.value:
+                yield group
         if not page.odata_next_link:
             break
         page = await client.groups.with_url(page.odata_next_link).get()
@@ -95,12 +75,12 @@ async def get_group_owners(client: GraphServiceClient, group_id: str) -> list[st
 
 
 def transform_groups(
-    groups: Iterable[Group],
+    groups: list[Group],
     user_member_map: dict[str, list[str]],
     group_member_map: dict[str, list[str]],
     group_owner_map: dict[str, list[str]],
-) -> Iterator[dict[str, Any]]:
-    """Transform API responses into dictionaries for ingestion."""
+) -> Generator[dict[str, Any], None, None]:
+    """Transform API responses into dictionaries for ingestion using a generator."""
     for g in groups:
         yield {
             "id": g.id,
@@ -124,20 +104,18 @@ def transform_groups(
 @timeit
 def load_groups(
     neo4j_session: neo4j.Session,
-    groups: Iterable[dict[str, Any]],
+    groups: list[dict[str, Any]],
     update_tag: int,
     tenant_id: str,
-) -> int:
-    group_list = groups if isinstance(groups, list) else list(groups)
-    logger.info(f"Loading {len(group_list)} Entra groups")
+) -> None:
+    logger.info(f"Loading {len(groups)} Entra groups")
     load(
         neo4j_session,
         EntraGroupSchema(),
-        group_list,
+        groups,
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
     )
-    return len(group_list)
 
 
 @timeit
@@ -166,53 +144,54 @@ async def sync_entra_groups(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
 
-    load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
+    # Collect groups in batches to avoid loading all at once
+    groups_batch = []
+    batch_size = 100  # Process groups in batches
+    
+    user_member_map: dict[str, list[str]] = {}
+    group_member_map: dict[str, list[str]] = {}
+    group_owner_map: dict[str, list[str]] = {}
 
-    total_groups = 0
-    # Buffer to limit memory while reducing transaction overhead
-    group_buffer: List[dict[str, Any]] = []
-    async for groups_page in get_entra_groups(client):
-        # Build maps from expanded owners/members to avoid per-group API calls
-        user_member_map: dict[str, list[str]] = {}
-        group_member_map: dict[str, list[str]] = {}
-        group_owner_map: dict[str, list[str]] = {}
-
-        for group in groups_page:
-            user_ids: list[str] = []
-            subgroup_ids: list[str] = []
-
-            for obj in getattr(group, "members", []) or []:
-                # Prefer isinstance to avoid relying on @odata.type selection
-                if isinstance(obj, User):
-                    user_ids.append(obj.id)
-                elif isinstance(obj, Group):
-                    subgroup_ids.append(obj.id)
-
-            # Owners not expanded; fetch per group
-            try:
-                owners_ids = await get_group_owners(client, group.id)
-            except Exception as e:
-                logger.error(f"Failed to fetch owners for group {group.id}: {e}")
-                owners_ids = []
-
-            user_member_map[group.id] = user_ids
-            group_member_map[group.id] = subgroup_ids
-            group_owner_map[group.id] = owners_ids
-
-        for transformed in transform_groups(
-            groups_page, user_member_map, group_member_map, group_owner_map
-        ):
-            group_buffer.append(transformed)
-            if len(group_buffer) >= GROUP_BUFFER_SIZE:
-                total_groups += load_groups(
-                    neo4j_session, group_buffer, update_tag, tenant_id
-                )
-                group_buffer.clear()
-
-    # Flush any remaining groups
-    if group_buffer:
-        total_groups += load_groups(neo4j_session, group_buffer, update_tag, tenant_id)
-        group_buffer.clear()
-
-    logger.info(f"Loaded {total_groups} Entra groups")
+    # First pass: collect groups and their owners/members
+    async for group in get_entra_groups(client):
+        groups_batch.append(group)
+        
+        # Fetch owners and members for this group
+        owners = await get_group_owners(client, group.id)
+        group_owner_map[group.id] = owners
+        
+        try:
+            users, subgroups = await get_group_members(client, group.id)
+            user_member_map[group.id] = users
+            group_member_map[group.id] = subgroups
+        except Exception as e:
+            logger.error(f"Failed to fetch members for group {group.id}: {e}")
+            user_member_map[group.id] = []
+            group_member_map[group.id] = []
+        
+        # Process batch when it reaches the size limit
+        if len(groups_batch) >= batch_size:
+            transformed_groups = list(transform_groups(
+                groups_batch, user_member_map, group_member_map, group_owner_map
+            ))
+            if groups_batch == groups_batch[:batch_size]:  # First batch
+                load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
+            load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
+            
+            # Clear the batch and maps for processed groups
+            for g in groups_batch:
+                user_member_map.pop(g.id, None)
+                group_member_map.pop(g.id, None)
+                group_owner_map.pop(g.id, None)
+            groups_batch.clear()
+    
+    # Process any remaining groups
+    if groups_batch:
+        transformed_groups = list(transform_groups(
+            groups_batch, user_member_map, group_member_map, group_owner_map
+        ))
+        if not user_member_map:  # If this is the only batch
+            load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
+        load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
+    
     cleanup_groups(neo4j_session, common_job_parameters)
