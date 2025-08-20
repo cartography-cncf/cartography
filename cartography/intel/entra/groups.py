@@ -6,6 +6,7 @@ from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 from msgraph.generated.models.directory_object import DirectoryObject
 from msgraph.generated.models.group import Group
+from msgraph.generated.models.user import User
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -15,6 +16,7 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+GROUP_BUFFER_SIZE = 5000  # Fewer DB transactions while staying memory-safe
 
 @timeit
 async def get_entra_groups(client: GraphServiceClient) -> AsyncIterator[list[Group]]:
@@ -36,6 +38,9 @@ async def get_entra_groups(client: GraphServiceClient) -> AsyncIterator[list[Gro
                 "createdDateTime",
                 "deletedDateTime",
             ],
+            # Graph allows only one expand in many cases; expand members per-page,
+            # and fetch owners separately per group if needed.
+            expand=["members($select=id)"],
         )
     )
     page = await client.groups.get(request_configuration=request_configuration)
@@ -122,8 +127,8 @@ def load_groups(
     groups: Iterable[dict[str, Any]],
     update_tag: int,
     tenant_id: str,
-) -> None:
-    group_list = list(groups)
+) -> int:
+    group_list = groups if isinstance(groups, list) else list(groups)
     logger.info(f"Loading {len(group_list)} Entra groups")
     load(
         neo4j_session,
@@ -132,6 +137,7 @@ def load_groups(
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
     )
+    return len(group_list)
 
 
 @timeit
@@ -164,43 +170,48 @@ async def sync_entra_groups(
 
     total_groups = 0
     # Buffer to limit memory while reducing transaction overhead
-    GROUP_BUFFER_SIZE = 500
     group_buffer: List[dict[str, Any]] = []
     async for groups_page in get_entra_groups(client):
+        # Build maps from expanded owners/members to avoid per-group API calls
+        user_member_map: dict[str, list[str]] = {}
+        group_member_map: dict[str, list[str]] = {}
+        group_owner_map: dict[str, list[str]] = {}
+
         for group in groups_page:
+            user_ids: list[str] = []
+            subgroup_ids: list[str] = []
+
+            for obj in getattr(group, "members", []) or []:
+                # Prefer isinstance to avoid relying on @odata.type selection
+                if isinstance(obj, User):
+                    user_ids.append(obj.id)
+                elif isinstance(obj, Group):
+                    subgroup_ids.append(obj.id)
+
+            # Owners not expanded; fetch per group
             try:
-                owners = await get_group_owners(client, group.id)
+                owners_ids = await get_group_owners(client, group.id)
             except Exception as e:
                 logger.error(f"Failed to fetch owners for group {group.id}: {e}")
-                owners = []
+                owners_ids = []
 
-            try:
-                users, subgroups = await get_group_members(client, group.id)
-            except Exception as e:
-                logger.error(f"Failed to fetch members for group {group.id}: {e}")
-                users, subgroups = [], []
+            user_member_map[group.id] = user_ids
+            group_member_map[group.id] = subgroup_ids
+            group_owner_map[group.id] = owners_ids
 
-            # Transform a single group and append to buffer
-            transformed = list(
-                transform_groups(
-                    [group],
-                    {group.id: users},
-                    {group.id: subgroups},
-                    {group.id: owners},
-                )
-            )
-            if transformed:
-                group_buffer.append(transformed[0])
-
+        for transformed in transform_groups(
+            groups_page, user_member_map, group_member_map, group_owner_map
+        ):
+            group_buffer.append(transformed)
             if len(group_buffer) >= GROUP_BUFFER_SIZE:
-                load_groups(neo4j_session, group_buffer, update_tag, tenant_id)
-                total_groups += len(group_buffer)
+                total_groups += load_groups(
+                    neo4j_session, group_buffer, update_tag, tenant_id
+                )
                 group_buffer.clear()
 
     # Flush any remaining groups
     if group_buffer:
-        load_groups(neo4j_session, group_buffer, update_tag, tenant_id)
-        total_groups += len(group_buffer)
+        total_groups += load_groups(neo4j_session, group_buffer, update_tag, tenant_id)
         group_buffer.clear()
 
     logger.info(f"Loaded {total_groups} Entra groups")

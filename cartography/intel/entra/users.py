@@ -186,7 +186,7 @@ def load_users(
     users: Iterable[dict[str, Any]],
     tenant_id: str,
     update_tag: int,
-) -> None:
+) -> int:
     user_list = list(users)
     logger.info(f"Loading {len(user_list)} Entra users")
     load(
@@ -196,6 +196,7 @@ def load_users(
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
     )
+    return len(user_list)
 
 
 def cleanup(
@@ -242,9 +243,12 @@ async def sync_entra_users(
 
     total_loaded = 0
     async for users_page in get_users(client):
-        transformed_users = list(transform_users(users_page))
-        load_users(neo4j_session, transformed_users, tenant_id, update_tag)
-        total_loaded += len(transformed_users)
+        total_loaded += load_users(
+            neo4j_session,
+            transform_users(users_page),
+            tenant_id,
+            update_tag,
+        )
 
     logger.info(f"Loaded {total_loaded} Entra users")
     cleanup(neo4j_session, common_job_parameters)

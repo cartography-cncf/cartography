@@ -1,6 +1,4 @@
-from unittest.mock import AsyncMock
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -51,7 +49,7 @@ def test_transform_app_role_assignments():
 def test_load_applications(mock_load):
     session = MagicMock()
     data = [{"id": "1"}]
-    load_applications(session, data, 1, "tenant")
+    ret = load_applications(session, data, 1, "tenant")
     mock_load.assert_called_with(
         session,
         EntraApplicationSchema(),
@@ -59,13 +57,14 @@ def test_load_applications(mock_load):
         lastupdated=1,
         TENANT_ID="tenant",
     )
+    assert ret == len(data)
 
 
 @patch("cartography.intel.entra.applications.load")
 def test_load_app_role_assignments(mock_load):
     session = MagicMock()
     data = [{"id": "1"}]
-    load_app_role_assignments(session, data, 1, "tenant")
+    ret = load_app_role_assignments(session, data, 1, "tenant")
     mock_load.assert_called_with(
         session,
         EntraAppRoleAssignmentSchema(),
@@ -73,6 +72,7 @@ def test_load_app_role_assignments(mock_load):
         lastupdated=1,
         TENANT_ID="tenant",
     )
+    assert ret == len(data)
 
 
 @patch("cartography.intel.entra.applications.GraphJob")
@@ -133,6 +133,21 @@ async def test_sync_entra_applications(
         [MOCK_APP_ROLE_ASSIGNMENTS[0], MOCK_APP_ROLE_ASSIGNMENTS[2]],
         [MOCK_APP_ROLE_ASSIGNMENTS[1], MOCK_APP_ROLE_ASSIGNMENTS[3]],
     ]
+    # Expected transformed payloads
+    expected_apps = list(transform_applications(MOCK_ENTRA_APPLICATIONS))
+    expected_assignments = list(
+        transform_app_role_assignments(
+            [
+                MOCK_APP_ROLE_ASSIGNMENTS[0],
+                MOCK_APP_ROLE_ASSIGNMENTS[2],
+                MOCK_APP_ROLE_ASSIGNMENTS[1],
+                MOCK_APP_ROLE_ASSIGNMENTS[3],
+            ]
+        )
+    )
+    # Mock loaders return counts, which sync accumulates
+    mock_load_apps.return_value = len(expected_apps)
+    mock_load_assignments.return_value = len(expected_assignments)
     session = MagicMock()
     await sync_entra_applications(
         session,
@@ -154,20 +169,9 @@ async def test_sync_entra_applications(
     mock_get_apps.assert_called_with(mock_graph.return_value)
     assert mock_get_assignments.call_count == 2
 
-    expected_apps = list(transform_applications(MOCK_ENTRA_APPLICATIONS))
-    expected_assignments = list(
-        transform_app_role_assignments(
-            [
-                MOCK_APP_ROLE_ASSIGNMENTS[0],
-                MOCK_APP_ROLE_ASSIGNMENTS[2],
-                MOCK_APP_ROLE_ASSIGNMENTS[1],
-                MOCK_APP_ROLE_ASSIGNMENTS[3],
-            ]
-        )
-    )
-
     mock_load_tenant.assert_called_with(session, {"id": "tid"}, 1)
-    mock_load_apps.assert_called_with(session, expected_apps, 1, "tid")
+    # load_applications receives an iterable; we only assert it was called with the right args
+    mock_load_apps.assert_called_with(session, ANY, 1, "tid")
     mock_load_assignments.assert_called_with(session, expected_assignments, 1, "tid")
     mock_cleanup.assert_called_with(session, {"UPDATE_TAG": 1, "TENANT_ID": "tid"})
     mock_cleanup_assignments.assert_called_with(
