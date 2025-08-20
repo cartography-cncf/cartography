@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 APPLICATIONS_PAGE_SIZE = 999
 # Flush transformed assignments to Neo4j once this buffer size is reached.
 # Keep this comfortably below tx.py's internal 10k batching to limit memory.
-ASSIGNMENT_BUFFER_SIZE = 1000
+ASSIGNMENT_BUFFER_SIZE = 10000  # Align with tx.py 10k batching to reduce DB transactions
 
 # Warning thresholds for potential data completeness issues
 # Log warnings when individual users/groups have more assignments than this threshold
@@ -218,9 +218,9 @@ def load_applications(
     applications_data: Iterable[Dict[str, Any]],
     update_tag: int,
     tenant_id: str,
-) -> None:
+) -> int:
     """Load Entra applications to the graph."""
-    apps_list = list(applications_data)
+    apps_list = applications_data if isinstance(applications_data, list) else list(applications_data)
     load(
         neo4j_session,
         EntraApplicationSchema(),
@@ -228,6 +228,7 @@ def load_applications(
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
     )
+    return len(apps_list)
 
 
 @timeit
@@ -236,9 +237,9 @@ def load_app_role_assignments(
     assignments_data: Iterable[Dict[str, Any]],
     update_tag: int,
     tenant_id: str,
-) -> None:
+) -> int:
     """Load Entra app role assignments to the graph."""
-    assignments_list = list(assignments_data)
+    assignments_list = assignments_data if isinstance(assignments_data, list) else list(assignments_data)
     load(
         neo4j_session,
         EntraAppRoleAssignmentSchema(),
@@ -246,6 +247,7 @@ def load_app_role_assignments(
         lastupdated=update_tag,
         TENANT_ID=tenant_id,
     )
+    return len(assignments_list)
 
 
 @timeit
@@ -317,9 +319,12 @@ async def sync_entra_applications(
     # Buffer for transformed assignments to avoid holding very large lists
     assignments_buffer: List[Dict[str, Any]] = []
     async for apps_page in get_entra_applications(client):
-        transformed_apps = list(transform_applications(apps_page))
-        load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
-        total_apps += len(transformed_apps)
+        total_apps += load_applications(
+            neo4j_session,
+            transform_applications(apps_page),
+            update_tag,
+            tenant_id,
+        )
 
         # For memory safety, fetch -> transform -> buffer -> flush in chunks per app
         for app in apps_page:
@@ -329,18 +334,16 @@ async def sync_entra_applications(
             for ta in transform_app_role_assignments(raw_assignments):
                 assignments_buffer.append(ta)
                 if len(assignments_buffer) >= ASSIGNMENT_BUFFER_SIZE:
-                    load_app_role_assignments(
+                    total_assignments += load_app_role_assignments(
                         neo4j_session, assignments_buffer, update_tag, tenant_id
                     )
-                    total_assignments += len(assignments_buffer)
                     assignments_buffer.clear()
 
     # Flush any remaining assignment records
     if assignments_buffer:
-        load_app_role_assignments(
+        total_assignments += load_app_role_assignments(
             neo4j_session, assignments_buffer, update_tag, tenant_id
         )
-        total_assignments += len(assignments_buffer)
         assignments_buffer.clear()
 
     logger.info(

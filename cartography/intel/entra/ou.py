@@ -62,7 +62,7 @@ def load_ous(
     units: Iterable[dict[str, Any]],
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> int:
     unit_list = list(units)
     logger.info(f"Loading {len(unit_list)} Entra OUs")
     load(
@@ -73,6 +73,7 @@ def load_ous(
         TENANT_ID=common_job_parameters["TENANT_ID"],
         UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
     )
+    return len(unit_list)
 
 
 def cleanup_ous(
@@ -107,9 +108,13 @@ async def sync_entra_ous(
 
     total_units = 0
     async for units_page in get_entra_ous(client):
-        transformed_units = list(transform_ous(units_page, tenant_id))
-        load_ous(neo4j_session, transformed_units, update_tag, common_job_parameters)
-        total_units += len(transformed_units)
+        count = load_ous(
+            neo4j_session,
+            transform_ous(units_page, tenant_id),
+            update_tag,
+            common_job_parameters,
+        )
+        total_units += count
 
     logger.info(f"Loaded {total_units} Entra OUs")
     cleanup_ous(neo4j_session, common_job_parameters)
