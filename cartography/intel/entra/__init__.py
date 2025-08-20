@@ -79,5 +79,5 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             common_job_parameters,
         )
 
-    # Execute both syncs in sequence
+    # Execute syncs in sequence
     asyncio.run(main())
