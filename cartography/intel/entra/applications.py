@@ -28,9 +28,7 @@ logger = logging.getLogger(__name__)
 # - You want to minimize API calls (increase values up to 999)
 # - You're hitting rate limits (decrease values)
 APPLICATIONS_PAGE_SIZE = 999
-APP_ROLE_ASSIGNMENTS_PAGE_SIZE = (
-    999  # Currently not used, but reserved for future pagination improvements
-)
+APP_ROLE_ASSIGNMENTS_PAGE_SIZE = 999  # Now used in get_app_role_assignments_for_app
 
 # Warning thresholds for potential data completeness issues
 # Log warnings when individual users/groups have more assignments than this threshold
@@ -119,14 +117,15 @@ async def get_app_role_assignments_for_app(
         # Get assignments for this service principal with pagination and limits
         logger.debug(f"Fetching assignments for service principal {service_principal.id}")
         
-        # Use smaller page size to reduce memory usage
+        # Use maximum page size (999) to get more data per request
+        # Memory is managed through streaming and batching, not page size
         request_config = client.service_principals.by_service_principal_id(
             service_principal.id
         ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetRequestConfiguration(
             query_parameters=client.service_principals.by_service_principal_id(
                 service_principal.id
             ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetQueryParameters(
-                top=100  # Smaller page size to reduce memory
+                top=APP_ROLE_ASSIGNMENTS_PAGE_SIZE  # Maximum allowed by Microsoft Graph API
             )
         )
         
@@ -149,11 +148,14 @@ async def get_app_role_assignments_for_app(
                 break
             
             if assignments_page.value:
+                page_valid_count = 0
+                page_skipped_count = 0
+                
                 # Process assignments and immediately yield to avoid accumulation
                 for i, assignment in enumerate(assignments_page.value):
                     # Skip if this is not an app role assignment (might be a ServicePrincipal object)
                     if not hasattr(assignment, 'principal_id'):
-                        logger.debug(f"Skipping non-assignment object of type {type(assignment).__name__}")
+                        page_skipped_count += 1
                         continue
                         
                     # Safety check: limit total assignments
@@ -184,17 +186,37 @@ async def get_app_role_assignments_for_app(
                     # Only yield if we have valid data
                     if minimal_assignment.principal_id:
                         assignment_count += 1
+                        page_valid_count += 1
                         yield minimal_assignment
+                    else:
+                        page_skipped_count += 1
                     
                     # Clear the original assignment to free memory
                     assignments_page.value[i] = None
                 
-                logger.debug(f"Processed page {page_count} with {assignment_count} assignments so far for {app.display_name}")
+                # Log page results with details about skipped objects
+                if page_skipped_count > 0:
+                    logger.debug(
+                        f"Page {page_count} for {app.display_name}: {page_valid_count} valid assignments, "
+                        f"{page_skipped_count} skipped objects. Total valid: {assignment_count}"
+                    )
+                else:
+                    logger.debug(
+                        f"Page {page_count} for {app.display_name}: {page_valid_count} assignments. "
+                        f"Total: {assignment_count}"
+                    )
                 
                 # Force garbage collection after each page
                 gc.collect()
 
+            # Continue fetching if we have more pages, even if current page had no valid assignments
             if not assignments_page.odata_next_link:
+                # Check if we stopped at a round number which might indicate a limit
+                if assignment_count > 0 and assignment_count % 100 == 0:
+                    logger.info(
+                        f"Application {app.display_name} has exactly {assignment_count} assignments. "
+                        f"This round number might indicate there are more assignments not being returned by the API."
+                    )
                 break
             
             # Clear previous page before fetching next
@@ -203,9 +225,23 @@ async def get_app_role_assignments_for_app(
             # Fetch next page with error handling
             try:
                 logger.debug(f"Fetching page {page_count + 1} of assignments for {app.display_name}")
-                assignments_page = await client.service_principals.with_url(
-                    assignments_page.odata_next_link
-                ).get()
+                next_page_url = assignments_page.odata_next_link
+                
+                # Log the URL pattern to debug pagination issues
+                if "skiptoken" in next_page_url.lower() or "$skip" in next_page_url.lower():
+                    logger.debug(f"Using pagination URL: {next_page_url[:100]}...")
+                
+                assignments_page = await client.service_principals.with_url(next_page_url).get()
+                
+                # Check if we got a different response type
+                if assignments_page and hasattr(assignments_page, 'value') and assignments_page.value:
+                    first_item_type = type(assignments_page.value[0]).__name__
+                    if first_item_type != 'AppRoleAssignment':
+                        logger.info(
+                            f"Page {page_count + 1} returned {first_item_type} objects instead of AppRoleAssignment. "
+                            f"This might indicate an API limitation for {app.display_name}."
+                        )
+                        
             except Exception as e:
                 logger.error(
                     f"Error fetching page {page_count + 1} of assignments for {app.display_name}: {e}. "
@@ -415,9 +451,9 @@ async def sync_entra_applications(
     # Load tenant (prerequisite)
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
 
-    # Process applications and their assignments in smaller batches
-    app_batch_size = 10  # Reduced batch size for applications
-    assignment_batch_size = 100  # Reduced batch size for assignments
+    # Process applications and their assignments in batches
+    app_batch_size = 10  # Batch size for applications
+    assignment_batch_size = 200  # Batch size for assignments (increased since we handle memory better now)
     
     apps_batch = []
     assignments_batch = []
