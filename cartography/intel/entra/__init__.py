@@ -40,34 +40,34 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     async def main() -> None:
         # Run user sync
-        await sync_entra_users(
-            neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
-            config.update_tag,
-            common_job_parameters,
-        )
+        # await sync_entra_users(
+        #     neo4j_session,
+        #     config.entra_tenant_id,
+        #     config.entra_client_id,
+        #     config.entra_client_secret,
+        #     config.update_tag,
+        #     common_job_parameters,
+        # )
 
-        # Run group sync
-        await sync_entra_groups(
-            neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
-            config.update_tag,
-            common_job_parameters,
-        )
+        # # Run group sync
+        # await sync_entra_groups(
+        #     neo4j_session,
+        #     config.entra_tenant_id,
+        #     config.entra_client_id,
+        #     config.entra_client_secret,
+        #     config.update_tag,
+        #     common_job_parameters,
+        # )
 
-        # Run OU sync
-        await sync_entra_ous(
-            neo4j_session,
-            config.entra_tenant_id,
-            config.entra_client_id,
-            config.entra_client_secret,
-            config.update_tag,
-            common_job_parameters,
-        )
+        # # Run OU sync
+        # await sync_entra_ous(
+        #     neo4j_session,
+        #     config.entra_tenant_id,
+        #     config.entra_client_id,
+        #     config.entra_client_secret,
+        #     config.update_tag,
+        #     common_job_parameters,
+        # )
 
         # Run application sync
         await sync_entra_applications(

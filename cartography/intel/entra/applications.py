@@ -1,3 +1,4 @@
+import gc
 import logging
 from typing import Any, AsyncGenerator, Generator
 from typing import Dict
@@ -33,15 +34,15 @@ APP_ROLE_ASSIGNMENTS_PAGE_SIZE = (
 
 # Warning thresholds for potential data completeness issues
 # Log warnings when individual users/groups have more assignments than this threshold
-HIGH_ASSIGNMENT_COUNT_THRESHOLD = 100
+HIGH_ASSIGNMENT_COUNT_THRESHOLD = 1000
 
 # Maximum number of pages to fetch for app role assignments per application
-# This prevents infinite loops or extremely long-running queries
-MAX_ASSIGNMENT_PAGES_PER_APP = 10
+# Set high to get all data, memory is managed by streaming and batching
+MAX_ASSIGNMENT_PAGES_PER_APP = 500
 
 # Maximum assignments to fetch per application
-# If an app has more than this, we'll stop and log a warning
-MAX_ASSIGNMENTS_PER_APP = 5000
+# Set high to get all data, memory is managed by streaming and batching
+MAX_ASSIGNMENTS_PER_APP = 100000
 
 
 @timeit
@@ -118,10 +119,21 @@ async def get_app_role_assignments_for_app(
         # Get assignments for this service principal with pagination and limits
         logger.debug(f"Fetching assignments for service principal {service_principal.id}")
         
+        # Use smaller page size to reduce memory usage
+        request_config = client.service_principals.by_service_principal_id(
+            service_principal.id
+        ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetRequestConfiguration(
+            query_parameters=client.service_principals.by_service_principal_id(
+                service_principal.id
+            ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetQueryParameters(
+                top=100  # Smaller page size to reduce memory
+            )
+        )
+        
         assignments_page = await client.service_principals.by_service_principal_id(
             service_principal.id
-        ).app_role_assigned_to.get()
-
+        ).app_role_assigned_to.get(request_configuration=request_config)
+        
         assignment_count = 0
         page_count = 0
         
@@ -137,24 +149,56 @@ async def get_app_role_assignments_for_app(
                 break
             
             if assignments_page.value:
-                for assignment in assignments_page.value:
+                # Process assignments and immediately yield to avoid accumulation
+                for i, assignment in enumerate(assignments_page.value):
+                    # Skip if this is not an app role assignment (might be a ServicePrincipal object)
+                    if not hasattr(assignment, 'principal_id'):
+                        logger.debug(f"Skipping non-assignment object of type {type(assignment).__name__}")
+                        continue
+                        
                     # Safety check: limit total assignments
                     if assignment_count >= MAX_ASSIGNMENTS_PER_APP:
                         logger.warning(
                             f"Reached maximum assignment limit ({MAX_ASSIGNMENTS_PER_APP}) for application {app.display_name} ({app.app_id}). "
                             f"Stopping to prevent memory issues."
                         )
+                        # Clear references before returning
+                        assignments_page = None
+                        gc.collect()
                         return
                     
-                    # Add the application app_id for relationship matching
-                    assignment.application_app_id = app.app_id
-                    assignment_count += 1
-                    yield assignment
+                    # Create minimal assignment dict to reduce memory
+                    # Use getattr with defaults to handle missing attributes
+                    minimal_assignment = type('MinimalAssignment', (), {
+                        'id': getattr(assignment, 'id', None),
+                        'app_role_id': getattr(assignment, 'app_role_id', None),
+                        'created_date_time': getattr(assignment, 'created_date_time', None),
+                        'principal_id': getattr(assignment, 'principal_id', None),
+                        'principal_display_name': getattr(assignment, 'principal_display_name', None),
+                        'principal_type': getattr(assignment, 'principal_type', None),
+                        'resource_display_name': getattr(assignment, 'resource_display_name', None),
+                        'resource_id': getattr(assignment, 'resource_id', None),
+                        'application_app_id': app.app_id
+                    })()
+                    
+                    # Only yield if we have valid data
+                    if minimal_assignment.principal_id:
+                        assignment_count += 1
+                        yield minimal_assignment
+                    
+                    # Clear the original assignment to free memory
+                    assignments_page.value[i] = None
                 
-                logger.debug(f"Processed page {page_count} with {len(assignments_page.value)} assignments for {app.display_name}")
+                logger.debug(f"Processed page {page_count} with {assignment_count} assignments so far for {app.display_name}")
+                
+                # Force garbage collection after each page
+                gc.collect()
 
             if not assignments_page.odata_next_link:
                 break
+            
+            # Clear previous page before fetching next
+            assignments_page.value = None
             
             # Fetch next page with error handling
             try:
@@ -371,9 +415,9 @@ async def sync_entra_applications(
     # Load tenant (prerequisite)
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
 
-    # Process applications and their assignments in batches
-    app_batch_size = 50  # Batch size for applications
-    assignment_batch_size = 500  # Batch size for assignments
+    # Process applications and their assignments in smaller batches
+    app_batch_size = 10  # Reduced batch size for applications
+    assignment_batch_size = 100  # Reduced batch size for assignments
     
     apps_batch = []
     assignments_batch = []
@@ -388,18 +432,48 @@ async def sync_entra_applications(
             # Process and stream assignments for each app immediately
             app_assignment_count = 0
             async for assignment in get_app_role_assignments_for_app(client, app):
-                assignments_batch.append(assignment)
+                # Convert to dict immediately to free SDK object
+                assignment_dict = {
+                    'id': getattr(assignment, 'id', None),
+                    'app_role_id': getattr(assignment, 'app_role_id', None),
+                    'created_date_time': getattr(assignment, 'created_date_time', None),
+                    'principal_id': getattr(assignment, 'principal_id', None),
+                    'principal_display_name': getattr(assignment, 'principal_display_name', None),
+                    'principal_type': getattr(assignment, 'principal_type', None),
+                    'resource_display_name': getattr(assignment, 'resource_display_name', None),
+                    'resource_id': getattr(assignment, 'resource_id', None),
+                    'application_app_id': getattr(assignment, 'application_app_id', None)
+                }
+                assignments_batch.append(assignment_dict)
                 total_assignment_count += 1
                 app_assignment_count += 1
                 
                 # Load assignments in batches
                 if len(assignments_batch) >= assignment_batch_size:
-                    transformed_assignments = list(transform_app_role_assignments(assignments_batch))
+                    # Transform using dict directly
+                    transformed_assignments = []
+                    for assign in assignments_batch:
+                        transformed_assignments.append({
+                            "id": assign['id'],
+                            "app_role_id": str(assign['app_role_id']) if assign['app_role_id'] else None,
+                            "created_date_time": assign['created_date_time'],
+                            "principal_id": str(assign['principal_id']) if assign['principal_id'] else None,
+                            "principal_display_name": assign['principal_display_name'],
+                            "principal_type": assign['principal_type'],
+                            "resource_display_name": assign['resource_display_name'],
+                            "resource_id": str(assign['resource_id']) if assign['resource_id'] else None,
+                            "application_app_id": assign['application_app_id'],
+                        })
+                    
                     load_app_role_assignments(
                         neo4j_session, transformed_assignments, update_tag, tenant_id
                     )
                     logger.debug(f"Loaded batch of {len(assignments_batch)} assignments")
                     assignments_batch.clear()
+                    transformed_assignments.clear()
+                    
+                    # Force garbage collection after batch load
+                    gc.collect()
             
             if app_assignment_count > 0:
                 logger.debug(f"Processed {app_assignment_count} assignments for {app.display_name}")
@@ -411,24 +485,47 @@ async def sync_entra_applications(
             )
             continue
         
-        # Load applications in batches
+        # Load applications in batches and clear memory
         if len(apps_batch) >= app_batch_size:
             transformed_apps = list(transform_applications(apps_batch))
             load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
             logger.info(f"Loaded batch of {len(apps_batch)} applications (total: {total_app_count})")
             apps_batch.clear()
+            transformed_apps.clear()
+            gc.collect()  # Force garbage collection
     
     # Process remaining applications
     if apps_batch:
         transformed_apps = list(transform_applications(apps_batch))
         load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
+        apps_batch.clear()
+        transformed_apps.clear()
     
-    # Process remaining assignments
+    # Process remaining assignments  
     if assignments_batch:
-        transformed_assignments = list(transform_app_role_assignments(assignments_batch))
+        # Transform using dict directly
+        transformed_assignments = []
+        for assign in assignments_batch:
+            transformed_assignments.append({
+                "id": assign['id'],
+                "app_role_id": str(assign['app_role_id']) if assign['app_role_id'] else None,
+                "created_date_time": assign['created_date_time'],
+                "principal_id": str(assign['principal_id']) if assign['principal_id'] else None,
+                "principal_display_name": assign['principal_display_name'],
+                "principal_type": assign['principal_type'],
+                "resource_display_name": assign['resource_display_name'],
+                "resource_id": str(assign['resource_id']) if assign['resource_id'] else None,
+                "application_app_id": assign['application_app_id'],
+            })
+        
         load_app_role_assignments(
             neo4j_session, transformed_assignments, update_tag, tenant_id
         )
+        assignments_batch.clear()
+        transformed_assignments.clear()
+    
+    # Final garbage collection
+    gc.collect()
     
     logger.info(f"Loaded {total_assignment_count} app role assignments total")
 
