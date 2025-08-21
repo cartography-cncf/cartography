@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from typing import Any
 
 import boto3
@@ -127,6 +128,90 @@ def transform_scan_results(
     return findings_list, packages_list, fixes_list
 
 
+def _parse_trivy_data(
+    trivy_data: dict, source: str
+) -> tuple[str | None, list[dict], str]:
+    """
+    Parse Trivy scan data and extract common fields.
+
+    Args:
+        trivy_data: Raw JSON Trivy data
+        source: Source identifier for error messages (file path or S3 URI)
+
+    Returns:
+        Tuple of (artifact_name, results, image_digest)
+    """
+    # Extract artifact name if present (only for file-based)
+    artifact_name = trivy_data.get("ArtifactName")
+
+    if "Results" not in trivy_data:
+        logger.error(
+            f"Scan data did not contain a `Results` key for {source}. This indicates a malformed scan result."
+        )
+        raise ValueError(f"Missing 'Results' key in scan data for {source}")
+
+    results = trivy_data["Results"]
+    if not results:
+        stat_handler.incr("image_scan_no_results_count")
+        logger.info(f"No vulnerabilities found for {source}")
+
+    if "Metadata" not in trivy_data or not trivy_data["Metadata"]:
+        raise ValueError(f"Missing 'Metadata' in scan data for {source}")
+
+    repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
+    if not repo_digests:
+        raise ValueError(f"Missing 'RepoDigests' in scan metadata for {source}")
+
+    repo_digest = repo_digests[0]
+    if "@" not in repo_digest:
+        raise ValueError(f"Invalid repo digest format in {source}: {repo_digest}")
+
+    image_digest = repo_digest.split("@")[1]
+    if not image_digest:
+        raise ValueError(f"Empty image digest for {source}")
+
+    return artifact_name, results, image_digest
+
+
+@timeit
+def sync_single_image(
+    neo4j_session: Session,
+    trivy_data: dict,
+    source: str,
+    update_tag: int,
+) -> None:
+    """
+    Sync a single image's Trivy scan results to Neo4j.
+
+    Args:
+        neo4j_session: Neo4j session for database operations
+        trivy_data: Raw Trivy JSON data
+        source: Source identifier for logging (file path or image URI)
+        update_tag: Update tag for tracking
+    """
+    try:
+        _, results, image_digest = _parse_trivy_data(trivy_data, source)
+
+        # Transform all data in one pass
+        findings_list, packages_list, fixes_list = transform_scan_results(
+            results,
+            image_digest,
+        )
+
+        num_findings = len(findings_list)
+        stat_handler.incr("image_scan_cve_count", num_findings)
+
+        # Load the transformed data
+        load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
+        load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
+        load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
+        stat_handler.incr("images_processed_count")
+
+    except Exception as e:
+        logger.error(f"Failed to process scan results for {source}: {e}")
+        raise
+
+
 @timeit
 def get_json_files_in_s3(
     s3_bucket: str, s3_prefix: str, boto3_session: boto3.Session
@@ -174,6 +259,18 @@ def get_json_files_in_s3(
         raise
 
     logger.info(f"Found {len(results)} json files in s3://{s3_bucket}/{s3_prefix}")
+    return results
+
+
+@timeit
+def get_json_files_in_dir(results_dir: str) -> set[str]:
+    """Return set of JSON file paths under a directory."""
+    results = set()
+    for root, _dirs, files in os.walk(results_dir):
+        for filename in files:
+            if filename.endswith(".json"):
+                results.add(os.path.join(root, filename))
+    logger.info(f"Found {len(results)} json files in {results_dir}")
     return results
 
 
@@ -246,58 +343,6 @@ def load_scan_fixes(
 
 
 @timeit
-def read_scan_results_from_s3(
-    boto3_session: boto3.Session,
-    s3_bucket: str,
-    s3_object_key: str,
-    image_uri: str,
-) -> tuple[list[dict], str | None]:
-    """
-    Read and parse Trivy scan results from S3.
-
-    Args:
-        boto3_session: boto3 session for S3 operations
-        s3_bucket: S3 bucket containing scan results
-        s3_object_key: S3 object key for the scan results
-        image_uri: ECR image URI (for logging purposes)
-
-    Returns:
-        Tuple of (list of scan result dictionaries from the "Results" key, image digest)
-    """
-    s3_client = boto3_session.client("s3")
-
-    # Read JSON scan results from S3
-    logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
-    response = s3_client.get_object(Bucket=s3_bucket, Key=s3_object_key)
-    scan_data_json = response["Body"].read().decode("utf-8")
-
-    # Parse JSON data
-    trivy_data = json.loads(scan_data_json)
-
-    # Extract results using the same logic as binary scanning
-    if "Results" in trivy_data and trivy_data["Results"]:
-        results = trivy_data["Results"]
-    else:
-        stat_handler.incr("image_scan_no_results_count")
-        logger.warning(
-            f"S3 scan data did not contain a `Results` key for URI = {image_uri}; continuing."
-        )
-        results = []
-
-    image_digest = None
-    if "Metadata" in trivy_data and trivy_data["Metadata"]:
-        repo_digests = trivy_data["Metadata"].get("RepoDigests", [])
-        if repo_digests:
-            # Sample input: 000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository@sha256:88016
-            # Sample output: sha256:88016
-            repo_digest = repo_digests[0]
-            if "@" in repo_digest:
-                image_digest = repo_digest.split("@")[1]
-
-    return results, image_digest
-
-
-@timeit
 def sync_single_image_from_s3(
     neo4j_session: Session,
     image_uri: str,
@@ -317,47 +362,25 @@ def sync_single_image_from_s3(
         s3_object_key: S3 object key for this image's scan results
         boto3_session: boto3 session for S3 operations
     """
-    try:
-        # Read and parse scan results from S3
-        results, image_digest = read_scan_results_from_s3(
-            boto3_session,
-            s3_bucket,
-            s3_object_key,
-            image_uri,
-        )
-        if not image_digest:
-            logger.warning(f"No image digest found for {image_uri}; skipping over.")
-            return
+    s3_client = boto3_session.client("s3")
 
-        # Transform all data in one pass using existing function
-        findings_list, packages_list, fixes_list = transform_scan_results(
-            results,
-            image_digest,
-        )
+    logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
+    response = s3_client.get_object(Bucket=s3_bucket, Key=s3_object_key)
+    scan_data_json = response["Body"].read().decode("utf-8")
 
-        num_findings = len(findings_list)
-        stat_handler.incr("image_scan_cve_count", num_findings)
+    trivy_data = json.loads(scan_data_json)
+    sync_single_image(neo4j_session, trivy_data, image_uri, update_tag)
 
-        # Load the transformed data using existing functions
-        load_scan_vulns(
-            neo4j_session,
-            findings_list,
-            update_tag=update_tag,
-        )
-        load_scan_packages(
-            neo4j_session,
-            packages_list,
-            update_tag=update_tag,
-        )
-        load_scan_fixes(
-            neo4j_session,
-            fixes_list,
-            update_tag=update_tag,
-        )
-        stat_handler.incr("images_processed_count")
 
-    except Exception as e:
-        logger.error(
-            f"Failed to process S3 scan results for {image_uri} from {s3_object_key}: {e}"
-        )
-        raise
+@timeit
+def sync_single_image_from_file(
+    neo4j_session: Session,
+    file_path: str,
+    update_tag: int,
+) -> None:
+    """Read a Trivy JSON file from disk and sync to Neo4j."""
+    logger.debug(f"Reading scan results from file: {file_path}")
+    with open(file_path, encoding="utf-8") as f:
+        trivy_data = json.load(f)
+
+    sync_single_image(neo4j_session, trivy_data, file_path, update_tag)

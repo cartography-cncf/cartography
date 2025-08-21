@@ -105,6 +105,22 @@ class ECSServiceToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSServiceToECSTaskRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSServiceToECSTaskRel(CartographyRelSchema):
+    target_node_label: str = "ECSTask"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"service_name": PropertyRef("serviceName")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_TASK"
+    properties: ECSServiceToECSTaskRelProperties = ECSServiceToECSTaskRelProperties()
+
+
+@dataclass(frozen=True)
 class ECSServiceSchema(CartographyNodeSchema):
     label: str = "ECSService"
     properties: ECSServiceNodeProperties = ECSServiceNodeProperties()
@@ -113,5 +129,6 @@ class ECSServiceSchema(CartographyNodeSchema):
         [
             ECSServiceToECSClusterRel(),
             ECSServiceToTaskDefinitionRel(),
+            ECSServiceToECSTaskRel(),
         ]
     )

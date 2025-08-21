@@ -223,6 +223,13 @@ def transform_assume_role_events_to_role_assumptions(
 
         cloudtrail_event = json.loads(event["CloudTrailEvent"])
 
+        # Skip events with null requestParameters since we can't extract roleArn
+        if not cloudtrail_event.get("requestParameters"):
+            logger.debug(
+                f"Skipping CloudTrail AssumeRole event due to missing requestParameters. Event: {event.get('EventId', 'unknown')}"
+            )
+            continue
+
         if cloudtrail_event.get("userIdentity", {}).get("arn"):
             source_principal = cloudtrail_event["userIdentity"]["arn"]
             destination_principal = cloudtrail_event["requestParameters"]["roleArn"]
@@ -298,6 +305,13 @@ def transform_saml_role_events_to_role_assumptions(
 
         cloudtrail_event = json.loads(event["CloudTrailEvent"])
 
+        # Skip events with null requestParameters since we can't extract roleArn
+        if not cloudtrail_event.get("requestParameters"):
+            logger.debug(
+                f"Skipping CloudTrail AssumeRoleWithSAML event due to missing requestParameters. Event: {event.get('EventId', 'unknown')}"
+            )
+            continue
+
         response_elements = cloudtrail_event.get("responseElements", {})
         assumed_role_user = response_elements.get("assumedRoleUser", {})
 
@@ -370,6 +384,13 @@ def transform_web_identity_role_events_to_role_assumptions(
 
         cloudtrail_event = json.loads(event["CloudTrailEvent"])
 
+        # Skip events with null requestParameters since we can't extract roleArn
+        if not cloudtrail_event.get("requestParameters"):
+            logger.debug(
+                f"Skipping CloudTrail AssumeRoleWithWebIdentity event due to missing requestParameters. Event: {event.get('EventId', 'unknown')}"
+            )
+            continue
+
         user_identity = cloudtrail_event.get("userIdentity", {})
 
         if user_identity.get("type") == "WebIdentityUser" and user_identity.get(
@@ -381,13 +402,15 @@ def transform_web_identity_role_events_to_role_assumptions(
 
             # Only process GitHub Actions events
             if "token.actions.githubusercontent.com" in identity_provider:
-                # GitHub repo fullname is directly in userName (e.g., "sublimagesec/sublimage")
-                github_repo = user_identity.get("userName", "")
-                if not github_repo:
+                # Extract GitHub repo fullname from userName format: "repo:{organization}/{repository}:{context}"
+                user_name = user_identity.get("userName", "")
+                if not user_name:
                     logger.debug(
                         f"Missing userName in GitHub WebIdentity event: {event.get('EventId', 'unknown')}"
                     )
                     continue
+
+                github_repo = _extract_github_repo_from_username(user_name)
                 key = (github_repo, destination_principal)
 
                 if key in github_aggregated:
@@ -570,6 +593,37 @@ def _convert_assumed_role_arn_to_role_arn(assumed_role_arn: str) -> str:
 
     # Return original ARN if conversion fails
     return assumed_role_arn
+
+
+def _extract_github_repo_from_username(user_name: str) -> str:
+    """
+    Extract GitHub repository fullname from CloudTrail userName field.
+
+    GitHub Actions CloudTrail events have userName in the format:
+    "repo:{organization}/{repository}:{context}"
+    """
+    if not user_name:
+        return ""
+
+    parts = user_name.split(":")
+
+    # Need at least 3 parts: ["repo", "{organization}/{repository}", "{context}"]
+    if len(parts) < 3 or parts[0] != "repo":
+        return ""
+
+    # Extract "{organization}/{repository}"
+    repo_fullname = parts[1]
+
+    # Validate it looks like "{organization}/{repository}" format
+    if repo_fullname.count("/") != 1:
+        return ""
+
+    # Ensure both organization and repo exist
+    owner, repo = repo_fullname.split("/")
+    if not owner or not repo:
+        return ""
+
+    return repo_fullname
 
 
 @timeit

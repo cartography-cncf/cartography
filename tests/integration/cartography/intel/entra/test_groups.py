@@ -31,6 +31,18 @@ def mock_get_group_members_side_effect(
     return user_ids, group_ids
 
 
+def mock_get_group_owners_side_effect(client, group_id: str) -> list[str]:
+    """
+    Mock side effect function to return owner user IDs for a given group.
+    """
+    if group_id == "11111111-1111-1111-1111-111111111111":
+        return ["ae4ac864-4433-4ba6-96a6-20f8cffdadcb"]
+    elif group_id == "22222222-2222-2222-2222-222222222222":
+        return ["11dca63b-cb03-4e53-bb75-fa8060285550"]
+    else:
+        return []
+
+
 @patch.object(
     cartography.intel.entra.groups,
     "get_entra_groups",
@@ -43,8 +55,16 @@ def mock_get_group_members_side_effect(
     new_callable=AsyncMock,
     side_effect=mock_get_group_members_side_effect,
 )
+@patch.object(
+    cartography.intel.entra.groups,
+    "get_group_owners",
+    new_callable=AsyncMock,
+    side_effect=mock_get_group_owners_side_effect,
+)
 @pytest.mark.asyncio
-async def test_sync_entra_groups(mock_get_members, mock_get_groups, neo4j_session):
+async def test_sync_entra_groups(
+    mock_get_owners, mock_get_members, mock_get_groups, neo4j_session
+):
     """Ensure groups and relationships load"""
     # Load users first for membership relationships
     load_users(
@@ -125,4 +145,26 @@ async def test_sync_entra_groups(mock_get_members, mock_get_groups, neo4j_sessio
             rel_direction_right=False,
         )
         == expected_group_membership
+    )
+
+    expected_ownership = {
+        (
+            "ae4ac864-4433-4ba6-96a6-20f8cffdadcb",
+            "11111111-1111-1111-1111-111111111111",
+        ),
+        (
+            "11dca63b-cb03-4e53-bb75-fa8060285550",
+            "22222222-2222-2222-2222-222222222222",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "EntraUser",
+            "id",
+            "EntraGroup",
+            "id",
+            "OWNER_OF",
+        )
+        == expected_ownership
     )

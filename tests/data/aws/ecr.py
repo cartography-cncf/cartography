@@ -6,21 +6,21 @@ DESCRIBE_REPOSITORIES = {
             "repositoryArn": "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
             "registryId": "000000000000",
             "repositoryName": "example-repository",
-            "repositoryUri": "000000000000.dkr.ecr.us-east-1/example-repository",
+            "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository",
             "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
         },
         {
             "repositoryArn": "arn:aws:ecr:us-east-1:000000000000:repository/sample-repository",
             "registryId": "000000000000",
             "repositoryName": "sample-repository",
-            "repositoryUri": "000000000000.dkr.ecr.us-east-1/sample-repository",
+            "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository",
             "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
         },
         {
             "repositoryArn": "arn:aws:ecr:us-east-1:000000000000:repository/test-repository",
             "registryId": "000000000000",
             "repositoryName": "test-repository",
-            "repositoryUri": "000000000000.dkr.ecr.us-east-1/test-repository",
+            "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
             "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
         },
     ],
@@ -52,7 +52,7 @@ DESCRIBE_IMAGES = {
 }
 
 LIST_REPOSITORY_IMAGES = {
-    "000000000000.dkr.ecr.us-east-1/example-repository": [
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository": [
         {
             "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "imageTag": "1",
@@ -66,7 +66,7 @@ LIST_REPOSITORY_IMAGES = {
             **DESCRIBE_IMAGES["imageDetails"],
         },
     ],
-    "000000000000.dkr.ecr.us-east-1/sample-repository": [
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository": [
         {
             # NOTE same digest and tag as image in example-repository
             "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -81,7 +81,7 @@ LIST_REPOSITORY_IMAGES = {
             **DESCRIBE_IMAGES["imageDetails"],
         },
     ],
-    "000000000000.dkr.ecr.us-east-1/test-repository": [
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository": [
         {
             # NOTE same digest but different tag from image in example-repository
             "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",

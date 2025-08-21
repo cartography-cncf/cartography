@@ -724,6 +724,15 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--trivy-results-dir",
+            type=str,
+            default=None,
+            help=(
+                "Path to a directory containing Trivy JSON results on disk. "
+                "Required if you are using the Trivy module with local results."
+            ),
+        )
+        parser.add_argument(
             "--scaleway-org",
             type=str,
             default=None,
@@ -1121,6 +1130,9 @@ class CLI:
         if config.trivy_s3_prefix:
             logger.debug(f"Trivy S3 prefix: {config.trivy_s3_prefix}")
 
+        if config.trivy_results_dir:
+            logger.debug(f"Trivy results dir: {config.trivy_results_dir}")
+
         # Scaleway config
         if config.scaleway_secret_key_env_var:
             logger.debug(
@@ -1150,6 +1162,8 @@ class CLI:
             config.sentinelone_api_token = os.environ.get(
                 config.sentinelone_api_token_env_var
             )
+        else:
+            config.sentinelone_api_token = None
 
         # Run cartography
         try:

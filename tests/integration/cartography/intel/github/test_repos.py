@@ -401,11 +401,11 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     # _ensure_local_neo4j_has_test_data has already called sync, now we test that the sync worked. Mock GitHub API data should
     # be transofrmed and in the Neo4j database.
 
-    # Create expected IDs with simple format: canonical_name|version
+    # Create expected IDs with format: canonical_name|requirements
     repo_url = "https://github.com/cartography-cncf/cartography"
     react_id = "react|18.2.0"
     lodash_id = "lodash"
-    django_id = "django|4.2.0"
+    django_id = "django|= 4.2.0"
     spring_core_id = "org.springframework:spring-core|5.3.21"
 
     # Assert - Test that new GitHub dependency graph nodes were created
@@ -413,13 +413,13 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     expected_github_dependency_nodes = {
         (react_id, "react", "18.2.0", "npm"),
         (lodash_id, "lodash", None, "npm"),
-        (django_id, "django", "4.2.0", "pip"),
+        (django_id, "django", "= 4.2.0", "pip"),
         (spring_core_id, "org.springframework:spring-core", "5.3.21", "maven"),
     }
     actual_dependency_nodes = check_nodes(
         neo4j_session,
         "Dependency",
-        ["id", "name", "version", "ecosystem"],
+        ["id", "name", "requirements", "ecosystem"],
     )
     assert actual_dependency_nodes is not None
     assert expected_github_dependency_nodes.issubset(actual_dependency_nodes)
@@ -485,13 +485,13 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
         (
             repo_url,
             lodash_id,
-            "^4.17.21",
+            None,
             "/package.json",
         ),
         (
             repo_url,
             django_id,
-            "==4.2.0",
+            "= 4.2.0",
             "/requirements.txt",
         ),  # Preserves original requirements format
         (
