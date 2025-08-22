@@ -168,14 +168,22 @@ def _get_repo_collaborators_inner_func(
         repo_name = repo["name"]
         repo_url = repo["url"]
 
-        if (
-            affiliation == "OUTSIDE" and repo["outsideCollaborators"]["totalCount"] == 0
-        ) or (
-            affiliation == "DIRECT" and repo["directCollaborators"]["totalCount"] == 0
-        ):
-            # repo has no collabs of the affiliation type we're looking for, so don't waste time making an API call
-            result[repo_url] = []
-            continue
+        # Guard against None when collaborator fields are not accessible due to permissions.
+        direct_info = repo.get("directCollaborators")
+        outside_info = repo.get("outsideCollaborators")
+
+        if affiliation == "OUTSIDE":
+            total_outside = 0 if not outside_info else outside_info.get("totalCount", 0)
+            if total_outside == 0:
+                # No outside collaborators or not permitted to view; skip API calls for this repo.
+                result[repo_url] = []
+                continue
+        else:  # DIRECT
+            total_direct = 0 if not direct_info else direct_info.get("totalCount", 0)
+            if total_direct == 0:
+                # No direct collaborators or not permitted to view; skip API calls for this repo.
+                result[repo_url] = []
+                continue
 
         logger.info(f"Loading {affiliation} collaborators for repo {repo_name}.")
         collaborators = _get_repo_collaborators(
