@@ -4,7 +4,13 @@ Follow these steps to analyze GitHub repos and other objects with Cartography.
 
 1. Prepare your GitHub credentials.
 
-    1. Make a GitHub user. Prepare a token on that user with the following scopes at minimum: `repo`, `read:org`, `read:user`, `user:email`
+    1. Create a Personal Access Token (classic) on an org member account. Required scopes: `repo`, `read:org`, `read:user`, `user:email`.
+
+    1. Permissions and visibility
+
+       - Collaborators: Returned only if the token’s user is an Organization Owner or has Admin access on the repos. Scopes don’t grant privileges; the user must already have the rights. If not, Cartography continues ingest and logs `FORBIDDEN` warnings while skipping collaborator details.
+       - GitHub Enterprise: Use the same scopes; set `url` to your enterprise GraphQL endpoint (e.g., `https://github.example.com/api/graphql`).
+       - Fine‑grained PATs: Ensure “Organization members: Read” and repository-level “Metadata: Read”, plus admin rights where collaborator enumeration is needed.
 
     1. GitHub ingest supports multiple endpoints, such as a public instance and an enterprise instance by taking a base64-encoded config object structured as
 
