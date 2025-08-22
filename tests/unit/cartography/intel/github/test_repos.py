@@ -1,3 +1,4 @@
+from cartography.intel.github.repos import _create_git_url_from_ssh_url
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
@@ -78,12 +79,12 @@ def test_transform_dependency_converts_to_expected_format():
     # Assert: Check that 4 dependencies were transformed
     assert len(output_list) == 4
 
-    # Assert: Check that expected dependency IDs are present
+    # Assert: Check that expected dependency IDs are present (now using raw requirements)
     dependency_ids = {dep["id"] for dep in output_list}
     expected_ids = {
         "react|18.2.0",
         "lodash",
-        "django|4.2.0",
+        "django|= 4.2.0",
         "org.springframework:spring-core|5.3.21",
     }
     assert dependency_ids == expected_ids
@@ -92,11 +93,30 @@ def test_transform_dependency_converts_to_expected_format():
     react_dep = next(dep for dep in output_list if dep["original_name"] == "react")
     assert react_dep["id"] == "react|18.2.0"
     assert react_dep["name"] == "react"
-    assert react_dep["version"] == "18.2.0"
     assert react_dep["requirements"] == "18.2.0"
     assert react_dep["ecosystem"] == "npm"
     assert react_dep["package_manager"] == "NPM"
     assert react_dep["manifest_path"] == "/package.json"
     assert react_dep["repo_url"] == repo_url
-    assert react_dep["repo_name"] == "test-repo"
     assert react_dep["manifest_file"] == "package.json"
+
+
+def test_create_git_url_from_ssh_url():
+    """
+    Test that _create_git_url_from_ssh_url correctly converts SSH URLs to git:// format.
+    """
+    # Arrange
+    ssh_url = "git@github.com:cartography-cncf/cartography.git"
+    expected_result = "git://github.com/cartography-cncf/cartography.git"
+
+    # Act
+    result = _create_git_url_from_ssh_url(ssh_url)
+
+    # Assert
+    assert result == expected_result
+
+    # Test with nested path (monorepo case)
+    ssh_url_nested = "git@github.com:user/nested/path/repo.git"
+    expected_nested = "git://github.com/user/nested/path/repo.git"
+    result_nested = _create_git_url_from_ssh_url(ssh_url_nested)
+    assert result_nested == expected_nested

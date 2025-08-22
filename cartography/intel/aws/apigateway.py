@@ -14,12 +14,18 @@ from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.aws.apigateway import APIGatewayRestAPISchema
-from cartography.models.aws.apigatewaycertificate import (
+from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.models.aws.apigateway.apigateway import APIGatewayRestAPISchema
+from cartography.models.aws.apigateway.apigatewaycertificate import (
     APIGatewayClientCertificateSchema,
 )
-from cartography.models.aws.apigatewayresource import APIGatewayResourceSchema
-from cartography.models.aws.apigatewaystage import APIGatewayStageSchema
+from cartography.models.aws.apigateway.apigatewaydeployment import (
+    APIGatewayDeploymentSchema,
+)
+from cartography.models.aws.apigateway.apigatewayresource import (
+    APIGatewayResourceSchema,
+)
+from cartography.models.aws.apigateway.apigatewaystage import APIGatewayStageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -38,6 +44,38 @@ def get_apigateway_rest_apis(
     for page in paginator.paginate():
         apis.extend(page["items"])
     return apis
+
+
+def get_rest_api_ids(
+    rest_apis: List[Dict],
+) -> List[str]:
+    """
+    Extracts the IDs of the REST APIs from the provided list.
+    """
+    return [api["id"] for api in rest_apis if "id" in api]
+
+
+@timeit
+@aws_handle_regions
+def get_rest_api_deployments(
+    boto3_session: boto3.session.Session,
+    rest_api_ids: List[str],
+    region: str,
+) -> List[Dict[str, Any]]:
+    """
+    Retrieves the deployments for each REST API in the provided list.
+    """
+    client = boto3_session.client(
+        "apigateway", region_name=region, config=get_botocore_config()
+    )
+    deployments: List[Dict[str, Any]] = []
+    for api_id in rest_api_ids:
+        paginator = client.get_paginator("get_deployments")
+        for page in paginator.paginate(restApiId=api_id):
+            for deployment in page.get("items", []):
+                deployment["api_id"] = api_id
+                deployments.append(deployment)
+    return deployments
 
 
 @timeit
@@ -244,6 +282,25 @@ def transform_rest_api_details(
     return stages, certificates, resources
 
 
+def transform_apigateway_deployments(
+    deployments: List[Dict[str, Any]],
+    region: str,
+) -> List[Dict[str, Any]]:
+    """
+    Transform API Gateway Deployment data for ingestion
+    """
+    transformed_deployments = []
+    for deployment in deployments:
+        transformed_deployment = {
+            "id": f"{deployment['api_id']}/{deployment['id']}",
+            "api_id": deployment["api_id"],
+            "description": deployment.get("description"),
+            "region": region,
+        }
+        transformed_deployments.append(transformed_deployment)
+    return transformed_deployments
+
+
 @timeit
 def load_rest_api_details(
     neo4j_session: neo4j.Session,
@@ -280,6 +337,30 @@ def load_rest_api_details(
         resources,
         lastupdated=update_tag,
         AWS_ID=aws_account_id,
+    )
+
+
+@timeit
+def load_apigateway_deployments(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load API Gateway Deployment data into neo4j.
+    """
+    logger.info(
+        f"Loading API Gateway {len(data)} deployments for region '{region}' into graph.",
+    )
+    load(
+        neo4j_session,
+        APIGatewayDeploymentSchema(),
+        data,
+        region=region,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
 
 
@@ -345,6 +426,12 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     )
     cleanup_job.run(neo4j_session)
 
+    cleanup_job = GraphJob.from_node_schema(
+        APIGatewayDeploymentSchema(),
+        common_job_parameters,
+    )
+    cleanup_job.run(neo4j_session)
+
 
 @timeit
 def sync_apigateway_rest_apis(
@@ -375,6 +462,19 @@ def sync_apigateway_rest_apis(
         current_aws_account_id,
         aws_update_tag,
     )
+
+    api_ids = get_rest_api_ids(rest_apis)
+    deployments = get_rest_api_deployments(
+        boto3_session,
+        api_ids,
+        region,
+    )
+
+    transformed_deployments = transform_apigateway_deployments(
+        deployments,
+        region,
+    )
+
     load_apigateway_rest_apis(
         neo4j_session,
         transformed_apis,
@@ -385,6 +485,13 @@ def sync_apigateway_rest_apis(
     load_rest_api_details(
         neo4j_session,
         stages_certificate_resources,
+        current_aws_account_id,
+        aws_update_tag,
+    )
+    load_apigateway_deployments(
+        neo4j_session,
+        transformed_deployments,
+        region,
         current_aws_account_id,
         aws_update_tag,
     )

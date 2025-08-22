@@ -10,6 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.glue.connection import GlueConnectionSchema
+from cartography.models.aws.glue.job import GlueJobSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -30,6 +31,37 @@ def get_glue_connections(
         connections.extend(page.get("ConnectionList", []))
 
     return connections
+
+
+@timeit
+@aws_handle_regions
+def get_glue_jobs(boto3_session: boto3.Session, region: str) -> List[Dict[str, Any]]:
+    client = boto3_session.client(
+        "glue", region_name=region, config=get_botocore_config()
+    )
+    paginator = client.get_paginator("get_jobs")
+    jobs = []
+    for page in paginator.paginate():
+        jobs.extend(page.get("Jobs", []))
+    return jobs
+
+
+def transform_glue_job(jobs: List[Dict[str, Any]], region: str) -> List[Dict[str, Any]]:
+    """
+    Transform Glue job data for ingestion
+    """
+    transformed_jobs = []
+    for job in jobs:
+        transformed_job = {
+            "Name": job["Name"],
+            "ProfileName": job.get("ProfileName"),
+            "JobMode": job.get("JobMode"),
+            "Connections": job.get("Connections", {}).get("Connections"),
+            "Region": region,
+            "Description": job.get("Description"),
+        }
+        transformed_jobs.append(transformed_job)
+    return transformed_jobs
 
 
 def transform_glue_connections(
@@ -80,6 +112,27 @@ def load_glue_connections(
 
 
 @timeit
+def load_glue_jobs(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        f"Loading Glue {len(data)} jobs for region '{region}' into graph.",
+    )
+    load(
+        neo4j_session,
+        GlueJobSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -88,6 +141,7 @@ def cleanup(
     GraphJob.from_node_schema(GlueConnectionSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(GlueJobSchema(), common_job_parameters).run(neo4j_session)
 
 
 @timeit
@@ -109,6 +163,16 @@ def sync(
         load_glue_connections(
             neo4j_session,
             transformed_connections,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+        jobs = get_glue_jobs(boto3_session, region)
+        transformed_jobs = transform_glue_job(jobs, region)
+        load_glue_jobs(
+            neo4j_session,
+            transformed_jobs,
             region,
             current_aws_account_id,
             update_tag,

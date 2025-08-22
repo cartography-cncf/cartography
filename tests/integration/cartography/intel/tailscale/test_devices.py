@@ -54,6 +54,16 @@ def test_load_tailscale_devices(mock_api, neo4j_session):
         check_nodes(neo4j_session, "TailscaleDevice", ["id", "name"]) == expected_nodes
     )
 
+    result = neo4j_session.run(
+        "MATCH (n:TailscaleDevice) RETURN n.id AS id, n.addresses AS addresses",
+    )
+    expected_addresses = {
+        ("n292kg92CNTRL", ("100.64.0.1", "fd7a:115c:a1e0::1")),
+        ("n2fskgfgCNT89", ("100.64.0.2",)),
+    }
+    actual_addresses = {(r["id"], tuple(r["addresses"])) for r in result}
+    assert actual_addresses == expected_addresses
+
     # Assert Devices are connected with Tailnet
     expected_rels = {
         ("n292kg92CNTRL", TEST_ORG),
