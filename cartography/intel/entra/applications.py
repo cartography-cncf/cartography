@@ -1,5 +1,6 @@
+import gc
 import logging
-from typing import Any
+from typing import Any, AsyncGenerator, Generator
 from typing import Dict
 from typing import List
 
@@ -27,25 +28,30 @@ logger = logging.getLogger(__name__)
 # - You want to minimize API calls (increase values up to 999)
 # - You're hitting rate limits (decrease values)
 APPLICATIONS_PAGE_SIZE = 999
-APP_ROLE_ASSIGNMENTS_PAGE_SIZE = (
-    999  # Currently not used, but reserved for future pagination improvements
-)
+APP_ROLE_ASSIGNMENTS_PAGE_SIZE = 999  # Now used in get_app_role_assignments_for_app
 
 # Warning thresholds for potential data completeness issues
 # Log warnings when individual users/groups have more assignments than this threshold
-HIGH_ASSIGNMENT_COUNT_THRESHOLD = 100
+HIGH_ASSIGNMENT_COUNT_THRESHOLD = 1000
+
+# Maximum number of pages to fetch for app role assignments per application
+# Set high to get all data, memory is managed by streaming and batching
+MAX_ASSIGNMENT_PAGES_PER_APP = 500
+
+# Maximum assignments to fetch per application
+# Set high to get all data, memory is managed by streaming and batching
+MAX_ASSIGNMENTS_PER_APP = 100000
 
 
 @timeit
-async def get_entra_applications(client: GraphServiceClient) -> List[Any]:
+async def get_entra_applications(client: GraphServiceClient) -> AsyncGenerator[Any, None]:
     """
-    Gets Entra applications using the Microsoft Graph API.
+    Gets Entra applications using the Microsoft Graph API with a generator.
 
     :param client: GraphServiceClient
-    :return: List of raw Application objects from Microsoft Graph
+    :return: Generator of raw Application objects from Microsoft Graph
     """
-    applications = []
-
+    count = 0
     # Get all applications with pagination
     request_configuration = client.applications.ApplicationsRequestBuilderGetRequestConfiguration(
         query_parameters=client.applications.ApplicationsRequestBuilderGetQueryParameters(
@@ -56,165 +62,265 @@ async def get_entra_applications(client: GraphServiceClient) -> List[Any]:
 
     while page:
         if page.value:
-            applications.extend(page.value)
+            for app in page.value:
+                count += 1
+                yield app
 
         if not page.odata_next_link:
             break
         page = await client.applications.with_url(page.odata_next_link).get()
 
-    logger.info(f"Retrieved {len(applications)} Entra applications total")
-    return applications
+    logger.info(f"Retrieved {count} Entra applications total")
 
 
 @timeit
-async def get_app_role_assignments(
-    client: GraphServiceClient, applications: List[Any]
-) -> List[Any]:
+async def get_app_role_assignments_for_app(
+    client: GraphServiceClient, app: Any
+) -> AsyncGenerator[Any, None]:
     """
-    Gets app role assignments efficiently by querying each application's service principal.
+    Gets app role assignments for a single application with safety limits.
 
     :param client: GraphServiceClient
-    :param applications: List of Application objects (from get_entra_applications)
-    :return: List of raw app role assignment objects from Microsoft Graph
+    :param app: Application object
+    :return: Generator of raw app role assignment objects
     """
-    assignments = []
+    if not app.app_id:
+        logger.warning(f"Application {app.id} has no app_id, skipping")
+        return
 
-    for app in applications:
-        if not app.app_id:
-            logger.warning(f"Application {app.id} has no app_id, skipping")
-            continue
+    logger.info(f"Fetching role assignments for application: {app.display_name} ({app.app_id})")
 
-        try:
-            # First, get the service principal for this application
-            # The service principal represents the app in the directory
-            service_principals_page = await client.service_principals.get(
-                request_configuration=client.service_principals.ServicePrincipalsRequestBuilderGetRequestConfiguration(
-                    query_parameters=client.service_principals.ServicePrincipalsRequestBuilderGetQueryParameters(
-                        filter=f"appId eq '{app.app_id}'"
-                    )
+    try:
+        # First, get the service principal for this application
+        service_principals_page = await client.service_principals.get(
+            request_configuration=client.service_principals.ServicePrincipalsRequestBuilderGetRequestConfiguration(
+                query_parameters=client.service_principals.ServicePrincipalsRequestBuilderGetQueryParameters(
+                    filter=f"appId eq '{app.app_id}'"
                 )
             )
+        )
 
-            if not service_principals_page or not service_principals_page.value:
-                logger.debug(
-                    f"No service principal found for application {app.app_id} ({app.display_name})"
-                )
-                continue
-
-            service_principal = service_principals_page.value[0]
-
-            # Ensure service principal has an ID
-            if not service_principal.id:
-                logger.warning(
-                    f"Service principal for application {app.app_id} ({app.display_name}) has no ID, skipping"
-                )
-                continue
-
-            # Get all assignments for this service principal (users, groups, service principals)
-            assignments_page = await client.service_principals.by_service_principal_id(
-                service_principal.id
-            ).app_role_assigned_to.get()
-
-            app_assignments = []
-            while assignments_page:
-                if assignments_page.value:
-                    # Add application context to each assignment
-                    for assignment in assignments_page.value:
-                        # Add the application app_id to the assignment for relationship matching
-                        assignment.application_app_id = app.app_id
-                    app_assignments.extend(assignments_page.value)
-
-                if not assignments_page.odata_next_link:
-                    break
-                assignments_page = await client.service_principals.with_url(
-                    assignments_page.odata_next_link
-                ).get()
-
-            # Log warning if a single application has many assignments (potential pagination issues)
-            if len(app_assignments) >= HIGH_ASSIGNMENT_COUNT_THRESHOLD:
-                logger.warning(
-                    f"Application {app.display_name} ({app.app_id}) has {len(app_assignments)} role assignments. "
-                    f"If this seems unexpectedly high, there may be pagination limits affecting data completeness."
-                )
-
-            assignments.extend(app_assignments)
+        if not service_principals_page or not service_principals_page.value:
             logger.debug(
-                f"Retrieved {len(app_assignments)} assignments for application {app.display_name}"
+                f"No service principal found for application {app.app_id} ({app.display_name})"
             )
+            return
 
-        except APIError as e:
-            # Handle Microsoft Graph API errors (403 Forbidden, 404 Not Found, etc.)
-            if e.response_status_code == 403:
-                logger.warning(
-                    f"Access denied when fetching app role assignments for application {app.app_id} ({app.display_name}). "
-                    f"This application may not have sufficient permissions or may not exist."
-                )
-            elif e.response_status_code == 404:
-                logger.warning(
-                    f"Application {app.app_id} ({app.display_name}) not found when fetching app role assignments. "
-                    f"Application may have been deleted or does not exist."
-                )
-            elif e.response_status_code == 429:
-                logger.warning(
-                    f"Rate limit hit when fetching app role assignments for application {app.app_id} ({app.display_name}). "
-                    f"Consider reducing APPLICATIONS_PAGE_SIZE or implementing retry logic."
-                )
-            else:
-                logger.warning(
-                    f"Microsoft Graph API error when fetching app role assignments for application {app.app_id} ({app.display_name}): "
-                    f"Status {e.response_status_code}, Error: {str(e)}"
-                )
-            continue
-        except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
-            # Handle network-related errors
+        service_principal = service_principals_page.value[0]
+
+        if not service_principal.id:
             logger.warning(
-                f"Network error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}"
+                f"Service principal for application {app.app_id} ({app.display_name}) has no ID, skipping"
             )
-            continue
-        except Exception as e:
-            # Only catch truly unexpected errors - these should be rare
-            logger.error(
-                f"Unexpected error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}",
-                exc_info=True,
+            return
+
+        # Get assignments for this service principal with pagination and limits
+        logger.debug(f"Fetching assignments for service principal {service_principal.id}")
+        
+        # Use maximum page size (999) to get more data per request
+        # Memory is managed through streaming and batching, not page size
+        request_config = client.service_principals.by_service_principal_id(
+            service_principal.id
+        ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetRequestConfiguration(
+            query_parameters=client.service_principals.by_service_principal_id(
+                service_principal.id
+            ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetQueryParameters(
+                top=APP_ROLE_ASSIGNMENTS_PAGE_SIZE  # Maximum allowed by Microsoft Graph API
             )
-            continue
+        )
+        
+        assignments_page = await client.service_principals.by_service_principal_id(
+            service_principal.id
+        ).app_role_assigned_to.get(request_configuration=request_config)
+        
+        assignment_count = 0
+        page_count = 0
+        
+        while assignments_page:
+            page_count += 1
+            
+            # Safety check: limit number of pages
+            if page_count > MAX_ASSIGNMENT_PAGES_PER_APP:
+                logger.warning(
+                    f"Reached maximum page limit ({MAX_ASSIGNMENT_PAGES_PER_APP}) for application {app.display_name} ({app.app_id}). "
+                    f"Stopping pagination to prevent infinite loop. {assignment_count} assignments fetched so far."
+                )
+                break
+            
+            if assignments_page.value:
+                page_valid_count = 0
+                page_skipped_count = 0
+                
+                # Process assignments and immediately yield to avoid accumulation
+                for i, assignment in enumerate(assignments_page.value):
+                    # Skip if this is not an app role assignment (might be a ServicePrincipal object)
+                    if not hasattr(assignment, 'principal_id'):
+                        page_skipped_count += 1
+                        continue
+                        
+                    # Safety check: limit total assignments
+                    if assignment_count >= MAX_ASSIGNMENTS_PER_APP:
+                        logger.warning(
+                            f"Reached maximum assignment limit ({MAX_ASSIGNMENTS_PER_APP}) for application {app.display_name} ({app.app_id}). "
+                            f"Stopping to prevent memory issues."
+                        )
+                        # Clear references before returning
+                        assignments_page = None
+                        gc.collect()
+                        return
+                    
+                    # Create minimal assignment dict to reduce memory
+                    # Use getattr with defaults to handle missing attributes
+                    minimal_assignment = type('MinimalAssignment', (), {
+                        'id': getattr(assignment, 'id', None),
+                        'app_role_id': getattr(assignment, 'app_role_id', None),
+                        'created_date_time': getattr(assignment, 'created_date_time', None),
+                        'principal_id': getattr(assignment, 'principal_id', None),
+                        'principal_display_name': getattr(assignment, 'principal_display_name', None),
+                        'principal_type': getattr(assignment, 'principal_type', None),
+                        'resource_display_name': getattr(assignment, 'resource_display_name', None),
+                        'resource_id': getattr(assignment, 'resource_id', None),
+                        'application_app_id': app.app_id
+                    })()
+                    
+                    # Only yield if we have valid data
+                    if minimal_assignment.principal_id:
+                        assignment_count += 1
+                        page_valid_count += 1
+                        yield minimal_assignment
+                    else:
+                        page_skipped_count += 1
+                    
+                    # Clear the original assignment to free memory
+                    assignments_page.value[i] = None
+                
+                # Log page results with details about skipped objects
+                if page_skipped_count > 0:
+                    logger.debug(
+                        f"Page {page_count} for {app.display_name}: {page_valid_count} valid assignments, "
+                        f"{page_skipped_count} skipped objects. Total valid: {assignment_count}"
+                    )
+                else:
+                    logger.debug(
+                        f"Page {page_count} for {app.display_name}: {page_valid_count} assignments. "
+                        f"Total: {assignment_count}"
+                    )
+                
+                # Force garbage collection after each page
+                gc.collect()
 
-    logger.info(f"Retrieved {len(assignments)} app role assignments total")
-    return assignments
+            # Continue fetching if we have more pages, even if current page had no valid assignments
+            if not assignments_page.odata_next_link:
+                # Check if we stopped at a round number which might indicate a limit
+                if assignment_count > 0 and assignment_count % 100 == 0:
+                    logger.info(
+                        f"Application {app.display_name} has exactly {assignment_count} assignments. "
+                        f"This round number might indicate there are more assignments not being returned by the API."
+                    )
+                break
+            
+            # Clear previous page before fetching next
+            assignments_page.value = None
+            
+            # Fetch next page with error handling
+            try:
+                logger.debug(f"Fetching page {page_count + 1} of assignments for {app.display_name}")
+                next_page_url = assignments_page.odata_next_link
+                
+                # Log the URL pattern to debug pagination issues
+                if "skiptoken" in next_page_url.lower() or "$skip" in next_page_url.lower():
+                    logger.debug(f"Using pagination URL: {next_page_url[:100]}...")
+                
+                assignments_page = await client.service_principals.with_url(next_page_url).get()
+                
+                # Check if we got a different response type
+                if assignments_page and hasattr(assignments_page, 'value') and assignments_page.value:
+                    first_item_type = type(assignments_page.value[0]).__name__
+                    if first_item_type != 'AppRoleAssignment':
+                        logger.info(
+                            f"Page {page_count + 1} returned {first_item_type} objects instead of AppRoleAssignment. "
+                            f"This might indicate an API limitation for {app.display_name}."
+                        )
+                        
+            except Exception as e:
+                logger.error(
+                    f"Error fetching page {page_count + 1} of assignments for {app.display_name}: {e}. "
+                    f"Stopping pagination for this app."
+                )
+                break
+
+        # Log warning if many assignments
+        if assignment_count >= HIGH_ASSIGNMENT_COUNT_THRESHOLD:
+            logger.warning(
+                f"Application {app.display_name} ({app.app_id}) has {assignment_count} role assignments. "
+                f"If this seems unexpectedly high, there may be pagination limits affecting data completeness."
+            )
+        
+        logger.info(
+            f"Successfully retrieved {assignment_count} assignments for application {app.display_name} (pages: {page_count})"
+        )
+
+    except APIError as e:
+        # Handle Microsoft Graph API errors
+        if e.response_status_code == 403:
+            logger.warning(
+                f"Access denied when fetching app role assignments for application {app.app_id} ({app.display_name}). "
+                f"This application may not have sufficient permissions or may not exist."
+            )
+        elif e.response_status_code == 404:
+            logger.warning(
+                f"Application {app.app_id} ({app.display_name}) not found when fetching app role assignments. "
+                f"Application may have been deleted or does not exist."
+            )
+        elif e.response_status_code == 429:
+            logger.warning(
+                f"Rate limit hit when fetching app role assignments for application {app.app_id} ({app.display_name}). "
+                f"Consider reducing APPLICATIONS_PAGE_SIZE or implementing retry logic."
+            )
+        else:
+            logger.warning(
+                f"Microsoft Graph API error when fetching app role assignments for application {app.app_id} ({app.display_name}): "
+                f"Status {e.response_status_code}, Error: {str(e)}"
+            )
+    except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
+        logger.warning(
+            f"Network error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}"
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}",
+            exc_info=True,
+        )
 
 
-def transform_applications(applications: List[Any]) -> List[Dict[str, Any]]:
+def transform_applications(applications: List[Any]) -> Generator[Dict[str, Any], None, None]:
     """
-    Transform application data for graph loading.
+    Transform application data for graph loading using a generator.
 
     :param applications: Raw Application objects from Microsoft Graph API
-    :return: Transformed application data for graph loading
+    :return: Generator of transformed application data for graph loading
     """
-    result = []
     for app in applications:
-        transformed = {
+        yield {
             "id": app.id,
             "app_id": app.app_id,
             "display_name": app.display_name,
             "publisher_domain": getattr(app, "publisher_domain", None),
             "sign_in_audience": app.sign_in_audience,
         }
-        result.append(transformed)
-    return result
 
 
 def transform_app_role_assignments(
     assignments: List[Any],
-) -> List[Dict[str, Any]]:
+) -> Generator[Dict[str, Any], None, None]:
     """
-    Transform app role assignment data for graph loading.
+    Transform app role assignment data for graph loading using a generator.
 
     :param assignments: Raw app role assignment objects from Microsoft Graph API
-    :return: Transformed assignment data for graph loading
+    :return: Generator of transformed assignment data for graph loading
     """
-    result = []
     for assignment in assignments:
-        transformed = {
+        yield {
             "id": assignment.id,
             "app_role_id": (
                 str(assignment.app_role_id) if assignment.app_role_id else None
@@ -231,8 +337,6 @@ def transform_app_role_assignments(
             ),
             "application_app_id": getattr(assignment, "application_app_id", None),
         }
-        result.append(transformed)
-    return result
 
 
 @timeit
@@ -347,19 +451,119 @@ async def sync_entra_applications(
     # Load tenant (prerequisite)
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
 
-    # Get and transform applications data
-    applications_data = await get_entra_applications(client)
-    transformed_applications = transform_applications(applications_data)
-
-    # Get and transform app role assignments data
-    assignments_data = await get_app_role_assignments(client, applications_data)
-    transformed_assignments = transform_app_role_assignments(assignments_data)
-
-    # Load applications and assignments
-    load_applications(neo4j_session, transformed_applications, update_tag, tenant_id)
-    load_app_role_assignments(
-        neo4j_session, transformed_assignments, update_tag, tenant_id
-    )
+    # Process applications and their assignments in batches
+    app_batch_size = 10  # Batch size for applications
+    assignment_batch_size = 200  # Batch size for assignments (increased since we handle memory better now)
+    
+    apps_batch = []
+    assignments_batch = []
+    total_assignment_count = 0
+    total_app_count = 0
+    
+    async for app in get_entra_applications(client):
+        total_app_count += 1
+        apps_batch.append(app)
+        
+        try:
+            # Process and stream assignments for each app immediately
+            app_assignment_count = 0
+            async for assignment in get_app_role_assignments_for_app(client, app):
+                # Convert to dict immediately to free SDK object
+                assignment_dict = {
+                    'id': getattr(assignment, 'id', None),
+                    'app_role_id': getattr(assignment, 'app_role_id', None),
+                    'created_date_time': getattr(assignment, 'created_date_time', None),
+                    'principal_id': getattr(assignment, 'principal_id', None),
+                    'principal_display_name': getattr(assignment, 'principal_display_name', None),
+                    'principal_type': getattr(assignment, 'principal_type', None),
+                    'resource_display_name': getattr(assignment, 'resource_display_name', None),
+                    'resource_id': getattr(assignment, 'resource_id', None),
+                    'application_app_id': getattr(assignment, 'application_app_id', None)
+                }
+                assignments_batch.append(assignment_dict)
+                total_assignment_count += 1
+                app_assignment_count += 1
+                
+                # Load assignments in batches
+                if len(assignments_batch) >= assignment_batch_size:
+                    # Transform using dict directly
+                    transformed_assignments = []
+                    for assign in assignments_batch:
+                        transformed_assignments.append({
+                            "id": assign['id'],
+                            "app_role_id": str(assign['app_role_id']) if assign['app_role_id'] else None,
+                            "created_date_time": assign['created_date_time'],
+                            "principal_id": str(assign['principal_id']) if assign['principal_id'] else None,
+                            "principal_display_name": assign['principal_display_name'],
+                            "principal_type": assign['principal_type'],
+                            "resource_display_name": assign['resource_display_name'],
+                            "resource_id": str(assign['resource_id']) if assign['resource_id'] else None,
+                            "application_app_id": assign['application_app_id'],
+                        })
+                    
+                    load_app_role_assignments(
+                        neo4j_session, transformed_assignments, update_tag, tenant_id
+                    )
+                    logger.debug(f"Loaded batch of {len(assignments_batch)} assignments")
+                    assignments_batch.clear()
+                    transformed_assignments.clear()
+                    
+                    # Force garbage collection after batch load
+                    gc.collect()
+            
+            if app_assignment_count > 0:
+                logger.debug(f"Processed {app_assignment_count} assignments for {app.display_name}")
+            
+        except Exception as e:
+            logger.error(
+                f"Error processing assignments for application {app.display_name} ({app.app_id}): {e}. "
+                f"Continuing with next application."
+            )
+            continue
+        
+        # Load applications in batches and clear memory
+        if len(apps_batch) >= app_batch_size:
+            transformed_apps = list(transform_applications(apps_batch))
+            load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
+            logger.info(f"Loaded batch of {len(apps_batch)} applications (total: {total_app_count})")
+            apps_batch.clear()
+            transformed_apps.clear()
+            gc.collect()  # Force garbage collection
+    
+    # Process remaining applications
+    if apps_batch:
+        transformed_apps = list(transform_applications(apps_batch))
+        load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
+        apps_batch.clear()
+        transformed_apps.clear()
+    
+    # Process remaining assignments  
+    if assignments_batch:
+        # Transform using dict directly
+        transformed_assignments = []
+        for assign in assignments_batch:
+            transformed_assignments.append({
+                "id": assign['id'],
+                "app_role_id": str(assign['app_role_id']) if assign['app_role_id'] else None,
+                "created_date_time": assign['created_date_time'],
+                "principal_id": str(assign['principal_id']) if assign['principal_id'] else None,
+                "principal_display_name": assign['principal_display_name'],
+                "principal_type": assign['principal_type'],
+                "resource_display_name": assign['resource_display_name'],
+                "resource_id": str(assign['resource_id']) if assign['resource_id'] else None,
+                "application_app_id": assign['application_app_id'],
+            })
+        
+        load_app_role_assignments(
+            neo4j_session, transformed_assignments, update_tag, tenant_id
+        )
+        assignments_batch.clear()
+        transformed_assignments.clear()
+    
+    # Final garbage collection
+    gc.collect()
+    
+    logger.info(f"Loaded {total_assignment_count} app role assignments total")
 
     # Cleanup stale data
     cleanup_applications(neo4j_session, common_job_parameters)
