@@ -9,16 +9,11 @@ on:
 permissions: {}
 
 jobs:
-  build-and-publish-to-pypi-and-ghcr:
-    # Explicitly grant the `secrets.GITHUB_TOKEN` permissions.
-    permissions:
-      # Grant the ability to write to GitHub Packages (push Docker images to
-      # GitHub Container Registry).
-      packages: write
-    name: Build and publish Python 🐍 distributions 📦 to PyPI, and Docker 🐳 images 📦 to GitHub Container Registry
+  # 1. Publish to PyPI
+  build-and-publish-to-pypi:
+    name: Build and publish Python 🐍 distributions 📦 to PyPI
     runs-on: ubuntu-latest
     steps:
-      # 1. Publish to PyPI
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
@@ -34,13 +29,37 @@ jobs:
         if: startsWith(github.ref, 'refs/tags')
         run: uv publish --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}
 
-      # 2. Publish to GHCR
+  # 2. Publish to GHCR
+  build-and-publish-to-ghcr:
+    # Explicitly grant the `secrets.GITHUB_TOKEN` permissions.
+    name: Build and publish Docker 🐳 images 📦 to GitHub Container Registry
+    runs-on: ubuntu-latest
+    permissions:
+      # Grant the ability to write to GitHub Packages (push Docker images to
+      # GitHub Container Registry).
+      packages: write
+    steps:
+      # See: https://docs.docker.com/build/ci/github-actions/multi-platform/#build-and-load-multi-platform-images
+      - name: Set up Docker
+        uses: docker/setup-docker-action@b60f85385d03ac8acfca6d9996982511d8620a19 # v4.3.0
+        with:
+          daemon-config: |
+            {
+              "debug": true,
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
         with:
           images: ghcr.io/${{ github.repository }}
+
+      # Install QEMU for multi-architecture builds
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
@@ -75,5 +94,6 @@ jobs:
           push: true # push the image to ghcr
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
           # e.g. '==0.98.0'
           build-args: VERSION_SPECIFIER===${{ env.VERSION }}
