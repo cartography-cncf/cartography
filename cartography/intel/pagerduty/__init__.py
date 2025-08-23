@@ -1,7 +1,7 @@
 import logging
 
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.config import Config
 from cartography.intel.pagerduty.escalation_policies import sync_escalation_policies
@@ -38,15 +38,18 @@ def start_pagerduty_ingestion(
             "PagerDuty import is not configured - skipping this module. See docs to configure.",
         )
         return
-    session = APISession(config.pagerduty_api_key)
+
+    client = RestApiV2Client(api_key=config.pagerduty_api_key)
     if config.pagerduty_request_timeout is not None:
-        session.timeout = config.pagerduty_request_timeout
-    sync_users(neo4j_session, config.update_tag, session)
-    sync_teams(neo4j_session, config.update_tag, session)
-    sync_vendors(neo4j_session, config.update_tag, session)
-    sync_services(neo4j_session, config.update_tag, session)
-    sync_schedules(neo4j_session, config.update_tag, session)
-    sync_escalation_policies(neo4j_session, config.update_tag, session)
+        client.timeout = config.pagerduty_request_timeout
+
+    sync_users(neo4j_session, config.update_tag, client)
+    sync_teams(neo4j_session, config.update_tag, client)
+    sync_vendors(neo4j_session, config.update_tag, client)
+    sync_services(neo4j_session, config.update_tag, client)
+    sync_schedules(neo4j_session, config.update_tag, client)
+    sync_escalation_policies(neo4j_session, config.update_tag, client)
+
     run_cleanup_job(
         "pagerduty_import_cleanup.json",
         neo4j_session,

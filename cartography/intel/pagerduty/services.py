@@ -5,7 +5,7 @@ from typing import List
 
 import dateutil.parser
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.util import timeit
 
@@ -16,25 +16,25 @@ logger = logging.getLogger(__name__)
 def sync_services(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    pd_session: APISession,
+    pd_client: RestApiV2Client,
 ) -> None:
-    services = get_services(pd_session)
+    services = get_services(pd_client)
     load_service_data(neo4j_session, services, update_tag)
-    integrations = get_integrations(pd_session, services)
+    integrations = get_integrations(pd_client, services)
     load_integration_data(neo4j_session, integrations, update_tag)
 
 
 @timeit
-def get_services(pd_session: APISession) -> List[Dict[str, Any]]:
+def get_services(pd_client: RestApiV2Client) -> List[Dict[str, Any]]:
     all_services: List[Dict[str, Any]] = []
-    for service in pd_session.iter_all("services"):
+    for service in pd_client.iter_all("services"):
         all_services.append(service)
     return all_services
 
 
 @timeit
 def get_integrations(
-    pd_session: APISession,
+    pd_client: RestApiV2Client,
     services: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     """
@@ -46,7 +46,7 @@ def get_integrations(
         if service.get("integrations"):
             for integration in service["integrations"]:
                 i_id = integration["id"]
-                i = pd_session.rget(f"/services/{s_id}/integrations/{i_id}")
+                i = pd_client.rget(f"/services/{s_id}/integrations/{i_id}")
                 all_integrations.append(i)
     return all_integrations
 
@@ -81,9 +81,9 @@ def load_service_data(
             s.incident_urgency_rule_outside_support_hours_urgency = service.incident_urgency_rule.outside_support_hours.urgency,
             s.support_hours_type = service.support_hours.type,
             s.support_hours_time_zone = service.support_hours.time_zone,
-            s.support_hours_start_time = s.support_hours.start_time,
-            s.support_hours_end_time = s.support_hours.end_time,
-            s.support_hours_days_of_week = s.support_hours.days_of_week,
+            s.support_hours_start_time = service.support_hours.start_time,
+            s.support_hours_end_time = service.support_hours.end_time,
+            s.support_hours_days_of_week = service.support_hours.days_of_week,
             s.lastupdated = $update_tag
     """  # noqa: E501
     logger.info(f"Loading {len(data)} pagerduty services.")

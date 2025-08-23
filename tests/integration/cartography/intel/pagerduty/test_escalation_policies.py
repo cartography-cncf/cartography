@@ -8,6 +8,7 @@ def test_load_escalation_policy_data(neo4j_session):
     escalation_policy_data = (
         tests.data.pagerduty.escalation_policies.GET_ESCALATION_POLICY_DATA
     )
+    # Use the updated load function
     cartography.intel.pagerduty.escalation_policies.load_escalation_policy_data(
         neo4j_session,
         escalation_policy_data,

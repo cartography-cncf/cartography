@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
@@ -531,7 +531,7 @@ dependencies = [
     { name = "oci" },
     { name = "okta" },
     { name = "packaging" },
-    { name = "pdpyras" },
+    { name = "pagerduty" },
     { name = "policyuniverse" },
     { name = "python-dateutil" },
     { name = "python-digitalocean" },
@@ -592,7 +592,7 @@ requires-dist = [
     { name = "oci", specifier = ">=2.71.0" },
     { name = "okta", specifier = "<1.0.0" },
     { name = "packaging" },
-    { name = "pdpyras", specifier = ">=4.3.0" },
+    { name = "pagerduty", specifier = ">=4.0.1" },
     { name = "policyuniverse", specifier = ">=1.1.0.0" },
     { name = "python-dateutil" },
     { name = "python-digitalocean", specifier = ">=1.16.0" },
@@ -1023,7 +1023,7 @@ name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749, upload-time = "2025-05-10T17:42:51.123Z" }
 wheels = [
@@ -2001,25 +2001,26 @@ wheels = [
 ]
 
 [[package]]
+name = "pagerduty"
+version = "4.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e6/2e/06e32110c750bb0ead604ad85dcce23f276b0491adb3c25b7fedf336e66d/pagerduty-4.0.1.tar.gz", hash = "sha256:36e0608228526f0dacd6ae16402259a91e11d3d7fa357f37ddbafbf8850d5e1f", size = 42192, upload-time = "2025-08-18T19:58:45.767Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/18/6bcfa4bf8026871ced4125b8870eca21e7d32b1c228a123a4443b6e58f9e/pagerduty-4.0.1-py3-none-any.whl", hash = "sha256:1007e0892a219ad05aad442ea401166797cad9c7d031d89619acf3c0083ce417", size = 48575, upload-time = "2025-08-18T19:58:44.337Z" },
+]
+
+[[package]]
 name = "pathspec"
 version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ca/bc/f35b8446f4531a7cb215605d100cd88b7ac6f44ab3fc94870c120ab3adbf/pathspec-0.12.1.tar.gz", hash = "sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712", size = 51043, upload-time = "2023-12-10T22:30:45Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cc/20/ff623b09d963f88bfde16306a54e12ee5ea43e9b597108672ff3a408aad6/pathspec-0.12.1-py3-none-any.whl", hash = "sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08", size = 31191, upload-time = "2023-12-10T22:30:43.14Z" },
-]
-
-[[package]]
-name = "pdpyras"
-version = "5.4.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/1f/36/ced3d9fa692dfeab2fb9ac8cfa6ac44dd725417f6b71ee37f7964d1e6c4d/pdpyras-5.4.1.tar.gz", hash = "sha256:36021aff5979a79f1d87edc95e0c46e98ce8549292bc0cab3d9f33501795703b", size = 26201, upload-time = "2025-06-03T21:41:17.158Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/c4/a498be81c426eb0de3d34c3572f2f56b17083eeb40411b17bc63691f5a6d/pdpyras-5.4.1-py2.py3-none-any.whl", hash = "sha256:e16020cf57e4c916ab3dace7c7dffe21a2e7059ab7411ce3ddf1e620c54e9c89", size = 24927, upload-time = "2025-06-03T21:41:16.166Z" },
 ]
 
 [[package]]

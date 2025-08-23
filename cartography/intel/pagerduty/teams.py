@@ -4,7 +4,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.util import timeit
 
@@ -15,31 +15,31 @@ logger = logging.getLogger(__name__)
 def sync_teams(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    pd_session: APISession,
+    pd_client: RestApiV2Client,
 ) -> None:
-    teams = get_teams(pd_session)
+    teams = get_teams(pd_client)
     load_team_data(neo4j_session, teams, update_tag)
-    relations = get_team_members(pd_session, teams)
+    relations = get_team_members(pd_client, teams)
     load_team_relations(neo4j_session, relations, update_tag)
 
 
 @timeit
-def get_teams(pd_session: APISession) -> List[Dict[str, Any]]:
+def get_teams(pd_client: RestApiV2Client) -> List[Dict[str, Any]]:
     all_teams: List[Dict[str, Any]] = []
-    for teams in pd_session.iter_all("teams"):
-        all_teams.append(teams)
+    for team in pd_client.iter_all("teams"):
+        all_teams.append(team)
     return all_teams
 
 
 @timeit
 def get_team_members(
-    pd_session: APISession,
+    pd_client: RestApiV2Client,
     teams: List[Dict[str, Any]],
 ) -> List[Dict[str, str]]:
     relations: List[Dict[str, str]] = []
     for team in teams:
         team_id = team["id"]
-        for member in pd_session.iter_all(f"teams/{team_id}/members"):
+        for member in pd_client.iter_all(f"teams/{team_id}/members"):
             relations.append(
                 {"team": team_id, "user": member["user"]["id"], "role": member["role"]},
             )
@@ -52,7 +52,7 @@ def load_team_data(
     update_tag: int,
 ) -> None:
     """
-    Transform and load teamuser information
+    Transform and load team information
     """
     ingestion_cypher_query = """
     UNWIND $Teams AS team

@@ -4,7 +4,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.util import timeit
 
@@ -15,17 +15,18 @@ logger = logging.getLogger(__name__)
 def sync_escalation_policies(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    pd_session: APISession,
+    pd_client: RestApiV2Client,
 ) -> None:
-    escalation_policies = get_escalation_policies(pd_session)
+    escalation_policies = get_escalation_policies(pd_client)
     load_escalation_policy_data(neo4j_session, escalation_policies, update_tag)
 
 
 @timeit
-def get_escalation_policies(pd_session: APISession) -> List[Dict[str, Any]]:
+def get_escalation_policies(pd_client: RestApiV2Client) -> List[Dict[str, Any]]:
     all_escalation_policies: List[Dict[str, Any]] = []
     params = {"include[]": ["services", "teams", "targets"]}
-    for escalation_policy in pd_session.iter_all("escalation_policies", params=params):
+    # New package uses iter_cursor or iter_all with string API path and params
+    for escalation_policy in pd_client.iter_all("escalation_policies", params=params):
         all_escalation_policies.append(escalation_policy)
     return all_escalation_policies
 
@@ -57,12 +58,11 @@ def load_escalation_policy_data(
     teams: List[Dict[str, Any]] = []
     for policy in data:
         if policy.get("escalation_rules"):
-            i = 0
-            for rule in policy["escalation_rules"]:
+            for i, rule in enumerate(policy["escalation_rules"]):
                 rule["_escalation_policy_id"] = policy["id"]
                 rule["_escalation_policy_order"] = i
                 rules.append(rule)
-                i = i + 1
+
         if policy.get("services"):
             for service in policy["services"]:
                 services.append(
@@ -131,7 +131,7 @@ def _attach_user_targets(
     update_tag: int,
 ) -> None:
     """
-    Add relationship between escalation policy and services.
+    Add relationship between escalation policy and users.
     """
     ingestion_cypher_query = """
     UNWIND $Relations AS relation
@@ -153,7 +153,7 @@ def _attach_schedule_targets(
     update_tag: int,
 ) -> None:
     """
-    Add relationship between escalation policy and services.
+    Add relationship between escalation policy and schedules.
     """
     ingestion_cypher_query = """
     UNWIND $Relations AS relation
