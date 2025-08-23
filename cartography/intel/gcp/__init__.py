@@ -20,23 +20,26 @@ from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
+from cartography.intel.gcp import gcf
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 Resources = namedtuple(
-    "Resources", "compute container crm_v1 crm_v2 dns storage serviceusage iam"
+    "Resources", "compute container crm_v1 crm_v2 dns storage serviceusage iam gcf"
 )
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam")
+Services = namedtuple("Services", "compute storage gke dns iam gcf")
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
     gke="container.googleapis.com",
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
+    gcf="cloudfunctions.googleapis.com",
+     
 )
 
 
@@ -151,6 +154,17 @@ def _get_serviceusage_resource(credentials: GoogleCredentials) -> Resource:
         cache_discovery=False,
     )
 
+def _get_gcf_resource(credentials: GoogleCredentials) -> Resource:
+    """
+    Instantiates a Google Cloud Functions API client.
+    """
+    return googleapiclient.discovery.build(
+        "cloudfunctions",
+        "v1",
+        credentials=credentials,
+        cache_discovery=False,
+    )
+
 
 def _get_iam_resource(credentials: GoogleCredentials) -> Resource:
     """
@@ -175,6 +189,7 @@ def _initialize_resources(credentials: GoogleCredentials) -> Resource:
         container=None,
         dns=None,
         storage=None,
+        gcf=None,
         iam=_get_iam_resource(credentials),
     )
 
@@ -335,6 +350,24 @@ def _sync_single_project_dns(
             common_job_parameters,
         )
 
+def _sync_single_project_gcf(
+    neo4j_session: neo4j.Session,
+    resources: Resource, 
+    project_id: str,
+    gcp_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    
+    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
+    gcf_cred = _get_gcf_resource(get_gcp_credentials())
+    if service_names.gcf in enabled_services:
+        gcf.sync(
+            neo4j_session,
+            gcf_cred,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
 
 def _sync_single_project_iam(
     neo4j_session: neo4j.Session,
@@ -360,6 +393,7 @@ def _sync_single_project_iam(
         iam.sync(
             neo4j_session, iam_cred, project_id, gcp_update_tag, common_job_parameters
         )
+
 
 
 def _sync_multiple_projects(
@@ -436,6 +470,20 @@ def _sync_multiple_projects(
         common_job_parameters["PROJECT_ID"] = project_id
         logger.info("Syncing GCP project %s for DNS", project_id)
         _sync_single_project_dns(
+            neo4j_session,
+            resources,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        del common_job_parameters["PROJECT_ID"]
+
+    # GCF data sync
+    for project in projects:
+        project_id = project["projectId"]
+        common_job_parameters["PROJECT_ID"] = project_id
+        logger.info("Syncing GCP project %s for GCF", project_id)
+        _sync_single_project_gcf(
             neo4j_session,
             resources,
             project_id,
