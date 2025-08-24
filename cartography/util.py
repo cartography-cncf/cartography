@@ -474,6 +474,7 @@ try:
 except ImportError:
     cartography_version = "unknown"
 
+
 def build_session() -> requests.Session:
     """
     Create a requests.Session with a custom User-Agent header that includes the Cartography version.

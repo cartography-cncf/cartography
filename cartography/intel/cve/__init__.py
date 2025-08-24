@@ -9,7 +9,9 @@ from urllib3 import Retry
 from cartography.config import Config
 from cartography.intel.cve import feed
 from cartography.stats import get_stats_client
-from cartography.util import merge_module_sync_metadata, timeit, build_session
+from cartography.util import build_session
+from cartography.util import merge_module_sync_metadata
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)

@@ -8,7 +8,8 @@ import cartography.intel.tailscale.postureintegrations
 import cartography.intel.tailscale.tailnets
 import cartography.intel.tailscale.users
 from cartography.config import Config
-from cartography.util import timeit, build_session
+from cartography.util import build_session
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 

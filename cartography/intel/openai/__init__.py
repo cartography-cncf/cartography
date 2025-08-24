@@ -8,7 +8,8 @@ import cartography.intel.openai.projects
 import cartography.intel.openai.serviceaccounts
 import cartography.intel.openai.users
 from cartography.config import Config
-from cartography.util import timeit, build_session
+from cartography.util import build_session
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 

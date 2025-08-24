@@ -4,13 +4,13 @@ from typing import Dict
 from typing import List
 
 import neo4j
-from requests import Session
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.kandji.device import KandjiDeviceSchema
 from cartography.models.kandji.tenant import KandjiTenantSchema
-from cartography.util import timeit, build_session
+from cartography.util import build_session
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
