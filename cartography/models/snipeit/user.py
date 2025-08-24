@@ -32,14 +32,14 @@ class SnipeitTenantToSnipeitUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:SnipeitTenant)-[:HAS_USER]->(:SnipeitUser)
+# (:SnipeitTenant)-[:RESOURCE]->(:SnipeitUser)
 class SnipeitTenantToSnipeitUserRel(CartographyRelSchema):
     target_node_label: str = "SnipeitTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_USER"
+    rel_label: str = "RESOURCE"
     properties: SnipeitTenantToSnipeitUserRelProperties = (
         SnipeitTenantToSnipeitUserRelProperties()
     )
