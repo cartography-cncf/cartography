@@ -19,10 +19,6 @@ _TIMEOUT = (60, 60)
 @timeit
 def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
     api_endpoint = f"{kandji_base_uri}/api/v1/devices"
-    headers = {
-        "Accept": "application/json",
-        "Authorization": f"Bearer {kandji_token}",
-    }
 
     offset = 0
     limit = 300
@@ -34,13 +30,17 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
 
     devices: List[Dict[str, Any]] = []
     session = build_session()
+    session.headers.update(
+        {
+            "Accept": "application/json",
+            "Authorization": f"Bearer {kandji_token}",
+        }
+    )
     while True:
         logger.debug("Kandji device offset: %s", offset)
 
         params["offset"] = offset
-        response = session.get(
-            api_endpoint, headers=headers, timeout=_TIMEOUT, params=params
-        )
+        response = session.get(api_endpoint, timeout=_TIMEOUT, params=params)
         response.raise_for_status()
 
         result = response.json()
