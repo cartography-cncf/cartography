@@ -90,12 +90,44 @@ TOP_LEVEL_MODULES = OrderedDict(
 
 class Sync:
     """
-    A cartography sync task.
+    A cartography synchronization task orchestrator.
 
-    The role of the sync task is to ensure the data in the graph database represents reality. It does this by executing
-    a sequence of sync "stages" which are responsible for retrieving data from various sources (APIs, files, etc.),
-    pushing that data to Neo4j, and removing now-invalid nodes and relationships from the graph. An instance of this
-    class can be configured to run any number of stages in a specific order.
+    The Sync class is responsible for ensuring the data in the graph database
+    accurately represents the current state of reality. It accomplishes this by
+    executing a sequence of sync "modules" in a specific order. Each module is
+    responsible for:
+
+    - Retrieving data from various sources (APIs, files, etc.)
+    - Pushing that data to Neo4j graph database
+    - Removing stale nodes and relationships from the graph
+
+    The Sync instance can be configured to run any combination of available
+    modules in a user-defined order, providing flexibility for different
+    deployment scenarios.
+
+    Attributes:
+        _stages: An OrderedDict containing module names mapped to their callable functions.
+
+    Examples:
+        Creating a custom sync with specific stages:
+        >>> sync = Sync()
+        >>> sync.add_stage('aws', cartography.intel.aws.start_aws_ingestion)
+        >>> sync.add_stage('analysis', cartography.intel.analysis.run)
+
+        Running multiple stages:
+        >>> stages = [
+        ...     ('create-indexes', cartography.intel.create_indexes.run),
+        ...     ('aws', cartography.intel.aws.start_aws_ingestion),
+        ...     ('analysis', cartography.intel.analysis.run)
+        ... ]
+        >>> sync.add_stages(stages)
+        >>> exit_code = sync.run(neo4j_driver, config)
+
+    Note:
+        Stages are executed in the order they are added. The 'create-indexes'
+        stage should typically be run first, and 'analysis' should be run last.
+        Meta-stages for pre-sync, sync, and post-sync hooks may be added in
+        future versions.
     """
 
     def __init__(self):
@@ -104,21 +136,42 @@ class Sync:
 
     def add_stage(self, name: str, func: Callable) -> None:
         """
-        Add one stage to the sync task.
+        Add a single stage to the sync task.
 
-        :type name: string
-        :param name: The name of the stage.
-        :type func: Callable
-        :param func: The object to call when the stage is executed.
+        This method registers a new stage with the sync task. Stages are executed
+        in the order they are added, so the order of add_stage() calls determines
+        the execution sequence.
+
+        Args:
+            name: The unique name identifier for the stage. This name is used
+                 for logging and identification purposes.
+            func: The callable function to execute when this stage runs.
+                 The function should accept (neo4j_session, config) parameters.
+
+        Note:
+            The stage name should be unique within the sync task. If a stage
+            with the same name already exists, it will be replaced. Stage
+            functions must follow the standard signature (neo4j_session, config).
         """
         self._stages[name] = func
 
     def add_stages(self, stages: List[Tuple[str, Callable]]) -> None:
         """
-        Add multiple stages to the sync task.
+        Add multiple stages to the sync task in batch.
 
-        :type stages: List[Tuple[string, Callable]]
-        :param stages: A list of stage names and stage callable pairs.
+        This method is a convenience function for adding multiple stages at once.
+        It iterates through the provided list and calls add_stage() for each
+        stage tuple.
+
+        Args:
+            stages: A list of tuples where each tuple contains (stage_name, stage_function).
+                   The stage_name should be a unique string identifier, and stage_function
+                   should be a callable that accepts (neo4j_session, config) parameters.
+
+        Note:
+            Stages are added in the order they appear in the list, which determines
+            their execution order. This method is equivalent to calling add_stage()
+            for each tuple individually.
         """
         for name, func in stages:
             self.add_stage(name, func)
@@ -129,12 +182,39 @@ class Sync:
         config: Union[Config, argparse.Namespace],
     ) -> int:
         """
-        Execute all stages in the sync task in sequence.
+        Execute all configured stages in the sync task sequentially.
 
-        :type neo4j_driver: neo4j.Driver
-        :param neo4j_driver: Neo4j driver object.
-        :type config: cartography.config.Config
-        :param config: Configuration for the sync run.
+        This method is the main execution entry point for the sync task. It creates
+        a Neo4j session and executes each configured stage in order, providing
+        comprehensive logging and error handling.
+
+        Args:
+            neo4j_driver: A Neo4j driver instance for database connectivity.
+            config: Configuration object containing sync parameters including
+                   update_tag, neo4j_database, and stage-specific settings.
+
+        Returns:
+            STATUS_SUCCESS (0) if all stages complete successfully.
+
+        Raises:
+            KeyboardInterrupt: If user interrupts execution during a stage.
+            SystemExit: If system exit is triggered during a stage.
+            Exception: Any unhandled exception from module execution.
+
+        Examples:
+            >>> sync = build_default_sync()
+            >>> driver = GraphDatabase.driver("bolt://localhost:7687")
+            >>> exit_code = sync.run(driver, config)
+            >>> if exit_code == STATUS_SUCCESS:
+            ...     print("Sync completed successfully")
+
+        Note:
+            Each stage is executed within the same Neo4j session to maintain
+            transaction context. Stages are responsible for their own error
+            handling, but unhandled exceptions will terminate the sync process.
+
+            The method logs the start and completion of each module for monitoring
+            and debugging purposes.
         """
         logger.info("Starting sync with update tag '%d'", config.update_tag)
         with neo4j_driver.session(database=config.neo4j_database) as neo4j_session:
@@ -158,16 +238,39 @@ class Sync:
     @classmethod
     def list_intel_modules(cls) -> OrderedDict:
         """
-        List all available intel modules.
+        Discover and list all available modules.
 
-        This method will load all modules in the cartography.intel package and return a dictionary of their names and
-        their callable functions. The keys of the dictionary are the module names, and the values are the callable
-        functions (with `start_{module}_ingestion` pattern) that should be executed during the sync process.
-        analysis and create_indexes are loaded separately to ensure they are always available and run first
-        (for create-index) and last (for analysis).
+        This class method dynamically discovers all modules in the cartography.intel
+        package and returns a dictionary mapping module names to their callable
+        ingestion functions. It automatically handles module loading and function
+        discovery using naming conventions.
 
-        :rtype: OrderedDict
-        :return: A dictionary of available intel modules.
+        Returns:
+            An OrderedDict where keys are module names and values are callable
+            functions that follow the `start_{module}_ingestion` pattern.
+            The 'create-indexes' module is always included first, and 'analysis'
+            is always included last.
+
+        Examples:
+            Getting all available modules:
+            >>> modules = Sync.list_intel_modules()
+            >>> print(list(modules.keys()))
+            ['create-indexes', 'aws', 'gcp', 'github', ..., 'analysis']
+
+            Creating sync with discovered modules:
+            >>> modules = Sync.list_intel_modules()
+            >>> sync = Sync()
+            >>> for name, func in modules.items():
+            ...     sync.add_stage(name, func)
+
+        Note:
+            The method uses reflection to discover modules and their ingestion
+            functions. It expects functions to follow the naming pattern
+            `start_{module_name}_ingestion`. Modules that fail to import are
+            logged as errors but don't prevent discovery of other modules.
+
+            The 'create-indexes' and 'analysis' modules are handled specially
+            to ensure consistent ordering regardless of discovery order.
         """
         available_modules = OrderedDict({})
         available_modules["create-indexes"] = cartography.intel.create_indexes.run
@@ -216,15 +319,44 @@ class Sync:
 
 def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:
     """
-    Execute the cartography.sync.Sync.run method with parameters built from the given configuration object.
+    Execute a sync task with comprehensive configuration and error handling.
 
-    This function will create a Neo4j driver object from the given Neo4j configuration options (URI, auth, etc.) and
-    will choose a sensible update tag if one is not specified in the given configuration.
+    This function serves as a high-level wrapper around Sync.run() that handles
+    Neo4j driver creation, authentication, StatsD configuration, and provides
+    comprehensive error handling for common connection and authentication issues.
 
-    :type sync: cartography.sync.Sync
-    :param sync: A sync task to run.
-    :type config: cartography.config.Config
-    :param config: The configuration to use to run the sync task.
+    Args:
+        sync: A configured Sync instance with stages to execute.
+        config: Configuration object containing Neo4j connection settings,
+               authentication credentials, StatsD settings, and other parameters.
+
+    Returns:
+        STATUS_SUCCESS (0) if sync completes successfully.
+        STATUS_FAILURE (1) if Neo4j connection or authentication fails.
+        Other exit codes may be returned by the sync.run() method.
+
+    Examples:
+        Running default sync with configuration:
+        >>> sync = build_default_sync()
+        >>> config.neo4j_uri = "bolt://localhost:7687"
+        >>> config.neo4j_user = "neo4j"
+        >>> config.neo4j_password = "password"
+        >>> exit_code = run_with_config(sync, config)
+
+        Running with StatsD enabled:
+        >>> config.statsd_enabled = True
+        >>> config.statsd_host = "localhost"
+        >>> config.statsd_port = 8125
+        >>> exit_code = run_with_config(sync, config)
+
+    Note:
+        The function automatically generates an update_tag based on current
+        timestamp if one is not provided in the configuration. It handles
+        Neo4j driver creation, authentication setup, and provides detailed
+        error messages for connection and authentication failures.
+
+        If StatsD is enabled in the configuration, it initializes the global
+        StatsD client for metrics collection during the sync process.
     """
     # Initialize statsd client if enabled
     if config.statsd_enabled:
@@ -285,10 +417,35 @@ def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> in
 
 def build_default_sync() -> Sync:
     """
-    Build the default cartography sync, which runs all intelligence modules shipped with the cartography package.
+    Build the default cartography sync with all available intelligence modules.
 
-    :rtype: cartography.sync.Sync
-    :return: The default cartography sync object.
+    This function creates a Sync instance configured with all intelligence
+    modules shipped with cartography. The modules are added in a specific
+    order to ensure proper execution sequence, with 'create-indexes' first
+    and 'analysis' last.
+
+    Returns:
+        A fully configured Sync instance with all available intelligence modules.
+
+    Examples:
+        Creating and running default sync:
+        >>> sync = build_default_sync()
+        >>> exit_code = run_with_config(sync, config)
+
+        Inspecting default stages:
+        >>> sync = build_default_sync()
+        >>> stage_names = list(sync._stages.keys())
+        >>> print(f"Default sync includes {len(stage_names)} stages")
+
+    Note:
+        The default sync includes all modules defined in TOP_LEVEL_MODULES,
+        which encompasses cloud providers (AWS, GCP, Azure), security tools
+        (CrowdStrike, Okta), development platforms (GitHub), and analysis
+        capabilities. This provides comprehensive infrastructure mapping
+        out of the box.
+
+        For custom sync configurations with specific modules, use build_sync()
+        with a selected modules string instead.
     """
     sync = Sync()
     sync.add_stages(
@@ -302,9 +459,27 @@ def build_default_sync() -> Sync:
 
 def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
     """
-    Ensures that user-selected modules passed through the CLI are valid and parses them to a list of str.
-    :param selected_modules: comma separated string of module names provided by user
-    :return: A validated list of module names that we will run
+    Parse and validate user-selected modules from comma-separated string.
+
+    This function takes a comma-separated string of module names provided by
+    the user and validates that each module exists in the available modules.
+    It returns a clean list of validated module names.
+
+    Args:
+        selected_modules: A comma-separated string of module names (e.g., "aws,gcp,analysis").
+                         Module names will be stripped of whitespace.
+
+    Returns:
+        A list of validated module names that exist in TOP_LEVEL_MODULES.
+
+    Raises:
+        ValueError: If any specified module is not found in the available modules.
+                   The error message includes the invalid input and lists all valid options.
+
+    Note:
+        Module names are case-sensitive and must exactly match those defined
+        in TOP_LEVEL_MODULES. The function is tolerant of whitespace around
+        commas but requires exact name matches for validation.
     """
     validated_modules: List[str] = []
     for module in selected_modules.split(","):
@@ -325,8 +500,42 @@ def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
 
 def build_sync(selected_modules_as_str: str) -> Sync:
     """
-    Returns a cartography sync object where all the sync stages are from the user-specified comma separated list of
-    modules to run.
+    Build a custom sync with user-specified modules.
+
+    This function creates a Sync instance configured only with the modules
+    specified in the comma-separated string. It provides a way to run a
+    subset of available intelligence modules rather than the full default set.
+
+    Args:
+        selected_modules_as_str: A comma-separated string of module names to include
+                               in the sync (e.g., "aws,gcp,analysis").
+
+    Returns:
+        A Sync instance configured with only the specified modules in the order
+        they appear in the input string.
+
+    Raises:
+        ValueError: If any specified module is invalid (propagated from
+                   parse_and_validate_selected_modules).
+
+    Examples:
+        Building sync with specific cloud providers:
+        >>> sync = build_sync("aws,gcp,azure")
+        >>> # Only AWS, GCP, and Azure modules will run
+
+        Building minimal sync with just analysis:
+        >>> sync = build_sync("create-indexes,analysis")
+        >>> # Only index creation and analysis will run
+
+        Building security-focused sync:
+        >>> sync = build_sync("create-indexes,okta,crowdstrike,analysis")
+        >>> # Focus on identity and security platforms
+
+    Note:
+        The order of modules in the input string determines their execution
+        order. It's recommended to include 'create-indexes' first and 'analysis'
+        last for optimal results. The function validates all module names
+        before creating the sync instance.
     """
     selected_modules = parse_and_validate_selected_modules(selected_modules_as_str)
     sync = Sync()
