@@ -4,7 +4,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.util import timeit
 
@@ -15,14 +15,14 @@ logger = logging.getLogger(__name__)
 def sync_vendors(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    pd_session: APISession,
+    pd_session: RestApiV2Client,
 ) -> None:
     vendors = get_vendors(pd_session)
     load_vendor_data(neo4j_session, vendors, update_tag)
 
 
 @timeit
-def get_vendors(pd_session: APISession) -> List[Dict[str, Any]]:
+def get_vendors(pd_session: RestApiV2Client) -> List[Dict[str, Any]]:
     all_vendors: List[Dict[str, Any]] = []
     for vendor in pd_session.iter_all("vendors"):
         all_vendors.append(vendor)

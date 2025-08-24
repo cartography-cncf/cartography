@@ -1,7 +1,7 @@
 import logging
 
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.config import Config
 from cartography.intel.pagerduty.escalation_policies import sync_escalation_policies
@@ -38,7 +38,7 @@ def start_pagerduty_ingestion(
             "PagerDuty import is not configured - skipping this module. See docs to configure.",
         )
         return
-    session = APISession(config.pagerduty_api_key)
+    session = RestApiV2Client(config.pagerduty_api_key)
     if config.pagerduty_request_timeout is not None:
         session.timeout = config.pagerduty_request_timeout
     sync_users(neo4j_session, config.update_tag, session)

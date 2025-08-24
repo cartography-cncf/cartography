@@ -4,7 +4,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.util import timeit
 
@@ -15,14 +15,14 @@ logger = logging.getLogger(__name__)
 def sync_escalation_policies(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    pd_session: APISession,
+    pd_session: RestApiV2Client,
 ) -> None:
     escalation_policies = get_escalation_policies(pd_session)
     load_escalation_policy_data(neo4j_session, escalation_policies, update_tag)
 
 
 @timeit
-def get_escalation_policies(pd_session: APISession) -> List[Dict[str, Any]]:
+def get_escalation_policies(pd_session: RestApiV2Client) -> List[Dict[str, Any]]:
     all_escalation_policies: List[Dict[str, Any]] = []
     params = {"include[]": ["services", "teams", "targets"]}
     for escalation_policy in pd_session.iter_all("escalation_policies", params=params):

@@ -5,7 +5,7 @@ from typing import List
 
 import dateutil.parser
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.util import timeit
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def sync_services(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    pd_session: APISession,
+    pd_session: RestApiV2Client,
 ) -> None:
     services = get_services(pd_session)
     load_service_data(neo4j_session, services, update_tag)
@@ -25,7 +25,7 @@ def sync_services(
 
 
 @timeit
-def get_services(pd_session: APISession) -> List[Dict[str, Any]]:
+def get_services(pd_session: RestApiV2Client) -> List[Dict[str, Any]]:
     all_services: List[Dict[str, Any]] = []
     for service in pd_session.iter_all("services"):
         all_services.append(service)
@@ -34,7 +34,7 @@ def get_services(pd_session: APISession) -> List[Dict[str, Any]]:
 
 @timeit
 def get_integrations(
-    pd_session: APISession,
+    pd_session: RestApiV2Client,
     services: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     """
