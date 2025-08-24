@@ -186,3 +186,7 @@ GET_BUCKET_OWNERSHIP_CONTROLS = {
     "bucket": "bucket-1",
     "object_ownership": "BucketOwnerPreferred",
 }
+
+GET_BUCKET_LOGGING_ENABLED = {"LoggingEnabled": {"TargetBucket": "log-bucket"}}
+
+GET_BUCKET_LOGGING_DISABLED: dict = {}

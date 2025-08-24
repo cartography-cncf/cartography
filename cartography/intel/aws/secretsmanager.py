@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.aws.secretsmanager.secret import SecretsManagerSecretSchema
 from cartography.models.aws.secretsmanager.secret_version import (
     SecretsManagerSecretVersionSchema,
 )
@@ -14,7 +15,6 @@ from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import dict_date_to_epoch
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,37 @@ def get_secret_list(boto3_session: boto3.session.Session, region: str) -> List[D
     return secrets
 
 
+def transform_secrets(
+    secrets: List[Dict],
+) -> List[Dict]:
+    """
+    Transform AWS Secrets Manager Secrets to match the data model.
+    """
+    transformed_data = []
+    for secret in secrets:
+        # Start with a copy of the original secret data
+        transformed = dict(secret)
+
+        # Convert date fields to epoch timestamps
+        transformed["CreatedDate"] = dict_date_to_epoch(secret, "CreatedDate")
+        transformed["LastRotatedDate"] = dict_date_to_epoch(secret, "LastRotatedDate")
+        transformed["LastChangedDate"] = dict_date_to_epoch(secret, "LastChangedDate")
+        transformed["LastAccessedDate"] = dict_date_to_epoch(secret, "LastAccessedDate")
+        transformed["DeletedDate"] = dict_date_to_epoch(secret, "DeletedDate")
+
+        # Flatten nested RotationRules.AutomaticallyAfterDays property
+        if "RotationRules" in secret and secret["RotationRules"]:
+            rotation_rules = secret["RotationRules"]
+            if "AutomaticallyAfterDays" in rotation_rules:
+                transformed["RotationRulesAutomaticallyAfterDays"] = rotation_rules[
+                    "AutomaticallyAfterDays"
+                ]
+
+        transformed_data.append(transformed)
+
+    return transformed_data
+
+
 @timeit
 def load_secrets(
     neo4j_session: neo4j.Session,
@@ -40,48 +71,33 @@ def load_secrets(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    ingest_secrets = """
-    UNWIND $Secrets as secret
-        MERGE (s:SecretsManagerSecret{id: secret.ARN})
-        ON CREATE SET s.firstseen = timestamp()
-        SET s.name = secret.Name, s.arn = secret.ARN, s.description = secret.Description,
-            s.kms_key_id = secret.KmsKeyId, s.rotation_enabled = secret.RotationEnabled,
-            s.rotation_lambda_arn = secret.RotationLambdaARN,
-            s.rotation_rules_automatically_after_days = secret.RotationRules.AutomaticallyAfterDays,
-            s.last_rotated_date = secret.LastRotatedDate, s.last_changed_date = secret.LastChangedDate,
-            s.last_accessed_date = secret.LastAccessedDate, s.deleted_date = secret.DeletedDate,
-            s.owning_service = secret.OwningService, s.created_date = secret.CreatedDate,
-            s.primary_region = secret.PrimaryRegion, s.region = $Region,
-            s.lastupdated = $aws_update_tag
-        WITH s
-        MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
-        MERGE (owner)-[r:RESOURCE]->(s)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
     """
-    for secret in data:
-        secret["LastRotatedDate"] = dict_date_to_epoch(secret, "LastRotatedDate")
-        secret["LastChangedDate"] = dict_date_to_epoch(secret, "LastChangedDate")
-        secret["LastAccessedDate"] = dict_date_to_epoch(secret, "LastAccessedDate")
-        secret["DeletedDate"] = dict_date_to_epoch(secret, "DeletedDate")
-        secret["CreatedDate"] = dict_date_to_epoch(secret, "CreatedDate")
+    Load transformed secrets into Neo4j using the data model.
+    Expects data to already be transformed by transform_secrets().
+    """
+    logger.info(f"Loading {len(data)} Secrets for region {region} into graph.")
 
-    neo4j_session.run(
-        ingest_secrets,
-        Secrets=data,
+    # Load using the schema-based approach
+    load(
+        neo4j_session,
+        SecretsManagerSecretSchema(),
+        data,
+        lastupdated=aws_update_tag,
         Region=region,
-        AWS_ACCOUNT_ID=current_aws_account_id,
-        aws_update_tag=aws_update_tag,
+        AWS_ID=current_aws_account_id,
     )
 
 
 @timeit
 def cleanup_secrets(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job(
-        "aws_import_secrets_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    """
+    Run Secrets cleanup job using the data model.
+    """
+    logger.debug("Running Secrets cleanup job.")
+    cleanup_job = GraphJob.from_node_schema(
+        SecretsManagerSecretSchema(), common_job_parameters
     )
+    cleanup_job.run(neo4j_session)
 
 
 @timeit
@@ -121,8 +137,6 @@ def get_secret_versions(
 
 def transform_secret_versions(
     versions: List[Dict],
-    region: str,
-    aws_account_id: str,
 ) -> List[Dict]:
     """
     Transform AWS Secrets Manager Secret Versions to match the data model.
@@ -203,7 +217,15 @@ def sync(
         )
         secrets = get_secret_list(boto3_session, region)
 
-        load_secrets(neo4j_session, secrets, region, current_aws_account_id, update_tag)
+        transformed_secrets = transform_secrets(secrets)
+
+        load_secrets(
+            neo4j_session,
+            transformed_secrets,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
 
         all_versions = []
         for secret in secrets:
@@ -216,11 +238,7 @@ def sync(
             )
             all_versions.extend(versions)
 
-        transformed_data = transform_secret_versions(
-            all_versions,
-            region,
-            current_aws_account_id,
-        )
+        transformed_data = transform_secret_versions(all_versions)
 
         load_secret_versions(
             neo4j_session,

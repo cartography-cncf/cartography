@@ -44,7 +44,9 @@ class EC2NetworkInterfaceNodeProperties(CartographyNodeProperties):
     requester_id: PropertyRef = PropertyRef("RequesterId", extra_index=True)
     requester_managed: PropertyRef = PropertyRef("RequesterManaged")
     source_dest_check: PropertyRef = PropertyRef("SourceDestCheck")
+    # TODO: remove subnetid once we have migrated to subnet_id
     subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
+    subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
 
 
 @dataclass(frozen=True)

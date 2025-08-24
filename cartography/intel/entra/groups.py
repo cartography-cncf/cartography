@@ -59,10 +59,29 @@ async def get_group_members(
     return user_ids, group_ids
 
 
+@timeit
+async def get_group_owners(client: GraphServiceClient, group_id: str) -> list[str]:
+    """Get owner user IDs for a given group."""
+    owner_ids: list[str] = []
+    request_builder = client.groups.by_group_id(group_id).owners
+    page = await request_builder.get()
+    while page:
+        if page.value:
+            for obj in page.value:
+                odata_type = getattr(obj, "odata_type", "")
+                if odata_type == "#microsoft.graph.user":
+                    owner_ids.append(obj.id)
+        if not page.odata_next_link:
+            break
+        page = await request_builder.with_url(page.odata_next_link).get()
+    return owner_ids
+
+
 def transform_groups(
     groups: list[Group],
     user_member_map: dict[str, list[str]],
     group_member_map: dict[str, list[str]],
+    group_owner_map: dict[str, list[str]],
 ) -> list[dict[str, Any]]:
     """Transform API responses into dictionaries for ingestion."""
     result: list[dict[str, Any]] = []
@@ -82,6 +101,7 @@ def transform_groups(
             "deleted_date_time": g.deleted_date_time,
             "member_ids": user_member_map.get(g.id, []),
             "member_group_ids": group_member_map.get(g.id, []),
+            "owner_ids": group_owner_map.get(g.id, []),
         }
         result.append(transformed)
     return result
@@ -134,6 +154,12 @@ async def sync_entra_groups(
 
     user_member_map: dict[str, list[str]] = {}
     group_member_map: dict[str, list[str]] = {}
+    group_owner_map: dict[str, list[str]] = {}
+
+    for group in groups:
+        owners = await get_group_owners(client, group.id)
+        group_owner_map[group.id] = owners
+
     for group in groups:
         try:
             users, subgroups = await get_group_members(client, group.id)
@@ -144,7 +170,9 @@ async def sync_entra_groups(
             user_member_map[group.id] = []
             group_member_map[group.id] = []
 
-    transformed_groups = transform_groups(groups, user_member_map, group_member_map)
+    transformed_groups = transform_groups(
+        groups, user_member_map, group_member_map, group_owner_map
+    )
 
     load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
     load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
