@@ -21,6 +21,8 @@ class KubernetesClusterRoleBindingNodeProperties(CartographyNodeProperties):
     role_name: PropertyRef = PropertyRef("role_name")
     role_kind: PropertyRef = PropertyRef("role_kind")
     service_account_ids: PropertyRef = PropertyRef("service_account_ids")
+    user_ids: PropertyRef = PropertyRef("user_ids")
+    group_ids: PropertyRef = PropertyRef("group_ids")
     role_id: PropertyRef = PropertyRef("role_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -82,6 +84,42 @@ class KubernetesClusterRoleBindingToClusterRoleRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesClusterRoleBindingToUserRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesClusterRoleBindingToUserRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("user_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SUBJECT"
+    properties: KubernetesClusterRoleBindingToUserRelProperties = (
+        KubernetesClusterRoleBindingToUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesClusterRoleBindingToGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesClusterRoleBindingToGroupRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("group_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SUBJECT"
+    properties: KubernetesClusterRoleBindingToGroupRelProperties = (
+        KubernetesClusterRoleBindingToGroupRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesClusterRoleBindingSchema(CartographyNodeSchema):
     label: str = "KubernetesClusterRoleBinding"
     properties: KubernetesClusterRoleBindingNodeProperties = (
@@ -93,6 +131,8 @@ class KubernetesClusterRoleBindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             KubernetesClusterRoleBindingToServiceAccountRel(),
+            KubernetesClusterRoleBindingToUserRel(),
+            KubernetesClusterRoleBindingToGroupRel(),
             KubernetesClusterRoleBindingToClusterRoleRel(),
         ]
     )

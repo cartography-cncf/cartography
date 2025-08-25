@@ -1,9 +1,12 @@
 import logging
 
+import boto3
 from neo4j import Session
 
 from cartography.config import Config
+from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
+from cartography.intel.kubernetes.eks import sync as sync_eks
 from cartography.intel.kubernetes.namespaces import sync_namespaces
 from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
@@ -42,6 +45,31 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             sync_kubernetes_rbac(
                 session, client, config.update_tag, common_job_parameters
             )
+            # EKS identity provider sync (requires managed provider configuration)
+            if config.k8s_managed_provider == "eks":
+                if not config.aws_regions:
+                    raise ValueError(
+                        "EKS managed provider sync requires --aws-regions to be specified. "
+                        "Example: --k8s-managed-provider eks --aws-regions us-east-1"
+                    )
+
+                boto3_session = boto3.Session()
+                regions = parse_and_validate_aws_regions(config.aws_regions)
+
+                # For EKS OIDC, we need to determine which region the cluster is in
+                # For now, sync with the first specified region
+                # NOTE: Should we be able to process clusters in multiple regions?
+                region = regions[0]
+
+                sync_eks(
+                    session,
+                    client,
+                    boto3_session,
+                    region,
+                    config.update_tag,
+                    cluster_info.get("id", ""),
+                    client.name,
+                )
             all_pods = sync_pods(
                 session,
                 client,
