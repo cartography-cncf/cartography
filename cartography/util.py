@@ -273,6 +273,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         "UnauthorizedOperation",
         "UnrecognizedClientException",
         "InternalServerErrorException",
+        "TooManyRequestsException",
     ]
 
     @wraps(func)

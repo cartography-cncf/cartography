@@ -86,6 +86,22 @@ def test_aws_handle_regions(mocker):
     with pytest.raises(RuntimeError):
         raises_invalid_token(1, 2)
 
+    # TooManyRequestsException should return default []
+    @aws_handle_regions
+    def raises_too_many_requests(a, b):
+        e = botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "TooManyRequestsException",
+                    "Message": "Too many requests",
+                },
+            },
+            "FakeOperation",
+        )
+        raise e
+
+    assert raises_too_many_requests(1, 2) == []
+
     # unhandled type of ClientError
     @aws_handle_regions
     def raises_unsupported_client_error(a, b):
