@@ -185,6 +185,14 @@ wheels = [
 ]
 
 [[package]]
+name = "arn"
+version = "0.1.5"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/55/58e74573bf8bdce39f5eff27a07a33759dc323dcddfd2b7fe71508539b52/arn-0.1.5-py3-none-any.whl", hash = "sha256:35306c13026aca559b17df93f579eb338b634945cd3ffb6b83dca7bbf6ad1f95", size = 7561, upload-time = "2021-03-05T19:25:47.167Z" },
+]
+
+[[package]]
 name = "async-timeout"
 version = "5.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -507,6 +515,7 @@ name = "cartography"
 source = { editable = "." }
 dependencies = [
     { name = "adal" },
+    { name = "arn" },
     { name = "azure-cli-core" },
     { name = "azure-identity" },
     { name = "azure-mgmt-compute" },
@@ -568,6 +577,7 @@ doc = [
 [package.metadata]
 requires-dist = [
     { name = "adal", specifier = ">=1.2.4" },
+    { name = "arn", specifier = ">=0.1.5" },
     { name = "azure-cli-core", specifier = ">=2.26.0" },
     { name = "azure-identity", specifier = ">=1.5.0" },
     { name = "azure-mgmt-compute", specifier = ">=5.0.0" },
@@ -1023,7 +1033,7 @@ name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749, upload-time = "2025-05-10T17:42:51.123Z" }
 wheels = [

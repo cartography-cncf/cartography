@@ -45,8 +45,14 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             sync_kubernetes_rbac(
                 session, client, config.update_tag, common_job_parameters
             )
-            # EKS identity provider sync (requires AWS regions)
-            if config.aws_regions:
+            # EKS identity provider sync (requires managed provider configuration)
+            if config.k8s_managed_provider == "eks":
+                if not config.aws_regions:
+                    raise ValueError(
+                        "EKS managed provider sync requires --aws-regions to be specified. "
+                        "Example: --k8s-managed-provider eks --aws-regions us-east-1"
+                    )
+
                 boto3_session = boto3.Session()
                 regions = parse_and_validate_aws_regions(config.aws_regions)
 

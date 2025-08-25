@@ -183,6 +183,7 @@ class Config:
         aws_regions=None,
         aws_best_effort_mode=False,
         aws_cloudtrail_management_events_lookback_hours=None,
+        k8s_managed_provider=None,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
@@ -269,6 +270,7 @@ class Config:
         self.aws_cloudtrail_management_events_lookback_hours = (
             aws_cloudtrail_management_events_lookback_hours
         )
+        self.k8s_managed_provider = k8s_managed_provider
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id

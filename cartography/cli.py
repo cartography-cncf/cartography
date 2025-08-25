@@ -191,6 +191,18 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--k8s-managed-provider",
+            type=str,
+            choices=["eks"],
+            default=None,
+            help=(
+                "Managed Kubernetes provider to sync. Currently supported: 'eks' for AWS EKS. "
+                "When specified, cartography will sync managed provider-specific features like "
+                "identity provider configurations and role mappings. "
+                "Example: --k8s-managed-provider eks"
+            ),
+        )
+        parser.add_argument(
             "--oci-sync-all-profiles",
             action="store_true",
             help=(
