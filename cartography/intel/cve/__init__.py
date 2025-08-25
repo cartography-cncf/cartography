@@ -3,7 +3,6 @@ from datetime import datetime
 
 import neo4j
 from requests import Session
-from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 from cartography.config import Config
@@ -15,20 +14,6 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
-
-
-def _retryable_session() -> Session:
-    session = build_session()
-    retry_policy = Retry(
-        total=8,
-        connect=1,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-    )
-    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    logger.info(f"Configured session with retry policy: {retry_policy}")
-    return session
 
 
 def _sync_year_archives(
@@ -118,7 +103,14 @@ def start_cve_ingestion(
     if not config.cve_enabled:
         return
     cve_api_key: str | None = config.cve_api_key if config.cve_api_key else None
-    with _retryable_session() as http_session:
+    retry_policy = Retry(
+        total=8,
+        connect=1,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    with build_session(retry_policy) as http_session:
         _sync_year_archives(
             http_session,
             neo4j_session=neo4j_session,
