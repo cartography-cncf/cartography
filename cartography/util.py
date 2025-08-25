@@ -25,8 +25,12 @@ import backoff
 import boto3
 import botocore
 import neo4j
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 
 from cartography.graph.job import GraphJob
+from cartography.graph.querybuilder import _get_cartography_version
 from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
 from cartography.stats import ScopedStatsClient
@@ -473,3 +477,18 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
     results = to_synchronous(future_1, future_2)
     """
     return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))
+
+
+def build_session(retry_policy: Retry | None = None) -> requests.Session:
+    """
+    Create a requests.Session with a custom User-Agent header that includes the Cartography version.
+    """
+    session = requests.Session()
+    user_agent = f"Cartography/{_get_cartography_version()}"
+    session.headers.update({"User-Agent": user_agent})
+
+    if retry_policy:
+        session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+        logger.info(f"Configured session with retry policy: {retry_policy}")
+
+    return session
