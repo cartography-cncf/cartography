@@ -310,12 +310,11 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                 return []
             else:
                 raise
-        except EndpointConnectionError as e:
-            # Handle cases where a particular AWS endpoint is not deployed for a given region
+        except EndpointConnectionError:
             logger.warning(
-                "EndpointConnectionError in this region: {}. Service not available here. Skipping...".format(
-                    str(e)
-                ),
+                "Encountered an EndpointConnectionError. This means that the AWS "
+                "resource is not available in this region. Skipping.",
+                exc_info=True,
             )
             return []
 
