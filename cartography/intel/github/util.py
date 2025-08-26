@@ -157,6 +157,18 @@ def fetch_all(
             retry += 1
             exc = err
         except requests.exceptions.HTTPError as err:
+            if (
+                err.response is not None
+                and err.response.status_code == 502
+                and kwargs.get("count")
+                and kwargs["count"] > 1
+            ):
+                kwargs["count"] = max(1, kwargs["count"] // 2)
+                logger.warning(
+                    "GitHub: Received 502 response. Reducing page size to %s and retrying.",
+                    kwargs["count"],
+                )
+                continue
             retry += 1
             exc = err
         except requests.exceptions.ChunkedEncodingError as err:
