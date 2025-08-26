@@ -23,10 +23,13 @@ def test_none_policy():
     assert (res) is None
 
 
+@patch("time.sleep")
 @patch("cartography.intel.aws.apigateway.logger")
 @patch("botocore.client.BaseClient.get_paginator")
 def test_get_rest_api_resources_retries_on_too_many_requests(
-    mock_get_paginator, mock_logger
+    mock_get_paginator,
+    mock_logger,
+    mock_sleep,
 ):
     """
     Test that get_rest_api_resources retries on TooManyRequestsException
