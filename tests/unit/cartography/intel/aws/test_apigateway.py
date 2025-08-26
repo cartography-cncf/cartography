@@ -44,22 +44,16 @@ def test_get_rest_api_resources_retries_on_too_many_requests(
     # Arrange
     api = {"id": "test-api"}
     client = MagicMock()
-
-    # Configure expected resources
     expected_resources = [
         {"id": "resource1", "pathPart": "users"},
         {"id": "resource2", "pathPart": "orders"},
     ]
-
-    # Configure TooManyRequestsException via decorator mocks
     too_many_requests_error = ClientError(
         error_response={
             "Error": {"Code": "TooManyRequestsException", "Message": "Rate exceeded"}
         },
         operation_name="GetResources",
     )
-
-    # Configure paginator mock with side effects (using mocks from decorators)
     mock_paginator = MagicMock()
     mock_paginator.paginate.side_effect = [
         too_many_requests_error,  # First attempt fails
