@@ -1,3 +1,6 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 from botocore.exceptions import ClientError
 
 import tests.data.aws.apigateway as test_data
@@ -21,23 +24,55 @@ def test_none_policy():
 
 
 def test_get_rest_api_resources_handles_too_many_requests():
-    class MockPaginator:
-        def paginate(self, **kwargs):
-            raise ClientError(
-                {
-                    "Error": {
-                        "Code": "TooManyRequestsException",
-                        "Message": "Too Many Requests",
-                    }
-                },
-                "get_resources",
-            )
-
-    class MockClient:
-        def get_paginator(self, operation_name):  # pragma: no cover - simple mock
-            return MockPaginator()
-
+    # Arrange
     api = {"id": "test"}
-    client = MockClient()
+    client = MagicMock()
 
+    # Act and assert that we return an empty list when we get a TooManyRequestsException
     assert get_rest_api_resources(api, client) == []
+
+
+@patch("cartography.intel.aws.apigateway.logger")
+@patch("botocore.client.BaseClient.get_paginator")
+def test_get_rest_api_resources_retries_on_too_many_requests(
+    mock_get_paginator, mock_logger
+):
+    """
+    Test that get_rest_api_resources retries on TooManyRequestsException
+    and succeeds on the third attempt.
+    """
+    # Arrange
+    api = {"id": "test-api"}
+    client = MagicMock()
+
+    # Configure expected resources
+    expected_resources = [
+        {"id": "resource1", "pathPart": "users"},
+        {"id": "resource2", "pathPart": "orders"},
+    ]
+
+    # Configure TooManyRequestsException via decorator mocks
+    too_many_requests_error = ClientError(
+        error_response={
+            "Error": {"Code": "TooManyRequestsException", "Message": "Rate exceeded"}
+        },
+        operation_name="GetResources",
+    )
+
+    # Configure paginator mock with side effects (using mocks from decorators)
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.side_effect = [
+        too_many_requests_error,  # First attempt fails
+        too_many_requests_error,  # Second attempt fails
+        [{"items": expected_resources}],  # Third attempt succeeds
+    ]
+    client.get_paginator.return_value = mock_paginator
+
+    # Act
+    result = get_rest_api_resources(api, client)
+
+    # Assert
+    assert result == expected_resources
+    assert mock_paginator.paginate.call_count == 3
+    mock_paginator.paginate.assert_called_with(restApiId="test-api")
+    client.get_paginator.assert_called_with("get_resources")
