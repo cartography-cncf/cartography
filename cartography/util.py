@@ -309,6 +309,11 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                 return []
             else:
                 raise
+        except botocore.exceptions.EndpointConnectionError as e:
+            logger.warning(
+                f"{e}. Skipping...",
+            )
+            return []
 
     return cast(AWSGetFunc, inner_function)
 

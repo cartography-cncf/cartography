@@ -21,13 +21,12 @@ logger = logging.getLogger(__name__)
 def get_all_codebuild_projects(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-
     client = boto3_session.client(
         "codebuild", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("list_projects")
 
-    all_projects = []
+    all_projects: List[Dict[str, Any]] = []
 
     for page in paginator.paginate():
         project_names = page.get("projects", [])
