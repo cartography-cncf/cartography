@@ -23,15 +23,6 @@ def test_none_policy():
     assert (res) is None
 
 
-def test_get_rest_api_resources_handles_too_many_requests():
-    # Arrange
-    api = {"id": "test"}
-    client = MagicMock()
-
-    # Act and assert that we return an empty list when we get a TooManyRequestsException
-    assert get_rest_api_resources(api, client) == []
-
-
 @patch("cartography.intel.aws.apigateway.logger")
 @patch("botocore.client.BaseClient.get_paginator")
 def test_get_rest_api_resources_retries_on_too_many_requests(
