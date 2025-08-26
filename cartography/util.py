@@ -25,6 +25,7 @@ import backoff
 import boto3
 import botocore
 import neo4j
+from botocore.exceptions import EndpointConnectionError
 
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
@@ -269,6 +270,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         "AccessDenied",
         "AccessDeniedException",
         "AuthFailure",
+        "EndpointConnectionError",
         "InvalidClientTokenId",
         "UnauthorizedOperation",
         "UnrecognizedClientException",
@@ -309,9 +311,12 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                 return []
             else:
                 raise
-        except botocore.exceptions.EndpointConnectionError as e:
+        except EndpointConnectionError as e:
+            # Handle cases where a particular AWS endpoint is not deployed for a given region
             logger.warning(
-                f"{e}. Skipping...",
+                "EndpointConnectionError in this region: {}. Service not available here. Skipping...".format(
+                    str(e)
+                ),
             )
             return []
 
