@@ -1,4 +1,7 @@
+from botocore.exceptions import ClientError
+
 import tests.data.aws.apigateway as test_data
+from cartography.intel.aws.apigateway import get_rest_api_resources
 from cartography.intel.aws.apigateway import parse_policy
 
 
@@ -15,3 +18,26 @@ def test_none_policy():
     res = parse_policy(None, None)
 
     assert (res) is None
+
+
+def test_get_rest_api_resources_handles_too_many_requests():
+    class MockPaginator:
+        def paginate(self, **kwargs):
+            raise ClientError(
+                {
+                    "Error": {
+                        "Code": "TooManyRequestsException",
+                        "Message": "Too Many Requests",
+                    }
+                },
+                "get_resources",
+            )
+
+    class MockClient:
+        def get_paginator(self, operation_name):  # pragma: no cover - simple mock
+            return MockPaginator()
+
+    api = {"id": "test"}
+    client = MockClient()
+
+    assert get_rest_api_resources(api, client) == []

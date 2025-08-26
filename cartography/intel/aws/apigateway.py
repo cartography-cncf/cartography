@@ -142,6 +142,7 @@ def get_rest_api_client_certificate(
 
 
 @timeit
+@aws_handle_regions
 def get_rest_api_resources(api: Dict, client: botocore.client.BaseClient) -> List[Any]:
     """
     Gets the collection of Resource resources.
