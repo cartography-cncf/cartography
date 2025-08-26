@@ -2,12 +2,15 @@
 import logging
 from typing import Dict
 from typing import List
+from typing import Any
 
 import neo4j
 from okta import FactorsClient
 from okta.framework.OktaError import OktaError
 from okta.models.factor.Factor import Factor
 
+from cartography.client.core.tx import load
+from cartography.models.okta.userfactor import OktaUserFactorSchema
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.util import timeit
 
@@ -55,11 +58,13 @@ def _get_factor_for_user_id(factor_client: FactorsClient, user_id: str) -> List[
 
 
 @timeit
-def transform_okta_user_factor_list(okta_factor_list: List[Factor]) -> List[Dict]:
+def transform_okta_user_factor_list(okta_factor_list: List[Factor], user_id: str) -> List[Dict]:
     factors = []
 
     for current in okta_factor_list:
-        factors.append(transform_okta_user_factor(current))
+        transformed_factor = transform_okta_user_factor(current)
+        transformed_factor["user_id"] = user_id
+        factors.append(transformed_factor)
 
     return factors
 
@@ -99,7 +104,7 @@ def transform_okta_user_factor(okta_factor_info: Factor) -> Dict:
 @timeit
 def _load_user_factors(
     neo4j_session: neo4j.Session,
-    user_id: str,
+    okta_org_id: str,
     factors: List[Dict],
     okta_update_tag: int,
 ) -> None:
@@ -111,30 +116,12 @@ def _load_user_factors(
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :return: Nothing
     """
-
-    ingest = """
-    MATCH (user:OktaUser{id: $USER_ID})
-    WITH user
-    UNWIND $FACTOR_LIST as factor_data
-    MERGE (new_factor:OktaUserFactor{id: factor_data.id})
-    ON CREATE SET new_factor.firstseen = timestamp()
-    SET new_factor.factor_type = factor_data.factor_type,
-    new_factor.provider = factor_data.provider,
-    new_factor.status = factor_data.status,
-    new_factor.created = factor_data.created,
-    new_factor.okta_last_updated = factor_data.okta_last_updated,
-    new_factor.lastupdated = $okta_update_tag
-    WITH user, new_factor
-    MERGE (user)-[r:FACTOR]->(new_factor)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    """
-
-    neo4j_session.run(
-        ingest,
-        USER_ID=user_id,
-        FACTOR_LIST=factors,
-        okta_update_tag=okta_update_tag,
+    load(
+        neo4j_session,
+        OktaUserFactorSchema(),
+        factors,
+        lastupdated=okta_update_tag,
+        ORG_ID=okta_org_id,
     )
 
 
@@ -161,7 +148,8 @@ def sync_users_factors(
     factor_client = _create_factor_client(okta_org_id, okta_api_key)
 
     if sync_state.users:
+        factors: list[dict[str, Any]] = []
         for user_id in sync_state.users:
             factor_data = _get_factor_for_user_id(factor_client, user_id)
-            user_factors = transform_okta_user_factor_list(factor_data)
-            _load_user_factors(neo4j_session, user_id, user_factors, okta_update_tag)
+            factors.extend(transform_okta_user_factor_list(factor_data, user_id))
+        _load_user_factors(neo4j_session, okta_org_id, factors, okta_update_tag)
