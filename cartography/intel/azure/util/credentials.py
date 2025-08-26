@@ -1,6 +1,4 @@
-import json
 import logging
-import subprocess
 from datetime import datetime
 from datetime import timedelta
 from typing import Any
@@ -12,6 +10,7 @@ from azure.core.exceptions import HttpResponseError
 from azure.identity import AzureCliCredential
 from azure.identity import ClientSecretCredential
 from msrestazure.azure_active_directory import AADTokenCredentials
+from azure.mgmt.resource import SubscriptionClient
 
 logger = logging.getLogger(__name__)
 AUTHORITY_HOST_URI = "https://login.microsoftonline.com"
@@ -141,22 +140,42 @@ class Authenticator:
                 "azure.core.pipeline.policies.http_logging_policy",
             ).setLevel(logging.ERROR)
 
+            # Use Azure CLI credential without relying on azure-cli-core Python APIs
             credential = AzureCliCredential()
-            account = json.loads(
-                subprocess.run(
-                    ["az", "account", "show", "--output", "json"],
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                ).stdout,
-            )
+
+            # Discover tenant and subscription via ARM SDK (no subprocess)
+            sub_client = SubscriptionClient(credential)
+
+            # Tenant ID: pick the first tenant returned by the API
+            tenant_id: Optional[str] = None
+            try:
+                tenants = list(sub_client.tenants.list())
+                if tenants:
+                    # type: ignore[attr-defined] — azure SDK models expose tenant_id
+                    tenant_id = getattr(tenants[0], "tenant_id", None)
+            except Exception:
+                # Fall through; tenant_id remains None
+                pass
+
+            # Subscription ID: pick the first accessible subscription for non-all-subscriptions flows
+            subscription_id: Optional[str] = None
+            try:
+                subs = list(sub_client.subscriptions.list())
+                if subs:
+                    subscription_id = getattr(subs[0], "subscription_id", None)
+            except Exception:
+                # Fall through; subscription_id remains None
+                pass
+
+            # We don't have a reliable user principal name without Graph; use a generic identifier
+            current_user = "azure-cli"
 
             return Credentials(
                 credential,
                 credential,
-                tenant_id=account.get("tenantId"),
-                subscription_id=account.get("id"),
-                current_user=account.get("user", {}).get("name"),
+                tenant_id=tenant_id,
+                subscription_id=subscription_id,
+                current_user=current_user,
             )
 
         except Exception as e:
@@ -190,12 +209,8 @@ class Authenticator:
                 tenant_id=tenant_id,
             )
 
-            aad_graph_credentials = ClientSecretCredential(
-                client_id=client_id,
-                client_secret=client_secret,
-                tenant_id=tenant_id,
-                resource="https://graph.windows.net",
-            )
+            # Reuse the same credential for any legacy Graph calls; AAD Graph is deprecated
+            aad_graph_credentials = arm_credentials
 
             return Credentials(
                 arm_credentials,
