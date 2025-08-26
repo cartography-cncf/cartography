@@ -119,13 +119,22 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             credentials = Authenticator().authenticate_cli()
 
     except Exception as e:
-        logger.error(
-            (
-                "Unable to authenticate with Azure Service Principal, an error occurred: %s."
-                "Make sure your Azure Service Principal details are provided correctly."
-            ),
-            e,
-        )
+        if config.azure_sp_auth:
+            logger.error(
+                (
+                    "Unable to authenticate with Azure Service Principal, an error occurred: %s."
+                    "Make sure your Azure Service Principal details are provided correctly."
+                ),
+                e,
+            )
+        else:
+            logger.error(
+                (
+                    "Unable to authenticate with Azure CLI, an error occurred: %s."
+                    "Make sure you have logged in using 'az login'."
+                ),
+                e,
+            )
         return
 
     _sync_tenant(

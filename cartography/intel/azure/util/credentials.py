@@ -1,4 +1,6 @@
+import json
 import logging
+import subprocess
 from datetime import datetime
 from datetime import timedelta
 from typing import Any
@@ -6,9 +8,8 @@ from typing import Optional
 
 import adal
 import requests
-from azure.common.credentials import get_azure_cli_credentials
-from azure.common.credentials import get_cli_profile
 from azure.core.exceptions import HttpResponseError
+from azure.identity import AzureCliCredential
 from azure.identity import ClientSecretCredential
 from msrestazure.azure_active_directory import AADTokenCredentials
 
@@ -42,25 +43,32 @@ class Credentials:
     def get_tenant_id(self) -> Any:
         if self.tenant_id:
             return self.tenant_id
-        elif "tenant_id" in self.aad_graph_credentials.token:
+        elif (
+            hasattr(self.aad_graph_credentials, "token")
+            and "tenant_id" in self.aad_graph_credentials.token
+        ):
             return self.aad_graph_credentials.token["tenant_id"]
         else:
             # This is a last resort, e.g. for MSI authentication
             try:
-                h = {
-                    "Authorization": "Bearer {}".format(
-                        self.arm_credentials.token["access_token"],
-                    ),
-                }
-                r = requests.get(
-                    "https://management.azure.com/tenants?api-version=2020-01-01",
-                    headers=h,
-                )
-                r2 = r.json()
-                return r2.get("value")[0].get("tenantId")
+                if (
+                    hasattr(self.arm_credentials, "token")
+                    and "access_token" in self.arm_credentials.token
+                ):
+                    h = {
+                        "Authorization": "Bearer {}".format(
+                            self.arm_credentials.token["access_token"],
+                        ),
+                    }
+                    r = requests.get(
+                        "https://management.azure.com/tenants?api-version=2020-01-01",
+                        headers=h,
+                    )
+                    r2 = r.json()
+                    return r2.get("value")[0].get("tenantId")
             except requests.ConnectionError as e:
                 logger.error(f"Unable to infer tenant ID: {e}")
-                return None
+            return None
 
     def get_credentials(self, resource: str) -> Any:
         if resource == "arm":
@@ -133,37 +141,25 @@ class Authenticator:
                 "azure.core.pipeline.policies.http_logging_policy",
             ).setLevel(logging.ERROR)
 
-            arm_credentials, subscription_id, tenant_id = get_azure_cli_credentials(
-                with_tenant=True,
+            credential = AzureCliCredential()
+            account = json.loads(
+                subprocess.run(
+                    ["az", "account", "show", "--output", "json"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout,
             )
-            aad_graph_credentials, placeholder_1, placeholder_2 = (
-                get_azure_cli_credentials(
-                    with_tenant=True,
-                    resource="https://graph.windows.net",
-                )
-            )
-
-            profile = get_cli_profile()
 
             return Credentials(
-                arm_credentials,
-                aad_graph_credentials,
-                tenant_id=tenant_id,
-                current_user=profile.get_current_account_user(),
-                subscription_id=subscription_id,
+                credential,
+                credential,
+                tenant_id=account.get("tenantId"),
+                subscription_id=account.get("id"),
+                current_user=account.get("user", {}).get("name"),
             )
 
-        except HttpResponseError as e:
-            if (
-                ", AdalError: Unsupported wstrust endpoint version. "
-                "Current supported version is wstrust2005 or wstrust13." in e.args
-            ):
-                logger.error(
-                    f"You are likely authenticating with a Microsoft Account. \
-                    This authentication mode only supports Azure Active Directory principal authentication.\
-                    {e}",
-                )
-
+        except Exception as e:
             raise e
 
     def authenticate_sp(
