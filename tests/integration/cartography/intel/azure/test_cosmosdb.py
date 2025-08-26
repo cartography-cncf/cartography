@@ -801,7 +801,7 @@ def test_load_sql_containers_relationships(neo4j_session):
 
     cosmosdb._load_sql_containers(
         neo4j_session,
-        DESCRIBE_SQL_DATABASES,
+        DESCRIBE_SQL_CONTAINERS,
         TEST_UPDATE_TAG,
     )
 
