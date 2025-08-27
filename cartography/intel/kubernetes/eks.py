@@ -14,6 +14,7 @@ from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.groups import KubernetesGroupSchema
 from cartography.models.kubernetes.oidc import KubernetesOIDCProviderSchema
 from cartography.models.kubernetes.users import KubernetesUserSchema
+from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -30,79 +31,167 @@ def get_aws_auth_configmap(client: K8sClient) -> V1ConfigMap:
     )
 
 
-def parse_role_mappings(configmap: V1ConfigMap) -> List[Dict[str, Any]]:
+def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]]:
     """
-    Parse mapRoles from aws-auth ConfigMap.
+    Parse mapRoles and mapUsers from aws-auth ConfigMap.
 
     :param configmap: V1ConfigMap containing aws-auth data
-    :return: List of role mapping dictionaries
+    :return: Dictionary with 'roles' and 'users' keys containing their respective mappings
     """
-    map_roles_yaml = configmap.data["mapRoles"]
-    role_mappings = yaml.safe_load(map_roles_yaml) or []
+    result: Dict[str, List[Dict[str, Any]]] = {"roles": [], "users": []}
 
-    # Filter out templated entries because these are not real users
-    filtered_mappings = []
-    for mapping in role_mappings:
-        username = mapping.get("username", "")
-        if "{{" in username:
-            logger.debug(f"Skipping templated username: {username}")
-            continue
-        filtered_mappings.append(mapping)
+    # Parse mapRoles
+    if "mapRoles" in configmap.data:
+        map_roles_yaml = configmap.data["mapRoles"]
+        role_mappings = yaml.safe_load(map_roles_yaml) or []
 
-    logger.info(
-        f"Parsed {len(filtered_mappings)} role mappings from aws-auth ConfigMap"
-    )
-    return filtered_mappings
+        # Filter out templated entries because these are not real users
+        filtered_role_mappings = []
+        for mapping in role_mappings:
+            username = mapping.get("username", "")
+            if "{{" in username:
+                logger.debug(f"Skipping templated username in mapRoles: {username}")
+                continue
+            filtered_role_mappings.append(mapping)
+
+        result["roles"] = filtered_role_mappings
+        logger.info(
+            f"Parsed {len(filtered_role_mappings)} role mappings from aws-auth ConfigMap"
+        )
+    else:
+        logger.info("No mapRoles found in aws-auth ConfigMap")
+
+    # Parse mapUsers
+    if "mapUsers" in configmap.data:
+        map_users_yaml = configmap.data["mapUsers"]
+        user_mappings = yaml.safe_load(map_users_yaml) or []
+
+        # Filter out templated entries because these are not real users
+        filtered_user_mappings = []
+        for mapping in user_mappings:
+            username = mapping.get("username", "")
+            if "{{" in username:
+                logger.debug(f"Skipping templated username in mapUsers: {username}")
+                continue
+            filtered_user_mappings.append(mapping)
+
+        result["users"] = filtered_user_mappings
+        logger.info(
+            f"Parsed {len(filtered_user_mappings)} user mappings from aws-auth ConfigMap"
+        )
+    else:
+        logger.info("No mapUsers found in aws-auth ConfigMap")
+
+    return result
 
 
-def transform_aws_role_mappings(
-    role_mappings: List[Dict[str, Any]], cluster_name: str
+def extract_username_from_arn(arn: str) -> str:
+    """
+    Extract username from AWS ARN for defaulting when username is not provided.
+    """
+    if "/role/" in arn:
+        return arn.split("/role/")[-1]
+    elif "/user/" in arn:
+        return arn.split("/user/")[-1]
+    else:
+        # Fallback for any other ARN format
+        return arn.split("/")[-1]
+
+
+def transform_aws_auth_mappings(
+    auth_mappings: Dict[str, List[Dict[str, Any]]], cluster_name: str
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
-    Transform role mappings into user/group data with AWS role relationships.
+    Transform both role and user mappings from aws-auth ConfigMap into combined user/group data.
     """
-    users = []
-    groups = []
+    all_users = []
+    all_groups = []
 
-    for mapping in role_mappings:
-        role_arn = mapping.get("rolearn")
-        username = mapping.get("username")
-        group_names = mapping.get("groups", [])
+    # Process role mappings if they exist
+    if auth_mappings["roles"]:
+        for mapping in auth_mappings["roles"]:
+            role_arn = mapping.get("rolearn")
+            username = mapping.get("username")
+            group_names = mapping.get("groups", [])
 
-        if not role_arn:
-            continue
+            if not role_arn:
+                continue
 
-        # Create user data with AWS role relationship if present
-        if username:
-            users.append(
+            # Create user data with AWS role relationship (always create user)
+            effective_username = username or extract_username_from_arn(role_arn)
+            all_users.append(
                 {
-                    "id": f"{cluster_name}/{username}",
-                    "name": username,
+                    "id": f"{cluster_name}/{effective_username}",
+                    "name": effective_username,
                     "cluster_name": cluster_name,
-                    "aws_role_arn": role_arn,  # For the AWS Role relationship
+                    "aws_role_arn": role_arn,
                 }
             )
 
-        # Create group data with AWS role relationship for each group
-        for group_name in group_names:
-            groups.append(
+            # Create group data with AWS role relationship for each group
+            for group_name in group_names:
+                all_groups.append(
+                    {
+                        "id": f"{cluster_name}/{group_name}",
+                        "name": group_name,
+                        "cluster_name": cluster_name,
+                        "aws_role_arn": role_arn,
+                    }
+                )
+
+    # Process user mappings if they exist
+    if auth_mappings["users"]:
+        for mapping in auth_mappings["users"]:
+            user_arn = mapping.get("userarn")
+            username = mapping.get("username")
+            group_names = mapping.get("groups", [])
+
+            if not user_arn:
+                continue
+
+            # Create user data with AWS user relationship (always create user)
+            effective_username = username or extract_username_from_arn(user_arn)
+            all_users.append(
                 {
-                    "id": f"{cluster_name}/{group_name}",
-                    "name": group_name,
+                    "id": f"{cluster_name}/{effective_username}",
+                    "name": effective_username,
                     "cluster_name": cluster_name,
-                    "aws_role_arn": role_arn,  # For the AWS Role relationship
+                    "aws_user_arn": user_arn,
                 }
             )
+
+            # Create group data with AWS user relationship for each group
+            for group_name in group_names:
+                all_groups.append(
+                    {
+                        "id": f"{cluster_name}/{group_name}",
+                        "name": group_name,
+                        "cluster_name": cluster_name,
+                        "aws_user_arn": user_arn,
+                    }
+                )
+
+    # Count explicit vs defaulted usernames for better visibility
+    explicit_users = sum(
+        1 for mapping in auth_mappings["roles"] if mapping.get("username")
+    )
+    explicit_users += sum(
+        1 for mapping in auth_mappings["users"] if mapping.get("username")
+    )
+    defaulted_users = len(all_users) - explicit_users
 
     logger.info(
-        f"Transformed {len(users)} users and {len(groups)} groups with AWS role mappings"
+        f"Transformed {len(all_users)} total users ({explicit_users} explicit, {defaulted_users} defaulted) "
+        f"and {len(all_groups)} total groups from {len(auth_mappings['roles'])} role mappings "
+        f"and {len(auth_mappings['users'])} user mappings"
     )
 
-    return {"users": users, "groups": groups}
+    return {"users": all_users, "groups": all_groups}
 
 
 @timeit
-def get_oidc_providers(
+@aws_handle_regions
+def get_oidc_provider(
     boto3_session: boto3.session.Session,
     region: str,
     cluster_name: str,
@@ -136,7 +225,7 @@ def get_oidc_providers(
     return oidc_providers
 
 
-def transform_oidc_providers(
+def transform_oidc_provider(
     oidc_providers: List[Dict[str, Any]],
     cluster_name: str,
 ) -> List[Dict[str, Any]]:
@@ -173,7 +262,7 @@ def transform_oidc_providers(
     return transformed_providers
 
 
-def load_oidc_providers(
+def load_oidc_provider(
     neo4j_session: neo4j.Session,
     oidc_providers: List[Dict[str, Any]],
     update_tag: int,
@@ -194,7 +283,7 @@ def load_oidc_providers(
     )
 
 
-def load_aws_role_mappings(
+def load_aws_auth_mappings(
     neo4j_session: neo4j.Session,
     users: List[Dict[str, Any]],
     groups: List[Dict[str, Any]],
@@ -203,11 +292,11 @@ def load_aws_role_mappings(
     cluster_name: str,
 ) -> None:
     """
-    Load Kubernetes Users/Groups with AWS Role relationships into Neo4j using schema-based loading.
+    Load Kubernetes Users/Groups with AWS Role and User relationships into Neo4j using schema-based loading.
     """
-    logger.info(f"Loading {len(users)} Kubernetes Users with AWS Role mappings")
+    logger.info(f"Loading {len(users)} Kubernetes Users with AWS mappings")
 
-    # Load Kubernetes Users with AWS Role relationships
+    # Load Kubernetes Users with AWS relationships
     if users:
         load(
             neo4j_session,
@@ -218,9 +307,9 @@ def load_aws_role_mappings(
             CLUSTER_NAME=cluster_name,
         )
 
-    logger.info(f"Loading {len(groups)} Kubernetes Groups with AWS Role mappings")
+    logger.info(f"Loading {len(groups)} Kubernetes Groups with AWS mappings")
 
-    # Load Kubernetes Groups with AWS Role relationships
+    # Load Kubernetes Groups with AWS relationships
     if groups:
         load(
             neo4j_session,
@@ -235,7 +324,7 @@ def load_aws_role_mappings(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
-    logger.debug("Running cleanup job for EKS AWS Role relationships")
+    logger.debug("Running cleanup job for EKS AWS Role and User relationships")
 
     cleanup_job = GraphJob.from_node_schema(
         KubernetesUserSchema(), common_job_parameters
@@ -259,19 +348,20 @@ def sync(
 ) -> None:
     """
     Sync EKS identity providers:
-    1. AWS IAM role mappings (aws-auth ConfigMap)
+    1. AWS IAM role and user mappings (aws-auth ConfigMap)
     2. External OIDC providers (EKS API)
     """
     logger.info(f"Starting EKS identity provider sync for cluster {cluster_name}")
 
-    # 1. Sync AWS IAM role mappings (aws-auth ConfigMap)
-    logger.info("Syncing AWS IAM role mappings from aws-auth ConfigMap")
+    # 1. Sync AWS IAM mappings (aws-auth ConfigMap)
+    logger.info("Syncing AWS IAM mappings from aws-auth ConfigMap")
     configmap = get_aws_auth_configmap(k8s_client)
-    role_mappings = parse_role_mappings(configmap)
+    auth_mappings = parse_aws_auth_map(configmap)
 
-    if role_mappings:
-        transformed_data = transform_aws_role_mappings(role_mappings, cluster_name)
-        load_aws_role_mappings(
+    # Transform and load both role and user mappings
+    if auth_mappings["roles"] or auth_mappings["users"]:
+        transformed_data = transform_aws_auth_mappings(auth_mappings, cluster_name)
+        load_aws_auth_mappings(
             neo4j_session,
             transformed_data["users"],
             transformed_data["groups"],
@@ -279,35 +369,34 @@ def sync(
             cluster_id,
             cluster_name,
         )
-        logger.info(f"Successfully synced {len(role_mappings)} AWS IAM role mappings")
+        logger.info(
+            f"Successfully synced {len(auth_mappings['roles'])} AWS IAM role mappings "
+            f"and {len(auth_mappings['users'])} AWS IAM user mappings"
+        )
     else:
-        logger.info("No role mappings found in aws-auth ConfigMap")
+        logger.info("No role or user mappings found in aws-auth ConfigMap")
 
     # 2. Sync External OIDC providers (EKS API)
     logger.info("Syncing external OIDC providers from EKS API")
 
     # Get OIDC providers from EKS API
-    oidc_providers = get_oidc_providers(boto3_session, region, cluster_name)
+    oidc_provider = get_oidc_provider(boto3_session, region, cluster_name)
 
-    if oidc_providers:
+    if oidc_provider:
         # Transform OIDC providers (infrastructure metadata only)
-        transformed_oidc_providers = transform_oidc_providers(
-            oidc_providers, cluster_name
-        )
+        transformed_oidc_provider = transform_oidc_provider(oidc_provider, cluster_name)
 
         # Load OIDC providers
-        load_oidc_providers(
+        load_oidc_provider(
             neo4j_session,
-            transformed_oidc_providers,
+            transformed_oidc_provider,
             update_tag,
             cluster_id,
             cluster_name,
         )
-        logger.info(
-            f"Successfully synced {len(oidc_providers)} external OIDC providers"
-        )
+        logger.info(f"Successfully synced {len(oidc_provider)} external OIDC provider")
     else:
-        logger.info("No external OIDC providers found for cluster")
+        logger.info("No external OIDC provider found for cluster")
 
     # Cleanup
     common_job_parameters = {

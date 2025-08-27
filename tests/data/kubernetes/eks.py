@@ -33,7 +33,33 @@ AWS_AUTH_CONFIGMAP_DATA = {
   groups:
   - ci-cd
   - automation
-"""
+- rolearn: arn:aws:iam::123456789012:role/EKSServiceRole
+  groups:
+  - services
+  - automation
+""",
+    "mapUsers": """
+- userarn: arn:aws:iam::123456789012:user/alice
+  username: alice-user
+  groups:
+  - developers
+  - dev-team
+- userarn: arn:aws:iam::123456789012:user/bob
+  username: bob-user
+  groups:
+  - system:masters
+- userarn: arn:aws:iam::123456789012:user/charlie
+  username: charlie-user
+  groups:
+  - view-only
+  - readonly
+- userarn: arn:aws:iam::123456789012:user/dana
+  groups:
+  - support-team
+- userarn: arn:aws:iam::123456789012:user/service-account
+  groups:
+  - services
+""",
 }
 
 
@@ -74,6 +100,54 @@ MOCK_AWS_ROLES = [
         "CreateDate": "2023-01-01T00:00:00Z",
         "MaxSessionDuration": 3600,
         "AssumeRolePolicyDocument": {"Statement": []},
+    },
+    {
+        "Arn": "arn:aws:iam::123456789012:role/EKSServiceRole",
+        "RoleName": "EKSServiceRole",
+        "Path": "/",
+        "RoleId": "AROABC123DEF456GHI793",
+        "CreateDate": "2023-01-01T00:00:00Z",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {"Statement": []},
+    },
+]
+
+# Mock AWS User data that should exist in the graph before EKS sync
+MOCK_AWS_USERS = [
+    {
+        "Arn": "arn:aws:iam::123456789012:user/alice",
+        "UserName": "alice",
+        "Path": "/",
+        "UserId": "AIDACKCEVSQ6C2EXAMPLE1",
+        "CreateDate": "2023-01-01T00:00:00Z",
+    },
+    {
+        "Arn": "arn:aws:iam::123456789012:user/bob",
+        "UserName": "bob",
+        "Path": "/",
+        "UserId": "AIDACKCEVSQ6C2EXAMPLE2",
+        "CreateDate": "2023-01-01T00:00:00Z",
+    },
+    {
+        "Arn": "arn:aws:iam::123456789012:user/charlie",
+        "UserName": "charlie",
+        "Path": "/",
+        "UserId": "AIDACKCEVSQ6C2EXAMPLE3",
+        "CreateDate": "2023-01-01T00:00:00Z",
+    },
+    {
+        "Arn": "arn:aws:iam::123456789012:user/dana",
+        "UserName": "dana",
+        "Path": "/",
+        "UserId": "AIDACKCEVSQ6C2EXAMPLE4",
+        "CreateDate": "2023-01-01T00:00:00Z",
+    },
+    {
+        "Arn": "arn:aws:iam::123456789012:user/service-account",
+        "UserName": "service-account",
+        "Path": "/",
+        "UserId": "AIDACKCEVSQ6C2EXAMPLE5",
+        "CreateDate": "2023-01-01T00:00:00Z",
     },
 ]
 

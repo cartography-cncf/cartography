@@ -4,10 +4,12 @@ from unittest.mock import patch
 from kubernetes.client.models import V1ConfigMap
 
 from cartography.intel.aws.iam import load_roles
+from cartography.intel.aws.iam import load_users
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as eks_sync
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_DATA
 from tests.data.kubernetes.eks import MOCK_AWS_ROLES
+from tests.data.kubernetes.eks import MOCK_AWS_USERS
 from tests.data.kubernetes.eks import MOCK_CLUSTER_DATA
 from tests.data.kubernetes.eks import MOCK_OIDC_PROVIDERS
 from tests.data.kubernetes.eks import TEST_ACCOUNT_ID
@@ -29,13 +31,13 @@ def create_mock_aws_auth_configmap():
     )
 
 
-@patch("cartography.intel.kubernetes.eks.get_oidc_providers")
+@patch("cartography.intel.kubernetes.eks.get_oidc_provider")
 def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
-    mock_get_oidc_providers,
+    mock_get_oidc_provider,
     neo4j_session,
 ):
     """
-    Test that EKS sync creates the expected AWS Role to Kubernetes User/Group relationships
+    Test that EKS sync creates the expected AWS Role/User to Kubernetes User/Group relationships
     and OIDC provider infrastructure nodes with cluster relationships.
     """
     # Arrange: Create AWS Account first (required for role loading)
@@ -60,8 +62,16 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         TEST_UPDATE_TAG,
     )
 
+    # Arrange: Set up prerequisite AWS Users in the graph
+    load_users(
+        neo4j_session,
+        MOCK_AWS_USERS,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
     # Arrange: Mock OIDC providers
-    mock_get_oidc_providers.return_value = MOCK_OIDC_PROVIDERS
+    mock_get_oidc_provider.return_value = MOCK_OIDC_PROVIDERS
 
     # Arrange: Create mock K8s client that returns our test ConfigMap
     mock_k8s_client = MagicMock()
@@ -89,6 +99,10 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         ("arn:aws:iam::123456789012:role/EKSDevRole", "test-cluster/dev-user"),
         ("arn:aws:iam::123456789012:role/EKSAdminRole", "test-cluster/admin-user"),
         ("arn:aws:iam::123456789012:role/EKSViewerRole", "test-cluster/viewer-user"),
+        (
+            "arn:aws:iam::123456789012:role/EKSServiceRole",
+            "test-cluster/EKSServiceRole",
+        ),  # Defaulted username
     }
 
     actual_user_relationships = check_rels(
@@ -110,6 +124,8 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         ("arn:aws:iam::123456789012:role/EKSViewerRole", "test-cluster/read-access"),
         ("arn:aws:iam::123456789012:role/EKSGroupOnlyRole", "test-cluster/ci-cd"),
         ("arn:aws:iam::123456789012:role/EKSGroupOnlyRole", "test-cluster/automation"),
+        ("arn:aws:iam::123456789012:role/EKSServiceRole", "test-cluster/services"),
+        ("arn:aws:iam::123456789012:role/EKSServiceRole", "test-cluster/automation"),
     }
 
     actual_group_relationships = check_rels(
@@ -121,6 +137,52 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         "MAPS_TO",
     )
     assert expected_group_relationships.issubset(actual_group_relationships)
+
+    # Assert: Verify AWS User to Kubernetes User relationships
+    expected_user_user_relationships = {
+        ("arn:aws:iam::123456789012:user/alice", "test-cluster/alice-user"),
+        ("arn:aws:iam::123456789012:user/bob", "test-cluster/bob-user"),
+        ("arn:aws:iam::123456789012:user/charlie", "test-cluster/charlie-user"),
+        (
+            "arn:aws:iam::123456789012:user/dana",
+            "test-cluster/dana",
+        ),  # Defaulted username
+        (
+            "arn:aws:iam::123456789012:user/service-account",
+            "test-cluster/service-account",
+        ),  # Defaulted username
+    }
+
+    actual_user_user_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert expected_user_user_relationships.issubset(actual_user_user_relationships)
+
+    # Assert: Verify AWS User to Kubernetes Group relationships
+    expected_user_group_relationships = {
+        ("arn:aws:iam::123456789012:user/alice", "test-cluster/developers"),
+        ("arn:aws:iam::123456789012:user/alice", "test-cluster/dev-team"),
+        ("arn:aws:iam::123456789012:user/bob", "test-cluster/system:masters"),
+        ("arn:aws:iam::123456789012:user/charlie", "test-cluster/view-only"),
+        ("arn:aws:iam::123456789012:user/charlie", "test-cluster/readonly"),
+        ("arn:aws:iam::123456789012:user/dana", "test-cluster/support-team"),
+        ("arn:aws:iam::123456789012:user/service-account", "test-cluster/services"),
+    }
+
+    actual_user_group_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesGroup",
+        "id",
+        "MAPS_TO",
+    )
+    assert expected_user_group_relationships.issubset(actual_user_group_relationships)
 
     # Assert: Verify OIDC Provider nodes were created
     expected_oidc_providers = {

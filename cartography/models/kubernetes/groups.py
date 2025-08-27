@@ -17,6 +17,7 @@ class KubernetesGroupNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     cluster_name: PropertyRef = PropertyRef("cluster_name")
     aws_role_arn: PropertyRef = PropertyRef("aws_role_arn")
+    aws_user_arn: PropertyRef = PropertyRef("aws_user_arn")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -49,6 +50,11 @@ class KubernetesGroupToAWSRoleRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+class KubernetesGroupToAWSUserRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class KubernetesGroupToOktaGroupRel(CartographyRelSchema):
     target_node_label: str = "OktaGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -75,6 +81,19 @@ class KubernetesGroupToAWSRoleRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesGroupToAWSUserRel(CartographyRelSchema):
+    target_node_label: str = "AWSUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("aws_user_arn")}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MAPS_TO"
+    properties: KubernetesGroupToAWSUserRelProperties = (
+        KubernetesGroupToAWSUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesGroupSchema(CartographyNodeSchema):
     label: str = "KubernetesGroup"
     properties: KubernetesGroupNodeProperties = KubernetesGroupNodeProperties()
@@ -85,5 +104,6 @@ class KubernetesGroupSchema(CartographyNodeSchema):
         [
             KubernetesGroupToOktaGroupRel(),
             KubernetesGroupToAWSRoleRel(),
+            KubernetesGroupToAWSUserRel(),
         ]
     )
