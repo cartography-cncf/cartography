@@ -65,7 +65,13 @@ def start_activedirectory_ingestion(neo4j_session: neo4j.Session, config: Config
             else:
                 tls = ldap3.Tls()
 
-        server = ldap3.Server(str(config.ad_server), port=port, use_ssl=use_ssl, tls=tls, connect_timeout=int(getattr(config, "ad_timeout_connect", 30) or 30))
+        server = ldap3.Server(
+            str(config.ad_server),
+            port=port,
+            use_ssl=use_ssl,
+            tls=tls,
+            connect_timeout=int(getattr(config, "ad_timeout_connect", 30) or 30),
+        )
 
         if ad_bind_dn and ad_password:
             ldap_conn = ldap3.Connection(
@@ -77,17 +83,12 @@ def start_activedirectory_ingestion(neo4j_session: neo4j.Session, config: Config
                 receive_timeout=int(getattr(config, "ad_timeout_read", 120) or 120),
             )
         else:
-            # Anonymous or SASL/Kerberos/NTLM could be added later. For now, attempt anonymous bind if permitted.
-            ldap_conn = ldap3.Connection(
-                server,
-                auto_bind=True,
-                read_only=True,
-                receive_timeout=int(getattr(config, "ad_timeout_read", 120) or 120),
-            )
+            # Anonymous bind is not reliable; require explicit credentials for now.
+            logger.error("AD: Missing bind DN or password; set --ad-bind-dn-env-var and --ad-password-env-var. Skipping module.")
+            return
     except Exception as e:
-        # If ldap3 is not installed or connection fails, allow tests to continue by using mocked collectors.
-        logger.warning("AD: LDAP connection not established (%s). Proceeding for tests/mocks.", e)
-        ldap_conn = None
+        logger.error("AD: Failed to establish LDAP connection: %s. Skipping module.", e)
+        return
 
     # 1. Forest discovery and load
     forest_info = forest_mod.get(ldap_conn, getattr(config, "ad_base_dn", None))

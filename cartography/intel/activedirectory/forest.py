@@ -13,12 +13,7 @@ def get(ldap_conn: Any, base_dn: Optional[str]) -> Dict[str, Any]:
     Returns a dict with at least: {"id": <forest_guid_str>, "name": <root domain FQDN>, "functional_level": <str>}
     """
     if ldap_conn is None:
-        # For tests/mocks, return a minimal stub that the integration test can patch over if needed
-        return {
-            "objectGUID": b"\x00" * 16,
-            "rootDomainNamingContext": "dc=example,dc=com",
-            "forestFunctionality": "7",
-        }
+        raise ValueError("ldap_conn is None; Active Directory connection not established.")
 
     # rootDSE read
     ldap_conn.search(search_base="", search_filter="(objectClass=*)", search_scope="BASE", attributes=[
@@ -58,4 +53,3 @@ def transform(raw: Dict[str, Any]) -> Dict[str, Any]:
         "name": _dn_to_fqdn(raw["rootDomainNamingContext"]),
         "functional_level": raw.get("forestFunctionality"),
     }
-

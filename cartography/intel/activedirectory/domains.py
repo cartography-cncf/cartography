@@ -16,15 +16,7 @@ def get_domains(ldap_conn: Any, forest_info: Dict[str, Any]) -> List[Dict[str, A
     Returns a list of raw dicts with keys including objectGUID, dnsRoot, nETBIOSName, objectSid.
     """
     if ldap_conn is None:
-        # Minimal stub for tests
-        return [
-            {
-                "objectGUID": b"\x01" * 16,
-                "dnsRoot": "example.com",
-                "nETBIOSName": "EXAMPLE",
-                "objectSid": b"\x01\x05\x00\x00\x00\x00\x00\x05\x15\x00\x00\x00\xAA\xAA\xAA\xAA\xBB\xBB\xBB\xBB\xCC\xCC\xCC\xCC",
-            },
-        ]
+        raise ValueError("ldap_conn is None; Active Directory connection not established.")
 
     # Discover Configuration NC
     ldap_conn.search(search_base="", search_filter="(objectClass=*)", search_scope="BASE", attributes=["configurationNamingContext"])

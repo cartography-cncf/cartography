@@ -14,20 +14,7 @@ logger = logging.getLogger(__name__)
 @timeit
 def get(ldap_conn: Any, domain: Dict[str, Any]) -> List[Dict[str, Any]]:
     if ldap_conn is None:
-        return [
-            {
-                "objectGUID": b"\x04" * 16,
-                "distinguishedName": "cn=Alice,ou=Engineering,dc=example,dc=com",
-                "userPrincipalName": "alice@example.com",
-                "sAMAccountName": "alice",
-                "objectSid": b"\x01\x05\x00\x00\x00\x00\x00\x05\x15\x00\x00\x00\xaa\xaa\xaa\xaa\xbb\xbb\xbb\xbb\xcc\xcc\xcc\xcc\x2a\x00\x00\x00",
-                "userAccountControl": 512,
-                "lastLogonTimestamp": None,
-                "pwdLastSet": None,
-                "servicePrincipalName": [],
-                "memberOf": ["cn=Domain Admins,cn=Users,dc=example,dc=com"],
-            }
-        ]
+        raise ValueError("ldap_conn is None; Active Directory connection not established.")
     base = f"DC={domain['dns_name'].replace('.', ',DC=')}"
     ldap_conn.search(
         search_base=base,
@@ -124,4 +111,3 @@ def load_users(neo4j_session: neo4j.Session, data: List[Dict[str, Any]], domain_
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     GraphJob.from_node_schema(ADUserSchema(), common_job_parameters).run(neo4j_session)
-

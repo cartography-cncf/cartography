@@ -14,15 +14,7 @@ logger = logging.getLogger(__name__)
 @timeit
 def get(ldap_conn: Any, domain: Dict[str, Any]) -> List[Dict[str, Any]]:
     if ldap_conn is None:
-        # Minimal OU example
-        return [
-            {
-                "objectGUID": b"\x02" * 16,
-                "distinguishedName": "ou=Engineering,dc=example,dc=com",
-                "name": "Engineering",
-                "gPLink": None,
-            },
-        ]
+        raise ValueError("ldap_conn is None; Active Directory connection not established.")
     base = f"DC={domain['dns_name'].replace('.', ',DC=')}"
     ldap_conn.search(
         search_base=base,
@@ -85,4 +77,3 @@ def load_ous(neo4j_session: neo4j.Session, data: List[Dict[str, Any]], domain_id
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     GraphJob.from_node_schema(ADOrganizationalUnitSchema(), common_job_parameters).run(neo4j_session)
-

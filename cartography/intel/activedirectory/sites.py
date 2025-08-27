@@ -15,11 +15,7 @@ logger = logging.getLogger(__name__)
 @timeit
 def get(ldap_conn: Any, forest_info: Dict[str, Any]) -> Dict[str, Any]:
     if ldap_conn is None:
-        return {
-            "sites": [
-                {"name": "Default-First-Site-Name", "subnets": ["10.0.0.0/24"], "replicates_with": []},
-            ]
-        }
+        raise ValueError("ldap_conn is None; Active Directory connection not established.")
 
     ldap_conn.search(search_base="", search_filter="(objectClass=*)", search_scope="BASE", attributes=["configurationNamingContext"])
     cfg_nc = str(ldap_conn.entries[0].configurationNamingContext.value)
@@ -72,4 +68,3 @@ def load_sites_and_subnets(
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     GraphJob.from_node_schema(ADSubnetSchema(), common_job_parameters).run(neo4j_session)
     GraphJob.from_node_schema(ADSiteSchema(), common_job_parameters).run(neo4j_session)
-

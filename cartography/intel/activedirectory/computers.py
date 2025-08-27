@@ -14,21 +14,7 @@ logger = logging.getLogger(__name__)
 @timeit
 def get(ldap_conn: Any, domain: Dict[str, Any]) -> List[Dict[str, Any]]:
     if ldap_conn is None:
-        return [
-            {
-                "objectGUID": b"\x05" * 16,
-                "distinguishedName": "cn=DC1,ou=Domain Controllers,dc=example,dc=com",
-                "sAMAccountName": "DC1$",
-                "dNSHostName": "dc1.example.com",
-                "objectSid": None,
-                "userAccountControl": 0x200,  # SERVER_TRUST_ACCOUNT -> domain controller
-                "operatingSystem": "Windows Server",
-                "lastLogonTimestamp": None,
-                "servicePrincipalName": [],
-                "memberOf": [],
-                "msDS-SiteName": "Default-First-Site-Name",
-            }
-        ]
+        raise ValueError("ldap_conn is None; Active Directory connection not established.")
     base = f"DC={domain['dns_name'].replace('.', ',DC=')}"
     ldap_conn.search(
         search_base=base,
@@ -126,4 +112,3 @@ def load_computers(neo4j_session: neo4j.Session, data: List[Dict[str, Any]], dom
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     GraphJob.from_node_schema(ADComputerSchema(), common_job_parameters).run(neo4j_session)
-

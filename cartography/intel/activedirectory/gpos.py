@@ -14,14 +14,7 @@ logger = logging.getLogger(__name__)
 @timeit
 def get(ldap_conn: Any, domain: Dict[str, Any]) -> List[Dict[str, Any]]:
     if ldap_conn is None:
-        return [
-            {
-                "objectGUID": b"\x06" * 16,
-                "displayName": "Default Domain Policy",
-                "versionNumber": 1,
-                "gPCWQLFilter": None,
-            }
-        ]
+        raise ValueError("ldap_conn is None; Active Directory connection not established.")
     base = f"CN=Policies,CN=System,DC={domain['dns_name'].replace('.', ',DC=')}"
     ldap_conn.search(
         search_base=base,
@@ -64,4 +57,3 @@ def load_gpos(neo4j_session: neo4j.Session, data: List[Dict[str, Any]], domain_i
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     GraphJob.from_node_schema(ADGPOSchema(), common_job_parameters).run(neo4j_session)
-

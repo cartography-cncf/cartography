@@ -23,10 +23,9 @@ logger = logging.getLogger(__name__)
 @timeit
 def get(ldap_conn: Any, forest_info: Dict[str, Any]) -> List[Dict[str, Any]]:
     if ldap_conn is None:
-        # Minimal placeholder
-        return []
-    # Trusts can be discovered per domain; here we keep thin and expect callers/tests to mock if needed
-    return []
+        raise ValueError("ldap_conn is None; Active Directory connection not established.")
+    # Trust collection intentionally not implemented in this scaffold; raise to indicate not yet implemented.
+    raise NotImplementedError("Active Directory trust collection not implemented.")
 
 
 class TrustRelProperties(CartographyRelProperties):
@@ -81,4 +80,3 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any])
         common_job_parameters["FOREST_ID"],
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
-
