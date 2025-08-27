@@ -479,7 +479,22 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
     return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))
 
 
-def build_session(retry_policy: Retry | None = None) -> requests.Session:
+DEFAULT_TIMEOUT = (60, 60)
+
+
+class RetryHttpAdapter(HTTPAdapter):
+    def __init__(self, timeout: tuple[int, int], *args: Any, **kwargs: Any) -> None:
+        self.timeout = timeout
+        super().__init__(*args, **kwargs)
+
+    def send(self, *args: Any, **kwargs: Any) -> requests.Response:
+        kwargs["timeout"] = self.timeout
+        return super().send(*args, **kwargs)
+
+
+def build_session(
+    retry_policy: Retry | None = None, timeout: tuple = DEFAULT_TIMEOUT
+) -> requests.Session:
     """
     Create a requests.Session with a custom User-Agent header that includes the Cartography version.
     """
@@ -489,6 +504,14 @@ def build_session(retry_policy: Retry | None = None) -> requests.Session:
 
     if retry_policy:
         session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+        session.mount("http://", HTTPAdapter(max_retries=retry_policy))
+
         logger.info(f"Configured session with retry policy: {retry_policy}")
+
+    if timeout:
+        session.mount("https://", RetryHttpAdapter(timeout=timeout))
+        session.mount("http://", RetryHttpAdapter(timeout=timeout))
+
+        logger.info(f"Configured session with timeout: {timeout}")
 
     return session
