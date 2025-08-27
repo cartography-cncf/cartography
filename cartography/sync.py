@@ -33,6 +33,7 @@ import cartography.intel.jamf
 import cartography.intel.kandji
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
+import cartography.intel.activedirectory
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.openai
@@ -72,6 +73,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
+        "activedirectory": cartography.intel.activedirectory.start_activedirectory_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
         "duo": cartography.intel.duo.start_duo_ingestion,
         "scaleway": cartography.intel.scaleway.start_scaleway_ingestion,

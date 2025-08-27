@@ -763,6 +763,89 @@ class CLI:
             ),
         )
 
+        # Active Directory (on-prem LDAP)
+        parser.add_argument(
+            "--ad-server",
+            type=str,
+            default=None,
+            help=("Hostname or IP of the Active Directory server (LDAP/LDAPS)."),
+        )
+        parser.add_argument(
+            "--ad-port",
+            type=int,
+            default=636,
+            help=("Port for the Active Directory server. Default 636 for LDAPS."),
+        )
+        parser.add_argument(
+            "--ad-use-ssl",
+            action="store_true",
+            help=("Use SSL (LDAPS). If omitted, plain LDAP is attempted."),
+        )
+        parser.add_argument(
+            "--ad-disable-tls-verify",
+            action="store_true",
+            help=("Disable TLS certificate verification (not recommended)."),
+        )
+        parser.add_argument(
+            "--ad-bind-dn-env-var",
+            type=str,
+            default=None,
+            help=("Name of environment variable containing AD bind DN."),
+        )
+        parser.add_argument(
+            "--ad-password-env-var",
+            type=str,
+            default=None,
+            help=("Name of environment variable containing AD bind password."),
+        )
+        parser.add_argument(
+            "--ad-auth",
+            type=str,
+            choices=["kerberos", "ntlm"],
+            default=None,
+            help=("Optional auth mode for AD (kerberos|ntlm)."),
+        )
+        parser.add_argument(
+            "--ad-realm",
+            type=str,
+            default=None,
+            help=("Kerberos realm or NTLM domain (optional)."),
+        )
+        parser.add_argument(
+            "--ad-base-dn",
+            type=str,
+            default=None,
+            help=("Optional base DN override; otherwise discovered from rootDSE."),
+        )
+        parser.add_argument(
+            "--ad-discover-all-domains",
+            action="store_true",
+            help=("Discover and sync all domains in the forest."),
+        )
+        parser.add_argument(
+            "--ad-page-size",
+            type=int,
+            default=1000,
+            help=("LDAP paging size. Default 1000."),
+        )
+        parser.add_argument(
+            "--ad-timeout-connect",
+            type=int,
+            default=30,
+            help=("LDAP connect timeout (seconds). Default 30."),
+        )
+        parser.add_argument(
+            "--ad-timeout-read",
+            type=int,
+            default=120,
+            help=("LDAP read timeout (seconds). Default 120."),
+        )
+        parser.add_argument(
+            "--ad-fail-fast",
+            action="store_true",
+            help=("Fail the entire sync on first AD domain error. Default false."),
+        )
+
         return parser
 
     def main(self, argv: str) -> int:
@@ -914,6 +997,24 @@ class CLI:
         else:
             logger.warning("A Kandji base URI was not provided.")
             config.kandji_base_uri = None
+
+        # Active Directory secrets
+        if getattr(config, "ad_bind_dn_env_var", None):
+            logger.debug(
+                "Reading AD bind DN from environment variable '%s'.",
+                config.ad_bind_dn_env_var,
+            )
+            config.ad_bind_dn = os.environ.get(config.ad_bind_dn_env_var)
+        else:
+            config.ad_bind_dn = None
+        if getattr(config, "ad_password_env_var", None):
+            logger.debug(
+                "Reading AD bind password from environment variable '%s'.",
+                config.ad_password_env_var,
+            )
+            config.ad_password = os.environ.get(config.ad_password_env_var)
+        else:
+            config.ad_password = None
 
         if config.statsd_enabled:
             logger.debug(
