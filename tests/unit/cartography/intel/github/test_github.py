@@ -49,6 +49,39 @@ def test_fetch_all_handles_retries(
     assert "my-error" in str(excinfo.value)
 
 
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_reduces_count_on_502(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    response_502 = Response()
+    response_502.status_code = 502
+    success_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        }
+    }
+    mock_fetch_page.side_effect = [
+        HTTPError("bad gateway", response=response_502),
+        success_response,
+    ]
+    fetch_all("token", "api_url", "org", "query", "repositories", count=50)
+    assert mock_fetch_page.call_count == 2
+    assert mock_fetch_page.call_args_list[0][1]["count"] == 50
+    assert mock_fetch_page.call_args_list[1][1]["count"] == 25
+
+
 @typing.no_type_check
 @patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.datetime")
