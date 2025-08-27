@@ -66,6 +66,7 @@ dependencies = [
     "duo-client",
     "cloudflare (>=4.1.0,<5.0.0)",
     "scaleway>=2.9.0",
+    "arn>=0.1.5",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]

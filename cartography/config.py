@@ -92,6 +92,8 @@ class Config:
     :param statsd_port: If statsd_enabled is True, send metrics to this port on statsd_host. Optional.
     :type: k8s_kubeconfig: str
     :param k8s_kubeconfig: Path to kubeconfig file for kubernetes cluster(s). Optional
+    :type: managed_kubernetes: str
+    :param managed_kubernetes: Type of managed Kubernetes service (e.g., "eks"). Optional.
     :type: pagerduty_api_key: str
     :param pagerduty_api_key: API authentication key for pagerduty. Optional.
     :type: pagerduty_request_timeout: int
@@ -181,6 +183,7 @@ class Config:
         aws_regions=None,
         aws_best_effort_mode=False,
         aws_cloudtrail_management_events_lookback_hours=None,
+        k8s_managed_provider=None,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
@@ -206,6 +209,7 @@ class Config:
         kandji_tenant_id=None,
         kandji_token=None,
         k8s_kubeconfig=None,
+        managed_kubernetes=None,
         statsd_enabled=False,
         statsd_prefix=None,
         statsd_host=None,
@@ -266,6 +270,7 @@ class Config:
         self.aws_cloudtrail_management_events_lookback_hours = (
             aws_cloudtrail_management_events_lookback_hours
         )
+        self.k8s_managed_provider = k8s_managed_provider
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id
@@ -291,6 +296,7 @@ class Config:
         self.kandji_tenant_id = kandji_tenant_id
         self.kandji_token = kandji_token
         self.k8s_kubeconfig = k8s_kubeconfig
+        self.managed_kubernetes = managed_kubernetes
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
         self.statsd_host = statsd_host
