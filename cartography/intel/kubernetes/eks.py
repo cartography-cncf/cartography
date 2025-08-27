@@ -34,14 +34,10 @@ class ParsedAuthMappings(TypedDict):
     templated_users: List[Dict[str, Any]]
 
 
-def process_templated_string(template_string: str, arn: str) -> str:
+def process_templated_account_id(template_string: str, arn: str) -> str:
     """
-    Process templated string by replacing template variables with actual values.
+    Process templated string by replacing {{AccountID}} with actual account ID from ARN.
 
-    Currently supports:
-    - {{AccountID}}: Replaced with account ID from the provided ARN
-    - {{SessionNameRaw}}: Cannot be resolved at ConfigMap parse time, requires regex matching
-    - {{SessionName}}: Cannot be resolved at ConfigMap parse time, requires regex matching
     """
     if not template_string or not arn:
         return template_string
@@ -63,80 +59,65 @@ def process_templated_string(template_string: str, arn: str) -> str:
             )
             return template_string  # Return original if we can't parse
 
-    # Check for SessionNameRaw templates - these cannot be resolved at parse time
-    # Return the partially processed string (with AccountID resolved) for regex matching
-    if (
-        "{{SessionNameRaw}}" in processed_string
-        or "{{SessionName}}" in processed_string
-    ):
-        logger.debug(
-            f"String contains session name template that requires regex matching: {processed_string}"
-        )
-        return processed_string  # Return partially processed string
-
     return processed_string
 
 
-def template_to_regex(template_string: str) -> str:
+def template_to_regex(template_string: str) -> re.Pattern:
     """
-    Convert a templated string into a regular expression pattern.
-
-    Supports:
-    - {{AccountID}}: Matches 12-digit AWS account IDs
-    - {{SessionNameRaw}}: Matches session names (preserves special characters)
-    - {{SessionName}}: Matches session names (transliterated special characters)
+    Convert an aws-iam-authenticator username template into a regex that matches
+    all concrete usernames. Supports multiple {{SessionName}} and/or
+    {{SessionNameRaw}} placeholders.
     """
     if not template_string:
-        return ""
+        raise ValueError("template_string cannot be empty or None")
 
-    # Start with the template string
-    pattern = template_string
+    # Session name patterns based on AWS IAM session name constraints
+    SESSION_TOKEN = "{{SessionName}}"
+    SESSION_RAW_TOKEN = "{{SessionNameRaw}}"
 
-    # Replace templates with regex capture groups
-    pattern = pattern.replace("{{AccountID}}", r"(\d{12})")
-    pattern = pattern.replace("{{SessionNameRaw}}", r"([^/\s]+)")
-    pattern = pattern.replace(
-        "{{SessionName}}", r"([^/\s]+)"
-    )  # Same pattern as SessionNameRaw
+    # Rendered username pieces (post-template):
+    # - For {{SessionName}}: '@' would have been transliterated to '-', so no '@' shows up.
+    SESSION_RENDERED = r"[\w+=,.-]{2,64}"  # note: no '@'
+    # - For {{SessionNameRaw}}: raw session name, '@' allowed.
+    SESSION_RENDERED_RAW = r"[\w+=,.@-]{2,64}"
 
-    # Escape any other regex special characters, but preserve our capture groups
-    # We need to be careful not to escape the parentheses we just added
-    escaped_pattern = ""
-    i = 0
-    while i < len(pattern):
-        if (
-            pattern[i : i + 1] == "("
-            and i + 1 < len(pattern)
-            and pattern[i + 1 : i + 2] in "[^"
-        ):
-            # This is one of our capture groups, find the closing parenthesis
-            paren_count = 1
-            j = i + 1
-            while j < len(pattern) and paren_count > 0:
-                if pattern[j] == "(":
-                    paren_count += 1
-                elif pattern[j] == ")":
-                    paren_count -= 1
-                j += 1
-            # Add the capture group as-is
-            escaped_pattern += pattern[i:j]
-            i = j
-        else:
-            # Escape this character if it's a regex special character
-            if pattern[i] in r".^$*+?{}[]|()\\":
-                escaped_pattern += "\\" + pattern[i]
+    TOKEN_RE = re.compile(r"(\{\{SessionNameRaw\}\}|\{\{SessionName\}\})")
+
+    parts = TOKEN_RE.split(template_string)  # split on the raw template
+    built = []
+    seen = {"sess": False, "sessraw": False}
+
+    for p in parts:
+        if p == SESSION_TOKEN:
+            if not seen["sess"]:
+                built.append(f"(?P<sess>{SESSION_RENDERED})")
+                seen["sess"] = True
             else:
-                escaped_pattern += pattern[i]
-            i += 1
+                built.append(r"(?P=sess)")
+        elif p == SESSION_RAW_TOKEN:
+            if not seen["sessraw"]:
+                built.append(f"(?P<sessraw>{SESSION_RENDERED_RAW})")
+                seen["sessraw"] = True
+            else:
+                built.append(r"(?P=sessraw)")
+        elif p:  # literal segment
+            built.append(re.escape(p))
 
-    return f"^{escaped_pattern}$"
+    regex_str = "^" + "".join(built) + "$"
+    logger.debug(
+        f"Generated regex pattern for template '{template_string}': {regex_str}"
+    )
+    return re.compile(regex_str)
 
 
 def find_templated_users(
     templated_mappings: List[Dict[str, Any]], actual_k8s_users: List[str], arn: str
 ) -> List[Dict[str, Any]]:
     """
-    Find actual Kubernetes users that match templated patterns.
+    Takes templated mappings like (admin:{{SessionNameRaw}}) and finds actual kubernetes users that match.
+    1. Convert template to regex
+    2. Finds matching users
+    3. Returns a list of resolved mappings with the actual username
     """
     matched_users = []
 
@@ -145,13 +126,9 @@ def find_templated_users(
         if not template_username or "{{" not in template_username:
             continue
 
-        # Convert template to regex
-        regex_pattern = template_to_regex(template_username)
-        if not regex_pattern:
-            continue
-
         try:
-            compiled_regex = re.compile(regex_pattern)
+            # Convert template to regex
+            compiled_regex = template_to_regex(template_username)
 
             # Find matching users
             for k8s_user in actual_k8s_users:
@@ -171,45 +148,54 @@ def find_templated_users(
                         f"Matched template '{template_username}' to user '{k8s_user}' for ARN {arn}"
                     )
 
+        except ValueError as e:
+            logger.warning(f"Invalid template '{template_username}': {e}")
+            continue
         except re.error as e:
-            logger.warning(
-                f"Invalid regex pattern '{regex_pattern}' from template '{template_username}': {e}"
-            )
+            logger.warning(f"Regex error for template '{template_username}': {e}")
             continue
 
     return matched_users
 
 
-def process_templated_group_name(
-    group_name: str, original_template: str, captured_values: tuple
+def resolve_template_variables(
+    template_string: str, reference_template: str, captured_values: tuple
 ) -> str:
     """
-    Process templated group name by replacing template variables with captured values.
+    Resolve template variables in a string using values captured from regex matching.
+
+    When we match templated usernames against actual Kubernetes users (done in find_templated_users), we capture values
+    in the order they appear in the username template.
+    However, other templated group names in ConfigMap may contain the same template variables in different orders.
+
+    This function solves the "template variable ordering" problem by:
+    1. Analyzing the reference template to determine which captured value corresponds to which variable
+    2. Correctly mapping those values to template variables in the target string
     """
-    if not group_name or not captured_values:
-        return group_name
+    if not template_string or not captured_values:
+        return template_string
 
-    resolved_group_name = group_name
+    resolved_string = template_string
 
-    # Determine the order of templates in the original username template
+    # Determine the order of templates in the reference template
     # This tells us which capture group corresponds to which template
     account_id_index = None
     session_name_raw_index = None
     session_name_index = None
 
-    # Find positions of templates in original template to determine capture group order
+    # Find positions of templates in reference template to determine capture group order
     template_positions = []
-    if "{{AccountID}}" in original_template:
+    if "{{AccountID}}" in reference_template:
         template_positions.append(
-            ("{{AccountID}}", original_template.find("{{AccountID}}"))
+            ("{{AccountID}}", reference_template.find("{{AccountID}}"))
         )
-    if "{{SessionNameRaw}}" in original_template:
+    if "{{SessionNameRaw}}" in reference_template:
         template_positions.append(
-            ("{{SessionNameRaw}}", original_template.find("{{SessionNameRaw}}"))
+            ("{{SessionNameRaw}}", reference_template.find("{{SessionNameRaw}}"))
         )
-    if "{{SessionName}}" in original_template:
+    if "{{SessionName}}" in reference_template:
         template_positions.append(
-            ("{{SessionName}}", original_template.find("{{SessionName}}"))
+            ("{{SessionName}}", reference_template.find("{{SessionName}}"))
         )
 
     # Sort by position to determine capture group order
@@ -226,35 +212,35 @@ def process_templated_group_name(
 
     # Replace AccountID templates
     if (
-        "{{AccountID}}" in resolved_group_name
+        "{{AccountID}}" in resolved_string
         and account_id_index is not None
         and account_id_index < len(captured_values)
     ):
-        resolved_group_name = resolved_group_name.replace(
+        resolved_string = resolved_string.replace(
             "{{AccountID}}", captured_values[account_id_index]
         )
 
     # Replace SessionNameRaw templates
     if (
-        "{{SessionNameRaw}}" in resolved_group_name
+        "{{SessionNameRaw}}" in resolved_string
         and session_name_raw_index is not None
         and session_name_raw_index < len(captured_values)
     ):
-        resolved_group_name = resolved_group_name.replace(
+        resolved_string = resolved_string.replace(
             "{{SessionNameRaw}}", captured_values[session_name_raw_index]
         )
 
     # Replace SessionName templates
     if (
-        "{{SessionName}}" in resolved_group_name
+        "{{SessionName}}" in resolved_string
         and session_name_index is not None
         and session_name_index < len(captured_values)
     ):
-        resolved_group_name = resolved_group_name.replace(
+        resolved_string = resolved_string.replace(
             "{{SessionName}}", captured_values[session_name_index]
         )
 
-    return resolved_group_name
+    return resolved_string
 
 
 def parse_aws_account_from_kube_user(kube_user_name: str) -> str:
@@ -283,10 +269,7 @@ def get_aws_auth_configmap(client: K8sClient) -> V1ConfigMap:
 
 def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
     """
-    Parse mapRoles, mapUsers, and mapAccounts from aws-auth ConfigMap.
-
-    :param configmap: V1ConfigMap containing aws-auth data
-    :return: Dictionary with 'roles', 'users', 'accounts', 'templated_roles', and 'templated_users' lists
+    Parse mapRoles, mapUsers, and mapAccounts from aws-auth ConfigMap including any templated entries
     """
     # Parse mapRoles
     map_roles_yaml = configmap.data.get("mapRoles", "")
@@ -311,7 +294,7 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
         if "{{SessionNameRaw}}" in username or "{{SessionName}}" in username:
             # Process any AccountID templates first as there might be both SessionName and AccountID templates
             processed_mapping = mapping.copy()
-            processed_username = process_templated_string(username, rolearn)
+            processed_username = process_templated_account_id(username, rolearn)
             processed_mapping["username"] = processed_username
 
             # Also process templated group names for AccountID
@@ -319,7 +302,7 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
             if groups:
                 processed_groups = []
                 for group in groups:
-                    processed_group = process_templated_string(group, rolearn)
+                    processed_group = process_templated_account_id(group, rolearn)
                     processed_groups.append(processed_group)
                 processed_mapping["groups"] = processed_groups
 
@@ -331,7 +314,7 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
 
         # Process templated username if it just contains an AccountID template
         if "{{" in username:
-            processed_username = process_templated_string(username, rolearn)
+            processed_username = process_templated_account_id(username, rolearn)
             if processed_username != username:
                 # Create a copy of the mapping with processed username
                 processed_mapping = mapping.copy()
@@ -343,7 +326,9 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
                     processed_groups = []
                     for group in groups:
                         if "{{" in group:
-                            processed_group = process_templated_string(group, rolearn)
+                            processed_group = process_templated_account_id(
+                                group, rolearn
+                            )
                             processed_groups.append(processed_group)
                         else:
                             processed_groups.append(group)
@@ -369,7 +354,7 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
                 processed_groups = []
                 for group in groups:
                     if "{{" in group:
-                        processed_group = process_templated_string(group, rolearn)
+                        processed_group = process_templated_account_id(group, rolearn)
                         processed_groups.append(processed_group)
                     else:
                         processed_groups.append(group)
@@ -392,7 +377,7 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
         if "{{SessionNameRaw}}" in username or "{{SessionName}}" in username:
             # Process any AccountID templates first, then store for regex matching
             processed_mapping = mapping.copy()
-            processed_username = process_templated_string(username, userarn)
+            processed_username = process_templated_account_id(username, userarn)
             processed_mapping["username"] = processed_username
 
             # Also process templated group names for AccountID
@@ -400,7 +385,7 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
             if groups:
                 processed_groups = []
                 for group in groups:
-                    processed_group = process_templated_string(group, userarn)
+                    processed_group = process_templated_account_id(group, userarn)
                     processed_groups.append(processed_group)
                 processed_mapping["groups"] = processed_groups
 
@@ -412,7 +397,7 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
 
         # Process templated username if it contains other templates (like AccountID)
         if "{{" in username:
-            processed_username = process_templated_string(username, userarn)
+            processed_username = process_templated_account_id(username, userarn)
             if processed_username != username:
                 # Create a copy of the mapping with processed username
                 processed_mapping = mapping.copy()
@@ -424,7 +409,9 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
                     processed_groups = []
                     for group in groups:
                         if "{{" in group:
-                            processed_group = process_templated_string(group, userarn)
+                            processed_group = process_templated_account_id(
+                                group, userarn
+                            )
                             processed_groups.append(processed_group)
                         else:
                             processed_groups.append(group)
@@ -450,7 +437,7 @@ def parse_aws_auth_mappings(configmap: V1ConfigMap) -> ParsedAuthMappings:
                 processed_groups = []
                 for group in groups:
                     if "{{" in group:
-                        processed_group = process_templated_string(group, userarn)
+                        processed_group = process_templated_account_id(group, userarn)
                         processed_groups.append(processed_group)
                     else:
                         processed_groups.append(group)
@@ -490,7 +477,6 @@ def transform_aws_auth_mappings(
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
     Transform role, user, and account mappings into user/group data with AWS relationships.
-    Includes regex matching for templated entries with SessionNameRaw.
     """
     users = []
     groups = []
@@ -539,7 +525,8 @@ def transform_aws_auth_mappings(
                     original_template = matched_mapping["template_match"][
                         "original_template"
                     ]
-                    resolved_group_name = process_templated_group_name(
+                    # don't need regex to resolve the group name, just use the original template and replace with captured values
+                    resolved_group_name = resolve_template_variables(
                         group_name, original_template, captured_values
                     )
 
@@ -594,7 +581,7 @@ def transform_aws_auth_mappings(
                     original_template = matched_mapping["template_match"][
                         "original_template"
                     ]
-                    resolved_group_name = process_templated_group_name(
+                    resolved_group_name = resolve_template_variables(
                         group_name, original_template, captured_values
                     )
 
