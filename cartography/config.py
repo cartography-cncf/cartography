@@ -166,6 +166,38 @@ class Config:
     :param sentinelone_api_token: SentinelOne API token for authentication. Optional.
     :type sentinelone_account_ids: list[str]
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
+    :type ad_server: str
+    :param ad_server: Active Directory LDAP/LDAPS server hostname or IP. Optional.
+    :type ad_port: int
+    :param ad_port: Active Directory LDAP/LDAPS server port. Optional.
+    :type ad_use_ssl: bool
+    :param ad_use_ssl: Use SSL (LDAPS). Optional.
+    :type ad_disable_tls_verify: bool
+    :param ad_disable_tls_verify: Disable TLS certificate verification. Optional.
+    :type ad_bind_dn_env_var: str
+    :param ad_bind_dn_env_var: Env var name containing AD bind DN. Optional.
+    :type ad_password_env_var: str
+    :param ad_password_env_var: Env var name containing AD bind password. Optional.
+    :type ad_bind_dn: str
+    :param ad_bind_dn: Resolved AD bind DN value (from env). Optional.
+    :type ad_password: str
+    :param ad_password: Resolved AD bind password value (from env). Optional.
+    :type ad_auth: str
+    :param ad_auth: Optional AD auth mode (kerberos|ntlm). Optional.
+    :type ad_realm: str
+    :param ad_realm: Kerberos realm or NTLM domain. Optional.
+    :type ad_base_dn: str
+    :param ad_base_dn: Optional base DN override. Optional.
+    :type ad_discover_all_domains: bool
+    :param ad_discover_all_domains: Discover and sync all domains. Optional.
+    :type ad_page_size: int
+    :param ad_page_size: LDAP page size. Optional.
+    :type ad_timeout_connect: int
+    :param ad_timeout_connect: LDAP connect timeout seconds. Optional.
+    :type ad_timeout_read: int
+    :param ad_timeout_read: LDAP read timeout seconds. Optional.
+    :type ad_fail_fast: bool
+    :param ad_fail_fast: Fail entire sync on first domain error. Optional.
     """
 
     def __init__(
@@ -252,6 +284,23 @@ class Config:
         sentinelone_api_url=None,
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
+        # Active Directory
+        ad_server=None,
+        ad_port=636,
+        ad_use_ssl=False,
+        ad_disable_tls_verify=False,
+        ad_bind_dn_env_var=None,
+        ad_password_env_var=None,
+        ad_bind_dn=None,
+        ad_password=None,
+        ad_auth=None,
+        ad_realm=None,
+        ad_base_dn=None,
+        ad_discover_all_domains=False,
+        ad_page_size=1000,
+        ad_timeout_connect=30,
+        ad_timeout_read=120,
+        ad_fail_fast=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -337,3 +386,20 @@ class Config:
         self.sentinelone_api_url = sentinelone_api_url
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
+        # Active Directory
+        self.ad_server = ad_server
+        self.ad_port = ad_port
+        self.ad_use_ssl = ad_use_ssl
+        self.ad_disable_tls_verify = ad_disable_tls_verify
+        self.ad_bind_dn_env_var = ad_bind_dn_env_var
+        self.ad_password_env_var = ad_password_env_var
+        self.ad_bind_dn = ad_bind_dn
+        self.ad_password = ad_password
+        self.ad_auth = ad_auth
+        self.ad_realm = ad_realm
+        self.ad_base_dn = ad_base_dn
+        self.ad_discover_all_domains = ad_discover_all_domains
+        self.ad_page_size = ad_page_size
+        self.ad_timeout_connect = ad_timeout_connect
+        self.ad_timeout_read = ad_timeout_read
+        self.ad_fail_fast = ad_fail_fast
