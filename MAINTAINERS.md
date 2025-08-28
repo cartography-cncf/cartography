@@ -2,14 +2,15 @@ See https://github.com/cartography-cncf/cartography/#contributing for general co
 
 ## Maintainers
 
-List of community members who have shown they are committed to Cartography's continued development and are active in pull request reviews and community conversations.
+List of community members who have shown they are committed to Cartography's continued development and are active in pull request reviews and community conversations. Alphabetical order.
 
+- Drishti Aggarwal (https://github.com/d-aggarwal)
 - Alex Chantavy (https://github.com/achantavy)
-- Kunaal Sikka (https://github.com/kunaals)
 - Jérémy Chapeau (https://github.com/jychp)
 - Chandan Chowdhury (https://github.com/chandanchowdhury)
+- Shyam Mukund (https://github.com/shyammukund)
 - Ramon Petgrave (https://github.com/ramonpetgrave64)
-- Drishti Aggarwal (https://github.com/d-aggarwal)
+- Kunaal Sikka (https://github.com/kunaals)
 
 ## Founding maintainers
 
