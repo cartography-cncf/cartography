@@ -8,8 +8,8 @@ List of community members who have shown they are committed to Cartography's con
 - Kunaal Sikka (https://github.com/kunaals)
 - Jérémy Chapeau (https://github.com/jychp)
 - Chandan Chowdhury (https://github.com/chandanchowdhury)
-- Drishti Aggarwal (https://github.com/d-aggarwal)
 - Ramon Petgrave (https://github.com/ramonpetgrave64)
+- Drishti Aggarwal (https://github.com/d-aggarwal)
 
 ## Founding maintainers
 
