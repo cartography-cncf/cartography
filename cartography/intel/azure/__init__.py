@@ -142,9 +142,10 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             subscriptions = subscription.get_all_azure_subscriptions(credentials)
 
         else:
+            sub_id_to_sync = config.azure_subscription_id or credentials.subscription_id
             subscriptions = subscription.get_current_azure_subscription(
                 credentials,
-                credentials.subscription_id,
+                sub_id_to_sync,
             )
 
         if not subscriptions:

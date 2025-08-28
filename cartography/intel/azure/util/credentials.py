@@ -2,6 +2,7 @@ import logging
 from typing import Any
 from typing import Optional
 
+import jwt
 from azure.identity import AzureCliCredential
 from azure.identity import ClientSecretCredential
 from azure.mgmt.resource import SubscriptionClient
@@ -9,11 +10,18 @@ from azure.mgmt.resource import SubscriptionClient
 logger = logging.getLogger(__name__)
 
 
+def _get_tenant_id_from_token(credential: Any) -> str:
+    """
+    A helper function to get the tenant ID from the claims in an access token.
+    """
+    token = credential.get_token("https://management.azure.com/.default")
+    decoded_token = jwt.decode(token.token, options={"verify_signature": False})
+    return decoded_token.get("tid", "")
+
+
 class Credentials:
     """
     A simple data container for the credential object and its associated IDs.
-    All complex token refreshing logic is now handled automatically by the
-    new azure-identity objects.
     """
 
     def __init__(
@@ -40,11 +48,11 @@ class Authenticator:
         try:
             credential = AzureCliCredential()
 
-            # Use the modern SubscriptionClient to get the subscription and tenant ID.
             subscription_client = SubscriptionClient(credential)
             subscription = next(subscription_client.subscriptions.list())
             subscription_id = subscription.subscription_id
-            tenant_id = subscription.tenant_id
+
+            tenant_id = _get_tenant_id_from_token(credential)
 
             return Credentials(
                 credential=credential,
@@ -68,8 +76,6 @@ class Authenticator:
         Implements authentication using a Service Principal with the modern library.
         """
         try:
-            # The `resource=` parameter is part of the old library and is removed.
-            # The new objects handle scoping automatically.
             credential = ClientSecretCredential(
                 client_id=client_id,
                 client_secret=client_secret,
@@ -81,5 +87,11 @@ class Authenticator:
                 subscription_id=subscription_id,
             )
         except Exception as e:
-            logger.error(f"Failed to authenticate with Service Principal: {e}")
+            logger.error(
+                (
+                    "Failed to authenticate with Service Principal. "
+                    "Please ensure the tenant ID, client ID, and client secret are correct. Details: %s"
+                ),
+                e,
+            )
             return None
