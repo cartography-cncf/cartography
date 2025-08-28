@@ -13,7 +13,7 @@ List of community members who have shown they are committed to Cartography's con
 
 ## Founding maintainers
 
-Cartography would not exist without the contributions of these key community members.
+Cartography would not exist without the contributions of these key members. They are not actively involved in reviews anymore, but we acknowledge them here.
 
 - Sacha Faust (https://github.com/sachafaust)
 - Andrew Johnson (https://github.com/SecPrez)
