@@ -7,6 +7,7 @@ import pkgutil
 
 import neo4j
 
+import cartography.intel.analysis
 from cartography.config import Config
 from cartography.intel import create_indexes
 from demo import seeds
@@ -21,7 +22,7 @@ UPDATE_TAG = 0
 logger = logging.getLogger(__name__)
 
 
-def main(force_flag: bool) -> None:
+def main(force_flag: bool, analysis_job_directory: str) -> None:
     # Set up Neo4j connection
     if NEO4J_USER and NEO4J_PASSWORD:
         neo4j_driver = neo4j.GraphDatabase.driver(
@@ -37,6 +38,7 @@ def main(force_flag: bool) -> None:
         neo4j_uri=NEO4J_URL,
         neo4j_user=NEO4J_USER,
         neo4j_password=NEO4J_PASSWORD,
+        analysis_job_directory=analysis_job_directory,
     )
 
     # Check if the database is empty
@@ -102,7 +104,8 @@ def main(force_flag: bool) -> None:
         except Exception:
             logger.exception("Seed %s failed", seed_cls.__name__)
 
-    # TODO: Analysis: blocked due to https://github.com/cartography-cncf/cartography/issues/1591
+    logger.info("Running analysis...")
+    cartography.intel.analysis.run(neo4j_session, config)
 
     # Close the session
     neo4j_session.close()
@@ -143,6 +146,18 @@ You can bypass the confirmation prompt by using the --force flag.
         action="store_true",
         help="Force the script to run without confirmation, even if the database is not empty.",
     )
+    parser.add_argument(
+        "--analysis-job-directory",
+        type=str,
+        default="cartography/data/jobs/analysis",
+        help=(
+            "A path to a directory containing analysis jobs to run at the conclusion of the sync. cartography will "
+            "discover all JSON files in the given directory (and its subdirectories) and pass them to the GraphJob "
+            "API to execute against the graph. This allows you to apply data transformation and augmentation at "
+            "the end of a sync run without writing code. cartography does not guarantee the order in which the "
+            "jobs are executed."
+        ),
+    )
     args = parser.parse_args()
 
     logging.basicConfig()
@@ -153,4 +168,4 @@ You can bypass the confirmation prompt by using the --force flag.
     else:
         logger.setLevel(logging.INFO)
 
-    main(args.force)
+    main(args.force, args.analysis_job_directory)
