@@ -282,7 +282,7 @@ def transform_users(
         )  # iterates through combined bindings and role bindings
         for subject in (
             binding.subjects or []
-        )  # iterating through each bindings subjects to get unique users
+        )  # iterates through each binding's subjects to get unique users
         if subject.kind == "User"
     }
 

@@ -103,7 +103,7 @@ KUBERNETES_CLUSTER_1_ROLE_BINDINGS_RAW = [
             ),
             RbacV1Subject(
                 kind="User",
-                name="john.doe",
+                name="john.doe@company.com",
             ),
             RbacV1Subject(
                 kind="Group",
@@ -389,7 +389,7 @@ KUBERNETES_CLUSTER_2_CLUSTER_ROLE_BINDING_IDS = [
 # Expected User IDs after transformation
 KUBERNETES_CLUSTER_1_USER_IDS = [
     "my-cluster-1/admin@company.com",
-    "my-cluster-1/john.doe",
+    "my-cluster-1/john.doe@company.com",
 ]
 
 KUBERNETES_CLUSTER_2_USER_IDS = [
@@ -429,10 +429,10 @@ RBAC_TEST_NAMESPACES_DATA = [
 MOCK_OKTA_USERS = [
     {
         "id": "okta-user-1",
-        "email": "john.doe",  # Maps to existing K8s user "john.doe"
+        "email": "john.doe@company.com",  # Maps to existing K8s user "john.doe@company.com"
         "firstName": "John",
         "lastName": "Doe",
-        "login": "john.doe",
+        "login": "john.doe@company.com",
         "status": "ACTIVE",
     },
     {

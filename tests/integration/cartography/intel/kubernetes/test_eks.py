@@ -6,12 +6,12 @@ from kubernetes.client.models import V1ConfigMap
 from cartography.intel.aws.iam import load_roles
 from cartography.intel.aws.iam import load_users
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
-from cartography.intel.kubernetes.eks import sync as eks_sync
+from cartography.intel.kubernetes.eks import sync as sync_eks
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_DATA
 from tests.data.kubernetes.eks import MOCK_AWS_ROLES
 from tests.data.kubernetes.eks import MOCK_AWS_USERS
 from tests.data.kubernetes.eks import MOCK_CLUSTER_DATA
-from tests.data.kubernetes.eks import MOCK_OIDC_PROVIDERS
+from tests.data.kubernetes.eks import MOCK_OKTA_PROVIDER
 from tests.data.kubernetes.eks import TEST_ACCOUNT_ID
 from tests.data.kubernetes.eks import TEST_CLUSTER_ID
 from tests.data.kubernetes.eks import TEST_CLUSTER_NAME
@@ -71,7 +71,7 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
     )
 
     # Arrange: Mock OIDC providers
-    mock_get_oidc_provider.return_value = MOCK_OIDC_PROVIDERS
+    mock_get_oidc_provider.return_value = MOCK_OKTA_PROVIDER
 
     # Arrange: Create mock K8s client that returns our test ConfigMap
     mock_k8s_client = MagicMock()
@@ -84,7 +84,7 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
     mock_boto3_session = MagicMock()
 
     # Act: Run EKS sync
-    eks_sync(
+    sync_eks(
         neo4j_session,
         mock_k8s_client,
         mock_boto3_session,
@@ -95,14 +95,11 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
     )
 
     # Assert: Verify AWS Role to Kubernetes User relationships
+    # Note: Only roles WITH explicit usernames should create user relationships
     expected_user_relationships = {
         ("arn:aws:iam::123456789012:role/EKSDevRole", "test-cluster/dev-user"),
         ("arn:aws:iam::123456789012:role/EKSAdminRole", "test-cluster/admin-user"),
         ("arn:aws:iam::123456789012:role/EKSViewerRole", "test-cluster/viewer-user"),
-        (
-            "arn:aws:iam::123456789012:role/EKSServiceRole",
-            "test-cluster/EKSServiceRole",
-        ),  # Defaulted username
     }
 
     actual_user_relationships = check_rels(
@@ -143,14 +140,6 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         ("arn:aws:iam::123456789012:user/alice", "test-cluster/alice-user"),
         ("arn:aws:iam::123456789012:user/bob", "test-cluster/bob-user"),
         ("arn:aws:iam::123456789012:user/charlie", "test-cluster/charlie-user"),
-        (
-            "arn:aws:iam::123456789012:user/dana",
-            "test-cluster/dana",
-        ),  # Defaulted username
-        (
-            "arn:aws:iam::123456789012:user/service-account",
-            "test-cluster/service-account",
-        ),  # Defaulted username
     }
 
     actual_user_user_relationships = check_rels(

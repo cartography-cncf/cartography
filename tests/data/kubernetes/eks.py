@@ -152,7 +152,7 @@ MOCK_AWS_USERS = [
 ]
 
 # Mock OIDC provider data (raw AWS API responses)
-MOCK_OIDC_PROVIDERS = [
+MOCK_OKTA_PROVIDER = [
     {
         "identityProviderConfigName": "auth0-provider",
         "issuerUrl": "https://company.auth0.com/",

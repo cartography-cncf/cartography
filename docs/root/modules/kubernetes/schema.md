@@ -340,7 +340,7 @@ Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/
     ```
 
 ### KubernetesOIDCProvider
-Representation of an external OIDC identity provider infrastructure configuration for a Kubernetes cluster. This node contains the technical configuration details of how the cluster is set up to trust external identity systems (such as Auth0, Okta, Azure AD). The actual identity mapping between external users/groups and Kubernetes RBAC identities is handled by direct relationships from the external identity provider modules.
+Representation of an external OIDC identity provider for a Kubernetes cluster. This node contains the configuration details of how the cluster is set up to trust external identity systems (such as Auth0, Okta, Entra). The ingestion of users/groups from the identity provider is handled by the respective identity provider Cartography module. Then the Kubernetes module creates relationships between those identities and KubernetesUsers and KubernetesGroups.
 
 | Field | Description |
 |-------|-------------|
@@ -361,4 +361,4 @@ Representation of an external OIDC identity provider infrastructure configuratio
     (:KubernetesCluster)-[:TRUSTS]->(:KubernetesOIDCProvider)
     ```
 
-Note: Identity mapping between external OIDC providers (Okta, Auth0, etc.) and Kubernetes users/groups is handled through direct relationships from the external identity provider nodes to Kubernetes nodes, not through the `KubernetesOIDCProvider` infrastructure node.
+Note: Identity mapping between external OIDC providers (Okta, Auth0, etc.) and Kubernetes users/groups is handled through direct relationships from the external identity provider nodes to Kubernetes nodes, not through the `KubernetesOIDCProvider` metadata node.

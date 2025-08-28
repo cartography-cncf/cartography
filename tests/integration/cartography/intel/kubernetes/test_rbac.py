@@ -7,8 +7,6 @@ from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.okta.groups import _load_okta_groups
 from cartography.intel.okta.organization import create_okta_organization
-
-# Import Okta loading functions
 from cartography.intel.okta.users import _load_okta_users
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
@@ -171,7 +169,7 @@ def test_sync_rbac_end_to_end(
     # Assert: Verify User nodes were created with cluster-scoped IDs (OIDC functionality)
     expected_users = {
         (KUBERNETES_CLUSTER_1_USER_IDS[0],),  # "my-cluster-1/admin@company.com"
-        (KUBERNETES_CLUSTER_1_USER_IDS[1],),  # "my-cluster-1/john.doe"
+        (KUBERNETES_CLUSTER_1_USER_IDS[1],),  # "my-cluster-1/john.doe@company.com"
     }
     actual_users = check_nodes(neo4j_session, "KubernetesUser", ["id"])
     assert expected_users.issubset(actual_users)
@@ -284,7 +282,7 @@ def test_sync_rbac_end_to_end(
 
     # Assert: Verify RoleBinding to User relationships (OIDC functionality)
     expected_rb_to_user_rels = {
-        (KUBERNETES_CLUSTER_1_ROLE_BINDING_IDS[0], "my-cluster-1/john.doe"),
+        (KUBERNETES_CLUSTER_1_ROLE_BINDING_IDS[0], KUBERNETES_CLUSTER_1_USER_IDS[1]),
     }
     actual_rb_to_user_rels = check_rels(
         neo4j_session,
@@ -343,8 +341,11 @@ def test_sync_rbac_end_to_end(
 
     # Assert: Verify Okta User to Kubernetes User identity mapping relationships
     expected_okta_user_to_k8s_user_rels = {
-        ("john.doe", "my-cluster-1/john.doe"),  # OktaUser.email -> KubernetesUser.name
-        ("admin@company.com", "my-cluster-1/admin@company.com"),
+        (
+            "john.doe@company.com",
+            KUBERNETES_CLUSTER_1_USER_IDS[1],
+        ),  # OktaUser.email -> KubernetesUser.name
+        ("admin@company.com", KUBERNETES_CLUSTER_1_USER_IDS[0]),
     }
     actual_okta_user_to_k8s_user_rels = check_rels(
         neo4j_session,

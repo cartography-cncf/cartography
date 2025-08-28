@@ -45,7 +45,7 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
         map_roles_yaml = configmap.data["mapRoles"]
         role_mappings = yaml.safe_load(map_roles_yaml) or []
 
-        # Filter out templated entries because these are not real users
+        # Filter out templated entries for now (https://github.com/cartography-cncf/cartography/issues/1854)
         filtered_role_mappings = []
         for mapping in role_mappings:
             username = mapping.get("username", "")
@@ -66,7 +66,6 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
         map_users_yaml = configmap.data["mapUsers"]
         user_mappings = yaml.safe_load(map_users_yaml) or []
 
-        # Filter out templated entries because these are not real users
         filtered_user_mappings = []
         for mapping in user_mappings:
             username = mapping.get("username", "")
@@ -85,19 +84,6 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
     return result
 
 
-def extract_username_from_arn(arn: str) -> str:
-    """
-    Extract username from AWS ARN for defaulting when username is not provided.
-    """
-    if "/role/" in arn:
-        return arn.split("/role/")[-1]
-    elif "/user/" in arn:
-        return arn.split("/user/")[-1]
-    else:
-        # Fallback for any other ARN format
-        return arn.split("/")[-1]
-
-
 def transform_aws_auth_mappings(
     auth_mappings: Dict[str, List[Dict[str, Any]]], cluster_name: str
 ) -> Dict[str, List[Dict[str, Any]]]:
@@ -108,8 +94,8 @@ def transform_aws_auth_mappings(
     all_groups = []
 
     # Process role mappings if they exist
-    if auth_mappings["roles"]:
-        for mapping in auth_mappings["roles"]:
+    if auth_mappings.get("roles"):
+        for mapping in auth_mappings.get("roles", []):
             role_arn = mapping.get("rolearn")
             username = mapping.get("username")
             group_names = mapping.get("groups", [])
@@ -117,16 +103,16 @@ def transform_aws_auth_mappings(
             if not role_arn:
                 continue
 
-            # Create user data with AWS role relationship (always create user)
-            effective_username = username or extract_username_from_arn(role_arn)
-            all_users.append(
-                {
-                    "id": f"{cluster_name}/{effective_username}",
-                    "name": effective_username,
-                    "cluster_name": cluster_name,
-                    "aws_role_arn": role_arn,
-                }
-            )
+            # Create user data with AWS role relationship (only if username is provided)
+            if username:
+                all_users.append(
+                    {
+                        "id": f"{cluster_name}/{username}",
+                        "name": username,
+                        "cluster_name": cluster_name,
+                        "aws_role_arn": role_arn,
+                    }
+                )
 
             # Create group data with AWS role relationship for each group
             for group_name in group_names:
@@ -140,8 +126,8 @@ def transform_aws_auth_mappings(
                 )
 
     # Process user mappings if they exist
-    if auth_mappings["users"]:
-        for mapping in auth_mappings["users"]:
+    if auth_mappings.get("users"):
+        for mapping in auth_mappings.get("users", []):
             user_arn = mapping.get("userarn")
             username = mapping.get("username")
             group_names = mapping.get("groups", [])
@@ -149,16 +135,16 @@ def transform_aws_auth_mappings(
             if not user_arn:
                 continue
 
-            # Create user data with AWS user relationship (always create user)
-            effective_username = username or extract_username_from_arn(user_arn)
-            all_users.append(
-                {
-                    "id": f"{cluster_name}/{effective_username}",
-                    "name": effective_username,
-                    "cluster_name": cluster_name,
-                    "aws_user_arn": user_arn,
-                }
-            )
+            # Create user data with AWS user relationship (only if username is provided)
+            if username:
+                all_users.append(
+                    {
+                        "id": f"{cluster_name}/{username}",
+                        "name": username,
+                        "cluster_name": cluster_name,
+                        "aws_user_arn": user_arn,
+                    }
+                )
 
             # Create group data with AWS user relationship for each group
             for group_name in group_names:
@@ -171,19 +157,26 @@ def transform_aws_auth_mappings(
                     }
                 )
 
-    # Count explicit vs defaulted usernames for better visibility
-    explicit_users = sum(
-        1 for mapping in auth_mappings["roles"] if mapping.get("username")
+    # Count entries with vs without usernames for visibility
+    role_entries_with_username = sum(
+        1 for mapping in auth_mappings.get("roles", []) if mapping.get("username")
     )
-    explicit_users += sum(
-        1 for mapping in auth_mappings["users"] if mapping.get("username")
+    user_entries_with_username = sum(
+        1 for mapping in auth_mappings.get("users", []) if mapping.get("username")
     )
-    defaulted_users = len(all_users) - explicit_users
+    total_entries_with_username = (
+        role_entries_with_username + user_entries_with_username
+    )
+    total_entries = len(auth_mappings.get("roles", [])) + len(
+        auth_mappings.get("users", [])
+    )
+    entries_without_username = total_entries - total_entries_with_username
 
     logger.info(
-        f"Transformed {len(all_users)} total users ({explicit_users} explicit, {defaulted_users} defaulted) "
-        f"and {len(all_groups)} total groups from {len(auth_mappings['roles'])} role mappings "
-        f"and {len(auth_mappings['users'])} user mappings"
+        f"Transformed {len(all_users)} users (from {total_entries_with_username} entries with usernames) "
+        f"and {len(all_groups)} groups from {len(auth_mappings.get('roles', []))} role mappings "
+        f"and {len(auth_mappings.get('users', []))} user mappings "
+        f"({entries_without_username} entries without usernames created groups only)"
     )
 
     return {"users": all_users, "groups": all_groups}
@@ -254,7 +247,6 @@ def transform_oidc_provider(
             "client_id": provider.get("clientId", ""),
             "status": provider.get("status", "UNKNOWN"),
             "name": provider_name,
-            "arn": provider.get("identityProviderConfigArn", ""),
         }
 
         transformed_providers.append(transformed_provider)
@@ -359,7 +351,7 @@ def sync(
     auth_mappings = parse_aws_auth_map(configmap)
 
     # Transform and load both role and user mappings
-    if auth_mappings["roles"] or auth_mappings["users"]:
+    if auth_mappings.get("roles") or auth_mappings.get("users"):
         transformed_data = transform_aws_auth_mappings(auth_mappings, cluster_name)
         load_aws_auth_mappings(
             neo4j_session,
@@ -370,8 +362,8 @@ def sync(
             cluster_name,
         )
         logger.info(
-            f"Successfully synced {len(auth_mappings['roles'])} AWS IAM role mappings "
-            f"and {len(auth_mappings['users'])} AWS IAM user mappings"
+            f"Successfully synced {len(auth_mappings.get('roles', []))} AWS IAM role mappings "
+            f"and {len(auth_mappings.get('users', []))} AWS IAM user mappings"
         )
     else:
         logger.info("No role or user mappings found in aws-auth ConfigMap")

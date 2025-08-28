@@ -15,15 +15,10 @@ class KubernetesOIDCProviderNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     issuer_url: PropertyRef = PropertyRef("issuer_url")
     cluster_name: PropertyRef = PropertyRef("cluster_name")
-    k8s_platform: PropertyRef = PropertyRef(
-        "k8s_platform"
-    )  # right now we just have eks as a platform
+    k8s_platform: PropertyRef = PropertyRef("k8s_platform")
     client_id: PropertyRef = PropertyRef("client_id")
     status: PropertyRef = PropertyRef("status")
     name: PropertyRef = PropertyRef("name")
-    arn: PropertyRef = PropertyRef(
-        "arn"
-    )  # AWSEKS-specific, will be None for other platforms
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
