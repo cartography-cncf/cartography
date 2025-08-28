@@ -36,6 +36,41 @@ Representation of a vulnerability finding in a container image.
     (TrivyImageFinding)-[AFFECTS]->(ECRImage)
     ```
 
+### ImageLayer
+Representation of a container image layer derived from Trivy's uncompressed rootfs diff IDs.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier for the layer (the `diff_id`) |
+| diff_id | Uncompressed rootfs diff ID (e.g., `sha256:...`) |
+
+#### Relationships
+
+- Layer adjacency in build order (head to tail):
+
+    ```
+    (ImageLayer)-[NEXT]->(ImageLayer)
+    ```
+
+- Image head/tail attachment:
+
+    ```
+    (ECRImage)-[HEAD]->(ImageLayer)
+    (ECRImage)-[TAIL]->(ImageLayer)
+    ```
+
+- Package attribution (when Trivy provides `.Layer.DiffID`):
+
+    ```
+    (Package)-[INTRODUCED_IN]->(ImageLayer)
+    ```
+
+Notes:
+- ECRImages also have a derived property `length` indicating the number of layers (diff_ids).
+- Layers are shared across images; cleanup does not remove layers by default unless they become orphaned (see lineage docs).
+
 ### Package
 Representation of a package installed in a container image.
 
@@ -64,6 +99,12 @@ Representation of a package installed in a container image.
     (Package)<-[AFFECTS]-(TrivyImageFinding)
     ```
 
+- A Package is attributed to the layer that introduced it when available.
+
+    ```
+    (Package)-[INTRODUCED_IN]->(ImageLayer)
+    ```
+
 ### TrivyFix
 Representation of a fix for a vulnerability.
 
@@ -89,3 +130,10 @@ Representation of a fix for a vulnerability.
     ```
     (TrivyFix)-[APPLIES_TO]->(TrivyImageFinding)
     ```
+
+### Image lineage
+Derived from the ImageLayer chain using longest-prefix base matching. See the lineage page for details.
+
+``` 
+(child:ECRImage)-[BUILT_FROM]->(base:ECRImage)
+```

@@ -77,6 +77,7 @@ CREATE INDEX IF NOT EXISTS FOR (n:EC2ReservedInstance) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:ECRImage) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:ECRImage) ON (n.digest);
 CREATE INDEX IF NOT EXISTS FOR (n:ECRImage) ON (n.lastupdated);
+CREATE INDEX IF NOT EXISTS FOR (n:ECRImage) ON (n.length);
 CREATE INDEX IF NOT EXISTS FOR (n:ECRRepository) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:ECRRepository) ON (n.name);
 CREATE INDEX IF NOT EXISTS FOR (n:ECRRepository) ON (n.uri);
