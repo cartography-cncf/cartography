@@ -31,7 +31,7 @@ Maintainers who have worked on Cartography but are no longer actively involved i
 
 ## Friends of Cartography
 
-Not maintainers but are continually active in discussions and offer subject matter expertise or community advocacy (e.g. writing blog posts)
+Not maintainers but these members have been active in discussions and offer subject matter expertise or community advocacy (e.g. writing blog posts)
 
 - Daniel D'Agostino (https://github.com/danielsaporo): Deployment and use-cases
 - Ashley Lowde (https://github.com/alowde-ps): Deployment and use-cases
