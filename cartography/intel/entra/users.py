@@ -1,5 +1,7 @@
 import logging
-from typing import Any, AsyncGenerator, Generator
+from typing import Any
+from typing import AsyncGenerator
+from typing import Generator
 
 import neo4j
 from azure.identity import ClientSecretCredential
@@ -241,17 +243,19 @@ async def sync_entra_users(
     load_tenant(neo4j_session, transformed_tenant, update_tag)
 
     # Process users in batches to reduce memory consumption
-    batch_size = 500  # Process users in larger batches since they're simpler than groups
+    batch_size = (
+        500  # Process users in larger batches since they're simpler than groups
+    )
     users_batch = []
-    
+
     async for user in get_users(client):
         users_batch.append(user)
-        
+
         if len(users_batch) >= batch_size:
             transformed_users = list(transform_users(users_batch))
             load_users(neo4j_session, transformed_users, tenant_id, update_tag)
             users_batch.clear()
-    
+
     # Process any remaining users
     if users_batch:
         transformed_users = list(transform_users(users_batch))

@@ -1,6 +1,8 @@
 # cartography/intel/entra/ou.py
 import logging
-from typing import Any, AsyncGenerator, Generator
+from typing import Any
+from typing import AsyncGenerator
+from typing import Generator
 
 import neo4j
 from azure.identity import ClientSecretCredential
@@ -17,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-async def get_entra_ous(client: GraphServiceClient) -> AsyncGenerator[AdministrativeUnit, None]:
+async def get_entra_ous(
+    client: GraphServiceClient,
+) -> AsyncGenerator[AdministrativeUnit, None]:
     """
     Get all OUs from Microsoft Graph API with pagination support using a generator
     """
@@ -116,15 +120,17 @@ async def sync_entra_ous(
     # Process OUs in batches
     batch_size = 100  # OUs are typically fewer than users/groups
     units_batch = []
-    
+
     async for unit in get_entra_ous(client):
         units_batch.append(unit)
-        
+
         if len(units_batch) >= batch_size:
             transformed_units = list(transform_ous(units_batch, tenant_id))
-            load_ous(neo4j_session, transformed_units, update_tag, common_job_parameters)
+            load_ous(
+                neo4j_session, transformed_units, update_tag, common_job_parameters
+            )
             units_batch.clear()
-    
+
     # Process any remaining OUs
     if units_batch:
         transformed_units = list(transform_ous(units_batch, tenant_id))

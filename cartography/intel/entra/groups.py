@@ -1,5 +1,7 @@
 import logging
-from typing import Any, AsyncGenerator, Generator
+from typing import Any
+from typing import AsyncGenerator
+from typing import Generator
 
 import neo4j
 from azure.identity import ClientSecretCredential
@@ -147,7 +149,7 @@ async def sync_entra_groups(
     # Collect groups in batches to avoid loading all at once
     groups_batch = []
     batch_size = 100  # Process groups in batches
-    
+
     user_member_map: dict[str, list[str]] = {}
     group_member_map: dict[str, list[str]] = {}
     group_owner_map: dict[str, list[str]] = {}
@@ -155,11 +157,11 @@ async def sync_entra_groups(
     # First pass: collect groups and their owners/members
     async for group in get_entra_groups(client):
         groups_batch.append(group)
-        
+
         # Fetch owners and members for this group
         owners = await get_group_owners(client, group.id)
         group_owner_map[group.id] = owners
-        
+
         try:
             users, subgroups = await get_group_members(client, group.id)
             user_member_map[group.id] = users
@@ -168,30 +170,34 @@ async def sync_entra_groups(
             logger.error(f"Failed to fetch members for group {group.id}: {e}")
             user_member_map[group.id] = []
             group_member_map[group.id] = []
-        
+
         # Process batch when it reaches the size limit
         if len(groups_batch) >= batch_size:
-            transformed_groups = list(transform_groups(
-                groups_batch, user_member_map, group_member_map, group_owner_map
-            ))
+            transformed_groups = list(
+                transform_groups(
+                    groups_batch, user_member_map, group_member_map, group_owner_map
+                )
+            )
             if groups_batch == groups_batch[:batch_size]:  # First batch
                 load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
             load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
-            
+
             # Clear the batch and maps for processed groups
             for g in groups_batch:
                 user_member_map.pop(g.id, None)
                 group_member_map.pop(g.id, None)
                 group_owner_map.pop(g.id, None)
             groups_batch.clear()
-    
+
     # Process any remaining groups
     if groups_batch:
-        transformed_groups = list(transform_groups(
-            groups_batch, user_member_map, group_member_map, group_owner_map
-        ))
+        transformed_groups = list(
+            transform_groups(
+                groups_batch, user_member_map, group_member_map, group_owner_map
+            )
+        )
         if not user_member_map:  # If this is the only batch
             load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
         load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
-    
+
     cleanup_groups(neo4j_session, common_job_parameters)
