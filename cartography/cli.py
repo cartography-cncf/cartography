@@ -395,6 +395,12 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--managed-kubernetes",
+            default=None,
+            type=str,
+            help=("Type of managed Kubernetes service (e.g., 'eks'). Optional."),
+        )
+        parser.add_argument(
             "--nist-cve-url",
             type=str,
             default="https://services.nvd.nist.gov/rest/json/cves/2.0/",
