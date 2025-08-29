@@ -1,4 +1,5 @@
 import logging
+from itertools import chain
 from typing import Any
 from typing import Dict
 from typing import List
@@ -19,9 +20,11 @@ from cartography.models.kubernetes.clusterrolebindings import (
     KubernetesClusterRoleBindingSchema,
 )
 from cartography.models.kubernetes.clusterroles import KubernetesClusterRoleSchema
+from cartography.models.kubernetes.groups import KubernetesGroupSchema
 from cartography.models.kubernetes.rolebindings import KubernetesRoleBindingSchema
 from cartography.models.kubernetes.roles import KubernetesRoleSchema
 from cartography.models.kubernetes.serviceaccounts import KubernetesServiceAccountSchema
+from cartography.models.kubernetes.users import KubernetesUserSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -263,6 +266,62 @@ def transform_cluster_role_bindings(
     return result
 
 
+def transform_users(
+    role_bindings: List[V1RoleBinding],
+    cluster_role_bindings: List[V1ClusterRoleBinding],
+    cluster_name: str,
+) -> List[Dict[str, Any]]:
+    """
+    Transform Kubernetes Users from RoleBindings and ClusterRoleBindings into a list of dicts.
+    """
+    # Extract all users from rolebindings and clusterrolebindings
+    all_users = {
+        subject.name
+        for binding in chain(
+            role_bindings, cluster_role_bindings
+        )  # iterate through combined bindings and role bindings
+        for subject in (
+            binding.subjects or []
+        )  # iterates through each binding's subjects to get unique users
+        if subject.kind == "User"
+    }
+
+    return [
+        {
+            "id": f"{cluster_name}/{user_name}",
+            "name": user_name,
+            "cluster_name": cluster_name,
+        }
+        for user_name in sorted(all_users)
+    ]
+
+
+def transform_groups(
+    role_bindings: List[V1RoleBinding],
+    cluster_role_bindings: List[V1ClusterRoleBinding],
+    cluster_name: str,
+) -> List[Dict[str, Any]]:
+    """
+    Transform Kubernetes Groups from RoleBindings and ClusterRoleBindings into a list of dicts.
+    """
+    # Extract all groups from rolebindings and clusterrolebindings
+    all_groups = {
+        subject.name
+        for binding in chain(role_bindings, cluster_role_bindings)
+        for subject in (binding.subjects or [])
+        if subject.kind == "Group"
+    }
+
+    return [
+        {
+            "id": f"{cluster_name}/{group_name}",
+            "name": group_name,
+            "cluster_name": cluster_name,
+        }
+        for group_name in sorted(all_groups)
+    ]
+
+
 @timeit
 def load_service_accounts(
     session: neo4j.Session,
@@ -359,6 +418,44 @@ def load_cluster_role_bindings(
 
 
 @timeit
+def load_users(
+    session: neo4j.Session,
+    users: List[Dict[str, Any]],
+    update_tag: int,
+    cluster_id: str,
+    cluster_name: str,
+) -> None:
+    logger.info(f"Loading {len(users)} KubernetesUsers")
+    load(
+        session,
+        KubernetesUserSchema(),
+        users,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
+        CLUSTER_NAME=cluster_name,
+    )
+
+
+@timeit
+def load_groups(
+    session: neo4j.Session,
+    groups: List[Dict[str, Any]],
+    update_tag: int,
+    cluster_id: str,
+    cluster_name: str,
+) -> None:
+    logger.info(f"Loading {len(groups)} KubernetesGroups")
+    load(
+        session,
+        KubernetesGroupSchema(),
+        groups,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
+        CLUSTER_NAME=cluster_name,
+    )
+
+
+@timeit
 def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
     logger.debug("Running cleanup job for Kubernetes RBAC resources")
     cleanup_job = GraphJob.from_node_schema(
@@ -383,6 +480,16 @@ def cleanup(session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> No
 
     cleanup_job = GraphJob.from_node_schema(
         KubernetesClusterRoleBindingSchema(), common_job_parameters
+    )
+    cleanup_job.run(session)
+
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesUserSchema(), common_job_parameters
+    )
+    cleanup_job.run(session)
+
+    cleanup_job = GraphJob.from_node_schema(
+        KubernetesGroupSchema(), common_job_parameters
     )
     cleanup_job.run(session)
 
@@ -418,8 +525,34 @@ def sync_kubernetes_rbac(
         cluster_role_bindings, client.name
     )
 
+    # Transform users from all bindings
+    transformed_users = transform_users(
+        role_bindings, cluster_role_bindings, client.name
+    )
+
+    # Transform groups from all bindings
+    transformed_groups = transform_groups(
+        role_bindings, cluster_role_bindings, client.name
+    )
+
     cluster_id = common_job_parameters["CLUSTER_ID"]
     cluster_name = client.name
+
+    load_users(
+        session=session,
+        users=transformed_users,
+        update_tag=update_tag,
+        cluster_id=cluster_id,
+        cluster_name=cluster_name,
+    )
+
+    load_groups(
+        session=session,
+        groups=transformed_groups,
+        update_tag=update_tag,
+        cluster_id=cluster_id,
+        cluster_name=cluster_name,
+    )
 
     load_service_accounts(
         session=session,
