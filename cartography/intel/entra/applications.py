@@ -42,10 +42,6 @@ HIGH_ASSIGNMENT_COUNT_THRESHOLD = 1000
 # Set high to get all data, memory is managed by streaming and batching
 MAX_ASSIGNMENT_PAGES_PER_APP = 500
 
-# Maximum assignments to fetch per application
-# Set high to get all data, memory is managed by streaming and batching
-MAX_ASSIGNMENTS_PER_APP = 100000
-
 
 @timeit
 async def get_entra_applications(
@@ -165,17 +161,6 @@ async def get_app_role_assignments_for_app(
 
                 # Process assignments and immediately yield to avoid accumulation
                 for i, assignment in enumerate(assignments_page.value):
-                    # Safety check: limit total assignments
-                    if assignment_count >= MAX_ASSIGNMENTS_PER_APP:
-                        logger.warning(
-                            f"Reached maximum assignment limit ({MAX_ASSIGNMENTS_PER_APP}) for application {app.display_name} ({app.app_id}). "
-                            f"Stopping to prevent memory issues."
-                        )
-                        # Clear references before returning
-                        assignments_page = None
-                        gc.collect()
-                        return
-
                     # Only yield if we have valid data since it's possible (but unlikely) for assignment.id to be None
                     if assignment.principal_id:
                         assignment_count += 1
@@ -199,7 +184,7 @@ async def get_app_role_assignments_for_app(
 
                 # Log page results with details about skipped objects
                 if page_skipped_count > 0:
-                    logger.debug(
+                    logger.warning(
                         f"Page {page_count} for {app.display_name}: {page_valid_count} valid assignments, "
                         f"{page_skipped_count} skipped objects. Total valid: {assignment_count}"
                     )
