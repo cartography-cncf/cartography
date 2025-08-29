@@ -9,6 +9,9 @@ import neo4j
 from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
 from msgraph.generated.models.app_role_assignment import AppRoleAssignment
+from msgraph.generated.models.app_role_assignment_collection_response import (
+    AppRoleAssignmentCollectionResponse,
+)
 from msgraph.generated.models.application import Application
 from msgraph.graph_service_client import GraphServiceClient
 
@@ -136,9 +139,11 @@ async def get_app_role_assignments_for_app(
             )
         )
 
-        assignments_page = await client.service_principals.by_service_principal_id(
-            service_principal.id
-        ).app_role_assigned_to.get(request_configuration=request_config)
+        assignments_page: AppRoleAssignmentCollectionResponse | None = (
+            await client.service_principals.by_service_principal_id(
+                service_principal.id
+            ).app_role_assigned_to.get(request_configuration=request_config)
+        )
 
         assignment_count = 0
         page_count = 0
@@ -160,11 +165,6 @@ async def get_app_role_assignments_for_app(
 
                 # Process assignments and immediately yield to avoid accumulation
                 for i, assignment in enumerate(assignments_page.value):
-                    # Skip if this is not an app role assignment (might be a ServicePrincipal object)
-                    if not hasattr(assignment, "principal_id"):
-                        page_skipped_count += 1
-                        continue
-
                     # Safety check: limit total assignments
                     if assignment_count >= MAX_ASSIGNMENTS_PER_APP:
                         logger.warning(
@@ -176,12 +176,11 @@ async def get_app_role_assignments_for_app(
                         gc.collect()
                         return
 
-                    # Create minimal assignment dict to reduce memory
-                    # Using typed Microsoft Graph API objects
-                    minimal_assignment = type(
-                        "MinimalAssignment",
-                        (),
-                        {
+                    # Only yield if we have valid data since it's possible (but unlikely) for assignment.id to be None
+                    if assignment.principal_id:
+                        assignment_count += 1
+                        page_valid_count += 1
+                        yield {
                             "id": assignment.id,
                             "app_role_id": assignment.app_role_id,
                             "created_date_time": assignment.created_date_time,
@@ -191,14 +190,7 @@ async def get_app_role_assignments_for_app(
                             "resource_display_name": assignment.resource_display_name,
                             "resource_id": assignment.resource_id,
                             "application_app_id": app.app_id,
-                        },
-                    )()
-
-                    # Only yield if we have valid data
-                    if minimal_assignment.principal_id:
-                        assignment_count += 1
-                        page_valid_count += 1
-                        yield minimal_assignment
+                        }
                     else:
                         page_skipped_count += 1
 
@@ -250,19 +242,6 @@ async def get_app_role_assignments_for_app(
                 assignments_page = await client.service_principals.with_url(
                     next_page_url
                 ).get()
-
-                # Check if we got a different response type
-                if (
-                    assignments_page
-                    and hasattr(assignments_page, "value")
-                    and assignments_page.value
-                ):
-                    first_item_type = type(assignments_page.value[0]).__name__
-                    if first_item_type != "AppRoleAssignment":
-                        logger.info(
-                            f"Page {page_count + 1} returned {first_item_type} objects instead of AppRoleAssignment. "
-                            f"This might indicate an API limitation for {app.display_name}."
-                        )
 
             except Exception as e:
                 logger.error(
