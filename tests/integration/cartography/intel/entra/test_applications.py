@@ -1,10 +1,10 @@
-from unittest.mock import AsyncMock
 from unittest.mock import patch
 
 import pytest
 
 import cartography.intel.entra.applications
 from cartography.intel.entra.applications import sync_entra_applications
+from cartography.intel.entra.users import load_tenant
 from tests.data.entra.applications import MOCK_APP_ROLE_ASSIGNMENTS
 from tests.data.entra.applications import MOCK_ENTRA_APPLICATIONS
 from tests.data.entra.applications import TEST_CLIENT_ID
@@ -51,16 +51,42 @@ def _prepare_mock_assignments():
     return assignments
 
 
+async def _mock_get_entra_applications(client):
+    """Mock async generator for get_entra_applications"""
+    for app in MOCK_ENTRA_APPLICATIONS:
+        yield app
+
+
+async def _mock_get_app_role_assignments_for_app(client, app):
+    """Mock async generator for get_app_role_assignments_for_app"""
+    # Return assignments that match this app
+    assignments = _prepare_mock_assignments()
+
+    for assignment in assignments:
+        if assignment.resource_display_name == app.display_name:
+            # Convert AppRoleAssignment object to dict to match refactored function
+            yield {
+                "id": assignment.id,
+                "app_role_id": assignment.app_role_id,
+                "created_date_time": assignment.created_date_time,
+                "principal_id": assignment.principal_id,
+                "principal_display_name": assignment.principal_display_name,
+                "principal_type": assignment.principal_type,
+                "resource_display_name": assignment.resource_display_name,
+                "resource_id": assignment.resource_id,
+                "application_app_id": assignment.application_app_id,
+            }
+
+
 @patch.object(
     cartography.intel.entra.applications,
-    "get_app_role_assignments",
-    new_callable=AsyncMock,
+    "get_app_role_assignments_for_app",
+    side_effect=_mock_get_app_role_assignments_for_app,
 )
 @patch.object(
     cartography.intel.entra.applications,
     "get_entra_applications",
-    new_callable=AsyncMock,
-    return_value=MOCK_ENTRA_APPLICATIONS,
+    side_effect=_mock_get_entra_applications,
 )
 @pytest.mark.asyncio
 async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_session):
@@ -68,8 +94,8 @@ async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_ses
     Ensure that applications actually get loaded and connected to tenant,
     and both user-app and group-app relationships exist
     """
-    # Setup mock data with application_app_id
-    mock_get_assignments.return_value = _prepare_mock_assignments()
+    # Arrange: Load tenant as prerequisite
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
 
     # Setup test data - create users and groups for relationship testing
     _ensure_local_neo4j_has_test_users(neo4j_session)

@@ -5,6 +5,7 @@ import pytest
 
 import cartography.intel.entra.groups
 from cartography.intel.entra.groups import sync_entra_groups
+from cartography.intel.entra.users import load_tenant
 from cartography.intel.entra.users import load_users
 from cartography.intel.entra.users import transform_users
 from tests.data.entra.groups import MOCK_ENTRA_GROUPS
@@ -43,11 +44,16 @@ def mock_get_group_owners_side_effect(client, group_id: str) -> list[str]:
         return []
 
 
+async def _mock_get_entra_groups(client):
+    """Mock async generator for get_entra_groups"""
+    for group in MOCK_ENTRA_GROUPS:
+        yield group
+
+
 @patch.object(
     cartography.intel.entra.groups,
     "get_entra_groups",
-    new_callable=AsyncMock,
-    return_value=MOCK_ENTRA_GROUPS,
+    side_effect=_mock_get_entra_groups,
 )
 @patch.object(
     cartography.intel.entra.groups,
@@ -66,14 +72,16 @@ async def test_sync_entra_groups(
     mock_get_owners, mock_get_members, mock_get_groups, neo4j_session
 ):
     """Ensure groups and relationships load"""
-    # Load users first for membership relationships
+    # Arrange: load tenant and users
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
     load_users(
         neo4j_session,
-        transform_users(MOCK_ENTRA_USERS),
+        list(transform_users(MOCK_ENTRA_USERS)),
         TEST_TENANT_ID,
         TEST_UPDATE_TAG,
     )
 
+    # Act:
     await sync_entra_groups(
         neo4j_session,
         TEST_TENANT_ID,
@@ -83,6 +91,7 @@ async def test_sync_entra_groups(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
 
+    # Assert
     expected_nodes = {
         ("11111111-1111-1111-1111-111111111111", "Security Team"),
         ("22222222-2222-2222-2222-222222222222", "Developers"),

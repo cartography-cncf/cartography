@@ -4,11 +4,13 @@ from unittest.mock import patch
 import cartography.intel.aws.apigateway
 import tests.data.aws.apigateway
 from cartography.client.core.tx import load
-from cartography.models.aws.apigatewaycertificate import (
+from cartography.models.aws.apigateway.apigatewaycertificate import (
     APIGatewayClientCertificateSchema,
 )
-from cartography.models.aws.apigatewayresource import APIGatewayResourceSchema
-from cartography.models.aws.apigatewaystage import APIGatewayStageSchema
+from cartography.models.aws.apigateway.apigatewayresource import (
+    APIGatewayResourceSchema,
+)
+from cartography.models.aws.apigateway.apigatewaystage import APIGatewayStageSchema
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -281,6 +283,11 @@ def test_load_apigateway_resources_relationships(neo4j_session):
 
 @patch.object(
     cartography.intel.aws.apigateway,
+    "get_rest_api_deployments",
+    return_value=tests.data.aws.apigateway.GET_REST_API_DEPLOYMENTS,
+)
+@patch.object(
+    cartography.intel.aws.apigateway,
     "get_apigateway_rest_apis",
     return_value=tests.data.aws.apigateway.GET_REST_APIS,
 )
@@ -289,7 +296,9 @@ def test_load_apigateway_resources_relationships(neo4j_session):
     "get_rest_api_details",
     return_value=tests.data.aws.apigateway.GET_REST_API_DETAILS,
 )
-def test_sync_apigateway(mock_get_details, mock_get_apis, neo4j_session):
+def test_sync_apigateway(
+    mock_get_details, mock_get_apis, mock_get_deployments, neo4j_session
+):
     """
     Verify that API Gateway resources are properly synced
     """
@@ -332,6 +341,11 @@ def test_sync_apigateway(mock_get_details, mock_get_apis, neo4j_session):
     # Assert Resources exist
     assert check_nodes(neo4j_session, "APIGatewayResource", ["id"]) == {
         ("3kzxbg5sa2",),
+    }
+
+    assert check_nodes(neo4j_session, "APIGatewayDeployment", ["id"]) == {
+        ("test-001/dep1",),
+        ("test-002/dep2",),
     }
 
     # Assert AWS Account to REST API relationships
@@ -386,4 +400,30 @@ def test_sync_apigateway(mock_get_details, mock_get_apis, neo4j_session):
         rel_direction_right=True,
     ) == {
         (TEST_ACCOUNT_ID, "3kzxbg5sa2"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "APIGatewayDeployment",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "test-001/dep1"),
+        (TEST_ACCOUNT_ID, "test-002/dep2"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "APIGatewayRestAPI",
+        "id",
+        "APIGatewayDeployment",
+        "id",
+        "HAS_DEPLOYMENT",
+        rel_direction_right=True,
+    ) == {
+        ("test-001", "test-001/dep1"),
+        ("test-002", "test-002/dep2"),
     }

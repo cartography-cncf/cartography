@@ -1,5 +1,7 @@
 import logging
 from dataclasses import asdict
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version
 from string import Template
 from typing import Dict
 from typing import List
@@ -223,6 +225,8 @@ def _build_attach_sub_resource_statement(
         $RelMergeClause
         ON CREATE SET r.firstseen = timestamp()
         SET
+            r._module_name = "$module_name",
+            r._module_version = "$module_version",
             $set_rel_properties_statement
         """,
     )
@@ -244,6 +248,8 @@ def _build_attach_sub_resource_statement(
         SubResourceLabel=sub_resource_link.target_node_label,
         MatchClause=_build_match_clause(sub_resource_link.target_node_matcher),
         RelMergeClause=rel_merge_clause,
+        module_name=_get_module_from_schema(sub_resource_link),
+        module_version=_get_cartography_version(),
         SubResourceRelLabel=sub_resource_link.rel_label,
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
@@ -278,6 +284,8 @@ def _build_attach_additional_links_statement(
         $RelMerge
         ON CREATE SET $rel_var.firstseen = timestamp()
         SET
+            $rel_var._module_name = "$module_name",
+            $rel_var._module_version = "$module_version",
             $set_rel_properties_statement
         """,
     )
@@ -312,6 +320,8 @@ def _build_attach_additional_links_statement(
             node_var=node_var,
             rel_var=rel_var,
             RelMerge=rel_merge,
+            module_name=_get_module_from_schema(link),
+            module_version=_get_cartography_version(),
             set_rel_properties_statement=_build_rel_properties_statement(
                 rel_var,
                 rel_props_as_dict,
@@ -453,6 +463,8 @@ def build_ingestion_query(
             MERGE (i:$node_label{id: $dict_id_field})
             ON CREATE SET i.firstseen = timestamp()
             SET
+                i._module_name = "$module_name",
+                i._module_version = "$module_version",
                 $set_node_properties_statement
             $attach_relationships_statement
         """,
@@ -475,6 +487,8 @@ def build_ingestion_query(
     ingest_query = query_template.safe_substitute(
         node_label=node_schema.label,
         dict_id_field=node_props.id,
+        module_name=_get_module_from_schema(node_schema),
+        module_version=_get_cartography_version(),
         set_node_properties_statement=_build_node_properties_statement(
             node_props_as_dict,
             node_schema.extra_node_labels,
@@ -650,6 +664,8 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
             MERGE $rel
             ON CREATE SET r.firstseen = timestamp()
             SET
+                r._module_name = "$module_name",
+                r._module_version = "$module_version",
                 $set_rel_properties_statement;
         """
     )
@@ -677,8 +693,62 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         source_match=source_match,
         target_match=target_match,
         rel=rel,
+        module_name=_get_module_from_schema(rel_schema),
+        module_version=_get_cartography_version(),
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
             rel_props_as_dict,
         ),
     )
+
+
+def _get_cartography_version() -> str:
+    """
+    Get the current version of the cartography package.
+
+    This function attempts to retrieve the version of the installed cartography package
+    using importlib.metadata. If the package is not found (typically in development
+    or testing environments), it returns 'dev' as a fallback.
+
+    Returns:
+        The version string of the cartography package, or 'dev' if not found
+    """
+    try:
+        return version("cartography")
+    except PackageNotFoundError:
+        # This can occured if the cartography package is not installed in the environment, typically in development or testing environments.
+        logger.warning("cartography package not found. Returning 'dev' version.")
+        # Fallback to reading the VERSION file if the package is not found
+        return "dev"
+
+
+def _get_module_from_schema(
+    schema,  #: "CartographyNodeSchema" | "CartographyRelSchema",
+) -> str:
+    """
+    Extract the module name from a Cartography schema object.
+
+    This function extracts and formats the module name from a CartographyNodeSchema
+    or CartographyRelSchema object. It expects schemas to be part of the official
+    cartography.models package hierarchy and returns a formatted string indicating
+    the specific cartography module.
+
+    Args:
+        schema: A CartographyNodeSchema or CartographyRelSchema object
+
+    Returns:
+        A formatted module name string in the format 'cartography:<module_name>'
+        or 'unknown:<full_module_path>' if the schema is not from cartography.models
+    """
+    # If the entity schema does not belong to the cartography.models package,
+    # we log a warning and return the full module path.
+    if not schema.__module__.startswith("cartography.models."):
+        logger.warning(
+            "The schema %s does not start with 'cartography.models.'. "
+            "This may indicate that the schema is not part of the official cartography models.",
+            schema.__module__,
+        )
+        return f"unknown:{schema.__module__}"
+    # Otherwise, we return the module path as a string.
+    parts = schema.__module__.split(".")
+    return f"cartography:{parts[2]}"

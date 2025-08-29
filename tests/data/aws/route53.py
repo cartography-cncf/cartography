@@ -176,3 +176,101 @@ ELASTIC_IP_RELATIONSHIP_TEST_RECORDS = [
         ],
     ),
 ]
+
+GET_ZONES_WITH_SUBZONE = [
+    (
+        {
+            "Id": "/hostedzone/PARENT_ZONE",
+            "Name": "example.com.",
+            "ResourceRecordSetCount": 2,
+            "Config": {"PrivateZone": False},
+        },
+        [
+            {
+                "Name": "example.com.",
+                "Type": "A",
+                "ResourceRecords": [{"Value": "1.2.3.4"}],
+            },
+            # This is the crucial delegation record in the parent zone
+            {
+                "Name": "sub.example.com.",
+                "Type": "NS",
+                "ResourceRecords": [{"Value": "ns-of-the-subzone.com."}],
+            },
+        ],
+    ),
+    (
+        {
+            "Id": "/hostedzone/SUB_ZONE",
+            "Name": "sub.example.com.",
+            "ResourceRecordSetCount": 2,
+            "Config": {"PrivateZone": False},
+        },
+        [
+            {
+                "Name": "sub.example.com.",
+                "Type": "NS",
+                "ResourceRecords": [{"Value": "ns-of-the-subzone.com."}],
+            },
+            {
+                "Name": "test.sub.example.com.",
+                "Type": "A",
+                "ResourceRecords": [{"Value": "5.6.7.8"}],
+            },
+        ],
+    ),
+]
+
+GET_ZONES_FOR_CYCLE_TEST = [
+    (
+        # The Parent Zone
+        {
+            "Id": "/hostedzone/PARENT_ZONE",
+            "Name": "example.com.",
+            "ResourceRecordSetCount": 1,
+            "Config": {"PrivateZone": False},
+        },
+        [
+            # This NS record correctly delegates the subzone
+            {
+                "Name": "sub.example.com.",
+                "Type": "NS",
+                "ResourceRecords": [{"Value": "ns.shared-nameserver.com."}],
+            },
+        ],
+    ),
+    (
+        # The valid Subzone
+        {
+            "Id": "/hostedzone/SUB_ZONE",
+            "Name": "sub.example.com.",
+            "ResourceRecordSetCount": 1,
+            "Config": {"PrivateZone": False},
+        },
+        [
+            # The subzone's own NS record, pointing to the shared nameserver
+            {
+                "Name": "sub.example.com.",
+                "Type": "NS",
+                "ResourceRecords": [{"Value": "ns.shared-nameserver.com."}],
+            },
+        ],
+    ),
+    (
+        # The unrelated Zone that would have caused the bug
+        {
+            "Id": "/hostedzone/UNRELATED_ZONE",
+            "Name": "unrelated.io.",
+            "ResourceRecordSetCount": 1,
+            "Config": {"PrivateZone": False},
+        },
+        [
+            # This zone ALSO uses the same nameserver
+            {
+                "Name": "unrelated.io.",
+                "Type": "NS",
+                "ResourceRecords": [{"Value": "ns.shared-nameserver.com."}],
+            },
+        ],
+    ),
+]

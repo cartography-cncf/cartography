@@ -23,7 +23,6 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-TEST_CONNECTIONID = "CHANGEME"
 TEST_ORG_ID = "31634962-4b3c-4b0c-810d-a2a77d6df222"
 
 
