@@ -78,13 +78,13 @@ async def get_entra_applications(
 @timeit
 async def get_app_role_assignments_for_app(
     client: GraphServiceClient, app: Application
-) -> AsyncGenerator[AppRoleAssignment, None]:
+) -> AsyncGenerator[dict[str, Any], None]:
     """
     Gets app role assignments for a single application with safety limits.
 
     :param client: GraphServiceClient
     :param app: Application object
-    :return: Generator of raw app role assignment objects
+    :return: Generator of app role assignment data as dicts
     """
     if not app.app_id:
         logger.warning(f"Application {app.id} has no app_id, skipping")
@@ -160,7 +160,7 @@ async def get_app_role_assignments_for_app(
                 page_skipped_count = 0
 
                 # Process assignments and immediately yield to avoid accumulation
-                for i, assignment in enumerate(assignments_page.value):
+                for assignment in assignments_page.value:
                     # Only yield if we have valid data since it's possible (but unlikely) for assignment.id to be None
                     if assignment.principal_id:
                         assignment_count += 1
@@ -178,9 +178,6 @@ async def get_app_role_assignments_for_app(
                         }
                     else:
                         page_skipped_count += 1
-
-                    # Clear the original assignment to free memory
-                    assignments_page.value[i] = None
 
                 # Log page results with details about skipped objects
                 if page_skipped_count > 0:
@@ -455,18 +452,8 @@ async def sync_entra_applications(
             # Process and stream assignments for each app immediately
             app_assignment_count = 0
             async for assignment in get_app_role_assignments_for_app(client, app):
-                # Convert to dict immediately to free SDK object
-                assignment_dict = {
-                    "id": assignment.id,
-                    "app_role_id": assignment.app_role_id,
-                    "created_date_time": assignment.created_date_time,
-                    "principal_id": assignment.principal_id,
-                    "principal_display_name": assignment.principal_display_name,
-                    "principal_type": assignment.principal_type,
-                    "resource_display_name": assignment.resource_display_name,
-                    "resource_id": assignment.resource_id,
-                    "application_app_id": assignment.application_app_id,
-                }
+                # assignment is already a dict from the generator
+                assignment_dict = assignment
                 assignments_batch.append(assignment_dict)
                 total_assignment_count += 1
                 app_assignment_count += 1

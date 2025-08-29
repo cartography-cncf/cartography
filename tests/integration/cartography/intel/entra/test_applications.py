@@ -64,7 +64,18 @@ async def _mock_get_app_role_assignments_for_app(client, app):
 
     for assignment in assignments:
         if assignment.resource_display_name == app.display_name:
-            yield assignment
+            # Convert AppRoleAssignment object to dict to match refactored function
+            yield {
+                "id": assignment.id,
+                "app_role_id": assignment.app_role_id,
+                "created_date_time": assignment.created_date_time,
+                "principal_id": assignment.principal_id,
+                "principal_display_name": assignment.principal_display_name,
+                "principal_type": assignment.principal_type,
+                "resource_display_name": assignment.resource_display_name,
+                "resource_id": assignment.resource_id,
+                "application_app_id": assignment.application_app_id,
+            }
 
 
 @patch.object(
