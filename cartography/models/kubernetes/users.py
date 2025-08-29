@@ -16,8 +16,6 @@ class KubernetesUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     cluster_name: PropertyRef = PropertyRef("cluster_name")
-    aws_role_arn: PropertyRef = PropertyRef("aws_role_arn")
-    aws_user_arn: PropertyRef = PropertyRef("aws_user_arn")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
