@@ -165,6 +165,10 @@ async def get_app_role_assignments_for_app(
             # Force garbage collection after each page
             gc.collect()
 
+        # Check if we have more pages to fetch
+        if not assignments_page.odata_next_link:
+            break
+
         # Clear previous page before fetching next
         assignments_page.value = None
 
