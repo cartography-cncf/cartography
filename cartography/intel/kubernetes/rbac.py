@@ -279,7 +279,7 @@ def transform_users(
         subject.name
         for binding in chain(
             role_bindings, cluster_role_bindings
-        )  # iterates through combined bindings and role bindings
+        )  # iterate through combined bindings and role bindings
         for subject in (
             binding.subjects or []
         )  # iterates through each binding's subjects to get unique users
