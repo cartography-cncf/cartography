@@ -352,11 +352,23 @@ async def sync_entra_applications(
     total_assignment_count = 0
     total_app_count = 0
 
+    # Stream apps
     async for app in get_entra_applications(client):
         total_app_count += 1
         apps_batch.append(app)
 
-        # Process and stream assignments for each app immediately
+        # Transform and load applications in batches
+        if len(apps_batch) >= app_batch_size:
+            transformed_apps = list(transform_applications(apps_batch))
+            load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
+            logger.info(
+                f"Loaded batch of {len(apps_batch)} applications (total: {total_app_count})"
+            )
+            apps_batch.clear()
+            transformed_apps.clear()
+            gc.collect()  # Force garbage collection
+
+        # Stream app role assignments
         async for assignment in get_app_role_assignments_for_app(client, app):
             assignments_batch.append(assignment)
             total_assignment_count += 1
@@ -376,17 +388,6 @@ async def sync_entra_applications(
                 # Force garbage collection after batch load
                 gc.collect()
 
-        # Transform and load applications in batches and clear memory
-        if len(apps_batch) >= app_batch_size:
-            transformed_apps = list(transform_applications(apps_batch))
-            load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
-            logger.info(
-                f"Loaded batch of {len(apps_batch)} applications (total: {total_app_count})"
-            )
-            apps_batch.clear()
-            transformed_apps.clear()
-            gc.collect()  # Force garbage collection
-
     # Process remaining applications
     if apps_batch:
         transformed_apps = list(transform_applications(apps_batch))
@@ -396,9 +397,7 @@ async def sync_entra_applications(
 
     # Process remaining assignments
     if assignments_batch:
-        # Transform batch
         transformed_assignments = transform_app_role_assignments(assignments_batch)
-
         load_app_role_assignments(
             neo4j_session, transformed_assignments, update_tag, tenant_id
         )
@@ -407,8 +406,6 @@ async def sync_entra_applications(
 
     # Final garbage collection
     gc.collect()
-
-    logger.info(f"Loaded {total_assignment_count} app role assignments total")
 
     # Cleanup stale data
     cleanup_applications(neo4j_session, common_job_parameters)
