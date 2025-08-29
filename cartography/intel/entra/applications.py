@@ -10,6 +10,8 @@ import httpx
 import neo4j
 from azure.identity import ClientSecretCredential
 from kiota_abstractions.api_error import APIError
+from msgraph.generated.models.app_role_assignment import AppRoleAssignment
+from msgraph.generated.models.application import Application
 from msgraph.graph_service_client import GraphServiceClient
 
 from cartography.client.core.tx import load
@@ -47,7 +49,7 @@ MAX_ASSIGNMENTS_PER_APP = 100000
 @timeit
 async def get_entra_applications(
     client: GraphServiceClient,
-) -> AsyncGenerator[Any, None]:
+) -> AsyncGenerator[Application, None]:
     """
     Gets Entra applications using the Microsoft Graph API with a generator.
 
@@ -78,8 +80,8 @@ async def get_entra_applications(
 
 @timeit
 async def get_app_role_assignments_for_app(
-    client: GraphServiceClient, app: Any
-) -> AsyncGenerator[Any, None]:
+    client: GraphServiceClient, app: Application
+) -> AsyncGenerator[AppRoleAssignment, None]:
     """
     Gets app role assignments for a single application with safety limits.
 
@@ -177,27 +179,19 @@ async def get_app_role_assignments_for_app(
                         return
 
                     # Create minimal assignment dict to reduce memory
-                    # Use getattr with defaults to handle missing attributes
+                    # Using typed Microsoft Graph API objects
                     minimal_assignment = type(
                         "MinimalAssignment",
                         (),
                         {
-                            "id": getattr(assignment, "id", None),
-                            "app_role_id": getattr(assignment, "app_role_id", None),
-                            "created_date_time": getattr(
-                                assignment, "created_date_time", None
-                            ),
-                            "principal_id": getattr(assignment, "principal_id", None),
-                            "principal_display_name": getattr(
-                                assignment, "principal_display_name", None
-                            ),
-                            "principal_type": getattr(
-                                assignment, "principal_type", None
-                            ),
-                            "resource_display_name": getattr(
-                                assignment, "resource_display_name", None
-                            ),
-                            "resource_id": getattr(assignment, "resource_id", None),
+                            "id": assignment.id,
+                            "app_role_id": assignment.app_role_id,
+                            "created_date_time": assignment.created_date_time,
+                            "principal_id": assignment.principal_id,
+                            "principal_display_name": assignment.principal_display_name,
+                            "principal_type": assignment.principal_type,
+                            "resource_display_name": assignment.resource_display_name,
+                            "resource_id": assignment.resource_id,
                             "application_app_id": app.app_id,
                         },
                     )()
@@ -324,7 +318,7 @@ async def get_app_role_assignments_for_app(
 
 
 def transform_applications(
-    applications: List[Any],
+    applications: List[Application],
 ) -> Generator[Dict[str, Any], None, None]:
     """
     Transform application data for graph loading using a generator.
@@ -337,13 +331,13 @@ def transform_applications(
             "id": app.id,
             "app_id": app.app_id,
             "display_name": app.display_name,
-            "publisher_domain": getattr(app, "publisher_domain", None),
+            "publisher_domain": app.publisher_domain,
             "sign_in_audience": app.sign_in_audience,
         }
 
 
 def transform_app_role_assignments(
-    assignments: List[Any],
+    assignments: List[AppRoleAssignment],
 ) -> Generator[Dict[str, Any], None, None]:
     """
     Transform app role assignment data for graph loading using a generator.
@@ -367,7 +361,7 @@ def transform_app_role_assignments(
             "resource_id": (
                 str(assignment.resource_id) if assignment.resource_id else None
             ),
-            "application_app_id": getattr(assignment, "application_app_id", None),
+            "application_app_id": assignment.application_app_id,
         }
 
 
@@ -501,21 +495,15 @@ async def sync_entra_applications(
             async for assignment in get_app_role_assignments_for_app(client, app):
                 # Convert to dict immediately to free SDK object
                 assignment_dict = {
-                    "id": getattr(assignment, "id", None),
-                    "app_role_id": getattr(assignment, "app_role_id", None),
-                    "created_date_time": getattr(assignment, "created_date_time", None),
-                    "principal_id": getattr(assignment, "principal_id", None),
-                    "principal_display_name": getattr(
-                        assignment, "principal_display_name", None
-                    ),
-                    "principal_type": getattr(assignment, "principal_type", None),
-                    "resource_display_name": getattr(
-                        assignment, "resource_display_name", None
-                    ),
-                    "resource_id": getattr(assignment, "resource_id", None),
-                    "application_app_id": getattr(
-                        assignment, "application_app_id", None
-                    ),
+                    "id": assignment.id,
+                    "app_role_id": assignment.app_role_id,
+                    "created_date_time": assignment.created_date_time,
+                    "principal_id": assignment.principal_id,
+                    "principal_display_name": assignment.principal_display_name,
+                    "principal_type": assignment.principal_type,
+                    "resource_display_name": assignment.resource_display_name,
+                    "resource_id": assignment.resource_id,
+                    "application_app_id": assignment.application_app_id,
                 }
                 assignments_batch.append(assignment_dict)
                 total_assignment_count += 1
