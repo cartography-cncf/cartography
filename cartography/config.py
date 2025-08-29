@@ -94,6 +94,8 @@ class Config:
     :param statsd_port: If statsd_enabled is True, send metrics to this port on statsd_host. Optional.
     :type: k8s_kubeconfig: str
     :param k8s_kubeconfig: Path to kubeconfig file for kubernetes cluster(s). Optional
+    :type: managed_kubernetes: str
+    :param managed_kubernetes: Type of managed Kubernetes service (e.g., "eks"). Optional.
     :type: pagerduty_api_key: str
     :param pagerduty_api_key: API authentication key for pagerduty. Optional.
     :type: pagerduty_request_timeout: int
@@ -168,6 +170,14 @@ class Config:
     :param sentinelone_api_token: SentinelOne API token for authentication. Optional.
     :type sentinelone_account_ids: list[str]
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
+    :type keycloak_client_id: str
+    :param keycloak_client_id: Keycloak client ID for API authentication. Optional.
+    :type keycloak_client_secret: str
+    :param keycloak_client_secret: Keycloak client secret for API authentication. Optional.
+    :type keycloak_realm: str
+    :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
+    :type keycloak_url: str
+    :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
     """
 
     def __init__(
@@ -209,6 +219,7 @@ class Config:
         kandji_tenant_id=None,
         kandji_token=None,
         k8s_kubeconfig=None,
+        managed_kubernetes=None,
         statsd_enabled=False,
         statsd_prefix=None,
         statsd_host=None,
@@ -255,6 +266,10 @@ class Config:
         sentinelone_api_url=None,
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
+        keycloak_client_id=None,
+        keycloak_client_secret=None,
+        keycloak_realm=None,
+        keycloak_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -295,6 +310,7 @@ class Config:
         self.kandji_tenant_id = kandji_tenant_id
         self.kandji_token = kandji_token
         self.k8s_kubeconfig = k8s_kubeconfig
+        self.managed_kubernetes = managed_kubernetes
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
         self.statsd_host = statsd_host
@@ -341,3 +357,7 @@ class Config:
         self.sentinelone_api_url = sentinelone_api_url
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
+        self.keycloak_client_id = keycloak_client_id
+        self.keycloak_client_secret = keycloak_client_secret
+        self.keycloak_realm = keycloak_realm
+        self.keycloak_url = keycloak_url
