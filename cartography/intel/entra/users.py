@@ -237,11 +237,6 @@ async def sync_entra_users(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
 
-    # Fetch tenant and load it first
-    tenant = await get_tenant(client)
-    transformed_tenant = transform_tenant(tenant, tenant_id)
-    load_tenant(neo4j_session, transformed_tenant, update_tag)
-
     # Process users in batches to reduce memory consumption
     batch_size = (
         500  # Process users in larger batches since they're simpler than groups

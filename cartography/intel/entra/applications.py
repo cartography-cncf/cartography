@@ -14,7 +14,6 @@ from msgraph.graph_service_client import GraphServiceClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.entra.users import load_tenant
 from cartography.models.entra.app_role_assignment import EntraAppRoleAssignmentSchema
 from cartography.models.entra.application import EntraApplicationSchema
 from cartography.util import timeit
@@ -480,9 +479,6 @@ async def sync_entra_applications(
         credential,
         scopes=["https://graph.microsoft.com/.default"],
     )
-
-    # Load tenant (prerequisite)
-    load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
 
     # Process applications and their assignments in batches
     app_batch_size = 10  # Batch size for applications

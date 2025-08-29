@@ -11,7 +11,6 @@ from msgraph.generated.models.group import Group
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.entra.users import load_tenant
 from cartography.models.entra.group import EntraGroupSchema
 from cartography.util import timeit
 
@@ -178,8 +177,6 @@ async def sync_entra_groups(
                     groups_batch, user_member_map, group_member_map, group_owner_map
                 )
             )
-            if groups_batch == groups_batch[:batch_size]:  # First batch
-                load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
             load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
 
             # Clear the batch and maps for processed groups
@@ -196,8 +193,6 @@ async def sync_entra_groups(
                 groups_batch, user_member_map, group_member_map, group_owner_map
             )
         )
-        if not user_member_map:  # If this is the only batch
-            load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
         load_groups(neo4j_session, transformed_groups, update_tag, tenant_id)
 
     cleanup_groups(neo4j_session, common_job_parameters)

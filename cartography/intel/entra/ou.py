@@ -11,7 +11,6 @@ from msgraph.generated.models.administrative_unit import AdministrativeUnit
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.entra.users import load_tenant
 from cartography.models.entra.ou import EntraOUSchema
 from cartography.util import timeit
 
@@ -113,9 +112,6 @@ async def sync_entra_ous(
     client = GraphServiceClient(
         credential, scopes=["https://graph.microsoft.com/.default"]
     )
-
-    # Load tenant first
-    load_tenant(neo4j_session, {"id": tenant_id}, update_tag)
 
     # Process OUs in batches
     batch_size = 100  # OUs are typically fewer than users/groups
