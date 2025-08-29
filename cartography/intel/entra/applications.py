@@ -2,9 +2,7 @@ import gc
 import logging
 from typing import Any
 from typing import AsyncGenerator
-from typing import Dict
 from typing import Generator
-from typing import List
 
 import httpx
 import neo4j
@@ -318,8 +316,8 @@ async def get_app_role_assignments_for_app(
 
 
 def transform_applications(
-    applications: List[Application],
-) -> Generator[Dict[str, Any], None, None]:
+    applications: list[Application],
+) -> Generator[dict[str, Any], None, None]:
     """
     Transform application data for graph loading using a generator.
 
@@ -337,8 +335,8 @@ def transform_applications(
 
 
 def transform_app_role_assignments(
-    assignments: List[AppRoleAssignment],
-) -> Generator[Dict[str, Any], None, None]:
+    assignments: list[AppRoleAssignment],
+) -> Generator[dict[str, Any], None, None]:
     """
     Transform app role assignment data for graph loading using a generator.
 
@@ -368,7 +366,7 @@ def transform_app_role_assignments(
 @timeit
 def load_applications(
     neo4j_session: neo4j.Session,
-    applications_data: List[Dict[str, Any]],
+    applications_data: list[dict[str, Any]],
     update_tag: int,
     tenant_id: str,
 ) -> None:
@@ -392,7 +390,7 @@ def load_applications(
 @timeit
 def load_app_role_assignments(
     neo4j_session: neo4j.Session,
-    assignments_data: List[Dict[str, Any]],
+    assignments_data: list[dict[str, Any]],
     update_tag: int,
     tenant_id: str,
 ) -> None:
@@ -415,7 +413,7 @@ def load_app_role_assignments(
 
 @timeit
 def cleanup_applications(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
     Delete Entra applications and their relationships from the graph if they were not updated in the last sync.
@@ -430,7 +428,7 @@ def cleanup_applications(
 
 @timeit
 def cleanup_app_role_assignments(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
     Delete Entra app role assignments and their relationships from the graph if they were not updated in the last sync.
@@ -450,7 +448,7 @@ async def sync_entra_applications(
     client_id: str,
     client_secret: str,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync Entra applications and their app role assignments to the graph.
