@@ -6,7 +6,6 @@ from typing import Generator
 
 import neo4j
 from azure.identity import ClientSecretCredential
-from msgraph.generated.models.app_role_assignment import AppRoleAssignment
 from msgraph.generated.models.app_role_assignment_collection_response import (
     AppRoleAssignmentCollectionResponse,
 )
@@ -201,32 +200,36 @@ def transform_applications(
 
 
 def transform_app_role_assignments(
-    assignments: list[AppRoleAssignment],
-) -> Generator[dict[str, Any], None, None]:
+    assignments: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """
-    Transform app role assignment data for graph loading using a generator.
+    Transform app role assignment data for graph loading.
 
-    :param assignments: Raw app role assignment objects from Microsoft Graph API
-    :return: Generator of transformed assignment data for graph loading
+    :param assignments: Raw app role assignment data as dicts
+    :return: Transformed assignment data for graph loading
     """
-    for assignment in assignments:
-        yield {
-            "id": assignment.id,
-            "app_role_id": (
-                str(assignment.app_role_id) if assignment.app_role_id else None
-            ),
-            "created_date_time": assignment.created_date_time,
-            "principal_id": (
-                str(assignment.principal_id) if assignment.principal_id else None
-            ),
-            "principal_display_name": assignment.principal_display_name,
-            "principal_type": assignment.principal_type,
-            "resource_display_name": assignment.resource_display_name,
-            "resource_id": (
-                str(assignment.resource_id) if assignment.resource_id else None
-            ),
-            "application_app_id": assignment.application_app_id,
-        }
+    transformed = []
+    for assign in assignments:
+        transformed.append(
+            {
+                "id": assign["id"],
+                "app_role_id": (
+                    str(assign["app_role_id"]) if assign["app_role_id"] else None
+                ),
+                "created_date_time": assign["created_date_time"],
+                "principal_id": (
+                    str(assign["principal_id"]) if assign["principal_id"] else None
+                ),
+                "principal_display_name": assign["principal_display_name"],
+                "principal_type": assign["principal_type"],
+                "resource_display_name": assign["resource_display_name"],
+                "resource_id": (
+                    str(assign["resource_id"]) if assign["resource_id"] else None
+                ),
+                "application_app_id": assign["application_app_id"],
+            }
+        )
+    return transformed
 
 
 @timeit
@@ -353,76 +356,27 @@ async def sync_entra_applications(
         total_app_count += 1
         apps_batch.append(app)
 
-        try:
-            # Process and stream assignments for each app immediately
-            app_assignment_count = 0
-            async for assignment in get_app_role_assignments_for_app(client, app):
-                # assignment is already a dict from the generator
-                assignment_dict = assignment
-                assignments_batch.append(assignment_dict)
-                total_assignment_count += 1
-                app_assignment_count += 1
+        # Process and stream assignments for each app immediately
+        async for assignment in get_app_role_assignments_for_app(client, app):
+            assignments_batch.append(assignment)
+            total_assignment_count += 1
 
-                # Load assignments in batches
-                if len(assignments_batch) >= assignment_batch_size:
-                    # Transform using dict directly
-                    transformed_assignments = []
-                    for assign in assignments_batch:
-                        transformed_assignments.append(
-                            {
-                                "id": assign["id"],
-                                "app_role_id": (
-                                    str(assign["app_role_id"])
-                                    if assign["app_role_id"]
-                                    else None
-                                ),
-                                "created_date_time": assign["created_date_time"],
-                                "principal_id": (
-                                    str(assign["principal_id"])
-                                    if assign["principal_id"]
-                                    else None
-                                ),
-                                "principal_display_name": assign[
-                                    "principal_display_name"
-                                ],
-                                "principal_type": assign["principal_type"],
-                                "resource_display_name": assign[
-                                    "resource_display_name"
-                                ],
-                                "resource_id": (
-                                    str(assign["resource_id"])
-                                    if assign["resource_id"]
-                                    else None
-                                ),
-                                "application_app_id": assign["application_app_id"],
-                            }
-                        )
-
-                    load_app_role_assignments(
-                        neo4j_session, transformed_assignments, update_tag, tenant_id
-                    )
-                    logger.debug(
-                        f"Loaded batch of {len(assignments_batch)} assignments"
-                    )
-                    assignments_batch.clear()
-                    transformed_assignments.clear()
-
-                    # Force garbage collection after batch load
-                    gc.collect()
-
-            if app_assignment_count > 0:
-                logger.debug(
-                    f"Processed {app_assignment_count} assignments for {app.display_name}"
+            # Transform and load assignments in batches
+            if len(assignments_batch) >= assignment_batch_size:
+                transformed_assignments = transform_app_role_assignments(
+                    assignments_batch
                 )
+                load_app_role_assignments(
+                    neo4j_session, transformed_assignments, update_tag, tenant_id
+                )
+                logger.debug(f"Loaded batch of {len(assignments_batch)} assignments")
+                assignments_batch.clear()
+                transformed_assignments.clear()
 
-        except Exception as e:
-            logger.error(
-                f"Error processing assignments for application {app.display_name} ({app.app_id}): {e}. "
-                f"Continuing with next application."
-            )
-            continue
+                # Force garbage collection after batch load
+                gc.collect()
 
-        # Load applications in batches and clear memory
+        # Transform and load applications in batches and clear memory
         if len(apps_batch) >= app_batch_size:
             transformed_apps = list(transform_applications(apps_batch))
             load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
@@ -442,28 +396,8 @@ async def sync_entra_applications(
 
     # Process remaining assignments
     if assignments_batch:
-        # Transform using dict directly
-        transformed_assignments = []
-        for assign in assignments_batch:
-            transformed_assignments.append(
-                {
-                    "id": assign["id"],
-                    "app_role_id": (
-                        str(assign["app_role_id"]) if assign["app_role_id"] else None
-                    ),
-                    "created_date_time": assign["created_date_time"],
-                    "principal_id": (
-                        str(assign["principal_id"]) if assign["principal_id"] else None
-                    ),
-                    "principal_display_name": assign["principal_display_name"],
-                    "principal_type": assign["principal_type"],
-                    "resource_display_name": assign["resource_display_name"],
-                    "resource_id": (
-                        str(assign["resource_id"]) if assign["resource_id"] else None
-                    ),
-                    "application_app_id": assign["application_app_id"],
-                }
-            )
+        # Transform batch
+        transformed_assignments = transform_app_role_assignments(assignments_batch)
 
         load_app_role_assignments(
             neo4j_session, transformed_assignments, update_tag, tenant_id
