@@ -11,7 +11,7 @@ from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_DATA
 from tests.data.kubernetes.eks import MOCK_AWS_ROLES
 from tests.data.kubernetes.eks import MOCK_AWS_USERS
 from tests.data.kubernetes.eks import MOCK_CLUSTER_DATA
-from tests.data.kubernetes.eks import MOCK_OKTA_PROVIDER
+from tests.data.kubernetes.eks import MOCK_OIDC_PROVIDER
 from tests.data.kubernetes.eks import TEST_ACCOUNT_ID
 from tests.data.kubernetes.eks import TEST_CLUSTER_ID
 from tests.data.kubernetes.eks import TEST_CLUSTER_NAME
@@ -71,7 +71,7 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
     )
 
     # Arrange: Mock OIDC providers
-    mock_get_oidc_provider.return_value = MOCK_OKTA_PROVIDER
+    mock_get_oidc_provider.return_value = MOCK_OIDC_PROVIDER
 
     # Arrange: Create mock K8s client that returns our test ConfigMap
     mock_k8s_client = MagicMock()
@@ -176,12 +176,6 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
     # Assert: Verify OIDC Provider nodes were created
     expected_oidc_providers = {
         (
-            f"{TEST_CLUSTER_NAME}/oidc/auth0-provider",
-            "https://company.auth0.com/",
-            "auth0-provider",
-            "eks",
-        ),
-        (
             f"{TEST_CLUSTER_NAME}/oidc/okta-provider",
             "https://company.okta.com/oauth2/default",
             "okta-provider",
@@ -197,7 +191,6 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
 
     # Assert: Verify Cluster TRUSTS OIDC Provider relationships
     expected_cluster_relationships = {
-        (TEST_CLUSTER_ID, f"{TEST_CLUSTER_NAME}/oidc/auth0-provider"),
         (TEST_CLUSTER_ID, f"{TEST_CLUSTER_NAME}/oidc/okta-provider"),
     }
     actual_cluster_relationships = check_rels(

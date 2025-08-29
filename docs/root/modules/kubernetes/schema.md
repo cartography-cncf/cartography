@@ -66,7 +66,6 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
                                          :KubernetesServiceAccount,
                                          :KubernetesRole,
                                          :KubernetesRoleBinding,
-                                         :KubernetesClusterRoleBinding,
                                          ...)
     ```
 
@@ -326,11 +325,6 @@ Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/
 - `KubernetesClusterRoleBinding` belongs to a `KubernetesCluster`.
     ```
     (:KubernetesCluster)-[:RESOURCE]->(:KubernetesClusterRoleBinding)
-    ```
-
-- `KubernetesClusterRoleBinding` is contained in a `KubernetesNamespace` (for subject namespace association).
-    ```
-    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesClusterRoleBinding)
     ```
 
 - `KubernetesClusterRoleBinding` binds a subject to a cluster role.
