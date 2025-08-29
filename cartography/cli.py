@@ -235,6 +235,11 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--azure-subscription-id",
+            type=str,
+            help="The Azure Subscription ID to sync.",
+        )
+        parser.add_argument(
             "--entra-tenant-id",
             type=str,
             default=None,

@@ -45,6 +45,8 @@ class Config:
     :param azure_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
     :type azure_client_secret: str
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
+    :type azure_subscription_id: str | None
+    :param azure_subscription_id: The Azure Subscription ID to sync.
     :type entra_tenant_id: str
     :param entra_tenant_id: Tenant Id for connecting in a Service Principal Authentication approach. Optional.
     :type entra_client_id: str
@@ -196,6 +198,7 @@ class Config:
         azure_tenant_id=None,
         azure_client_id=None,
         azure_client_secret=None,
+        azure_subscription_id: str | None = None,
         entra_tenant_id=None,
         entra_client_id=None,
         entra_client_secret=None,
@@ -286,6 +289,7 @@ class Config:
         self.azure_tenant_id = azure_tenant_id
         self.azure_client_id = azure_client_id
         self.azure_client_secret = azure_client_secret
+        self.azure_subscription_id = azure_subscription_id
         self.entra_tenant_id = entra_tenant_id
         self.entra_client_id = entra_client_id
         self.entra_client_secret = entra_client_secret
