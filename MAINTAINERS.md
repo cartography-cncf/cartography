@@ -10,6 +10,7 @@ List of community members who have shown they are committed to Cartography's con
 - Chandan Chowdhury (https://github.com/chandanchowdhury)
 - Shyam Mukund (https://github.com/shyammukund)
 - Ramon Petgrave (https://github.com/ramonpetgrave64)
+- Dakota Riley (https://github.com/rileydakota)
 - Kunaal Sikka (https://github.com/kunaals)
 
 ## Founding maintainers
