@@ -1,0 +1,30 @@
+{
+  "statements": [
+    {
+        "__comment__": "Inherit group memberships from subgroups to parent groups",
+        "query": "MATCH (u:KeycloakUser)-[:MEMBER_OF]->(g:KeycloakGroup)-[:SUBGROUP_OF*1..5]->(pg:KeycloakGroup) MERGE (u)-[r:INHERITED_MEMBER_OF]->(pg) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG",
+        "iterative": false
+    },
+    {
+        "__comment__": "Assign roles to users based on group memberships",
+        "query": "MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OR]->(g:KeycloakGroup)-[:GRANTS]->(r:KeycloakRole) MERGE (u)-[r0:ASSUME_ROLE]-(r) ON CREATE SET r0.firstseen = $UPDATE_TAG SET r0.lastupdated = $UPDATE_TAG",
+        "iterative": false
+    },
+    {
+        "__comment__": "Propagate role grants to composite roles",
+        "query": "MATCH (r:KeycloakRole)-[:INCLUDES*1..5]->(c:KeycloakRole)-[:GRANTS]->(s:KeycloakScope) MERGE (r)-[r0:INDIRECT_GRANTS]-(s) ON CREATE SET r0.firstseen = $UPDATE_TAG SET r0.lastupdated = $UPDATE_TAG",
+        "iterative": false
+    },
+    {
+        "__comment__": "Identify legitimate scopes for users based on assumed roles",
+        "query": "MATCH (u:KeycloakUser)-[:ASSUME_ROLE]-(:KeycloakRole)-[:GRANTS|INDIRECT_GRANTS]->(s:KeycloakScope) MERGE (u)-[r:ASSUME_SCOPE]->(s) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG",
+        "iterative": false
+    },
+    {
+        "__comment__": "Assign assumed scopes to users for orphan scopes (scopes not granted by any role)",
+        "query": "MATCH (s:KeycloakScope)<-[:RESOURCE]-(r:KeycloakRealm) MATCH (u:KeycloakUser)<-[:RESOURCE]-(r) WHERE NOT (s)<-[:GRANTS|INDIRECT_GRANTS]-(:KeycloakRole) MERGE (u)-[r0:ASSUME_SCOPE]->(s) SET r0.firstseen = $UPDATE_TAG SET r0.lastupdated = $UPDATE_TAG",
+        "iterative": false
+    }
+  ],
+  "name": "Keycloak inheritance analysis"
+}

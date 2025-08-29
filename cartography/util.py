@@ -28,6 +28,7 @@ import neo4j
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
+from botocore.exceptions import EndpointConnectionError
 
 from cartography.graph.job import GraphJob
 from cartography.graph.querybuilder import _get_cartography_version
@@ -313,6 +314,13 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                 return []
             else:
                 raise
+        except EndpointConnectionError:
+            logger.warning(
+                "Encountered an EndpointConnectionError. This means that the AWS "
+                "resource is not available in this region. Skipping.",
+                exc_info=True,
+            )
+            return []
 
     return cast(AWSGetFunc, inner_function)
 
