@@ -4,15 +4,14 @@ from typing import Any
 from typing import AsyncGenerator
 from typing import Generator
 
-import httpx
 import neo4j
 from azure.identity import ClientSecretCredential
-from kiota_abstractions.api_error import APIError
 from msgraph.generated.models.app_role_assignment import AppRoleAssignment
 from msgraph.generated.models.app_role_assignment_collection_response import (
     AppRoleAssignmentCollectionResponse,
 )
 from msgraph.generated.models.application import Application
+from msgraph.generated.models.service_principal import ServicePrincipal
 from msgraph.graph_service_client import GraphServiceClient
 
 from cartography.client.core.tx import load
@@ -32,15 +31,7 @@ logger = logging.getLogger(__name__)
 # - You want to minimize API calls (increase values up to 999)
 # - You're hitting rate limits (decrease values)
 APPLICATIONS_PAGE_SIZE = 999
-APP_ROLE_ASSIGNMENTS_PAGE_SIZE = 999  # Now used in get_app_role_assignments_for_app
-
-# Warning thresholds for potential data completeness issues
-# Log warnings when individual users/groups have more assignments than this threshold
-HIGH_ASSIGNMENT_COUNT_THRESHOLD = 1000
-
-# Maximum number of pages to fetch for app role assignments per application
-# Set high to get all data, memory is managed by streaming and batching
-MAX_ASSIGNMENT_PAGES_PER_APP = 500
+APP_ROLE_ASSIGNMENTS_PAGE_SIZE = 999
 
 
 @timeit
@@ -94,186 +85,100 @@ async def get_app_role_assignments_for_app(
         f"Fetching role assignments for application: {app.display_name} ({app.app_id})"
     )
 
-    try:
-        # First, get the service principal for this application
-        service_principals_page = await client.service_principals.get(
-            request_configuration=client.service_principals.ServicePrincipalsRequestBuilderGetRequestConfiguration(
-                query_parameters=client.service_principals.ServicePrincipalsRequestBuilderGetQueryParameters(
-                    filter=f"appId eq '{app.app_id}'"
-                )
+    # First, get the service principal for this application
+    service_principals_page = await client.service_principals.get(
+        request_configuration=client.service_principals.ServicePrincipalsRequestBuilderGetRequestConfiguration(
+            query_parameters=client.service_principals.ServicePrincipalsRequestBuilderGetQueryParameters(
+                filter=f"appId eq '{app.app_id}'"
             )
         )
+    )
 
-        if not service_principals_page or not service_principals_page.value:
-            logger.debug(
-                f"No service principal found for application {app.app_id} ({app.display_name})"
-            )
-            return
-
-        service_principal = service_principals_page.value[0]
-
-        if not service_principal.id:
-            logger.warning(
-                f"Service principal for application {app.app_id} ({app.display_name}) has no ID, skipping"
-            )
-            return
-
-        # Get assignments for this service principal with pagination and limits
-        logger.debug(
-            f"Fetching assignments for service principal {service_principal.id}"
-        )
-
-        # Use maximum page size (999) to get more data per request
-        # Memory is managed through streaming and batching, not page size
-        request_config = client.service_principals.by_service_principal_id(
-            service_principal.id
-        ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetRequestConfiguration(
-            query_parameters=client.service_principals.by_service_principal_id(
-                service_principal.id
-            ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetQueryParameters(
-                top=APP_ROLE_ASSIGNMENTS_PAGE_SIZE  # Maximum allowed by Microsoft Graph API
-            )
-        )
-
-        assignments_page: AppRoleAssignmentCollectionResponse | None = (
-            await client.service_principals.by_service_principal_id(
-                service_principal.id
-            ).app_role_assigned_to.get(request_configuration=request_config)
-        )
-
-        assignment_count = 0
-        page_count = 0
-
-        while assignments_page:
-            page_count += 1
-
-            # Safety check: limit number of pages
-            if page_count > MAX_ASSIGNMENT_PAGES_PER_APP:
-                logger.warning(
-                    f"Reached maximum page limit ({MAX_ASSIGNMENT_PAGES_PER_APP}) for application {app.display_name} ({app.app_id}). "
-                    f"Stopping pagination to prevent infinite loop. {assignment_count} assignments fetched so far."
-                )
-                break
-
-            if assignments_page.value:
-                page_valid_count = 0
-                page_skipped_count = 0
-
-                # Process assignments and immediately yield to avoid accumulation
-                for assignment in assignments_page.value:
-                    # Only yield if we have valid data since it's possible (but unlikely) for assignment.id to be None
-                    if assignment.principal_id:
-                        assignment_count += 1
-                        page_valid_count += 1
-                        yield {
-                            "id": assignment.id,
-                            "app_role_id": assignment.app_role_id,
-                            "created_date_time": assignment.created_date_time,
-                            "principal_id": assignment.principal_id,
-                            "principal_display_name": assignment.principal_display_name,
-                            "principal_type": assignment.principal_type,
-                            "resource_display_name": assignment.resource_display_name,
-                            "resource_id": assignment.resource_id,
-                            "application_app_id": app.app_id,
-                        }
-                    else:
-                        page_skipped_count += 1
-
-                # Log page results with details about skipped objects
-                if page_skipped_count > 0:
-                    logger.warning(
-                        f"Page {page_count} for {app.display_name}: {page_valid_count} valid assignments, "
-                        f"{page_skipped_count} skipped objects. Total valid: {assignment_count}"
-                    )
-                else:
-                    logger.debug(
-                        f"Page {page_count} for {app.display_name}: {page_valid_count} assignments. "
-                        f"Total: {assignment_count}"
-                    )
-
-                # Force garbage collection after each page
-                gc.collect()
-
-            # Continue fetching if we have more pages, even if current page had no valid assignments
-            if not assignments_page.odata_next_link:
-                # Check if we stopped at a round number which might indicate a limit
-                if assignment_count > 0 and assignment_count % 100 == 0:
-                    logger.info(
-                        f"Application {app.display_name} has exactly {assignment_count} assignments. "
-                        f"This round number might indicate there are more assignments not being returned by the API."
-                    )
-                break
-
-            # Clear previous page before fetching next
-            assignments_page.value = None
-
-            # Fetch next page with error handling
-            try:
-                logger.debug(
-                    f"Fetching page {page_count + 1} of assignments for {app.display_name}"
-                )
-                next_page_url = assignments_page.odata_next_link
-
-                # Log the URL pattern to debug pagination issues
-                if (
-                    "skiptoken" in next_page_url.lower()
-                    or "$skip" in next_page_url.lower()
-                ):
-                    logger.debug(f"Using pagination URL: {next_page_url[:100]}...")
-
-                assignments_page = await client.service_principals.with_url(
-                    next_page_url
-                ).get()
-
-            except Exception as e:
-                logger.error(
-                    f"Error fetching page {page_count + 1} of assignments for {app.display_name}: {e}. "
-                    f"Stopping pagination for this app."
-                )
-                break
-
-        # Log warning if many assignments
-        if assignment_count >= HIGH_ASSIGNMENT_COUNT_THRESHOLD:
-            logger.warning(
-                f"Application {app.display_name} ({app.app_id}) has {assignment_count} role assignments. "
-                f"If this seems unexpectedly high, there may be pagination limits affecting data completeness."
-            )
-
-        logger.info(
-            f"Successfully retrieved {assignment_count} assignments for application {app.display_name} (pages: {page_count})"
-        )
-
-    except APIError as e:
-        # Handle Microsoft Graph API errors
-        if e.response_status_code == 403:
-            logger.warning(
-                f"Access denied when fetching app role assignments for application {app.app_id} ({app.display_name}). "
-                f"This application may not have sufficient permissions or may not exist."
-            )
-        elif e.response_status_code == 404:
-            logger.warning(
-                f"Application {app.app_id} ({app.display_name}) not found when fetching app role assignments. "
-                f"Application may have been deleted or does not exist."
-            )
-        elif e.response_status_code == 429:
-            logger.warning(
-                f"Rate limit hit when fetching app role assignments for application {app.app_id} ({app.display_name}). "
-                f"Consider reducing APPLICATIONS_PAGE_SIZE or implementing retry logic."
-            )
-        else:
-            logger.warning(
-                f"Microsoft Graph API error when fetching app role assignments for application {app.app_id} ({app.display_name}): "
-                f"Status {e.response_status_code}, Error: {str(e)}"
-            )
-    except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
+    if not service_principals_page or not service_principals_page.value:
         logger.warning(
-            f"Network error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}"
+            f"No service principal found for application {app.app_id} ({app.display_name}). Continuing."
         )
-    except Exception as e:
-        logger.error(
-            f"Unexpected error when fetching app role assignments for application {app.app_id} ({app.display_name}): {e}",
-            exc_info=True,
+        return
+
+    service_principal: ServicePrincipal = service_principals_page.value[0]
+
+    # Get assignments for this service principal with pagination and limits
+    # Use maximum page size (999) to get more data per request
+    # Memory is managed through streaming and batching, not page size
+    request_config = client.service_principals.by_service_principal_id(
+        service_principal.id
+    ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetRequestConfiguration(
+        query_parameters=client.service_principals.by_service_principal_id(
+            service_principal.id
+        ).app_role_assigned_to.AppRoleAssignedToRequestBuilderGetQueryParameters(
+            top=APP_ROLE_ASSIGNMENTS_PAGE_SIZE  # Maximum allowed by Microsoft Graph API
         )
+    )
+
+    assignments_page: AppRoleAssignmentCollectionResponse | None = (
+        await client.service_principals.by_service_principal_id(
+            service_principal.id
+        ).app_role_assigned_to.get(request_configuration=request_config)
+    )
+
+    assignment_count = 0
+    page_count = 0
+
+    while assignments_page:
+        page_count += 1
+
+        if assignments_page.value:
+            page_valid_count = 0
+            page_skipped_count = 0
+
+            # Process assignments and immediately yield to avoid accumulation
+            for assignment in assignments_page.value:
+                # Only yield if we have valid data since it's possible (but unlikely) for assignment.id to be None
+                if assignment.principal_id:
+                    assignment_count += 1
+                    page_valid_count += 1
+                    yield {
+                        "id": assignment.id,
+                        "app_role_id": assignment.app_role_id,
+                        "created_date_time": assignment.created_date_time,
+                        "principal_id": assignment.principal_id,
+                        "principal_display_name": assignment.principal_display_name,
+                        "principal_type": assignment.principal_type,
+                        "resource_display_name": assignment.resource_display_name,
+                        "resource_id": assignment.resource_id,
+                        "application_app_id": app.app_id,
+                    }
+                else:
+                    page_skipped_count += 1
+
+            # Log page results with details about skipped objects
+            if page_skipped_count > 0:
+                logger.warning(
+                    f"Page {page_count} for {app.display_name}: {page_valid_count} valid assignments, "
+                    f"{page_skipped_count} skipped objects. Total valid: {assignment_count}"
+                )
+            else:
+                logger.debug(
+                    f"Page {page_count} for {app.display_name}: {page_valid_count} assignments. "
+                    f"Total: {assignment_count}"
+                )
+
+            # Force garbage collection after each page
+            gc.collect()
+
+        # Clear previous page before fetching next
+        assignments_page.value = None
+
+        # Fetch next page
+        logger.debug(
+            f"Fetching page {page_count + 1} of assignments for {app.display_name}"
+        )
+        next_page_url = assignments_page.odata_next_link
+        assignments_page = await client.service_principals.with_url(next_page_url).get()
+
+    logger.info(
+        f"Successfully retrieved {assignment_count} assignments for application {app.display_name} (pages: {page_count})"
+    )
 
 
 def transform_applications(
