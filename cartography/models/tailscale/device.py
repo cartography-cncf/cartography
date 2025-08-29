@@ -28,6 +28,7 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     authorized: PropertyRef = PropertyRef("authorized")
     is_external: PropertyRef = PropertyRef("isExternal")
     node_key: PropertyRef = PropertyRef("nodeKey")
+    addresses: PropertyRef = PropertyRef("addresses")
     blocks_incoming_connections: PropertyRef = PropertyRef("blocksIncomingConnections")
     client_connectivity_endpoints: PropertyRef = PropertyRef(
         "clientConnectivity.endpoints"

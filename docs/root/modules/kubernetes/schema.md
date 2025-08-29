@@ -26,12 +26,15 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
                                        :KubernetesContainer,
                                        :KubernetesService,
                                        :KubernetesSecret,
+                                       :KubernetesUser,
+                                       :KubernetesGroup,
                                        :KubernetesServiceAccount,
                                        :KubernetesRole,
                                        :KubernetesRoleBinding,
                                        :KubernetesClusterRole,
                                        :KubernetesClusterRoleBinding,
                                        ...)
+    (:KubernetesCluster)-[:TRUSTS]->(:KubernetesOIDCProvider)
     ```
 
 - A `KubernetesPod` belongs to a `KubernetesCluster`
@@ -63,7 +66,6 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
                                          :KubernetesServiceAccount,
                                          :KubernetesRole,
                                          :KubernetesRoleBinding,
-                                         :KubernetesClusterRoleBinding,
                                          ...)
     ```
 
@@ -325,13 +327,32 @@ Representation of a [Kubernetes ClusterRoleBinding.](https://kubernetes.io/docs/
     (:KubernetesCluster)-[:RESOURCE]->(:KubernetesClusterRoleBinding)
     ```
 
-- `KubernetesClusterRoleBinding` is contained in a `KubernetesNamespace` (for subject namespace association).
-    ```
-    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesClusterRoleBinding)
-    ```
-
 - `KubernetesClusterRoleBinding` binds a subject to a cluster role.
     ```
     (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
     (:KubernetesClusterRoleBinding)-[:ROLE_REF]->(:KubernetesClusterRole)
     ```
+
+### KubernetesOIDCProvider
+Representation of an external OIDC identity provider for a Kubernetes cluster. This node contains the configuration details of how the cluster is set up to trust external identity systems (such as Auth0, Okta, Entra). The ingestion of users/groups from the identity provider is handled by the respective identity provider Cartography module. Then the Kubernetes module creates relationships between those identities and KubernetesUsers and KubernetesGroups.
+
+| Field | Description |
+|-------|-------------|
+| id | Identifier for the OIDC Provider derived from cluster name and provider name (e.g. `my-cluster/oidc/auth0-provider`) |
+| issuer_url | URL of the OIDC issuer (e.g. `https://company.auth0.com/`) |
+| cluster_name | Name of the Kubernetes cluster this provider is associated with |
+| k8s_platform | Type of Kubernetes platform managing this OIDC configuration (e.g. `eks` for AWS EKS, `aks` for Azure AKS) |
+| client_id | OIDC client ID used for authentication |
+| status | Status of the OIDC provider configuration (e.g. `ACTIVE`) |
+| name | Name of the OIDC provider configuration |
+| arn | AWS ARN of the identity provider configuration (for EKS) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesOIDCProvider` is trusted by a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:TRUSTS]->(:KubernetesOIDCProvider)
+    ```
+
+Note: Identity mapping between external OIDC providers (Okta, Auth0, etc.) and Kubernetes users/groups is handled through direct relationships from the external identity provider nodes to Kubernetes nodes, not through the `KubernetesOIDCProvider` metadata node.

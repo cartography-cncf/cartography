@@ -22,6 +22,8 @@ class KubernetesRoleBindingNodeProperties(CartographyNodeProperties):
     role_name: PropertyRef = PropertyRef("role_name")
     role_kind: PropertyRef = PropertyRef("role_kind")
     service_account_ids: PropertyRef = PropertyRef("service_account_ids")
+    user_ids: PropertyRef = PropertyRef("user_ids")
+    group_ids: PropertyRef = PropertyRef("group_ids")
     role_id: PropertyRef = PropertyRef("role_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -84,6 +86,42 @@ class KubernetesRoleBindingToServiceAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesRoleBindingToUserRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesRoleBindingToUserRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("user_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SUBJECT"
+    properties: KubernetesRoleBindingToUserRelProperties = (
+        KubernetesRoleBindingToUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesRoleBindingToGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesRoleBindingToGroupRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("group_ids", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SUBJECT"
+    properties: KubernetesRoleBindingToGroupRelProperties = (
+        KubernetesRoleBindingToGroupRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesRoleBindingToRoleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -114,6 +152,8 @@ class KubernetesRoleBindingSchema(CartographyNodeSchema):
         [
             KubernetesRoleBindingToNamespaceRel(),
             KubernetesRoleBindingToServiceAccountRel(),
+            KubernetesRoleBindingToUserRel(),
+            KubernetesRoleBindingToGroupRel(),
             KubernetesRoleBindingToRoleRel(),
         ]
     )

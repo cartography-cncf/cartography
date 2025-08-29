@@ -2,15 +2,52 @@ import asyncio
 import logging
 
 import neo4j
+from azure.identity import ClientSecretCredential
+from msgraph import GraphServiceClient
 
 from cartography.config import Config
 from cartography.intel.entra.applications import sync_entra_applications
 from cartography.intel.entra.groups import sync_entra_groups
 from cartography.intel.entra.ou import sync_entra_ous
+from cartography.intel.entra.users import get_tenant
+from cartography.intel.entra.users import load_tenant
 from cartography.intel.entra.users import sync_entra_users
+from cartography.intel.entra.users import transform_tenant
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+@timeit
+async def sync_tenant(
+    neo4j_session: neo4j.Session,
+    tenant_id: str,
+    client_id: str,
+    client_secret: str,
+    update_tag: int,
+) -> None:
+    """
+    Sync tenant information as a prerequisite for all other Entra resource syncs.
+
+    :param neo4j_session: Neo4j session
+    :param tenant_id: Entra tenant ID
+    :param client_id: Azure application client ID
+    :param client_secret: Azure application client secret
+    :param update_tag: Update tag for tracking data freshness
+    """
+    credential = ClientSecretCredential(
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+    client = GraphServiceClient(
+        credential, scopes=["https://graph.microsoft.com/.default"]
+    )
+
+    # Fetch tenant and load it
+    tenant = await get_tenant(client)
+    transformed_tenant = transform_tenant(tenant, tenant_id)
+    load_tenant(neo4j_session, transformed_tenant, update_tag)
 
 
 @timeit
@@ -39,6 +76,15 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     }
 
     async def main() -> None:
+        # Load tenant first as a prerequisite for all resource syncs
+        await sync_tenant(
+            neo4j_session,
+            config.entra_tenant_id,
+            config.entra_client_id,
+            config.entra_client_secret,
+            config.update_tag,
+        )
+
         # Run user sync
         await sync_entra_users(
             neo4j_session,
@@ -79,5 +125,5 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             common_job_parameters,
         )
 
-    # Execute both syncs in sequence
+    # Execute syncs in sequence
     asyncio.run(main())

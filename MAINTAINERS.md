@@ -2,31 +2,37 @@ See https://github.com/cartography-cncf/cartography/#contributing for general co
 
 ## Maintainers
 
-List of community members who have shown they are committed to Cartography's continued development and are active in pull request reviews and community conversations.
+List of community members who have shown they are committed to Cartography's continued development and are active in pull request reviews and community conversations. Alphabetical order.
 
-- Alex Chantavy (https://github.com/achantavy): General catch-all
-- Ramon Petgrave (https://github.com/ramonpetgrave64): General catch-all
-- Jérémy Chapeau (https://github.com/jychp): Plugin development
-- Ryan Lane (https://github.com/ryan-lane): Plugin development, general engineering best practices
-- Marco Lancini (https://github.com/marco-lancini): Deployment and use-cases
-- Kedar Ghule (https://github.com/kedarghule): Plugin development
-- Purusottam Mupunu (https://https://github.com/mpurusottamc): Deployment and use-cases
-- Chandan Chowdhury (https://github.com/chandanchowdhury): Plugin development
+- Drishti Aggarwal (https://github.com/d-aggarwal)
+- Alex Chantavy (https://github.com/achantavy)
+- Jérémy Chapeau (https://github.com/jychp)
+- Chandan Chowdhury (https://github.com/chandanchowdhury)
+- Shyam Mukund (https://github.com/shyammukund)
+- Ramon Petgrave (https://github.com/ramonpetgrave64)
+- Kunaal Sikka (https://github.com/kunaals)
 
+## Founding maintainers
 
-## Friends of Cartography
-
-Not maintainers but are continually active in discussions and offer subject matter expertise or community advocacy (e.g. writing blog posts)
-
-- Daniel D'Agostino (https://github.com/danielsaporo): Deployment and use-cases
-- Ashley Lowde (https://github.com/alowde-ps): Deployment and use-cases
-
-
-## Emeritus maintainers
-
-Not actively involved in reviews, but Cartography would not exist without the contributions of these key community members.
+Cartography would not exist without the contributions of these key members. They are not actively involved in reviews anymore, but we acknowledge them here.
 
 - Sacha Faust (https://github.com/sachafaust)
 - Andrew Johnson (https://github.com/SecPrez)
 - Taya Steere (https://github.com/tmsteere)
 - Evan Davis (https://github.com/ecdavis)
+
+## Emeritus maintainers
+
+Maintainers who have worked on Cartography but are no longer actively involved in reviews.
+
+- Marco Lancini (https://github.com/marco-lancini)
+- Ryan Lane (https://github.com/ryan-lane)
+- Kedar Ghule (https://github.com/kedarghule)
+- Purusottam Mupunu (https://github.com/mpurusottamc)
+
+## Friends of Cartography
+
+Not maintainers but these members have been active in discussions and offer subject matter expertise or community advocacy (e.g. writing blog posts)
+
+- Daniel D'Agostino (https://github.com/danielsaporo): Deployment and use-cases
+- Ashley Lowde (https://github.com/alowde-ps): Deployment and use-cases

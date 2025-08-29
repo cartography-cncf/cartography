@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def get_all_azure_subscriptions(credentials: Credentials) -> List[Dict]:
     try:
         # Create the client
-        client = SubscriptionClient(credentials.arm_credentials)
+        client = SubscriptionClient(credentials.credential)
 
         # Get all the accessible subscriptions
         subs = list(client.subscriptions.list())
@@ -52,7 +52,7 @@ def get_current_azure_subscription(
 ) -> List[Dict]:
     try:
         # Create the client
-        client = SubscriptionClient(credentials.arm_credentials)
+        client = SubscriptionClient(credentials.credential)
 
         # Get all the accessible subscriptions
         sub = client.subscriptions.get(subscription_id)
