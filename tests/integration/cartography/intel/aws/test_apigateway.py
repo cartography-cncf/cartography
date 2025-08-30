@@ -348,6 +348,14 @@ def test_sync_apigateway(
         ("test-002/dep2",),
     }
 
+    assert check_nodes(neo4j_session, "APIGatewayMethod", ["id"]) == {
+        ("test-001/3kzxbg5sa2/GET",),
+    }
+
+    assert check_nodes(neo4j_session, "APIGatewayIntegration", ["id"]) == {
+        ("test-001/3kzxbg5sa2/GET",),
+    }
+
     # Assert AWS Account to REST API relationships
     assert check_rels(
         neo4j_session,
@@ -426,4 +434,52 @@ def test_sync_apigateway(
     ) == {
         ("test-001", "test-001/dep1"),
         ("test-002", "test-002/dep2"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "APIGatewayMethod",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "test-001/3kzxbg5sa2/GET"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "APIGatewayIntegration",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "test-001/3kzxbg5sa2/GET"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "APIGatewayResource",
+        "id",
+        "APIGatewayMethod",
+        "id",
+        "HAS_METHOD",
+        rel_direction_right=True,
+    ) == {
+        ("3kzxbg5sa2", "test-001/3kzxbg5sa2/GET"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "APIGatewayResource",
+        "id",
+        "APIGatewayIntegration",
+        "id",
+        "HAS_INTEGRATION",
+        rel_direction_right=True,
+    ) == {
+        ("3kzxbg5sa2", "test-001/3kzxbg5sa2/GET"),
     }
