@@ -1,7 +1,6 @@
 import logging
 from typing import Dict
 from typing import List
-from typing import Optional
 
 import neo4j
 
@@ -29,28 +28,28 @@ def _sync_one_subscription(
 ) -> None:
     compute.sync(
         neo4j_session,
-        credentials.arm_credentials,
+        credentials.credential,
         subscription_id,
         update_tag,
         common_job_parameters,
     )
     cosmosdb.sync(
         neo4j_session,
-        credentials.arm_credentials,
+        credentials.credential,
         subscription_id,
         update_tag,
         common_job_parameters,
     )
     sql.sync(
         neo4j_session,
-        credentials.arm_credentials,
+        credentials.credential,
         subscription_id,
         update_tag,
         common_job_parameters,
     )
     storage.sync(
         neo4j_session,
-        credentials.arm_credentials,
+        credentials.credential,
         subscription_id,
         update_tag,
         common_job_parameters,
@@ -59,13 +58,12 @@ def _sync_one_subscription(
 
 def _sync_tenant(
     neo4j_session: neo4j.Session,
-    tenant_id: str,
-    current_user: Optional[str],
+    credentials: Credentials,
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
-    logger.info("Syncing Azure Tenant: %s", tenant_id)
-    tenant.sync(neo4j_session, tenant_id, current_user, update_tag, common_job_parameters)  # type: ignore
+    logger.info("Syncing Azure Tenant: %s", credentials.tenant_id)
+    tenant.sync(neo4j_session, credentials.tenant_id, None, update_tag, common_job_parameters)  # type: ignore
 
 
 def _sync_multiple_subscriptions(
@@ -122,40 +120,45 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         logger.error(
             (
                 "Unable to authenticate with Azure Service Principal, an error occurred: %s."
-                "Make sure your Azure Service Principal details are provided correctly."
+                "Make sure your credentials (CLI or Service Principal) are configured correctly."
             ),
             e,
         )
         return
 
-    _sync_tenant(
-        neo4j_session,
-        credentials.get_tenant_id(),
-        credentials.get_current_user(),
-        config.update_tag,
-        common_job_parameters,
-    )
-
-    if config.azure_sync_all_subscriptions:
-        subscriptions = subscription.get_all_azure_subscriptions(credentials)
-
-    else:
-        subscriptions = subscription.get_current_azure_subscription(
-            credentials,
-            credentials.subscription_id,
-        )
-
-    if not subscriptions:
-        logger.warning(
-            "No valid Azure credentials are found. No Azure subscriptions can be synced. Exiting Azure sync stage.",
-        )
+    if not credentials:
         return
 
-    _sync_multiple_subscriptions(
+    common_job_parameters["TENANT_ID"] = credentials.tenant_id
+
+    _sync_tenant(
         neo4j_session,
         credentials,
-        credentials.get_tenant_id(),
-        subscriptions,
         config.update_tag,
         common_job_parameters,
     )
+    if credentials.tenant_id:
+        if config.azure_sync_all_subscriptions:
+            subscriptions = subscription.get_all_azure_subscriptions(credentials)
+
+        else:
+            sub_id_to_sync = config.azure_subscription_id or credentials.subscription_id
+            subscriptions = subscription.get_current_azure_subscription(
+                credentials,
+                sub_id_to_sync,
+            )
+
+        if not subscriptions:
+            logger.warning(
+                "No valid Azure credentials are found. No Azure subscriptions can be synced. Exiting Azure sync stage.",
+            )
+            return
+
+        _sync_multiple_subscriptions(
+            neo4j_session,
+            credentials,
+            credentials.tenant_id,
+            subscriptions,
+            config.update_tag,
+            common_job_parameters,
+        )
