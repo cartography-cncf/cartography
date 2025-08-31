@@ -159,3 +159,4 @@ def test_sync_gcp_iam(neo4j_session):
         "GCPServiceAccount", "id",
         "RESOURCE",
     ) == expected_sa_rels
+
