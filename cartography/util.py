@@ -490,13 +490,16 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
 DEFAULT_TIMEOUT = (60, 60)
 
 
-class RetryHttpAdapter(HTTPAdapter):
-    def __init__(self, timeout: tuple[int, int], *args: Any, **kwargs: Any) -> None:
+class RetryTimeoutAdapter(HTTPAdapter):
+    def __init__(
+        self, timeout: tuple[int, int] | None = None, *args: Any, **kwargs: Any
+    ) -> None:
         self.timeout = timeout
         super().__init__(*args, **kwargs)
 
     def send(self, *args: Any, **kwargs: Any) -> requests.Response:
-        kwargs["timeout"] = self.timeout
+        if self.timeout:
+            kwargs.setdefault("timeout", self.timeout)
         return super().send(*args, **kwargs)
 
 
@@ -510,16 +513,17 @@ def build_session(
     user_agent = f"Cartography/{_get_cartography_version()}"
     session.headers.update({"User-Agent": user_agent})
 
+    # Single adapter handles both concerns
+    adapter = RetryTimeoutAdapter(
+        timeout=timeout if timeout else None, max_retries=retry_policy or Retry(total=0)
+    )
+
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+
     if retry_policy:
-        session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-        session.mount("http://", HTTPAdapter(max_retries=retry_policy))
-
         logger.info(f"Configured session with retry policy: {retry_policy}")
-
     if timeout:
-        session.mount("https://", RetryHttpAdapter(timeout=timeout))
-        session.mount("http://", RetryHttpAdapter(timeout=timeout))
-
         logger.info(f"Configured session with timeout: {timeout}")
 
     return session

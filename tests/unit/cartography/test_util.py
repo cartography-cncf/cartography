@@ -4,11 +4,13 @@ from unittest.mock import patch
 
 import botocore
 import pytest
+from urllib3 import Retry
 
 import cartography.util
 from cartography import util
 from cartography.util import aws_handle_regions
 from cartography.util import batch
+from cartography.util import build_session
 from cartography.util import run_analysis_and_ensure_deps
 
 
@@ -209,3 +211,88 @@ def test_run_analysis_and_ensure_deps_no_requirements(
         neo4j_session,
         common_job_parameters,
     )
+
+
+@patch("cartography.util._get_cartography_version", return_value="1.2.3")
+def test_build_session_headers(mock_get_version):
+    """Test that build_session creates a session with the correct User-Agent header."""
+    # Act
+    session = build_session()
+
+    # Assert
+    assert "User-Agent" in session.headers
+    assert session.headers["User-Agent"] == "Cartography/1.2.3"
+    mock_get_version.assert_called_once()
+
+
+@patch("cartography.util._get_cartography_version", return_value="1.2.3")
+def test_build_session_with_retry_policy(mock_get_version):
+    """Test that build_session properly configures retry policy and headers."""
+
+    # Arrange
+    retry_policy = Retry(total=3, backoff_factor=1)
+
+    # Act
+    session = build_session(retry_policy=retry_policy)
+
+    # Assert
+    assert "User-Agent" in session.headers
+    assert session.headers["User-Agent"] == "Cartography/1.2.3"
+
+    # Check that adapters were mounted (they should have retry policy)
+    assert "https://" in session.adapters
+    assert "http://" in session.adapters
+    assert session.adapters["https://"].max_retries.total == retry_policy.total
+    assert session.adapters["http://"].max_retries.total == retry_policy.total
+    mock_get_version.assert_called_once()
+
+
+@patch("cartography.util._get_cartography_version", return_value="1.2.3")
+def test_build_session_with_custom_timeout(mock_get_version):
+    """Test that build_session properly configures timeout and headers."""
+    # Arrange
+    custom_timeout = (30, 30)
+    # Act
+    session = build_session(timeout=custom_timeout)
+
+    # Assert
+    assert "User-Agent" in session.headers
+    assert session.headers["User-Agent"] == "Cartography/1.2.3"
+
+    # Check that adapters were mounted (they should have timeout)
+    assert "https://" in session.adapters
+    assert "http://" in session.adapters
+    assert session.adapters["https://"].timeout == custom_timeout
+    assert session.adapters["http://"].timeout == custom_timeout
+    mock_get_version.assert_called_once()
+
+
+@patch("cartography.util._get_cartography_version", return_value="1.2.3")
+def test_build_session_with_retry_and_timeout(mock_get_version):
+    """Test that build_session properly configures both retry policy and timeout together."""
+    # Arrange
+    retry_policy = Retry(total=5, backoff_factor=2)
+    custom_timeout = (45, 45)
+
+    # Act
+    session = build_session(retry_policy=retry_policy, timeout=custom_timeout)
+
+    # Assert
+    assert "User-Agent" in session.headers
+    assert session.headers["User-Agent"] == "Cartography/1.2.3"
+
+    # Check that adapters were mounted
+    assert "https://" in session.adapters
+    assert "http://" in session.adapters
+
+    # Both retry policy AND timeout should be configured on the same adapter
+    assert session.adapters["https://"].max_retries.total == retry_policy.total
+    assert session.adapters["http://"].max_retries.total == retry_policy.total
+
+    # Timeout should also be preserved (this will fail with current implementation)
+    assert hasattr(session.adapters["https://"], "timeout")
+    assert hasattr(session.adapters["http://"], "timeout")
+    assert session.adapters["https://"].timeout == custom_timeout
+    assert session.adapters["http://"].timeout == custom_timeout
+
+    mock_get_version.assert_called_once()
