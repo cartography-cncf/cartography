@@ -26,9 +26,9 @@ import boto3
 import botocore
 import neo4j
 import requests
+from botocore.exceptions import EndpointConnectionError
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
-from botocore.exceptions import EndpointConnectionError
 
 from cartography.graph.job import GraphJob
 from cartography.graph.querybuilder import _get_cartography_version
