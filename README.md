@@ -108,7 +108,7 @@ This project is licensed under the [Apache 2.0 License](LICENSE).
 Thank you for considering contributing to Cartography!
 
 ### Code of conduct
-All contributors and participants of this project must follow the  [CNCF code of conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
+All contributors and participants of this project must follow the [CNCF code of conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
 ### Bug reports and feature requests and discussions
 Submit a GitHub issue to report a bug or request a new feature. If we decide that the issue needs more discussion - usually because the scope is too large or we need to make careful decision - we will convert the issue to a [GitHub Discussion](https://github.com/cartography-cncf/cartography/discussions).

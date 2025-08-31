@@ -235,12 +235,6 @@ def transform(api_result: dict[str, Any]) -> list[dict[str, Any]]:
             # Optional fields - use .get() with None default
             "name": user_data.get("name"),
             "last_login": user_data.get("last_login"),
-
-            # Convert timestamps if needed
-            "created_at": (
-                int(dt_parse.parse(user_data["created_at"]).timestamp() * 1000)
-                if user_data.get("created_at") else None
-            ),
         }
         result.append(transformed_user)
 
@@ -285,7 +279,7 @@ class YourServiceUserNodeProperties(CartographyNodeProperties):
 ```
 
 **PropertyRef Parameters:**
-- First parameter: Key in your data dict or kwarg name
+- First parameter: Key in your data dict or kwarg name. Use keys when you are ingesting a list of records. Use kwargs when you want to set the same value for all records in the list of records.
 - `extra_index=True`: Create database index for better query performance
 - `set_in_kwargs=True`: Value comes from kwargs passed to `load()`, not from individual records
 
@@ -831,27 +825,6 @@ def start_your_service_ingestion(neo4j_session: neo4j.Session, config: Config) -
 
 Follow these principles for robust error handling:
 
-### DO: Catch Specific Exceptions
-```python
-import requests
-
-
-def get_users(api_key: str) -> dict[str, Any]:
-    try:
-        response = requests.get(f"https://api.service.com/users", headers={"Authorization": f"Bearer {api_key}"})
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 401:
-            logger.error("Invalid API key")
-        elif e.response.status_code == 429:
-            logger.error("Rate limit exceeded")
-        raise
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Network error: {e}")
-        raise
-```
-
 ### DON'T: Catch Base Exception
 ```python
 # ❌ Don't do this - makes debugging impossible
@@ -896,6 +869,10 @@ Neo4j 4+ supports native Python datetime objects and ISO 8601 formatted strings.
 
 ## 🧪 Testing Your Module {#testing}
 
+**Key Principle: Test outcomes, not implementation details.**
+
+Focus on verifying that data is written to the graph as expected, rather than testing internal function parameters or implementation details. Mock external dependencies (APIs, databases) when necessary, but avoid brittle parameter testing.
+
 ### Test Data
 
 Create mock data in `tests/data/your_service/`:
@@ -926,30 +903,7 @@ MOCK_USERS_RESPONSE = {
 
 ### Unit Tests
 
-(Optional) Test your transform functions in `tests/unit/cartography/intel/your_service/`:
-
-```python
-# tests/unit/cartography/intel/your_service/test_users.py
-from cartography.intel.your_service.users import transform
-from tests.data.your_service.users import MOCK_USERS_RESPONSE
-
-
-def test_transform_users():
-    result = transform(MOCK_USERS_RESPONSE)
-
-    assert len(result) == 2
-
-    alice = result[0]
-    assert alice["id"] == "user-123"
-    assert alice["email"] == "alice@example.com"
-    assert alice["name"] == "Alice Smith"
-    assert alice["is_admin"] is False
-    assert alice["last_login"] is not None  # Converted timestamp
-
-    bob = result[1]
-    assert bob["id"] == "user-456"
-    assert bob["last_login"] is None  # Handled missing data
-```
+Unit tests are only for testing smaller functions and verifying that the outputs are as expected.
 
 ### Integration Tests
 
@@ -1193,7 +1147,7 @@ Before submitting your module:
 - [ ] ✅ **Schema Fields**: Only use standard fields in `CartographyRelSchema`/`CartographyNodeSchema` subclasses
 - [ ] ✅ **Scoped Cleanup**: Verify `scoped_cleanup=True` (default) for tenant-scoped resources, `False` only for global data
 - [ ] ✅ **Error Handling**: Specific exceptions, required vs optional fields
-- [ ] ✅ **Testing**: Unit tests for transform, integration tests for loading
+- [ ] ✅ **Testing**: Integration tests for sync functions
 - [ ] ✅ **Documentation**: Schema docs, docstrings, inline comments
 - [ ] ✅ **Cleanup**: Proper cleanup job implementation
 - [ ] ✅ **Indexing**: Extra indexes on frequently queried fields
