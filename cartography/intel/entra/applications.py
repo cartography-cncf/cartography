@@ -150,10 +150,12 @@ async def sync_entra_applications(
     )
 
     # Step 1: Sync applications
+    # Step 1: Sync applications
     app_batch_size = 10  # Batch size for applications
     apps_batch = []
     total_app_count = 0
 
+    # Stream and load applications
     # Stream and load applications
     async for app in get_entra_applications(client):
         total_app_count += 1
@@ -176,6 +178,8 @@ async def sync_entra_applications(
         load_applications(neo4j_session, transformed_apps, update_tag, tenant_id)
         apps_batch.clear()
         transformed_apps.clear()
+    cleanup_applications(neo4j_session, common_job_parameters)
+    logger.info(f"Completed syncing {total_app_count} applications")
     cleanup_applications(neo4j_session, common_job_parameters)
     logger.info(f"Completed syncing {total_app_count} applications")
     # Final garbage collection
