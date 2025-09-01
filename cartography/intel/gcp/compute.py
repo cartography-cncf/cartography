@@ -23,6 +23,9 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
 
+# Connect/read timeout in seconds for Google API requests
+_TIMEOUT = 60
+
 
 def _get_error_reason(http_error: HttpError) -> str:
     """
@@ -135,7 +138,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Resource:
     :return: Response object containing data on all GCP subnets for a given project
     """
     req = compute.subnetworks().list(project=projectid, region=region)
-    return req.execute()
+    return req.execute(num_retries=5, timeout=_TIMEOUT)
 
 
 @timeit
@@ -1259,7 +1262,15 @@ def sync_gcp_subnets(
     common_job_parameters: Dict,
 ) -> None:
     for r in regions:
-        subnet_res = get_gcp_subnets(project_id, r, compute)
+        try:
+            subnet_res = get_gcp_subnets(project_id, r, compute)
+        except TimeoutError:
+            logger.warning(
+                "GCP: subnetworks.list for project %s region %s timed out; skipping region.",
+                project_id,
+                r,
+            )
+            continue
         subnets = transform_gcp_subnets(subnet_res)
         load_gcp_subnets(neo4j_session, subnets, gcp_update_tag)
         # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
