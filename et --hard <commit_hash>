@@ -1,0 +1,577 @@
+[33mf75d3b49[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mazure-pm[m[33m, [m[1;31morigin/azure_pm1[m[33m, [m[1;31morigin/azure-pm[m[33m, [m[1;32mazure_pm1[m[33m)[m HEAD@{0}: checkout: moving from azure_pm1 to azure-pm
+[33mf75d3b49[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mazure-pm[m[33m, [m[1;31morigin/azure_pm1[m[33m, [m[1;31morigin/azure-pm[m[33m, [m[1;32mazure_pm1[m[33m)[m HEAD@{1}: checkout: moving from azure-pm to azure_pm1
+[33mf75d3b49[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mazure-pm[m[33m, [m[1;31morigin/azure_pm1[m[33m, [m[1;31morigin/azure-pm[m[33m, [m[1;32mazure_pm1[m[33m)[m HEAD@{2}: rebase (finish): returning to refs/heads/azure-pm
+[33mf75d3b49[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mazure-pm[m[33m, [m[1;31morigin/azure_pm1[m[33m, [m[1;31morigin/azure-pm[m[33m, [m[1;32mazure_pm1[m[33m)[m HEAD@{3}: commit (amend): Logger Output Changes
+[33m8ac61898[m HEAD@{4}: rebase (edit): Logger Output Changes
+[33ma17dc6e4[m HEAD@{5}: rebase (continue): Mapping Schema MD update
+[33m6c4baf00[m HEAD@{6}: rebase (edit): Mapping Schema MD update
+[33m731c9bea[m HEAD@{7}: rebase (continue): Minor Changes
+[33mb0a39d73[m HEAD@{8}: rebase (pick): Minor Changes
+[33m9abfd7e8[m HEAD@{9}: commit (amend): Permission Relationship Test Changes
+[33m8fb20f2d[m HEAD@{10}: rebase (edit): Permission Relationship Test Changes
+[33m7cb91ca9[m HEAD@{11}: commit (amend): Migration to SerivcePrincipals
+[33m10bbcfff[m HEAD@{12}: rebase (edit): Migration to SerivcePrincipals
+[33m2ebb0d2e[m HEAD@{13}: rebase (continue): Merge branch 'master' into azure-pm
+[33m2e7795ff[m HEAD@{14}: commit (amend): Test Correction 3
+[33m80f9f122[m HEAD@{15}: rebase (edit): Test Correction 3
+[33m29671892[m HEAD@{16}: commit (amend): Suggestions addressed
+[33m259a5fc1[m HEAD@{17}: rebase: fast-forward
+[33mc2b62970[m HEAD@{18}: rebase: fast-forward
+[33m0897995c[m HEAD@{19}: rebase: fast-forward
+[33m8eb3c571[m HEAD@{20}: rebase: fast-forward
+[33m9026e9bf[m HEAD@{21}: rebase (reset): 'onto'
+[33mb1e4d379[m[33m ([m[1;31mupstream/master[m[33m, [m[1;31mupstream/HEAD[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{22}: rebase: fast-forward
+[33ma4b7e452[m[33m ([m[1;33mtag: [m[1;33m0.115.0[m[33m)[m HEAD@{23}: rebase: fast-forward
+[33m8ec5bd7f[m HEAD@{24}: rebase: fast-forward
+[33m388b34dc[m HEAD@{25}: rebase: fast-forward
+[33me7fb8063[m HEAD@{26}: rebase: fast-forward
+[33mdffed9df[m HEAD@{27}: rebase: fast-forward
+[33m64a0d44f[m HEAD@{28}: rebase: fast-forward
+[33m4b7c82eb[m HEAD@{29}: rebase: fast-forward
+[33md10ccc4f[m HEAD@{30}: rebase: fast-forward
+[33ma6a26098[m HEAD@{31}: rebase: fast-forward
+[33mc4273586[m HEAD@{32}: rebase: fast-forward
+[33mb7b70aa8[m HEAD@{33}: rebase: fast-forward
+[33m6f7bc2c3[m HEAD@{34}: rebase: fast-forward
+[33maf11e996[m[33m ([m[1;33mtag: [m[1;33m0.114.0[m[33m)[m HEAD@{35}: rebase: fast-forward
+[33mad9a52ae[m HEAD@{36}: rebase: fast-forward
+[33m3c657f1b[m HEAD@{37}: rebase: fast-forward
+[33m1c8cd955[m HEAD@{38}: rebase: fast-forward
+[33mbf8b8d7b[m HEAD@{39}: rebase: fast-forward
+[33m01950faa[m HEAD@{40}: rebase: fast-forward
+[33m36354afb[m HEAD@{41}: rebase: fast-forward
+[33m94be56be[m HEAD@{42}: rebase: fast-forward
+[33m938e8850[m HEAD@{43}: rebase: fast-forward
+[33m25ed5c2d[m HEAD@{44}: rebase: fast-forward
+[33mc723fb17[m HEAD@{45}: rebase: fast-forward
+[33m0a2abc41[m HEAD@{46}: rebase: fast-forward
+[33mb4048528[m HEAD@{47}: rebase: fast-forward
+[33mc6e24880[m HEAD@{48}: rebase: fast-forward
+[33mdd7fef9e[m HEAD@{49}: rebase: fast-forward
+[33mb7542402[m HEAD@{50}: rebase: fast-forward
+[33m9be3204c[m HEAD@{51}: rebase: fast-forward
+[33m087e2f61[m[33m ([m[1;33mtag: [m[1;33m0.113.0[m[33m)[m HEAD@{52}: rebase: fast-forward
+[33m549751ca[m HEAD@{53}: rebase: fast-forward
+[33ma1774576[m HEAD@{54}: rebase: fast-forward
+[33m5ec5b3bb[m HEAD@{55}: rebase: fast-forward
+[33m2640ba0d[m HEAD@{56}: rebase: fast-forward
+[33m42de86a3[m HEAD@{57}: rebase: fast-forward
+[33mcee37ddb[m HEAD@{58}: rebase: fast-forward
+[33m80b26d00[m HEAD@{59}: rebase: fast-forward
+[33m2ffd8ad2[m HEAD@{60}: rebase: fast-forward
+[33mca53872f[m HEAD@{61}: rebase: fast-forward
+[33mc784aa30[m[33m ([m[1;33mtag: [m[1;33m0.112.0[m[33m)[m HEAD@{62}: rebase: fast-forward
+[33m4ca7659a[m HEAD@{63}: rebase: fast-forward
+[33m86f85d40[m HEAD@{64}: rebase: fast-forward
+[33m788dfae3[m HEAD@{65}: rebase: fast-forward
+[33m336dd392[m HEAD@{66}: rebase: fast-forward
+[33m790c53ff[m HEAD@{67}: rebase: fast-forward
+[33ma650a300[m HEAD@{68}: rebase: fast-forward
+[33mcf90f98f[m HEAD@{69}: rebase: fast-forward
+[33m28d5cbe3[m HEAD@{70}: rebase: fast-forward
+[33me3282c28[m HEAD@{71}: rebase: fast-forward
+[33m0844f73e[m HEAD@{72}: rebase: fast-forward
+[33medf145c6[m HEAD@{73}: rebase: fast-forward
+[33mea37ebdb[m HEAD@{74}: rebase: fast-forward
+[33mdb571156[m HEAD@{75}: rebase: fast-forward
+[33m9026e9bf[m HEAD@{76}: rebase (start): checkout HEAD~12
+[33me4e7ef0c[m HEAD@{77}: rebase (finish): returning to refs/heads/azure-pm
+[33me4e7ef0c[m HEAD@{78}: rebase: fast-forward
+[33m117ceb45[m HEAD@{79}: rebase: fast-forward
+[33m14ca2499[m HEAD@{80}: rebase: fast-forward
+[33m51031e51[m HEAD@{81}: rebase: fast-forward
+[33me132bcd9[m HEAD@{82}: rebase: fast-forward
+[33m1239e108[m HEAD@{83}: rebase: fast-forward
+[33m16e59ddb[m HEAD@{84}: rebase: fast-forward
+[33ma951b5ad[m HEAD@{85}: rebase: fast-forward
+[33m259a5fc1[m HEAD@{86}: rebase: fast-forward
+[33mc2b62970[m HEAD@{87}: rebase: fast-forward
+[33m0897995c[m HEAD@{88}: rebase: fast-forward
+[33m8eb3c571[m HEAD@{89}: rebase: fast-forward
+[33m9026e9bf[m HEAD@{90}: rebase (reset): 'onto'
+[33mb1e4d379[m[33m ([m[1;31mupstream/master[m[33m, [m[1;31mupstream/HEAD[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{91}: rebase: fast-forward
+[33ma4b7e452[m[33m ([m[1;33mtag: [m[1;33m0.115.0[m[33m)[m HEAD@{92}: rebase: fast-forward
+[33m8ec5bd7f[m HEAD@{93}: rebase: fast-forward
+[33m388b34dc[m HEAD@{94}: rebase: fast-forward
+[33me7fb8063[m HEAD@{95}: rebase: fast-forward
+[33mdffed9df[m HEAD@{96}: rebase: fast-forward
+[33m64a0d44f[m HEAD@{97}: rebase: fast-forward
+[33m4b7c82eb[m HEAD@{98}: rebase: fast-forward
+[33md10ccc4f[m HEAD@{99}: rebase: fast-forward
+[33ma6a26098[m HEAD@{100}: rebase: fast-forward
+[33mc4273586[m HEAD@{101}: rebase: fast-forward
+[33mb7b70aa8[m HEAD@{102}: rebase: fast-forward
+[33m6f7bc2c3[m HEAD@{103}: rebase: fast-forward
+[33maf11e996[m[33m ([m[1;33mtag: [m[1;33m0.114.0[m[33m)[m HEAD@{104}: rebase: fast-forward
+[33mad9a52ae[m HEAD@{105}: rebase: fast-forward
+[33m3c657f1b[m HEAD@{106}: rebase: fast-forward
+[33m1c8cd955[m HEAD@{107}: rebase: fast-forward
+[33mbf8b8d7b[m HEAD@{108}: rebase: fast-forward
+[33m01950faa[m HEAD@{109}: rebase: fast-forward
+[33m36354afb[m HEAD@{110}: rebase: fast-forward
+[33m94be56be[m HEAD@{111}: rebase: fast-forward
+[33m938e8850[m HEAD@{112}: rebase: fast-forward
+[33m25ed5c2d[m HEAD@{113}: rebase: fast-forward
+[33mc723fb17[m HEAD@{114}: rebase: fast-forward
+[33m0a2abc41[m HEAD@{115}: rebase: fast-forward
+[33mb4048528[m HEAD@{116}: rebase: fast-forward
+[33mc6e24880[m HEAD@{117}: rebase: fast-forward
+[33mdd7fef9e[m HEAD@{118}: rebase: fast-forward
+[33mb7542402[m HEAD@{119}: rebase: fast-forward
+[33m9be3204c[m HEAD@{120}: rebase: fast-forward
+[33m087e2f61[m[33m ([m[1;33mtag: [m[1;33m0.113.0[m[33m)[m HEAD@{121}: rebase: fast-forward
+[33m549751ca[m HEAD@{122}: rebase: fast-forward
+[33ma1774576[m HEAD@{123}: rebase: fast-forward
+[33m5ec5b3bb[m HEAD@{124}: rebase: fast-forward
+[33m2640ba0d[m HEAD@{125}: rebase: fast-forward
+[33m42de86a3[m HEAD@{126}: rebase: fast-forward
+[33mcee37ddb[m HEAD@{127}: rebase: fast-forward
+[33m80b26d00[m HEAD@{128}: rebase: fast-forward
+[33m2ffd8ad2[m HEAD@{129}: rebase: fast-forward
+[33mca53872f[m HEAD@{130}: rebase: fast-forward
+[33mc784aa30[m[33m ([m[1;33mtag: [m[1;33m0.112.0[m[33m)[m HEAD@{131}: rebase: fast-forward
+[33m4ca7659a[m HEAD@{132}: rebase: fast-forward
+[33m86f85d40[m HEAD@{133}: rebase: fast-forward
+[33m788dfae3[m HEAD@{134}: rebase: fast-forward
+[33m336dd392[m HEAD@{135}: rebase: fast-forward
+[33m790c53ff[m HEAD@{136}: rebase: fast-forward
+[33ma650a300[m HEAD@{137}: rebase: fast-forward
+[33mcf90f98f[m HEAD@{138}: rebase: fast-forward
+[33m28d5cbe3[m HEAD@{139}: rebase: fast-forward
+[33me3282c28[m HEAD@{140}: rebase: fast-forward
+[33m0844f73e[m HEAD@{141}: rebase: fast-forward
+[33medf145c6[m HEAD@{142}: rebase: fast-forward
+[33mea37ebdb[m HEAD@{143}: rebase: fast-forward
+[33mdb571156[m HEAD@{144}: rebase: fast-forward
+[33m9026e9bf[m HEAD@{145}: rebase (start): checkout HEAD~12
+[33me4e7ef0c[m HEAD@{146}: checkout: moving from azure_pm_gh to azure-pm
+[33m7d15a954[m[33m ([m[1;31morigin/azure_pm_gh[m[33m, [m[1;32mazure_pm_gh[m[33m)[m HEAD@{147}: checkout: moving from azure-pm to azure_pm_gh
+[33me4e7ef0c[m HEAD@{148}: reset: moving to origin/azure-pm
+[33m7d15a954[m[33m ([m[1;31morigin/azure_pm_gh[m[33m, [m[1;32mazure_pm_gh[m[33m)[m HEAD@{149}: checkout: moving from azure_pm_gh to azure-pm
+[33m7d15a954[m[33m ([m[1;31morigin/azure_pm_gh[m[33m, [m[1;32mazure_pm_gh[m[33m)[m HEAD@{150}: checkout: moving from azure-pm to azure_pm_gh
+[33m7d15a954[m[33m ([m[1;31morigin/azure_pm_gh[m[33m, [m[1;32mazure_pm_gh[m[33m)[m HEAD@{151}: rebase (finish): returning to refs/heads/azure-pm
+[33m7d15a954[m[33m ([m[1;31morigin/azure_pm_gh[m[33m, [m[1;32mazure_pm_gh[m[33m)[m HEAD@{152}: rebase (squash): Test corrections 2
+[33md69d339c[m HEAD@{153}: rebase (squash): # This is a combination of 2 commits.
+[33m398fc92f[m HEAD@{154}: rebase (continue): Test corrections 2
+[33md54dfc11[m HEAD@{155}: rebase (squash): # This is a combination of 8 commits.
+[33m148823d6[m HEAD@{156}: rebase (squash): # This is a combination of 7 commits.
+[33mff0b5ed6[m HEAD@{157}: rebase (squash): # This is a combination of 6 commits.
+[33m43eb0f00[m HEAD@{158}: rebase (squash): # This is a combination of 5 commits.
+[33m764b1d59[m HEAD@{159}: rebase (squash): # This is a combination of 4 commits.
+[33m9a7c3e05[m HEAD@{160}: rebase (squash): # This is a combination of 3 commits.
+[33m5a7a8224[m HEAD@{161}: rebase (squash): # This is a combination of 2 commits.
+[33m8eb3c571[m HEAD@{162}: rebase: fast-forward
+[33m9026e9bf[m HEAD@{163}: rebase (reset): 'onto'
+[33mb1e4d379[m[33m ([m[1;31mupstream/master[m[33m, [m[1;31mupstream/HEAD[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{164}: rebase: fast-forward
+[33ma4b7e452[m[33m ([m[1;33mtag: [m[1;33m0.115.0[m[33m)[m HEAD@{165}: rebase: fast-forward
+[33m8ec5bd7f[m HEAD@{166}: rebase: fast-forward
+[33m388b34dc[m HEAD@{167}: rebase: fast-forward
+[33me7fb8063[m HEAD@{168}: rebase: fast-forward
+[33mdffed9df[m HEAD@{169}: rebase: fast-forward
+[33m64a0d44f[m HEAD@{170}: rebase: fast-forward
+[33m4b7c82eb[m HEAD@{171}: rebase: fast-forward
+[33md10ccc4f[m HEAD@{172}: rebase: fast-forward
+[33ma6a26098[m HEAD@{173}: rebase: fast-forward
+[33mc4273586[m HEAD@{174}: rebase: fast-forward
+[33mb7b70aa8[m HEAD@{175}: rebase: fast-forward
+[33m6f7bc2c3[m HEAD@{176}: rebase: fast-forward
+[33maf11e996[m[33m ([m[1;33mtag: [m[1;33m0.114.0[m[33m)[m HEAD@{177}: rebase: fast-forward
+[33mad9a52ae[m HEAD@{178}: rebase: fast-forward
+[33m3c657f1b[m HEAD@{179}: rebase: fast-forward
+[33m1c8cd955[m HEAD@{180}: rebase: fast-forward
+[33mbf8b8d7b[m HEAD@{181}: rebase: fast-forward
+[33m01950faa[m HEAD@{182}: rebase: fast-forward
+[33m36354afb[m HEAD@{183}: rebase: fast-forward
+[33m94be56be[m HEAD@{184}: rebase: fast-forward
+[33m938e8850[m HEAD@{185}: rebase: fast-forward
+[33m25ed5c2d[m HEAD@{186}: rebase: fast-forward
+[33mc723fb17[m HEAD@{187}: rebase: fast-forward
+[33m0a2abc41[m HEAD@{188}: rebase: fast-forward
+[33mb4048528[m HEAD@{189}: rebase: fast-forward
+[33mc6e24880[m HEAD@{190}: rebase: fast-forward
+[33mdd7fef9e[m HEAD@{191}: rebase: fast-forward
+[33mb7542402[m HEAD@{192}: rebase: fast-forward
+[33m9be3204c[m HEAD@{193}: rebase: fast-forward
+[33m087e2f61[m[33m ([m[1;33mtag: [m[1;33m0.113.0[m[33m)[m HEAD@{194}: rebase: fast-forward
+[33m549751ca[m HEAD@{195}: rebase: fast-forward
+[33ma1774576[m HEAD@{196}: rebase: fast-forward
+[33m5ec5b3bb[m HEAD@{197}: rebase: fast-forward
+[33m2640ba0d[m HEAD@{198}: rebase: fast-forward
+[33m42de86a3[m HEAD@{199}: rebase: fast-forward
+[33mcee37ddb[m HEAD@{200}: rebase: fast-forward
+[33m80b26d00[m HEAD@{201}: rebase: fast-forward
+[33m2ffd8ad2[m HEAD@{202}: rebase: fast-forward
+[33mca53872f[m HEAD@{203}: rebase: fast-forward
+[33mc784aa30[m[33m ([m[1;33mtag: [m[1;33m0.112.0[m[33m)[m HEAD@{204}: rebase: fast-forward
+[33m4ca7659a[m HEAD@{205}: rebase: fast-forward
+[33m86f85d40[m HEAD@{206}: rebase: fast-forward
+[33m788dfae3[m HEAD@{207}: rebase: fast-forward
+[33m336dd392[m HEAD@{208}: rebase: fast-forward
+[33m790c53ff[m HEAD@{209}: rebase: fast-forward
+[33ma650a300[m HEAD@{210}: rebase: fast-forward
+[33mcf90f98f[m HEAD@{211}: rebase: fast-forward
+[33m28d5cbe3[m HEAD@{212}: rebase: fast-forward
+[33me3282c28[m HEAD@{213}: rebase: fast-forward
+[33m0844f73e[m HEAD@{214}: rebase: fast-forward
+[33medf145c6[m HEAD@{215}: rebase: fast-forward
+[33mea37ebdb[m HEAD@{216}: rebase: fast-forward
+[33mdb571156[m HEAD@{217}: rebase: fast-forward
+[33m9026e9bf[m HEAD@{218}: rebase (start): checkout HEAD~12
+[33me4e7ef0c[m HEAD@{219}: rebase (abort): returning to refs/heads/azure-pm
+[33m346f4750[m HEAD@{220}: rebase (pick): feat(github): add repo committers (#1904)
+[33mb83a25ff[m HEAD@{221}: rebase (pick): feat(gcp): Migrate GCP DNS module to data model (#1897)
+[33m0f5ce94d[m HEAD@{222}: rebase (pick): fix(gcp): Proper transform load GCP IAM (#1896)
+[33m46a25e4e[m HEAD@{223}: rebase (pick): refactor: GCP storage bucket sync to new data model #381 (#1878)
+[33m0e12888c[m HEAD@{224}: rebase (pick): test: cover GCP subnet sync (#1881)
+[33me0c71971[m HEAD@{225}: rebase (pick): chore: bump actions/setup-python from 5.6.0 to 6.0.0 (#1892)
+[33m25ac5a62[m HEAD@{226}: rebase (pick): feat(aws): Add AWS API Gateway v2 ingestion (#1894)
+[33m8ae1d892[m HEAD@{227}: rebase (pick): chore: bump pytest-cov from 6.2.1 to 6.3.0 in the minor-and-patch group (#1893)
+[33m9180e90d[m HEAD@{228}: rebase (pick): chore: bump github/codeql-action from 3.30.0 to 3.30.1 in the minor-and-patch group (#1891)
+[33mc03e2c9e[m HEAD@{229}: rebase (pick): test: Add integration tests for GCP project sync (#1879)
+[33m663306ec[m HEAD@{230}: rebase (pick): fix(gcp): Invalid GCP OAuth scopes (#1890)
+[33m1aa37a23[m HEAD@{231}: rebase (pick): test: Add integration test for GCP DNS sync (#1880)
+[33mea7d103c[m HEAD@{232}: rebase (pick): test: Add sync test for GCP compute instances (#1877)
+[33m158b66a7[m HEAD@{233}: rebase (pick): test: add GCP folder sync integration test (#1876)
+[33mf9eca29a[m HEAD@{234}: rebase (pick): test: add sync gcp storage bucket integration test (#1875)
+[33m89650ce8[m HEAD@{235}: rebase (pick): fix(gcp): handle transient API errors in sync (#1862)
+[33mb08f804b[m HEAD@{236}: rebase (pick): fix(ci): scm auto version causing dependabot bug (#1866)
+[33maad1a8ee[m HEAD@{237}: rebase (pick): fix(aws): Refactor VPC peering ingestion to new data model #1868 (#1872)
+[33m39bd6a16[m HEAD@{238}: rebase (pick): docs: teach agents how to refactor modules (#1873)
+[33mb083e5ff[m HEAD@{239}: rebase (pick): fix(aws): Handle missing PrivateIpAddress in EC2 network interface sync #1870 (#1871)
+[33mc48a2a0f[m HEAD@{240}: rebase (pick): fix(aws): Handle AuthorizationError in AWS region decorator #1867 (#1869)
+[33m2fdba186[m HEAD@{241}: rebase (pick): docs: update links, PR and issue templates, guidelines (#1859)
+[33mc27d898d[m HEAD@{242}: rebase (pick): feat(AWS): Add APIGateway Method and Integration as resource (#1819)
+[33m214874d8[m HEAD@{243}: rebase (pick): chore: bump the minor-and-patch group with 2 updates (#1865)
+[33m69effa47[m HEAD@{244}: rebase (pick): fix(aws eks): parse cluster region from arn, not name (#1863)
+[33m29e2e9e4[m HEAD@{245}: rebase (pick): Test Correction 3
+[33m0e30e431[m HEAD@{246}: rebase (pick): Suggestions addressed
+[33m7ee1c522[m HEAD@{247}: rebase (pick): Permission Relationship Mapping updated and integrations test for rbac, Permission Relationships
+[33m5ff604ed[m HEAD@{248}: rebase (pick): EntraApplication service principal id addition and unit test corrections
+[33mb98f7147[m HEAD@{249}: rebase (pick): Test corrections 2
+[33m9026e9bf[m HEAD@{250}: rebase (start): checkout HEAD~12
+[33me4e7ef0c[m HEAD@{251}: commit: Logger Output Changes
+[33m117ceb45[m HEAD@{252}: commit: Mapping Schema MD update
+[33m14ca2499[m HEAD@{253}: rebase (abort): returning to refs/heads/azure-pm
+[33m3a8194c1[m HEAD@{254}: rebase (continue): Test corrections 2
+[33mb1e4d379[m[33m ([m[1;31mupstream/master[m[33m, [m[1;31mupstream/HEAD[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{255}: rebase (start): checkout upstream/master
+[33m14ca2499[m HEAD@{256}: rebase (abort): returning to refs/heads/azure-pm
+[33mf53272a1[m HEAD@{257}: rebase (pick): feat(github): add repo committers (#1904)
+[33m3a030562[m HEAD@{258}: rebase (pick): feat(gcp): Migrate GCP DNS module to data model (#1897)
+[33mc1a11377[m HEAD@{259}: rebase (pick): fix(gcp): Proper transform load GCP IAM (#1896)
+[33m0a53980e[m HEAD@{260}: rebase (pick): refactor: GCP storage bucket sync to new data model #381 (#1878)
+[33m1670ca2c[m HEAD@{261}: rebase (pick): test: cover GCP subnet sync (#1881)
+[33mfb5ec0c1[m HEAD@{262}: rebase (pick): chore: bump actions/setup-python from 5.6.0 to 6.0.0 (#1892)
+[33m67c6184a[m HEAD@{263}: rebase (pick): feat(aws): Add AWS API Gateway v2 ingestion (#1894)
+[33me6823488[m HEAD@{264}: rebase (pick): chore: bump pytest-cov from 6.2.1 to 6.3.0 in the minor-and-patch group (#1893)
+[33maf4c3874[m HEAD@{265}: rebase (pick): chore: bump github/codeql-action from 3.30.0 to 3.30.1 in the minor-and-patch group (#1891)
+[33m5b03a9f7[m HEAD@{266}: rebase (pick): test: Add integration tests for GCP project sync (#1879)
+[33m0a547fa3[m HEAD@{267}: rebase (pick): fix(gcp): Invalid GCP OAuth scopes (#1890)
+[33m5da6a823[m HEAD@{268}: rebase (pick): test: Add integration test for GCP DNS sync (#1880)
+[33mb89f1ca1[m HEAD@{269}: rebase (pick): test: Add sync test for GCP compute instances (#1877)
+[33mfa746cd8[m HEAD@{270}: rebase (pick): test: add GCP folder sync integration test (#1876)
+[33m93126902[m HEAD@{271}: rebase (pick): test: add sync gcp storage bucket integration test (#1875)
+[33m52bcf8af[m HEAD@{272}: rebase (pick): fix(gcp): handle transient API errors in sync (#1862)
+[33me9e20131[m HEAD@{273}: rebase (pick): fix(ci): scm auto version causing dependabot bug (#1866)
+[33ma5711af9[m HEAD@{274}: rebase (pick): fix(aws): Refactor VPC peering ingestion to new data model #1868 (#1872)
+[33mac0877fa[m HEAD@{275}: rebase (pick): docs: teach agents how to refactor modules (#1873)
+[33mea148a25[m HEAD@{276}: rebase (pick): fix(aws): Handle missing PrivateIpAddress in EC2 network interface sync #1870 (#1871)
+[33maca6c65a[m HEAD@{277}: rebase (pick): fix(aws): Handle AuthorizationError in AWS region decorator #1867 (#1869)
+[33m2bd5c179[m HEAD@{278}: rebase (pick): docs: update links, PR and issue templates, guidelines (#1859)
+[33mb99b0ce8[m HEAD@{279}: rebase (pick): feat(AWS): Add APIGateway Method and Integration as resource (#1819)
+[33m02b70f68[m HEAD@{280}: rebase (pick): chore: bump the minor-and-patch group with 2 updates (#1865)
+[33m694039dd[m HEAD@{281}: rebase (pick): fix(aws eks): parse cluster region from arn, not name (#1863)
+[33ma951b5ad[m HEAD@{282}: rebase (start): checkout HEAD~20
+[33m14ca2499[m HEAD@{283}: rebase (abort): returning to refs/heads/azure-pm
+[33mb1e4d379[m[33m ([m[1;31mupstream/master[m[33m, [m[1;31mupstream/HEAD[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{284}: rebase (start): checkout upstream/master
+[33m14ca2499[m HEAD@{285}: rebase (abort): returning to refs/heads/azure-pm
+[33m14ca2499[m HEAD@{286}: rebase (abort): returning to refs/heads/azure-pm
+[33m14ca2499[m HEAD@{287}: commit: Minor Changes
+[33m51031e51[m HEAD@{288}: commit: Minor Changes
+[33me132bcd9[m HEAD@{289}: commit: Permission Relationship Test Changes
+[33m1239e108[m HEAD@{290}: commit: Migration to SerivcePrincipals
+[33m16e59ddb[m HEAD@{291}: commit (merge): Merge branch 'master' into azure-pm
+[33ma951b5ad[m HEAD@{292}: checkout: moving from master to azure-pm
+[33mb1e4d379[m[33m ([m[1;31mupstream/master[m[33m, [m[1;31mupstream/HEAD[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{293}: reset: moving to upstream/master
+[33ma951b5ad[m HEAD@{294}: checkout: moving from azure-pm to master
+[33ma951b5ad[m HEAD@{295}: checkout: moving from master to azure-pm
+[33ma951b5ad[m HEAD@{296}: commit: Test Correction 3
+[33m259a5fc1[m HEAD@{297}: commit: Suggestions addressed
+[33mc2b62970[m HEAD@{298}: reset: moving to c2b629702abc15b869334622296dbd76ae9ae9cb
+[33mb1e4d379[m[33m ([m[1;31mupstream/master[m[33m, [m[1;31mupstream/HEAD[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{299}: reset: moving to upstream/master
+[33m43f44ae0[m HEAD@{300}: rebase (finish): returning to refs/heads/master
+[33m43f44ae0[m HEAD@{301}: rebase (pick): Permission Relationship Mapping updated and integrations test for rbac, Permission Relationships
+[33mcf83cd83[m HEAD@{302}: rebase (continue): EntraApplication service principal id addition and unit test corrections
+[33m5ede2d25[m HEAD@{303}: rebase (continue): Test corrections 2
+[33mce60af7e[m HEAD@{304}: rebase (continue): feat(azure): add support for Resource Group (#1948)
+[33m09a675d6[m HEAD@{305}: rebase (pick): fix(github): isolate contributor lists per repository #1922
+[33m6ac9c153[m HEAD@{306}: rebase (pick): feat(aws): Attach LambdaPermission Properties to LambdaFunction in AWS Module (#1815)
+[33md1f6dab0[m HEAD@{307}: rebase (pick): feat(aws): add support for route53 AAAA records (#1946)
+[33mbd192e84[m HEAD@{308}: rebase (pick): fix(ecr): Support multiple ECR image tags (#1944)
+[33m0c4539c4[m HEAD@{309}: rebase (pick): feat(entra): Add manager reporting relationship for Entra users (#1941)
+[33m312cc6e7[m HEAD@{310}: rebase (pick): fix: #1906: Remove Kandji and SnipeIT configuration warnings when not selected (#1937)
+[33m1f37c680[m HEAD@{311}: rebase (pick): feat(azure): add support for Logic Apps (#1932)
+[33m6b313f33[m HEAD@{312}: rebase (pick): fix(gcp): GCP DNS RecordSet uniqueness (#1898)
+[33m9f167da0[m HEAD@{313}: rebase (pick): feat(aws): Add AWS Identity Center group ingestion (#1935)
+[33m438cc979[m HEAD@{314}: rebase (pick): chore: bump black from 25.1.0 to 25.9.0 in the minor-and-patch group (#1936)
+[33ma41441d8[m HEAD@{315}: rebase (pick): Document fail-loud error handling expectations (#1933)
+[33m7c0c169e[m HEAD@{316}: rebase (pick): refactor: use transactional writes in AWS, GSuite, Okta loaders (#1931)
+[33mbad1ee9f[m HEAD@{317}: rebase (pick): chore(gcp): Migrate GKE to data model (#1928)
+[33mfdab9d78[m HEAD@{318}: rebase (pick): chore(gcp): Migrate GCP Orgs, Folders, and Projects to data model (#1914)
+[33m4d4bc67d[m HEAD@{319}: rebase (pick): fix(github): Update Neo4j SDK to 5.28.2, use transactions in GitHub repo loaders (#1927)
+[33m33f03d37[m HEAD@{320}: rebase (pick): Remove caching from GCP client builder (#1925)
+[33m57dc2e90[m HEAD@{321}: rebase (pick): doc(gcp): Fix incorrect GCP documentation heading (#1919)
+[33mcec1acd6[m HEAD@{322}: rebase (pick): fix(aws): #1918 deprecate parse_statement_node, properly test permission relationships (#1921)
+[33m4f087950[m HEAD@{323}: rebase (pick): fix(gcp) #1908: subnets to new data model (#1909)
+[33mcf84472e[m HEAD@{324}: rebase (pick): refactor(aws): Refactor AWS IAM (#1710)
+[33mc1beeb28[m HEAD@{325}: rebase (pick): chore: bump pytest-cov from 6.3.0 to 7.0.0 (#1911)
+[33m9576b6fb[m HEAD@{326}: rebase (pick): chore: bump python from `420fbb0` to `f8081b6` (#1910)
+[33mbc2c010d[m HEAD@{327}: rebase (pick): chore: bump the minor-and-patch group with 2 updates (#1913)
+[33me534a50a[m HEAD@{328}: rebase (pick): chore: update types-requests requirement from <2.32.4.20250810 to <2.32.4.20250914 (#1912)
+[33m8da8d958[m HEAD@{329}: rebase (pick): chore(gcp): Streamline GCP init and decompose GCP Cloud Resource Manager (#1903)
+[33md3c6f94e[m HEAD@{330}: rebase (continue): feat(azure): add support for azure app services (#1907)
+[33m04b5fa48[m HEAD@{331}: rebase (continue): feat: EntraUser sign on to AWS Identity Center (#1779) (#1787)
+[33m486bf35d[m HEAD@{332}: rebase (continue): feat(azure): Add support for functions (#1883)
+[33m7f4c252d[m HEAD@{333}: pull origin master --rebase (pick): feat(github): add repo committers (#1904)
+[33m5f0cb92a[m HEAD@{334}: pull origin master --rebase (pick): feat(gcp): Migrate GCP DNS module to data model (#1897)
+[33mcde463c2[m HEAD@{335}: pull origin master --rebase (pick): fix(gcp): Proper transform load GCP IAM (#1896)
+[33m8a226cb9[m HEAD@{336}: pull origin master --rebase (pick): refactor: GCP storage bucket sync to new data model #381 (#1878)
+[33m7ed9001e[m HEAD@{337}: pull origin master --rebase (pick): test: cover GCP subnet sync (#1881)
+[33me712d49d[m HEAD@{338}: pull origin master --rebase (pick): chore: bump actions/setup-python from 5.6.0 to 6.0.0 (#1892)
+[33mea0935fe[m HEAD@{339}: pull origin master --rebase (pick): feat(aws): Add AWS API Gateway v2 ingestion (#1894)
+[33m0d05cbda[m HEAD@{340}: pull origin master --rebase (pick): chore: bump pytest-cov from 6.2.1 to 6.3.0 in the minor-and-patch group (#1893)
+[33m168252a5[m HEAD@{341}: pull origin master --rebase (pick): chore: bump github/codeql-action from 3.30.0 to 3.30.1 in the minor-and-patch group (#1891)
+[33m66a24e73[m HEAD@{342}: pull origin master --rebase (pick): test: Add integration tests for GCP project sync (#1879)
+[33m219796cc[m HEAD@{343}: pull origin master --rebase (pick): fix(gcp): Invalid GCP OAuth scopes (#1890)
+[33m674aaaa1[m HEAD@{344}: pull origin master --rebase (pick): test: Add integration test for GCP DNS sync (#1880)
+[33ma8942ca9[m HEAD@{345}: pull origin master --rebase (pick): test: Add sync test for GCP compute instances (#1877)
+[33m5d33d39a[m HEAD@{346}: pull origin master --rebase (pick): test: add GCP folder sync integration test (#1876)
+[33mc3c45abb[m HEAD@{347}: pull origin master --rebase (pick): test: add sync gcp storage bucket integration test (#1875)
+[33m04333807[m HEAD@{348}: pull origin master --rebase (pick): fix(gcp): handle transient API errors in sync (#1862)
+[33m4e55b478[m HEAD@{349}: pull origin master --rebase (pick): fix(ci): scm auto version causing dependabot bug (#1866)
+[33m276a52d0[m HEAD@{350}: pull origin master --rebase (pick): fix(aws): Refactor VPC peering ingestion to new data model #1868 (#1872)
+[33m8018b21a[m HEAD@{351}: pull origin master --rebase (pick): docs: teach agents how to refactor modules (#1873)
+[33mdebf62b7[m HEAD@{352}: pull origin master --rebase (pick): fix(aws): Handle missing PrivateIpAddress in EC2 network interface sync #1870 (#1871)
+[33m70a1377d[m HEAD@{353}: pull origin master --rebase (pick): fix(aws): Handle AuthorizationError in AWS region decorator #1867 (#1869)
+[33m63525dcf[m HEAD@{354}: pull origin master --rebase (pick): docs: update links, PR and issue templates, guidelines (#1859)
+[33ma2f73d21[m HEAD@{355}: pull origin master --rebase (pick): feat(AWS): Add APIGateway Method and Integration as resource (#1819)
+[33mda97a360[m HEAD@{356}: pull origin master --rebase (pick): chore: bump the minor-and-patch group with 2 updates (#1865)
+[33med3640fe[m HEAD@{357}: pull origin master --rebase (pick): fix(aws eks): parse cluster region from arn, not name (#1863)
+[33mc2b62970[m HEAD@{358}: pull origin master --rebase (start): checkout c2b629702abc15b869334622296dbd76ae9ae9cb
+[33m00783033[m HEAD@{359}: rebase (finish): returning to refs/heads/master
+[33m00783033[m HEAD@{360}: rebase (continue): Permission Relationship Mapping updated and integrations test for rbac, Permission Relationships
+[33m1e257fbc[m HEAD@{361}: rebase (pick): EntraApplication service principal id addition and unit test corrections
+[33mefba06e0[m HEAD@{362}: rebase (continue): Test corrections 2
+[33mb1e4d379[m[33m ([m[1;31mupstream/master[m[33m, [m[1;31mupstream/HEAD[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m HEAD@{363}: rebase (start): checkout upstream/master
+[33m7d4a4faa[m HEAD@{364}: rebase (finish): returning to refs/heads/master
+[33m7d4a4faa[m HEAD@{365}: rebase (continue): Permission Relationship Mapping updated and integrations test for rbac, Permission Relationships
+[33m45b673cc[m HEAD@{366}: rebase (continue): EntraApplication service principal id addition and unit test corrections
+[33m64cb806f[m HEAD@{367}: rebase (continue): Test corrections 2
+[33me7fb8063[m HEAD@{368}: rebase (start): checkout upstream/master
+[33mc2b62970[m HEAD@{369}: commit: Permission Relationship Mapping updated and integrations test for rbac, Permission Relationships
+[33m0897995c[m HEAD@{370}: checkout: moving from pr-1883 to master
+[33m3d287215[m[33m ([m[1;32mpr-1883[m[33m)[m HEAD@{371}: reset: moving to HEAD
+[33m3d287215[m[33m ([m[1;32mpr-1883[m[33m)[m HEAD@{372}: checkout: moving from master to pr-1883
+[33m0897995c[m HEAD@{373}: commit: EntraApplication service principal id addition and unit test corrections
+[33m8eb3c571[m HEAD@{374}: commit: Test corrections 2
+[33m9026e9bf[m HEAD@{375}: merge upstream/master: Fast-forward
+[33m6b4ab695[m HEAD@{376}: checkout: moving from vpc_refactor to master
+[33m39fe4935[m[33m ([m[1;31morigin/vpc_refactor[m[33m, [m[1;32mvpc_refactor[m[33m)[m HEAD@{377}: commit: Lint test
+[33ma3b5a035[m HEAD@{378}: merge upstream/master: Merge made by the 'ort' strategy.
+[33m0b7c37cb[m HEAD@{379}: pull origin vpc_refactor: Fast-forward
+[33me936ce63[m HEAD@{380}: checkout: moving from rel_mapping to vpc_refactor
+[33m6c913e08[m[33m ([m[1;31morigin/rel_mapping[m[33m, [m[1;32mrel_mapping[m[33m)[m HEAD@{381}: commit: Minor logger info change
+[33m60d2b019[m HEAD@{382}: checkout: moving from master to rel_mapping
+[33m6b4ab695[m HEAD@{383}: checkout: moving from rel_mapping to master
+[33m60d2b019[m HEAD@{384}: commit: Matchlink changes, conditional_target nodes and error proof add
+[33m6b4ab695[m HEAD@{385}: checkout: moving from master to rel_mapping
+[33m6b4ab695[m HEAD@{386}: checkout: moving from aws_ssm to master
+[33m71c03c6a[m[33m ([m[1;32maws_ssm[m[33m)[m HEAD@{387}: reset: moving to HEAD
+[33m71c03c6a[m[33m ([m[1;32maws_ssm[m[33m)[m HEAD@{388}: checkout: moving from vpc_refactor to aws_ssm
+[33me936ce63[m HEAD@{389}: commit: Minor test mistake fixed and cidr vpc peering connection relations test added
+[33m8171bd4f[m HEAD@{390}: merge origin/vpc_refactor: Merge made by the 'ort' strategy.
+[33m7ce6a347[m HEAD@{391}: merge master: Merge made by the 'ort' strategy.
+[33m473d7b78[m HEAD@{392}: checkout: moving from master to vpc_refactor
+[33m6b4ab695[m HEAD@{393}: rebase (finish): returning to refs/heads/master
+[33m6b4ab695[m HEAD@{394}: rebase (start): checkout upstream/master
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{395}: checkout: moving from vpc_refactor to master
+[33m473d7b78[m HEAD@{396}: commit: Cleanup file deleted, old index way removed, rectified vpcid ndoe field and integration test coverage
+[33mb1def7eb[m HEAD@{397}: checkout: moving from ec2_kpa to vpc_refactor
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{398}: checkout: moving from master to ec2_kpa
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{399}: checkout: moving from aws_ssm to master
+[33m71c03c6a[m[33m ([m[1;32maws_ssm[m[33m)[m HEAD@{400}: checkout: moving from master to aws_ssm
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{401}: checkout: moving from ec2_keypair_analysis to master
+[33md22a1d7d[m HEAD@{402}: rebase (abort): returning to refs/heads/ec2_keypair_analysis
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{403}: checkout: moving from 7f4bc5b2a3e2b11f70049576a3d0daa53e1e914b to master
+[33m7f4bc5b2[m HEAD@{404}: commit: Deleted
+[33mb95e5de9[m HEAD@{405}: rebase (start): checkout upstream/master
+[33md22a1d7d[m HEAD@{406}: commit (merge): Change Analaysis EC2 Keypair
+[33maa5a5bc0[m HEAD@{407}: checkout: moving from aws_ssm to ec2_keypair_analysis
+[33m71c03c6a[m[33m ([m[1;32maws_ssm[m[33m)[m HEAD@{408}: rebase (finish): returning to refs/heads/aws_ssm
+[33m71c03c6a[m[33m ([m[1;32maws_ssm[m[33m)[m HEAD@{409}: rebase (pick): Permissions-mapping.md minor update
+[33m89a93fc4[m HEAD@{410}: rebase (start): checkout HEAD~10
+[33m6856c0fe[m HEAD@{411}: rebase (finish): returning to refs/heads/aws_ssm
+[33m6856c0fe[m HEAD@{412}: rebase (start): checkout HEAD~10
+[33m6856c0fe[m HEAD@{413}: rebase (finish): returning to refs/heads/aws_ssm
+[33m6856c0fe[m HEAD@{414}: rebase (pick): Permissions-mapping.md minor update
+[33mac7f114f[m HEAD@{415}: rebase (pick): doc: update Resources in Readme (#1781)
+[33m89a93fc4[m HEAD@{416}: rebase (pick): Reverting permission_relationships.yaml to original.
+[33m1af7a8ad[m HEAD@{417}: rebase (pick): test_lint synced 2
+[33mdc995304[m HEAD@{418}: rebase (pick): Update docs/root/modules/aws/permissions-mapping.md
+[33me3f58b5c[m HEAD@{419}: rebase (pick): Update docs/root/modules/aws/permissions-mapping.md
+[33ma9fa6087[m HEAD@{420}: rebase (pick): Cubic Suggestions
+[33mfeadba8e[m HEAD@{421}: rebase (pick): test_lint synced
+[33m9c04f747[m HEAD@{422}: rebase (pick): Removed debugging logger statement
+[33m1e7a8865[m HEAD@{423}: rebase (pick): Feat: Conditional target relations and custom resource arn schema for permission relationships
+[33mb95e5de9[m HEAD@{424}: rebase (start): checkout upstream/master
+[33mecdddb43[m HEAD@{425}: rebase (finish): returning to refs/heads/aws_ssm
+[33mecdddb43[m HEAD@{426}: rebase (pick): Permissions-mapping.md minor update
+[33me19c0019[m HEAD@{427}: rebase (pick): doc: update Resources in Readme (#1781)
+[33m68fe71ea[m HEAD@{428}: rebase (pick): Reverting permission_relationships.yaml to original.
+[33me3793ef9[m HEAD@{429}: rebase (start): checkout HEAD~3
+[33m4d86ca4d[m HEAD@{430}: rebase (finish): returning to refs/heads/aws_ssm
+[33m4d86ca4d[m HEAD@{431}: rebase (pick): Permissions-mapping.md minor update
+[33md9de7cc5[m HEAD@{432}: rebase (pick): doc: update Resources in Readme (#1781)
+[33m5ecfc27b[m HEAD@{433}: rebase (pick): Reverting permission_relationships.yaml to original.
+[33me3793ef9[m HEAD@{434}: rebase (pick): test_lint synced 2
+[33m5588552e[m HEAD@{435}: rebase (pick): Update docs/root/modules/aws/permissions-mapping.md
+[33m52a1474e[m HEAD@{436}: rebase (pick): Update docs/root/modules/aws/permissions-mapping.md
+[33mb84d1383[m HEAD@{437}: rebase (start): checkout HEAD~6
+[33m579b99e9[m HEAD@{438}: rebase (finish): returning to refs/heads/aws_ssm
+[33m579b99e9[m HEAD@{439}: rebase (pick): Permissions-mapping.md minor update
+[33m14b887c0[m HEAD@{440}: rebase (pick): doc: update Resources in Readme (#1781)
+[33mccdd23f3[m HEAD@{441}: rebase (pick): Reverting permission_relationships.yaml to original.
+[33m67b9bc1d[m HEAD@{442}: rebase (pick): test_lint synced 2
+[33m46f1a05c[m HEAD@{443}: rebase (pick): Update docs/root/modules/aws/permissions-mapping.md
+[33ma0f267ac[m HEAD@{444}: rebase (pick): Update docs/root/modules/aws/permissions-mapping.md
+[33mb84d1383[m HEAD@{445}: rebase (pick): Cubic Suggestions
+[33m63beffa8[m HEAD@{446}: rebase (pick): test_lint synced
+[33m2941dcb0[m HEAD@{447}: rebase (pick): Removed debugging logger statement
+[33m186b2b3c[m HEAD@{448}: rebase (pick): Feat: Conditional target relations and custom resource arn schema for permission relationships
+[33m37d079eb[m HEAD@{449}: rebase (pick): feat: Add Cognito Identity Pool and User Pool Resource in AWS Module (#1746)
+[33m93ba50af[m HEAD@{450}: rebase (start): checkout HEAD~11
+[33mb17262d9[m HEAD@{451}: checkout: moving from ec2_keypair_analysis to aws_ssm
+[33maa5a5bc0[m HEAD@{452}: rebase (finish): returning to refs/heads/ec2_keypair_analysis
+[33maa5a5bc0[m HEAD@{453}: rebase (pick): EC2 keypair analysis fixed
+[33m3d8f8098[m HEAD@{454}: rebase (pick): chore: pin dependencies for build CI (#1642)
+[33ma8726f6a[m HEAD@{455}: rebase (pick): chore: update install.md to fix broken link (#1755)
+[33mdbb075da[m HEAD@{456}: rebase (pick): Add ECSService to ECSTask relation (#1747)
+[33me29ef614[m HEAD@{457}: rebase (pick): feat: Add status field to SnipeIT assets (#1752)
+[33m582c7733[m HEAD@{458}: rebase (pick): feat: EntraID best effort mode (#1751)
+[33mfe20bf6f[m HEAD@{459}: rebase (pick): fix: #1748 SentinelOne CLI config token attribute (#1749)
+[33m64d5c3a3[m HEAD@{460}: rebase (pick): feat: Add EventBridge Rule to AWS Module (#1719)
+[33m65523b52[m HEAD@{461}: rebase (pick): feat: Add ingestion from disk for Trivy (#1737)
+[33maff3738a[m HEAD@{462}: rebase (pick): fix: Cloudtrail Events Management handle missing request params (#1742)
+[33m5b0ec8d3[m HEAD@{463}: rebase (pick): fix: #1739: AWS invalid token handling (#1741)
+[33m3dd227fd[m HEAD@{464}: rebase (start): checkout HEAD~11
+[33m8e309ab6[m HEAD@{465}: checkout: moving from aws_ssm to ec2_keypair_analysis
+[33mb17262d9[m HEAD@{466}: commit: Permissions-mapping.md minor update
+[33mc186ad51[m HEAD@{467}: pull: Merge made by the 'ort' strategy.
+[33m591c7fa6[m HEAD@{468}: commit: Reverting permission_relationships.yaml to original.
+[33ma4e72e97[m HEAD@{469}: rebase (finish): returning to refs/heads/aws_ssm
+[33ma4e72e97[m HEAD@{470}: rebase (pick): test_lint synced 2
+[33m4482c197[m HEAD@{471}: rebase (start): checkout HEAD~1
+[33m64f5aba2[m HEAD@{472}: checkout: moving from ec2_keypair_analysis to aws_ssm
+[33m8e309ab6[m HEAD@{473}: rebase (finish): returning to refs/heads/ec2_keypair_analysis
+[33m8e309ab6[m HEAD@{474}: rebase (pick): EC2 keypair analysis fixed
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{475}: rebase (start): checkout HEAD~1
+[33m07c0231e[m[33m ([m[1;31morigin/ec2_keypair_analysis[m[33m)[m HEAD@{476}: checkout: moving from aws_ssm to ec2_keypair_analysis
+[33m64f5aba2[m HEAD@{477}: commit: test_lint synced 2
+[33m4482c197[m HEAD@{478}: rebase (finish): returning to refs/heads/aws_ssm
+[33m4482c197[m HEAD@{479}: rebase (pick): Update docs/root/modules/aws/permissions-mapping.md
+[33m710070db[m HEAD@{480}: rebase (start): checkout HEAD~1
+[33m1e361c47[m HEAD@{481}: rebase (finish): returning to refs/heads/aws_ssm
+[33m1e361c47[m HEAD@{482}: rebase (start): checkout HEAD~5
+[33m1e361c47[m HEAD@{483}: rebase (finish): returning to refs/heads/aws_ssm
+[33m1e361c47[m HEAD@{484}: rebase (start): checkout HEAD~2
+[33m1e361c47[m HEAD@{485}: rebase (finish): returning to refs/heads/aws_ssm
+[33m1e361c47[m HEAD@{486}: rebase (pick): Update docs/root/modules/aws/permissions-mapping.md
+[33m710070db[m HEAD@{487}: rebase (pick): Update docs/root/modules/aws/permissions-mapping.md
+[33ma3c84f30[m HEAD@{488}: rebase (start): checkout HEAD~2
+[33mcdc81b4c[m HEAD@{489}: pull: Merge made by the 'ort' strategy.
+[33ma3c84f30[m HEAD@{490}: commit: Cubic Suggestions
+[33md96c9cfe[m HEAD@{491}: reset: moving to HEAD
+[33md96c9cfe[m HEAD@{492}: commit: test_lint synced
+[33m2094f54f[m HEAD@{493}: checkout: moving from ec2_keypair_analysis to aws_ssm
+[33m07c0231e[m[33m ([m[1;31morigin/ec2_keypair_analysis[m[33m)[m HEAD@{494}: commit: EC2 keypair analysis fixed
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{495}: checkout: moving from aws_ssm to ec2_keypair_analysis
+[33m2094f54f[m HEAD@{496}: checkout: moving from master to aws_ssm
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{497}: checkout: moving from aws_ssm to master
+[33m2094f54f[m HEAD@{498}: commit: Removed debugging logger statement
+[33m6ad7fdcf[m HEAD@{499}: rebase (finish): returning to refs/heads/aws_ssm
+[33m6ad7fdcf[m HEAD@{500}: rebase (squash): Feat: Conditional target relations and custom resource arn schema for permission relationships
+[33me630ccc0[m HEAD@{501}: rebase (start): checkout HEAD~2
+[33md4afd1b0[m HEAD@{502}: rebase (finish): returning to refs/heads/aws_ssm
+[33md4afd1b0[m HEAD@{503}: rebase (pick): Changed To permission relationships YAML
+[33me630ccc0[m HEAD@{504}: rebase (pick): Feat: Conditional target relations and custom resource arn schema for permission relationships
+[33mb95e5de9[m HEAD@{505}: rebase (start): checkout upstream/master
+[33m7e46ba9b[m HEAD@{506}: commit: Changed To permission relationships YAML
+[33me477b63b[m HEAD@{507}: reset: moving to e477b63ba21dc828d8f09a0627cb585021410c5e
+[33m2aa8f795[m HEAD@{508}: commit: Changed To permission relationships YAML
+[33mb6257f21[m HEAD@{509}: reset: moving to b6257f21bdd4dd995edf277ae216165f0569726c
+[33m0b4aa95b[m HEAD@{510}: rebase (finish): returning to refs/heads/aws_ssm
+[33m0b4aa95b[m HEAD@{511}: rebase (start): checkout HEAD~20
+[33m0b4aa95b[m HEAD@{512}: rebase (finish): returning to refs/heads/aws_ssm
+[33m0b4aa95b[m HEAD@{513}: rebase (start): checkout HEAD~10
+[33m0b4aa95b[m HEAD@{514}: rebase (finish): returning to refs/heads/aws_ssm
+[33m0b4aa95b[m HEAD@{515}: rebase (start): checkout HEAD~3
+[33m0b4aa95b[m HEAD@{516}: rebase (finish): returning to refs/heads/aws_ssm
+[33m0b4aa95b[m HEAD@{517}: rebase (pick): Relationships YAML changes
+[33m2ea017ae[m HEAD@{518}: rebase (pick): feat: Add Cognito Identity Pool and User Pool Resource in AWS Module (#1746)
+[33mc7a45489[m HEAD@{519}: rebase (pick): fix: Keys with AccessDenied are logged and skipped preventing crash (#1769) (#1770)
+[33m908c639b[m HEAD@{520}: rebase (pick): feat: add bucket logging api to aws s3 (#1759)
+[33mbfc99d2c[m HEAD@{521}: rebase (pick): feat: add DNS_POINTS_TO relationship from AWSDNSRecord to ElasticIPAddress (#1255) (#1761)
+[33m2ae35d4c[m HEAD@{522}: rebase (pick): Revert "feat: EntraID best effort mode" (#1774)
+[33m26dbf35e[m HEAD@{523}: rebase (pick): chore: bump the minor-and-patch group with 4 updates (#1772)
+[33m763af0ef[m HEAD@{524}: rebase (pick): chore: update types-requests requirement from <2.32.0.20250329 to <2.32.4.20250612 (#1771)
+[33m9127b058[m HEAD@{525}: rebase (pick): chore: bump pytest-cov from 6.1.1 to 6.2.1 in the minor-and-patch group (#1773)
+[33mb6257f21[m HEAD@{526}: rebase (start): checkout HEAD~2
+[33m590fc23c[m HEAD@{527}: rebase (finish): returning to refs/heads/aws_ssm
+[33m590fc23c[m HEAD@{528}: rebase (start): checkout HEAD~1
+[33m590fc23c[m HEAD@{529}: commit: Relationships YAML changes
+[33mec02c7e2[m HEAD@{530}: reset: moving to origin/aws_ssm
+[33mce36d70c[m HEAD@{531}: rebase (finish): returning to refs/heads/aws_ssm
+[33mce36d70c[m HEAD@{532}: rebase (squash): Feat: Conditional target relations and custom resource arn schema for permission relationships
+[33m64246817[m HEAD@{533}: rebase (squash): # This is a combination of 12 commits.
+[33m7b6fa783[m HEAD@{534}: rebase (squash): # This is a combination of 11 commits.
+[33m90afa071[m HEAD@{535}: rebase (squash): # This is a combination of 10 commits.
+[33m5f3e9d3c[m HEAD@{536}: rebase (squash): # This is a combination of 9 commits.
+[33me316b421[m HEAD@{537}: rebase (squash): # This is a combination of 8 commits.
+[33mfc38bd29[m HEAD@{538}: rebase (squash): # This is a combination of 7 commits.
+[33mb50d0a79[m HEAD@{539}: rebase (squash): # This is a combination of 6 commits.
+[33ma7021b6a[m HEAD@{540}: rebase (squash): # This is a combination of 5 commits.
+[33mabfa536d[m HEAD@{541}: rebase (squash): # This is a combination of 4 commits.
+[33m92fe34a2[m HEAD@{542}: rebase (squash): # This is a combination of 3 commits.
+[33m0e6ed5a0[m HEAD@{543}: rebase (squash): # This is a combination of 2 commits.
+[33me477b63b[m HEAD@{544}: rebase: fast-forward
+[33md2604016[m[33m ([m[1;32msecurity_group_link_fix[m[33m)[m HEAD@{545}: rebase (start): checkout HEAD~5
+[33mc2a67042[m HEAD@{546}: rebase (abort): returning to refs/heads/aws_ssm
+[33mc2a67042[m HEAD@{547}: rebase (abort): returning to refs/heads/aws_ssm
+[33mc2a67042[m HEAD@{548}: pull origin aws_ssm --rebase (finish): returning to refs/heads/aws_ssm
+[33mc2a67042[m HEAD@{549}: pull origin aws_ssm --rebase (pick): Changes to permission relatinships yaml
+[33mec02c7e2[m HEAD@{550}: pull origin aws_ssm --rebase (start): checkout ec02c7e2b0de5cd9ef690cd25cbb345d9c77c2cb
+[33m064cb2da[m HEAD@{551}: commit: Changes to permission relatinships yaml
+[33mb6257f21[m HEAD@{552}: commit: Additional modifiers2
+[33mac3aeb72[m HEAD@{553}: commit: Additional modifiers
+[33me477b63b[m HEAD@{554}: commit: Feat: Conditional target relations and custom resource arn schema for permission relationships
+[33md2604016[m[33m ([m[1;32msecurity_group_link_fix[m[33m)[m HEAD@{555}: reset: moving to HEAD
+[33md2604016[m[33m ([m[1;32msecurity_group_link_fix[m[33m)[m HEAD@{556}: checkout: moving from master to aws_ssm
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{557}: pull: Fast-forward
+[33m663dc13a[m HEAD@{558}: checkout: moving from ec2_keypair_analysis to master
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{559}: checkout: moving from aws_ssm to ec2_keypair_analysis
+[33md2604016[m[33m ([m[1;32msecurity_group_link_fix[m[33m)[m HEAD@{560}: checkout: moving from security_group_link_fix to aws_ssm
+[33md2604016[m[33m ([m[1;32msecurity_group_link_fix[m[33m)[m HEAD@{561}: checkout: moving from vpc_refactor to security_group_link_fix
+[33mb1def7eb[m HEAD@{562}: commit: IPv6 Test Data rectified
+[33mbc077d66[m[33m ([m[1;32m0a[m[33m)[m HEAD@{563}: checkout: moving from security_group_link_fix to vpc_refactor
+[33md2604016[m[33m ([m[1;32msecurity_group_link_fix[m[33m)[m HEAD@{564}: commit: AWSVpc2EC2SecurityGroup relation dir change
+[33m55722169[m[33m ([m[1;32mec2_kpa[m[33m)[m HEAD@{565}: checkout: moving from vpc_refactor to security_group_link_fix
+[33mbc077d66[m[33m ([m[1;32m0a[m[33m)[m HEAD@{566}: rebase (finish): returning to refs/heads/vpc_refactor
+[33mbc077d66[m[33m ([m[1;32m0a[m[33m)[m HEAD@{567}: rebase (pick): Refactor AWS VPC (lint test synced)
+[33m663dc13a[m HEAD@{568}: rebase (start): checkout master
+[33mb6bf6368[m HEAD@{569}: rebase (finish): returning to refs/heads/vpc_refactor
+[33mb6bf6368[m HEAD@{570}: rebase (pick): Refactor AWS VPC (lint test synced)
+[33m6ad7fb8e[m HEAD@{571}: rebase (pick): chore: update install.md to fix broken link (#1755)
+[33m3923bd89[m HEAD@{572}: rebase (start): checkout HEAD~2
+[33m66dc2e28[m HEAD@{573}: checkout: moving from vpc_refactor to vpc_refactor
+[33m66dc2e28[m HEAD@{574}: commit: Refactor AWS VPC (lint test synced)
+[33m663dc13a[m HEAD@{575}: checkout: moving from master to vpc_refactor
+[33m663dc13a[m HEAD@{576}: clone: from https://github.com/Daksh1603/cartography.git
