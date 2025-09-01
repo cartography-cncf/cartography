@@ -55,15 +55,9 @@ def transform_lambda_functions(
         transformed_function["Region"] = region
 
         function_arn = function_data["FunctionArn"]
-        if function_arn in permissions_by_arn:
-            permission_data = permissions_by_arn[function_arn]
-            transformed_function["AnonymousAccess"] = permission_data["AnonymousAccess"]
-            transformed_function["AnonymousActions"] = permission_data[
-                "AnonymousActions"
-            ]
-        else:
-            transformed_function["AnonymousAccess"] = None
-            transformed_function["AnonymousActions"] = None
+        permission_data = permissions_by_arn[function_arn]
+        transformed_function["AnonymousAccess"] = permission_data["AnonymousAccess"]
+        transformed_function["AnonymousActions"] = permission_data["AnonymousActions"]
 
         transformed_functions.append(transformed_function)
 
@@ -158,25 +152,33 @@ def get_lambda_permissions(
     for function in lambda_functions:
         function_name = function["FunctionName"]
         function_arn = function["FunctionArn"]
-        response = client.get_policy(FunctionName=function_name)
-        policy = response.get("Policy")
 
-        if policy:
-            parsed_policy = parse_policy(function_arn, policy)
-            all_permissions[function_arn] = {
-                "AnonymousAccess": parsed_policy.get("AnonymousAccess"),
-                "AnonymousActions": parsed_policy.get("AnonymousActions"),
-            }
-        else:
-            all_permissions[function_arn] = {
-                "AnonymousAccess": None,
-                "AnonymousActions": None,
-            }
+        all_permissions[function_arn] = {
+            "AnonymousAccess": None,
+            "AnonymousActions": None,
+        }
+
+        try:
+            response = client.get_policy(FunctionName=function_name)
+            policy = response.get("Policy")
+
+            if policy:
+                parsed_policy = parse_policy(function_arn, policy)
+                all_permissions[function_arn] = {
+                    "AnonymousAccess": parsed_policy.get("AnonymousAccess"),
+                    "AnonymousActions": parsed_policy.get("AnonymousActions"),
+                }
+        except client.exceptions.ResourceNotFoundException:
+            logger.debug(f"No policy found for Lambda function {function_name}")
+            pass
+        except Exception as e:
+            logger.warning(
+                f"Error getting policy for Lambda function {function_name}: {e}"
+            )
 
     return all_permissions
 
 
-@timeit
 def parse_policy(function_arn: str, policy: str) -> Dict[str, Any]:
     """
     Parse the Lambda permission policy to extract anonymous access and actions.

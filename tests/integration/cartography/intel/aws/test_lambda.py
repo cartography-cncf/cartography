@@ -61,17 +61,47 @@ def test_sync_lambda_functions(
 
     # Assert - Check all node types were created correctly
 
-    assert check_nodes(neo4j_session, "AWSLambda", ["id"]) == {
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-4",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-5",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-6",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-8",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-9",),
-        ("arn:aws:lambda:us-west-2:000000000000:function:sample-function-10",),
+    assert check_nodes(neo4j_session, "AWSLambda", ["id", "anonymous_access"]) == {
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1",
+            False,
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2",
+            True,
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3",
+            None,
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4",
+            None,
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-5",
+            None,
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-6",
+            None,
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7",
+            None,
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-8",
+            None,
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9",
+            None,
+        ),
+        (
+            "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10",
+            None,
+        ),
     }
 
     assert check_nodes(neo4j_session, "AWSLambdaFunctionAlias", ["id"]) == {
