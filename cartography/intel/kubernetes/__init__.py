@@ -58,7 +58,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             if config.managed_kubernetes == "eks":
                 # EKS identity provider sync
                 boto3_session = boto3.Session()
-                region = get_region_from_arn(cluster_info.get("id"))
+                region = get_region_from_arn(cluster_info.get("id", ""))
                 sync_eks(
                     session,
                     client,
