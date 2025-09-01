@@ -15,6 +15,7 @@ from . import data_lake
 from . import functions
 from . import logic_apps
 from . import resource_groups
+from . import rbac
 from . import sql
 from . import storage
 from . import subscription
@@ -68,6 +69,13 @@ def _sync_one_subscription(
         common_job_parameters,
     )
     logic_apps.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    rbac.sync(
         neo4j_session,
         credentials,
         subscription_id,

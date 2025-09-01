@@ -17,6 +17,9 @@ class EntraApplicationNodeProperties(CartographyNodeProperties):
     display_name: PropertyRef = PropertyRef("display_name")
     publisher_domain: PropertyRef = PropertyRef("publisher_domain")
     sign_in_audience: PropertyRef = PropertyRef("sign_in_audience")
+    service_principal_id: PropertyRef = PropertyRef(
+        "service_principal_id"
+    )  # Service Principal Object ID
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
