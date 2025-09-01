@@ -2,6 +2,7 @@
 # https://cloud.google.com/compute/docs/concepts
 import json
 import logging
+import socket
 from collections import namedtuple
 from string import Template
 from typing import Any
@@ -24,7 +25,8 @@ logger = logging.getLogger(__name__)
 InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
 
 # Connect/read timeout in seconds for Google API requests
-_TIMEOUT = 60
+# https://github.com/googleapis/google-api-python-client/issues/1080#issuecomment-729790622
+socket.setdefaulttimeout(120)
 
 # Maximum number of retries for Google API requests
 GOOGLE_API_NUM_RETRIES = 5
@@ -159,7 +161,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Dict:
     response_id = f"projects/{projectid}/regions/{region}/subnetworks"
     while req is not None:
         try:
-            res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES, timeout=_TIMEOUT)
+            res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
         except TimeoutError:
             logger.warning(
                 "GCP: subnetworks.list for project %s region %s timed out; continuing with partial data.",
