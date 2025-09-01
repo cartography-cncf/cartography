@@ -23,6 +23,9 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
 
+# Connect/read timeout in seconds for Google API requests
+_TIMEOUT = 60
+
 
 def _get_error_reason(http_error: HttpError) -> str:
     """
@@ -126,16 +129,35 @@ def get_gcp_instance_responses(
 
 
 @timeit
-def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Resource:
+def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Dict:
     """
-    Return list of all subnets in the given projectid and region
-    :param projectid: THe projectid
+    Return list of all subnets in the given projectid and region.  If the API
+    call times out mid-pagination, return any subnets gathered so far rather than
+    bubbling the error up to the caller.
+    :param projectid: The project ID
     :param region: The region to pull subnets from
     :param compute: The compute resource object created by googleapiclient.discovery.build()
     :return: Response object containing data on all GCP subnets for a given project
     """
     req = compute.subnetworks().list(project=projectid, region=region)
-    return req.execute()
+    items: List[Dict] = []
+    response_id = f"projects/{projectid}/regions/{region}/subnetworks"
+    while req is not None:
+        try:
+            res = req.execute(num_retries=5, timeout=_TIMEOUT)
+        except TimeoutError:
+            logger.warning(
+                "GCP: subnetworks.list for project %s region %s timed out; continuing with partial data.",
+                projectid,
+                region,
+            )
+            break
+        items.extend(res.get("items", []))
+        response_id = res.get("id", response_id)
+        req = compute.subnetworks().list_next(
+            previous_request=req, previous_response=res
+        )
+    return {"id": response_id, "items": items}
 
 
 @timeit

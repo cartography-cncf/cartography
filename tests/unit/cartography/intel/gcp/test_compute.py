@@ -37,6 +37,54 @@ def test_transform_gcp_subnets():
     assert not subnet["private_ip_google_access"]
 
 
+def test_get_gcp_subnets_continues_on_timeout():
+    class FakeRequest:
+        def __init__(self, responses):
+            self._responses = responses
+            self._index = 0
+
+        def execute(self, num_retries: int, timeout: int):
+            resp = self._responses[self._index]
+            self._index += 1
+            if isinstance(resp, Exception):
+                raise resp
+            return resp
+
+    class FakeSubnetworks:
+        def __init__(self, responses):
+            self._responses = responses
+
+        def list(self, project: str, region: str):
+            return FakeRequest(self._responses)
+
+        def list_next(self, previous_request, previous_response):
+            if previous_response.get("nextPageToken") and previous_request._index < len(
+                self._responses
+            ):
+                return previous_request
+            return None
+
+    class FakeCompute:
+        def __init__(self, responses):
+            self._subnetworks = FakeSubnetworks(responses)
+
+        def subnetworks(self):
+            return self._subnetworks
+
+    responses = [
+        {
+            "id": "projects/test/regions/us/subnetworks",
+            "items": [{"name": "sub1"}],
+            "nextPageToken": "tok",
+        },
+        TimeoutError(),
+    ]
+    compute = FakeCompute(responses)
+    res = cartography.intel.gcp.compute.get_gcp_subnets("test", "us", compute)
+    assert res["id"] == "projects/test/regions/us/subnetworks"
+    assert res["items"] == [{"name": "sub1"}]
+
+
 def test_parse_compute_full_uri_to_partial_uri():
     subnet_uri = "https://www.googleapis.com/compute/v1/projects/project-abc/regions/europe-west2/subnetworks/default"
     inst_uri = "https://www.googleapis.com/compute/v1/projects/project-abc/zones/europe-west2-b/disks/instance-1"
