@@ -11,6 +11,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.ec2.vpc import AWSVpcSchema
 from cartography.models.aws.ec2.vpc_cidr import AWSIPv4CidrBlockSchema
+from cartography.models.aws.ec2.vpc_peering import AWSAccountVPCPeeringSchema
 from cartography.models.aws.ec2.vpc_peering import AWSPeeringConnectionSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -37,7 +38,12 @@ def get_vpc_peerings_data(
 @timeit
 def transform_vpc_peering_data(
     vpc_peerings: List[Dict],
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> Tuple[
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+    List[Dict[str, Any]],
+]:
     transformed_peerings: List[Dict[str, Any]] = []
     accepter_cidr_blocks: List[Dict[str, Any]] = []
     requester_cidr_blocks: List[Dict[str, Any]] = []
@@ -82,28 +88,32 @@ def transform_vpc_peering_data(
         accepter_vpc_id = peering.get("AccepterVpcInfo", {}).get("VpcId")
         accepter_owner_id = peering.get("AccepterVpcInfo", {}).get("OwnerId")
         if accepter_vpc_id:
-            vpc_nodes.append({
-                "VpcId": accepter_vpc_id,
-                "PrimaryCIDRBlock": None,  # VPCs from peering data don't have complete info
-                "InstanceTenancy": None,
-                "State": None,
-                "IsDefault": None,
-                "DhcpOptionsId": None,
-                "AccountId": accepter_owner_id,  # Account that owns this VPC
-            })
+            vpc_nodes.append(
+                {
+                    "VpcId": accepter_vpc_id,
+                    "PrimaryCIDRBlock": None,  # VPCs from peering data don't have complete info
+                    "InstanceTenancy": None,
+                    "State": None,
+                    "IsDefault": None,
+                    "DhcpOptionsId": None,
+                    "AccountId": accepter_owner_id,  # Account that owns this VPC
+                }
+            )
 
         requester_vpc_id = peering.get("RequesterVpcInfo", {}).get("VpcId")
         requester_owner_id = peering.get("RequesterVpcInfo", {}).get("OwnerId")
         if requester_vpc_id:
-            vpc_nodes.append({
-                "VpcId": requester_vpc_id,
-                "PrimaryCIDRBlock": None,  # VPCs from peering data don't have complete info
-                "InstanceTenancy": None,
-                "State": None,
-                "IsDefault": None,
-                "DhcpOptionsId": None,
-                "AccountId": requester_owner_id,  # Account that owns this VPC
-            })
+            vpc_nodes.append(
+                {
+                    "VpcId": requester_vpc_id,
+                    "PrimaryCIDRBlock": None,  # VPCs from peering data don't have complete info
+                    "InstanceTenancy": None,
+                    "State": None,
+                    "IsDefault": None,
+                    "DhcpOptionsId": None,
+                    "AccountId": requester_owner_id,  # Account that owns this VPC
+                }
+            )
 
         transformed_peerings.append(
             {
@@ -153,6 +163,34 @@ def transform_vpc_peering_data(
 
 
 @timeit
+def transform_aws_accounts_from_vpc_peering(
+    vpc_peerings: List[Dict],
+) -> List[Dict[str, Any]]:
+    """
+    Transform VPC peering data to extract AWS account information.
+    Creates composite AWS account nodes with context from VPC peering.
+    """
+    account_data: Dict[str, Dict[str, Any]] = {}
+
+    for peering in vpc_peerings:
+        # Extract accepter account
+        accepter_owner_id = peering.get("AccepterVpcInfo", {}).get("OwnerId")
+        if accepter_owner_id:
+            account_data[accepter_owner_id] = {
+                "id": accepter_owner_id,
+            }
+
+        # Extract requester account
+        requester_owner_id = peering.get("RequesterVpcInfo", {}).get("OwnerId")
+        if requester_owner_id:
+            account_data[requester_owner_id] = {
+                "id": requester_owner_id,
+            }
+
+    return list(account_data.values())
+
+
+@timeit
 def load_accepter_cidrs(
     neo4j_session: neo4j.Session,
     accepter_cidrs: List[Dict[str, Any]],
@@ -185,6 +223,24 @@ def load_requester_cidrs(
 
 
 @timeit
+def load_aws_accounts_from_vpc_peering(
+    neo4j_session: neo4j.Session,
+    aws_accounts: List[Dict[str, Any]],
+    update_tag: int,
+) -> None:
+    """
+    Load AWS account nodes using the composite schema.
+    This allows VPC peering data to provide additional context about AWS accounts.
+    """
+    load(
+        neo4j_session,
+        AWSAccountVPCPeeringSchema(),
+        aws_accounts,
+        lastupdated=update_tag,
+    )
+
+
+@timeit
 def load_vpc_nodes(
     neo4j_session: neo4j.Session,
     vpc_nodes: List[Dict[str, Any]],
@@ -195,29 +251,19 @@ def load_vpc_nodes(
     # Group VPC nodes by their actual account ID
     vpc_nodes_by_account: Dict[str, List[Dict[str, Any]]] = {}
     for vpc in vpc_nodes:
-        account_id = vpc.get("AccountId", aws_account_id)  # Use VPC's own account or fallback
+        account_id = vpc.get(
+            "AccountId", aws_account_id
+        )  # Use VPC's own account or fallback
         if account_id not in vpc_nodes_by_account:
             vpc_nodes_by_account[account_id] = []
         vpc_nodes_by_account[account_id].append(vpc)
 
     # Load VPCs for each account separately
     for account_id, account_vpc_nodes in vpc_nodes_by_account.items():
-        # Create AWS account if it doesn't exist (common in cross-account peering)
-        create_account_query = """
-        MERGE (aa:AWSAccount{id: $account_id})
-        ON CREATE SET aa.firstseen = timestamp(), aa.name = $account_id, aa.foreign = true
-        SET aa.lastupdated = $update_tag
-        """
-        neo4j_session.run(
-            create_account_query,
-            account_id=account_id,
-            update_tag=update_tag,
-        )
-        
         # Remove the AccountId field as it's not part of the VPC schema
         for vpc in account_vpc_nodes:
             vpc.pop("AccountId", None)
-        
+
         load(
             neo4j_session,
             AWSVpcSchema(),
@@ -272,9 +318,20 @@ def sync_vpc_peerings(
             current_aws_account_id,
         )
         raw_data = get_vpc_peerings_data(boto3_session, region)
-        vpc_peerings, accepter_cidrs, requester_cidrs, vpc_nodes = transform_vpc_peering_data(
-            raw_data,
+        vpc_peerings, accepter_cidrs, requester_cidrs, vpc_nodes = (
+            transform_vpc_peering_data(
+                raw_data,
+            )
         )
+        aws_accounts = transform_aws_accounts_from_vpc_peering(raw_data)
+
+        # Load AWS accounts first (composite pattern)
+        load_aws_accounts_from_vpc_peering(
+            neo4j_session,
+            aws_accounts,
+            update_tag,
+        )
+
         load_vpc_nodes(
             neo4j_session,
             vpc_nodes,

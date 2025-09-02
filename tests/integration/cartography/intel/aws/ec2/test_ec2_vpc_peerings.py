@@ -13,6 +13,17 @@ def test_load_vpc_peerings(neo4j_session):
             data,
         )
     )
+    aws_accounts = (
+        cartography.intel.aws.ec2.vpc_peerings.transform_aws_accounts_from_vpc_peering(
+            data,
+        )
+    )
+
+    cartography.intel.aws.ec2.vpc_peerings.load_aws_accounts_from_vpc_peering(
+        neo4j_session,
+        aws_accounts,
+        TEST_UPDATE_TAG,
+    )
     cartography.intel.aws.ec2.vpc_peerings.load_vpc_nodes(
         neo4j_session,
         vpc_nodes,
@@ -62,6 +73,17 @@ def test_vpc_peering_relationships_vpc(neo4j_session):
         cartography.intel.aws.ec2.vpc_peerings.transform_vpc_peering_data(
             data,
         )
+    )
+    aws_accounts = (
+        cartography.intel.aws.ec2.vpc_peerings.transform_aws_accounts_from_vpc_peering(
+            data,
+        )
+    )
+
+    cartography.intel.aws.ec2.vpc_peerings.load_aws_accounts_from_vpc_peering(
+        neo4j_session,
+        aws_accounts,
+        TEST_UPDATE_TAG,
     )
     cartography.intel.aws.ec2.vpc_peerings.load_vpc_nodes(
         neo4j_session,
@@ -119,6 +141,17 @@ def test_vpc_peering_relationships_cidr(neo4j_session):
         cartography.intel.aws.ec2.vpc_peerings.transform_vpc_peering_data(
             data,
         )
+    )
+    aws_accounts = (
+        cartography.intel.aws.ec2.vpc_peerings.transform_aws_accounts_from_vpc_peering(
+            data,
+        )
+    )
+
+    cartography.intel.aws.ec2.vpc_peerings.load_aws_accounts_from_vpc_peering(
+        neo4j_session,
+        aws_accounts,
+        TEST_UPDATE_TAG,
     )
     cartography.intel.aws.ec2.vpc_peerings.load_vpc_nodes(
         neo4j_session,

@@ -113,14 +113,40 @@ class PeeringConnectionToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: PeeringConnectionToAWSAccountRelProperties = PeeringConnectionToAWSAccountRelProperties()
+    properties: PeeringConnectionToAWSAccountRelProperties = (
+        PeeringConnectionToAWSAccountRelProperties()
+    )
+
+
+# Composite Node Pattern: AWSAccount as known by VPC Peering
+@dataclass(frozen=True)
+class AWSAccountVPCPeeringNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSAccountVPCPeeringSchema(CartographyNodeSchema):
+    """
+    Composite schema to represent AWS Accounts as known by VPC Peering.
+    Targets the same 'AWSAccount' label as the primary AWS account schema,
+    allowing MERGE operations to combine properties from both sources.
+    """
+
+    label: str = "AWSAccount"  # Same label as primary AWSAccount schema
+    properties: AWSAccountVPCPeeringNodeProperties = (
+        AWSAccountVPCPeeringNodeProperties()
+    )
+    # No sub_resource_relationship - accounts are top-level entities
 
 
 @dataclass(frozen=True)
 class AWSPeeringConnectionSchema(CartographyNodeSchema):
     label: str = "AWSPeeringConnection"
     properties: VPCPeeringNodeProperties = VPCPeeringNodeProperties()
-    sub_resource_relationship: PeeringConnectionToAWSAccountRel = PeeringConnectionToAWSAccountRel()
+    sub_resource_relationship: PeeringConnectionToAWSAccountRel = (
+        PeeringConnectionToAWSAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             PeeringToAccepterVpcRel(),
