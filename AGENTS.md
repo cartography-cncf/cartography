@@ -1399,7 +1399,7 @@ Before submitting your module:
 
 Remember: Start simple, iterate, and use existing modules as references. The Cartography community is here to help! 🚀
 
-## 🔧 Troubleshooting Guide {#troubleshooting-guide}
+## 🔧 Troubleshooting Guide {#troubleshooting}
 
 ### Common Issues and Solutions
 
