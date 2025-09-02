@@ -1,12 +1,14 @@
 import logging
-from typing import Dict
-from typing import List
+from typing import Any, Dict, List, Tuple
 
 import boto3
 import neo4j
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.aws.ec2.vpc_cidr import AWSIPv4CidrBlockSchema
+from cartography.models.aws.ec2.vpc_peering import AWSPeeringConnectionSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 from .util import get_botocore_config
@@ -29,148 +31,138 @@ def get_vpc_peerings_data(
 
 
 @timeit
-def load_vpc_peerings(
-    neo4j_session: neo4j.Session,
-    data: List[Dict],
-    region: str,
-    aws_account_id: str,
-    update_tag: int,
-) -> None:
-    ingest_vpc_peerings = """
-    UNWIND $vpc_peerings AS vpc_peering
+def transform_vpc_peering_data(
+    vpc_peerings: List[Dict],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    transformed_peerings: List[Dict[str, Any]] = []
+    accepter_cidr_blocks: List[Dict[str, Any]] = []
+    requester_cidr_blocks: List[Dict[str, Any]] = []
 
-    MERGE (pcx:AWSPeeringConnection{id: vpc_peering.VpcPeeringConnectionId})
-    ON CREATE SET pcx.firstseen = timestamp()
-    SET pcx.lastupdated = $update_tag,
-    pcx.allow_dns_resolution_from_remote_vpc =
-        vpc_peering.RequesterVpcInfo.PeeringOptions.AllowDnsResolutionFromRemoteVpc,
-    pcx.allow_egress_from_local_classic_link_to_remote_vpc =
-        vpc_peering.RequesterVpcInfo.PeeringOptions.AllowEgressFromLocalClassicLinkToRemoteVpc,
-    pcx.allow_egress_from_local_vpc_to_remote_classic_link =
-        vpc_peering.RequesterVpcInfo.PeeringOptions.AllowEgressFromLocalVpcToRemoteClassicLink,
-    pcx.requester_region = vpc_peering.RequesterVpcInfo.Region,
-    pcx.accepter_region = vpc_peering.AccepterVpcInfo.Region,
-    pcx.status_code = vpc_peering.Status.Code,
-    pcx.status_message = vpc_peering.Status.Message
+    for peering in vpc_peerings:
+        accepter_cidr_ids: List[str] = []
+        for c_b in peering.get("AccepterVpcInfo", {}).get("CidrBlockSet", []):
+            block_id = (
+                f"{peering['AccepterVpcInfo']['VpcId']}|{c_b.get('CidrBlock')}"
+            )
+            accepter_cidr_blocks.append(
+                {
+                    "Id": block_id,
+                    "VpcId": peering["AccepterVpcInfo"].get("VpcId"),
+                    "AssociationId": c_b.get("AssociationId"),
+                    "CidrBlock": c_b.get("CidrBlock"),
+                    "BlockState": c_b.get("CidrBlockState", {}).get("State"),
+                    "BlockStateMessage": c_b.get("CidrBlockState", {}).get(
+                        "StatusMessage",
+                    ),
+                },
+            )
+            accepter_cidr_ids.append(block_id)
 
-    MERGE (avpc:AWSVpc{id: vpc_peering.AccepterVpcInfo.VpcId})
-    ON CREATE SET avpc.firstseen = timestamp()
-    SET avpc.lastupdated = $update_tag, avpc.vpcid = vpc_peering.AccepterVpcInfo.VpcId
+        requester_cidr_ids: List[str] = []
+        for c_b in peering.get("RequesterVpcInfo", {}).get("CidrBlockSet", []):
+            block_id = (
+                f"{peering['RequesterVpcInfo']['VpcId']}|{c_b.get('CidrBlock')}"
+            )
+            requester_cidr_blocks.append(
+                {
+                    "Id": block_id,
+                    "VpcId": peering["RequesterVpcInfo"].get("VpcId"),
+                    "AssociationId": c_b.get("AssociationId"),
+                    "CidrBlock": c_b.get("CidrBlock"),
+                    "BlockState": c_b.get("CidrBlockState", {}).get("State"),
+                    "BlockStateMessage": c_b.get("CidrBlockState", {}).get(
+                        "StatusMessage",
+                    ),
+                },
+            )
+            requester_cidr_ids.append(block_id)
 
-    MERGE (rvpc:AWSVpc{id: vpc_peering.RequesterVpcInfo.VpcId})
-    ON CREATE SET rvpc.firstseen = timestamp()
-    SET rvpc.lastupdated = $update_tag, rvpc.vpcid = vpc_peering.RequesterVpcInfo.VpcId
+        transformed_peerings.append(
+            {
+                "VpcPeeringConnectionId": peering.get("VpcPeeringConnectionId"),
+                "AllowDnsResolutionFromRemoteVpc": peering.get(
+                    "RequesterVpcInfo",
+                    {},
+                ).get("PeeringOptions", {}).get(
+                    "AllowDnsResolutionFromRemoteVpc",
+                ),
+                "AllowEgressFromLocalClassicLinkToRemoteVpc": peering.get(
+                    "RequesterVpcInfo",
+                    {},
+                ).get("PeeringOptions", {}).get(
+                    "AllowEgressFromLocalClassicLinkToRemoteVpc",
+                ),
+                "AllowEgressFromLocalVpcToRemoteClassicLink": peering.get(
+                    "RequesterVpcInfo",
+                    {},
+                ).get("PeeringOptions", {}).get(
+                    "AllowEgressFromLocalVpcToRemoteClassicLink",
+                ),
+                "RequesterRegion": peering.get("RequesterVpcInfo", {}).get(
+                    "Region",
+                ),
+                "AccepterRegion": peering.get("AccepterVpcInfo", {}).get(
+                    "Region",
+                ),
+                "StatusCode": peering.get("Status", {}).get("Code"),
+                "StatusMessage": peering.get("Status", {}).get("Message"),
+                "AccepterVpcId": peering.get("AccepterVpcInfo", {}).get("VpcId"),
+                "RequesterVpcId": peering.get("RequesterVpcInfo", {}).get(
+                    "VpcId",
+                ),
+                "ACCEPTER_CIDR_BLOCK_IDS": accepter_cidr_ids,
+                "REQUESTER_CIDR_BLOCK_IDS": requester_cidr_ids,
+            },
+        )
 
-    MERGE (aaccount:AWSAccount{id: vpc_peering.AccepterVpcInfo.OwnerId})
-    ON CREATE SET aaccount.firstseen = timestamp()
-    SET aaccount.lastupdated = $update_tag
-
-    MERGE (raccount:AWSAccount{id: vpc_peering.RequesterVpcInfo.OwnerId})
-    ON CREATE SET raccount.firstseen = timestamp()
-    SET raccount.lastupdated = $update_tag
-
-    MERGE (pcx)-[rav:ACCEPTER_VPC]->(avpc)
-    ON CREATE SET rav.firstseen = timestamp()
-    SET rav.lastupdated = $update_tag
-
-    MERGE (aaccount)-[ra:RESOURCE]->(avpc)
-    ON CREATE SET ra.firstseen = timestamp()
-    SET ra.lastupdated = $update_tag
-
-    MERGE (pcx)-[rrv:REQUESTER_VPC]->(rvpc)
-    ON CREATE SET rrv.firstseen = timestamp()
-    SET rrv.lastupdated = $update_tag
-
-    MERGE (raccount)-[rr:RESOURCE]->(rvpc)
-    ON CREATE SET rr.firstseen = timestamp()
-    SET rr.lastupdated = $update_tag
-
-    """
-
-    neo4j_session.run(
-        ingest_vpc_peerings,
-        vpc_peerings=data,
-        update_tag=update_tag,
-        region=region,
-        aws_account_id=aws_account_id,
-    )
+    return transformed_peerings, accepter_cidr_blocks, requester_cidr_blocks
 
 
 @timeit
 def load_accepter_cidrs(
     neo4j_session: neo4j.Session,
-    data: List[Dict],
+    accepter_cidrs: List[Dict[str, Any]],
     region: str,
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-
-    ingest_accepter_cidr = """
-    UNWIND $vpc_peerings AS vpc_peering
-    UNWIND vpc_peering.AccepterVpcInfo.CidrBlockSet AS c_b
-
-    MERGE (ac_b:AWSCidrBlock:AWSIpv4CidrBlock{id: vpc_peering.AccepterVpcInfo.VpcId + '|' + c_b.CidrBlock})
-    ON CREATE SET ac_b.firstseen = timestamp()
-    SET ac_b.lastupdated = $update_tag, ac_b.cidr_block  =  c_b.CidrBlock
-
-    WITH vpc_peering, ac_b
-    MATCH (pcx:AWSPeeringConnection{id: vpc_peering.VpcPeeringConnectionId}), (cb:AWSCidrBlock{id: ac_b.id})
-    MERGE (pcx)-[r:ACCEPTER_CIDR]->(cb)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-
-    WITH vpc_peering, ac_b
-    MATCH (vpc:AWSVpc{id: vpc_peering.AccepterVpcInfo.VpcId}), (cb:AWSCidrBlock{id: ac_b.id})
-    MERGE (vpc)-[r:BLOCK_ASSOCIATION]->(cb)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-    """
-
-    neo4j_session.run(
-        ingest_accepter_cidr,
-        vpc_peerings=data,
-        update_tag=update_tag,
-        region=region,
-        aws_account_id=aws_account_id,
+    load(
+        neo4j_session,
+        AWSIPv4CidrBlockSchema(),
+        accepter_cidrs,
+        lastupdated=update_tag,
     )
 
 
 @timeit
 def load_requester_cidrs(
     neo4j_session: neo4j.Session,
-    data: List[Dict],
+    requester_cidrs: List[Dict[str, Any]],
     region: str,
     aws_account_id: str,
     update_tag: int,
 ) -> None:
+    load(
+        neo4j_session,
+        AWSIPv4CidrBlockSchema(),
+        requester_cidrs,
+        lastupdated=update_tag,
+    )
 
-    ingest_requester_cidr = """
-    UNWIND $vpc_peerings AS vpc_peering
-    UNWIND vpc_peering.RequesterVpcInfo.CidrBlockSet AS c_b
 
-    MERGE (rc_b:AWSCidrBlock:AWSIpv4CidrBlock{id: vpc_peering.RequesterVpcInfo.VpcId + '|' + c_b.CidrBlock})
-    ON CREATE SET rc_b.firstseen = timestamp()
-    SET rc_b.lastupdated = $update_tag, rc_b.cidr_block  =  c_b.CidrBlock
-
-    WITH vpc_peering, rc_b
-    MATCH (pcx:AWSPeeringConnection{id: vpc_peering.VpcPeeringConnectionId}), (cb:AWSCidrBlock{id: rc_b.id})
-    MERGE (pcx)-[r:REQUESTER_CIDR]->(cb)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-
-    WITH vpc_peering, rc_b
-    MATCH (vpc:AWSVpc{id: vpc_peering.RequesterVpcInfo.VpcId}), (cb:AWSCidrBlock{id: rc_b.id})
-    MERGE (vpc)-[r:BLOCK_ASSOCIATION]->(cb)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-    """
-
-    neo4j_session.run(
-        ingest_requester_cidr,
-        vpc_peerings=data,
-        update_tag=update_tag,
-        region=region,
-        aws_account_id=aws_account_id,
+@timeit
+def load_vpc_peerings(
+    neo4j_session: neo4j.Session,
+    vpc_peerings: List[Dict[str, Any]],
+    region: str,
+    aws_account_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSPeeringConnectionSchema(),
+        vpc_peerings,
+        lastupdated=update_tag,
     )
 
 
@@ -179,11 +171,10 @@ def cleanup_vpc_peerings(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "aws_import_vpc_peering_cleanup.json",
-        neo4j_session,
+    GraphJob.from_node_schema(
+        AWSPeeringConnectionSchema(),
         common_job_parameters,
-    )
+    ).run(neo4j_session)
 
 
 @timeit
@@ -201,24 +192,27 @@ def sync_vpc_peerings(
             region,
             current_aws_account_id,
         )
-        data = get_vpc_peerings_data(boto3_session, region)
-        load_vpc_peerings(
-            neo4j_session,
-            data,
-            region,
-            current_aws_account_id,
-            update_tag,
+        raw_data = get_vpc_peerings_data(boto3_session, region)
+        vpc_peerings, accepter_cidrs, requester_cidrs = transform_vpc_peering_data(
+            raw_data,
         )
         load_accepter_cidrs(
             neo4j_session,
-            data,
+            accepter_cidrs,
             region,
             current_aws_account_id,
             update_tag,
         )
         load_requester_cidrs(
             neo4j_session,
-            data,
+            requester_cidrs,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+        load_vpc_peerings(
+            neo4j_session,
+            vpc_peerings,
             region,
             current_aws_account_id,
             update_tag,
