@@ -15,14 +15,13 @@ fallback_version = "0.0.0"
 name = "cartography"
 description = "Explore assets and their relationships across your technical infrastructure."
 readme = "README.md"
-license = {text = "apache2"}
+license-files = ["LICENSE"]
 maintainers = [
     { name = "Cartography Contributors" }
 ]
 classifiers = [
   'Development Status :: 4 - Beta',
   'Intended Audience :: Developers',
-  'License :: OSI Approved :: Apache Software License',
   'Natural Language :: English',
   'Programming Language :: Python',
   'Programming Language :: Python :: 3',
