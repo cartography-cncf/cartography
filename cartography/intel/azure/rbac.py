@@ -69,7 +69,7 @@ def get_role_definitions_by_ids(
 
         # Extract unique role definition IDs
         unique_role_ids = list(set(role_definition_ids))
-        print(
+        logger.info(
             f"Fetching {len(unique_role_ids)} unique role definitions out of {len(role_definition_ids)} total role assignments"
         )
 
@@ -120,12 +120,6 @@ def transform_role_definitions(
         permissions = definition.get("permissions")
         permissions_json = json.dumps(permissions) if permissions else None
 
-        # Complex object for storing in Neo4j, temporarily store as JSON string
-        assignable_scopes = definition.get("assignable_scopes")
-        assignable_scopes_json = (
-            json.dumps(assignable_scopes) if assignable_scopes else None
-        )
-
         transformed = {
             "id": definition["id"],
             "name": definition.get("name"),
@@ -133,7 +127,7 @@ def transform_role_definitions(
             "roleName": definition.get("role_name"),
             "description": definition.get("description"),
             "permissions": permissions_json,
-            "assignableScopes": assignable_scopes_json,
+            "assignableScopes": definition.get("assignable_scopes"),
             "AZURE_SUBSCRIPTION_ID": definition.get("subscription_id"),
         }
         result.append(transformed)
@@ -150,10 +144,6 @@ def transform_role_assignments(
     result = []
 
     for assignment in role_assignments:
-        # Complex object for storing in Neo4j, temporarily store as JSON string
-        scope = assignment.get("scope")
-        scope_json = json.dumps(scope) if scope else None
-
         # CComplex object for storing in Neo4j, temporarily store as JSON string
         condition = assignment.get("condition")
         condition_json = json.dumps(condition) if condition else None
@@ -165,7 +155,7 @@ def transform_role_assignments(
             "principalId": assignment.get("principal_id"),
             "principalType": assignment.get("principal_type"),
             "roleDefinitionId": assignment.get("role_definition_id"),
-            "scope": scope_json,
+            "scope": assignment.get("scope"),
             "scopeType": assignment.get("scope_type"),
             "createdOn": assignment.get("created_on"),
             "updatedOn": assignment.get("updated_on"),

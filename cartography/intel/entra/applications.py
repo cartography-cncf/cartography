@@ -101,6 +101,9 @@ async def get_app_role_assignments_for_app(
 
     service_principal: ServicePrincipal = service_principals_page.value[0]
 
+    # Store the service principal ID for use in RBAC role assignment linking
+    app._service_principal_id = service_principal.id
+
     # Get assignments for this service principal with pagination and limits
     # Use maximum page size (999) to get more data per request
     # Memory is managed through streaming and batching, not page size
@@ -200,6 +203,9 @@ def transform_applications(
             "display_name": app.display_name,
             "publisher_domain": app.publisher_domain,
             "sign_in_audience": app.sign_in_audience,
+            "service_principal_id": getattr(
+                app, "_service_principal_id", None
+            ),  # Service Principal Object ID
         }
 
 

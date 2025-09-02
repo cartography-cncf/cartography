@@ -149,7 +149,7 @@ class AzureRoleAssignmentToEntraApplicationRel(CartographyRelSchema):
     target_node_label: str = "EntraApplication"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("principalId"),
+            "service_principal_id": PropertyRef("principalId"),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
