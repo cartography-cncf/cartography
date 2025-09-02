@@ -4,7 +4,7 @@ from unittest.mock import patch
 from botocore.exceptions import ClientError
 
 import tests.data.aws.apigateway as test_data
-from cartography.intel.aws.apigateway import get_rest_api_resources
+from cartography.intel.aws.apigateway import get_rest_api_resources_methods_integrations
 from cartography.intel.aws.apigateway import parse_policy
 
 
@@ -57,10 +57,11 @@ def test_get_rest_api_resources_retries_on_too_many_requests(
     client.get_paginator.return_value = mock_paginator
 
     # Act
-    result = get_rest_api_resources(api, client)
+    result = get_rest_api_resources_methods_integrations(api, client)
 
     # Assert
-    assert result == expected_resources
+    assert result[0] == expected_resources
+
     assert mock_paginator.paginate.call_count == 3
     mock_paginator.paginate.assert_called_with(restApiId="test-api")
     client.get_paginator.assert_called_with("get_resources")

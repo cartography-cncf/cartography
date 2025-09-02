@@ -148,6 +148,29 @@ GET_RESOURCES = [
     },
 ]
 
+GET_METHODS = [
+    {
+        "authorizationType": "NONE",
+        "apiKeyRequired": False,
+        "requestParameters": {"method.request.querystring.page": False},
+        "methodResponses": {"200": {"statusCode": "200"}},
+        "resourceId": "3kzxbg5sa2",
+        "apiId": "test-001",
+        "httpMethod": "GET",
+    },
+]
+
+GET_INTEGRATIONS = [
+    {
+        "type": "MOCK",
+        "uri": "arn:aws:apigateway:us-east-1:mock",
+        "resourceId": "3kzxbg5sa2",
+        "apiId": "test-001",
+        "httpMethod": "GET",
+    },
+]
+
+
 # This represents the tuple of (api_id, stage, certificate, resource, policy) that get_rest_api_details returns
 GET_REST_API_DETAILS = [
     # We use json.dumps() to simulate the fact that the policy is a string,
@@ -158,6 +181,8 @@ GET_REST_API_DETAILS = [
         [GET_STAGES[0]],
         GET_CERTIFICATES[0],
         [GET_RESOURCES[0]],
+        [GET_METHODS[0]],
+        [GET_INTEGRATIONS[0]],
         json.dumps(
             {
                 "Version": "2012-10-17",
@@ -176,6 +201,8 @@ GET_REST_API_DETAILS = [
         "test-002",
         [GET_STAGES[1]],
         GET_CERTIFICATES[1],
+        [],
+        [],
         [],
         json.dumps(
             {
