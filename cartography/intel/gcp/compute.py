@@ -2,7 +2,6 @@
 # https://cloud.google.com/compute/docs/concepts
 import json
 import logging
-import socket
 from collections import namedtuple
 from string import Template
 from typing import Any
@@ -24,9 +23,6 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
 
-# Connect/read timeout in seconds for Google API requests
-# https://github.com/googleapis/google-api-python-client/issues/1080#issuecomment-729790622
-socket.setdefaulttimeout(120)
 
 # Maximum number of retries for Google API requests
 GOOGLE_API_NUM_RETRIES = 5
