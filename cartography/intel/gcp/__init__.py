@@ -12,8 +12,8 @@ import neo4j
 from google.auth import default
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.exceptions import DefaultCredentialsError
-from googleapiclient.discovery import Resource
 from google_auth_httplib2 import AuthorizedHttp
+from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.intel.gcp import compute
@@ -45,7 +45,9 @@ service_names = Services(
 _GCP_HTTP_TIMEOUT = 120
 
 
-def _authorized_http_with_timeout(credentials: GoogleCredentials, timeout: int = _GCP_HTTP_TIMEOUT) -> AuthorizedHttp:
+def _authorized_http_with_timeout(
+    credentials: GoogleCredentials, timeout: int = _GCP_HTTP_TIMEOUT
+) -> AuthorizedHttp:
     """
     Build an AuthorizedHttp with a per-request timeout, avoiding global socket timeouts.
     """
