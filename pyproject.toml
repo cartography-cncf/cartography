@@ -15,6 +15,7 @@ fallback_version = "0.0.0"
 name = "cartography"
 description = "Explore assets and their relationships across your technical infrastructure."
 readme = "README.md"
+license = "Apache-2.0"
 license-files = ["LICENSE"]
 maintainers = [
     { name = "Cartography Contributors" }
