@@ -1,5 +1,8 @@
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import boto3
 import neo4j
@@ -41,9 +44,7 @@ def transform_vpc_peering_data(
     for peering in vpc_peerings:
         accepter_cidr_ids: List[str] = []
         for c_b in peering.get("AccepterVpcInfo", {}).get("CidrBlockSet", []):
-            block_id = (
-                f"{peering['AccepterVpcInfo']['VpcId']}|{c_b.get('CidrBlock')}"
-            )
+            block_id = f"{peering['AccepterVpcInfo']['VpcId']}|{c_b.get('CidrBlock')}"
             accepter_cidr_blocks.append(
                 {
                     "Id": block_id,
@@ -60,9 +61,7 @@ def transform_vpc_peering_data(
 
         requester_cidr_ids: List[str] = []
         for c_b in peering.get("RequesterVpcInfo", {}).get("CidrBlockSet", []):
-            block_id = (
-                f"{peering['RequesterVpcInfo']['VpcId']}|{c_b.get('CidrBlock')}"
-            )
+            block_id = f"{peering['RequesterVpcInfo']['VpcId']}|{c_b.get('CidrBlock')}"
             requester_cidr_blocks.append(
                 {
                     "Id": block_id,
@@ -83,19 +82,25 @@ def transform_vpc_peering_data(
                 "AllowDnsResolutionFromRemoteVpc": peering.get(
                     "RequesterVpcInfo",
                     {},
-                ).get("PeeringOptions", {}).get(
+                )
+                .get("PeeringOptions", {})
+                .get(
                     "AllowDnsResolutionFromRemoteVpc",
                 ),
                 "AllowEgressFromLocalClassicLinkToRemoteVpc": peering.get(
                     "RequesterVpcInfo",
                     {},
-                ).get("PeeringOptions", {}).get(
+                )
+                .get("PeeringOptions", {})
+                .get(
                     "AllowEgressFromLocalClassicLinkToRemoteVpc",
                 ),
                 "AllowEgressFromLocalVpcToRemoteClassicLink": peering.get(
                     "RequesterVpcInfo",
                     {},
-                ).get("PeeringOptions", {}).get(
+                )
+                .get("PeeringOptions", {})
+                .get(
                     "AllowEgressFromLocalVpcToRemoteClassicLink",
                 ),
                 "RequesterRegion": peering.get("RequesterVpcInfo", {}).get(

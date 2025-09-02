@@ -6,9 +6,9 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.core.relationships import make_target_node_matcher
 
 
 @dataclass(frozen=True)
@@ -112,4 +112,3 @@ class AWSPeeringConnectionSchema(CartographyNodeSchema):
             PeeringToRequesterCidrRel(),
         ],
     )
-
