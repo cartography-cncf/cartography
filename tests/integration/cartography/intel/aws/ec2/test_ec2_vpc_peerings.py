@@ -8,10 +8,17 @@ TEST_UPDATE_TAG = 123456789
 
 def test_load_vpc_peerings(neo4j_session):
     data = tests.data.aws.ec2.vpc_peerings.DESCRIBE_VPC_PEERINGS
-    vpc_peerings, accepter_cidrs, requester_cidrs = (
+    vpc_peerings, accepter_cidrs, requester_cidrs, vpc_nodes = (
         cartography.intel.aws.ec2.vpc_peerings.transform_vpc_peering_data(
             data,
         )
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_vpc_nodes(
+        neo4j_session,
+        vpc_nodes,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
     )
     cartography.intel.aws.ec2.vpc_peerings.load_accepter_cidrs(
         neo4j_session,
@@ -51,10 +58,17 @@ def test_load_vpc_peerings(neo4j_session):
 
 def test_vpc_peering_relationships_vpc(neo4j_session):
     data = tests.data.aws.ec2.vpc_peerings.DESCRIBE_VPC_PEERINGS
-    vpc_peerings, accepter_cidrs, requester_cidrs = (
+    vpc_peerings, accepter_cidrs, requester_cidrs, vpc_nodes = (
         cartography.intel.aws.ec2.vpc_peerings.transform_vpc_peering_data(
             data,
         )
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_vpc_nodes(
+        neo4j_session,
+        vpc_nodes,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
     )
     cartography.intel.aws.ec2.vpc_peerings.load_accepter_cidrs(
         neo4j_session,
@@ -101,10 +115,17 @@ def test_vpc_peering_relationships_vpc(neo4j_session):
 
 def test_vpc_peering_relationships_cidr(neo4j_session):
     data = tests.data.aws.ec2.vpc_peerings.DESCRIBE_VPC_PEERINGS
-    vpc_peerings, accepter_cidrs, requester_cidrs = (
+    vpc_peerings, accepter_cidrs, requester_cidrs, vpc_nodes = (
         cartography.intel.aws.ec2.vpc_peerings.transform_vpc_peering_data(
             data,
         )
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_vpc_nodes(
+        neo4j_session,
+        vpc_nodes,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
     )
     cartography.intel.aws.ec2.vpc_peerings.load_accepter_cidrs(
         neo4j_session,
