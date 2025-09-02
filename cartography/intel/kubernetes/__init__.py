@@ -55,18 +55,19 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             sync_kubernetes_rbac(
                 session, client, config.update_tag, common_job_parameters
             )
-            # EKS identity provider sync
-            boto3_session = boto3.Session()
-            region = get_region_from_arn(cluster_info.get("name", ""))
-            sync_eks(
-                session,
-                client,
-                boto3_session,
-                region,
-                config.update_tag,
-                cluster_info.get("id", ""),
-                cluster_info.get("name", ""),
-            )
+            if config.managed_kubernetes == "eks":
+                # EKS identity provider sync
+                boto3_session = boto3.Session()
+                region = get_region_from_arn(cluster_info.get("id", ""))
+                sync_eks(
+                    session,
+                    client,
+                    boto3_session,
+                    region,
+                    config.update_tag,
+                    cluster_info.get("id", ""),
+                    cluster_info.get("name", ""),
+                )
             all_pods = sync_pods(
                 session,
                 client,
