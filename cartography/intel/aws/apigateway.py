@@ -110,6 +110,7 @@ def get_rest_api_details(
 
 
 @timeit
+@aws_handle_regions
 def get_rest_api_stages(api: Dict, client: botocore.client.BaseClient) -> Any:
     """
     Gets the REST API Stage Resources.

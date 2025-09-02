@@ -61,6 +61,7 @@ def test_get_rest_api_resources_retries_on_too_many_requests(
 
     # Assert
     assert result[0] == expected_resources
+
     assert mock_paginator.paginate.call_count == 3
     mock_paginator.paginate.assert_called_with(restApiId="test-api")
     client.get_paginator.assert_called_with("get_resources")
