@@ -4,6 +4,14 @@ import tests.data.pagerduty.teams
 TEST_UPDATE_TAG = 123456789
 
 
+def _ensure_local_neo4j_has_test_teams(neo4j_session):
+    cartography.intel.pagerduty.teams.load_team_data(
+        neo4j_session,
+        tests.data.pagerduty.teams.GET_TEAMS_DATA,
+        TEST_UPDATE_TAG,
+    )
+
+
 def test_load_team_data(neo4j_session):
     team_data = tests.data.pagerduty.teams.GET_TEAMS_DATA
     cartography.intel.pagerduty.teams.load_team_data(
