@@ -2999,6 +2999,65 @@ Representation of an AWS [API Gateway Resource](https://docs.aws.amazon.com/apig
     (APIGatewayRestAPI)-[RESOURCE]->(APIGatewayResource)
     ```
 
+### APIGatewayMethod
+
+Representation of an AWS [API Gateway Method](https://docs.aws.amazon.com/apigateway/latest/api/API_GetMethod.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The id represented as ApiId/ResourceId/HttpMethod |
+| httpmethod |  The method's HTTP verb |
+| resource_id |  Identifier for respective resource |
+| api_id |  The  identifier for the API |
+| authorization_type | The method's authorization type |
+| authorizer_id |  The identifier of an authorizer to use on this method |
+| operation_name |  A human-friendly operation identifier for the method |
+| request_validator_id |  The identifier of a RequestValidator for request validation |
+| api_key_required |  A boolean flag specifying whether a valid ApiKey is required to invoke this method |
+
+#### Relationships
+
+- AWS API Gateway Methods are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(APIGatewayMethod)
+    ```
+- AWS API Gateway Methods are attached to API Gateway Resource .
+    ```
+    (APIGatewayResource)-[HAS_METHOD]->(APIGatewayMethod)
+    ```
+
+### APIGatewayIntegration
+
+Representation of an AWS [API Gateway Integration](https://docs.aws.amazon.com/apigateway/latest/api/API_GetIntegration.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The id represented as ApiId/ResourceId/HttpMethod |
+| httpmethod |  Specifies a get integration request's HTTP method |
+| integration_http_method | Specifies the integration's HTTP method type |
+| resource_id |  Identifier for respective resource |
+| api_id |  The  identifier for the API |
+| type | Specifies an API method integration type |
+| uri |  Specifies Uniform Resource Identifier (URI) of the integration endpoint |
+| connection_type |  The type of the network connection to the integration endpoint |
+| connection_id |  The ID of the VpcLink used for the integration when connectionType=VPC_LINK and undefined, otherwise |
+| credentials |  Specifies the credentials required for the integration, if any |
+
+#### Relationships
+
+- AWS API Gateway Integrations are a resource under the AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(APIGatewayIntegration)
+    ```
+- AWS API Gateway Integrations are attached to API Gateway Resource .
+    ```
+    (APIGatewayResource)-[HAS_INTEGRATION]->(APIGatewayIntegration)
+    ```
+
 ### AutoScalingGroup
 
 Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.com/autoscaling/ec2/userguide/AutoScalingGroup.html).

@@ -22,6 +22,10 @@ from cartography.models.aws.apigateway.apigatewaycertificate import (
 from cartography.models.aws.apigateway.apigatewaydeployment import (
     APIGatewayDeploymentSchema,
 )
+from cartography.models.aws.apigateway.apigatewayintegration import (
+    APIGatewayIntegrationSchema,
+)
+from cartography.models.aws.apigateway.apigatewaymethod import APIGatewayMethodSchema
 from cartography.models.aws.apigateway.apigatewayresource import (
     APIGatewayResourceSchema,
 )
@@ -84,7 +88,7 @@ def get_rest_api_details(
     boto3_session: boto3.session.Session,
     rest_apis: List[Dict],
     region: str,
-) -> List[Tuple[Any, Any, Any, Any, Any]]:
+) -> List[Tuple[Any, Any, Any, Any, Any, Any, Any]]:
     """
     Iterates over all API Gateway REST APIs.
     """
@@ -94,9 +98,14 @@ def get_rest_api_details(
         stages = get_rest_api_stages(api, client)
         # clientcertificate id is given by the api stage
         certificate = get_rest_api_client_certificate(stages, client)
-        resources = get_rest_api_resources(api, client)
+        resources, methods, integrations = get_rest_api_resources_methods_integrations(
+            api,
+            client,
+        )
         policy = get_rest_api_policy(api, client)
-        apis.append((api["id"], stages, certificate, resources, policy))
+        apis.append(
+            (api["id"], stages, certificate, resources, methods, integrations, policy)
+        )
     return apis
 
 
@@ -144,17 +153,43 @@ def get_rest_api_client_certificate(
 
 @timeit
 @aws_handle_regions
-def get_rest_api_resources(api: Dict, client: botocore.client.BaseClient) -> List[Any]:
+def get_rest_api_resources_methods_integrations(
+    api: Dict, client: botocore.client.BaseClient
+) -> Tuple[List[Any], List[Dict], List[Dict]]:
     """
     Gets the collection of Resource resources.
     """
     resources: List[Any] = []
+    methods: List[Any] = []
+    integrations: List[Any] = []
+
     paginator = client.get_paginator("get_resources")
     response_iterator = paginator.paginate(restApiId=api["id"])
     for page in response_iterator:
-        resources.extend(page["items"])
+        page_resources = page["items"]
+        resources.extend(page_resources)
 
-    return resources
+        for resource in page_resources:
+            resource_id = resource["id"]
+            resource_methods = resource.get("resourceMethods", {})
+
+            for http_method, method in resource_methods.items():
+                method["resourceId"] = resource_id
+                method["apiId"] = api["id"]
+                method["httpMethod"] = http_method
+                methods.append(method)
+                integration = client.get_integration(
+                    restApiId=api["id"],
+                    resourceId=resource_id,
+                    httpMethod=http_method,
+                )
+                integration["resourceId"] = resource_id
+                integration["apiId"] = api["id"]
+                integration["integrationHttpMethod"] = integration.get("httpMethod")
+                integration["httpMethod"] = http_method
+                integrations.append(integration)
+
+    return resources, methods, integrations
 
 
 @timeit
@@ -250,16 +285,27 @@ def transform_apigateway_certificates(
 
 
 def transform_rest_api_details(
-    stages_certificate_resources: List[Tuple[Any, Any, Any, Any, Any]],
-) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+    stages_certificate_resources: List[Tuple[Any, Any, Any, Any, Any, Any, Any]],
+) -> Tuple[List[Dict], List[Dict], List[Dict], List[Dict], List[Dict]]:
     """
-    Transform Stage, Client Certificate, and Resource data for ingestion
+    Transform Stage, Client Certificate, Resource, Method and Integration data for ingestion
     """
     stages: List[Dict] = []
     certificates: List[Dict] = []
     resources: List[Dict] = []
+    methods: List[Dict] = []
+    integrations: List[Dict] = []
 
-    for api_id, stage, certificate, resource, _ in stages_certificate_resources:
+    for (
+        api_id,
+        stage,
+        certificate,
+        resource,
+        method_list,
+        integration_list,
+        _,
+    ) in stages_certificate_resources:
+
         if len(stage) > 0:
             for s in stage:
                 s["apiId"] = api_id
@@ -281,7 +327,32 @@ def transform_rest_api_details(
                 r["apiId"] = api_id
             resources.extend(resource)
 
-    return stages, certificates, resources
+        if len(method_list) > 0:
+            for method in method_list:
+                method["id"] = (
+                    f"{method['apiId']}/{method['resourceId']}/{method['httpMethod']}"
+                )
+                method["authorizationType"] = method.get("authorizationType")
+                method["authorizerId"] = method.get("authorizerId")
+                method["requestValidatorId"] = method.get("requestValidatorId")
+                method["operationName"] = method.get("operationName")
+                method["apiKeyRequired"] = method.get("apiKeyRequired", False)
+            methods.extend(method_list)
+
+        if len(integration_list) > 0:
+            for integration in integration_list:
+                if not integration.get("id"):
+                    integration["id"] = (
+                        f"{integration['apiId']}/{integration['resourceId']}/{integration['httpMethod']}"
+                    )
+                integration["type"] = integration.get("type")
+                integration["uri"] = integration.get("uri")
+                integration["connectionType"] = integration.get("connectionType")
+                integration["connectionId"] = integration.get("connectionId")
+                integration["credentials"] = integration.get("credentials")
+            integrations.extend(integration_list)
+
+    return stages, certificates, resources, methods, integrations
 
 
 def transform_apigateway_deployments(
@@ -306,15 +377,17 @@ def transform_apigateway_deployments(
 @timeit
 def load_rest_api_details(
     neo4j_session: neo4j.Session,
-    stages_certificate_resources: List[Tuple[Any, Any, Any, Any, Any]],
+    stages_certificate_resources_methods_integrations: List[
+        Tuple[Any, Any, Any, Any, Any, Any, Any]
+    ],
     aws_account_id: str,
     update_tag: int,
 ) -> None:
     """
     Transform and load Stage, Client Certificate, and Resource data
     """
-    stages, certificates, resources = transform_rest_api_details(
-        stages_certificate_resources,
+    stages, certificates, resources, methods, integrations = transform_rest_api_details(
+        stages_certificate_resources_methods_integrations,
     )
 
     load(
@@ -337,6 +410,22 @@ def load_rest_api_details(
         neo4j_session,
         APIGatewayResourceSchema(),
         resources,
+        lastupdated=update_tag,
+        AWS_ID=aws_account_id,
+    )
+
+    load(
+        neo4j_session,
+        APIGatewayMethodSchema(),
+        methods,
+        lastupdated=update_tag,
+        AWS_ID=aws_account_id,
+    )
+
+    load(
+        neo4j_session,
+        APIGatewayIntegrationSchema(),
+        integrations,
         lastupdated=update_tag,
         AWS_ID=aws_account_id,
     )
@@ -434,6 +523,18 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     )
     cleanup_job.run(neo4j_session)
 
+    cleanup_job = GraphJob.from_node_schema(
+        APIGatewayMethodSchema(),
+        common_job_parameters,
+    )
+    cleanup_job.run(neo4j_session)
+
+    cleanup_job = GraphJob.from_node_schema(
+        APIGatewayIntegrationSchema(),
+        common_job_parameters,
+    )
+    cleanup_job.run(neo4j_session)
+
 
 @timeit
 def sync_apigateway_rest_apis(
@@ -444,7 +545,7 @@ def sync_apigateway_rest_apis(
     aws_update_tag: int,
 ) -> None:
     rest_apis = get_apigateway_rest_apis(boto3_session, region)
-    stages_certificate_resources = get_rest_api_details(
+    stages_certificate_resources_methods_integrations = get_rest_api_details(
         boto3_session,
         rest_apis,
         region,
@@ -452,7 +553,15 @@ def sync_apigateway_rest_apis(
 
     # Extract policies and transform the data
     policies = []
-    for api_id, _, _, _, policy in stages_certificate_resources:
+    for (
+        api_id,
+        _,
+        _,
+        _,
+        _,
+        _,
+        policy,
+    ) in stages_certificate_resources_methods_integrations:
         parsed_policy = parse_policy(api_id, policy)
         if parsed_policy is not None:
             policies.append(parsed_policy)
@@ -486,7 +595,7 @@ def sync_apigateway_rest_apis(
     )
     load_rest_api_details(
         neo4j_session,
-        stages_certificate_resources,
+        stages_certificate_resources_methods_integrations,
         current_aws_account_id,
         aws_update_tag,
     )
