@@ -52,11 +52,11 @@ def transform_vpc_peering_data(
     for peering in vpc_peerings:
         accepter_cidr_ids: List[str] = []
         for c_b in peering.get("AccepterVpcInfo", {}).get("CidrBlockSet", []):
-            block_id = f"{peering['AccepterVpcInfo']['VpcId']}|{c_b.get('CidrBlock')}"
+            block_id = f"{peering.get('AccepterVpcInfo', {}).get('VpcId')}|{c_b.get('CidrBlock')}"
             accepter_cidr_blocks.append(
                 {
                     "Id": block_id,
-                    "VpcId": peering["AccepterVpcInfo"].get("VpcId"),
+                    "VpcId": peering.get("AccepterVpcInfo", {}).get("VpcId"),
                     "AssociationId": c_b.get("AssociationId"),
                     "CidrBlock": c_b.get("CidrBlock"),
                     "BlockState": c_b.get("CidrBlockState", {}).get("State"),
@@ -69,11 +69,11 @@ def transform_vpc_peering_data(
 
         requester_cidr_ids: List[str] = []
         for c_b in peering.get("RequesterVpcInfo", {}).get("CidrBlockSet", []):
-            block_id = f"{peering['RequesterVpcInfo']['VpcId']}|{c_b.get('CidrBlock')}"
+            block_id = f"{peering.get('RequesterVpcInfo', {}).get('VpcId')}|{c_b.get('CidrBlock')}"
             requester_cidr_blocks.append(
                 {
                     "Id": block_id,
-                    "VpcId": peering["RequesterVpcInfo"].get("VpcId"),
+                    "VpcId": peering.get("RequesterVpcInfo", {}).get("VpcId"),
                     "AssociationId": c_b.get("AssociationId"),
                     "CidrBlock": c_b.get("CidrBlock"),
                     "BlockState": c_b.get("CidrBlockState", {}).get("State"),
