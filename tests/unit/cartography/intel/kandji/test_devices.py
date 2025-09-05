@@ -41,7 +41,7 @@ def mock_empty_response() -> Mock:
     return mock
 
 
-@patch("cartography.intel.kandji.devices.Session")
+@patch("cartography.intel.kandji.devices.build_session")
 def test_get_devices_single_page(
     mock_session: Mock,
     mock_device_data_page1: list[dict[str, Any]],
@@ -65,7 +65,7 @@ def test_get_devices_single_page(
     assert mock_session.return_value.get.call_count == 2
 
 
-@patch("cartography.intel.kandji.devices.Session")
+@patch("cartography.intel.kandji.devices.build_session")
 def test_get_devices_with_pagination(
     mock_session: Mock,
     mock_device_data_page1: list[dict[str, Any]],
