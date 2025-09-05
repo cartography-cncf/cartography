@@ -1,7 +1,79 @@
+from unittest.mock import patch
+
 import cartography.intel.gcp.crm
 import tests.data.gcp.crm
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
+
+
+@patch.object(
+    cartography.intel.gcp.crm,
+    "get_gcp_folders",
+    return_value=tests.data.gcp.crm.GCP_FOLDERS,
+)
+def test_sync_gcp_folders(mock_get_folders, neo4j_session):
+    """Test that sync_gcp_folders creates GCPFolder nodes and relationships."""
+    # Arrange
+    # Pre-load the organization so that the folder has a parent to connect to
+    cartography.intel.gcp.crm.load_gcp_organizations(
+        neo4j_session,
+        tests.data.gcp.crm.GCP_ORGANIZATIONS,
+        TEST_UPDATE_TAG,
+    )
+    # Pre-load a project so that the folder has a child relationship
+    cartography.intel.gcp.crm.load_gcp_projects(
+        neo4j_session,
+        tests.data.gcp.crm.GCP_PROJECTS,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    cartography.intel.gcp.crm.sync_gcp_folders(
+        neo4j_session,
+        crm_v2=None,
+        gcp_update_tag=TEST_UPDATE_TAG,
+        common_job_parameters={"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert
+    expected_nodes = {
+        ("folders/1414", "my-folder"),
+    }
+    assert (
+        check_nodes(neo4j_session, "GCPFolder", ["id", "displayname"]) == expected_nodes
+    )
+
+    expected_rels_org = {
+        ("organizations/1337", "folders/1414"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPOrganization",
+            "id",
+            "GCPFolder",
+            "id",
+            "RESOURCE",
+        )
+        == expected_rels_org
+    )
+
+    expected_rels_project = {
+        ("folders/1414", "this-project-has-a-parent-232323"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPFolder",
+            "id",
+            "GCPProject",
+            "id",
+            "RESOURCE",
+        )
+        == expected_rels_project
+    )
 
 
 def test_load_gcp_projects(neo4j_session):
