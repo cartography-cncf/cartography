@@ -1,5 +1,7 @@
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import neo4j
 from googleapiclient.discovery import HttpError
@@ -73,9 +75,7 @@ def transform_gcp_buckets(bucket_res: Dict) -> Tuple[List[Dict], List[Dict]]:
     for b in bucket_res.get("items", []):
         bucket = {
             "iam_config_bucket_policy_only": (
-                b.get("iamConfiguration", {})
-                .get("bucketPolicyOnly", {})
-                .get("enabled")
+                b.get("iamConfiguration", {}).get("bucketPolicyOnly", {}).get("enabled")
             ),
             "id": b["id"],
             "owner_entity": b.get("owner", {}).get("entity"),
@@ -108,13 +108,19 @@ def transform_gcp_buckets(bucket_res: Dict) -> Tuple[List[Dict], List[Dict]]:
 
 
 @timeit
-def load_gcp_buckets(neo4j_session: neo4j.Session, buckets: List[Dict], gcp_update_tag: int) -> None:
+def load_gcp_buckets(
+    neo4j_session: neo4j.Session,
+    buckets: List[Dict],
+    project_id: str,
+    gcp_update_tag: int,
+) -> None:
     """Ingest GCP Storage Buckets to Neo4j."""
     load(
         neo4j_session,
         GCPBucketSchema(),
         buckets,
         lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
     )
 
 
@@ -122,6 +128,7 @@ def load_gcp_buckets(neo4j_session: neo4j.Session, buckets: List[Dict], gcp_upda
 def load_gcp_bucket_labels(
     neo4j_session: neo4j.Session,
     bucket_labels: List[Dict],
+    project_id: str,
     gcp_update_tag: int,
 ) -> None:
     """Ingest GCP Storage Bucket labels and attach them to buckets."""
@@ -130,6 +137,7 @@ def load_gcp_bucket_labels(
         GCPBucketLabelSchema(),
         bucket_labels,
         lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
     )
 
 
@@ -181,6 +189,6 @@ def sync_gcp_buckets(
     logger.info("Syncing Storage objects for project %s.", project_id)
     storage_res = get_gcp_buckets(storage, project_id)
     buckets, bucket_labels = transform_gcp_buckets(storage_res)
-    load_gcp_buckets(neo4j_session, buckets, gcp_update_tag)
-    load_gcp_bucket_labels(neo4j_session, bucket_labels, gcp_update_tag)
+    load_gcp_buckets(neo4j_session, buckets, project_id, gcp_update_tag)
+    load_gcp_bucket_labels(neo4j_session, bucket_labels, project_id, gcp_update_tag)
     cleanup_gcp_buckets(neo4j_session, common_job_parameters)

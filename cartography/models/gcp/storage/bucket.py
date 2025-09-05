@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -22,7 +23,9 @@ class GCPBucketNodeProperties(CartographyNodeProperties):
     storage_class: PropertyRef = PropertyRef("storage_class")
     time_created: PropertyRef = PropertyRef("time_created")
     retention_period: PropertyRef = PropertyRef("retention_period")
-    iam_config_bucket_policy_only: PropertyRef = PropertyRef("iam_config_bucket_policy_only")
+    iam_config_bucket_policy_only: PropertyRef = PropertyRef(
+        "iam_config_bucket_policy_only"
+    )
     owner_entity: PropertyRef = PropertyRef("owner_entity")
     owner_entity_id: PropertyRef = PropertyRef("owner_entity_id")
     versioning_enabled: PropertyRef = PropertyRef("versioning_enabled")
@@ -42,7 +45,7 @@ class GCPBucketToProjectRelProperties(CartographyRelProperties):
 class GCPBucketToProjectRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"projectnumber": PropertyRef("project_number")}
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -62,6 +65,25 @@ class GCPBucketLabelNodeProperties(CartographyNodeProperties):
     key: PropertyRef = PropertyRef("key", extra_index=True)
     value: PropertyRef = PropertyRef("value")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPBucketLabelToProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:GCPProject)-[:RESOURCE]->(:GCPBucketLabel)
+class GCPBucketLabelToProjectRel(CartographyRelSchema):
+    target_node_label: str = "GCPProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPBucketLabelToProjectRelProperties = (
+        GCPBucketLabelToProjectRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -87,6 +109,9 @@ class GCPBucketLabelToBucketRel(CartographyRelSchema):
 class GCPBucketLabelSchema(CartographyNodeSchema):
     label: str = "GCPBucketLabel"
     properties: GCPBucketLabelNodeProperties = GCPBucketLabelNodeProperties()
-    sub_resource_relationship: GCPBucketLabelToBucketRel = (
-        GCPBucketLabelToBucketRel()
+    sub_resource_relationship: GCPBucketLabelToProjectRel = GCPBucketLabelToProjectRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPBucketLabelToBucketRel(),
+        ]
     )
