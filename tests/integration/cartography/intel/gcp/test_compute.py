@@ -634,6 +634,93 @@ def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
 
 @patch.object(
     cartography.intel.gcp.compute,
+    "get_gcp_global_forwarding_rules",
+    return_value=tests.data.gcp.compute.LIST_GLOBAL_FORWARDING_RULES_RESPONSE,
+)
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_regional_forwarding_rules",
+    return_value=tests.data.gcp.compute.LIST_FORWARDING_RULES_RESPONSE,
+)
+def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_session):
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"}
+    cartography.intel.gcp.compute.sync_gcp_forwarding_rules(
+        neo4j_session,
+        MagicMock(),
+        "project-abc",
+        ["europe-west2"],
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "GCPForwardingRule",
+        ["id", "ip_address", "project_id", "region"],
+    ) == {
+        (
+            "projects/project-abc/global/forwardingRules/global-rule-1",
+            "35.235.1.2",
+            "project-abc",
+            None,
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-service-1111",
+            "10.0.0.10",
+            "project-abc",
+            "europe-west2",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/public-ingress-controller-1234567",
+            "1.2.3.11",
+            "project-abc",
+            "europe-west2",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+            "10.0.0.20",
+            "project-abc",
+            "europe-west2",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPSubnet",
+        "id",
+        "GCPForwardingRule",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+            "projects/project-abc/regions/europe-west2/forwardingRules/internal-service-1111",
+        ),
+        (
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+            "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPVpc",
+        "id",
+        "GCPForwardingRule",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/project-abc/global/networks/default",
+            "projects/project-abc/global/forwardingRules/global-rule-1",
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.gcp.compute,
     "get_gcp_vpcs",
     side_effect=[
         tests.data.gcp.compute.VPC_RESPONSE,
