@@ -506,6 +506,12 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
             "europe-west2-b",
             "project-abc",
         ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "instance-1-test",
+            "europe-west2-b",
+            "project-abc",
+        ),
     }
 
     # Assert project to instance relationship
@@ -522,6 +528,10 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
             "project-abc",
             "projects/project-abc/zones/europe-west2-b/instances/instance-1",
         ),
+        (
+            "project-abc",
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+        ),
     }
 
     # Assert network interface node and relationships
@@ -534,6 +544,11 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
             "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0",
             "nic0",
             "10.0.0.2",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
+            "nic0",
+            "10.0.0.3",
         ),
     }
     assert check_rels(
@@ -549,6 +564,10 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
             "projects/project-abc/zones/europe-west2-b/instances/instance-1",
             "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0",
         ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
+        ),
     }
     assert check_rels(
         neo4j_session,
@@ -561,6 +580,10 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
     ) == {
         (
             "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0",
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
             "projects/project-abc/regions/europe-west2/subnetworks/default",
         ),
     }
