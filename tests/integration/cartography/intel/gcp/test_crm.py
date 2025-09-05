@@ -15,6 +15,13 @@ TEST_UPDATE_TAG = 123456789
 )
 def test_sync_gcp_folders(mock_get_folders, neo4j_session):
     """Test that sync_gcp_folders creates GCPFolder nodes and relationships."""
+    # Arrange
+    # Pre-load the organization so that the folder has a parent to connect to
+    cartography.intel.gcp.crm.load_gcp_organizations(
+        neo4j_session,
+        tests.data.gcp.crm.GCP_ORGANIZATIONS,
+        TEST_UPDATE_TAG,
+    )
     # Pre-load a project so that the folder has a child relationship
     cartography.intel.gcp.crm.load_gcp_projects(
         neo4j_session,
@@ -22,6 +29,7 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
         TEST_UPDATE_TAG,
     )
 
+    # Act
     cartography.intel.gcp.crm.sync_gcp_folders(
         neo4j_session,
         crm_v2=None,
@@ -29,6 +37,7 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
         common_job_parameters={"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
+    # Assert
     expected_nodes = {
         ("folders/1414", "my-folder"),
     }
