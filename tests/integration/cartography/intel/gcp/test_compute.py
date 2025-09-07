@@ -682,6 +682,10 @@ def test_sync_gcp_subnets(mock_get_subnets, neo4j_session):
             "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0",
             "projects/project-abc/regions/europe-west2/subnetworks/default",
         ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+        ),
     }
 
     assert check_rels(
