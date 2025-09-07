@@ -1,9 +1,12 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 import neo4j
+from azure.core.exceptions import ClientAuthenticationError
+from azure.core.exceptions import HttpResponseError
 from azure.mgmt.web import WebSiteManagementClient
-from azure.core.exceptions import ClientAuthenticationError, HttpResponseError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -25,7 +28,7 @@ def get_function_apps(credentials: Credentials, subscription_id: str) -> List[Di
         # Note: Function Apps are a type of Web App, so we list all web apps
         # and then filter them in the transform stage.
         return [app.as_dict() for app in client.web_apps.list()]
-    
+
     except ClientAuthenticationError as e:
         logger.warning(
             (
@@ -58,15 +61,15 @@ def transform_function_apps(function_apps_response: List[Dict]) -> List[Dict]:
     transformed_apps: List[Dict[str, Any]] = []
     for app in function_apps_response:
         # We only want to ingest resources that are explicitly function apps.
-        if 'functionapp' in app.get('kind', ''):
+        if "functionapp" in app.get("kind", ""):
             transformed_app = {
-                'id': app.get('id'),
-                'name': app.get('name'),
-                'kind': app.get('kind'),
-                'location': app.get('location'),
-                'state': app.get('state'),
-                'default_host_name': app.get('default_host_name'),
-                'https_only': app.get('https_only'),
+                "id": app.get("id"),
+                "name": app.get("name"),
+                "kind": app.get("kind"),
+                "location": app.get("location"),
+                "state": app.get("state"),
+                "default_host_name": app.get("default_host_name"),
+                "https_only": app.get("https_only"),
             }
             transformed_apps.append(transformed_app)
     return transformed_apps
@@ -74,7 +77,10 @@ def transform_function_apps(function_apps_response: List[Dict]) -> List[Dict]:
 
 @timeit
 def load_function_apps(
-    neo4j_session: neo4j.Session, data: List[Dict[str, Any]], subscription_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load the transformed Azure Function App data to Neo4j.
@@ -89,11 +95,15 @@ def load_function_apps(
 
 
 @timeit
-def cleanup_function_apps(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_function_apps(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
     """
     Run the cleanup job for Azure Function Apps.
     """
-    GraphJob.from_node_schema(AzureFunctionAppSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AzureFunctionAppSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit

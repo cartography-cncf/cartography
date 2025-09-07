@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.azure.functions as functions
 from tests.data.azure.functions import MOCK_FUNCTION_APPS
@@ -9,7 +10,7 @@ TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
 
 
-@patch('cartography.intel.azure.functions.get_function_apps')
+@patch("cartography.intel.azure.functions.get_function_apps")
 def test_sync_function_apps(mock_get, neo4j_session):
     """
     Test that we can correctly sync Azure Function App data and relationships.
@@ -43,21 +44,27 @@ def test_sync_function_apps(mock_get, neo4j_session):
 
     # Assert Nodes: Ensure only the function app (and not the web app) was loaded.
     expected_nodes = {
-        ('/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Web/sites/my-test-func-app', 'my-test-func-app'),
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Web/sites/my-test-func-app",
+            "my-test-func-app",
+        ),
     }
-    actual_nodes = check_nodes(neo4j_session, 'AzureFunctionApp', ['id', 'name'])
+    actual_nodes = check_nodes(neo4j_session, "AzureFunctionApp", ["id", "name"])
     assert actual_nodes == expected_nodes
 
     # Assert Relationships
     expected_rels = {
-        (TEST_SUBSCRIPTION_ID, '/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Web/sites/my-test-func-app'),
+        (
+            TEST_SUBSCRIPTION_ID,
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Web/sites/my-test-func-app",
+        ),
     }
     actual_rels = check_rels(
         neo4j_session,
-        'AzureSubscription',
-        'id',
-        'AzureFunctionApp',
-        'id',
-        'RESOURCE',
+        "AzureSubscription",
+        "id",
+        "AzureFunctionApp",
+        "id",
+        "RESOURCE",
     )
     assert actual_rels == expected_rels
