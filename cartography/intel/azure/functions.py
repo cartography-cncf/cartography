@@ -24,7 +24,7 @@ def get_function_apps(credentials: Credentials, subscription_id: str) -> List[Di
     Get a list of Function Apps from the given Azure subscription.
     """
     try:
-        client = WebSiteManagementClient(credentials, subscription_id)
+        client = WebSiteManagementClient(credentials.credential, subscription_id)
         # Note: Function Apps are a type of Web App, so we list all web apps
         # and then filter them in the transform stage.
         return [app.as_dict() for app in client.web_apps.list()]
@@ -48,7 +48,7 @@ def get_function_apps(credentials: Credentials, subscription_id: str) -> List[Di
             ),
             subscription_id,
             e.status_code,
-            e.message,
+            str(e),
         )
         return []
 

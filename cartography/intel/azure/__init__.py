@@ -43,7 +43,7 @@ def _sync_one_subscription(
     )
     functions.sync(
         neo4j_session,
-        credentials.credential,
+        credentials,
         subscription_id,
         update_tag,
         common_job_parameters,
