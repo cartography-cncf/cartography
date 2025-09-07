@@ -2,7 +2,8 @@ from unittest.mock import patch
 
 import cartography.intel.gcp.crm
 import tests.data.gcp.crm
-from tests.integration.util import check_nodes, check_rels
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 COMMON_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
@@ -12,6 +13,9 @@ def test_load_gcp_projects(neo4j_session):
     """
     Tests that we correctly load a sample hierarchy chain of GCP organizations to folders to projects.
     """
+    # Clear database to ensure test isolation
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
     cartography.intel.gcp.crm.load_gcp_organizations(
         neo4j_session,
         tests.data.gcp.crm.GCP_ORGANIZATIONS,
@@ -72,12 +76,17 @@ def test_load_gcp_projects_without_parent(neo4j_session):
     """
     Ensure that the sample GCPProject that doesn't have a parent node gets ingested correctly.
     """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act
     cartography.intel.gcp.crm.load_gcp_projects(
         neo4j_session,
         tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT,
         TEST_UPDATE_TAG,
     )
 
+    # Assert
     expected_nodes = {
         ("my-parentless-project-987654"),
     }
@@ -101,9 +110,13 @@ def test_load_gcp_projects_without_parent(neo4j_session):
     return_value=tests.data.gcp.crm.GCP_FOLDERS,
 )
 def test_sync_gcp_projects(
-    _mock_get_folders, _mock_get_orgs, neo4j_session,
+    _mock_get_folders,
+    _mock_get_orgs,
+    neo4j_session,
 ) -> None:
     """Test that sync_gcp_projects ingests project data and connects hierarchy."""
+    # Arrnage
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     cartography.intel.gcp.crm.sync_gcp_organizations(
         neo4j_session,
         None,
@@ -116,6 +129,8 @@ def test_sync_gcp_projects(
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
     )
+
+    # Act
     cartography.intel.gcp.crm.sync_gcp_projects(
         neo4j_session,
         tests.data.gcp.crm.GCP_PROJECTS,
@@ -123,6 +138,7 @@ def test_sync_gcp_projects(
         COMMON_JOB_PARAMS,
     )
 
+    # Assert
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
         ("this-project-has-a-parent-232323",),
     }
@@ -154,6 +170,10 @@ def test_sync_gcp_projects(
 
 def test_sync_gcp_projects_without_parent(neo4j_session) -> None:
     """Ensure sync_gcp_projects handles projects with no parent."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Act
     cartography.intel.gcp.crm.sync_gcp_projects(
         neo4j_session,
         tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT,
@@ -161,17 +181,21 @@ def test_sync_gcp_projects_without_parent(neo4j_session) -> None:
         COMMON_JOB_PARAMS,
     )
 
+    # Assert
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
         ("my-parentless-project-987654",),
     }
-    assert check_rels(
-        neo4j_session,
-        "GCPFolder",
-        "id",
-        "GCPProject",
-        "id",
-        "RESOURCE",
-    ) == set()
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPFolder",
+            "id",
+            "GCPProject",
+            "id",
+            "RESOURCE",
+        )
+        == set()
+    )
 
 
 @patch.object(
@@ -185,9 +209,13 @@ def test_sync_gcp_projects_without_parent(neo4j_session) -> None:
     return_value=tests.data.gcp.crm.GCP_FOLDERS,
 )
 def test_sync_gcp_projects_cleanup(
-    _mock_get_folders, _mock_get_orgs, neo4j_session,
+    _mock_get_folders,
+    _mock_get_orgs,
+    neo4j_session,
 ) -> None:
     """Ensure sync_gcp_projects cleanup removes stale project nodes."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     cartography.intel.gcp.crm.load_gcp_projects(
         neo4j_session,
         tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT,
@@ -206,6 +234,8 @@ def test_sync_gcp_projects_cleanup(
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
     )
+
+    # Act
     cartography.intel.gcp.crm.sync_gcp_projects(
         neo4j_session,
         tests.data.gcp.crm.GCP_PROJECTS,
@@ -213,6 +243,7 @@ def test_sync_gcp_projects_cleanup(
         COMMON_JOB_PARAMS,
     )
 
+    # Assert
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
         ("this-project-has-a-parent-232323",),
     }
