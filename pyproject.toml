@@ -86,6 +86,7 @@ dev = [
     "types-PyYAML",
     "black==25.1.0",
     "types-requests<2.32.4.20250810",
+    "azure-mgmt-web>=7.0.0",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",
