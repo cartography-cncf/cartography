@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -20,17 +18,17 @@ logger = logging.getLogger(__name__)
 def get_apigatewayv2_apis(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     client = boto3_session.client("apigatewayv2", region_name=region)
     paginator = client.get_paginator("get_apis")
-    apis: List[Dict[str, Any]] = []
+    apis: list[dict[str, Any]] = []
     for page in paginator.paginate():
         apis.extend(page.get("Items", []))
     return apis
 
 
-def transform_apigatewayv2_apis(apis: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    transformed: List[Dict[str, Any]] = []
+def transform_apigatewayv2_apis(apis: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    transformed: list[dict[str, Any]] = []
     for api in apis:
         transformed.append(
             {
@@ -51,7 +49,7 @@ def transform_apigatewayv2_apis(apis: List[Dict[str, Any]]) -> List[Dict[str, An
 @timeit
 def load_apigatewayv2_apis(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     update_tag: int,
@@ -66,8 +64,9 @@ def load_apigatewayv2_apis(
     )
 
 
+@timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     GraphJob.from_node_schema(
         APIGatewayV2APISchema(),
@@ -98,10 +97,10 @@ def sync_apigatewayv2_apis(
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
         logger.info(
