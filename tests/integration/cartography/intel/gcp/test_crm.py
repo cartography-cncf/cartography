@@ -183,7 +183,7 @@ def test_sync_gcp_projects(
     neo4j_session,
 ) -> None:
     """Test that sync_gcp_projects ingests project data and connects hierarchy."""
-    # Arrnage
+    # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     cartography.intel.gcp.crm.sync_gcp_organizations(
         neo4j_session,
