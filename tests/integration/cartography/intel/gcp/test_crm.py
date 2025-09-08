@@ -315,3 +315,103 @@ def test_sync_gcp_projects_cleanup(
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
         ("this-project-has-a-parent-232323",),
     }
+
+
+@patch.object(
+    cartography.intel.gcp.crm,
+    "get_gcp_folders",
+    return_value=tests.data.gcp.crm.GCP_NESTED_FOLDERS,
+)
+def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
+    """Ensure folder within folder relationships are created."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    cartography.intel.gcp.crm.load_gcp_organizations(
+        neo4j_session,
+        tests.data.gcp.crm.GCP_ORGANIZATIONS,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    cartography.intel.gcp.crm.sync_gcp_folders(
+        neo4j_session,
+        crm_v2=None,
+        gcp_update_tag=TEST_UPDATE_TAG,
+        common_job_parameters={"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Assert nodes
+    expected_nodes = {
+        ("folders/2000", "parent-folder"),
+        ("folders/2001", "child-folder"),
+    }
+    assert (
+        check_nodes(neo4j_session, "GCPFolder", ["id", "displayname"]) == expected_nodes
+    )
+
+    # Assert org -> parent folder
+    assert check_rels(
+        neo4j_session,
+        "GCPOrganization",
+        "id",
+        "GCPFolder",
+        "id",
+        "RESOURCE",
+    ) == {("organizations/1337", "folders/2000")}
+
+    # Assert parent folder -> child folder
+    assert check_rels(
+        neo4j_session,
+        "GCPFolder",
+        "id",
+        "GCPFolder",
+        "id",
+        "RESOURCE",
+    ) == {("folders/2000", "folders/2001")}
+
+
+def test_sync_gcp_projects_with_org_parent(neo4j_session) -> None:
+    """Ensure a project with organization parent links directly to the organization."""
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    cartography.intel.gcp.crm.load_gcp_organizations(
+        neo4j_session,
+        tests.data.gcp.crm.GCP_ORGANIZATIONS,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act
+    cartography.intel.gcp.crm.sync_gcp_projects(
+        neo4j_session,
+        tests.data.gcp.crm.GCP_PROJECTS_WITH_ORG_PARENT,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+    )
+
+    # Assert project node exists
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
+        ("project-under-org-55555",),
+    }
+
+    # Assert organization -> project relationship
+    assert check_rels(
+        neo4j_session,
+        "GCPOrganization",
+        "id",
+        "GCPProject",
+        "id",
+        "RESOURCE",
+    ) == {("organizations/1337", "project-under-org-55555")}
+
+    # Assert there is no folder -> project relationship for this project
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPFolder",
+            "id",
+            "GCPProject",
+            "id",
+            "RESOURCE",
+        )
+        == set()
+    )
