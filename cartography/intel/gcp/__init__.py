@@ -480,9 +480,13 @@ def get_gcp_credentials() -> Optional[GoogleCredentials]:
     :return: GoogleCredentials
     """
     try:
-        # Explicitly use Application Default Credentials.
-        # See https://google-auth.readthedocs.io/en/master/user-guide.html#application-default-credentials
-        credentials, project_id = default()
+        # Explicitly use Application Default Credentials with the cloud-platform scope.
+        # Some versions of google-auth/google-api-python-client require explicit scopes for service accounts;
+        # without this, token refresh may fail with `invalid_scope`.
+        # See: https://cloud.google.com/docs/authentication#calling
+        credentials, project_id = default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
         return credentials
     except DefaultCredentialsError as e:
         logger.debug(
