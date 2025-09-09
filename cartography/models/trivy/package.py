@@ -58,25 +58,6 @@ class TrivyPackageToFinding(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class TrivyPackageToImageLayerRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class TrivyPackageToImageLayer(CartographyRelSchema):
-    # Connect (Package)-[:INTRODUCED_IN]->(ImageLayer) when Layer.DiffID present
-    target_node_label: str = "ImageLayer"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"diff_id": PropertyRef("LayerDiffID")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "INTRODUCED_IN"
-    properties: TrivyPackageToImageLayerRelProperties = (
-        TrivyPackageToImageLayerRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class TrivyPackageSchema(CartographyNodeSchema):
     label: str = "Package"
     scoped_cleanup: bool = False
@@ -86,6 +67,5 @@ class TrivyPackageSchema(CartographyNodeSchema):
         [
             TrivyPackageToImage(),
             TrivyPackageToFinding(),
-            TrivyPackageToImageLayer(),
         ],
     )

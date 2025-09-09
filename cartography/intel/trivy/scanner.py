@@ -109,12 +109,6 @@ def transform_scan_results(
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
                         "FindingId": finding["id"],  # For AFFECTS relationship
-                        # If Trivy provides layer attribution for the package, capture it
-                        "LayerDiffID": (
-                            result.get("Layer", {}).get("DiffID")
-                            if isinstance(result.get("Layer"), dict)
-                            else None
-                        ),
                     }
                 )
 
@@ -327,7 +321,6 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
           AND NOT ()-[:NEXT]->(l)
           AND NOT ()-[:HEAD]->(l)
           AND NOT ()-[:TAIL]->(l)
-          AND NOT ()-[:INTRODUCED_IN]->(l)
         DETACH DELETE l
         """,
         UPDATE_TAG=update_tag,
