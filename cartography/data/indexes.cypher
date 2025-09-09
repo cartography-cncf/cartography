@@ -29,8 +29,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:AWSIpv4CidrBlock) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSIpv4CidrBlock) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSIpv6CidrBlock) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSIpv6CidrBlock) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:AWSPeeringConnection) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:AWSPeeringConnection) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSPolicy) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSPolicy) ON (n.name);
 CREATE INDEX IF NOT EXISTS FOR (n:AWSPolicy) ON (n.lastupdated);

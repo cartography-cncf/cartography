@@ -69,6 +69,22 @@ def test_aws_handle_regions(mocker):
 
     assert raises_supported_client_error(1, 2) == []
 
+    # AuthorizationError should also return the default
+    @aws_handle_regions
+    def raises_authorization_error(a, b):
+        e = botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "AuthorizationError",
+                    "Message": "aws_handle_regions is not working",
+                },
+            },
+            "FakeOperation",
+        )
+        raise e
+
+    assert raises_authorization_error(1, 2) == []
+
     # InvalidToken should raise RuntimeError
     @aws_handle_regions
     def raises_invalid_token(a, b):

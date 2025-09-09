@@ -476,6 +476,121 @@ def test_vpc_to_firewall_to_iprule_to_iprange(neo4j_session):
 
 @patch.object(
     cartography.intel.gcp.compute,
+    "get_gcp_instance_responses",
+    return_value=[tests.data.gcp.compute.GCP_LIST_INSTANCES_RESPONSE],
+)
+def test_sync_gcp_instances(mock_get_instances, neo4j_session):
+    """sync_gcp_instances loads instances and creates relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"}
+
+    # Act
+    cartography.intel.gcp.compute.sync_gcp_instances(
+        neo4j_session,
+        MagicMock(),
+        "project-abc",
+        None,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert instance node properties
+    assert check_nodes(
+        neo4j_session,
+        "GCPInstance",
+        ["id", "instancename", "zone_name", "project_id"],
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "instance-1",
+            "europe-west2-b",
+            "project-abc",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "instance-1-test",
+            "europe-west2-b",
+            "project-abc",
+        ),
+    }
+
+    # Assert project to instance relationship
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPInstance",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "project-abc",
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+        ),
+        (
+            "project-abc",
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+        ),
+    }
+
+    # Assert network interface node and relationships
+    assert check_nodes(
+        neo4j_session,
+        "GCPNetworkInterface",
+        ["id", "name", "private_ip"],
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0",
+            "nic0",
+            "10.0.0.2",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
+            "nic0",
+            "10.0.0.3",
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPInstance",
+        "id",
+        "GCPNetworkInterface",
+        "id",
+        "NETWORK_INTERFACE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1",
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test",
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
+        ),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPNetworkInterface",
+        "id",
+        "GCPSubnet",
+        "id",
+        "PART_OF_SUBNET",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0",
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.gcp.compute,
     "get_gcp_vpcs",
     return_value=tests.data.gcp.compute.VPC_RESPONSE,
 )
