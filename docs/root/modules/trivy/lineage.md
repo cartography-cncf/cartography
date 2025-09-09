@@ -1,53 +1,69 @@
-## Trivy Image Lineage and Layers
+## Image Lineage
 
-Cartography derives container image lineage by ingesting Trivy scan results and modeling each image's uncompressed rootfs diff ID sequence as a shared graph of `ImageLayer` nodes. This enables us to compute "BUILT_FROM" relationships between images and attribute packages to the layer that introduced them.
+Cartography builds container image lineage by extracting layer information from registries and identifying parent-child relationships based on shared layers.
 
-### Data sources
+### How It Works
 
-From each Trivy JSON document we read:
-- `Metadata.rootfs.diff_ids` (preferred) or `Metadata.DiffIDs` — ordered list of uncompressed layer diff IDs
-- `Metadata.RepoDigests[0]` — the canonical image digest used as the `ECRImage.id`
-- Optional per-vulnerability package `Layer.DiffID` for layer attribution
+1. **Layer Extraction**: Uses `docker buildx imagetools inspect` to get layer diff IDs directly from registries (no image download required)
 
-### Graph model
+2. **Layer Graph**: Creates a linked list of `ImageLayer` nodes for each image:
+   ```
+   ECRImage --HEAD--> Layer1 --NEXT--> Layer2 --NEXT--> ... --NEXT--> LayerN <--TAIL-- ECRImage
+   ```
 
-- Nodes: `(:ImageLayer {id: diff_id, diff_id})`
-- Edges:
-  - `(:ImageLayer)-[:NEXT]->(:ImageLayer)` connecting adjacent diff IDs in build order
-  - `(ECRImage)-[:HEAD]->(:ImageLayer)` to the first diff ID
-  - `(ECRImage)-[:TAIL]->(:ImageLayer)` to the last diff ID
-  - `(Package)-[:INTRODUCED_IN]->(:ImageLayer)` when a package includes `Layer.DiffID`
-- Image property:
-  - `ECRImage.length = size(diff_ids)`
+3. **Lineage Detection**: Image B is a parent of Image A if B's layers are a prefix of A's layers
+   ```
+   Parent: [Layer1, Layer2, Layer3]
+   Child:  [Layer1, Layer2, Layer3, Layer4, Layer5]
+   Result: Child --BUILT_FROM--> Parent
+   ```
 
-All relationships above are created via the Cartography data model (no MatchLinks). Layers are shared across images (MERGE by `diff_id`).
+### Data Sources
 
-### Lineage algorithm (longest prefix base)
+**From Registry (via docker buildx):**
+- Layer diff IDs (uncompressed sha256 hashes)
+- Image digest
+- Platform information
 
-Definition: image B is considered a base of image A if and only if B's diff ID sequence is a strict prefix of A's sequence. If multiple such B exist, pick the one with the largest length.
+**From Trivy (if available):**
+- Additional metadata
+- Package-to-layer attribution (when provided)
 
-Implementation steps for an image `image_id`:
-1. Starting from its `HEAD`, traverse along `[:NEXT*0..]` to each layer `x`.
-2. Find any `(base:ECRImage)-[:TAIL]->(x)` where `length(path) = base.length - 1` and `base.id <> image_id`.
-3. Order by `base.length DESC` and pick the first.
-4. `MERGE (child:ECRImage {id: image_id})-[:BUILT_FROM]->(base)`.
+### Graph Model
 
-This computation is performed per image immediately after loading its layers; it is idempotent and avoids N^2 operations across images.
+**Nodes:**
+- `ImageLayer`: Individual container layer
+  - `id`: Layer diff ID (sha256)
+  - `diff_id`: Same as id
 
-### Cleanup behavior
+**Relationships:**
+- `(ImageLayer)-[:NEXT]->(ImageLayer)`: Layer ordering
+- `(ECRImage)-[:HEAD]->(ImageLayer)`: First layer
+- `(ECRImage)-[:TAIL]->(ImageLayer)`: Last layer
+- `(ECRImage)-[:BUILT_FROM]->(ECRImage)`: Parent-child lineage
 
-Image layers are shared across images and should not be deleted during standard cleanup. We therefore:
-- Set `scoped_cleanup = False` on `ImageLayerSchema`.
-- Implement a bespoke cleanup that:
-  - Removes stale `NEXT` edges around layers updated in the current run (those where either endpoint's `lastupdated = UPDATE_TAG`).
-  - Removes stale `HEAD`/`TAIL` edges pointing to layers updated this run where the relationship `lastupdated <> UPDATE_TAG`.
-  - Deletes orphan `ImageLayer` nodes not updated in this run that have no `NEXT`, `HEAD`, `TAIL`, or `INTRODUCED_IN` relationships.
+**Image Properties:**
+- `length`: Number of layers
+- `platforms`: Supported architectures
 
-This strategy keeps frequently referenced layers stable and prunes truly orphaned nodes and stale edges.
+### Requirements
 
-### Edge cases and notes
+- Docker with buildx support (included in Docker Desktop 18.09+)
+- Registry credentials (handled automatically for ECR via AWS CLI)
 
-- If `diff_ids` are missing or empty in a scan, we skip layer and lineage writes but still ingest findings/packages/fixes.
-- Layers are MERGEd by `diff_id`, so the graph naturally de-duplicates and shares layers.
-- Lineage requires at least one common prefix layer; images with different first layers will have no `BUILT_FROM` edge.
-- The module uses Trivy vulnerability entries to derive packages; if you enable Trivy's package inventory output, the loader still maintains `DEPLOYED` and `INTRODUCED_IN` where `Layer.DiffID` is present.
+### Configuration
+
+```bash
+# Enable lineage (default: true)
+cartography --selected-modules trivy --trivy-build-lineage true
+
+# Specify platform for multi-arch images
+cartography --selected-modules trivy --trivy-platform linux/amd64
+```
+
+### Cleanup
+
+Layers are shared across images and cleaned up intelligently:
+- Stale relationships are removed
+- Orphaned layers (not referenced by any image) are deleted
+- Shared layers are preserved

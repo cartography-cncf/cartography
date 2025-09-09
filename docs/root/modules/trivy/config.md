@@ -1,123 +1,88 @@
 ## Trivy Configuration
 
-[Trivy](https://aquasecurity.github.io/trivy/latest/) is a vulnerability scanner that can be used to scan images for vulnerabilities.
+[Trivy](https://aquasecurity.github.io/trivy/latest/) is a vulnerability scanner for container images. Cartography ingests Trivy scan results and builds image lineage relationships using registry layer information.
 
-Currently, Cartography allows you to use Trivy to scan the following resources:
+### Quick Start
 
-- [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage)
-
-
-To use Trivy with Cartography,
-
-1. First ensure that your graph is populated with the resources that you want Trivy to scan.
-
-    Doing this with AWS ECR looks like this:
-
-    ```bash
-    cartography --selected-modules aws --aws-requested-syncs ecr
-    ```
-
-1. Scan the images with Trivy, putting the JSON results in an S3 bucket.
-
-    **Cartography expects Trivy to have been called with the following arguments**:
-
-    - `--format json`: because Trivy's schema has a `fixed_version` field that is _super_ useful. This is the only format that Cartography will accept.
-    - `--security-checks vuln`: because we only care about vulnerabilities.
-
-    **Optional Trivy parameters to consider**:
-
-    - `--ignore-unfixed`: if you want to ignore vulnerabilities that do not have a fixed version.
-    - `--list-all-pkgs`: when present, Trivy will list all packages in the image, not just the ones that have vulnerabilities. This is useful for getting a complete inventory of packages in the image. Cartography will then attach all packages to the ECRImage node.
-
-    **Naming conventions**:
-
-    - Each image URI should have its own S3 object key with the following naming convention: `<ECR Image URI>.json`. For example, if you have an ECR image URI of `123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3`, the S3 object key would be `123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3.json`.
-
-    - You can also use an s3 object prefix to organize the results. For example if your bucket is `s3://my-bucket/` and you want to put the results in a folder called `trivy-scans/`, the full S3 object key would be `trivy-scans/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3.json`.
-
-1. Configure Cartography to use the Trivy module.
-
-    ```bash
-    cartography --selected-modules trivy --trivy-s3-bucket my-bucket --trivy-s3-prefix trivy-scans/
-    ```
-
-    Cartography will then search s3://my-bucket/trivy-scans/ for JSON files with the naming convention `<ECR Image URI>.json` and load them into the graph. Note that this requires the role running Cartography to have the `s3:ListObjects` and `s3:GetObject` permissions for the bucket and prefix.
-
-    The `--trivy-s3-prefix` parameter is optional and defaults to an empty string.
-
-1. Alternatively, place the JSON results on disk and point Cartography at the directory.
-
-    ```bash
-    cartography --selected-modules trivy --trivy-results-dir /path/to/trivy-results
-    ```
-
-    Cartography will ingest every `.json` file under the provided directory. The image URI is read from the `ArtifactName` field inside each file, so file names may contain any characters.
-
-## Image Lineage with Docker
-
-Cartography can build container image lineage relationships by extracting layer information directly from registries. This happens automatically before vulnerability scanning and supports cross-registry relationships (e.g., ECR images built from public Docker Hub images).
-
-### Prerequisites
-
-1. **Docker Installation**: Install Docker with buildx support (included in Docker Desktop 18.09+ and Docker Engine 19.03+)
-   - Verify installation: `docker buildx version`
-   - Test imagetools: `docker buildx imagetools --help`
-
-2. **Registry Authentication**: For private registries like ECR, ensure proper authentication:
+1. **Populate your graph** with container images (e.g., AWS ECR):
    ```bash
-   # For ECR
-   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
+   cartography --selected-modules aws --aws-requested-syncs ecr
    ```
 
-3. **Control Lineage Building**: By default, lineage is built automatically. To disable:
+2. **Run Trivy scans** and save results as JSON:
    ```bash
-   cartography --selected-modules trivy --trivy-results-dir /path/to/results --trivy-build-lineage false
+   trivy image --format json --security-checks vuln <image-uri> > scan-results.json
    ```
 
-### Multi-Platform Support
+   Required parameters:
+   - `--format json`: Cartography only accepts JSON format
+   - `--security-checks vuln`: Focus on vulnerabilities
 
-For multi-architecture images, specify the target platform:
+3. **Ingest results** into Cartography:
+
+   From S3:
+   ```bash
+   cartography --selected-modules trivy --trivy-s3-bucket my-bucket --trivy-s3-prefix scans/
+   ```
+
+   From disk:
+   ```bash
+   cartography --selected-modules trivy --trivy-results-dir /path/to/results
+   ```
+
+### Image Lineage
+
+Cartography automatically builds parent-child relationships between container images by analyzing shared layers. This requires Docker with buildx support.
+
+**Prerequisites:**
+- Docker Desktop 18.09+ or Docker Engine 19.03+
+- Verify: `docker buildx imagetools --help`
+
+**How it works:**
+1. Extracts layer information using `docker buildx imagetools inspect`
+2. Identifies parent images based on shared layer prefixes
+3. Creates `BUILT_FROM` relationships in the graph
+
+**Configuration:**
 ```bash
-cartography --selected-modules trivy --trivy-results-dir /path/to/results --trivy-use-registry-layers --trivy-platform linux/amd64
+# Disable lineage building (enabled by default)
+cartography --selected-modules trivy --trivy-build-lineage false
+
+# Specify platform for multi-arch images
+cartography --selected-modules trivy --trivy-platform linux/arm64
 ```
 
-Supported platforms include:
-- `linux/amd64` (default)
-- `linux/arm64`
-- `linux/arm/v7`
+### S3 Storage Format
 
-### How It Works
+When using S3, name files as `<image-uri>.json`:
+- Image: `123456789.dkr.ecr.us-east-1.amazonaws.com/app:v1.0`
+- S3 key: `123456789.dkr.ecr.us-east-1.amazonaws.com/app:v1.0.json`
 
-1. **Before scanning**: Cartography queries all container images in your graph (ECR, GCR, etc.)
-2. **Layer extraction**: Uses `docker buildx imagetools inspect` to get layer diff IDs from registries
-3. **Lineage computation**: Identifies parent-child relationships based on shared layer prefixes
-4. **Vulnerability scanning**: Proceeds with normal Trivy vulnerability scanning
+### Disk Storage Format
 
-This separation means:
-- Lineage works even for images without Trivy scans
-- Cross-registry relationships are supported
-- Vulnerability scanning continues even if lineage building fails
+Place `.json` files in any directory structure. The image URI is read from the `ArtifactName` field in each file.
 
-## Notes on running Trivy
+### Additional Options
 
-- You can use [custom OPA policies](https://trivy.dev/latest/docs/configuration/filtering/#by-rego) with Trivy to filter the results. To do this, specify the path to your policy file using `--trivy-opa-policy-file-path`
-    ```bash
-    cartography --trivy-path /usr/local/bin/trivy --trivy-opa-policy-file-path /path/to/policy.rego
-    ```
+- **Include all packages** (not just vulnerable ones):
+  ```bash
+  trivy image --list-all-pkgs ...
+  ```
 
-- Consider also running Trivy with `--timeout 15m` for larger images e.g. Java ones.
+- **Ignore unfixed vulnerabilities**:
+  ```bash
+  trivy image --ignore-unfixed ...
+  ```
 
-- You can use `--vuln-type os` to scan only operating system packages for vulnerabilities. These are more straightforward to fix than vulnerabilities in application packages. Eventually we'd recommend removing this flag so that you have visibility into both OS package and library package vulnerabilities.
+- **Set timeout for large images**:
+  ```bash
+  trivy image --timeout 15m ...
+  ```
 
-- Refer to the [official Trivy installation guide](https://aquasecurity.github.io/trivy/latest/getting-started/installation/) for your operating system and for additional documentation.
+### Required Permissions
 
-
-### Required cloud permissions
-
-Ensure that the machine running Trivy or Cartography has the necessary permissions to scan your desired resources or extract layer information.
-
-
-| Cartography Node label | Cloud permissions required |
-|---|---|
-| [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) - Trivy scanning | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
-| [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) - Registry layer extraction | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:DescribeImages` |
+| Operation | AWS Permissions |
+|-----------|----------------|
+| Trivy scanning | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
+| Layer extraction | `ecr:GetAuthorizationToken`, `ecr:DescribeImages` |
+| S3 storage | `s3:ListBucket`, `s3:GetObject` |
