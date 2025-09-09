@@ -134,6 +134,6 @@ Representation of a fix for a vulnerability.
 ### Image lineage
 Derived from the ImageLayer chain using longest-prefix base matching. See the lineage page for details.
 
-``` 
+```
 (child:ECRImage)-[BUILT_FROM]->(base:ECRImage)
 ```

@@ -15,6 +15,12 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("imageDigest")
     digest: PropertyRef = PropertyRef("imageDigest")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    platforms: PropertyRef = PropertyRef(
+        "platforms"
+    )  # populated by the Trivy image lineage module, not from ECR API
+    length: PropertyRef = PropertyRef(
+        "length"
+    )  # populated by the Trivy image lineage module, not from ECR API
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

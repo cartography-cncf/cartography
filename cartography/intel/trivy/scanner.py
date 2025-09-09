@@ -2,8 +2,6 @@ import json
 import logging
 import os
 from typing import Any
-from typing import Iterable
-from typing import List
 
 import boto3
 from neo4j import Session
@@ -12,7 +10,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
-from cartography.models.trivy.image_layer import ImageLayerSchema
 from cartography.models.trivy.package import TrivyPackageSchema
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -139,7 +136,7 @@ def transform_scan_results(
 
 def _parse_trivy_data(
     trivy_data: dict, source: str
-) -> tuple[str | None, list[dict], str, list[str]]:
+) -> tuple[str | None, list[dict], str]:
     """
     Parse Trivy scan data and extract common fields.
 
@@ -148,7 +145,7 @@ def _parse_trivy_data(
         source: Source identifier for error messages (file path or S3 URI)
 
     Returns:
-        Tuple of (artifact_name, results, image_digest, diff_ids)
+        Tuple of (artifact_name, results, image_digest)
     """
     # Extract artifact name if present (only for file-based)
     artifact_name = trivy_data.get("ArtifactName")
@@ -179,114 +176,7 @@ def _parse_trivy_data(
     if not image_digest:
         raise ValueError(f"Empty image digest for {source}")
 
-    # Extract ordered diff_ids, prefer Metadata.rootfs.diff_ids, then Metadata.DiffIDs
-    diff_ids: list[str] = []
-    metadata = trivy_data.get("Metadata", {})
-    rootfs = metadata.get("rootfs") or metadata.get("RootFS") or {}
-    # Try multiple casings/keys for compatibility
-    if isinstance(rootfs, dict):
-        ids = rootfs.get("diff_ids") or rootfs.get("DiffIDs")
-        if isinstance(ids, list):
-            diff_ids = [d for d in ids if isinstance(d, str)]
-    if not diff_ids:
-        ids = metadata.get("diff_ids") or metadata.get("DiffIDs")
-        if isinstance(ids, list):
-            diff_ids = [d for d in ids if isinstance(d, str)]
-
-    return artifact_name, results, image_digest, diff_ids
-
-
-def _pairwise(seq: List[str]) -> Iterable[tuple[str, str]]:
-    return zip(seq, seq[1:])
-
-
-@timeit
-def _load_layers_via_model(
-    neo4j_session: Session,
-    image_id: str,
-    diff_ids: list[str],
-    update_tag: int,
-) -> None:
-    """
-    Use ImageLayerSchema to load ImageLayer nodes, NEXT edges, and HEAD/TAIL links to ECRImage.
-    Also updates ECRImage.length.
-    """
-    if not diff_ids:
-        return
-    records: list[dict[str, Any]] = []
-    for i, d in enumerate(diff_ids):
-        rec: dict[str, Any] = {"diff_id": d}
-        if i < len(diff_ids) - 1:
-            rec["next_diff_id"] = diff_ids[i + 1]
-        if i == 0:
-            rec["head_image_ids"] = [image_id]
-        if i == len(diff_ids) - 1:
-            rec["tail_image_ids"] = [image_id]
-        records.append(rec)
-
-    load(
-        neo4j_session,
-        ImageLayerSchema(),
-        records,
-        lastupdated=update_tag,
-    )
-
-    # Maintain ECRImage.length
-    neo4j_session.run(
-        """
-        MATCH (img:ECRImage {id: $image_id})
-        SET img.length = $length
-        """,
-        image_id=image_id,
-        length=len(diff_ids),
-    )
-
-
-@timeit
-def _attribute_packages_to_layers(
-    neo4j_session: Session,
-    image_id: str,
-    packages_list: list[dict[str, Any]],
-) -> None:
-    """
-    INTRODUCED_IN edges are created via TrivyPackageSchema using LayerDiffID.
-    This function is retained for clarity but does nothing.
-    """
-    return
-
-
-@timeit
-def _compute_and_write_lineage(
-    neo4j_session: Session,
-    image_id: str,
-) -> None:
-    """
-    Compute longest-prefix base (if any) and MERGE (child)-[:BUILT_FROM]->(base).
-    """
-    # Find candidate base image id
-    res = neo4j_session.run(
-        """
-        MATCH (t:ECRImage {id: $image_id})-[:HEAD]->(h)
-        MATCH path=(h)-[:NEXT*0..]->(x)
-        MATCH (base:ECRImage)-[:TAIL]->(x)
-        WHERE length(path) = base.length - 1 AND base.id <> $image_id
-        RETURN base.id AS base_id
-        ORDER BY base.length DESC
-        LIMIT 1
-        """,
-        image_id=image_id,
-    )
-    record = res.single()
-    if record and record.get("base_id"):
-        base_id = record["base_id"]
-        neo4j_session.run(
-            """
-            MATCH (child:ECRImage {id:$child}), (base:ECRImage {id:$base})
-            MERGE (child)-[:BUILT_FROM]->(base)
-            """,
-            child=image_id,
-            base=base_id,
-        )
+    return artifact_name, results, image_digest
 
 
 @timeit
@@ -306,7 +196,7 @@ def sync_single_image(
         update_tag: Update tag for tracking
     """
     try:
-        _, results, image_digest, diff_ids = _parse_trivy_data(trivy_data, source)
+        _, results, image_digest = _parse_trivy_data(trivy_data, source)
 
         # Transform all data in one pass
         findings_list, packages_list, fixes_list = transform_scan_results(
@@ -322,10 +212,6 @@ def sync_single_image(
         load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
         load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
 
-        # Persist layer graph, image HEAD/TAIL and length via model; derive lineage
-        if diff_ids:
-            _load_layers_via_model(neo4j_session, image_digest, diff_ids, update_tag)
-            _compute_and_write_lineage(neo4j_session, image_digest)
         stat_handler.incr("images_processed_count")
 
     except Exception as e:

@@ -8,6 +8,8 @@ from neo4j import Session
 from cartography.client.aws import list_accounts
 from cartography.client.aws.ecr import get_ecr_images
 from cartography.config import Config
+from cartography.intel.trivy.image_lineage import build_ecr_image_lineage
+from cartography.intel.trivy.image_lineage import cleanup_stale_image_layers
 from cartography.intel.trivy.scanner import cleanup
 from cartography.intel.trivy.scanner import get_json_files_in_dir
 from cartography.intel.trivy.scanner import get_json_files_in_s3
@@ -184,14 +186,32 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
         neo4j_session: Neo4j session for database operations
         config: Configuration object containing S3 or directory paths
     """
+    common_job_parameters = {
+        "UPDATE_TAG": config.update_tag,
+    }
+
+    # Step 1: Build image lineage from registry (if enabled)
+    if getattr(config, "trivy_build_lineage", True):
+        logger.info("Building ECR image lineage from registry")
+        try:
+            build_ecr_image_lineage(
+                neo4j_session,
+                config.update_tag,
+                platform_filter=getattr(config, "trivy_platform", None),
+            )
+            cleanup_stale_image_layers(neo4j_session, config.update_tag)
+        except Exception as e:
+            logger.warning(f"Failed to build image lineage: {e}")
+            # Continue with vulnerability scanning even if lineage fails
+
+    # Step 2: Sync Trivy vulnerability scan results
     if not config.trivy_s3_bucket and not config.trivy_results_dir:
-        logger.info("Trivy configuration not provided. Skipping Trivy ingestion.")
+        logger.info(
+            "Trivy configuration not provided. Skipping vulnerability scanning."
+        )
         return
 
     if config.trivy_results_dir:
-        common_job_parameters = {
-            "UPDATE_TAG": config.update_tag,
-        }
         sync_trivy_aws_ecr_from_dir(
             neo4j_session,
             config.trivy_results_dir,
@@ -202,10 +222,6 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
 
     if config.trivy_s3_prefix is None:
         config.trivy_s3_prefix = ""
-
-    common_job_parameters = {
-        "UPDATE_TAG": config.update_tag,
-    }
 
     boto3_session = boto3.Session()
 

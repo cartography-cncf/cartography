@@ -53,6 +53,51 @@ To use Trivy with Cartography,
 
     Cartography will ingest every `.json` file under the provided directory. The image URI is read from the `ArtifactName` field inside each file, so file names may contain any characters.
 
+## Image Lineage with Docker
+
+Cartography can build container image lineage relationships by extracting layer information directly from registries. This happens automatically before vulnerability scanning and supports cross-registry relationships (e.g., ECR images built from public Docker Hub images).
+
+### Prerequisites
+
+1. **Docker Installation**: Install Docker with buildx support (included in Docker Desktop 18.09+ and Docker Engine 19.03+)
+   - Verify installation: `docker buildx version`
+   - Test imagetools: `docker buildx imagetools --help`
+
+2. **Registry Authentication**: For private registries like ECR, ensure proper authentication:
+   ```bash
+   # For ECR
+   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
+   ```
+
+3. **Control Lineage Building**: By default, lineage is built automatically. To disable:
+   ```bash
+   cartography --selected-modules trivy --trivy-results-dir /path/to/results --trivy-build-lineage false
+   ```
+
+### Multi-Platform Support
+
+For multi-architecture images, specify the target platform:
+```bash
+cartography --selected-modules trivy --trivy-results-dir /path/to/results --trivy-use-registry-layers --trivy-platform linux/amd64
+```
+
+Supported platforms include:
+- `linux/amd64` (default)
+- `linux/arm64`
+- `linux/arm/v7`
+
+### How It Works
+
+1. **Before scanning**: Cartography queries all container images in your graph (ECR, GCR, etc.)
+2. **Layer extraction**: Uses `docker buildx imagetools inspect` to get layer diff IDs from registries
+3. **Lineage computation**: Identifies parent-child relationships based on shared layer prefixes
+4. **Vulnerability scanning**: Proceeds with normal Trivy vulnerability scanning
+
+This separation means:
+- Lineage works even for images without Trivy scans
+- Cross-registry relationships are supported
+- Vulnerability scanning continues even if lineage building fails
+
 ## Notes on running Trivy
 
 - You can use [custom OPA policies](https://trivy.dev/latest/docs/configuration/filtering/#by-rego) with Trivy to filter the results. To do this, specify the path to your policy file using `--trivy-opa-policy-file-path`
@@ -69,9 +114,10 @@ To use Trivy with Cartography,
 
 ### Required cloud permissions
 
-Ensure that the machine running Trivy has the necessary permissions to scan your desired resources.
+Ensure that the machine running Trivy or Cartography has the necessary permissions to scan your desired resources or extract layer information.
 
 
-| Cartography Node label | Cloud permissions required to scan with Trivy |
+| Cartography Node label | Cloud permissions required |
 |---|---|
-| [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
+| [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) - Trivy scanning | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
+| [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) - Registry layer extraction | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:DescribeImages` |

@@ -51,4 +51,3 @@ This strategy keeps frequently referenced layers stable and prunes truly orphane
 - Layers are MERGEd by `diff_id`, so the graph naturally de-duplicates and shares layers.
 - Lineage requires at least one common prefix layer; images with different first layers will have no `BUILT_FROM` edge.
 - The module uses Trivy vulnerability entries to derive packages; if you enable Trivy's package inventory output, the loader still maintains `DEPLOYED` and `INTRODUCED_IN` where `Layer.DiffID` is present.
-
