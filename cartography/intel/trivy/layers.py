@@ -5,7 +5,6 @@ Registry-based layer extraction for container images using docker buildx imageto
 import json
 import logging
 import subprocess
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -81,22 +80,22 @@ def get_registry_auth_for_ecr(registry: str, region: str) -> bool:
         return False
 
 
-def extract_ecr_info(image_ref: str) -> Tuple[Optional[str], Optional[str]]:
+def extract_ecr_info(image_uri: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Extract ECR registry and region from image reference.
 
     Args:
-        image_ref: Full image reference (e.g., "123456789.dkr.ecr.us-east-1.amazonaws.com/repo:tag")
+        image_uri: Full image URI (e.g., "123456789.dkr.ecr.us-east-1.amazonaws.com/repo:tag")
 
     Returns:
         Tuple of (registry, region) or (None, None) if not an ECR image
     """
-    if ".dkr.ecr." not in image_ref or ".amazonaws.com" not in image_ref:
+    if ".dkr.ecr." not in image_uri or ".amazonaws.com" not in image_uri:
         return None, None
 
     try:
         # Extract registry (everything before first /)
-        registry = image_ref.split("/")[0]
+        registry = image_uri.split("/")[0]
         # Extract region from registry URL
         # Format: {account}.dkr.ecr.{region}.amazonaws.com
         parts = registry.split(".")
@@ -109,12 +108,12 @@ def extract_ecr_info(image_ref: str) -> Tuple[Optional[str], Optional[str]]:
     return None, None
 
 
-def get_image_platforms(image_ref: str) -> List[str]:
+def get_image_platforms(image_uri: str) -> List[str]:
     """
     Get available platforms for a multi-arch image.
 
     Args:
-        image_ref: Full image reference
+        image_uri: Full image URI
 
     Returns:
         List of platform strings (e.g., ["linux/amd64", "linux/arm64"])
@@ -128,7 +127,7 @@ def get_image_platforms(image_ref: str) -> List[str]:
             "buildx",
             "imagetools",
             "inspect",
-            image_ref,
+            image_uri,
             "--format",
             "{{json .Index}}",
         ]
@@ -163,14 +162,14 @@ def get_image_platforms(image_ref: str) -> List[str]:
             platforms = ["linux/amd64"]
 
     except subprocess.SubprocessError as e:
-        logger.warning(f"Error getting platforms for {image_ref}: {e}")
+        logger.warning(f"Error getting platforms for {image_uri}: {e}")
         platforms = ["linux/amd64"]  # Default fallback
 
     return platforms
 
 
 def get_image_layers_from_registry(
-    image_ref: str,
+    image_uri: str,
     platform: Optional[str] = None,
     auth_ecr: bool = True,
 ) -> Tuple[Optional[List[str]], Optional[str]]:
@@ -178,7 +177,7 @@ def get_image_layers_from_registry(
     Get image layer diff IDs from registry using docker buildx imagetools.
 
     Args:
-        image_ref: Full image reference (e.g., "registry.example.com/repo:tag")
+        image_uri: Full image URI (e.g., "registry.example.com/repo:tag")
         platform: Target platform (e.g., "linux/amd64"). If None, uses default.
         auth_ecr: Whether to attempt ECR authentication if it's an ECR image
 
@@ -194,7 +193,7 @@ def get_image_layers_from_registry(
 
     # Handle ECR authentication if needed
     if auth_ecr:
-        registry, region = extract_ecr_info(image_ref)
+        registry, region = extract_ecr_info(image_uri)
         if registry and region:
             if not get_registry_auth_for_ecr(registry, region):
                 logger.warning(f"ECR authentication failed for {registry}")
@@ -207,7 +206,7 @@ def get_image_layers_from_registry(
             "buildx",
             "imagetools",
             "inspect",
-            image_ref,
+            image_uri,
             "--format",
             "{{json .}}",
         ]
@@ -223,14 +222,14 @@ def get_image_layers_from_registry(
         )
 
         if result.returncode != 0:
-            logger.warning(f"Failed to inspect image {image_ref}: {result.stderr}")
+            logger.warning(f"Failed to inspect image {image_uri}: {result.stderr}")
             return None, None
 
         # Parse the JSON output
         try:
             data = json.loads(result.stdout)
         except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse imagetools output for {image_ref}: {e}")
+            logger.warning(f"Failed to parse imagetools output for {image_uri}: {e}")
             return None, None
 
         # Extract diff IDs from Image.RootFS.DiffIDs
@@ -258,46 +257,15 @@ def get_image_layers_from_registry(
                     image_digest = first_digest.split("@")[1]
 
         if diff_ids:
-            logger.info(f"Retrieved {len(diff_ids)} layer diff IDs for {image_ref}")
+            logger.info(f"Retrieved {len(diff_ids)} layer diff IDs for {image_uri}")
             return diff_ids, image_digest
         else:
-            logger.warning(f"No diff IDs found for {image_ref}")
+            logger.warning(f"No diff IDs found for {image_uri}")
             return None, None
 
     except subprocess.SubprocessError as e:
-        logger.warning(f"Error inspecting image {image_ref}: {e}")
+        logger.warning(f"Error inspecting image {image_uri}: {e}")
         return None, None
-
-
-def get_image_layers_multi_platform(
-    image_ref: str,
-    auth_ecr: bool = True,
-) -> Dict[str, Tuple[List[str], Optional[str]]]:
-    """
-    Get image layers for all available platforms.
-
-    Args:
-        image_ref: Full image reference
-        auth_ecr: Whether to attempt ECR authentication
-
-    Returns:
-        Dictionary mapping platform to (diff_ids, image_digest)
-    """
-    results = {}
-
-    # Get available platforms
-    platforms = get_image_platforms(image_ref)
-    logger.info(f"Found platforms for {image_ref}: {platforms}")
-
-    # Get layers for each platform
-    for platform in platforms:
-        diff_ids, digest = get_image_layers_from_registry(
-            image_ref, platform=platform, auth_ecr=auth_ecr
-        )
-        if diff_ids:
-            results[platform] = (diff_ids, digest)
-
-    return results
 
 
 def compute_image_lineage(
