@@ -146,7 +146,6 @@ def test_build_image_layers_from_registry(
         neo4j_session,
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.0.0",
         image_digest,
-        "linux/amd64",
         TEST_UPDATE_TAG,
     )
 
@@ -253,7 +252,6 @@ def test_image_lineage_with_registry_layers(
         neo4j_session,
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/base-app:v1.0.0",
         base_digest,
-        None,
         TEST_UPDATE_TAG,
     )
 
@@ -276,7 +274,6 @@ def test_image_lineage_with_registry_layers(
         neo4j_session,
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/child-app:v2.0.0",
         child_digest,
-        None,
         TEST_UPDATE_TAG,
     )
 
@@ -345,7 +342,6 @@ def test_registry_layers_unavailable_fallback(
         neo4j_session,
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/app:v1.0.0",
         image_digest,
-        None,
         TEST_UPDATE_TAG,
     )
 
@@ -384,15 +380,13 @@ def test_multi_platform_image_handling(
     )
 
     # Get layers for specific platform
-    diff_ids, digest = get_image_layers_from_registry(
+    diff_ids = get_image_layers_from_registry(
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/multi-arch:latest",
         platform="linux/amd64",
     )
 
     assert diff_ids == MOCK_IMAGETOOLS_OUTPUT["Image"]["RootFS"]["DiffIDs"]
-    assert digest == MOCK_IMAGETOOLS_OUTPUT["Manifest"]["config"]["digest"]
 
     # Verify we extracted the expected layers from the mocked output
     assert len(diff_ids) == 15
     assert diff_ids[0].startswith("sha256:")
-    assert digest.startswith("sha256:")

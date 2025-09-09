@@ -181,7 +181,7 @@ def get_image_layers_from_registry(
     image_uri: str,
     platform: Optional[str] = None,
     auth_ecr: bool = True,
-) -> Tuple[Optional[List[str]], Optional[str]]:
+) -> Optional[List[str]]:
     """
     Get image layer diff IDs from registry using docker buildx imagetools.
 
@@ -191,13 +191,13 @@ def get_image_layers_from_registry(
         auth_ecr: Whether to attempt ECR authentication if it's an ECR image
 
     Returns:
-        Tuple of (diff_ids, image_digest) or (None, None) on failure
+        List of layer diff IDs or None on failure
     """
     if not check_docker_buildx_available():
         logger.warning(
             "docker buildx imagetools not available. Please install Docker with buildx support."
         )
-        return None, None
+        return None
 
     if auth_ecr:
         registry, region = extract_ecr_info(image_uri)
@@ -226,54 +226,30 @@ def get_image_layers_from_registry(
 
         if result.returncode != 0:
             logger.warning(f"Failed to inspect image {image_uri}: {result.stderr}")
-            return None, None
+            return None
 
         try:
             data = json.loads(result.stdout)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse imagetools output for {image_uri}: {e}")
-            return None, None
+            return None
 
         # docker buildx imagetools inspect output structure:
-        # - .Manifest: Contains the manifest (single platform) or index (multi-platform)
         # - .Image: Contains image config data
         #   - For multi-platform: keyed by platform like {"linux/amd64": {...}, "linux/arm64": {...}}
         #   - For single-platform: direct image data {...}
 
         image_data = data.get("Image", {})
-        manifest_data = data.get("Manifest", {})
 
-        # Check if this is a multi-platform image by looking at the Image field structure
-        if image_data and isinstance(image_data, dict):
-            platform_keys = [k for k in image_data.keys() if "/" in k]
-
-            if platform_keys:
-                # Multi-platform image - Image field has platform keys
-                if platform and platform in image_data:
-                    # Use requested platform
-                    image_data = image_data[platform]
-                    logger.debug(f"Using requested platform {platform} for {image_uri}")
-                elif platform_keys:
-                    # Use first available platform (prefer linux/amd64 if available)
-                    default_platform = (
-                        "linux/amd64"
-                        if "linux/amd64" in platform_keys
-                        else platform_keys[0]
-                    )
-                    image_data = image_data[default_platform]
-                    logger.debug(
-                        f"Using default platform {default_platform} for {image_uri}"
-                    )
-                else:
-                    logger.warning(
-                        f"No valid platform found in multi-platform image {image_uri}"
-                    )
-                    return None, None
-            # else: single-platform image, image_data is already the image config
+        # For multi-platform images, get the linux/amd64 variant
+        if "linux/amd64" in image_data:
+            image_data = image_data["linux/amd64"]
+            logger.debug(f"Using linux/amd64 platform for {image_uri}")
+        # else: single-platform image, image_data is already the image config
 
         if not isinstance(image_data, dict):
             logger.warning(f"Invalid image data structure for {image_uri}")
-            return None, None
+            return None
 
         # Extract diff IDs from the selected platform's image data
         diff_ids = []
@@ -286,63 +262,16 @@ def get_image_layers_from_registry(
         elif "DiffIDs" in rootfs:
             diff_ids = rootfs["DiffIDs"]
 
-        # For image digest, we need the config digest from the manifest
-        # For multi-platform images, we should look at the specific platform's manifest entry
-        image_digest = ""
-
-        # Check if manifest_data is an index (multi-platform)
-        if "manifests" in manifest_data:
-            # This is an index, find the matching platform manifest
-            for m in manifest_data.get("manifests", []):
-                m_platform = m.get("platform", {})
-                platform_str = (
-                    f"{m_platform.get('os', '')}/{m_platform.get('architecture', '')}"
-                )
-                if m_platform.get("variant"):
-                    platform_str += f"/{m_platform['variant']}"
-
-                # Match the platform we selected
-                if platform and platform_str == platform:
-                    image_digest = m.get("digest", "")
-                    break
-                elif not platform and platform_str == "linux/amd64":
-                    # Default to linux/amd64
-                    image_digest = m.get("digest", "")
-                    break
-
-            # If still no digest, use the first non-attestation manifest
-            if not image_digest:
-                for m in manifest_data.get("manifests", []):
-                    if (
-                        m.get("annotations", {}).get("vnd.docker.reference.type")
-                        != "attestation-manifest"
-                    ):
-                        image_digest = m.get("digest", "")
-                        break
-        else:
-            # Single platform manifest - get config digest directly
-            config = manifest_data.get("config", {})
-            image_digest = config.get("digest", "")
-
-        if not image_digest:
-            # Try to get digest from image data
-            repo_digests = image_data.get("RepoDigests", [])
-            if repo_digests:
-                # Extract digest from first repo digest
-                first_digest = repo_digests[0]
-                if "@" in first_digest:
-                    image_digest = first_digest.split("@")[1]
-
         if diff_ids:
             logger.info(f"Retrieved {len(diff_ids)} layer diff IDs for {image_uri}")
-            return diff_ids, image_digest
+            return diff_ids
         else:
             logger.warning(f"No diff IDs found for {image_uri}")
-            return None, None
+            return None
 
     except subprocess.SubprocessError as e:
         logger.warning(f"Error inspecting image {image_uri}: {e}")
-        return None, None
+        return None
 
 
 def compute_image_lineage(

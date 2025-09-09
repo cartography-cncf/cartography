@@ -73,8 +73,8 @@ def test_get_layers_multiplatform_image(mock_auth, mock_check_docker, mock_run):
         stdout=json.dumps(multiplatform_data),
     )
 
-    # Get layers for linux/amd64 platform
-    diff_ids, digest = get_image_layers_from_registry(
+    # Get layers for linux/amd64 platform (default)
+    diff_ids = get_image_layers_from_registry(
         "482544513907.dkr.ecr.us-east-1.amazonaws.com/subimage-shared:0.0.3",
         platform="linux/amd64",
     )
@@ -91,37 +91,13 @@ def test_get_layers_multiplatform_image(mock_auth, mock_check_docker, mock_run):
         == "sha256:6cf50a16bdb06e023fd86430f364ca0f186157a69abecdd4ea99cd2fbca80db8"
     )
 
-    # Verify we got the correct digest for amd64 platform
-    assert (
-        digest
-        == "sha256:83d063c084b6508936956898d223e5e54e2cdc312a357341b75e02ff147ca2c6"
-    )
-
-    # Test with arm64 platform
-    diff_ids_arm64, digest_arm64 = get_image_layers_from_registry(
+    # Test that we always get linux/amd64 by default (no arm64 for now)
+    diff_ids_default = get_image_layers_from_registry(
         "482544513907.dkr.ecr.us-east-1.amazonaws.com/subimage-shared:0.0.3",
-        platform="linux/arm64",
     )
 
-    # Verify we got the arm64 layers (different from amd64)
-    assert diff_ids_arm64 is not None
-    assert len(diff_ids_arm64) == 10
-    assert (
-        diff_ids_arm64[0]
-        == "sha256:c9b18059ed426422229b2c624582e54e7e32862378c9556b90a99c116ae10a04"
-    )
-    assert (
-        diff_ids_arm64[-1]
-        == "sha256:6cf50a16bdb06e023fd86430f364ca0f186157a69abecdd4ea99cd2fbca80db8"
-    )
-
-    # Verify digest for arm64
-    assert (
-        digest_arm64
-        == "sha256:627f6b0325f84159cae7f3ad6e32108623a97c11e02d444aaf835d25255bd337"
-    )
-
-    # Note: The last 3 layers are the same across platforms (application layers)
+    # Should get the same amd64 layers by default
+    assert diff_ids_default == diff_ids
 
 
 @patch("cartography.intel.trivy.layers.subprocess.run")
@@ -171,7 +147,6 @@ def test_lineage_detection_basic_parent_child(
         neo4j_session,
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/base-app:v1.0.0",
         base_digest,
-        "linux/amd64",
         TEST_UPDATE_TAG,
     )
 
@@ -189,7 +164,6 @@ def test_lineage_detection_basic_parent_child(
         neo4j_session,
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/child-app:v2.0.0",
         child_digest,
-        "linux/amd64",
         TEST_UPDATE_TAG,
     )
 
@@ -287,7 +261,7 @@ def test_lineage_detection_multi_generation(
         (child_digest, child_layers, "ecr.com/child:v3"),
     ]:
         mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps(layers))
-        build_image_layers(neo4j_session, uri, digest, "linux/amd64", TEST_UPDATE_TAG)
+        build_image_layers(neo4j_session, uri, digest, TEST_UPDATE_TAG)
 
     # Compute lineage
     compute_ecr_image_lineage(neo4j_session, TEST_UPDATE_TAG)
@@ -399,7 +373,7 @@ def test_lineage_detection_unrelated_images(
         (image_c_digest, image_c_layers, "ecr.com/c:v1"),
     ]:
         mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps(layers))
-        build_image_layers(neo4j_session, uri, digest, "linux/amd64", TEST_UPDATE_TAG)
+        build_image_layers(neo4j_session, uri, digest, TEST_UPDATE_TAG)
 
     # Compute lineage
     compute_ecr_image_lineage(neo4j_session, TEST_UPDATE_TAG)
@@ -478,7 +452,7 @@ def test_lineage_detection_multiple_children(
         (child_b_digest, child_b_layers, "ecr.com/child-b:v1"),
     ]:
         mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps(layers))
-        build_image_layers(neo4j_session, uri, digest, "linux/amd64", TEST_UPDATE_TAG)
+        build_image_layers(neo4j_session, uri, digest, TEST_UPDATE_TAG)
 
     # Compute lineage
     compute_ecr_image_lineage(neo4j_session, TEST_UPDATE_TAG)

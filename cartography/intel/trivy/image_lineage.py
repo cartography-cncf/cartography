@@ -15,7 +15,6 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.trivy.layers import compute_image_lineage
 from cartography.intel.trivy.layers import get_image_layers_from_registry
-from cartography.intel.trivy.layers import get_image_platforms
 from cartography.models.trivy.image_layer import ImageLayerSchema
 from cartography.util import timeit
 
@@ -48,32 +47,29 @@ def build_image_layers(
     neo4j_session: Session,
     image_uri: str,
     image_digest: str,
-    platform: Optional[str],
     update_tag: int,
 ) -> Optional[List[str]]:
     """
-    Fetch and store image layers for a specific ECR image and platform.
+    Fetch and store image layers for a specific ECR image.
+    Currently only supports linux/amd64 platform.
 
     Args:
         neo4j_session: Neo4j session
         image_uri: Full image URI
         image_digest: Image digest (sha256:...)
-        platform: Target platform (e.g., "linux/amd64")
         update_tag: Update tag for tracking
 
     Returns:
         List of layer diff IDs if successful, None otherwise
     """
-    # Get layers from registry
-    diff_ids, registry_digest = get_image_layers_from_registry(
-        image_uri, platform=platform
-    )
+    # Get layers from registry - always use linux/amd64 for now
+    diff_ids = get_image_layers_from_registry(image_uri, platform="linux/amd64")
 
     if not diff_ids:
-        logger.debug(f"No layers found for {image_uri} platform {platform}")
+        logger.debug(f"No layers found for {image_uri}")
         return None
 
-    logger.info(f"Found {len(diff_ids)} layers for {image_uri} platform {platform}")
+    logger.info(f"Found {len(diff_ids)} layers for {image_uri}")
 
     # Build records for ImageLayerSchema
     # Note: We use one_to_many relationships for HEAD/TAIL so multiple images can share layers
@@ -103,22 +99,14 @@ def build_image_layers(
         lastupdated=update_tag,
     )
 
-    # Update ECRImage with length and platforms
+    # Update ECRImage with length
     neo4j_session.run(
         """
         MATCH (img:ECRImage {id: $digest})
         SET img.length = $length
-        WITH img
-        UNWIND $platforms AS platform
-        SET img.platforms = COALESCE(img.platforms, []) +
-            CASE WHEN platform IN COALESCE(img.platforms, [])
-                 THEN []
-                 ELSE [platform]
-            END
         """,
         digest=image_digest,
         length=len(diff_ids),
-        platforms=[platform] if platform else ["linux/amd64"],
     )
 
     return diff_ids
@@ -204,15 +192,14 @@ def compute_ecr_image_lineage(neo4j_session: Session, update_tag: int) -> None:
 def build_ecr_image_lineage(
     neo4j_session: Session,
     update_tag: int,
-    platform_filter: Optional[str] = None,
 ) -> None:
     """
     Build complete image lineage for all ECR images in the graph.
+    Currently only processes linux/amd64 platform for multi-platform images.
 
     Args:
         neo4j_session: Neo4j session
         update_tag: Update tag for tracking
-        platform_filter: Optional platform to process (e.g., "linux/amd64")
     """
     # Get all ECR images
     all_images = get_all_ecr_images(neo4j_session)
@@ -231,35 +218,15 @@ def build_ecr_image_lineage(
         image_digest = image_info["digest"]
 
         try:
-            # Check if it's a multi-platform image
-            platforms = get_image_platforms(image_uri)
-
-            if platform_filter:
-                # Only process specified platform
-                if platform_filter in platforms:
-                    layers = build_image_layers(
-                        neo4j_session,
-                        image_uri,
-                        image_digest,
-                        platform_filter,
-                        update_tag,
-                    )
-                    if layers:
-                        processed_images.add(image_digest)
-            else:
-                # Process first available platform (or all if needed)
-                for platform in platforms:
-                    layers = build_image_layers(
-                        neo4j_session,
-                        image_uri,
-                        image_digest,
-                        platform,
-                        update_tag,
-                    )
-                    if layers:
-                        processed_images.add(image_digest)
-                        # Only need to process once per image for lineage
-                        break
+            # Build layers for this image (will use linux/amd64 for multi-platform)
+            layers = build_image_layers(
+                neo4j_session,
+                image_uri,
+                image_digest,
+                update_tag,
+            )
+            if layers:
+                processed_images.add(image_digest)
 
         except Exception as e:
             logger.warning(f"Failed to process {image_uri}: {e}")

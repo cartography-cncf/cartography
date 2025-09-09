@@ -197,7 +197,6 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
             build_ecr_image_lineage(
                 neo4j_session,
                 config.update_tag,
-                platform_filter=getattr(config, "trivy_platform", None),
             )
             cleanup_stale_image_layers(neo4j_session, config.update_tag)
         except Exception as e:
