@@ -1,0 +1,118 @@
+{
+  "Manifest": {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.index.v1+json",
+    "digest": "sha256:7cd2e5c0f5f82c579372297dd0bfc9a882549ec409e1749aa87a722ede20752d",
+    "size": 1609,
+    "manifests": [
+      {
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "digest": "sha256:83d063c084b6508936956898d223e5e54e2cdc312a357341b75e02ff147ca2c6",
+        "size": 2198,
+        "platform": {
+          "architecture": "amd64",
+          "os": "linux"
+        }
+      },
+      {
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "digest": "sha256:627f6b0325f84159cae7f3ad6e32108623a97c11e02d444aaf835d25255bd337",
+        "size": 2198,
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux"
+        }
+      },
+      {
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "digest": "sha256:7f146ecfe4e5be3f05b42f6d4219563fe74f40252cbc96d9388abbe9e585ca1e",
+        "size": 566,
+        "annotations": {
+          "vnd.docker.reference.digest": "sha256:83d063c084b6508936956898d223e5e54e2cdc312a357341b75e02ff147ca2c6",
+          "vnd.docker.reference.type": "attestation-manifest"
+        },
+        "platform": {
+          "architecture": "unknown",
+          "os": "unknown"
+        }
+      },
+      {
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "digest": "sha256:73cca0a567730412f1ea84087fcb687bb617cdce64c57cf4e0a69c37c76ff0aa",
+        "size": 566,
+        "annotations": {
+          "vnd.docker.reference.digest": "sha256:627f6b0325f84159cae7f3ad6e32108623a97c11e02d444aaf835d25255bd337",
+          "vnd.docker.reference.type": "attestation-manifest"
+        },
+        "platform": {
+          "architecture": "unknown",
+          "os": "unknown"
+        }
+      }
+    ]
+  },
+  "Image": {
+    "linux/amd64": {
+      "created": "2025-04-14T06:19:52.137867353Z",
+      "architecture": "amd64",
+      "os": "linux",
+      "config": {
+        "Env": [
+          "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "LANG=C.UTF-8",
+          "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+          "PYTHON_VERSION=3.11.12"
+        ],
+        "Entrypoint": [
+          "/start.sh"
+        ]
+      },
+      "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+          "sha256:ea680fbff095473bb8a6c867938d6d851e11ef0c177fce983ccc83440172bd72",
+          "sha256:7cc0d5f7bb310922fd487e04b69f9dc6d973438ed7d79fca017fd68716d94575",
+          "sha256:832ecaad9cb5a9b2f435466ce097cbd1b950f569857a190ce64e0addb36b3c30",
+          "sha256:df7e0efe85e65e2da95488ab47c90f3cac1569e5ba482ce4786ca0cce9dc7129",
+          "sha256:a02711805881b0299cb514439991983d1e22e9c677b2d4d2a9b82438dbb371a8",
+          "sha256:0a35c3183314d7ed1e6735de4d6256c4a631adaca3921d14814aa537bbd1f22f",
+          "sha256:901b90cbd0d10edba982149cff355af261a887b5d2d9978c146387744af75338",
+          "sha256:be82f886e886a19abd8621ab9dacdb67cbc3dda796a980cc4a3ea99ff31e629b",
+          "sha256:e222786ce2e0d181d9f2850cd81c3fa274284b569a9d1293e1fe4254b406bbc6",
+          "sha256:6cf50a16bdb06e023fd86430f364ca0f186157a69abecdd4ea99cd2fbca80db8"
+        ]
+      }
+    },
+    "linux/arm64": {
+      "created": "2025-04-14T06:21:50.061623825Z",
+      "architecture": "arm64",
+      "os": "linux",
+      "config": {
+        "Env": [
+          "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "LANG=C.UTF-8",
+          "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+          "PYTHON_VERSION=3.11.12"
+        ],
+        "Entrypoint": [
+          "/start.sh"
+        ]
+      },
+      "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+          "sha256:c9b18059ed426422229b2c624582e54e7e32862378c9556b90a99c116ae10a04",
+          "sha256:72bbb1662472ad6910e83fcbd167e4e25a5ae7485cedc06ae347a6e77985dc30",
+          "sha256:f82f39f3a5eeac57a9386db8eff23f28bbdccec651dd15748145fbbcd85b9e35",
+          "sha256:6f714640a40eb6560d2fceedb4a7774149bc9a0e2189c2501dacb7756089dedc",
+          "sha256:7c0412a723655f20076ee1745eecbfba6460c3e9399a803913ba91ffe7b5addc",
+          "sha256:de5c5774c2120fde68140c2137ff38c99f1cbf3576b5626f1c4cf79232b71de5",
+          "sha256:d48e192114125e150904618fc692d07056983abc21caf99d53206a837f754c3b",
+          "sha256:be82f886e886a19abd8621ab9dacdb67cbc3dda796a980cc4a3ea99ff31e629b",
+          "sha256:e222786ce2e0d181d9f2850cd81c3fa274284b569a9d1293e1fe4254b406bbc6",
+          "sha256:6cf50a16bdb06e023fd86430f364ca0f186157a69abecdd4ea99cd2fbca80db8"
+        ]
+      }
+    }
+  }
+}

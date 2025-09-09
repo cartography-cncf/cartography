@@ -129,21 +129,38 @@ def compute_ecr_image_lineage(neo4j_session: Session, update_tag: int) -> None:
     """
     Compute BUILT_FROM relationships between ECR images.
     """
-    # Get all ECR images with their layers by traversing from HEAD through NEXT
-    query = """
-    MATCH (img:ECRImage)-[:HEAD]->(head:ImageLayer)
-    OPTIONAL MATCH path = (head)-[:NEXT*]->(tail:ImageLayer)
-    WHERE NOT (tail)-[:NEXT]->()
-    WITH img, head,
-         CASE WHEN path IS NULL
-              THEN [head]
-              ELSE [head] + [n IN nodes(path) WHERE n:ImageLayer AND n <> head]
-         END AS layer_nodes
-    RETURN img.id AS image_id, [l IN layer_nodes | l.diff_id] AS layer_ids
+    # Get all ECR images with their layers
+    # We need to carefully handle the fact that layers are shared between images
+    # Each image knows its length, so we traverse exactly that many nodes
+    images_with_layers = []
+
+    # First get all images that have layers
+    img_query = """
+    MATCH (img:ECRImage)
+    WHERE img.length IS NOT NULL AND EXISTS((img)-[:HEAD]->())
+    RETURN img.id AS image_id, img.length AS length
     """
 
-    result = neo4j_session.run(query)
-    images_with_layers = [(r["image_id"], r["layer_ids"]) for r in result]
+    images = neo4j_session.run(img_query).data()
+
+    for img in images:
+        image_id = img["image_id"]
+        length = img["length"]
+
+        # Get the layers for this specific image
+        layer_query = """
+        MATCH (img:ECRImage {id: $image_id})-[:HEAD]->(head:ImageLayer)
+        WITH head, $length AS target_length
+        MATCH path = (head)-[:NEXT*0..]->(:ImageLayer)
+        WHERE length(path) = target_length - 1
+        RETURN [n IN nodes(path) | n.diff_id] AS layer_ids
+        """
+
+        result = neo4j_session.run(
+            layer_query, image_id=image_id, length=length
+        ).single()
+        if result and result["layer_ids"]:
+            images_with_layers.append((image_id, result["layer_ids"]))
 
     if not images_with_layers:
         logger.info("No ECR images with layers found for lineage computation")
