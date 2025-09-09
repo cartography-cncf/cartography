@@ -76,18 +76,26 @@ def build_image_layers(
     logger.info(f"Found {len(diff_ids)} layers for {image_uri} platform {platform}")
 
     # Build records for ImageLayerSchema
+    # Note: We use one_to_many relationships for HEAD/TAIL so multiple images can share layers
     records: List[Dict] = []
     for i, diff_id in enumerate(diff_ids):
         rec: Dict = {"diff_id": diff_id}
+
+        # NEXT relationship to the next layer in the chain
         if i < len(diff_ids) - 1:
             rec["next_diff_id"] = diff_ids[i + 1]
+
+        # HEAD relationship - this layer is the head of this image
         if i == 0:
             rec["head_image_ids"] = [image_digest]
+
+        # TAIL relationship - this layer is the tail of this image
         if i == len(diff_ids) - 1:
             rec["tail_image_ids"] = [image_digest]
+
         records.append(rec)
 
-    # Load layers to graph
+    # Load layers to graph using the model's relationships
     load(
         neo4j_session,
         ImageLayerSchema(),
@@ -117,22 +125,25 @@ def build_image_layers(
 
 
 @timeit
-def compute_ecr_image_lineage(neo4j_session: Session) -> None:
+def compute_ecr_image_lineage(neo4j_session: Session, update_tag: int) -> None:
     """
     Compute BUILT_FROM relationships between ECR images.
     """
-    # Get all ECR images with their layers
+    # Get all ECR images with their layers by traversing from HEAD through NEXT
     query = """
     MATCH (img:ECRImage)-[:HEAD]->(head:ImageLayer)
-    WITH img, head
-    MATCH path = (head)-[:NEXT*0..]->(layer:ImageLayer)
-    WITH img, collect(layer.diff_id) AS layers
-    WHERE size(layers) > 0
-    RETURN img.id AS image_id, layers
+    OPTIONAL MATCH path = (head)-[:NEXT*]->(tail:ImageLayer)
+    WHERE NOT (tail)-[:NEXT]->()
+    WITH img, head,
+         CASE WHEN path IS NULL
+              THEN [head]
+              ELSE [head] + [n IN nodes(path) WHERE n:ImageLayer AND n <> head]
+         END AS layer_nodes
+    RETURN img.id AS image_id, [l IN layer_nodes | l.diff_id] AS layer_ids
     """
 
     result = neo4j_session.run(query)
-    images_with_layers = [(r["image_id"], r["layers"]) for r in result]
+    images_with_layers = [(r["image_id"], r["layer_ids"]) for r in result]
 
     if not images_with_layers:
         logger.info("No ECR images with layers found for lineage computation")
@@ -140,13 +151,21 @@ def compute_ecr_image_lineage(neo4j_session: Session) -> None:
 
     logger.info(f"Computing lineage for {len(images_with_layers)} ECR images")
 
-    # Find parent-child relationships
+    # Find parent-child relationships using the simple prefix algorithm
     relationships = []
     for i, (child_id, child_layers) in enumerate(images_with_layers):
+        longest_parent = None
+        longest_parent_length = 0
+
         for j, (parent_id, parent_layers) in enumerate(images_with_layers):
             if i != j and compute_image_lineage(parent_layers, child_layers):
-                relationships.append((child_id, parent_id))
-                logger.debug(f"Found lineage: {child_id} built from {parent_id}")
+                if len(parent_layers) > longest_parent_length:
+                    longest_parent = parent_id
+                    longest_parent_length = len(parent_layers)
+
+        if longest_parent:
+            relationships.append((child_id, longest_parent))
+            logger.debug(f"Found lineage: {child_id} built from {longest_parent}")
 
     # Create BUILT_FROM relationships
     if relationships:
@@ -156,9 +175,11 @@ def compute_ecr_image_lineage(neo4j_session: Session) -> None:
             UNWIND $rels AS rel
             MATCH (child:ECRImage {id: rel[0]})
             MATCH (parent:ECRImage {id: rel[1]})
-            MERGE (child)-[:BUILT_FROM]->(parent)
+            MERGE (child)-[r:BUILT_FROM]->(parent)
+            SET r.lastupdated = $update_tag
             """,
             rels=relationships,
+            update_tag=update_tag,
         )
 
 
@@ -231,7 +252,7 @@ def build_ecr_image_lineage(
 
     # Compute lineage relationships
     if processed_images:
-        compute_ecr_image_lineage(neo4j_session)
+        compute_ecr_image_lineage(neo4j_session, update_tag)
         logger.info("ECR image lineage computation complete")
 
 

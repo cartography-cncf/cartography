@@ -15,6 +15,7 @@ from cartography.intel.trivy.layers import get_image_layers_from_registry
 from cartography.intel.trivy.layers import get_image_platforms
 
 TEST_DATA_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "trivy"
+TEST_UPDATE_TAG = 123456789
 
 
 def load_test_data(filename: str) -> dict:
@@ -142,7 +143,7 @@ def test_build_layers_creates_graph_structure(
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.0.0",
         image_digest,
         "linux/amd64",
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     # Verify layers were returned
@@ -164,7 +165,7 @@ def test_build_layers_creates_graph_structure(
         assert result is not None
         layer_node = result["l"]
         assert layer_node["diff_id"] == layer_id
-        assert layer_node["lastupdated"] == 123456789
+        assert layer_node["lastupdated"] == TEST_UPDATE_TAG
 
     # Verify HEAD relationship points to first layer
     head_result = neo4j_session.run(
@@ -252,7 +253,7 @@ def test_lineage_detection_with_shared_layers(
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/base-app:v1.0.0",
         base_digest,
         "linux/amd64",
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     assert base_layer_ids is not None  # Type check for mypy
@@ -270,7 +271,7 @@ def test_lineage_detection_with_shared_layers(
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/child-app:v2.0.0",
         child_digest,
         "linux/amd64",
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     assert child_layer_ids is not None  # Type check for mypy
@@ -280,7 +281,7 @@ def test_lineage_detection_with_shared_layers(
     assert child_layer_ids[:10] == base_layer_ids
 
     # Compute lineage relationships
-    compute_ecr_image_lineage(neo4j_session)
+    compute_ecr_image_lineage(neo4j_session, TEST_UPDATE_TAG)
 
     # Verify BUILT_FROM relationship was created
     lineage_result = neo4j_session.run(

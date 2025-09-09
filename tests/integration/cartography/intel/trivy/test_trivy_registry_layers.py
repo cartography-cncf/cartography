@@ -15,6 +15,9 @@ from cartography.intel.trivy.image_lineage import compute_ecr_image_lineage
 from cartography.intel.trivy.layers import get_image_layers_from_registry
 from cartography.intel.trivy.scanner import sync_single_image
 
+# Test constants
+TEST_UPDATE_TAG = 123456789
+
 # Mock docker buildx imagetools output based on real ECR image
 MOCK_IMAGETOOLS_OUTPUT: Dict[str, Any] = {
     "Image": {
@@ -144,7 +147,7 @@ def test_build_image_layers_from_registry(
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.0.0",
         image_digest,
         "linux/amd64",
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     # Then sync Trivy scan results (vulnerabilities only, no layers)
@@ -152,7 +155,7 @@ def test_build_image_layers_from_registry(
         neo4j_session,
         MOCK_TRIVY_SCAN_NO_LAYERS,
         "test-source",
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     # Verify layers were created from registry
@@ -251,7 +254,7 @@ def test_image_lineage_with_registry_layers(
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/base-app:v1.0.0",
         base_digest,
         None,
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     # Sync base scan results
@@ -259,7 +262,7 @@ def test_image_lineage_with_registry_layers(
         neo4j_session,
         base_scan,
         "base-source",
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     # Mock child image layers (extends base)
@@ -274,7 +277,7 @@ def test_image_lineage_with_registry_layers(
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/child-app:v2.0.0",
         child_digest,
         None,
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     # Sync child scan results
@@ -282,11 +285,11 @@ def test_image_lineage_with_registry_layers(
         neo4j_session,
         child_scan,
         "child-source",
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     # Compute lineage relationships
-    compute_ecr_image_lineage(neo4j_session)
+    compute_ecr_image_lineage(neo4j_session, TEST_UPDATE_TAG)
 
     # Verify lineage relationship was created
     lineage = neo4j_session.run(
@@ -343,7 +346,7 @@ def test_registry_layers_unavailable_fallback(
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/app:v1.0.0",
         image_digest,
         None,
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     assert layers is None  # No layers since docker buildx not available
@@ -353,7 +356,7 @@ def test_registry_layers_unavailable_fallback(
         neo4j_session,
         scan_data,
         "test-source",
-        123456789,
+        TEST_UPDATE_TAG,
     )
 
     # Verify no layers were created
