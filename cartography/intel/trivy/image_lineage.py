@@ -12,6 +12,7 @@ from typing import Set
 from neo4j import Session
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.intel.trivy.layers import compute_image_lineage
 from cartography.intel.trivy.layers import get_image_layers_from_registry
 from cartography.intel.trivy.layers import get_image_platforms
@@ -243,23 +244,56 @@ def cleanup_stale_image_layers(neo4j_session: Session, update_tag: int) -> None:
         neo4j_session: Neo4j session
         update_tag: Current update tag
     """
+    logger.info("Running image layer cleanup")
+
+    # Use GraphJob for standard cleanup of ImageLayer nodes
+    common_job_parameters = {"UPDATE_TAG": update_tag}
+    GraphJob.from_node_schema(ImageLayerSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+    # Custom cleanup for ImageLayer graph: remove stale NEXT/HEAD/TAIL rels tied to layers touched this run
+    # Remove stale NEXT edges among updated layers
+    neo4j_session.run(
+        """
+        MATCH (a:ImageLayer)-[r:NEXT]->(b:ImageLayer)
+        WHERE (a.lastupdated = $update_tag OR b.lastupdated = $update_tag)
+          AND r.lastupdated <> $update_tag
+        DELETE r
+        """,
+        update_tag=update_tag,
+    )
+
+    # Remove stale HEAD/TAIL edges from images to updated layers
+    neo4j_session.run(
+        """
+        MATCH (:ECRImage)-[r:HEAD|TAIL]->(l:ImageLayer)
+        WHERE l.lastupdated = $update_tag AND r.lastupdated <> $update_tag
+        DELETE r
+        """,
+        update_tag=update_tag,
+    )
+
+    # Remove orphan layers that were not updated this run and have no links
+    neo4j_session.run(
+        """
+        MATCH (l:ImageLayer)
+        WHERE l.lastupdated <> $update_tag
+          AND NOT (l)-[:NEXT]-()
+          AND NOT ()-[:NEXT]->(l)
+          AND NOT ()-[:HEAD]->(l)
+          AND NOT ()-[:TAIL]->(l)
+        DETACH DELETE l
+        """,
+        update_tag=update_tag,
+    )
+
     # Remove stale BUILT_FROM relationships
     neo4j_session.run(
         """
         MATCH (:ECRImage)-[r:BUILT_FROM]->(:ECRImage)
         WHERE r.lastupdated < $update_tag
         DELETE r
-        """,
-        update_tag=update_tag,
-    )
-
-    # Remove orphaned layers (not connected to any image)
-    neo4j_session.run(
-        """
-        MATCH (layer:ImageLayer)
-        WHERE NOT EXISTS((layer)<-[:HEAD|TAIL]-())
-        AND layer.lastupdated < $update_tag
-        DETACH DELETE layer
         """,
         update_tag=update_tag,
     )

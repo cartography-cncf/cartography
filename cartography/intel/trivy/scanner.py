@@ -290,41 +290,6 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     GraphJob.from_node_schema(TrivyFixSchema(), common_job_parameters).run(
         neo4j_session
     )
-    # Custom cleanup for ImageLayer graph: remove stale NEXT/HEAD/TAIL rels tied to layers touched this run,
-    # then delete orphan layers not referenced by any image or package.
-    update_tag = common_job_parameters["UPDATE_TAG"]
-    # Remove stale NEXT edges among updated layers
-    neo4j_session.run(
-        """
-        MATCH (a:ImageLayer)-[r:NEXT]->(b:ImageLayer)
-        WHERE (a.lastupdated = $UPDATE_TAG OR b.lastupdated = $UPDATE_TAG)
-          AND r.lastupdated <> $UPDATE_TAG
-        DELETE r
-        """,
-        UPDATE_TAG=update_tag,
-    )
-    # Remove stale HEAD/TAIL edges from images to updated layers
-    neo4j_session.run(
-        """
-        MATCH (:ECRImage)-[r:HEAD|TAIL]->(l:ImageLayer)
-        WHERE l.lastupdated = $UPDATE_TAG AND r.lastupdated <> $UPDATE_TAG
-        DELETE r
-        """,
-        UPDATE_TAG=update_tag,
-    )
-    # Remove orphan layers that were not updated this run and have no links
-    neo4j_session.run(
-        """
-        MATCH (l:ImageLayer)
-        WHERE l.lastupdated <> $UPDATE_TAG
-          AND NOT (l)-[:NEXT]-()
-          AND NOT ()-[:NEXT]->(l)
-          AND NOT ()-[:HEAD]->(l)
-          AND NOT ()-[:TAIL]->(l)
-        DETACH DELETE l
-        """,
-        UPDATE_TAG=update_tag,
-    )
 
 
 @timeit
