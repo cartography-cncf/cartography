@@ -634,6 +634,78 @@ def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
 
 @patch.object(
     cartography.intel.gcp.compute,
+    "get_gcp_subnets",
+    return_value=tests.data.gcp.compute.VPC_SUBNET_RESPONSE,
+)
+def test_sync_gcp_subnets(mock_get_subnets, neo4j_session):
+    """sync_gcp_subnets loads subnets and creates relationships."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"}
+    # Pre-load an instance so a network interface referencing the subnet exists
+    cartography.intel.gcp.compute.load_gcp_instances(
+        neo4j_session,
+        tests.data.gcp.compute.TRANSFORMED_GCP_INSTANCES,
+        TEST_UPDATE_TAG,
+    )
+
+    cartography.intel.gcp.compute.sync_gcp_subnets(
+        neo4j_session,
+        MagicMock(),
+        "project-abc",
+        ["europe-west2"],
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "GCPSubnet",
+        ["id", "region", "vpc_partial_uri"],
+    ) == {
+        (
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+            "europe-west2",
+            "projects/project-abc/global/networks/default",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPNetworkInterface",
+        "id",
+        "GCPSubnet",
+        "id",
+        "PART_OF_SUBNET",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1/networkinterfaces/nic0",
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+        ),
+        (
+            "projects/project-abc/zones/europe-west2-b/instances/instance-1-test/networkinterfaces/nic0",
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPVpc",
+        "id",
+        "GCPSubnet",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/project-abc/global/networks/default",
+            "projects/project-abc/regions/europe-west2/subnetworks/default",
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.gcp.compute,
     "get_gcp_vpcs",
     side_effect=[
         tests.data.gcp.compute.VPC_RESPONSE,
