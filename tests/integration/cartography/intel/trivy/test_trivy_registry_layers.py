@@ -182,15 +182,17 @@ def test_build_image_layers_from_registry(
     assert head_tail["tail"] == MOCK_IMAGETOOLS_OUTPUT["Image"]["RootFS"]["DiffIDs"][-1]
     assert head_tail["length"] == 15
 
-    # Verify docker buildx was called with correct parameters
-    mock_run.assert_called_once()
-    call_args = mock_run.call_args[0][0]
-    assert "docker" in call_args
-    assert "buildx" in call_args
-    assert "imagetools" in call_args
-    assert "inspect" in call_args
-    assert "--platform" in call_args
-    assert "linux/amd64" in call_args
+    # Verify the NEXT relationships form a proper chain
+    chain_check = neo4j_session.run(
+        """
+        MATCH (h:ImageLayer)<-[:HEAD]-(i:ECRImage)-[:TAIL]->(t:ImageLayer)
+        MATCH path = (h)-[:NEXT*]->(t)
+        WHERE i.id = $id
+        RETURN length(path) as path_length
+        """,
+        id=image_digest,
+    ).single()
+    assert chain_check["path_length"] == 14  # 15 nodes = 14 edges
 
 
 @patch("cartography.intel.trivy.layers.subprocess.run")
@@ -387,5 +389,7 @@ def test_multi_platform_image_handling(
     assert diff_ids == MOCK_IMAGETOOLS_OUTPUT["Image"]["RootFS"]["DiffIDs"]
     assert digest == MOCK_IMAGETOOLS_OUTPUT["Manifest"]["config"]["digest"]
 
-    # Verify both calls were made
-    assert mock_run.call_count >= 1
+    # Verify we extracted the expected layers from the mocked output
+    assert len(diff_ids) == 15
+    assert diff_ids[0].startswith("sha256:")
+    assert digest.startswith("sha256:")

@@ -94,23 +94,39 @@ def test_check_docker_buildx_available(mock_run):
 def test_get_image_platforms(mock_check_docker, mock_run):
     mock_check_docker.return_value = True
 
-    # Test multi-arch image
-    index_data = {
-        "Index": {
-            "manifests": [
-                {"platform": {"os": "linux", "architecture": "amd64"}},
-                {"platform": {"os": "linux", "architecture": "arm64"}},
-                {"platform": {"os": "linux", "architecture": "arm", "variant": "v7"}},
-            ]
-        }
+    # Test multi-arch image (manifest is the index for multi-platform)
+    manifest_data = {
+        "manifests": [
+            {"platform": {"os": "linux", "architecture": "amd64"}},
+            {"platform": {"os": "linux", "architecture": "arm64"}},
+            {"platform": {"os": "linux", "architecture": "arm", "variant": "v7"}},
+        ]
     }
     mock_run.return_value = MagicMock(
         returncode=0,
-        stdout=json.dumps(index_data["Index"]),
+        stdout=json.dumps(manifest_data),
     )
 
     platforms = get_image_platforms("registry.example.com/image:tag")
     assert platforms == ["linux/amd64", "linux/arm64", "linux/arm/v7"]
+
+    # Test with attestation manifests (should be filtered out)
+    manifest_with_attestations = {
+        "manifests": [
+            {"platform": {"os": "linux", "architecture": "amd64"}},
+            {"platform": {"os": "linux", "architecture": "arm64"}},
+            {
+                "platform": {"os": "unknown", "architecture": "unknown"},
+                "annotations": {"vnd.docker.reference.type": "attestation-manifest"},
+            },
+        ]
+    }
+    mock_run.return_value = MagicMock(
+        returncode=0,
+        stdout=json.dumps(manifest_with_attestations),
+    )
+    platforms = get_image_platforms("registry.example.com/image:tag")
+    assert platforms == ["linux/amd64", "linux/arm64"]  # attestation filtered out
 
     # Test single-arch image (no index)
     mock_run.return_value = MagicMock(returncode=0, stdout="")

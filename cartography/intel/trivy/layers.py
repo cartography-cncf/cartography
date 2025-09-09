@@ -129,7 +129,7 @@ def get_image_platforms(image_uri: str) -> List[str]:
             "inspect",
             image_uri,
             "--format",
-            "{{json .Index}}",
+            "{{json .Manifest}}",
         ]
 
         result = subprocess.run(
@@ -144,10 +144,19 @@ def get_image_platforms(image_uri: str) -> List[str]:
                 index_data = json.loads(result.stdout)
                 if index_data and "manifests" in index_data:
                     for manifest in index_data["manifests"]:
+                        # Skip attestation manifests
+                        if (
+                            manifest.get("annotations", {}).get(
+                                "vnd.docker.reference.type"
+                            )
+                            == "attestation-manifest"
+                        ):
+                            continue
                         platform = manifest.get("platform", {})
                         os = platform.get("os", "")
                         arch = platform.get("architecture", "")
-                        if os and arch:
+                        # Skip unknown platforms (attestations, etc)
+                        if os and arch and os != "unknown" and arch != "unknown":
                             platform_str = f"{os}/{arch}"
                             variant = platform.get("variant")
                             if variant:
@@ -157,7 +166,7 @@ def get_image_platforms(image_uri: str) -> List[str]:
                 # Not a multi-arch image, likely single platform
                 pass
 
-        # If no platforms found from index, assume single platform linux/amd64
+        # If no platforms found from manifest, assume single platform linux/amd64
         if not platforms:
             platforms = ["linux/amd64"]
 
