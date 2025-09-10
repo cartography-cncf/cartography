@@ -1172,8 +1172,6 @@ Representation of an [AzureCosmosDBMongoDBCollection](https://docs.microsoft.com
     (AzureCosmosDBMongoDBDatabase)-[CONTAINS]->(AzureCosmosDBMongoDBCollection)
     ```
 
-# Azure Function App
-
 ### AzureFunctionApp
 
 Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/get).
