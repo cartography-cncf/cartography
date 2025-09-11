@@ -14,8 +14,8 @@ def _ensure_local_neo4j_has_test_storage_bucket_data(neo4j_session):
     _create_test_project(neo4j_session)
 
     bucket_res = tests.data.gcp.storage.STORAGE_RESPONSE
-    buckets, bucket_labels = cartography.intel.gcp.storage.transform_gcp_buckets(
-        bucket_res
+    buckets, bucket_labels = (
+        cartography.intel.gcp.storage.transform_gcp_buckets_and_labels(bucket_res)
     )
     cartography.intel.gcp.storage.load_gcp_buckets(
         neo4j_session,

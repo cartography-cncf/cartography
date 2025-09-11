@@ -62,7 +62,7 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
 
 
 @timeit
-def transform_gcp_buckets(bucket_res: Dict) -> Tuple[List[Dict], List[Dict]]:
+def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List[Dict]]:
     """
     Transform the GCP Storage Bucket response object for Neo4j ingestion.
 
@@ -190,7 +190,7 @@ def sync_gcp_buckets(
     """
     logger.info("Syncing Storage objects for project %s.", project_id)
     storage_res = get_gcp_buckets(storage, project_id)
-    buckets, bucket_labels = transform_gcp_buckets(storage_res)
+    buckets, bucket_labels = transform_gcp_buckets_and_labels(storage_res)
     load_gcp_buckets(neo4j_session, buckets, project_id, gcp_update_tag)
     load_gcp_bucket_labels(neo4j_session, bucket_labels, project_id, gcp_update_tag)
     cleanup_gcp_buckets(neo4j_session, common_job_parameters)

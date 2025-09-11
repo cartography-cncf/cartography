@@ -3,7 +3,7 @@ from tests.data.gcp.storage import STORAGE_RESPONSE
 
 
 def test_transform_gcp_buckets():
-    buckets, labels = cartography.intel.gcp.storage.transform_gcp_buckets(
+    buckets, labels = cartography.intel.gcp.storage.transform_gcp_buckets_and_labels(
         STORAGE_RESPONSE
     )
 
