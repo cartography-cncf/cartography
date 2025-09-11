@@ -179,6 +179,7 @@ def load_gcp_projects(
     :return: Nothing
     """
     # Transform parent hierarchy for relationship creation
+    # https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy
     for project in data:
         parent = project.get("parent")
         project["organization_parent"] = None
@@ -227,22 +228,6 @@ def cleanup_gcp_folders(
     :return: Nothing
     """
     run_cleanup_job("gcp_crm_folder_cleanup.json", neo4j_session, common_job_parameters)
-
-
-@timeit
-def cleanup_gcp_projects(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Remove stale GCP projects and their relationships
-    :param neo4j_session: The Neo4j session
-    :param common_job_parameters: Parameters to carry to the cleanup job
-    :return: Nothing
-    """
-    GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
 
 
 @timeit
@@ -306,4 +291,6 @@ def sync_gcp_projects(
     """
     logger.debug("Syncing GCP projects")
     load_gcp_projects(neo4j_session, projects, gcp_update_tag)
-    cleanup_gcp_projects(neo4j_session, common_job_parameters)
+    GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
