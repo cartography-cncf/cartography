@@ -1,5 +1,4 @@
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import cartography.intel.gcp.dns
 import tests.data.gcp.dns
@@ -12,9 +11,10 @@ TEST_UPDATE_TAG = 123456789
 
 def test_load_dns_zones(neo4j_session):
     data = tests.data.gcp.dns.DNS_ZONES
+    zones = cartography.intel.gcp.dns.transform_dns_zones(data)
     cartography.intel.gcp.dns.load_dns_zones(
         neo4j_session,
-        data,
+        zones,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
@@ -37,10 +37,18 @@ def test_load_dns_zones(neo4j_session):
 
 
 def test_load_rrs(neo4j_session):
+    # Ensure Project exists
+    neo4j_session.run(
+        """
+        MERGE (p:GCPProject{id:$PROJECT_ID})
+        """,
+        PROJECT_ID=TEST_PROJECT_NUMBER,
+    )
     data = tests.data.gcp.dns.DNS_RRS
+    rrs = cartography.intel.gcp.dns.transform_dns_rrs(data)
     cartography.intel.gcp.dns.load_rrs(
         neo4j_session,
-        data,
+        rrs,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
@@ -77,9 +85,10 @@ def test_zones_relationships(neo4j_session):
 
     # Load Test DNS Zone
     data = tests.data.gcp.dns.DNS_ZONES
+    zones = cartography.intel.gcp.dns.transform_dns_zones(data)
     cartography.intel.gcp.dns.load_dns_zones(
         neo4j_session,
-        data,
+        zones,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
@@ -103,39 +112,56 @@ def test_zones_relationships(neo4j_session):
 
 def test_rrs_relationships(neo4j_session):
     # Load Test DNS Zone
-    data = tests.data.gcp.dns.DNS_ZONES
+    zones = cartography.intel.gcp.dns.transform_dns_zones(
+        tests.data.gcp.dns.DNS_ZONES
+    )
     cartography.intel.gcp.dns.load_dns_zones(
         neo4j_session,
-        data,
+        zones,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
 
     # Load Test RRS
-    data = tests.data.gcp.dns.DNS_RRS
+    rrs = cartography.intel.gcp.dns.transform_dns_rrs(
+        tests.data.gcp.dns.DNS_RRS
+    )
     cartography.intel.gcp.dns.load_rrs(
         neo4j_session,
-        data,
+        rrs,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
 
-    expected = {
+    expected_zone_rels = {
         ("111111111111111111111", "a.zone-1.example.com."),
         ("111111111111111111111", "b.zone-1.example.com."),
         ("2222222222222222222", "a.zone-2.example.com."),
     }
 
-    # Fetch relationships
+    # Fetch zone -> record relationships
     result = neo4j_session.run(
         """
         MATCH (n1:GCPDNSZone)-[:HAS_RECORD]->(n2:GCPRecordSet) RETURN n1.id, n2.id;
         """,
     )
+    actual_zone_rels = {(r["n1.id"], r["n2.id"]) for r in result}
+    assert actual_zone_rels == expected_zone_rels
 
-    actual = {(r["n1.id"], r["n2.id"]) for r in result}
-
-    assert actual == expected
+    # Project -> record relationships
+    result = neo4j_session.run(
+        """
+        MATCH (p:GCPProject{id:$PROJECT})-[:RESOURCE]->(r:GCPRecordSet) RETURN p.id, r.id;
+        """,
+        PROJECT=TEST_PROJECT_NUMBER,
+    )
+    actual_proj_rels = {(r["p.id"], r["r.id"]) for r in result}
+    expected_proj_rels = {
+        (TEST_PROJECT_NUMBER, "a.zone-1.example.com."),
+        (TEST_PROJECT_NUMBER, "b.zone-1.example.com."),
+        (TEST_PROJECT_NUMBER, "a.zone-2.example.com."),
+    }
+    assert actual_proj_rels == expected_proj_rels
 
 
 @patch.object(
@@ -150,7 +176,10 @@ def test_rrs_relationships(neo4j_session):
 )
 def test_sync_dns_records(mock_get_zones, mock_get_rrs, neo4j_session):
     """sync() loads DNS zones, record sets, and creates relationships."""
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_NUMBER,
+    }
 
     # Ensure test GCPProject exists
     neo4j_session.run(
@@ -212,4 +241,17 @@ def test_sync_dns_records(mock_get_zones, mock_get_rrs, neo4j_session):
         ("111111111111111111111", "a.zone-1.example.com."),
         ("111111111111111111111", "b.zone-1.example.com."),
         ("2222222222222222222", "a.zone-2.example.com."),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPRecordSet",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_PROJECT_NUMBER, "a.zone-1.example.com."),
+        (TEST_PROJECT_NUMBER, "b.zone-1.example.com."),
+        (TEST_PROJECT_NUMBER, "a.zone-2.example.com."),
     }
