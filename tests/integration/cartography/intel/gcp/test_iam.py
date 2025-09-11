@@ -25,13 +25,14 @@ def _create_test_project(neo4j_session):
 def test_load_gcp_roles(neo4j_session):
     # Arrange
     _create_test_project(neo4j_session)
-    data = tests.data.gcp.iam.LIST_ROLES_RESPONSE["roles"]
+    data = transform_gcp_roles(
+        tests.data.gcp.iam.LIST_ROLES_RESPONSE["roles"], TEST_PROJECT_ID
+    )
 
     # Act
-    roles = transform_gcp_roles(data, TEST_PROJECT_ID)
     cartography.intel.gcp.iam.load_gcp_roles(
         neo4j_session,
-        roles,
+        data,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
     )
@@ -66,13 +67,14 @@ def test_load_gcp_roles(neo4j_session):
 def test_load_gcp_service_accounts(neo4j_session):
     # Arrange
     _create_test_project(neo4j_session)
-    data = tests.data.gcp.iam.LIST_SERVICE_ACCOUNTS_RESPONSE["accounts"]
+    data = transform_gcp_service_accounts(
+        tests.data.gcp.iam.LIST_SERVICE_ACCOUNTS_RESPONSE["accounts"], TEST_PROJECT_ID
+    )
 
     # Act
-    service_accounts = transform_gcp_service_accounts(data, TEST_PROJECT_ID)
     cartography.intel.gcp.iam.load_gcp_service_accounts(
         neo4j_session,
-        service_accounts,
+        data,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
     )
