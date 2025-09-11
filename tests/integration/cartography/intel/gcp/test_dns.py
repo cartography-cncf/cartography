@@ -11,11 +11,10 @@ TEST_UPDATE_TAG = 123456789
 
 
 def test_load_dns_zones(neo4j_session):
-    data = tests.data.gcp.dns.DNS_ZONES
-    zones = cartography.intel.gcp.dns.transform_dns_zones(data)
+    data = cartography.intel.gcp.dns.transform_dns_zones(tests.data.gcp.dns.DNS_ZONES)
     cartography.intel.gcp.dns.load_dns_zones(
         neo4j_session,
-        zones,
+        data,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
@@ -38,18 +37,21 @@ def test_load_dns_zones(neo4j_session):
 
 
 def test_load_rrs(neo4j_session):
-    # Ensure Project exists
+    # Ensure Test GCPProject exists to allow RESOURCE relationships to be created
     neo4j_session.run(
         """
-        MERGE (p:GCPProject{id:$PROJECT_ID})
+        MERGE (p:GCPProject{id:$PROJECT_NUMBER})
+        ON CREATE SET p.firstseen = timestamp()
+        SET p.lastupdated = $UPDATE_TAG
         """,
-        PROJECT_ID=TEST_PROJECT_NUMBER,
+        PROJECT_NUMBER=TEST_PROJECT_NUMBER,
+        UPDATE_TAG=TEST_UPDATE_TAG,
     )
-    data = tests.data.gcp.dns.DNS_RRS
-    rrs = cartography.intel.gcp.dns.transform_dns_rrs(data)
+
+    data = cartography.intel.gcp.dns.transform_dns_rrs(tests.data.gcp.dns.DNS_RRS)
     cartography.intel.gcp.dns.load_rrs(
         neo4j_session,
-        rrs,
+        data,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
@@ -85,11 +87,10 @@ def test_zones_relationships(neo4j_session):
     )
 
     # Load Test DNS Zone
-    data = tests.data.gcp.dns.DNS_ZONES
-    zones = cartography.intel.gcp.dns.transform_dns_zones(data)
+    data = cartography.intel.gcp.dns.transform_dns_zones(tests.data.gcp.dns.DNS_ZONES)
     cartography.intel.gcp.dns.load_dns_zones(
         neo4j_session,
-        zones,
+        data,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
@@ -115,7 +116,7 @@ def test_rrs_relationships(neo4j_session):
     # Ensure Test GCPProject exists to allow RESOURCE relationships to be created
     neo4j_session.run(
         """
-        MERGE (p:GCPProject{id: $PROJECT_NUMBER})
+        MERGE (p:GCPProject{id:$PROJECT_NUMBER})
         ON CREATE SET p.firstseen = timestamp()
         SET p.lastupdated = $UPDATE_TAG
         """,
@@ -124,44 +125,46 @@ def test_rrs_relationships(neo4j_session):
     )
 
     # Load Test DNS Zone
-    zones = cartography.intel.gcp.dns.transform_dns_zones(tests.data.gcp.dns.DNS_ZONES)
+    data = cartography.intel.gcp.dns.transform_dns_zones(tests.data.gcp.dns.DNS_ZONES)
     cartography.intel.gcp.dns.load_dns_zones(
         neo4j_session,
-        zones,
+        data,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
 
     # Load Test RRS
-    rrs = cartography.intel.gcp.dns.transform_dns_rrs(tests.data.gcp.dns.DNS_RRS)
+    data = cartography.intel.gcp.dns.transform_dns_rrs(tests.data.gcp.dns.DNS_RRS)
     cartography.intel.gcp.dns.load_rrs(
         neo4j_session,
-        rrs,
+        data,
         TEST_PROJECT_NUMBER,
         TEST_UPDATE_TAG,
     )
 
-    expected_zone_rels = {
+    expected = {
         ("111111111111111111111", "a.zone-1.example.com."),
         ("111111111111111111111", "b.zone-1.example.com."),
         ("2222222222222222222", "a.zone-2.example.com."),
     }
 
-    # Fetch zone -> record relationships
+    # Fetch relationships
     result = neo4j_session.run(
         """
         MATCH (n1:GCPDNSZone)-[:HAS_RECORD]->(n2:GCPRecordSet) RETURN n1.id, n2.id;
         """,
     )
-    actual_zone_rels = {(r["n1.id"], r["n2.id"]) for r in result}
-    assert actual_zone_rels == expected_zone_rels
+
+    actual = {(r["n1.id"], r["n2.id"]) for r in result}
+
+    assert actual == expected
 
     # Project -> record relationships
     result = neo4j_session.run(
         """
-        MATCH (p:GCPProject{id:$PROJECT})-[:RESOURCE]->(r:GCPRecordSet) RETURN p.id, r.id;
+        MATCH (p:GCPProject{id:$PROJECT_NUMBER})-[:RESOURCE]->(r:GCPRecordSet) RETURN p.id, r.id;
         """,
-        PROJECT=TEST_PROJECT_NUMBER,
+        PROJECT_NUMBER=TEST_PROJECT_NUMBER,
     )
     actual_proj_rels = {(r["p.id"], r["r.id"]) for r in result}
     expected_proj_rels = {
