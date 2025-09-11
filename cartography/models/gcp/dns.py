@@ -7,9 +7,9 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.core.relationships import make_target_node_matcher
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,9 @@ class GCPRecordSetToProjectRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPRecordSetToProjectRelProperties = GCPRecordSetToProjectRelProperties()
+    properties: GCPRecordSetToProjectRelProperties = (
+        GCPRecordSetToProjectRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -100,6 +102,8 @@ class GCPRecordSetSchema(CartographyNodeSchema):
     properties: GCPRecordSetNodeProperties = GCPRecordSetNodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["DNSRecord"])
     sub_resource_relationship: GCPRecordSetToProjectRel = GCPRecordSetToProjectRel()
-    other_relationships: OtherRelationships = OtherRelationships([
-        GCPRecordSetToZoneRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPRecordSetToZoneRel(),
+        ]
+    )

@@ -1,13 +1,16 @@
 import json
 import logging
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 import neo4j
-from googleapiclient.discovery import HttpError, Resource
+from googleapiclient.discovery import HttpError
+from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.gcp.dns import GCPDNSZoneSchema, GCPRecordSetSchema
+from cartography.models.gcp.dns import GCPDNSZoneSchema
+from cartography.models.gcp.dns import GCPRecordSetSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

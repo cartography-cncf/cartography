@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.gcp.dns
 import tests.data.gcp.dns
@@ -112,9 +113,7 @@ def test_zones_relationships(neo4j_session):
 
 def test_rrs_relationships(neo4j_session):
     # Load Test DNS Zone
-    zones = cartography.intel.gcp.dns.transform_dns_zones(
-        tests.data.gcp.dns.DNS_ZONES
-    )
+    zones = cartography.intel.gcp.dns.transform_dns_zones(tests.data.gcp.dns.DNS_ZONES)
     cartography.intel.gcp.dns.load_dns_zones(
         neo4j_session,
         zones,
@@ -123,9 +122,7 @@ def test_rrs_relationships(neo4j_session):
     )
 
     # Load Test RRS
-    rrs = cartography.intel.gcp.dns.transform_dns_rrs(
-        tests.data.gcp.dns.DNS_RRS
-    )
+    rrs = cartography.intel.gcp.dns.transform_dns_rrs(tests.data.gcp.dns.DNS_RRS)
     cartography.intel.gcp.dns.load_rrs(
         neo4j_session,
         rrs,
