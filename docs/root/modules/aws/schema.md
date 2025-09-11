@@ -2845,7 +2845,7 @@ Representation of an AWS [KMS Key Grant](https://docs.aws.amazon.com/kms/latest/
 
 ### APIGatewayRestAPI
 
-Representation of an AWS [API Gateway REST API](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-rest-api.html).
+Representation of an AWS [API Gateway REST API](https://docs.aws.amazon.com/apigateway/latest/api/API_GetRestApis.html).
 
 | Field | Description |
 |-------|-------------|
@@ -3056,6 +3056,31 @@ Representation of an AWS [API Gateway Integration](https://docs.aws.amazon.com/a
 - AWS API Gateway Integrations are attached to API Gateway Resource .
     ```
     (APIGatewayResource)-[HAS_INTEGRATION]->(APIGatewayIntegration)
+    ```
+
+### APIGatewayV2API
+
+Representation of an AWS [API Gateway v2 API](https://docs.aws.amazon.com/apigatewayv2/latest/api-reference/apis.html#apisget).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The id of the API|
+| name | The name of the API |
+| protocoltype | The protocol type (HTTP or WEBSOCKET) |
+| routeselectionexpression | Expression for selecting routes |
+| apikeyselectionexpression | Expression for selecting API keys |
+| apiendpoint | The endpoint URL of the API |
+| version | The version identifier for the API |
+| createddate | The timestamp when the API was created |
+| region | The region where the API is created |
+
+#### Relationships
+
+- AWS API Gateway v2 APIs are resources in an AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:APIGatewayV2API)
     ```
 
 ### AutoScalingGroup
