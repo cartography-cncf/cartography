@@ -112,6 +112,17 @@ def test_zones_relationships(neo4j_session):
 
 
 def test_rrs_relationships(neo4j_session):
+    # Ensure Test GCPProject exists to allow RESOURCE relationships to be created
+    neo4j_session.run(
+        """
+        MERGE (p:GCPProject{id: $PROJECT_NUMBER})
+        ON CREATE SET p.firstseen = timestamp()
+        SET p.lastupdated = $UPDATE_TAG
+        """,
+        PROJECT_NUMBER=TEST_PROJECT_NUMBER,
+        UPDATE_TAG=TEST_UPDATE_TAG,
+    )
+
     # Load Test DNS Zone
     zones = cartography.intel.gcp.dns.transform_dns_zones(tests.data.gcp.dns.DNS_ZONES)
     cartography.intel.gcp.dns.load_dns_zones(
