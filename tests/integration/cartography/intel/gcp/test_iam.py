@@ -1,5 +1,7 @@
 import cartography.intel.gcp.iam
 import tests.data.gcp.iam
+from cartography.intel.gcp.iam import transform_gcp_roles
+from cartography.intel.gcp.iam import transform_gcp_service_accounts
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -26,9 +28,10 @@ def test_load_gcp_roles(neo4j_session):
     data = tests.data.gcp.iam.LIST_ROLES_RESPONSE["roles"]
 
     # Act
+    roles = transform_gcp_roles(data, TEST_PROJECT_ID)
     cartography.intel.gcp.iam.load_gcp_roles(
         neo4j_session,
-        data,
+        roles,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
     )
@@ -66,9 +69,10 @@ def test_load_gcp_service_accounts(neo4j_session):
     data = tests.data.gcp.iam.LIST_SERVICE_ACCOUNTS_RESPONSE["accounts"]
 
     # Act
+    service_accounts = transform_gcp_service_accounts(data, TEST_PROJECT_ID)
     cartography.intel.gcp.iam.load_gcp_service_accounts(
         neo4j_session,
-        data,
+        service_accounts,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
     )
