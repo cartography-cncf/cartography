@@ -78,6 +78,8 @@ def transform_gcp_buckets(bucket_res: Dict) -> Tuple[List[Dict], List[Dict]]:
                 b.get("iamConfiguration", {}).get("bucketPolicyOnly", {}).get("enabled")
             ),
             "id": b["id"],
+            # Preserve legacy bucket_id field for compatibility
+            "bucket_id": b["id"],
             "owner_entity": b.get("owner", {}).get("entity"),
             "owner_entity_id": b.get("owner", {}).get("entityId"),
             "kind": b.get("kind"),

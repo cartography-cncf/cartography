@@ -14,6 +14,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class GCPBucketNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
+    # Preserve legacy field for compatibility with existing queries
+    bucket_id: PropertyRef = PropertyRef("bucket_id")
     project_number: PropertyRef = PropertyRef("project_number")
     self_link: PropertyRef = PropertyRef("self_link")
     kind: PropertyRef = PropertyRef("kind")
