@@ -30,9 +30,6 @@ from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-Resources = namedtuple(
-    "Resources", "compute container crm_v1 crm_v2 dns storage serviceusage iam"
-)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
@@ -83,152 +80,6 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
         return set()
 
 
-def _sync_single_project_compute(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project on Compute resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine the resources available on the project.
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    compute_cred = build_compute_client(get_gcp_credentials())
-    if service_names.compute in enabled_services:
-        compute.sync(
-            neo4j_session,
-            compute_cred,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-
-
-def _sync_single_project_storage(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project on Storage resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine the resources available on the project.
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    storage_cred = build_storage_client(get_gcp_credentials())
-    if service_names.storage in enabled_services:
-        storage.sync_gcp_buckets(
-            neo4j_session,
-            storage_cred,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-
-
-def _sync_single_project_gke(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project GKE resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine the resources available on the project.
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    container_cred = build_container_client(get_gcp_credentials())
-    if service_names.gke in enabled_services:
-        gke.sync_gke_clusters(
-            neo4j_session,
-            container_cred,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-
-
-def _sync_single_project_dns(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project DNS resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine the resources available on the project.
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    dns_cred = build_dns_client(get_gcp_credentials())
-    if service_names.dns in enabled_services:
-        dns.sync(
-            neo4j_session,
-            dns_cred,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-
-
-def _sync_single_project_iam(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project's IAM resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine if IAM service is enabled
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    iam_cred = build_iam_client(get_gcp_credentials())
-    if service_names.iam in enabled_services:
-        iam.sync(
-            neo4j_session, iam_cred, project_id, gcp_update_tag, common_job_parameters
-        )
-
-
 def _sync_multiple_projects(
     neo4j_session: neo4j.Session,
     resources: Resource,
@@ -255,70 +106,69 @@ def _sync_multiple_projects(
         gcp_update_tag,
         common_job_parameters,
     )
-    # Compute data sync
+    # Per-project sync across services
     for project in projects:
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for Compute.", project_id)
-        _sync_single_project_compute(
-            neo4j_session,
-            resources,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
+        enabled_services = _services_enabled_on_project(
+            resources.serviceusage, project_id
         )
-        del common_job_parameters["PROJECT_ID"]
 
-    # Storage data sync
-    for project in projects:
-        project_id = project["projectId"]
-        common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for Storage", project_id)
-        _sync_single_project_storage(
-            neo4j_session,
-            resources,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-        del common_job_parameters["PROJECT_ID"]
+        if service_names.compute in enabled_services:
+            logger.info("Syncing GCP project %s for Compute.", project_id)
+            compute_cred = build_compute_client(get_gcp_credentials())
+            compute.sync(
+                neo4j_session,
+                compute_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
 
-    # GKE data sync
-    for project in projects:
-        project_id = project["projectId"]
-        common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for GKE", project_id)
-        _sync_single_project_gke(
-            neo4j_session,
-            resources,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-        del common_job_parameters["PROJECT_ID"]
+        if service_names.storage in enabled_services:
+            logger.info("Syncing GCP project %s for Storage.", project_id)
+            storage_cred = build_storage_client(get_gcp_credentials())
+            storage.sync_gcp_buckets(
+                neo4j_session,
+                storage_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
 
-    # DNS data sync
-    for project in projects:
-        project_id = project["projectId"]
-        common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for DNS", project_id)
-        _sync_single_project_dns(
-            neo4j_session,
-            resources,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-        del common_job_parameters["PROJECT_ID"]
+        if service_names.gke in enabled_services:
+            logger.info("Syncing GCP project %s for GKE.", project_id)
+            container_cred = build_container_client(get_gcp_credentials())
+            gke.sync_gke_clusters(
+                neo4j_session,
+                container_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
 
-    # IAM data sync
-    for project in projects:
-        project_id = project["projectId"]
-        common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for IAM", project_id)
-        _sync_single_project_iam(
-            neo4j_session, resources, project_id, gcp_update_tag, common_job_parameters
-        )
+        if service_names.dns in enabled_services:
+            logger.info("Syncing GCP project %s for DNS.", project_id)
+            dns_cred = build_dns_client(get_gcp_credentials())
+            dns.sync(
+                neo4j_session,
+                dns_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.iam in enabled_services:
+            logger.info("Syncing GCP project %s for IAM.", project_id)
+            iam_cred = build_iam_client(get_gcp_credentials())
+            iam.sync(
+                neo4j_session,
+                iam_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
         del common_job_parameters["PROJECT_ID"]
 
 
