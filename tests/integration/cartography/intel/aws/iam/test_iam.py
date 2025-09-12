@@ -173,11 +173,9 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
 
 @mock.patch.object(cartography.intel.aws.iam, "get_saml_providers")
 def test_sync_saml_providers(mock_get_saml, neo4j_session):
-    # Arrange
     _create_base_account(neo4j_session)
     mock_get_saml.return_value = tests.data.aws.iam.LIST_SAML_PROVIDERS
 
-    # Act
     cartography.intel.aws.iam.sync(
         neo4j_session,
         mock.MagicMock(),
@@ -187,8 +185,7 @@ def test_sync_saml_providers(mock_get_saml, neo4j_session):
         {},
     )
 
-    # Assert
-    nodes = check_nodes(neo4j_session, "AWSSAMLProvider", ["arn"])  # type: ignore[arg-type]
+    nodes = check_nodes(neo4j_session, "AWSSAMLProvider", ["arn"])  
     expected = {
         ("arn:aws:iam::000000000000:saml-provider/ADFS",),
         ("arn:aws:iam::000000000000:saml-provider/Okta",),
