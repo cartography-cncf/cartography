@@ -3,16 +3,10 @@ import logging
 from collections import namedtuple
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import Set
 
-import googleapiclient.discovery
-import httplib2
 import neo4j
-from google.auth import default
-from google.auth.credentials import Credentials as GoogleCredentials
-from google.auth.exceptions import DefaultCredentialsError
-from google_auth_httplib2 import AuthorizedHttp
+from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
 from cartography.config import Config
@@ -21,6 +15,13 @@ from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
+from cartography.intel.gcp.clients import build_compute_client
+from cartography.intel.gcp.clients import build_container_client
+from cartography.intel.gcp.clients import build_dns_client
+from cartography.intel.gcp.clients import build_iam_client
+from cartography.intel.gcp.clients import build_storage_client
+from cartography.intel.gcp.clients import get_gcp_credentials
+from cartography.intel.gcp.clients import initialize_clients
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import get_gcp_projects
@@ -43,160 +44,6 @@ service_names = Services(
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
 )
-
-# Default HTTP timeout (seconds) for Google API clients built via discovery.build
-_GCP_HTTP_TIMEOUT = 120
-
-
-def _authorized_http_with_timeout(
-    credentials: GoogleCredentials, timeout: int = _GCP_HTTP_TIMEOUT
-) -> AuthorizedHttp:
-    """
-    Build an AuthorizedHttp with a per-request timeout, avoiding global socket timeouts.
-    """
-    return AuthorizedHttp(credentials, http=httplib2.Http(timeout=timeout))
-
-
-def _get_crm_resource_v1(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Compute Resource Manager v1 resource object to call the Resource Manager API.
-    See https://cloud.google.com/resource-manager/reference/rest/.
-    :param credentials: The GoogleCredentials object
-    :return: A CRM v1 resource object
-    """
-    # cache_discovery=False to suppress extra warnings.
-    # See https://github.com/googleapis/google-api-python-client/issues/299#issuecomment-268915510 and related issues
-    return googleapiclient.discovery.build(
-        "cloudresourcemanager",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def _get_crm_resource_v2(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Compute Resource Manager v2 resource object to call the Resource Manager API.
-    We need a v2 resource object to query for GCP folders.
-    :param credentials: The GoogleCredentials object
-    :return: A CRM v2 resource object
-    """
-    return googleapiclient.discovery.build(
-        "cloudresourcemanager",
-        "v2",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def _get_compute_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Compute resource object to call the Compute API. This is used to pull zone, instance, and
-    networking data. See https://cloud.google.com/compute/docs/reference/rest/v1/.
-    :param credentials: The GoogleCredentials object
-    :return: A Compute resource object
-    """
-    return googleapiclient.discovery.build(
-        "compute",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def _get_storage_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Cloud Storage resource object to call the Storage API.
-    This is used to pull bucket metadata and IAM Policies
-    as well as list buckets in a specified project.
-    See https://cloud.google.com/storage/docs/json_api/.
-    :param credentials: The GoogleCredentials object
-    :return: A Storage resource object
-    """
-    return googleapiclient.discovery.build(
-        "storage",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def _get_container_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Cloud Container resource object to call the
-    Container API. See: https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/.
-
-    :param credentials: The GoogleCredentials object
-    :return: A Container resource object
-    """
-    return googleapiclient.discovery.build(
-        "container",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def _get_dns_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Cloud DNS resource object to call the
-    Container API. See: https://cloud.google.com/dns/docs/reference/v1/.
-
-    :param credentials: The GoogleCredentials object
-    :return: A DNS resource object
-    """
-    return googleapiclient.discovery.build(
-        "dns",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def _get_serviceusage_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a serviceusage resource object.
-    See: https://cloud.google.com/service-usage/docs/reference/rest/v1/operations/list.
-
-    :param credentials: The GoogleCredentials object
-    :return: A serviceusage resource object
-    """
-    return googleapiclient.discovery.build(
-        "serviceusage",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def _get_iam_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google IAM resource object to call the IAM API.
-    """
-    return googleapiclient.discovery.build(
-        "iam",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def _initialize_resources(credentials: GoogleCredentials) -> Resource:
-    """
-    Create namedtuple of all resource objects necessary for GCP data gathering.
-    :param credentials: The GoogleCredentials object
-    :return: namedtuple of all resource objects
-    """
-    return Resources(
-        crm_v1=_get_crm_resource_v1(credentials),
-        crm_v2=_get_crm_resource_v2(credentials),
-        serviceusage=_get_serviceusage_resource(credentials),
-        compute=None,
-        container=None,
-        dns=None,
-        storage=None,
-        iam=_get_iam_resource(credentials),
-    )
 
 
 def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set:
@@ -223,7 +70,7 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
                 previous_response=res,
             )
         return services
-    except googleapiclient.discovery.HttpError as http_error:
+    except HttpError as http_error:
         http_error = json.loads(http_error.content.decode("utf-8"))
         # This is set to log-level `info` because Google creates many projects under the hood that cartography cannot
         # audit (e.g. adding a script to a Google spreadsheet causes a project to get created) and we don't need to emit
@@ -255,7 +102,7 @@ def _sync_single_project_compute(
     """
     # Determine the resources available on the project.
     enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    compute_cred = _get_compute_resource(get_gcp_credentials())
+    compute_cred = build_compute_client(get_gcp_credentials())
     if service_names.compute in enabled_services:
         compute.sync(
             neo4j_session,
@@ -285,7 +132,7 @@ def _sync_single_project_storage(
     """
     # Determine the resources available on the project.
     enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    storage_cred = _get_storage_resource(get_gcp_credentials())
+    storage_cred = build_storage_client(get_gcp_credentials())
     if service_names.storage in enabled_services:
         storage.sync_gcp_buckets(
             neo4j_session,
@@ -315,7 +162,7 @@ def _sync_single_project_gke(
     """
     # Determine the resources available on the project.
     enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    container_cred = _get_container_resource(get_gcp_credentials())
+    container_cred = build_container_client(get_gcp_credentials())
     if service_names.gke in enabled_services:
         gke.sync_gke_clusters(
             neo4j_session,
@@ -345,7 +192,7 @@ def _sync_single_project_dns(
     """
     # Determine the resources available on the project.
     enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    dns_cred = _get_dns_resource(get_gcp_credentials())
+    dns_cred = build_dns_client(get_gcp_credentials())
     if service_names.dns in enabled_services:
         dns.sync(
             neo4j_session,
@@ -375,7 +222,7 @@ def _sync_single_project_iam(
     """
     # Determine if IAM service is enabled
     enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    iam_cred = _get_iam_resource(get_gcp_credentials())
+    iam_cred = build_iam_client(get_gcp_credentials())
     if service_names.iam in enabled_services:
         iam.sync(
             neo4j_session, iam_cred, project_id, gcp_update_tag, common_job_parameters
@@ -476,39 +323,6 @@ def _sync_multiple_projects(
 
 
 @timeit
-def get_gcp_credentials() -> Optional[GoogleCredentials]:
-    """
-    Gets access tokens for GCP API access.
-    :param: None
-    :return: GoogleCredentials
-    """
-    try:
-        # Explicitly use Application Default Credentials with the cloud-platform scope.
-        # Some versions of google-auth/google-api-python-client require explicit scopes for service accounts;
-        # without this, token refresh may fail with `invalid_scope`.
-        # See: https://cloud.google.com/docs/authentication#calling
-        credentials, project_id = default(
-            scopes=["https://www.googleapis.com/auth/cloud-platform"],
-        )
-        return credentials
-    except DefaultCredentialsError as e:
-        logger.debug(
-            "Error occurred calling GoogleCredentials.get_application_default().",
-            exc_info=True,
-        )
-        logger.error(
-            (
-                "Unable to initialize Google Compute Platform creds. If you don't have GCP data or don't want to load "
-                "GCP data then you can ignore this message. Otherwise, the error code is: %s "
-                "Make sure your GCP credentials are configured correctly, your credentials file (if any) is valid, and "
-                "that the identity you are authenticating to has the securityReviewer role attached."
-            ),
-            e,
-        )
-    return None
-
-
-@timeit
 def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
     Starts the GCP ingestion process by initializing Google Application Default Credentials, creating the necessary
@@ -527,7 +341,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         logger.warning("Unable to initialize GCP credentials. Skipping module.")
         return
 
-    resources = _initialize_resources(credentials)
+    resources = initialize_clients(credentials)
 
     # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
     sync_gcp_organizations(
