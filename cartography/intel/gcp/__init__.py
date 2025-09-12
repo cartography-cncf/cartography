@@ -385,6 +385,7 @@ def _sync_multiple_projects(
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
+    org_ids: Optional[Set[str]] = None,
 ) -> None:
     """
     Handles graph sync for multiple GCP projects.
@@ -404,6 +405,7 @@ def _sync_multiple_projects(
         projects,
         gcp_update_tag,
         common_job_parameters,
+        org_ids,
     )
     # Compute data sync
     for project in projects:
@@ -527,7 +529,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     resources = _initialize_resources(credentials)
 
     # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
-    crm.sync_gcp_organizations(
+    org_ids = crm.sync_gcp_organizations(
         neo4j_session,
         resources.crm_v1,
         config.update_tag,
@@ -540,7 +542,18 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
     )
 
+    # Build mapping of organization -> list of its projects using v3 search
+    org_to_projects: dict[str, list[dict]] = {}
+    for org_name in org_ids:
+        # org_name is like 'organizations/123456789012'
+        org_numeric = org_name.split("/")[-1]
+        org_projects = crm.get_gcp_projects_for_org_v3(org_numeric)
+        org_to_projects[org_name] = org_projects
+
     projects = crm.get_gcp_projects(resources.crm_v1)
+
+    # Build org_ids set from v3 mapping (values are 'organizations/<id>')
+    org_ids = set(org_to_projects.keys())
 
     _sync_multiple_projects(
         neo4j_session,
@@ -548,6 +561,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         projects,
         config.update_tag,
         common_job_parameters,
+        org_ids,
     )
 
     run_analysis_job(

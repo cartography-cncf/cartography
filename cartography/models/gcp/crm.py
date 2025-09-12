@@ -6,9 +6,9 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.core.relationships import make_target_node_matcher
 
 
 @dataclass(frozen=True)
@@ -28,10 +28,14 @@ class GCPOrganizationToGCPProjectRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class GCPOrganizationToGCPProjectRel(CartographyRelSchema):
+    # Represents the tenant relationship: (:GCPProject)<-[:RESOURCE]-(:GCPOrganization)
     target_node_label: str = "GCPOrganization"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("organization_parent"),
-    })
+    # Tenant id supplied via kwargs during load/cleanup to support scoped cleanup per org
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("ORG_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: GCPOrganizationToGCPProjectRelProperties = (
@@ -47,9 +51,11 @@ class GCPFolderToGCPProjectRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class GCPFolderToGCPProjectRel(CartographyRelSchema):
     target_node_label: str = "GCPFolder"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("folder_parent"),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("parent_folder"),
+        }
+    )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: GCPFolderToGCPProjectRelProperties = (
@@ -61,7 +67,13 @@ class GCPFolderToGCPProjectRel(CartographyRelSchema):
 class GCPProjectSchema(CartographyNodeSchema):
     label: str = "GCPProject"
     properties: GCPProjectNodeProperties = GCPProjectNodeProperties()
-    other_relationships: OtherRelationships = OtherRelationships([
-        GCPOrganizationToGCPProjectRel(),
-        GCPFolderToGCPProjectRel(),
-    ])
+    # Organization is the tenant-like object for Projects
+    sub_resource_relationship: GCPOrganizationToGCPProjectRel = (
+        GCPOrganizationToGCPProjectRel()
+    )
+    # Folders indicate placement within the hierarchy and are modeled as an additional relationship
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPFolderToGCPProjectRel(),
+        ]
+    )
