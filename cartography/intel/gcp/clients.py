@@ -1,5 +1,4 @@
 import logging
-from collections import namedtuple
 from typing import Optional
 
 import googleapiclient.discovery
@@ -47,34 +46,6 @@ def build_client(service: str, version: str = "v1") -> Resource:
     )
     _CLIENT_CACHE[key] = client
     return client
-
-
-GCPClients = namedtuple(
-    "GCPClients",
-    "compute container crm_v1 crm_v2 dns storage serviceusage iam",
-)
-
-
-def initialize_clients() -> GCPClients:
-    """
-    Create namedtuple of all client objects necessary for GCP data gathering.
-    Lazily build heavier per-project clients later.
-    """
-    credentials = get_gcp_credentials()
-    if credentials is None:
-        raise RuntimeError(
-            "GCP credentials are not available; cannot initialize clients."
-        )
-    return GCPClients(
-        crm_v1=build_client("cloudresourcemanager", "v1"),
-        crm_v2=build_client("cloudresourcemanager", "v2"),
-        serviceusage=build_client("serviceusage", "v1"),
-        compute=None,
-        container=None,
-        dns=None,
-        storage=None,
-        iam=build_client("iam", "v1"),
-    )
 
 
 def get_gcp_credentials() -> Optional[GoogleCredentials]:

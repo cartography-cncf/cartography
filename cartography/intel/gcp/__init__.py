@@ -16,8 +16,6 @@ from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_client
-from cartography.intel.gcp.clients import get_gcp_credentials
-from cartography.intel.gcp.clients import initialize_clients
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import get_gcp_projects
@@ -78,7 +76,6 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
 
 def _sync_multiple_projects(
     neo4j_session: neo4j.Session,
-    resources: Resource,
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
@@ -107,7 +104,7 @@ def _sync_multiple_projects(
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id
         enabled_services = _services_enabled_on_project(
-            resources.serviceusage, project_id
+            build_client("serviceusage", "v1"), project_id
         )
 
         if service_names.compute in enabled_services:
@@ -182,35 +179,23 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
     }
 
-    credentials = get_gcp_credentials()
-    if credentials is None:
-        logger.warning("Unable to initialize GCP credentials. Skipping module.")
+    try:
+        crm_v1 = build_client("cloudresourcemanager", "v1")
+        crm_v2 = build_client("cloudresourcemanager", "v2")
+    except RuntimeError as e:
+        logger.warning(f"Unable to initialize GCP clients; skipping module: {e}")
         return
-
-    resources = initialize_clients()
 
     # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
     sync_gcp_organizations(
-        neo4j_session,
-        resources.crm_v1,
-        config.update_tag,
-        common_job_parameters,
+        neo4j_session, crm_v1, config.update_tag, common_job_parameters
     )
-    sync_gcp_folders(
-        neo4j_session,
-        resources.crm_v2,
-        config.update_tag,
-        common_job_parameters,
-    )
+    sync_gcp_folders(neo4j_session, crm_v2, config.update_tag, common_job_parameters)
 
-    projects = get_gcp_projects(resources.crm_v1)
+    projects = get_gcp_projects(crm_v1)
 
     _sync_multiple_projects(
-        neo4j_session,
-        resources,
-        projects,
-        config.update_tag,
-        common_job_parameters,
+        neo4j_session, projects, config.update_tag, common_job_parameters
     )
 
     run_analysis_job(
