@@ -15,11 +15,7 @@ from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
-from cartography.intel.gcp.clients import build_compute_client
-from cartography.intel.gcp.clients import build_container_client
-from cartography.intel.gcp.clients import build_dns_client
-from cartography.intel.gcp.clients import build_iam_client
-from cartography.intel.gcp.clients import build_storage_client
+from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
 from cartography.intel.gcp.clients import initialize_clients
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
@@ -116,7 +112,7 @@ def _sync_multiple_projects(
 
         if service_names.compute in enabled_services:
             logger.info("Syncing GCP project %s for Compute.", project_id)
-            compute_cred = build_compute_client(get_gcp_credentials())
+            compute_cred = build_client("compute", "v1")
             compute.sync(
                 neo4j_session,
                 compute_cred,
@@ -127,7 +123,7 @@ def _sync_multiple_projects(
 
         if service_names.storage in enabled_services:
             logger.info("Syncing GCP project %s for Storage.", project_id)
-            storage_cred = build_storage_client(get_gcp_credentials())
+            storage_cred = build_client("storage", "v1")
             storage.sync_gcp_buckets(
                 neo4j_session,
                 storage_cred,
@@ -138,7 +134,7 @@ def _sync_multiple_projects(
 
         if service_names.gke in enabled_services:
             logger.info("Syncing GCP project %s for GKE.", project_id)
-            container_cred = build_container_client(get_gcp_credentials())
+            container_cred = build_client("container", "v1")
             gke.sync_gke_clusters(
                 neo4j_session,
                 container_cred,
@@ -149,7 +145,7 @@ def _sync_multiple_projects(
 
         if service_names.dns in enabled_services:
             logger.info("Syncing GCP project %s for DNS.", project_id)
-            dns_cred = build_dns_client(get_gcp_credentials())
+            dns_cred = build_client("dns", "v1")
             dns.sync(
                 neo4j_session,
                 dns_cred,
@@ -160,7 +156,7 @@ def _sync_multiple_projects(
 
         if service_names.iam in enabled_services:
             logger.info("Syncing GCP project %s for IAM.", project_id)
-            iam_cred = build_iam_client(get_gcp_credentials())
+            iam_cred = build_client("iam", "v1")
             iam.sync(
                 neo4j_session,
                 iam_cred,
@@ -191,7 +187,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         logger.warning("Unable to initialize GCP credentials. Skipping module.")
         return
 
-    resources = initialize_clients(credentials)
+    resources = initialize_clients()
 
     # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
     sync_gcp_organizations(

@@ -15,6 +15,11 @@ logger = logging.getLogger(__name__)
 # Default HTTP timeout (seconds) for Google API clients built via discovery.build
 _GCP_HTTP_TIMEOUT = 120
 
+# Simple in-process cache for discovery clients. Keyed by (service, version).
+# Assumes one identity per process (Cartography run). If that changes later,
+# include an identity component in the key.
+_CLIENT_CACHE: dict[tuple[str, str], Resource] = {}
+
 
 def _authorized_http_with_timeout(
     credentials: GoogleCredentials,
@@ -26,76 +31,22 @@ def _authorized_http_with_timeout(
     return AuthorizedHttp(credentials, http=httplib2.Http(timeout=timeout))
 
 
-def build_crm_v1_client(credentials: GoogleCredentials) -> Resource:
-    return googleapiclient.discovery.build(
-        "cloudresourcemanager",
-        "v1",
+def build_client(service: str, version: str = "v1") -> Resource:
+    key = (service, version)
+    cached = _CLIENT_CACHE.get(key)
+    if cached is not None:
+        return cached
+    credentials = get_gcp_credentials()
+    if credentials is None:
+        raise RuntimeError("GCP credentials are not available; cannot build client.")
+    client = googleapiclient.discovery.build(
+        service,
+        version,
         http=_authorized_http_with_timeout(credentials),
         cache_discovery=False,
     )
-
-
-def build_crm_v2_client(credentials: GoogleCredentials) -> Resource:
-    return googleapiclient.discovery.build(
-        "cloudresourcemanager",
-        "v2",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def build_compute_client(credentials: GoogleCredentials) -> Resource:
-    return googleapiclient.discovery.build(
-        "compute",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def build_storage_client(credentials: GoogleCredentials) -> Resource:
-    return googleapiclient.discovery.build(
-        "storage",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def build_container_client(credentials: GoogleCredentials) -> Resource:
-    return googleapiclient.discovery.build(
-        "container",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def build_dns_client(credentials: GoogleCredentials) -> Resource:
-    return googleapiclient.discovery.build(
-        "dns",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def build_serviceusage_client(credentials: GoogleCredentials) -> Resource:
-    return googleapiclient.discovery.build(
-        "serviceusage",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
-
-
-def build_iam_client(credentials: GoogleCredentials) -> Resource:
-    return googleapiclient.discovery.build(
-        "iam",
-        "v1",
-        http=_authorized_http_with_timeout(credentials),
-        cache_discovery=False,
-    )
+    _CLIENT_CACHE[key] = client
+    return client
 
 
 GCPClients = namedtuple(
@@ -104,20 +55,25 @@ GCPClients = namedtuple(
 )
 
 
-def initialize_clients(credentials: GoogleCredentials) -> GCPClients:
+def initialize_clients() -> GCPClients:
     """
     Create namedtuple of all client objects necessary for GCP data gathering.
     Lazily build heavier per-project clients later.
     """
+    credentials = get_gcp_credentials()
+    if credentials is None:
+        raise RuntimeError(
+            "GCP credentials are not available; cannot initialize clients."
+        )
     return GCPClients(
-        crm_v1=build_crm_v1_client(credentials),
-        crm_v2=build_crm_v2_client(credentials),
-        serviceusage=build_serviceusage_client(credentials),
+        crm_v1=build_client("cloudresourcemanager", "v1"),
+        crm_v2=build_client("cloudresourcemanager", "v2"),
+        serviceusage=build_client("serviceusage", "v1"),
         compute=None,
         container=None,
         dns=None,
         storage=None,
-        iam=build_iam_client(credentials),
+        iam=build_client("iam", "v1"),
     )
 
 
