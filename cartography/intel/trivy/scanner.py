@@ -205,6 +205,7 @@ def sync_single_image(
         load_scan_vulns(neo4j_session, findings_list, update_tag=update_tag)
         load_scan_packages(neo4j_session, packages_list, update_tag=update_tag)
         load_scan_fixes(neo4j_session, fixes_list, update_tag=update_tag)
+
         stat_handler.incr("images_processed_count")
 
     except Exception as e:
