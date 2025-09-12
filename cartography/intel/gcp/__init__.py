@@ -17,11 +17,14 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.intel.gcp import compute
-from cartography.intel.gcp import crm
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
+from cartography.intel.gcp.crm.folders import sync_gcp_folders
+from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
+from cartography.intel.gcp.crm.projects import get_gcp_projects
+from cartography.intel.gcp.crm.projects import sync_gcp_projects
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -399,7 +402,7 @@ def _sync_multiple_projects(
     :return: Nothing
     """
     logger.info("Syncing %d GCP projects.", len(projects))
-    crm.sync_gcp_projects(
+    sync_gcp_projects(
         neo4j_session,
         projects,
         gcp_update_tag,
@@ -527,20 +530,20 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     resources = _initialize_resources(credentials)
 
     # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
-    crm.sync_gcp_organizations(
+    sync_gcp_organizations(
         neo4j_session,
         resources.crm_v1,
         config.update_tag,
         common_job_parameters,
     )
-    crm.sync_gcp_folders(
+    sync_gcp_folders(
         neo4j_session,
         resources.crm_v2,
         config.update_tag,
         common_job_parameters,
     )
 
-    projects = crm.get_gcp_projects(resources.crm_v1)
+    projects = get_gcp_projects(resources.crm_v1)
 
     _sync_multiple_projects(
         neo4j_session,
