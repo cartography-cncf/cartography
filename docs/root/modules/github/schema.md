@@ -11,7 +11,7 @@ U -- UNAFFILIATED --> O
 U -- OWNER --> R
 U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
-U -- COMMITTED_TO_L30D --> R
+U -- COMMITTED_TO --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
 R -- REQUIRES --> D(Dependency)
@@ -91,7 +91,7 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 - GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
 
   ```
-  (GitHubUser)-[:COMMITTED_TO_L30D]->(GitHubRepository)
+  (GitHubUser)-[:COMMITTED_TO]->(GitHubRepository)
   ```
 
   This relationship includes the following properties:
@@ -259,7 +259,7 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 - GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
 
     ```
-    (GitHubUser)-[:COMMITTED_TO_L30D]->(GitHubRepository)
+    (GitHubUser)-[:COMMITTED_TO]->(GitHubRepository)
     ```
 
     This relationship includes the following properties:

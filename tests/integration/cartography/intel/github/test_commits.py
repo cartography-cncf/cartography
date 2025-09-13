@@ -82,7 +82,7 @@ def test_sync_github_commits(mock_get_commits, neo4j_session):
         "id",
         "GitHubRepository",
         "id",
-        "COMMITTED_TO_L30D",
+        "COMMITTED_TO",
         rel_direction_right=True,
     )
 

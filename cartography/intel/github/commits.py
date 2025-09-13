@@ -8,7 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
-from cartography.intel.github.util import fetch_all
+from cartography.intel.github.util import fetch_page
 from cartography.models.github.commits import GitHubUserCommittedToRepoRel
 from cartography.util import timeit
 
@@ -76,18 +76,54 @@ def get_repo_commits_l30d(
 
     logger.debug(f"Fetching commits for {organization}/{repo_name} since {since_iso}")
 
-    commits_data, _ = fetch_all(
-        token,
-        api_url,
-        organization,
-        GITHUB_REPO_COMMITS_PAGINATED_GRAPHQL,
-        "repository",
-        resource_inner_type="defaultBranchRef.target.history",
-        repo=repo_name,
-        since=since_iso,
-    )
+    all_commits = []
+    cursor = None
+    has_next_page = True
 
-    return commits_data.nodes if commits_data else []
+    while has_next_page:
+        response = fetch_page(
+            token,
+            api_url,
+            organization,
+            GITHUB_REPO_COMMITS_PAGINATED_GRAPHQL,
+            cursor,
+            repo=repo_name,
+            since=since_iso,
+        )
+
+        # Navigate to the nested commit history
+        repo_data = response.get("data", {}).get("organization", {}).get("repository")
+        if not repo_data:
+            logger.warning(f"No repository data found for {organization}/{repo_name}")
+            break
+
+        default_branch = repo_data.get("defaultBranchRef")
+        if not default_branch:
+            logger.debug(f"Repository {organization}/{repo_name} has no default branch")
+            break
+
+        target = default_branch.get("target")
+        if not target:
+            logger.debug(
+                f"Repository {organization}/{repo_name} default branch has no target"
+            )
+            break
+
+        history = target.get("history")
+        if not history:
+            logger.debug(f"Repository {organization}/{repo_name} has no commit history")
+            break
+
+        # Add commits from this page
+        commits = history.get("nodes", [])
+        all_commits.extend(commits)
+
+        # Check pagination
+        page_info = history.get("pageInfo", {})
+        has_next_page = page_info.get("hasNextPage", False)
+        cursor = page_info.get("endCursor")
+
+    return all_commits
 
 
 def process_repo_commits_batch(

@@ -21,7 +21,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class GitHubUserCommittedToRepoRelProperties(CartographyRelProperties):
     """
-    Properties for the COMMITTED_TO_L30D relationship between GitHubUser and GitHubRepository.
+    Properties for the COMMITTED_TO relationship between GitHubUser and GitHubRepository.
     """
 
     # Required for all MatchLinks
@@ -57,7 +57,7 @@ class GitHubUserCommittedToRepoRel(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "COMMITTED_TO_L30D"
+    rel_label: str = "COMMITTED_TO"
     properties: GitHubUserCommittedToRepoRelProperties = (
         GitHubUserCommittedToRepoRelProperties()
     )
