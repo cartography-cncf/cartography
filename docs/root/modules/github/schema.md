@@ -20,7 +20,7 @@ M -- HAS_DEP --> D
 T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
-U -- MAINTENER --> T
+U -- MAINTAINER --> T
 ```
 
 ### GitHubRepository
