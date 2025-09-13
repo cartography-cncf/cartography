@@ -10,11 +10,23 @@ TEST_UPDATE_TAG = 123456789
 
 
 def _ensure_local_neo4j_has_test_storage_bucket_data(neo4j_session):
+    # Create test project first
+    _create_test_project(neo4j_session)
+
     bucket_res = tests.data.gcp.storage.STORAGE_RESPONSE
-    bucket_list = cartography.intel.gcp.storage.transform_gcp_buckets(bucket_res)
+    buckets, bucket_labels = (
+        cartography.intel.gcp.storage.transform_gcp_buckets_and_labels(bucket_res)
+    )
     cartography.intel.gcp.storage.load_gcp_buckets(
         neo4j_session,
-        bucket_list,
+        buckets,
+        "project-abc",  # project_id parameter
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.gcp.storage.load_gcp_bucket_labels(
+        neo4j_session,
+        bucket_labels,
+        "project-abc",  # project_id parameter
         TEST_UPDATE_TAG,
     )
 
@@ -69,6 +81,19 @@ def test_attach_storage_bucket_labels(neo4j_session):
     assert actual_nodes == expected_nodes
 
 
+def _create_test_project(neo4j_session):
+    # Create Test GCP Project
+    neo4j_session.run(
+        """
+        MERGE (project:GCPProject{id: $project_id})
+        ON CREATE SET project.firstseen = timestamp()
+        SET project.lastupdated = $update_tag
+        """,
+        project_id="project-abc",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.gcp.storage,
     "get_gcp_buckets",
@@ -77,6 +102,10 @@ def test_attach_storage_bucket_labels(neo4j_session):
 def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"}
     """Test sync_gcp_buckets() loads buckets and creates relationships."""
+
+    # Arrange - Create test project
+    _create_test_project(neo4j_session)
+
     # Act
     cartography.intel.gcp.storage.sync_gcp_buckets(
         neo4j_session,
@@ -109,13 +138,13 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     assert check_rels(
         neo4j_session,
         "GCPProject",
-        "projectnumber",
+        "id",
         "GCPBucket",
         "id",
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (9999, "bucket_name"),
+        ("project-abc", "bucket_name"),
     }
     assert check_rels(
         neo4j_session,
@@ -128,4 +157,16 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     ) == {
         ("bucket_name", "GCPBucket_label_key_1"),
         ("bucket_name", "GCPBucket_label_key_2"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPBucketLabel",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        ("project-abc", "GCPBucket_label_key_1"),
+        ("project-abc", "GCPBucket_label_key_2"),
     }

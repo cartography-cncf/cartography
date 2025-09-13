@@ -1,13 +1,17 @@
 import logging
 from typing import Dict
 from typing import List
+from typing import Tuple
 
 import neo4j
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
 from cartography.intel.gcp import compute
-from cartography.util import run_cleanup_job
+from cartography.models.gcp.storage.bucket import GCPBucketLabelSchema
+from cartography.models.gcp.storage.bucket import GCPBucketSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -58,165 +62,85 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
 
 
 @timeit
-def transform_gcp_buckets(bucket_res: Dict) -> List[Dict]:
+def transform_gcp_buckets_and_labels(bucket_res: Dict) -> Tuple[List[Dict], List[Dict]]:
     """
-    Transform the GCP Storage Bucket response object for Neo4j ingestion
+    Transform the GCP Storage Bucket response object for Neo4j ingestion.
 
-    :type bucket_res: The GCP storage resource object (https://cloud.google.com/storage/docs/json_api/v1/buckets)
-    :param bucket_res: The return data
-
-    :rtype: list
-    :return: List of buckets ready for ingestion to Neo4j
+    :param bucket_res: The raw GCP bucket response.
+    :return: A tuple of (buckets, bucket_labels) ready for ingestion to Neo4j.
     """
 
-    bucket_list = []
+    buckets: List[Dict] = []
+    labels: List[Dict] = []
     for b in bucket_res.get("items", []):
-        bucket = {}
-        bucket["etag"] = b.get("etag")
-        bucket["iam_config_bucket_policy_only"] = (
-            b.get("iamConfiguration", {})
-            .get("bucketPolicyOnly", {})
-            .get("enabled", None)
-        )
-        bucket["id"] = b["id"]
-        bucket["labels"] = [(key, val) for (key, val) in b.get("labels", {}).items()]
-        bucket["owner_entity"] = b.get("owner", {}).get("entity")
-        bucket["owner_entity_id"] = b.get("owner", {}).get("entityId")
-        bucket["kind"] = b.get("kind")
-        bucket["location"] = b.get("location")
-        bucket["location_type"] = b.get("locationType")
-        bucket["meta_generation"] = b.get("metageneration", None)
-        bucket["project_number"] = b["projectNumber"]
-        bucket["self_link"] = b.get("selfLink")
-        bucket["storage_class"] = b.get("storageClass")
-        bucket["time_created"] = b.get("timeCreated")
-        bucket["updated"] = b.get("updated")
-        bucket["versioning_enabled"] = b.get("versioning", {}).get("enabled", None)
-        bucket["default_event_based_hold"] = b.get("defaultEventBasedHold", None)
-        bucket["retention_period"] = b.get("retentionPolicy", {}).get(
-            "retentionPeriod",
-            None,
-        )
-        bucket["default_kms_key_name"] = b.get("encryption", {}).get(
-            "defaultKmsKeyName",
-        )
-        bucket["log_bucket"] = b.get("logging", {}).get("logBucket")
-        bucket["requester_pays"] = b.get("billing", {}).get("requesterPays", None)
-        bucket_list.append(bucket)
-    return bucket_list
+        bucket = {
+            "iam_config_bucket_policy_only": (
+                b.get("iamConfiguration", {}).get("bucketPolicyOnly", {}).get("enabled")
+            ),
+            "id": b["id"],
+            # Preserve legacy bucket_id field for compatibility
+            "bucket_id": b["id"],
+            "owner_entity": b.get("owner", {}).get("entity"),
+            "owner_entity_id": b.get("owner", {}).get("entityId"),
+            "kind": b.get("kind"),
+            "location": b.get("location"),
+            "location_type": b.get("locationType"),
+            "meta_generation": b.get("metageneration"),
+            "project_number": b.get("projectNumber"),
+            "self_link": b.get("selfLink"),
+            "storage_class": b.get("storageClass"),
+            "time_created": b.get("timeCreated"),
+            "versioning_enabled": b.get("versioning", {}).get("enabled"),
+            "retention_period": b.get("retentionPolicy", {}).get("retentionPeriod"),
+            "default_kms_key_name": b.get("encryption", {}).get("defaultKmsKeyName"),
+            "log_bucket": b.get("logging", {}).get("logBucket"),
+            "requester_pays": b.get("billing", {}).get("requesterPays"),
+        }
+        buckets.append(bucket)
+        for key, val in b.get("labels", {}).items():
+            labels.append(
+                {
+                    "id": f"GCPBucket_{key}",
+                    "key": key,
+                    "value": val,
+                    "bucket_id": b["id"],
+                }
+            )
+    return buckets, labels
 
 
 @timeit
 def load_gcp_buckets(
     neo4j_session: neo4j.Session,
     buckets: List[Dict],
+    project_id: str,
     gcp_update_tag: int,
 ) -> None:
-    """
-    Ingest GCP Storage Buckets to Neo4j
-
-    :type neo4j_session: Neo4j session object
-    :param neo4j session: The Neo4j session object
-
-    :type buckets: list
-    :param buckets: List of GCP Storage Buckets to injest
-
-    :type gcp_update_tag: timestamp
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-
-    :rtype: NoneType
-    :return: Nothing
-    """
-
-    query = """
-    MERGE(p:GCPProject{projectnumber:$ProjectNumber})
-    ON CREATE SET p.firstseen = timestamp()
-    SET p.lastupdated = $gcp_update_tag
-
-    MERGE(bucket:GCPBucket{id:$BucketId})
-    ON CREATE SET bucket.firstseen = timestamp(),
-    bucket.bucket_id = $BucketId
-    SET bucket.self_link = $SelfLink,
-    bucket.project_number = $ProjectNumber,
-    bucket.kind = $Kind,
-    bucket.location = $Location,
-    bucket.location_type = $LocationType,
-    bucket.meta_generation = $MetaGeneration,
-    bucket.storage_class = $StorageClass,
-    bucket.time_created = $TimeCreated,
-    bucket.retention_period = $RetentionPeriod,
-    bucket.iam_config_bucket_policy_only = $IamConfigBucketPolicyOnly,
-    bucket.owner_entity = $OwnerEntity,
-    bucket.owner_entity_id = $OwnerEntityId,
-    bucket.lastupdated = $gcp_update_tag,
-    bucket.versioning_enabled = $VersioningEnabled,
-    bucket.log_bucket = $LogBucket,
-    bucket.requester_pays = $RequesterPays,
-    bucket.default_kms_key_name = $DefaultKmsKeyName
-
-    MERGE (p)-[r:RESOURCE]->(bucket)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $gcp_update_tag
-    """
-    for bucket in buckets:
-        neo4j_session.run(
-            query,
-            ProjectNumber=bucket["project_number"],
-            BucketId=bucket["id"],
-            SelfLink=bucket["self_link"],
-            Kind=bucket["kind"],
-            Location=bucket["location"],
-            LocationType=bucket["location_type"],
-            MetaGeneration=bucket["meta_generation"],
-            StorageClass=bucket["storage_class"],
-            TimeCreated=bucket["time_created"],
-            RetentionPeriod=bucket["retention_period"],
-            IamConfigBucketPolicyOnly=bucket["iam_config_bucket_policy_only"],
-            OwnerEntity=bucket["owner_entity"],
-            OwnerEntityId=bucket["owner_entity_id"],
-            VersioningEnabled=bucket["versioning_enabled"],
-            LogBucket=bucket["log_bucket"],
-            RequesterPays=bucket["requester_pays"],
-            DefaultKmsKeyName=bucket["default_kms_key_name"],
-            gcp_update_tag=gcp_update_tag,
-        )
-        _attach_gcp_bucket_labels(neo4j_session, bucket, gcp_update_tag)
+    """Ingest GCP Storage Buckets to Neo4j."""
+    load(
+        neo4j_session,
+        GCPBucketSchema(),
+        buckets,
+        lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
+    )
 
 
 @timeit
-def _attach_gcp_bucket_labels(
+def load_gcp_bucket_labels(
     neo4j_session: neo4j.Session,
-    bucket: Resource,
+    bucket_labels: List[Dict],
+    project_id: str,
     gcp_update_tag: int,
 ) -> None:
-    """
-    Attach GCP bucket labels to the bucket.
-    :param neo4j_session: The neo4j session
-    :param bucket: The GCP bucket object
-    :param gcp_update_tag: The update tag for this sync
-    :return: Nothing
-    """
-    query = """
-    MERGE (l:Label:GCPBucketLabel{id: $BucketLabelId})
-    ON CREATE SET l.firstseen = timestamp(),
-    l.key = $Key
-    SET l.value = $Value,
-    l.lastupdated = $gcp_update_tag
-    WITH l
-    MATCH (bucket:GCPBucket{id:$BucketId})
-    MERGE (l)<-[r:LABELED]-(bucket)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $gcp_update_tag
-    """
-    for key, val in bucket.get("labels", []):
-        neo4j_session.run(
-            query,
-            BucketLabelId=f"GCPBucket_{key}",
-            Key=key,
-            Value=val,
-            BucketId=bucket["id"],
-            gcp_update_tag=gcp_update_tag,
-        )
+    """Ingest GCP Storage Bucket labels and attach them to buckets."""
+    load(
+        neo4j_session,
+        GCPBucketLabelSchema(),
+        bucket_labels,
+        lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
+    )
 
 
 @timeit
@@ -224,22 +148,14 @@ def cleanup_gcp_buckets(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    """
-    Delete out-of-date GCP Storage Bucket nodes and relationships
-
-    :type neo4j_session: The Neo4j session object
-    :param neo4j_session: The Neo4j session
-
-    :type common_job_parameters: dict
-    :param common_job_parameters: Dictionary of other job parameters to pass to Neo4j
-
-    :rtype: NoneType
-    :return: Nothing
-    """
-    run_cleanup_job(
-        "gcp_storage_bucket_cleanup.json",
+    """Delete out-of-date GCP Storage Bucket nodes and relationships."""
+    # Bucket labels depend on buckets, so we must remove labels first to avoid
+    # dangling references before deleting the buckets themselves.
+    GraphJob.from_node_schema(GCPBucketLabelSchema(), common_job_parameters).run(
         neo4j_session,
-        common_job_parameters,
+    )
+    GraphJob.from_node_schema(GCPBucketSchema(), common_job_parameters).run(
+        neo4j_session,
     )
 
 
@@ -274,7 +190,7 @@ def sync_gcp_buckets(
     """
     logger.info("Syncing Storage objects for project %s.", project_id)
     storage_res = get_gcp_buckets(storage, project_id)
-    bucket_list = transform_gcp_buckets(storage_res)
-    load_gcp_buckets(neo4j_session, bucket_list, gcp_update_tag)
-    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
+    buckets, bucket_labels = transform_gcp_buckets_and_labels(storage_res)
+    load_gcp_buckets(neo4j_session, buckets, project_id, gcp_update_tag)
+    load_gcp_bucket_labels(neo4j_session, bucket_labels, project_id, gcp_update_tag)
     cleanup_gcp_buckets(neo4j_session, common_job_parameters)
