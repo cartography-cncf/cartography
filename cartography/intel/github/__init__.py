@@ -4,6 +4,7 @@ import logging
 
 import neo4j
 
+import cartography.intel.github.commits
 import cartography.intel.github.repos
 import cartography.intel.github.teams
 import cartography.intel.github.users
@@ -53,4 +54,22 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             auth_data["token"],
             auth_data["url"],
             auth_data["name"],
+        )
+
+        # Sync commit relationships for the last 30 days
+        # We need to get repo names, so let's fetch them again for now
+        repos_json = cartography.intel.github.repos.get(
+            auth_data["token"],
+            auth_data["url"],
+            auth_data["name"],
+        )
+        repo_names = [repo["name"] for repo in repos_json]
+
+        cartography.intel.github.commits.sync_github_commits(
+            neo4j_session,
+            auth_data["token"],
+            auth_data["url"],
+            auth_data["name"],
+            repo_names,
+            common_job_parameters["UPDATE_TAG"],
         )
