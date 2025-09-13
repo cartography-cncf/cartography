@@ -54,7 +54,7 @@ GITHUB_REPO_COMMITS_PAGINATED_GRAPHQL = """
 
 
 @timeit
-def get_repo_commits_l30d(
+def get_repo_commits(
     token: str,
     api_url: str,
     organization: str,
@@ -133,6 +133,7 @@ def process_repo_commits_batch(
     organization: str,
     repo_names: list[str],
     update_tag: int,
+    lookback_days: int = 30,
     batch_size: int = 10,
 ) -> None:
     """
@@ -144,10 +145,11 @@ def process_repo_commits_batch(
     :param organization: The name of the target Github organization as string.
     :param repo_names: List of repository names to process.
     :param update_tag: Timestamp used to determine data freshness.
+    :param lookback_days: Number of days to look back for commits.
     :param batch_size: Number of repositories to process in each batch.
     """
-    # Calculate date 30 days ago
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    # Calculate lookback date based on configured days
+    lookback_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
 
     logger.info(f"Processing {len(repo_names)} repositories in batches of {batch_size}")
 
@@ -163,12 +165,12 @@ def process_repo_commits_batch(
 
         for repo_name in batch:
             try:
-                commits = get_repo_commits_l30d(
+                commits = get_repo_commits(
                     token,
                     api_url,
                     organization,
                     repo_name,
-                    thirty_days_ago,
+                    lookback_date,
                 )
 
                 # Transform commits for this single repo immediately
@@ -386,9 +388,10 @@ def sync_github_commits(
     organization: str,
     repo_names: list[str],
     update_tag: int,
+    lookback_days: int = 30,
 ) -> None:
     """
-    Sync GitHub commit relationships for the last 30 days.
+    Sync GitHub commit relationships for the specified lookback period.
     Uses batch processing to minimize memory usage and API quota consumption.
 
     :param neo4j_session: Neo4j session for database interface.
@@ -397,6 +400,7 @@ def sync_github_commits(
     :param organization: The name of the target Github organization as string.
     :param repo_names: List of repository names to sync commits for.
     :param update_tag: Timestamp used to determine data freshness.
+    :param lookback_days: Number of days to look back for commits.
     """
     logger.info(f"Starting GitHub commits sync for organization: {organization}")
 
@@ -409,6 +413,7 @@ def sync_github_commits(
         organization,
         repo_names,
         update_tag,
+        lookback_days=lookback_days,
         batch_size=10,  # Process 10 repos at a time
     )
 

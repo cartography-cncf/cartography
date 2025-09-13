@@ -44,7 +44,7 @@ def _ensure_test_repos_exist(neo4j_session):
 
 @patch.object(
     cartography.intel.github.commits,
-    "get_repo_commits_l30d",
+    "get_repo_commits",
 )
 def test_sync_github_commits(mock_get_commits, neo4j_session):
     """
@@ -54,7 +54,7 @@ def test_sync_github_commits(mock_get_commits, neo4j_session):
     _ensure_test_users_exist(neo4j_session)
     _ensure_test_repos_exist(neo4j_session)
 
-    # Mock the get_repo_commits_l30d function to return different data for each repo
+    # Mock the get_repo_commits function to return different data for each repo
     def side_effect(token, api_url, organization, repo_name, since_date):
         return MOCK_COMMITS_BY_REPO.get(repo_name, [])
 

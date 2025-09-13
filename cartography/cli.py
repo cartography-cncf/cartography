@@ -329,6 +329,14 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--github-commit-lookback-days",
+            type=int,
+            default=30,
+            help=(
+                "Number of days to look back for tracking GitHub users committing to repositories. Defaults to 30 days."
+            ),
+        )
+        parser.add_argument(
             "--digitalocean-token-env-var",
             type=str,
             default=None,

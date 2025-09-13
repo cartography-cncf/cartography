@@ -82,7 +82,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             auth_data["name"],
         )
 
-        # Sync commit relationships for the last 30 days
+        # Sync commit relationships for the configured lookback period
         # Get repo names from the graph instead of making another API call
         repo_names = _get_repos_from_graph(neo4j_session, auth_data["name"])
 
@@ -93,4 +93,5 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             auth_data["name"],
             repo_names,
             common_job_parameters["UPDATE_TAG"],
+            config.github_commit_lookback_days,
         )
