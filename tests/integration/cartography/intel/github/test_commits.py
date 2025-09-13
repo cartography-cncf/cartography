@@ -13,18 +13,22 @@ TEST_REPO_NAMES = ["repo1", "repo2"]
 
 def _ensure_test_users_exist(neo4j_session):
     """Ensure test GitHubUser nodes exist for relationship testing."""
-    neo4j_session.run("""
+    neo4j_session.run(
+        """
         MERGE (u1:GitHubUser {id: "https://github.com/alice"})
         SET u1.username = "alice", u1.lastupdated = $update_tag
 
         MERGE (u2:GitHubUser {id: "https://github.com/bob"})
         SET u2.username = "bob", u2.lastupdated = $update_tag
-    """, update_tag=TEST_UPDATE_TAG)
+    """,
+        update_tag=TEST_UPDATE_TAG,
+    )
 
 
 def _ensure_test_repos_exist(neo4j_session):
     """Ensure test GitHubRepository nodes exist for relationship testing."""
-    neo4j_session.run("""
+    neo4j_session.run(
+        """
         MERGE (r1:GitHubRepository {id: "https://github.com/testorg/repo1"})
         SET r1.name = "repo1", r1.fullname = "testorg/repo1", r1.lastupdated = $update_tag
 
@@ -33,7 +37,9 @@ def _ensure_test_repos_exist(neo4j_session):
 
         MERGE (org:GitHubOrganization {id: "https://github.com/testorg"})
         SET org.username = "testorg", org.lastupdated = $update_tag
-    """, update_tag=TEST_UPDATE_TAG)
+    """,
+        update_tag=TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(

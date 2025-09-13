@@ -1,5 +1,7 @@
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from typing import Any
 
 import neo4j
@@ -115,8 +117,10 @@ def process_repo_commits_batch(
 
     # Process repositories in batches
     for i in range(0, len(repo_names), batch_size):
-        batch = repo_names[i:i + batch_size]
-        logger.info(f"Processing batch {i//batch_size + 1}: {len(batch)} repositories")
+        batch = repo_names[i : i + batch_size]
+        logger.info(
+            f"Processing batch {i // batch_size + 1}: {len(batch)} repositories"
+        )
 
         # Process each repository in the batch
         batch_relationships = []
@@ -139,10 +143,14 @@ def process_repo_commits_batch(
                 )
                 batch_relationships.extend(repo_relationships)
 
-                logger.debug(f"Found {len(commits)} commits in {repo_name}, created {len(repo_relationships)} relationships")
+                logger.debug(
+                    f"Found {len(commits)} commits in {repo_name}, created {len(repo_relationships)} relationships"
+                )
 
             except Exception:
-                logger.warning(f"Failed to fetch commits for {repo_name}", exc_info=True)
+                logger.warning(
+                    f"Failed to fetch commits for {repo_name}", exc_info=True
+                )
                 continue
 
         # Load this batch of relationships
@@ -188,13 +196,12 @@ def transform_single_repo_commits_to_relationships(
             continue
 
         user_url = author_user["url"]
-        commit_date = datetime.fromisoformat(commit["committedDate"].replace('Z', '+00:00'))
+        commit_date = datetime.fromisoformat(
+            commit["committedDate"].replace("Z", "+00:00")
+        )
 
         if user_url not in user_commit_data:
-            user_commit_data[user_url] = {
-                "commit_count": 0,
-                "commit_dates": []
-            }
+            user_commit_data[user_url] = {"commit_count": 0, "commit_dates": []}
 
         user_commit_data[user_url]["commit_count"] += 1
         user_commit_data[user_url]["commit_dates"].append(commit_date)
@@ -203,13 +210,15 @@ def transform_single_repo_commits_to_relationships(
     relationships = []
     for user_url, data in user_commit_data.items():
         commit_dates = data["commit_dates"]
-        relationships.append({
-            "user_url": user_url,
-            "repo_url": repo_url,
-            "commit_count": data["commit_count"],
-            "last_commit_date": max(commit_dates).isoformat(),
-            "first_commit_date": min(commit_dates).isoformat(),
-        })
+        relationships.append(
+            {
+                "user_url": user_url,
+                "repo_url": repo_url,
+                "commit_count": data["commit_count"],
+                "last_commit_date": max(commit_dates).isoformat(),
+                "first_commit_date": min(commit_dates).isoformat(),
+            }
+        )
 
     return relationships
 
@@ -235,7 +244,9 @@ def transform_commits_to_user_repo_relationships(
 
         for commit in commits:
             # Use author if available, otherwise use committer
-            commit_user = commit.get("author", {}).get("user") or commit.get("committer", {}).get("user")
+            commit_user = commit.get("author", {}).get("user") or commit.get(
+                "committer", {}
+            ).get("user")
 
             if not commit_user or not commit_user.get("url"):
                 continue
@@ -252,17 +263,19 @@ def transform_commits_to_user_repo_relationships(
     relationships = []
     for (user_url, repo_url), commits in user_repo_commits.items():
         commit_dates = [
-            datetime.fromisoformat(commit["committedDate"].replace('Z', '+00:00'))
+            datetime.fromisoformat(commit["committedDate"].replace("Z", "+00:00"))
             for commit in commits
         ]
 
-        relationships.append({
-            "user_url": user_url,
-            "repo_url": repo_url,
-            "commit_count": len(commits),
-            "last_commit_date": max(commit_dates).isoformat(),
-            "first_commit_date": min(commit_dates).isoformat(),
-        })
+        relationships.append(
+            {
+                "user_url": user_url,
+                "repo_url": repo_url,
+                "commit_count": len(commits),
+                "last_commit_date": max(commit_dates).isoformat(),
+                "first_commit_date": min(commit_dates).isoformat(),
+            }
+        )
 
     logger.info(f"Created {len(relationships)} user-repository relationships")
     return relationships
@@ -287,7 +300,9 @@ def load_github_commit_relationships(
         logger.info("No commit relationships to load")
         return
 
-    logger.info(f"Loading {len(commit_relationships)} user-repository commit relationships")
+    logger.info(
+        f"Loading {len(commit_relationships)} user-repository commit relationships"
+    )
 
     # Use organization URL as the sub-resource identifier
     org_url = f"https://github.com/{organization}"

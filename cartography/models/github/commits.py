@@ -23,9 +23,12 @@ class GitHubUserCommittedToRepoRelProperties(CartographyRelProperties):
     """
     Properties for the COMMITTED_TO_L30D relationship between GitHubUser and GitHubRepository.
     """
+
     # Required for all MatchLinks
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    _sub_resource_label: PropertyRef = PropertyRef("_sub_resource_label", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
     # Rich relationship properties
@@ -40,14 +43,21 @@ class GitHubUserCommittedToRepoRel(CartographyRelSchema):
     MatchLink schema for connecting GitHubUser nodes to GitHubRepository nodes
     based on commits in the last 30 days.
     """
+
     target_node_label: str = "GitHubRepository"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("repo_url"),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("repo_url"),
+        }
+    )
     source_node_label: str = "GitHubUser"
-    source_node_matcher: SourceNodeMatcher = make_source_node_matcher({
-        "id": PropertyRef("user_url"),
-    })
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "id": PropertyRef("user_url"),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "COMMITTED_TO_L30D"
-    properties: GitHubUserCommittedToRepoRelProperties = GitHubUserCommittedToRepoRelProperties()
+    properties: GitHubUserCommittedToRepoRelProperties = (
+        GitHubUserCommittedToRepoRelProperties()
+    )
