@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 GITHUB_REPO_COMMITS_PAGINATED_GRAPHQL = """
-    query($login: String!, $repo: String!, $since: DateTime!, $cursor: String) {
+    query($login: String!, $repo: String!, $since: GitTimestamp!, $cursor: String) {
         organization(login: $login) {
             repository(name: $repo) {
                 name
@@ -71,8 +71,8 @@ def get_repo_commits_l30d(
     :param since_date: The datetime to fetch commits since.
     :return: A list of commits from the repository.
     """
-    # Convert datetime to ISO format for GraphQL
-    since_iso = since_date.isoformat()
+    # Convert datetime to ISO format for GraphQL (GitTimestamp requires 'Z' suffix for UTC)
+    since_iso = since_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     logger.debug(f"Fetching commits for {organization}/{repo_name} since {since_iso}")
 
