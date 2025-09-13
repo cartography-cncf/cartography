@@ -7,10 +7,12 @@ from typing import Optional
 from typing import Set
 
 import googleapiclient.discovery
+import httplib2
 import neo4j
 from google.auth import default
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.exceptions import DefaultCredentialsError
+from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import Resource
 
 from cartography.config import Config
@@ -39,6 +41,18 @@ service_names = Services(
     iam="iam.googleapis.com",
 )
 
+# Default HTTP timeout (seconds) for Google API clients built via discovery.build
+_GCP_HTTP_TIMEOUT = 120
+
+
+def _authorized_http_with_timeout(
+    credentials: GoogleCredentials, timeout: int = _GCP_HTTP_TIMEOUT
+) -> AuthorizedHttp:
+    """
+    Build an AuthorizedHttp with a per-request timeout, avoiding global socket timeouts.
+    """
+    return AuthorizedHttp(credentials, http=httplib2.Http(timeout=timeout))
+
 
 def _get_crm_resource_v1(credentials: GoogleCredentials) -> Resource:
     """
@@ -52,7 +66,7 @@ def _get_crm_resource_v1(credentials: GoogleCredentials) -> Resource:
     return googleapiclient.discovery.build(
         "cloudresourcemanager",
         "v1",
-        credentials=credentials,
+        http=_authorized_http_with_timeout(credentials),
         cache_discovery=False,
     )
 
@@ -67,7 +81,7 @@ def _get_crm_resource_v2(credentials: GoogleCredentials) -> Resource:
     return googleapiclient.discovery.build(
         "cloudresourcemanager",
         "v2",
-        credentials=credentials,
+        http=_authorized_http_with_timeout(credentials),
         cache_discovery=False,
     )
 
@@ -82,7 +96,7 @@ def _get_compute_resource(credentials: GoogleCredentials) -> Resource:
     return googleapiclient.discovery.build(
         "compute",
         "v1",
-        credentials=credentials,
+        http=_authorized_http_with_timeout(credentials),
         cache_discovery=False,
     )
 
@@ -99,7 +113,7 @@ def _get_storage_resource(credentials: GoogleCredentials) -> Resource:
     return googleapiclient.discovery.build(
         "storage",
         "v1",
-        credentials=credentials,
+        http=_authorized_http_with_timeout(credentials),
         cache_discovery=False,
     )
 
@@ -115,7 +129,7 @@ def _get_container_resource(credentials: GoogleCredentials) -> Resource:
     return googleapiclient.discovery.build(
         "container",
         "v1",
-        credentials=credentials,
+        http=_authorized_http_with_timeout(credentials),
         cache_discovery=False,
     )
 
@@ -131,7 +145,7 @@ def _get_dns_resource(credentials: GoogleCredentials) -> Resource:
     return googleapiclient.discovery.build(
         "dns",
         "v1",
-        credentials=credentials,
+        http=_authorized_http_with_timeout(credentials),
         cache_discovery=False,
     )
 
@@ -147,7 +161,7 @@ def _get_serviceusage_resource(credentials: GoogleCredentials) -> Resource:
     return googleapiclient.discovery.build(
         "serviceusage",
         "v1",
-        credentials=credentials,
+        http=_authorized_http_with_timeout(credentials),
         cache_discovery=False,
     )
 
@@ -157,7 +171,10 @@ def _get_iam_resource(credentials: GoogleCredentials) -> Resource:
     Instantiates a Google IAM resource object to call the IAM API.
     """
     return googleapiclient.discovery.build(
-        "iam", "v1", credentials=credentials, cache_discovery=False
+        "iam",
+        "v1",
+        http=_authorized_http_with_timeout(credentials),
+        cache_discovery=False,
     )
 
 
@@ -463,9 +480,13 @@ def get_gcp_credentials() -> Optional[GoogleCredentials]:
     :return: GoogleCredentials
     """
     try:
-        # Explicitly use Application Default Credentials.
-        # See https://google-auth.readthedocs.io/en/master/user-guide.html#application-default-credentials
-        credentials, project_id = default()
+        # Explicitly use Application Default Credentials with the cloud-platform scope.
+        # Some versions of google-auth/google-api-python-client require explicit scopes for service accounts;
+        # without this, token refresh may fail with `invalid_scope`.
+        # See: https://cloud.google.com/docs/authentication#calling
+        credentials, project_id = default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
         return credentials
     except DefaultCredentialsError as e:
         logger.debug(

@@ -9,19 +9,20 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 # See configuration details in https://github.com/pypa/setuptools_scm
 write_to = "cartography/_version.py"
+fallback_version = "0.0.0"
 
 [project]
 name = "cartography"
 description = "Explore assets and their relationships across your technical infrastructure."
 readme = "README.md"
-license = {text = "apache2"}
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 maintainers = [
     { name = "Cartography Contributors" }
 ]
 classifiers = [
   'Development Status :: 4 - Beta',
   'Intended Audience :: Developers',
-  'License :: OSI Approved :: Apache Software License',
   'Natural Language :: English',
   'Programming Language :: Python',
   'Programming Language :: Python :: 3',
@@ -78,12 +79,12 @@ dev = [
     "pre-commit",
     "pytest>=6.2.4",
     "pytest-mock",
-    "pytest-cov==6.1.1",
+    "pytest-cov==6.3.0",
     "pytest-rerunfailures",
     "pytest-asyncio",
     "types-PyYAML",
     "black==25.1.0",
-    "types-requests<2.32.0.20250329",
+    "types-requests<2.32.4.20250810",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",

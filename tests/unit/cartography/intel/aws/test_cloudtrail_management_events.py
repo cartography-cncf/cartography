@@ -7,6 +7,15 @@ from cartography.intel.aws.cloudtrail_management_events import (
 from cartography.intel.aws.cloudtrail_management_events import (
     transform_web_identity_role_events_to_role_assumptions,
 )
+from tests.data.aws.cloudtrail_management_events import (
+    ACCESS_DENIED_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+)
+from tests.data.aws.cloudtrail_management_events import (
+    ACCESS_DENIED_SAML_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+)
+from tests.data.aws.cloudtrail_management_events import (
+    ACCESS_DENIED_WEB_IDENTITY_ASSUME_ROLE_CLOUDTRAIL_EVENTS,
+)
 
 # Sample test data for AssumeRole events
 SAMPLE_ASSUME_ROLE_EVENT = {
@@ -111,3 +120,39 @@ def test_transform_single_github_web_identity_role_event():
     assert assumption["times_used"] == 1
     assert assumption["first_seen_in_time_window"] == "2024-01-15T12:15:30.789000"
     assert assumption["last_used"] == "2024-01-15T12:15:30.789000"
+
+
+def test_transform_assume_role_events_with_null_request_parameters():
+    """Test that AssumeRole events with null requestParameters are gracefully skipped."""
+    # Arrange
+    events = ACCESS_DENIED_ASSUME_ROLE_CLOUDTRAIL_EVENTS
+
+    # Act - This should no longer crash and should skip events with null requestParameters
+    result = transform_assume_role_events_to_role_assumptions(events=events)
+
+    # Assert - Events with null requestParameters should be skipped, resulting in empty list
+    assert len(result) == 0
+
+
+def test_transform_saml_role_events_with_null_request_parameters():
+    """Test that AssumeRoleWithSAML events with null requestParameters are gracefully skipped."""
+    # Arrange
+    events = ACCESS_DENIED_SAML_ASSUME_ROLE_CLOUDTRAIL_EVENTS
+
+    # Act - This should no longer crash and should skip events with null requestParameters
+    result = transform_saml_role_events_to_role_assumptions(events=events)
+
+    # Assert - Events with null requestParameters should be skipped, resulting in empty list
+    assert len(result) == 0
+
+
+def test_transform_web_identity_role_events_with_null_request_parameters():
+    """Test that AssumeRoleWithWebIdentity events with null requestParameters are gracefully skipped."""
+    # Arrange
+    events = ACCESS_DENIED_WEB_IDENTITY_ASSUME_ROLE_CLOUDTRAIL_EVENTS
+
+    # Act - This should no longer crash and should skip events with null requestParameters
+    result = transform_web_identity_role_events_to_role_assumptions(events=events)
+
+    # Assert - Events with null requestParameters should be skipped, resulting in empty list
+    assert len(result) == 0

@@ -22,7 +22,7 @@ You can learn more about the story behind Cartography in our [presentation at BS
 
 ## Supported platforms
 - [Airbyte](https://cartography-cncf.github.io/cartography/modules/airbyte/index.html) - Organization, Workspace, User, Source, Destination, Connection, Tag, Stream
-- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, CodeBuild, Config, EC2, ECS, ECR, EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue, GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
+- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, CodeBuild, Config, Cognito, EC2, ECS, ECR, EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue,  GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
 - [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 - [BigFix](https://cartography-cncf.github.io/cartography/modules/bigfix/index.html) - Computers
 - [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
@@ -33,7 +33,8 @@ You can learn more about the story behind Cartography in our [presentation at BS
 - [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
 - [Google GSuite](https://cartography-cncf.github.io/cartography/modules/gsuite/index.html) - users, groups
 - [Kandji](https://cartography-cncf.github.io/cartography/modules/kandji/index.html) - Devices
-- [Kubernetes](https://cartography-cncf.github.io/cartography/modules/kubernetes/index.html) - Cluster, Namespace, Service, Pod, Container
+- [Keycloak](https://cartography-cncf.github.io/cartography/modules/keycloak/index.html) - Realms, Users, Groups, Roles, Scopes, Clients, IdentityProviders, Authentication Flows, Authentication Executions, Organizations, Organization Domains
+- [Kubernetes](https://cartography-cncf.github.io/cartography/modules/kubernetes/index.html) - Cluster, Namespace, Service, Pod, Container, ServiceAccount, Role, RoleBinding, ClusterRole, ClusterRoleBinding, OIDCProvider
 - [Lastpass](https://cartography-cncf.github.io/cartography/modules/lastpass/index.html) - users
 - [Microsoft Azure](https://cartography-cncf.github.io/cartography/modules/azure/index.html) -  CosmosDB, SQL, Storage, Virtual Machine
 - [Microsoft Entra ID](https://cartography-cncf.github.io/cartography/modules/entra/index.html) -  Users
@@ -92,6 +93,10 @@ Now that data is in the graph, you can quickly start with our [querying tutorial
 Directly querying Neo4j is already very useful as a sort of "swiss army knife" for security data problems, but you can also build applications and data pipelines around Cartography. View this doc on [applications](https://cartography-cncf.github.io/cartography/usage/applications.html).
 
 
+## Docs
+
+See [here](https://cartography-cncf.github.io/cartography/)
+
 ## Community
 
 - Hang out with us on Slack: Join the CNCF Slack workspace [here](https://communityinviter.com/apps/cloud-native/cncf), and then join the `#cartography` channel.
@@ -107,7 +112,7 @@ This project is licensed under the [Apache 2.0 License](LICENSE).
 Thank you for considering contributing to Cartography!
 
 ### Code of conduct
-All contributors and participants of this project must follow the  [CNCF code of conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
+All contributors and participants of this project must follow the [CNCF code of conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
 ### Bug reports and feature requests and discussions
 Submit a GitHub issue to report a bug or request a new feature. If we decide that the issue needs more discussion - usually because the scope is too large or we need to make careful decision - we will convert the issue to a [GitHub Discussion](https://github.com/cartography-cncf/cartography/discussions).

@@ -235,6 +235,11 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--azure-subscription-id",
+            type=str,
+            help="The Azure Subscription ID to sync.",
+        )
+        parser.add_argument(
             "--entra-tenant-id",
             type=str,
             default=None,
@@ -324,6 +329,14 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--github-commit-lookback-days",
+            type=int,
+            default=30,
+            help=(
+                "Number of days to look back for tracking GitHub users committing to repositories. Defaults to 30 days."
+            ),
+        )
+        parser.add_argument(
             "--digitalocean-token-env-var",
             type=str,
             default=None,
@@ -393,6 +406,12 @@ class CLI:
             help=(
                 "The path to kubeconfig file specifying context to access K8s cluster(s)."
             ),
+        )
+        parser.add_argument(
+            "--managed-kubernetes",
+            default=None,
+            type=str,
+            help=("Type of managed Kubernetes service (e.g., 'eks'). Optional."),
         )
         parser.add_argument(
             "--nist-cve-url",
@@ -701,6 +720,15 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--trivy-results-dir",
+            type=str,
+            default=None,
+            help=(
+                "Path to a directory containing Trivy JSON results on disk. "
+                "Required if you are using the Trivy module with local results."
+            ),
+        )
+        parser.add_argument(
             "--scaleway-org",
             type=str,
             default=None,
@@ -751,6 +779,42 @@ class CLI:
             help=(
                 "The name of an environment variable containing the SentinelOne API token. "
                 "Required if you are using the SentinelOne intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-client-id",
+            type=str,
+            default=None,
+            help=(
+                "The Keycloak client ID to sync. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-client-secret-env-var",
+            type=str,
+            default="KEYCLOAK_CLIENT_SECRET",
+            help=(
+                "The name of an environment variable containing the Keycloak client secret. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-url",
+            type=str,
+            help=(
+                "The base URL for the Keycloak instance. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise. "
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-realm",
+            type=str,
+            default="master",
+            help=(
+                "The Keycloak realm used for authentication (note: all available realms will be synced). "
+                "Should be `master` (default value) in most of the cases. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise. "
             ),
         )
 
@@ -1089,6 +1153,9 @@ class CLI:
         if config.trivy_s3_prefix:
             logger.debug(f"Trivy S3 prefix: {config.trivy_s3_prefix}")
 
+        if config.trivy_results_dir:
+            logger.debug(f"Trivy results dir: {config.trivy_results_dir}")
+
         # Scaleway config
         if config.scaleway_secret_key_env_var:
             logger.debug(
@@ -1118,6 +1185,18 @@ class CLI:
             config.sentinelone_api_token = os.environ.get(
                 config.sentinelone_api_token_env_var
             )
+        else:
+            config.sentinelone_api_token = None
+
+        if config.keycloak_client_secret_env_var:
+            logger.debug(
+                f"Reading Client Secret for Keycloak from environment variable {config.keycloak_client_secret_env_var}",
+            )
+            config.keycloak_client_secret = os.environ.get(
+                config.keycloak_client_secret_env_var
+            )
+        else:
+            config.keycloak_client_secret = None
 
         # Run cartography
         try:
