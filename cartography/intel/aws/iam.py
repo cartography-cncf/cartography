@@ -15,6 +15,8 @@ from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
+from cartography.client.core.tx import load
+from cartography.models.aws.iam import AWSSAMLProviderSchema
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -249,6 +251,33 @@ def get_role_list_data(boto3_session: boto3.session.Session) -> Dict:
     for page in paginator.paginate():
         roles.extend(page["Roles"])
     return {"Roles": roles}
+
+
+@timeit
+def get_saml_providers(boto3_session: boto3.session.Session) -> Dict:
+    client = boto3_session.client("iam")
+    # list_saml_providers returns a single page
+    response = client.list_saml_providers()
+    # Shape into a dict list similar to other getters
+    return {"SAMLProviderList": response.get("SAMLProviderList", [])}
+
+
+@timeit
+def load_saml_providers(
+    neo4j_session: neo4j.Session,
+    saml_providers: List[Dict],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    if not saml_providers:
+        return
+    load(
+        neo4j_session,
+        AWSSAMLProviderSchema(),
+        saml_providers,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
 
 
 @timeit
@@ -1070,6 +1099,14 @@ def sync(
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+    )
+    # SAML providers are global (not region-scoped) for the account
+    saml = get_saml_providers(boto3_session)
+    load_saml_providers(
+        neo4j_session,
+        saml.get("SAMLProviderList", []),
+        current_aws_account_id,
+        update_tag,
     )
     run_cleanup_job(
         "aws_import_principals_cleanup.json",

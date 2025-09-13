@@ -144,6 +144,21 @@ LIST_ROLES = {
     ],
 }
 
+LIST_SAML_PROVIDERS = {
+    "SAMLProviderList": [
+        {
+            "Arn": "arn:aws:iam::000000000000:saml-provider/ADFS",
+            "ValidUntil": "2025-12-31T23:59:59Z",
+            "CreateDate": "2020-01-01T00:00:00Z",
+        },
+        {
+            "Arn": "arn:aws:iam::000000000000:saml-provider/Okta",
+            "ValidUntil": "2026-01-01T00:00:00Z",
+            "CreateDate": "2021-06-15T12:00:00Z",
+        },
+    ]
+}
+
 INSTACE = {
     "Roles": [
         {
