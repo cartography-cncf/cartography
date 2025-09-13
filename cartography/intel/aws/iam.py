@@ -1019,6 +1019,49 @@ def sync_user_access_keys(
 
 
 @timeit
+def get_account_summary(boto3_session: boto3.session.Session) -> Dict:
+    client = boto3_session.client("iam")
+    return client.get_account_summary()
+
+
+@timeit
+def load_account_summary(
+    neo4j_session: neo4j.Session,
+    summary: Dict,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    query = (
+        "MERGE (aa:AWSAccount{id: $AWS_ACCOUNT_ID}) "
+        "SET aa.root_mfa_enabled = $MFA_ENABLED, aa.lastupdated = $aws_update_tag"
+    )
+    mfa_enabled = bool(summary.get("SummaryMap", {}).get("AccountMFAEnabled"))
+    neo4j_session.run(
+        query,
+        AWS_ACCOUNT_ID=current_aws_account_id,
+        MFA_ENABLED=mfa_enabled,
+        aws_update_tag=aws_update_tag,
+    )
+
+
+@timeit
+def sync_account_summary(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    summary = get_account_summary(boto3_session)
+    load_account_summary(
+        neo4j_session,
+        summary,
+        current_aws_account_id,
+        aws_update_tag,
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -1028,6 +1071,13 @@ def sync(
     common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing IAM for account '%s'.", current_aws_account_id)
+    sync_account_summary(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
+        common_job_parameters,
+    )
     # This module only syncs IAM information that is in use.
     # As such only policies that are attached to a user, role or group are synced
     sync_users(
