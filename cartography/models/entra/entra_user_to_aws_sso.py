@@ -25,6 +25,7 @@ class EntraUserToAWSSSOUserMatchLink(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "user_name": PropertyRef("aws_user_name"),
+            "identity_store_id": PropertyRef("identity_store_id"),
         }
     )
     source_node_label: str = "EntraUser"

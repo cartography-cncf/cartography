@@ -188,7 +188,7 @@ MOCK_SERVICE_PRINCIPALS_DICT = [
         "display_name": "Finance Tracker Service Principal",
         "reply_urls": [
             "https://finance.example.com/callback",
-            "https://d-90663f7df1.awsapps.com/start",
+            "https://d-1234567890.awsapps.com/start",
         ],
         "aws_identity_center_instance_id": "d-1234567890",
         "account_enabled": True,

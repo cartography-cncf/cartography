@@ -26,7 +26,7 @@ def sync_entra_to_aws_identity_center(
           -[:FEDERATES_TO]->(ic:AWSIdentityCenter)
     MATCH (sso:AWSSSOUser{identity_store_id:ic.identity_store_id})
     WHERE e.user_principal_name = sso.user_name
-    RETURN e.user_principal_name as entra_user_principal_name, sso.user_name as aws_user_name
+    RETURN e.user_principal_name as entra_user_principal_name, sso.user_name as aws_user_name, sso.identity_store_id as identity_store_id
     """
     entrauser_to_awssso_users = neo4j_session.execute_read(
         read_list_of_dicts_tx, query, TENANT_ID=tenant_id
