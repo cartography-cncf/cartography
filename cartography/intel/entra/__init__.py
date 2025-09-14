@@ -6,9 +6,12 @@ from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
 
 from cartography.config import Config
+from cartography.intel.entra.app_role_assignments import sync_app_role_assignments
 from cartography.intel.entra.applications import sync_entra_applications
+from cartography.intel.entra.federation.aws_identity_center import sync_entra_federation
 from cartography.intel.entra.groups import sync_entra_groups
 from cartography.intel.entra.ou import sync_entra_ous
+from cartography.intel.entra.service_principals import sync_service_principals
 from cartography.intel.entra.users import get_tenant
 from cartography.intel.entra.users import load_tenant
 from cartography.intel.entra.users import sync_entra_users
@@ -122,6 +125,34 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.entra_client_id,
             config.entra_client_secret,
             config.update_tag,
+            common_job_parameters,
+        )
+
+        # Run service principals sync
+        await sync_service_principals(
+            neo4j_session,
+            config.entra_tenant_id,
+            config.entra_client_id,
+            config.entra_client_secret,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+        # Run app role assignments sync
+        await sync_app_role_assignments(
+            neo4j_session,
+            config.entra_tenant_id,
+            config.entra_client_id,
+            config.entra_client_secret,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+        # Run federation sync (after all resources are synced)
+        await sync_entra_federation(
+            neo4j_session,
+            config.update_tag,
+            config.entra_tenant_id,
             common_job_parameters,
         )
 

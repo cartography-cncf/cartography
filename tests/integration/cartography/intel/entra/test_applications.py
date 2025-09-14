@@ -2,9 +2,14 @@ from unittest.mock import patch
 
 import pytest
 
+import cartography.client.core.tx
+import cartography.intel.entra.app_role_assignments
 import cartography.intel.entra.applications
+import cartography.intel.entra.service_principals
 import tests.data.aws.identitycenter
+from cartography.intel.entra.app_role_assignments import sync_app_role_assignments
 from cartography.intel.entra.applications import sync_entra_applications
+from cartography.intel.entra.service_principals import sync_service_principals
 from cartography.intel.entra.users import load_tenant
 from tests.data.entra.applications import MOCK_APP_ROLE_ASSIGNMENTS
 from tests.data.entra.applications import MOCK_ENTRA_APPLICATIONS
@@ -99,13 +104,27 @@ async def _mock_get_entra_applications(client):
         yield app
 
 
-async def _mock_get_app_role_assignments_for_app(client, app):
+async def _mock_get_entra_service_principals(client):
+    """Mock async generator for get_entra_service_principals"""
+    for spn in MOCK_SERVICE_PRINCIPALS:
+        yield spn
+
+
+async def _mock_get_app_role_assignments_for_app(client, neo4j_session, app_id):
     """Mock async generator for get_app_role_assignments_for_app"""
-    # Return assignments that match this app
-    assignments = _prepare_mock_assignments()
+    # Return assignments that match this app_id
+    assignments, _ = _prepare_mock_assignments()
+
+    # Map app_id to display names for filtering
+    app_id_to_display = {
+        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee": "Finance Tracker",
+        "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb": "HR Portal",
+    }
+
+    target_display_name = app_id_to_display.get(app_id)
 
     for assignment in assignments:
-        if assignment.resource_display_name == app.display_name:
+        if assignment.resource_display_name == target_display_name:
             # Convert AppRoleAssignment object to dict to match refactored function
             yield {
                 "id": assignment.id,
@@ -121,7 +140,7 @@ async def _mock_get_app_role_assignments_for_app(client, app):
 
 
 @patch.object(
-    cartography.intel.entra.applications,
+    cartography.intel.entra.app_role_assignments,
     "get_app_role_assignments_for_app",
     side_effect=_mock_get_app_role_assignments_for_app,
 )
@@ -130,14 +149,19 @@ async def _mock_get_app_role_assignments_for_app(client, app):
     "get_entra_applications",
     side_effect=_mock_get_entra_applications,
 )
+@patch.object(
+    cartography.intel.entra.service_principals,
+    "get_entra_service_principals",
+    side_effect=_mock_get_entra_service_principals,
+)
 @pytest.mark.asyncio
-async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_session):
+async def test_sync_entra_applications(
+    mock_get_service_principals, mock_get_apps, mock_get_assignments, neo4j_session
+):
     """
     Ensure that applications actually get loaded and connected to tenant,
     and both user-app and group-app relationships exist
     """
-    # Setup mock data with application_app_id and service principals
-    mock_get_assignments.return_value = _prepare_mock_assignments()
     # Arrange: Load tenant as prerequisite
     load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
 
@@ -146,13 +170,46 @@ async def test_sync_entra_applications(mock_get, mock_get_assignments, neo4j_ses
     _ensure_local_neo4j_has_aws_identity_center(neo4j_session)
     _ensure_local_neo4j_has_aws_sso_users(neo4j_session)
 
-    # Act
+    # Act - sync in the correct order: applications -> service principals -> app role assignments
+    # First sync applications
     await sync_entra_applications(
         neo4j_session,
         TEST_TENANT_ID,
         TEST_CLIENT_ID,
         TEST_CLIENT_SECRET,
         TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
+    )
+
+    # Then sync service principals
+    await sync_service_principals(
+        neo4j_session,
+        TEST_TENANT_ID,
+        TEST_CLIENT_ID,
+        TEST_CLIENT_SECRET,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
+    )
+
+    # Finally sync app role assignments (this will query the graph for applications)
+    await sync_app_role_assignments(
+        neo4j_session,
+        TEST_TENANT_ID,
+        TEST_CLIENT_ID,
+        TEST_CLIENT_SECRET,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
+    )
+
+    # Sync federation relationships (after all resources are synced)
+    from cartography.intel.entra.federation.aws_identity_center import (
+        sync_entra_federation,
+    )
+
+    await sync_entra_federation(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        TEST_TENANT_ID,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
 
