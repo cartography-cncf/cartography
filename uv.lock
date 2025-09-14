@@ -371,6 +371,21 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-web"
+version = "10.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e2/e5/cbd65755cc26b0709e65849d7812f023e17dccd5a322430298645eaa7c61/azure_mgmt_web-10.0.0.tar.gz", hash = "sha256:6a32b6f41b1743184390636ab781c43def12fcfd6dd788f3029635d3f7d64c7b", size = 584941, upload-time = "2025-08-25T03:38:03.334Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ce/ec/6d58847abb39e2f7f8b237664aa5f68d43751e79c1cd576a2255cbf3c0d6/azure_mgmt_web-10.0.0-py3-none-any.whl", hash = "sha256:ddf241479baebc818db86570a07d47532b11583041d1eed16b44dfbe5ffedcb8", size = 667990, upload-time = "2025-08-25T03:38:05.514Z" },
+]
+
+[[package]]
 name = "babel"
 version = "2.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -514,6 +529,7 @@ dependencies = [
     { name = "azure-mgmt-resource" },
     { name = "azure-mgmt-sql" },
     { name = "azure-mgmt-storage" },
+    { name = "azure-mgmt-web" },
     { name = "backoff" },
     { name = "boto3" },
     { name = "botocore" },
@@ -544,6 +560,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "azure-mgmt-web" },
     { name = "backoff" },
     { name = "black" },
     { name = "moto" },
@@ -575,6 +592,7 @@ requires-dist = [
     { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
     { name = "azure-mgmt-sql", specifier = "<=1.0.0" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
+    { name = "azure-mgmt-web", specifier = ">=7.0.0" },
     { name = "backoff", specifier = ">=2.1.2" },
     { name = "boto3", specifier = ">=1.15.1" },
     { name = "botocore", specifier = ">=1.18.1" },
@@ -605,6 +623,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "azure-mgmt-web", specifier = ">=7.0.0" },
     { name = "backoff", specifier = ">=2.1.2" },
     { name = "black", specifier = "==25.1.0" },
     { name = "moto" },
