@@ -3,12 +3,14 @@ from unittest.mock import patch
 import pytest
 
 import cartography.client.core.tx
+import cartography.intel.aws.identitycenter
 import cartography.intel.entra.app_role_assignments
 import cartography.intel.entra.applications
 import cartography.intel.entra.service_principals
 import tests.data.aws.identitycenter
 from cartography.intel.entra.app_role_assignments import sync_app_role_assignments
 from cartography.intel.entra.applications import sync_entra_applications
+from cartography.intel.entra.federation.aws_identity_center import sync_entra_federation
 from cartography.intel.entra.service_principals import sync_service_principals
 from cartography.intel.entra.users import load_tenant
 from tests.data.entra.applications import MOCK_APP_ROLE_ASSIGNMENTS
@@ -29,7 +31,7 @@ def _ensure_local_neo4j_has_test_users(neo4j_session):
     """
     neo4j_session.run(
         """
-        CREATE (t:EntraTenant {id: '02b2b7cc-fb03-4324-bf6b-eb207b39c479'})
+        MATCH (t:EntraTenant {id: $tenant_id})
         CREATE (u1:EntraUser {id: 'ae4ac864-4433-4ba6-96a6-20f8cffdadcb', display_name: 'Test User 1', user_principal_name: 'test.user1@example.com'})
         CREATE (u2:EntraUser {id: '11dca63b-cb03-4e53-bb75-fa8060285550', display_name: 'Test User 2'})
         CREATE (g1:EntraGroup {id: '11111111-2222-3333-4444-555555555555', display_name: 'Finance Team'})
@@ -38,7 +40,8 @@ def _ensure_local_neo4j_has_test_users(neo4j_session):
         CREATE (t)-[:RESOURCE]->(u2)
         CREATE (t)-[:RESOURCE]->(g1)
         CREATE (t)-[:RESOURCE]->(g2)
-        """
+        """,
+        {"tenant_id": TEST_TENANT_ID},
     )
 
 
@@ -47,14 +50,12 @@ def _ensure_local_neo4j_has_aws_identity_center(neo4j_session):
     Create AWS Identity Center instance for federation testing.
     """
     # Load AWS Identity Center instance using the existing loader
-    import cartography.intel.aws.identitycenter
-
     cartography.intel.aws.identitycenter.load_identity_center_instances(
         neo4j_session,
         tests.data.aws.identitycenter.LIST_INSTANCES,
         "us-west-2",
         "123456789012",
-        "123456789012",
+        TEST_UPDATE_TAG,
     )
 
 
@@ -62,9 +63,6 @@ def _ensure_local_neo4j_has_aws_sso_users(neo4j_session):
     """
     Create AWS SSO users for identity federation testing.
     """
-    # Load AWS SSO users using the existing loader
-    import cartography.intel.aws.identitycenter
-
     cartography.intel.aws.identitycenter.load_sso_users(
         neo4j_session,
         cartography.intel.aws.identitycenter.transform_sso_users(
@@ -199,11 +197,6 @@ async def test_sync_entra_applications(
         TEST_CLIENT_SECRET,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
-    )
-
-    # Sync federation relationships (after all resources are synced)
-    from cartography.intel.entra.federation.aws_identity_center import (
-        sync_entra_federation,
     )
 
     await sync_entra_federation(

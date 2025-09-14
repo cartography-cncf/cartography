@@ -2,15 +2,21 @@ from typing import Any
 
 import neo4j
 
-from cartography.client.core.tx import read_list_of_dicts_tx, load_matchlinks
+from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
-from cartography.models.entra.entra_user_to_aws_sso import EntraUserToAWSSSOUserMatchLink
+from cartography.models.entra.entra_user_to_aws_sso import (
+    EntraUserToAWSSSOUserMatchLink,
+)
 from cartography.util import timeit
 
 
 @timeit
 def sync_entra_to_aws_identity_center(
-    neo4j_session: neo4j.Session, update_tag: int, tenant_id: str, common_job_parameters: dict[str, Any],
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    tenant_id: str,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     query = """
     MATCH (:EntraTenant{id: $TENANT_ID})-[:RESOURCE]->(e:EntraUser)
@@ -54,7 +60,9 @@ async def sync_entra_federation(
     :param tenant_id: Entra tenant ID
     :param common_job_parameters: Common job parameters for cleanup
     """
-    sync_entra_to_aws_identity_center(neo4j_session, update_tag, tenant_id, common_job_parameters)
+    sync_entra_to_aws_identity_center(
+        neo4j_session, update_tag, tenant_id, common_job_parameters
+    )
 
 
 @timeit

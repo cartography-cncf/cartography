@@ -1,16 +1,20 @@
 import gc
-from typing import AsyncGenerator, Any
+from typing import Any
+from typing import AsyncGenerator
 
 import neo4j
 from azure.identity import ClientSecretCredential
 from msgraph import GraphServiceClient
-from msgraph.generated.models.app_role_assignment_collection_response import AppRoleAssignmentCollectionResponse
-from msgraph.generated.models.application import Application
-from msgraph.generated.models.service_principal import ServicePrincipal
+from msgraph.generated.models.app_role_assignment_collection_response import (
+    AppRoleAssignmentCollectionResponse,
+)
 
-from cartography.client.core.tx import load, read_single_value_tx, read_list_of_values_tx
+from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_values_tx
+from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
-from cartography.intel.entra.applications import logger, APP_ROLE_ASSIGNMENTS_PAGE_SIZE
+from cartography.intel.entra.applications import APP_ROLE_ASSIGNMENTS_PAGE_SIZE
+from cartography.intel.entra.applications import logger
 from cartography.models.entra.app_role_assignment import EntraAppRoleAssignmentSchema
 from cartography.util import timeit
 
@@ -27,20 +31,16 @@ async def get_app_role_assignments_for_app(
     :param app_id: Application ID
     :return: Generator of app role assignment data as dicts
     """
-    if not app_id:
-        logger.warning(f"No app_id provided, skipping")
-        return
-
-    logger.info(
-        f"Fetching role assignments for application: {app_id}"
-    )
+    logger.info(f"Fetching role assignments for application: {app_id}")
 
     # Query the graph to get the service principal ID for this application
     query = """
     MATCH (sp:EntraServicePrincipal {app_id: $app_id})
     RETURN sp.id as service_principal_id
     """
-    service_principal_id = neo4j_session.execute_read(read_single_value_tx, query, app_id=app_id)
+    service_principal_id = neo4j_session.execute_read(
+        read_single_value_tx, query, app_id=app_id
+    )
 
     if not service_principal_id:
         logger.warning(
@@ -120,9 +120,7 @@ async def get_app_role_assignments_for_app(
         assignments_page.value = None
 
         # Fetch next page
-        logger.debug(
-            f"Fetching page {page_count + 1} of assignments for {app_id}"
-        )
+        logger.debug(f"Fetching page {page_count + 1} of assignments for {app_id}")
         next_page_url = assignments_page.odata_next_link
         assignments_page = await client.service_principals.with_url(next_page_url).get()
 
@@ -243,7 +241,9 @@ async def sync_app_role_assignments(
 
     for app_id in app_ids:
         # Stream app role assignments (now using graph query for service principal ID)
-        async for assignment in get_app_role_assignments_for_app(client, neo4j_session, app_id):
+        async for assignment in get_app_role_assignments_for_app(
+            client, neo4j_session, app_id
+        ):
             assignments_batch.append(assignment)
             total_assignment_count += 1
 

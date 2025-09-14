@@ -1,6 +1,7 @@
 import logging
 import re
-from typing import Any, AsyncGenerator
+from typing import Any
+from typing import AsyncGenerator
 
 import neo4j
 from azure.identity import ClientSecretCredential
@@ -34,7 +35,9 @@ async def get_entra_service_principals(
             top=SERVICE_PRINCIPALS_PAGE_SIZE
         )
     )
-    page = await client.service_principals.get(request_configuration=request_configuration)
+    page = await client.service_principals.get(
+        request_configuration=request_configuration
+    )
 
     while page:
         if page.value:
@@ -145,6 +148,7 @@ def cleanup_service_principals(
         neo4j_session
     )
 
+
 @timeit
 async def sync_service_principals(
     neo4j_session: neo4j.Session,
@@ -186,16 +190,26 @@ async def sync_service_principals(
 
         # Transform and load service principals in batches
         if len(service_principals_batch) >= batch_size:
-            transformed_service_principals = transform_service_principals(service_principals_batch)
-            load_service_principals(neo4j_session, transformed_service_principals, update_tag, tenant_id)
-            logger.info(f"Loaded batch of {len(service_principals_batch)} service principals (total: {total_count})")
+            transformed_service_principals = transform_service_principals(
+                service_principals_batch
+            )
+            load_service_principals(
+                neo4j_session, transformed_service_principals, update_tag, tenant_id
+            )
+            logger.info(
+                f"Loaded batch of {len(service_principals_batch)} service principals (total: {total_count})"
+            )
             service_principals_batch.clear()
             transformed_service_principals.clear()
 
     # Process remaining service principals
     if service_principals_batch:
-        transformed_service_principals = transform_service_principals(service_principals_batch)
-        load_service_principals(neo4j_session, transformed_service_principals, update_tag, tenant_id)
+        transformed_service_principals = transform_service_principals(
+            service_principals_batch
+        )
+        load_service_principals(
+            neo4j_session, transformed_service_principals, update_tag, tenant_id
+        )
         service_principals_batch.clear()
         transformed_service_principals.clear()
 
