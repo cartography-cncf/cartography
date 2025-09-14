@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.azure.app_service as app_service
 from tests.data.azure.app_service import MOCK_APP_SERVICES

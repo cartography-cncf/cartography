@@ -7,9 +7,9 @@ import neo4j
 from cartography.config import Config
 from cartography.util import timeit
 
+from . import app_service
 from . import compute
 from . import cosmosdb
-from . import app_service
 from . import functions
 from . import sql
 from . import storage

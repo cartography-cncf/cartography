@@ -1,8 +1,11 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError, HttpResponseError
+from azure.core.exceptions import ClientAuthenticationError
+from azure.core.exceptions import HttpResponseError
 from azure.mgmt.web import WebSiteManagementClient
 
 from cartography.client.core.tx import load
@@ -26,7 +29,9 @@ def get_app_services(credentials: Credentials, subscription_id: str) -> List[Dic
         # and then filter them in the transform stage.
         return [app.as_dict() for app in client.web_apps.list()]
     except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(f"Failed to get app services for subscription {subscription_id}: {str(e)}")
+        logger.warning(
+            f"Failed to get app services for subscription {subscription_id}: {str(e)}"
+        )
         return []
 
 
@@ -53,7 +58,10 @@ def transform_app_services(app_services_response: List[Dict]) -> List[Dict]:
 
 @timeit
 def load_app_services(
-    neo4j_session: neo4j.Session, data: List[Dict[str, Any]], subscription_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load the transformed Azure App Service data to Neo4j.
@@ -68,11 +76,15 @@ def load_app_services(
 
 
 @timeit
-def cleanup_app_services(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_app_services(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
     """
     Run the cleanup job for Azure App Services.
     """
-    GraphJob.from_node_schema(AzureAppServiceSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AzureAppServiceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
