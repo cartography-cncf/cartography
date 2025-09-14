@@ -5,6 +5,7 @@ import cartography.intel.aws.route53
 from cartography.intel.aws.route53 import sync
 from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
 from tests.data.aws.route53 import GET_ZONES_SAMPLE_RESPONSE
+from tests.data.aws.route53 import GET_ZONES_WITH_SUBZONE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -317,7 +318,7 @@ def test_sync_route53_cleanup(mock_get_zones, neo4j_session):
 @patch.object(
     cartography.intel.aws.route53,
     "get_zones",
-    return_value=GET_ZONES_SAMPLE_RESPONSE,
+    return_value=GET_ZONES_WITH_SUBZONE,
 )
 def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
     """
@@ -326,26 +327,6 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-
-    # Pre-create a sub-zone
-    neo4j_session.run(
-        """
-        MERGE (subzone:AWSDNSZone {id: "subzone", zoneid: "subzone", name: "example.com"})
-        SET subzone.lastupdated = $update_tag
-        """,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    # Pre-create a name server that points to the sub-zone
-    neo4j_session.run(
-        """
-        MERGE (ns:NameServer {id: "ec2-1-2-3-4.us-east-2.compute.amazonaws.com"})
-        SET ns.lastupdated = $update_tag
-        MERGE (subzone:AWSDNSZone {zoneid: "subzone"})
-        MERGE (ns)<-[:NAMESERVER]-(subzone)
-        """,
-        update_tag=TEST_UPDATE_TAG,
-    )
 
     # Act
     sync(
@@ -358,14 +339,16 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
     )
 
     # Assert - Sub-zone relationship should be created
-    assert check_rels(
+    expected_rels = {
+        ("/hostedzone/PARENT_ZONE", "/hostedzone/SUB_ZONE"),
+    }
+    actual_rels = check_rels(
         neo4j_session,
         "AWSDNSZone",
         "zoneid",
         "AWSDNSZone",
         "zoneid",
         "SUBZONE",
-        rel_direction_right=False,
-    ) == {
-        ("subzone", "/hostedzone/HOSTED_ZONE"),
-    }, "Sub-zone relationship should be created"
+        rel_direction_right=True,
+    )
+    assert actual_rels == expected_rels, "Sub-zone relationship should be created"

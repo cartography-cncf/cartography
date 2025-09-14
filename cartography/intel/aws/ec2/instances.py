@@ -163,7 +163,9 @@ def transform_ec2_instances(
                             "MacAddress": network_interface["MacAddress"],
                             "Description": network_interface["Description"],
                             "PrivateDnsName": network_interface.get("PrivateDnsName"),
-                            "PrivateIpAddress": network_interface["PrivateIpAddress"],
+                            "PrivateIpAddress": network_interface.get(
+                                "PrivateIpAddress"
+                            ),
                             "InstanceId": instance_id,
                             "SubnetId": subnet_id,
                             "GroupId": security_group["GroupId"],

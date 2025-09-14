@@ -11,8 +11,8 @@ from typing import Optional
 from typing import Set
 
 import neo4j
-from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -22,6 +22,10 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
+
+
+# Maximum number of retries for Google API requests
+GOOGLE_API_NUM_RETRIES = 5
 
 
 def _get_error_reason(http_error: HttpError) -> str:
@@ -66,7 +70,7 @@ def get_zones_in_project(
     """
     try:
         req = compute.zones().list(project=project_id, maxResults=max_results)
-        res = req.execute()
+        res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
         return res["items"]
     except HttpError as e:
         reason = _get_error_reason(e)
@@ -120,22 +124,53 @@ def get_gcp_instance_responses(
     response_objects: List[Resource] = []
     for zone in zones:
         req = compute.instances().list(project=project_id, zone=zone["name"])
-        res = req.execute()
-        response_objects.append(res)
+        try:
+            res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+            response_objects.append(res)
+        except HttpError as e:
+            reason = _get_error_reason(e)
+            if reason in {"backendError", "rateLimitExceeded", "internalError"}:
+                logger.warning(
+                    "Transient error listing instances for project %s zone %s: %s; skipping this zone.",
+                    project_id,
+                    zone.get("name"),
+                    e,
+                )
+                continue
+            raise
     return response_objects
 
 
 @timeit
-def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Resource:
+def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Dict:
     """
-    Return list of all subnets in the given projectid and region
-    :param projectid: THe projectid
+    Return list of all subnets in the given projectid and region.  If the API
+    call times out mid-pagination, return any subnets gathered so far rather than
+    bubbling the error up to the caller.
+    :param projectid: The project ID
     :param region: The region to pull subnets from
     :param compute: The compute resource object created by googleapiclient.discovery.build()
     :return: Response object containing data on all GCP subnets for a given project
     """
     req = compute.subnetworks().list(project=projectid, region=region)
-    return req.execute()
+    items: List[Dict] = []
+    response_id = f"projects/{projectid}/regions/{region}/subnetworks"
+    while req is not None:
+        try:
+            res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        except TimeoutError:
+            logger.warning(
+                "GCP: subnetworks.list for project %s region %s timed out; continuing with partial data.",
+                projectid,
+                region,
+            )
+            break
+        items.extend(res.get("items", []))
+        response_id = res.get("id", response_id)
+        req = compute.subnetworks().list_next(
+            previous_request=req, previous_response=res
+        )
+    return {"id": response_id, "items": items}
 
 
 @timeit
@@ -147,7 +182,7 @@ def get_gcp_vpcs(projectid: str, compute: Resource) -> Resource:
     :return: VPC response object
     """
     req = compute.networks().list(project=projectid)
-    return req.execute()
+    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
 
 
 @timeit
@@ -164,7 +199,7 @@ def get_gcp_regional_forwarding_rules(
     :return: Response object containing data on all GCP forwarding rules for a given project
     """
     req = compute.forwardingRules().list(project=project_id, region=region)
-    return req.execute()
+    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
 
 
 @timeit
@@ -176,7 +211,7 @@ def get_gcp_global_forwarding_rules(project_id: str, compute: Resource) -> Resou
     :return: Response object containing data on all GCP forwarding rules for a given project
     """
     req = compute.globalForwardingRules().list(project=project_id)
-    return req.execute()
+    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
 
 
 @timeit
@@ -188,7 +223,7 @@ def get_gcp_firewall_ingress_rules(project_id: str, compute: Resource) -> Resour
     :return: Firewall response object
     """
     req = compute.firewalls().list(project=project_id, filter='(direction="INGRESS")')
-    return req.execute()
+    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
 
 
 @timeit

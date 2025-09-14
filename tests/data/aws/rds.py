@@ -211,3 +211,44 @@ DESCRIBE_DBSNAPSHOTS_RESPONSE = {
         },
     ],
 }
+
+DESCRIBE_EVENT_SUBSCRIPTIONS_RESPONSE = {
+    "EventSubscriptionsList": [
+        {
+            "CustSubscriptionId": "test-event-subscription-1",
+            "CustomerAwsId": "000000000000",
+            "EventSubscriptionArn": "arn:aws:rds:us-east-1:000000000000:es:test-event-subscription-1",
+            "SnsTopicArn": "arn:aws:sns:us-east-1:000000000000:rds_event_instance_sub",
+            "Status": "active",
+            "SourceType": "db-instance",
+            "SourceIdsList": ["some-prod-db-iad-0"],
+            "EventCategoriesList": ["backup", "maintenance", "failure"],
+            "Enabled": True,
+            "SubscriptionCreationTime": datetime.datetime(2023, 1, 1, 12, 0, 0),
+        },
+        {
+            "CustSubscriptionId": "test-event-subscription-2",
+            "CustomerAwsId": "000000000000",
+            "EventSubscriptionArn": "arn:aws:rds:us-east-1:000000000000:es:test-event-subscription-2",
+            "SnsTopicArn": "arn:aws:sns:us-east-1:000000000000:rds_event_cluster_sub",
+            "Status": "active",
+            "SourceType": "db-cluster",
+            "SourceIdsList": ["some-prod-db-iad"],
+            "EventCategoriesList": ["backup", "creation", "deletion"],
+            "Enabled": True,
+            "SubscriptionCreationTime": datetime.datetime(2023, 1, 2, 12, 0, 0),
+        },
+        {
+            "CustSubscriptionId": "test-event-subscription-3",
+            "CustomerAwsId": "000000000000",
+            "EventSubscriptionArn": "arn:aws:rds:us-east-1:000000000000:es:test-event-subscription-3",
+            "SnsTopicArn": "arn:aws:sns:us-east-1:000000000000:rds_event_snapshot_sub",
+            "Status": "active",
+            "SourceType": "db-snapshot",
+            "SourceIdsList": ["some-db-snapshot-identifier"],
+            "EventCategoriesList": [],
+            "Enabled": False,
+            "SubscriptionCreationTime": datetime.datetime(2023, 1, 3, 12, 0, 0),
+        },
+    ],
+}

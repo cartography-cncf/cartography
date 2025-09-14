@@ -45,6 +45,8 @@ class Config:
     :param azure_client_id: Client Id for connecting in a Service Principal Authentication approach. Optional.
     :type azure_client_secret: str
     :param azure_client_secret: Client Secret for connecting in a Service Principal Authentication approach. Optional.
+    :type azure_subscription_id: str | None
+    :param azure_subscription_id: The Azure Subscription ID to sync.
     :type entra_tenant_id: str
     :param entra_tenant_id: Tenant Id for connecting in a Service Principal Authentication approach. Optional.
     :type entra_client_id: str
@@ -68,6 +70,8 @@ class Config:
     :param okta_saml_role_regex: The regex used to map okta groups to AWS roles. Optional.
     :type github_config: str
     :param github_config: Base64 encoded config object for GitHub ingestion. Optional.
+    :type github_commit_lookback_days: int
+    :param github_commit_lookback_days: Number of days to look back for GitHub commit tracking. Optional.
     :type digitalocean_token: str
     :param digitalocean_token: DigitalOcean access token. Optional.
     :type permission_relationships_file: str
@@ -92,6 +96,8 @@ class Config:
     :param statsd_port: If statsd_enabled is True, send metrics to this port on statsd_host. Optional.
     :type: k8s_kubeconfig: str
     :param k8s_kubeconfig: Path to kubeconfig file for kubernetes cluster(s). Optional
+    :type: managed_kubernetes: str
+    :param managed_kubernetes: Type of managed Kubernetes service (e.g., "eks"). Optional.
     :type: pagerduty_api_key: str
     :param pagerduty_api_key: API authentication key for pagerduty. Optional.
     :type: pagerduty_request_timeout: int
@@ -166,6 +172,14 @@ class Config:
     :param sentinelone_api_token: SentinelOne API token for authentication. Optional.
     :type sentinelone_account_ids: list[str]
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
+    :type keycloak_client_id: str
+    :param keycloak_client_id: Keycloak client ID for API authentication. Optional.
+    :type keycloak_client_secret: str
+    :param keycloak_client_secret: Keycloak client secret for API authentication. Optional.
+    :type keycloak_realm: str
+    :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
+    :type keycloak_url: str
+    :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
     """
 
     def __init__(
@@ -186,6 +200,7 @@ class Config:
         azure_tenant_id=None,
         azure_client_id=None,
         azure_client_secret=None,
+        azure_subscription_id: str | None = None,
         entra_tenant_id=None,
         entra_client_id=None,
         entra_client_secret=None,
@@ -197,6 +212,7 @@ class Config:
         okta_api_key=None,
         okta_saml_role_regex=None,
         github_config=None,
+        github_commit_lookback_days=30,
         digitalocean_token=None,
         permission_relationships_file=None,
         jamf_base_uri=None,
@@ -206,6 +222,7 @@ class Config:
         kandji_tenant_id=None,
         kandji_token=None,
         k8s_kubeconfig=None,
+        managed_kubernetes=None,
         statsd_enabled=False,
         statsd_prefix=None,
         statsd_host=None,
@@ -252,6 +269,10 @@ class Config:
         sentinelone_api_url=None,
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
+        keycloak_client_id=None,
+        keycloak_client_secret=None,
+        keycloak_realm=None,
+        keycloak_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -271,6 +292,7 @@ class Config:
         self.azure_tenant_id = azure_tenant_id
         self.azure_client_id = azure_client_id
         self.azure_client_secret = azure_client_secret
+        self.azure_subscription_id = azure_subscription_id
         self.entra_tenant_id = entra_tenant_id
         self.entra_client_id = entra_client_id
         self.entra_client_secret = entra_client_secret
@@ -282,6 +304,7 @@ class Config:
         self.okta_api_key = okta_api_key
         self.okta_saml_role_regex = okta_saml_role_regex
         self.github_config = github_config
+        self.github_commit_lookback_days = github_commit_lookback_days
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.jamf_base_uri = jamf_base_uri
@@ -291,6 +314,7 @@ class Config:
         self.kandji_tenant_id = kandji_tenant_id
         self.kandji_token = kandji_token
         self.k8s_kubeconfig = k8s_kubeconfig
+        self.managed_kubernetes = managed_kubernetes
         self.statsd_enabled = statsd_enabled
         self.statsd_prefix = statsd_prefix
         self.statsd_host = statsd_host
@@ -337,3 +361,7 @@ class Config:
         self.sentinelone_api_url = sentinelone_api_url
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
+        self.keycloak_client_id = keycloak_client_id
+        self.keycloak_client_secret = keycloak_client_secret
+        self.keycloak_realm = keycloak_realm
+        self.keycloak_url = keycloak_url
