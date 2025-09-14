@@ -68,16 +68,16 @@ TEST_UPDATE_TAG = 123456789
     return_value=GET_USER_ACCESS_KEYS_DATA,
 )
 def test_sync_iam(
-    mock_get_users,
-    mock_get_user_inline_pols,
-    mock_get_user_managed_pols,
-    mock_get_groups,
-    mock_get_group_policies,
-    mock_get_group_managed_pols,
-    mock_get_roles,
-    mock_get_role_policies,
-    mock_get_role_managed_pols,
     mock_get_user_access_keys,
+    mock_get_user_list_data,
+    mock_get_user_policy_data,
+    mock_get_user_managed_policy_data,
+    mock_get_group_list_data,
+    mock_get_group_policy_data,
+    mock_get_group_managed_policy_data,
+    mock_get_role_list_data,
+    mock_get_role_policy_data,
+    mock_get_role_managed_policy_data,
     neo4j_session,
 ):
     """Test IAM sync end-to-end"""

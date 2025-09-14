@@ -360,9 +360,10 @@ def get_group_memberships(
                 ]
             else:
                 memberships[group["Arn"]] = []
-        except Exception as e:
+        except Exception:
             logger.warning(
-                f"Could not get membership data for group {group['GroupName']}: {e}"
+                f"Could not get membership data for group {group['GroupName']}",
+                exc_info=True,
             )
             memberships[group["Arn"]] = []
 
@@ -643,9 +644,9 @@ def sync_assumerole_relationships(
 
     GraphJob.from_matchlink(
         STSAssumeRoleAllowMatchLink(),
-        "AWSAccount",  # _sub_resource_label
-        current_aws_account_id,  # _sub_resource_id
-        aws_update_tag,
+        sub_resource_label="AWSAccount",
+        sub_resource_id=current_aws_account_id,
+        update_tag=aws_update_tag,
     ).run(neo4j_session)
 
 

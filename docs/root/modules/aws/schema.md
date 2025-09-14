@@ -113,7 +113,7 @@ type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
   RETURN outbound_account.name, inbound_account.name, inbound_range.range, inbound_rule.fromport, inbound_rule.toport, inbound_rule.protocol, inbound_group.name, inbound_vpc.id
   ```
 
-### AWSPrincipal :: AWSGroup
+### AWSPrincipal::AWSGroup
 
 Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Group.html).
 
@@ -576,7 +576,7 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 - An `AWSManagedPolicy` contains one or more `AWSPolicyStatement`s
 
     ```cypher
-    (:AWSInlinePolicy)-[:STATEMENT]->(:AWSPolicyStatement)
+    (:AWSManagedPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
     ```
 
 ### AWSPolicyStatement
