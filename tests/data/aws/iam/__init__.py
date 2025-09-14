@@ -153,7 +153,7 @@ LIST_SAML_PROVIDERS = {
         },
         {
             "Arn": "arn:aws:iam::000000000000:saml-provider/Okta",
-            "ValidUntil": "2026-01-01T00:00:00Z",
+            "ValidUntil": datetime.datetime(2026, 1, 1, 0, 0, 0),
             "CreateDate": datetime.datetime(2021, 6, 15, 12, 0, 0),
         },
     ]
