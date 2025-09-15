@@ -4202,6 +4202,12 @@ Representation of an AWS Identity Center.
     (AWSIdentityCenter)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
     ```
 
+- Entra service principals can federate to AWS Identity Center via SAML
+
+    ```cypher
+    (:EntraServicePrincipal)-[:FEDERATES_TO]->(:AWSIdentityCenter)
+    ```
+
 ### AWSSSOUser
 
 Representation of an AWS SSO User.
@@ -4234,6 +4240,11 @@ Representation of an AWS SSO User.
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
     (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)
+    ```
+
+- Entra users can sign on to AWSSSOUser via SAML federation through AWS Identity Center. See https://docs.aws.amazon.com/singlesignon/latest/userguide/idp-microsoft-entra.html and https://learn.microsoft.com/en-us/entra/identity/saas-apps/aws-single-sign-on-tutorial.
+    ```
+    (:EntraUser)-[:CAN_SIGN_ON_TO]->(:AWSSSOUser)
     ```
 
 ### AWSPermissionSet
