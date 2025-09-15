@@ -67,6 +67,8 @@ class GCPSubnetSchema(CartographyNodeSchema):
     label: str = "GCPSubnet"
     properties: GCPSubnetNodeProperties = GCPSubnetNodeProperties()
     sub_resource_relationship: GCPSubnetToProjectRel = GCPSubnetToProjectRel()
-    other_relationships: OtherRelationships = OtherRelationships([
-        GCPSubnetToVpcRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GCPSubnetToVpcRel(),
+        ]
+    )

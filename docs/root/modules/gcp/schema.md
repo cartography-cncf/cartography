@@ -431,7 +431,13 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 
 #### Relationships
 
-- GCPSubnets are part of GCP VPCs
+- GCPSubnets are resources of GCPProjects (primary organizational relationship)
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPSubnet)
+    ```
+
+- GCPSubnets are part of GCP VPCs (business relationship)
 
     ```
     (GCPVpc)-[RESOURCE]->(GCPSubnet)

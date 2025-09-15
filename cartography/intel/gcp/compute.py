@@ -1166,7 +1166,9 @@ def cleanup_gcp_subnets(
     """
     from cartography.models.gcp.compute.subnet import GCPSubnetSchema
 
-    GraphJob.from_node_schema(GCPSubnetSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(GCPSubnetSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
