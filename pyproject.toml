@@ -85,7 +85,7 @@ dev = [
     "pytest-asyncio",
     "types-PyYAML",
     "black==25.1.0",
-    "types-requests<2.32.4.20250810",
+    "types-requests<2.32.4.20250914",
     "azure-mgmt-web>=7.0.0",
 ]
 doc = [
