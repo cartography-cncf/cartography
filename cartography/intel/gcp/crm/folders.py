@@ -3,8 +3,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
-from googleapiclient.discovery import HttpError
-from googleapiclient.discovery import Resource
+from google.cloud import resourcemanager_v3
 
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -13,20 +12,42 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_folders(crm_v2: Resource) -> List[Dict]:
+def get_gcp_folders(org_id: str) -> List[Dict]:
     """
-    Return list of GCP folders that the crm_v2 resource object has permissions to access.
-    Returns empty list if we are unable to enumerate folders for any reason.
-    :param crm_v2: The Resource Manager v2 resource object.
-    :return: List of GCP folders.
+    Return a list of all descendant GCP folders under the specified organization by traversing the folder tree.
+    Uses Cloud Resource Manager v2 folders.list with recursion.
+
+    :param crm_v2: The Resource Manager v2 discovery client.
+    :param org_id: Numeric organization id, e.g., "123456789012".
+    :return: List of folder dicts as returned by v2.
     """
+    results: List[Dict] = []
+    client = resourcemanager_v3.FoldersClient()
     try:
-        req = crm_v2.folders().search(body={})
-        res = req.execute()
-        return res.get("folders", [])
-    except HttpError as e:
+        # BFS over folders starting at the org root
+        queue: List[str] = [f"organizations/{org_id}"]
+        seen: set[str] = set()
+        while queue:
+            parent = queue.pop(0)
+            if parent in seen:
+                continue
+            seen.add(parent)
+
+            for folder in client.list_folders(parent=parent):
+                results.append(
+                    {
+                        "name": folder.name,
+                        "parent": parent,
+                        "displayName": folder.display_name,
+                        "lifecycleState": folder.state.name,
+                    }
+                )
+                if folder.name:
+                    queue.append(folder.name)
+        return results
+    except Exception as e:
         logger.warning(
-            "HttpError occurred in crm.get_gcp_folders(), returning empty list. Details: %r",
+            "Exception occurred in crm.get_gcp_folders(), returning empty list. Details: %r",
             e,
         )
         return []
@@ -37,6 +58,7 @@ def load_gcp_folders(
     neo4j_session: neo4j.Session,
     data: List[Dict],
     gcp_update_tag: int,
+    org_id: str,
 ) -> None:
     """
     Ingest the GCP folders to Neo4j.
@@ -50,7 +72,6 @@ def load_gcp_folders(
             ON CREATE SET parent.firstseen = timestamp()
             """
         else:
-            # Skip folders with unexpected parent types
             logger.warning(
                 f"Skipping folder {folder['name']} with unexpected parent type: {folder['parent']}"
             )
@@ -63,9 +84,14 @@ def load_gcp_folders(
             folder.lifecyclestate = $LifecycleState,
             folder.lastupdated = $gcp_update_tag
         WITH parent, folder
-        MERGE (parent)-[r:RESOURCE]->(folder)
+        MERGE (parent)-[r:PARENT]->(folder)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $gcp_update_tag
+        WITH folder
+        MATCH (org:GCPOrganization{id:$OrgName})
+        MERGE (org)-[r2:RESOURCE]->(folder)
+        ON CREATE SET r2.firstseen = timestamp()
+        SET r2.lastupdated = $gcp_update_tag
         """
         neo4j_session.run(
             query,
@@ -73,6 +99,7 @@ def load_gcp_folders(
             FolderName=folder["name"],
             DisplayName=folder.get("displayName", None),
             LifecycleState=folder.get("lifecycleState", None),
+            OrgName=f"organizations/{org_id}",
             gcp_update_tag=gcp_update_tag,
         )
 
@@ -91,14 +118,14 @@ def cleanup_gcp_folders(
 @timeit
 def sync_gcp_folders(
     neo4j_session: neo4j.Session,
-    crm_v2: Resource,
     gcp_update_tag: int,
     common_job_parameters: Dict,
+    org_id: str,
 ) -> None:
     """
     Get GCP folder data using the CRM v2 resource object, load the data to Neo4j, and clean up stale nodes.
     """
     logger.debug("Syncing GCP folders")
-    folders = get_gcp_folders(crm_v2)
-    load_gcp_folders(neo4j_session, folders, gcp_update_tag)
+    folders = get_gcp_folders(org_id)
+    load_gcp_folders(neo4j_session, folders, gcp_update_tag, org_id)
     cleanup_gcp_folders(neo4j_session, common_job_parameters)

@@ -1,11 +1,9 @@
 import logging
-from string import Template
 from typing import Dict
 from typing import List
 
 import neo4j
-from googleapiclient.discovery import HttpError
-from googleapiclient.discovery import Resource
+from google.cloud import resourcemanager_v3
 
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -14,31 +12,33 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_projects(crm_v1: Resource) -> List[Dict]:
+def get_gcp_projects(org_id: str, folder_names: List[str]) -> List[Dict]:
     """
-    Return list of GCP projects that the crm_v1 resource object has permissions to access.
-    Returns empty list if we are unable to enumerate projects for any reason.
-    :param crm_v1: The Resource Manager v1 resource object.
-    :return: List of GCP projects.
+    Return list of ACTIVE GCP projects under the specified organization
+    and within the specified folders.
     """
-    try:
-        projects: List[Dict] = []
-        req = crm_v1.projects().list(filter="lifecycleState:ACTIVE")
-        while req is not None:
-            res = req.execute()
-            page = res.get("projects", [])
-            projects.extend(page)
-            req = crm_v1.projects().list_next(
-                previous_request=req,
-                previous_response=res,
-            )
-        return projects
-    except HttpError as e:
-        logger.warning(
-            "HttpError occurred in crm.get_gcp_projects(), returning empty list. Details: %r",
-            e,
-        )
-        return []
+    parents = set([f"organizations/{org_id}"] + folder_names)
+    results: List[Dict] = []
+    for parent in parents:
+        client = resourcemanager_v3.ProjectsClient()
+        try:
+            for proj in client.list_projects(parent=parent):
+                # list_projects returns ACTIVE projects by default
+                name_field = proj.name  # "projects/<number>"
+                project_number = name_field.split("/")[-1] if name_field else None
+                project_parent = getattr(proj, "parent", None)
+                results.append(
+                    {
+                        "projectId": getattr(proj, "project_id", None),
+                        "projectNumber": project_number,
+                        "name": getattr(proj, "display_name", None),
+                        "lifecycleState": proj.state.name,
+                        "parent": project_parent,
+                    }
+                )
+        except Exception as e:
+            logger.warning("Listing projects under %s failed: %r", parent, e)
+    return results
 
 
 @timeit
@@ -46,72 +46,43 @@ def load_gcp_projects(
     neo4j_session: neo4j.Session,
     data: List[Dict],
     gcp_update_tag: int,
+    org_id: str,
 ) -> None:
     """
-    Ingest the GCP projects to Neo4j.
+    Ingest the GCP projects to Neo4j, attaching to the discovered parent and to the organization.
     """
-    query = """
-    MERGE (project:GCPProject{id:$ProjectId})
-    ON CREATE SET project.firstseen = timestamp()
-    SET project.projectid = $ProjectId,
-        project.projectnumber = $ProjectNumber,
-        project.displayname = $DisplayName,
-        project.lifecyclestate = $LifecycleState,
-        project.lastupdated = $gcp_update_tag
-    """
-
     for project in data:
+        if project["parent"].startswith("organizations"):
+            query = "MATCH (parent:GCPOrganization{id:$ParentId})"
+        elif project["parent"].startswith("folders"):
+            query = "MATCH (parent:GCPFolder{id:$ParentId})"
+        query += """
+        MERGE (project:GCPProject{id:$ProjectId})
+        ON CREATE SET project.firstseen = timestamp()
+        SET project.projectid = $ProjectId,
+            project.projectnumber = $ProjectNumber,
+            project.displayname = $DisplayName,
+            project.lifecyclestate = $LifecycleState,
+            project.lastupdated = $gcp_update_tag
+        WITH parent, project
+        MERGE (parent)-[r:PARENT]->(project)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $gcp_update_tag
+        WITH project
+        MATCH (org:GCPOrganization{id:$OrgName})
+        MERGE (org)-[r2:RESOURCE]->(project)
+        ON CREATE SET r2.firstseen = timestamp()
+        SET r2.lastupdated = $gcp_update_tag
+        """
         neo4j_session.run(
             query,
             ProjectId=project["projectId"],
             ProjectNumber=project["projectNumber"],
             DisplayName=project.get("name", None),
             LifecycleState=project.get("lifecycleState", None),
+            OrgName=f"organizations/{org_id}",
             gcp_update_tag=gcp_update_tag,
         )
-        if project.get("parent"):
-            _attach_gcp_project_parent(neo4j_session, project, gcp_update_tag)
-
-
-@timeit
-def _attach_gcp_project_parent(
-    neo4j_session: neo4j.Session,
-    project: Dict,
-    gcp_update_tag: int,
-) -> None:
-    """
-    Attach a project to its respective parent, as in the Resource Hierarchy.
-    """
-    if project["parent"]["type"] == "organization":
-        parent_label = "GCPOrganization"
-    elif project["parent"]["type"] == "folder":
-        parent_label = "GCPFolder"
-    else:
-        raise NotImplementedError(
-            "Ingestion of GCP {}s as parent nodes is currently not supported. "
-            "Please file an issue at https://github.com/cartography-cncf/cartography/issues.".format(
-                project["parent"]["type"],
-            ),
-        )
-    parent_id = f"{project['parent']['type']}s/{project['parent']['id']}"
-    INGEST_PARENT_TEMPLATE = Template(
-        """
-    MATCH (project:GCPProject{id:$ProjectId})
-
-    MERGE (parent:$parent_label{id:$ParentId})
-    ON CREATE SET parent.firstseen = timestamp()
-
-    MERGE (parent)-[r:RESOURCE]->(project)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $gcp_update_tag
-    """,
-    )
-    neo4j_session.run(
-        INGEST_PARENT_TEMPLATE.safe_substitute(parent_label=parent_label),
-        ParentId=parent_id,
-        ProjectId=project["projectId"],
-        gcp_update_tag=gcp_update_tag,
-    )
 
 
 @timeit
@@ -135,10 +106,11 @@ def sync_gcp_projects(
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
+    org_id: str,
 ) -> None:
     """
     Load a given list of GCP project data to Neo4j and clean up stale nodes.
     """
     logger.debug("Syncing GCP projects")
-    load_gcp_projects(neo4j_session, projects, gcp_update_tag)
+    load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_id)
     cleanup_gcp_projects(neo4j_session, common_job_parameters)

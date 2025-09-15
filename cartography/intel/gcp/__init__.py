@@ -16,8 +16,12 @@ from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_client
-from cartography.intel.gcp.crm.folders import sync_gcp_folders
-from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
+from cartography.intel.gcp.crm.folders import cleanup_gcp_folders
+from cartography.intel.gcp.crm.folders import get_gcp_folders
+from cartography.intel.gcp.crm.folders import load_gcp_folders
+from cartography.intel.gcp.crm.orgs import cleanup_gcp_organizations
+from cartography.intel.gcp.crm.orgs import get_gcp_organizations
+from cartography.intel.gcp.crm.orgs import load_gcp_organizations
 from cartography.intel.gcp.crm.projects import get_gcp_projects
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
 from cartography.util import run_analysis_job
@@ -93,12 +97,6 @@ def _sync_multiple_projects(
     :return: Nothing
     """
     logger.info("Syncing %d GCP projects.", len(projects))
-    sync_gcp_projects(
-        neo4j_session,
-        projects,
-        gcp_update_tag,
-        common_job_parameters,
-    )
     # Per-project sync across services
     for project in projects:
         project_id = project["projectId"]
@@ -179,24 +177,33 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
     }
 
-    try:
-        crm_v1 = build_client("cloudresourcemanager", "v1")
-        crm_v2 = build_client("cloudresourcemanager", "v2")
-    except RuntimeError as e:
-        logger.warning(f"Unable to initialize GCP clients; skipping module: {e}")
-        return
+    # Get all orgs available, load them, and cleanup
+    orgs = get_gcp_organizations()
+    load_gcp_organizations(neo4j_session, orgs, config.update_tag)
+    cleanup_gcp_organizations(neo4j_session, common_job_parameters)
 
-    # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
-    sync_gcp_organizations(
-        neo4j_session, crm_v1, config.update_tag, common_job_parameters
-    )
-    sync_gcp_folders(neo4j_session, crm_v2, config.update_tag, common_job_parameters)
+    # For each org, sync its folders and projects (as sub-resources), then ingest per-project services
+    for org in orgs:
+        name = org.get("name", "")  # e.g., organizations/123456789012
+        if not name or "/" not in name:
+            logger.error(f"Invalid org name: {name}")
+        org_id = name.split("/", 1)[1]
 
-    projects = get_gcp_projects(crm_v1)
+        # Folders under org, attach org->folder; add folder->folder when applicable
+        folders = get_gcp_folders(org_id)
+        load_gcp_folders(neo4j_session, folders, config.update_tag, org_id)
+        cleanup_gcp_folders(neo4j_session, common_job_parameters)
 
-    _sync_multiple_projects(
-        neo4j_session, projects, config.update_tag, common_job_parameters
-    )
+        # Projects under org and each folder; always attach org->project; add folder->project when applicable
+        folder_names = [f["name"] for f in folders]
+        projects = get_gcp_projects(org_id, folder_names)
+        sync_gcp_projects(
+            neo4j_session, projects, config.update_tag, common_job_parameters, org_id
+        )
+
+        _sync_multiple_projects(
+            neo4j_session, projects, config.update_tag, common_job_parameters
+        )
 
     run_analysis_job(
         "gcp_compute_asset_inet_exposure.json",

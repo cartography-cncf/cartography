@@ -19,7 +19,7 @@ def test_load_gcp_projects(neo4j_session):
         neo4j_session, tests.data.gcp.crm.GCP_FOLDERS, TEST_UPDATE_TAG
     )
     cartography.intel.gcp.crm.projects.load_gcp_projects(
-        neo4j_session, tests.data.gcp.crm.GCP_PROJECTS, TEST_UPDATE_TAG
+        neo4j_session, tests.data.gcp.crm.GCP_PROJECTS, TEST_UPDATE_TAG, org_id="1337"
     )
 
     nodes = neo4j_session.run("MATCH (d:GCPProject) return d.id")
@@ -39,7 +39,10 @@ def test_load_gcp_projects_without_parent(neo4j_session):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
     cartography.intel.gcp.crm.projects.load_gcp_projects(
-        neo4j_session, tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT, TEST_UPDATE_TAG
+        neo4j_session,
+        tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT,
+        TEST_UPDATE_TAG,
+        org_id="1337",
     )
 
     nodes = neo4j_session.run(
@@ -61,10 +64,10 @@ def test_load_gcp_projects_without_parent(neo4j_session):
 def test_sync_gcp_projects(_mock_get_folders, _mock_get_orgs, neo4j_session) -> None:
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     cartography.intel.gcp.crm.orgs.sync_gcp_organizations(
-        neo4j_session, None, TEST_UPDATE_TAG, COMMON_JOB_PARAMS
+        neo4j_session, TEST_UPDATE_TAG, COMMON_JOB_PARAMS
     )
     cartography.intel.gcp.crm.folders.sync_gcp_folders(
-        neo4j_session, None, TEST_UPDATE_TAG, COMMON_JOB_PARAMS
+        neo4j_session, TEST_UPDATE_TAG, COMMON_JOB_PARAMS, org_id="1337"
     )
 
     cartography.intel.gcp.crm.projects.sync_gcp_projects(
@@ -72,6 +75,7 @@ def test_sync_gcp_projects(_mock_get_folders, _mock_get_orgs, neo4j_session) -> 
         tests.data.gcp.crm.GCP_PROJECTS,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
+        org_id="1337",
     )
 
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
@@ -96,6 +100,7 @@ def test_sync_gcp_projects_without_parent(neo4j_session) -> None:
         tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
+        org_id="1337",
     )
 
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
@@ -126,13 +131,14 @@ def test_sync_gcp_projects_cleanup(
         neo4j_session,
         tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT,
         TEST_UPDATE_TAG - 1,
+        org_id="1337",
     )
 
     cartography.intel.gcp.crm.orgs.sync_gcp_organizations(
-        neo4j_session, None, TEST_UPDATE_TAG, COMMON_JOB_PARAMS
+        neo4j_session, TEST_UPDATE_TAG, COMMON_JOB_PARAMS
     )
     cartography.intel.gcp.crm.folders.sync_gcp_folders(
-        neo4j_session, None, TEST_UPDATE_TAG, COMMON_JOB_PARAMS
+        neo4j_session, TEST_UPDATE_TAG, COMMON_JOB_PARAMS, org_id="1337"
     )
 
     cartography.intel.gcp.crm.projects.sync_gcp_projects(
@@ -140,6 +146,7 @@ def test_sync_gcp_projects_cleanup(
         tests.data.gcp.crm.GCP_PROJECTS,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
+        org_id="1337",
     )
 
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
@@ -158,6 +165,7 @@ def test_sync_gcp_projects_with_org_parent(neo4j_session) -> None:
         tests.data.gcp.crm.GCP_PROJECTS_WITH_ORG_PARENT,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
+        org_id="1337",
     )
 
     assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {

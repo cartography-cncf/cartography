@@ -20,14 +20,14 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
         neo4j_session, tests.data.gcp.crm.GCP_ORGANIZATIONS, TEST_UPDATE_TAG
     )
     cartography.intel.gcp.crm.projects.load_gcp_projects(
-        neo4j_session, tests.data.gcp.crm.GCP_PROJECTS, TEST_UPDATE_TAG
+        neo4j_session, tests.data.gcp.crm.GCP_PROJECTS, TEST_UPDATE_TAG, org_id="1337"
     )
 
     cartography.intel.gcp.crm.folders.sync_gcp_folders(
         neo4j_session,
-        crm_v2=None,
         gcp_update_tag=TEST_UPDATE_TAG,
         common_job_parameters=COMMON_JOB_PARAMS,
+        org_id="1337",
     )
 
     assert check_nodes(neo4j_session, "GCPFolder", ["id", "displayname"]) == {
@@ -66,9 +66,9 @@ def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
 
     cartography.intel.gcp.crm.folders.sync_gcp_folders(
         neo4j_session,
-        crm_v2=None,
         gcp_update_tag=TEST_UPDATE_TAG,
         common_job_parameters=COMMON_JOB_PARAMS,
+        org_id="1337",
     )
 
     assert check_nodes(neo4j_session, "GCPFolder", ["id", "displayname"]) == {
