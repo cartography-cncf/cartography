@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_projects(crm_v1: Resource) -> List[Resource]:
+def get_gcp_projects(crm_v1: Resource) -> List[Dict]:
     """
     Return list of GCP projects that the crm_v1 resource object has permissions to access.
     Returns empty list if we are unable to enumerate projects for any reason.
@@ -22,7 +22,7 @@ def get_gcp_projects(crm_v1: Resource) -> List[Resource]:
     :return: List of GCP projects.
     """
     try:
-        projects: List[Resource] = []
+        projects: List[Dict] = []
         req = crm_v1.projects().list(filter="lifecycleState:ACTIVE")
         while req is not None:
             res = req.execute()

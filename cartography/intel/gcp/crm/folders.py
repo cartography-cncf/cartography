@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_folders(crm_v2: Resource) -> List[Resource]:
+def get_gcp_folders(crm_v2: Resource) -> List[Dict]:
     """
     Return list of GCP folders that the crm_v2 resource object has permissions to access.
     Returns empty list if we are unable to enumerate folders for any reason.
@@ -49,6 +49,12 @@ def load_gcp_folders(
             MERGE (parent:GCPFolder{id:$ParentId})
             ON CREATE SET parent.firstseen = timestamp()
             """
+        else:
+            # Skip folders with unexpected parent types
+            logger.warning(
+                f"Skipping folder {folder['name']} with unexpected parent type: {folder['parent']}"
+            )
+            continue
         query += """
         MERGE (folder:GCPFolder{id:$FolderName})
         ON CREATE SET folder.firstseen = timestamp()

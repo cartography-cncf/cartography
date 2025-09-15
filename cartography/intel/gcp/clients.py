@@ -62,7 +62,7 @@ def get_gcp_credentials() -> Optional[GoogleCredentials]:
         return credentials
     except DefaultCredentialsError as e:
         logger.debug(
-            "Error occurred calling GoogleCredentials.get_application_default().",
+            "Error occurred calling google.auth.default().",
             exc_info=True,
         )
         logger.error(

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_organizations(crm_v1: Resource) -> List[Resource]:
+def get_gcp_organizations(crm_v1: Resource) -> List[Dict]:
     """
     Return list of GCP organizations that the crm_v1 resource object has permissions to access.
     Returns empty list if we are unable to enumerate organizations for any reason.
