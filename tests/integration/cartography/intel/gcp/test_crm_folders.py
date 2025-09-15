@@ -15,14 +15,12 @@ COMMON_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
     return_value=tests.data.gcp.crm.GCP_FOLDERS,
 )
 def test_sync_gcp_folders(mock_get_folders, neo4j_session):
-    # Pre-load org and project
+    # Pre-load org first
     cartography.intel.gcp.crm.orgs.load_gcp_organizations(
         neo4j_session, tests.data.gcp.crm.GCP_ORGANIZATIONS, TEST_UPDATE_TAG
     )
-    cartography.intel.gcp.crm.projects.load_gcp_projects(
-        neo4j_session, tests.data.gcp.crm.GCP_PROJECTS, TEST_UPDATE_TAG, org_id="1337"
-    )
 
+    # Load folders
     cartography.intel.gcp.crm.folders.sync_gcp_folders(
         neo4j_session,
         gcp_update_tag=TEST_UPDATE_TAG,
@@ -30,9 +28,23 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
         org_id="1337",
     )
 
+    # Load projects after folders exist
+    cartography.intel.gcp.crm.projects.load_gcp_projects(
+        neo4j_session, tests.data.gcp.crm.GCP_PROJECTS, TEST_UPDATE_TAG, org_id="1337"
+    )
+
     assert check_nodes(neo4j_session, "GCPFolder", ["id", "displayname"]) == {
         ("folders/1414", "my-folder"),
     }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPOrganization",
+        "id",
+        "GCPFolder",
+        "id",
+        "PARENT",
+    ) == {("organizations/1337", "folders/1414")}
 
     assert check_rels(
         neo4j_session,
@@ -49,7 +61,7 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
         "id",
         "GCPProject",
         "id",
-        "RESOURCE",
+        "PARENT",
     ) == {("folders/1414", "this-project-has-a-parent-232323")}
 
 
@@ -82,8 +94,20 @@ def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
         "id",
         "GCPFolder",
         "id",
-        "RESOURCE",
+        "PARENT",
     ) == {("organizations/1337", "folders/2000")}
+
+    assert check_rels(
+        neo4j_session,
+        "GCPOrganization",
+        "id",
+        "GCPFolder",
+        "id",
+        "RESOURCE",
+    ) == {
+        ("organizations/1337", "folders/2000"),
+        ("organizations/1337", "folders/2001"),
+    }
 
     assert check_rels(
         neo4j_session,
@@ -91,5 +115,5 @@ def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
         "id",
         "GCPFolder",
         "id",
-        "RESOURCE",
+        "PARENT",
     ) == {("folders/2000", "folders/2001")}

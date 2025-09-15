@@ -16,7 +16,7 @@ def test_load_gcp_projects(neo4j_session):
         neo4j_session, tests.data.gcp.crm.GCP_ORGANIZATIONS, TEST_UPDATE_TAG
     )
     cartography.intel.gcp.crm.folders.load_gcp_folders(
-        neo4j_session, tests.data.gcp.crm.GCP_FOLDERS, TEST_UPDATE_TAG
+        neo4j_session, tests.data.gcp.crm.GCP_FOLDERS, TEST_UPDATE_TAG, org_id="1337"
     )
     cartography.intel.gcp.crm.projects.load_gcp_projects(
         neo4j_session, tests.data.gcp.crm.GCP_PROJECTS, TEST_UPDATE_TAG, org_id="1337"
@@ -26,7 +26,7 @@ def test_load_gcp_projects(neo4j_session):
     assert {(n["d.id"]) for n in nodes} == {"this-project-has-a-parent-232323"}
 
     query = (
-        "MATCH (p:GCPProject{id:$ProjectId})<-[:RESOURCE]-(f:GCPFolder)<-[:RESOURCE]-(o:GCPOrganization)\n"
+        "MATCH (p:GCPProject{id:$ProjectId})<-[:PARENT]-(f:GCPFolder)<-[:PARENT]-(o:GCPOrganization)\n"
         "RETURN p.id, f.id, o.id"
     )
     nodes = neo4j_session.run(query, ProjectId="this-project-has-a-parent-232323")
@@ -38,6 +38,9 @@ def test_load_gcp_projects(neo4j_session):
 def test_load_gcp_projects_without_parent(neo4j_session):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
+    cartography.intel.gcp.crm.orgs.load_gcp_organizations(
+        neo4j_session, tests.data.gcp.crm.GCP_ORGANIZATIONS, TEST_UPDATE_TAG
+    )
     cartography.intel.gcp.crm.projects.load_gcp_projects(
         neo4j_session,
         tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT,
@@ -46,7 +49,7 @@ def test_load_gcp_projects_without_parent(neo4j_session):
     )
 
     nodes = neo4j_session.run(
-        "MATCH (d:GCPProject) WHERE NOT (d)<-[:RESOURCE]-() RETURN d.id"
+        "MATCH (d:GCPProject) WHERE NOT (d)<-[:PARENT]-(:GCPFolder) RETURN d.id"
     )
     assert {(n["d.id"]) for n in nodes} == {"my-parentless-project-987654"}
 
@@ -83,7 +86,7 @@ def test_sync_gcp_projects(_mock_get_folders, _mock_get_orgs, neo4j_session) -> 
     }
 
     query = (
-        "MATCH (p:GCPProject{id:$ProjectId})<-[:RESOURCE]-(f:GCPFolder)<-[:RESOURCE]-(o:GCPOrganization)\n"
+        "MATCH (p:GCPProject{id:$ProjectId})<-[:PARENT]-(f:GCPFolder)<-[:PARENT]-(o:GCPOrganization)\n"
         "RETURN p.id, f.id, o.id"
     )
     nodes = neo4j_session.run(query, ProjectId="this-project-has-a-parent-232323")
@@ -95,6 +98,9 @@ def test_sync_gcp_projects(_mock_get_folders, _mock_get_orgs, neo4j_session) -> 
 def test_sync_gcp_projects_without_parent(neo4j_session) -> None:
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
+    cartography.intel.gcp.crm.orgs.load_gcp_organizations(
+        neo4j_session, tests.data.gcp.crm.GCP_ORGANIZATIONS, TEST_UPDATE_TAG
+    )
     cartography.intel.gcp.crm.projects.sync_gcp_projects(
         neo4j_session,
         tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT,
@@ -107,7 +113,7 @@ def test_sync_gcp_projects_without_parent(neo4j_session) -> None:
         ("my-parentless-project-987654",)
     }
     assert (
-        check_rels(neo4j_session, "GCPFolder", "id", "GCPProject", "id", "RESOURCE")
+        check_rels(neo4j_session, "GCPFolder", "id", "GCPProject", "id", "PARENT")
         == set()
     )
 
@@ -127,6 +133,9 @@ def test_sync_gcp_projects_cleanup(
 ) -> None:
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
+    cartography.intel.gcp.crm.orgs.load_gcp_organizations(
+        neo4j_session, tests.data.gcp.crm.GCP_ORGANIZATIONS, TEST_UPDATE_TAG - 1
+    )
     cartography.intel.gcp.crm.projects.load_gcp_projects(
         neo4j_session,
         tests.data.gcp.crm.GCP_PROJECTS_WITHOUT_PARENT,
@@ -172,9 +181,12 @@ def test_sync_gcp_projects_with_org_parent(neo4j_session) -> None:
         ("project-under-org-55555",)
     }
     assert check_rels(
+        neo4j_session, "GCPOrganization", "id", "GCPProject", "id", "PARENT"
+    ) == {("organizations/1337", "project-under-org-55555")}
+    assert check_rels(
         neo4j_session, "GCPOrganization", "id", "GCPProject", "id", "RESOURCE"
     ) == {("organizations/1337", "project-under-org-55555")}
     assert (
-        check_rels(neo4j_session, "GCPFolder", "id", "GCPProject", "id", "RESOURCE")
+        check_rels(neo4j_session, "GCPFolder", "id", "GCPProject", "id", "PARENT")
         == set()
     )

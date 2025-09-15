@@ -76,6 +76,7 @@ def load_gcp_projects(
         """
         neo4j_session.run(
             query,
+            ParentId=project["parent"],
             ProjectId=project["projectId"],
             ProjectNumber=project["projectNumber"],
             DisplayName=project.get("name", None),
