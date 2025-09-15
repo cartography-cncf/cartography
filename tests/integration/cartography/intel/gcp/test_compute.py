@@ -31,6 +31,7 @@ def _ensure_local_neo4j_has_test_subnet_data(neo4j_session):
         neo4j_session,
         tests.data.gcp.compute.TRANSFORMED_GCP_SUBNETS,
         TEST_UPDATE_TAG,
+        "project-abc",
     )
 
 
@@ -84,6 +85,7 @@ def test_transform_and_load_subnets(neo4j_session):
         neo4j_session,
         subnet_list,
         TEST_UPDATE_TAG,
+        "project-abc",
     )
 
     query = """
@@ -641,6 +643,13 @@ def test_sync_gcp_subnets(mock_get_subnets, neo4j_session):
     """sync_gcp_subnets loads subnets and creates relationships."""
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": "project-abc"}
+    # Pre-load VPCs so subnets can connect to them
+    cartography.intel.gcp.compute.load_gcp_vpcs(
+        neo4j_session,
+        tests.data.gcp.compute.TRANSFORMED_GCP_VPCS,
+        TEST_UPDATE_TAG,
+        "project-abc",
+    )
     # Pre-load an instance so a network interface referencing the subnet exists
     cartography.intel.gcp.compute.load_gcp_instances(
         neo4j_session,
