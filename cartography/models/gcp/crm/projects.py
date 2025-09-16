@@ -15,8 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GCPProjectNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("projectId")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    projectid: PropertyRef = PropertyRef("projectId", extra_index=True)
-    projectnumber: PropertyRef = PropertyRef("projectNumber")
+    projectnumber: PropertyRef = PropertyRef("projectNumber", extra_index=True)
     displayname: PropertyRef = PropertyRef("name")
     lifecyclestate: PropertyRef = PropertyRef("lifecycleState")
     parent_org: PropertyRef = PropertyRef(

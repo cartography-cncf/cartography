@@ -18,4 +18,4 @@ class GCPOrganizationNodeProperties(CartographyNodeProperties):
 class GCPOrganizationSchema(CartographyNodeSchema):
     label: str = "GCPOrganization"
     properties: GCPOrganizationNodeProperties = GCPOrganizationNodeProperties()
-    sub_resource_relationship: None = None  # Organizations are top-level
+    # sub_resource_relationship is None by default - Organizations are top-level resources
