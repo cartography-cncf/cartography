@@ -7,6 +7,7 @@ import neo4j
 from cartography.config import Config
 from cartography.util import timeit
 
+from . import app_service
 from . import compute
 from . import cosmosdb
 from . import functions
@@ -37,6 +38,13 @@ def _sync_one_subscription(
     cosmosdb.sync(
         neo4j_session,
         credentials.credential,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    app_service.sync(
+        neo4j_session,
+        credentials,
         subscription_id,
         update_tag,
         common_job_parameters,

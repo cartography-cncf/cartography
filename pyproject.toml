@@ -80,12 +80,12 @@ dev = [
     "pre-commit",
     "pytest>=6.2.4",
     "pytest-mock",
-    "pytest-cov==6.3.0",
+    "pytest-cov==7.0.0",
     "pytest-rerunfailures",
     "pytest-asyncio",
     "types-PyYAML",
     "black==25.1.0",
-    "types-requests<2.32.4.20250810",
+    "types-requests<2.32.4.20250914",
     "azure-mgmt-web>=7.0.0",
 ]
 doc = [

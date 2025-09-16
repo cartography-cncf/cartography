@@ -1194,3 +1194,26 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureFunctionApp)
     ```
+
+### AzureAppService
+
+Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the App Service. |
+|name| The name of the App Service. |
+|kind| The kind of the resource, used to identify it as an app service. |
+|location| The Azure region where the App Service is deployed. |
+|state| The operational state of the App Service (e.g., Running, Stopped). |
+|default_host_name| The default hostname of the App Service. |
+|https_only| A boolean indicating if the App Service is configured to only accept HTTPS traffic. |
+
+#### Relationships
+
+- An Azure App Service is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureAppService)
+    ```
