@@ -16,13 +16,8 @@ from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_client
-from cartography.intel.gcp.crm.folders import cleanup_gcp_folders
-from cartography.intel.gcp.crm.folders import get_gcp_folders
-from cartography.intel.gcp.crm.folders import load_gcp_folders
-from cartography.intel.gcp.crm.orgs import cleanup_gcp_organizations
-from cartography.intel.gcp.crm.orgs import get_gcp_organizations
-from cartography.intel.gcp.crm.orgs import load_gcp_organizations
-from cartography.intel.gcp.crm.projects import get_gcp_projects
+from cartography.intel.gcp.crm.folders import sync_gcp_folders
+from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
 from cartography.util import run_analysis_job
 from cartography.util import timeit
@@ -177,33 +172,38 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
     }
 
-    # Get all orgs available, load them, and cleanup
-    orgs = get_gcp_organizations()
-    load_gcp_organizations(neo4j_session, orgs, config.update_tag)
-    cleanup_gcp_organizations(neo4j_session, common_job_parameters)
+    orgs = sync_gcp_organizations(
+        neo4j_session, config.update_tag, common_job_parameters
+    )
 
     # For each org, sync its folders and projects (as sub-resources), then ingest per-project services
     for org in orgs:
         name = org.get("name", "")  # e.g., organizations/123456789012
         if not name or "/" not in name:
             logger.error(f"Invalid org name: {name}")
+            continue
         org_id = name.split("/", 1)[1]
 
-        # Folders under org, attach org->folder; add folder->folder when applicable
-        folders = get_gcp_folders(org_id)
-        load_gcp_folders(neo4j_session, folders, config.update_tag, org_id)
-        cleanup_gcp_folders(neo4j_session, common_job_parameters)
+        # Needed for cleanup operations
+        common_job_parameters["ORG_ID"] = f"organizations/{org_id}"
 
-        # Projects under org and each folder; always attach org->project; add folder->project when applicable
-        folder_names = [f["name"] for f in folders]
-        projects = get_gcp_projects(org_id, folder_names)
-        sync_gcp_projects(
-            neo4j_session, projects, config.update_tag, common_job_parameters, org_id
+        # Sync folders under org
+        folders = sync_gcp_folders(
+            neo4j_session, config.update_tag, common_job_parameters, org_id
         )
 
+        # Sync projects under org and each folder
+        projects = sync_gcp_projects(
+            neo4j_session, org_id, folders, config.update_tag, common_job_parameters
+        )
+
+        # Ingest per-project resources
         _sync_multiple_projects(
             neo4j_session, projects, config.update_tag, common_job_parameters
         )
+
+        # Remove org ID from common job parameters after processing
+        del common_job_parameters["ORG_ID"]
 
     run_analysis_job(
         "gcp_compute_asset_inet_exposure.json",

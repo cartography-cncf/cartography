@@ -5,18 +5,22 @@ from typing import List
 import neo4j
 from google.cloud import resourcemanager_v3
 
-from cartography.util import run_cleanup_job
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_projects(org_id: str, folder_names: List[str]) -> List[Dict]:
+def get_gcp_projects(org_id: str, folders: List[Dict]) -> List[Dict]:
     """
     Return list of ACTIVE GCP projects under the specified organization
     and within the specified folders.
     """
+    # Extract folder names from the folder data
+    folder_names = [folder["name"] for folder in folders] if folders else []
     parents = set([f"organizations/{org_id}"] + folder_names)
     results: List[Dict] = []
     for parent in parents:
@@ -48,70 +52,56 @@ def load_gcp_projects(
     gcp_update_tag: int,
     org_id: str,
 ) -> None:
-    """
-    Ingest the GCP projects to Neo4j, attaching to the discovered parent and to the organization.
-    """
+    # Transform data to set parent_org or parent_folder based on parent type
+    transformed_data = []
     for project in data:
+        transformed_project = {
+            "projectId": project["projectId"],
+            "projectNumber": project.get("projectNumber"),
+            "name": project.get("name"),
+            "lifecycleState": project.get("lifecycleState"),
+            "parent": project["parent"],
+            "parent_org": None,
+            "parent_folder": None,
+        }
+
         if project["parent"].startswith("organizations"):
-            query = "MATCH (parent:GCPOrganization{id:$ParentId})"
+            transformed_project["parent_org"] = project["parent"]
         elif project["parent"].startswith("folders"):
-            query = "MATCH (parent:GCPFolder{id:$ParentId})"
-        query += """
-        MERGE (project:GCPProject{id:$ProjectId})
-        ON CREATE SET project.firstseen = timestamp()
-        SET project.projectid = $ProjectId,
-            project.projectnumber = $ProjectNumber,
-            project.displayname = $DisplayName,
-            project.lifecyclestate = $LifecycleState,
-            project.lastupdated = $gcp_update_tag
-        WITH parent, project
-        MERGE (parent)<-[r:PARENT]-(project)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $gcp_update_tag
-        WITH project
-        MATCH (org:GCPOrganization{id:$OrgName})
-        MERGE (org)-[r2:RESOURCE]->(project)
-        ON CREATE SET r2.firstseen = timestamp()
-        SET r2.lastupdated = $gcp_update_tag
-        """
-        neo4j_session.run(
-            query,
-            ParentId=project["parent"],
-            ProjectId=project["projectId"],
-            ProjectNumber=project["projectNumber"],
-            DisplayName=project.get("name", None),
-            LifecycleState=project.get("lifecycleState", None),
-            OrgName=f"organizations/{org_id}",
-            gcp_update_tag=gcp_update_tag,
-        )
+            transformed_project["parent_folder"] = project["parent"]
+        else:
+            logger.warning(
+                f"Skipping project {project['projectId']} with unexpected parent type: {project['parent']}"
+            )
+            continue
 
+        transformed_data.append(transformed_project)
 
-@timeit
-def cleanup_gcp_projects(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Remove stale GCP projects and their relationships.
-    """
-    run_cleanup_job(
-        "gcp_crm_project_cleanup.json",
+    load(
         neo4j_session,
-        common_job_parameters,
+        GCPProjectSchema(),
+        transformed_data,
+        lastupdated=gcp_update_tag,
+        ORG_ID=f"organizations/{org_id}",
     )
 
 
 @timeit
 def sync_gcp_projects(
     neo4j_session: neo4j.Session,
-    projects: List[Dict],
+    org_id: str,
+    folders: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
-    org_id: str,
-) -> None:
+) -> List[Dict]:
     """
-    Load a given list of GCP project data to Neo4j and clean up stale nodes.
+    Get and sync GCP project data to Neo4j and clean up stale nodes.
+    Returns the list of projects synced.
     """
     logger.debug("Syncing GCP projects")
+    projects = get_gcp_projects(org_id, folders)
     load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_id)
-    cleanup_gcp_projects(neo4j_session, common_job_parameters)
+    GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    return projects

@@ -5,7 +5,9 @@ from typing import List
 import neo4j
 from google.cloud import resourcemanager_v3
 
-from cartography.util import run_cleanup_job
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -44,39 +46,19 @@ def load_gcp_organizations(
     data: List[Dict],
     gcp_update_tag: int,
 ) -> None:
-    """
-    Ingest the GCP organizations to Neo4j.
-    """
-    query = """
-    MERGE (org:GCPOrganization{id:$OrgName})
-    ON CREATE SET org.firstseen = timestamp()
-    SET org.orgname = $OrgName,
-        org.displayname = $DisplayName,
-        org.lifecyclestate = $LifecycleState,
-        org.lastupdated = $gcp_update_tag
-    """
-    for org_object in data:
-        neo4j_session.run(
-            query,
-            OrgName=org_object["name"],
-            DisplayName=org_object.get("displayName", None),
-            LifecycleState=org_object.get("lifecycleState", None),
-            gcp_update_tag=gcp_update_tag,
-        )
+    # Add id field if not present (for compatibility with test data)
+    transformed_data = []
+    for org in data:
+        org_copy = org.copy()
+        if "id" not in org_copy:
+            org_copy["id"] = org_copy["name"]
+        transformed_data.append(org_copy)
 
-
-@timeit
-def cleanup_gcp_organizations(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Remove stale GCP organizations and their relationships.
-    """
-    run_cleanup_job(
-        "gcp_crm_organization_cleanup.json",
+    load(
         neo4j_session,
-        common_job_parameters,
+        GCPOrganizationSchema(),
+        transformed_data,
+        lastupdated=gcp_update_tag,
     )
 
 
@@ -85,11 +67,15 @@ def sync_gcp_organizations(
     neo4j_session: neo4j.Session,
     gcp_update_tag: int,
     common_job_parameters: Dict,
-) -> None:
+) -> List[Dict]:
     """
     Get GCP organization data using the CRM v1 resource object, load the data to Neo4j, and clean up stale nodes.
+    Returns the list of organizations synced.
     """
     logger.debug("Syncing GCP organizations")
     data = get_gcp_organizations()
     load_gcp_organizations(neo4j_session, data, gcp_update_tag)
-    cleanup_gcp_organizations(neo4j_session, common_job_parameters)
+    GraphJob.from_node_schema(GCPOrganizationSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    return data
