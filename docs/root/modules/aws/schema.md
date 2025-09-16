@@ -113,7 +113,7 @@ type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
   RETURN outbound_account.name, inbound_account.name, inbound_range.range, inbound_rule.fromport, inbound_rule.toport, inbound_rule.protocol, inbound_group.name, inbound_vpc.id
   ```
 
-### AWSGroup
+### AWSPrincipal::AWSGroup
 
 Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Group.html).
 
@@ -144,6 +144,12 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSGroup)
+    ```
+
+- AWSGroups can be assigned AWSPolicies.
+
+    ```cypher
+    (:AWSGroup)-[:POLICY]->(:AWSPolicy)
     ```
 
 ### GuardDutyFinding::Risk
@@ -488,14 +494,13 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
 
 ### AWSPolicy
 
-Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html).
+Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html). There are two types of policies: inline and managed.
 
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | name | The friendly name (not ARN) identifying the policy |
-| createdate | ISO 8601 date-time when the policy was created|
 | type | "inline" or "managed" - the type of policy it is|
 | arn | The arn for this object |
 | **id** | The unique identifer for a policy. If the policy is managed this will be the Arn. If the policy is inline this will calculated as _AWSPrincipal_/inline_policy/_PolicyName_|
@@ -506,13 +511,72 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 - `AWSPrincipal` contains `AWSPolicy`
 
     ```cypher
-    (AWSPrincipal)-[POLICY]->(AWSPolicy)
+    (:AWSPrincipal)-[:POLICY]->(:AWSPolicy)
     ```
 
 - `AWSPolicy` contains `AWSPolicyStatement`
 
     ```cypher
-    (AWSPolicy)-[STATEMENTS]->(AWSPolicyStatement)
+    (:AWSPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
+    ```
+
+### AWSPolicy::AWSInlinePolicy
+
+Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html) of type "inline". An inline policy is a policy that is defined on a principal. Inline policies cannot be shared across principals.
+
+| Field | Description |
+|-------|-------------|
+| name | The friendly name (not ARN) identifying the policy |
+| type | "inline" |
+| arn | The arn for this object |
+| **id** | The unique identifer for a policy. Calculated as _AWSPrincipal_/inline_policy/_PolicyName_|
+
+
+#### Relationships
+
+- `AWSPrincipal` contains `AWSInlinePolicy`
+
+    ```cypher
+    (:AWSPrincipal)-[:POLICY]->(:AWSInlinePolicy)
+    ```
+
+- An `AWSInlinePolicy` is scoped to the AWSAccount of the principal it is attached to.
+
+    ```cypher
+    (:AWSInlinePolicy)-[:RESOURCE]->(:AWSAccount)
+    ```
+
+- `AWSInlinePolicy` contains `AWSPolicyStatement`
+
+    ```cypher
+    (:AWSInlinePolicy)-[:STATEMENT]->(:AWSPolicyStatement)
+    ```
+
+
+### AWSPolicy::AWSManagedPolicy
+
+Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html) of type "managed". A managed policy is a built-in policy created and maintained by AWS. Managed policies are shared across principals, and as such are not associated with a specific AWSAccount.
+
+| Field | Description |
+|-------|-------------|
+| name | The friendly name (not ARN) identifying the policy |
+| type | "managed" |
+| arn | The arn for this object |
+| **id** | The arn of the policy |
+
+
+#### Relationships
+
+- An `AWSPrincipal` can be assigned to one or more `AWSManagedPolicy`s
+
+    ```cypher
+    (:AWSPrincipal)-[:POLICY]->(:AWSManagedPolicy)
+    ```
+
+- An `AWSManagedPolicy` contains one or more `AWSPolicyStatement`s
+
+    ```cypher
+    (:AWSManagedPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
     ```
 
 ### AWSPolicyStatement
@@ -532,10 +596,10 @@ Representation of an [AWS Policy Statement](https://docs.aws.amazon.com/IAM/late
 
 #### Relationships
 
-- `AWSPolicy` contains `AWSPolicyStatement`
+- `AWSPolicy`s contain one or more `AWSPolicyStatement`s
 
     ```cypher
-    (AWSPolicy)-[STATEMENTS]->(AWSPolicyStatement)
+    (:AWSPolicy, :AWSInlinePolicy, :AWSManagedPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
     ```
 
 
@@ -625,6 +689,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSAccount)-[RESOURCE]->(AWSUser)
     ```
 
+- AWS Users can be assigned AWSPolicies.
+
+    ```cypher
+    (:AWSUser)-[:POLICY]->(:AWSPolicy)
+    ```
+
 
 ### AWSPrincipal::AWSRole
 
@@ -634,6 +704,7 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
+| id | The arn of the role |
 | roleid | The stable and unique string identifying the role.  |
 | name | The friendly name that identifies the role.|
 | createdate| The date and time, in ISO 8601 date-time format, when the role was created. |
@@ -645,37 +716,37 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 - Some AWS Groups, Users, Principals, and EC2 Instances can assume AWS Roles.
 
     ```cypher
-    (AWSGroup, AWSUser, EC2Instance)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
+    (:AWSGroup, :AWSUser, :EC2Instance)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
     ```
 
 - Some AWS Roles can assume other AWS Roles.
 
     ```cypher
-    (AWSRole)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
+    (:AWSRole)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
     ```
 
 - Some AWS Roles trust AWS Principals.
 
     ```cypher
-    (AWSRole)-[TRUSTS_AWS_PRINCIPAL]->(AWSPrincipal)
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSPrincipal)
     ```
 
 - Members of an Okta group can assume associated AWS roles if Okta SAML is configured with AWS.
 
     ```cypher
-    (AWSRole)-[ALLOWED_BY]->(OktaGroup)
+    (:AWSRole)-[:ALLOWED_BY]->(:OktaGroup)
     ```
 
 - An IamInstanceProfile can be associated with a role.
 
     ```cypher
-    (AWSRole)<-[ASSOCIATED_WITH]-(AWSInstanceProfile)
+    (:AWSRole)<-[:ASSOCIATED_WITH]-(:AWSInstanceProfile)
     ```
 
 - AWS Roles are defined in AWS Accounts.
 
     ```cypher
-    (AWSAccount)-[RESOURCE]->(AWSRole)
+    (:AWSAccount)-[:RESOURCE]->(:AWSRole)
     ```
 
 - ECSTaskDefinitions have task roles.
@@ -688,9 +759,28 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
-- Cartography records assumerole events between AWS principals from CloudTrail management events
+- If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
+
     ```cypher
-    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
+    (:AWSRootPrincipal)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
+    ```
+
+- AWSRoles set up trust relationships with AWSServicePrincipals like "ec2.amazonaws.com" to enable use of those services.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSServicePrincipal)
+    ```
+
+- AWSRoles set up trust relationships with AWSFederatedPrincipals to enable use of those services.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSFederatedPrincipal)
+    ```
+
+- Cartography records assumerole events between AWS principals
+
+    ```cypher
+    (:AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(:AWSRole)
     ```
 
 - Cartography records SAML-based role assumptions from CloudTrail management events
@@ -703,6 +793,64 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (GitHubRepository)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
     ```
     Note: Generic web identity providers are not currently implemented.
+
+### AWSPrincipal::AWSRootPrincipal
+
+Representation of the root principal for an AWS account.
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the root principal|
+| **id** | Same as arn |
+
+
+#### Relationships
+
+- Every AWSAccount implicitly has a "root principal".
+
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:AWSRootPrincipal)
+    ```
+
+- If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
+
+    ```cypher
+    (:AWSRootPrincipal)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
+    ```
+
+### AWSPrincipal::AWSServicePrincipal
+
+Representation of a global AWS service principal e.g. "ec2.amazonaws.com"
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the service principal|
+| **id** | Same as arn |
+
+#### Relationships
+
+- We define trust relationships from AWS roles to AWSServicePrincipals like "ec2.amazonaws.com" to enable those services to use those roles.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSServicePrincipal)
+    ```
+
+### AWSPrincipal::AWSFederatedPrincipal
+
+Representation of a federated principal e.g. "arn:aws:iam::123456789012:saml-provider/my-saml-provider". Federated principals are used for authentication to AWS using SAML or OpenID Connect. Federated principals are only discoverable from AWS role trust relationships.
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the federated principal|
+| **id** | Same as arn |
+
+#### Relationships
+
+- We can define trust relationships from AWS roles to AWSFederatedPrincipals like "arn:aws:iam::123456789012:saml-provider/my-saml-provider" so that other vendors and products can authenticate to AWS as those roles.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSFederatedPrincipal)
+    ```
 
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
@@ -844,7 +992,12 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 #### Relationships
 - Account Access Keys may authenticate AWS Users and AWS Principal objects.
     ```
-    (AWSUser, AWSPrincipal)-[AWS_ACCESS_KEY]->(AccountAccessKey)
+    (:AWSUser, :AWSPrincipal)-[:AWS_ACCESS_KEY]->(:AccountAccessKey)
+    ```
+
+- Account Access Keys are a resource under the AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:AccountAccessKey)
     ```
 
 ### CloudTrailTrail
