@@ -10,6 +10,7 @@ from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
 from cartography.config import Config
+from cartography.graph.job import GraphJob
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
@@ -19,6 +20,9 @@ from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
+from cartography.models.gcp.crm.folders import GCPFolderSchema
+from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
+from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
@@ -168,9 +172,27 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
     }
 
+    # IMPORTANT: We defer cleanup for hierarchical resources (orgs, folders, projects) and run them
+    # in reverse order. This prevents orphaned nodes when a parent is deleted.
+    # Without this, deleting an org would break its relationships to projects/folders, leaving them
+    # disconnected and unable to be cleaned up by their own cleanup jobs.
+    #
+    # Order of operations:
+    # 1. Sync all orgs
+    # 2. For each org:
+    #    a. Sync folders and projects
+    #    b. Sync project resources (with immediate cleanup)
+    #    c. Clean up projects and folders for this org
+    # 3. Clean up all orgs at the end
+    #
+    # This ensures children are cleaned up before their parents.
+
     orgs = sync_gcp_organizations(
-        neo4j_session, config.update_tag, common_job_parameters
+        neo4j_session, config.update_tag, common_job_parameters, defer_cleanup=True
     )
+
+    # Track org cleanup jobs to run at the very end
+    org_cleanup_jobs = []
 
     # For each org, sync its folders and projects (as sub-resources), then ingest per-project services
     for org in orgs:
@@ -185,21 +207,47 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
         # Sync folders under org
         folders = sync_gcp_folders(
-            neo4j_session, config.update_tag, common_job_parameters, org_id
+            neo4j_session,
+            config.update_tag,
+            common_job_parameters,
+            org_id,
+            defer_cleanup=True,
         )
 
         # Sync projects under org and each folder
         projects = sync_gcp_projects(
-            neo4j_session, org_id, folders, config.update_tag, common_job_parameters
+            neo4j_session,
+            org_id,
+            folders,
+            config.update_tag,
+            common_job_parameters,
+            defer_cleanup=True,
         )
 
-        # Ingest per-project resources
+        # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)
         _sync_project_resources(
             neo4j_session, projects, config.update_tag, common_job_parameters
         )
 
+        # Clean up projects and folders for this org (children before parents)
+        logger.debug(f"Running cleanup for projects and folders in org {org_id}")
+        GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(GCPFolderSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+
+        # Save org cleanup job for later
+        org_cleanup_jobs.append((GCPOrganizationSchema, dict(common_job_parameters)))
+
         # Remove org ID from common job parameters after processing
         del common_job_parameters["ORG_ID"]
+
+    # Run all org cleanup jobs at the very end, after all children have been cleaned up
+    logger.info("Running cleanup for GCP organizations")
+    for schema_class, params in org_cleanup_jobs:
+        GraphJob.from_node_schema(schema_class(), params).run(neo4j_session)
 
     run_analysis_job(
         "gcp_compute_asset_inet_exposure.json",

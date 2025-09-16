@@ -67,15 +67,18 @@ def sync_gcp_organizations(
     neo4j_session: neo4j.Session,
     gcp_update_tag: int,
     common_job_parameters: Dict,
+    defer_cleanup: bool = False,
 ) -> List[Dict]:
     """
     Get GCP organization data using the CRM v1 resource object, load the data to Neo4j, and clean up stale nodes.
     Returns the list of organizations synced.
+    :param defer_cleanup: If True, skip the cleanup job. Used for hierarchical cleanup scenarios.
     """
     logger.debug("Syncing GCP organizations")
     data = get_gcp_organizations()
     load_gcp_organizations(neo4j_session, data, gcp_update_tag)
-    GraphJob.from_node_schema(GCPOrganizationSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    if not defer_cleanup:
+        GraphJob.from_node_schema(GCPOrganizationSchema(), common_job_parameters).run(
+            neo4j_session
+        )
     return data

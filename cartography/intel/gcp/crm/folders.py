@@ -98,15 +98,18 @@ def sync_gcp_folders(
     gcp_update_tag: int,
     common_job_parameters: Dict,
     org_id: str,
+    defer_cleanup: bool = False,
 ) -> List[Dict]:
     """
     Get GCP folder data using the CRM v2 resource object, load the data to Neo4j, and clean up stale nodes.
     Returns the list of folders synced.
+    :param defer_cleanup: If True, skip the cleanup job. Used for hierarchical cleanup scenarios.
     """
     logger.debug("Syncing GCP folders")
     folders = get_gcp_folders(org_id)
     load_gcp_folders(neo4j_session, folders, gcp_update_tag, org_id)
-    GraphJob.from_node_schema(GCPFolderSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    if not defer_cleanup:
+        GraphJob.from_node_schema(GCPFolderSchema(), common_job_parameters).run(
+            neo4j_session
+        )
     return folders

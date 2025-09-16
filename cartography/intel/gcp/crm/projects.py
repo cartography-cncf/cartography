@@ -92,15 +92,18 @@ def sync_gcp_projects(
     folders: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
+    defer_cleanup: bool = False,
 ) -> List[Dict]:
     """
     Get and sync GCP project data to Neo4j and clean up stale nodes.
     Returns the list of projects synced.
+    :param defer_cleanup: If True, skip the cleanup job. Used for hierarchical cleanup scenarios.
     """
     logger.debug("Syncing GCP projects")
     projects = get_gcp_projects(org_id, folders)
     load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_id)
-    GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    if not defer_cleanup:
+        GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
+            neo4j_session
+        )
     return projects
