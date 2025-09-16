@@ -83,7 +83,6 @@ def test_sync_iam(
     """Test IAM sync end-to-end"""
     # Arrange
     boto3_session = MagicMock()
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
     # Act

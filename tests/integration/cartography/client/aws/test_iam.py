@@ -33,18 +33,19 @@ def _ensure_test_data(neo4j_session):
         TEST_UPDATE_TAG,
     )
     policy_id = "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy"
+    inline_policy_data = [
+        {
+            "id": policy_id,
+            "arn": None,
+            "name": "group_inline_policy",
+            "type": "inline",
+            "principal_arns": ["arn:aws:iam::000000000000:group/example-group-0"],
+        }
+    ]
     load(
         neo4j_session,
         AWSInlinePolicySchema(),
-        [
-            {
-                "id": policy_id,
-                "arn": None,
-                "name": "group_inline_policy",
-                "type": "inline",
-                "principal_arns": ["arn:aws:iam::000000000000:group/example-group-0"],
-            }
-        ],
+        inline_policy_data,
         lastupdated=TEST_UPDATE_TAG,
         AWS_ID=TEST_ACCOUNT_ID,
     )

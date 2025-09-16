@@ -12,6 +12,7 @@ from cartography.intel.aws.iam import sync_root_principal
 from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
 from cartography.sync import build_default_sync
 from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
@@ -116,14 +117,7 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    # Assert: Get TRUSTS_AWS_PRINCIPAL relationships from Neo4j.
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(n2:AWSPrincipal) RETURN n1.arn, n2.arn;
-        """,
-    )
-
-    # Define the relationships we expect in terms of role ARN and principal ARN.
+    # Assert: Get TRUSTS_AWS_PRINCIPAL relationships from Neo4j using check_rels.
     expected = {
         (
             "arn:aws:iam::000000000000:role/example-role-0",
@@ -139,26 +133,34 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
             "arn:aws:iam::000000000000:saml-provider/ADFS",
         ),
     }
-    # Transform the results of our query above to match the format of our expectations.
-    actual = {(r["n1.arn"], r["n2.arn"]) for r in result}
-    # Compare our actual results to our expected results.
+
+    actual = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "AWSPrincipal",
+        "arn",
+        "TRUSTS_AWS_PRINCIPAL",
+    )
+
     assert actual == expected
 
 
 def test_load_inline_policy(neo4j_session):
-    # Just load in a single policy. Note: this test is maintained for backward compatibility.
+    # Just load in a single policy.
+    inline_policy_data = [
+        {
+            "id": "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
+            "arn": None,  # Inline policies don't have arns
+            "name": "group_inline_policy",
+            "type": "inline",
+            "principal_arns": ["arn:aws:iam::000000000000:group/example-group-0"],
+        }
+    ]
     load(
         neo4j_session,
         AWSInlinePolicySchema(),
-        [
-            {
-                "id": "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
-                "arn": None,  # Inline policies don't have arns
-                "name": "group_inline_policy",
-                "type": "inline",
-                "principal_arns": ["arn:aws:iam::000000000000:group/example-group-0"],
-            }
-        ],
+        inline_policy_data,
         lastupdated=TEST_UPDATE_TAG,
         AWS_ID=TEST_ACCOUNT_ID,
     )
