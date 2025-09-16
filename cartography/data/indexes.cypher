@@ -105,8 +105,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:GCPBucket) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GCPBucket) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:GCPBucketLabel) ON (n.key);
 CREATE INDEX IF NOT EXISTS FOR (n:GCPBucketLabel) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:GCPSubnet) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:GCPSubnet) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:GCPVpc) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GCPVpc) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:GitHubRepository) ON (n.id);
