@@ -188,3 +188,8 @@ INSTACE = {
         },
     ],
 }
+
+
+GET_ACCOUNT_SUMMARY = {
+    "SummaryMap": {"AccountMFAEnabled": 1},
+}

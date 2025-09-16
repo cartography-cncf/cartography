@@ -12,6 +12,7 @@ Representation of an AWS Account.
 |inscope| Indicates that the account is part of the sync scope (true or false).
 |foreign| Indicates if the account is not part of the sync scope (true or false). One such example is an account that is trusted as part of cross-account AWSRole trust not in scope for sync.
 |lastupdated| Timestamp of the last time the node was updated|
+|root_mfa_enabled| Indicates whether the account's root user has MFA enabled (true or false).|
 |**id**| The AWS Account ID number|
 
 #### Relationships

@@ -3,9 +3,6 @@ from unittest import mock
 import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
 import tests.data.aws.iam
-from cartography.cli import CLI
-from cartography.config import Config
-from cartography.sync import build_default_sync
 from tests.integration.util import check_nodes
 
 TEST_ACCOUNT_ID = "000000000000"
@@ -17,6 +14,10 @@ def test_permission_relationships_file_arguments():
     """
     Test that we correctly read arguments for --permission-relationships-file
     """
+    from cartography.cli import CLI
+    from cartography.config import Config
+    from cartography.sync import build_default_sync
+
     # Test the correct field is set in the Cartography config object
     fname = "/some/test/file.yaml"
     config = Config(
@@ -66,6 +67,21 @@ def test_load_groups(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
+
+
+def test_load_account_summary(neo4j_session):
+    _create_base_account(neo4j_session)
+    cartography.intel.aws.iam.load_account_summary(
+        neo4j_session,
+        tests.data.aws.iam.GET_ACCOUNT_SUMMARY,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    result = neo4j_session.run(
+        "MATCH (a:AWSAccount{id: $AccountId}) RETURN a.root_mfa_enabled AS mfa",
+        AccountId=TEST_ACCOUNT_ID,
+    ).single()
+    assert result["mfa"]
 
 
 def _get_principal_role_nodes(neo4j_session):
