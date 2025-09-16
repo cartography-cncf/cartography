@@ -13,6 +13,7 @@ import tests.data.gcp.crm
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.crm.folders import GCPFolderSchema
+from tests.integration import settings
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -69,7 +70,7 @@ def test_deferred_cleanup_order(
     with patch.object(GraphJob, "run", track_cleanup):
         # Create a minimal config
         config = Config(
-            neo4j_uri="bolt://localhost:7687",
+            neo4j_uri=settings.get("NEO4J_URL"),
             update_tag=TEST_UPDATE_TAG,
         )
 
@@ -142,7 +143,7 @@ def test_org_deletion_cleanup(
     mock_get_projects.return_value = tests.data.gcp.crm.GCP_PROJECTS
 
     config = Config(
-        neo4j_uri="bolt://localhost:7687",
+        neo4j_uri=settings.get("NEO4J_URL"),
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -222,7 +223,7 @@ def test_partial_deletion_cleanup(
     mock_get_projects.return_value = tests.data.gcp.crm.GCP_PROJECTS
 
     config = Config(
-        neo4j_uri="bolt://localhost:7687",
+        neo4j_uri=settings.get("NEO4J_URL"),
         update_tag=TEST_UPDATE_TAG,
     )
 
@@ -339,10 +340,10 @@ def test_project_migration_between_orgs(mock_sync_resources, neo4j_session):
     projects_org2_initial = []  # No projects in org2 initially
 
     # Mock data for first sync
-    def get_projects_initial(org_id, folders):
-        if org_id == "1337":
+    def get_projects_initial(org_resource_name, folders):
+        if org_resource_name == "organizations/1337":
             return projects_org1_initial
-        elif org_id == "9999":
+        elif org_resource_name == "organizations/9999":
             return projects_org2_initial
         return []
 
@@ -365,7 +366,7 @@ def test_project_migration_between_orgs(mock_sync_resources, neo4j_session):
         ),
     ):
         config = Config(
-            neo4j_uri="bolt://localhost:7687",
+            neo4j_uri=settings.get("NEO4J_URL"),
             update_tag=TEST_UPDATE_TAG,
         )
         cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
@@ -410,10 +411,10 @@ def test_project_migration_between_orgs(mock_sync_resources, neo4j_session):
     ]
 
     # Mock data for second sync
-    def get_projects_after_migration(org_id, folders):
-        if org_id == "1337":
+    def get_projects_after_migration(org_resource_name, folders):
+        if org_resource_name == "organizations/1337":
             return projects_org1_after
-        elif org_id == "9999":
+        elif org_resource_name == "organizations/9999":
             return projects_org2_after
         return []
 
@@ -436,7 +437,7 @@ def test_project_migration_between_orgs(mock_sync_resources, neo4j_session):
         ),
     ):
         config = Config(
-            neo4j_uri="bolt://localhost:7687",
+            neo4j_uri=settings.get("NEO4J_URL"),
             update_tag=TEST_UPDATE_TAG_V2,
         )
         cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
@@ -513,7 +514,7 @@ def test_cleanup_with_multiple_orgs(neo4j_session):
         neo4j_session, [multiple_orgs[0]], TEST_UPDATE_TAG
     )
     cartography.intel.gcp.crm.folders.load_gcp_folders(
-        neo4j_session, folders_org1, TEST_UPDATE_TAG, "1337"
+        neo4j_session, folders_org1, TEST_UPDATE_TAG, "organizations/1337"
     )
 
     # Load second org with its resources
@@ -521,7 +522,7 @@ def test_cleanup_with_multiple_orgs(neo4j_session):
         neo4j_session, [multiple_orgs[1]], TEST_UPDATE_TAG
     )
     cartography.intel.gcp.crm.folders.load_gcp_folders(
-        neo4j_session, folders_org2, TEST_UPDATE_TAG, "9999"
+        neo4j_session, folders_org2, TEST_UPDATE_TAG, "organizations/9999"
     )
 
     # Verify both orgs and their folders exist
