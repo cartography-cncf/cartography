@@ -84,7 +84,7 @@ def load_gcp_folders(
             folder.lifecyclestate = $LifecycleState,
             folder.lastupdated = $gcp_update_tag
         WITH parent, folder
-        MERGE (parent)-[r:PARENT]->(folder)
+        MERGE (parent)<-[r:PARENT]-(folder)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $gcp_update_tag
         WITH folder

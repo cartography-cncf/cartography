@@ -26,7 +26,7 @@ def get_gcp_projects(org_id: str, folder_names: List[str]) -> List[Dict]:
                 # list_projects returns ACTIVE projects by default
                 name_field = proj.name  # "projects/<number>"
                 project_number = name_field.split("/")[-1] if name_field else None
-                project_parent = getattr(proj, "parent", None)
+                project_parent = proj.parent
                 results.append(
                     {
                         "projectId": getattr(proj, "project_id", None),
@@ -65,7 +65,7 @@ def load_gcp_projects(
             project.lifecyclestate = $LifecycleState,
             project.lastupdated = $gcp_update_tag
         WITH parent, project
-        MERGE (parent)-[r:PARENT]->(project)
+        MERGE (parent)<-[r:PARENT]-(project)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $gcp_update_tag
         WITH project

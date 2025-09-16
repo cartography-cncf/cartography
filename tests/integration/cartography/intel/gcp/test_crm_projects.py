@@ -26,7 +26,7 @@ def test_load_gcp_projects(neo4j_session):
     assert {(n["d.id"]) for n in nodes} == {"this-project-has-a-parent-232323"}
 
     query = (
-        "MATCH (p:GCPProject{id:$ProjectId})<-[:PARENT]-(f:GCPFolder)<-[:PARENT]-(o:GCPOrganization)\n"
+        "MATCH (p:GCPProject{id:$ProjectId})-[:PARENT]->(f:GCPFolder)-[:PARENT]->(o:GCPOrganization)\n"
         "RETURN p.id, f.id, o.id"
     )
     nodes = neo4j_session.run(query, ProjectId="this-project-has-a-parent-232323")
@@ -49,7 +49,7 @@ def test_load_gcp_projects_without_parent(neo4j_session):
     )
 
     nodes = neo4j_session.run(
-        "MATCH (d:GCPProject) WHERE NOT (d)<-[:PARENT]-(:GCPFolder) RETURN d.id"
+        "MATCH (d:GCPProject) WHERE NOT (d)-[:PARENT]->(:GCPFolder) RETURN d.id"
     )
     assert {(n["d.id"]) for n in nodes} == {"my-parentless-project-987654"}
 
@@ -86,7 +86,7 @@ def test_sync_gcp_projects(_mock_get_folders, _mock_get_orgs, neo4j_session) -> 
     }
 
     query = (
-        "MATCH (p:GCPProject{id:$ProjectId})<-[:PARENT]-(f:GCPFolder)<-[:PARENT]-(o:GCPOrganization)\n"
+        "MATCH (p:GCPProject{id:$ProjectId})-[:PARENT]->(f:GCPFolder)-[:PARENT]->(o:GCPOrganization)\n"
         "RETURN p.id, f.id, o.id"
     )
     nodes = neo4j_session.run(query, ProjectId="this-project-has-a-parent-232323")
@@ -113,7 +113,7 @@ def test_sync_gcp_projects_without_parent(neo4j_session) -> None:
         ("my-parentless-project-987654",)
     }
     assert (
-        check_rels(neo4j_session, "GCPFolder", "id", "GCPProject", "id", "PARENT")
+        check_rels(neo4j_session, "GCPProject", "id", "GCPFolder", "id", "PARENT")
         == set()
     )
 
@@ -181,12 +181,12 @@ def test_sync_gcp_projects_with_org_parent(neo4j_session) -> None:
         ("project-under-org-55555",)
     }
     assert check_rels(
-        neo4j_session, "GCPOrganization", "id", "GCPProject", "id", "PARENT"
-    ) == {("organizations/1337", "project-under-org-55555")}
+        neo4j_session, "GCPProject", "id", "GCPOrganization", "id", "PARENT"
+    ) == {("project-under-org-55555", "organizations/1337")}
     assert check_rels(
         neo4j_session, "GCPOrganization", "id", "GCPProject", "id", "RESOURCE"
     ) == {("organizations/1337", "project-under-org-55555")}
     assert (
-        check_rels(neo4j_session, "GCPFolder", "id", "GCPProject", "id", "PARENT")
+        check_rels(neo4j_session, "GCPProject", "id", "GCPFolder", "id", "PARENT")
         == set()
     )

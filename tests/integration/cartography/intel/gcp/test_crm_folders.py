@@ -39,12 +39,12 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "GCPOrganization",
-        "id",
         "GCPFolder",
         "id",
+        "GCPOrganization",
+        "id",
         "PARENT",
-    ) == {("organizations/1337", "folders/1414")}
+    ) == {("folders/1414", "organizations/1337")}
 
     assert check_rels(
         neo4j_session,
@@ -57,12 +57,12 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "GCPFolder",
-        "id",
         "GCPProject",
         "id",
+        "GCPFolder",
+        "id",
         "PARENT",
-    ) == {("folders/1414", "this-project-has-a-parent-232323")}
+    ) == {("this-project-has-a-parent-232323", "folders/1414")}
 
 
 @patch.object(
@@ -90,12 +90,12 @@ def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
 
     assert check_rels(
         neo4j_session,
-        "GCPOrganization",
-        "id",
         "GCPFolder",
         "id",
+        "GCPOrganization",
+        "id",
         "PARENT",
-    ) == {("organizations/1337", "folders/2000")}
+    ) == {("folders/2000", "organizations/1337")}
 
     assert check_rels(
         neo4j_session,
@@ -116,4 +116,4 @@ def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
         "GCPFolder",
         "id",
         "PARENT",
-    ) == {("folders/2000", "folders/2001")}
+    ) == {("folders/2001", "folders/2000")}
