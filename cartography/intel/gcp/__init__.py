@@ -73,25 +73,21 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
         return set()
 
 
-def _sync_multiple_projects(
+def _sync_project_resources(
     neo4j_session: neo4j.Session,
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     """
-    Handles graph sync for multiple GCP projects.
+    Syncs GCP service-specific resources (Compute, Storage, GKE, DNS, IAM) for each project.
     :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param: projects: A list of projects. At minimum, this list should contain a list of dicts with the key "projectId"
-     defined; so it would look like this: [{"projectId": "my-project-id-12345"}].
-    This is the returned data from `crm.get_gcp_projects()`.
-    See https://cloud.google.com/resource-manager/reference/rest/v1/projects.
+    :param projects: A list of projects containing at minimum a "projectId" field.
     :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
     :param common_job_parameters: Other parameters sent to Neo4j
     :return: Nothing
     """
-    logger.info("Syncing %d GCP projects.", len(projects))
+    logger.info("Syncing resources for %d GCP projects.", len(projects))
     # Per-project sync across services
     for project in projects:
         project_id = project["projectId"]
@@ -198,7 +194,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
 
         # Ingest per-project resources
-        _sync_multiple_projects(
+        _sync_project_resources(
             neo4j_session, projects, config.update_tag, common_job_parameters
         )
 
