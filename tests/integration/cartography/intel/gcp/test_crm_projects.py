@@ -94,7 +94,7 @@ def test_sync_gcp_projects(
 
     cartography.intel.gcp.crm.projects.sync_gcp_projects(
         neo4j_session,
-        "1337",
+        "organizations/1337",
         folders,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
@@ -184,7 +184,7 @@ def test_sync_gcp_projects_cleanup(
 
     cartography.intel.gcp.crm.projects.sync_gcp_projects(
         neo4j_session,
-        "1337",
+        "organizations/1337",
         folders,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
