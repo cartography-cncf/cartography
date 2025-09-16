@@ -64,33 +64,25 @@ def load_gcp_folders(
     Load GCP folders into the graph.
     :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
     """
-    # Transform data to set parent_org or parent_folder based on parent type
-    transformed_data = []
+    # Transform data in place: add parent_org or parent_folder fields based on parent type
     for folder in data:
-        transformed_folder = {
-            "name": folder["name"],
-            "displayName": folder.get("displayName"),
-            "lifecycleState": folder.get("lifecycleState"),
-            "parent_org": None,
-            "parent_folder": None,
-        }
+        folder["parent_org"] = None
+        folder["parent_folder"] = None
 
         if folder["parent"].startswith("organizations"):
-            transformed_folder["parent_org"] = folder["parent"]
+            folder["parent_org"] = folder["parent"]
         elif folder["parent"].startswith("folders"):
-            transformed_folder["parent_folder"] = folder["parent"]
+            folder["parent_folder"] = folder["parent"]
         else:
             logger.warning(
-                f"Skipping folder {folder['name']} with unexpected parent type: {folder['parent']}"
+                f"Folder {folder['name']} has unexpected parent type: {folder['parent']}"
             )
-            continue
-
-        transformed_data.append(transformed_folder)
+            # Still include it but with both parent fields as None
 
     load(
         neo4j_session,
         GCPFolderSchema(),
-        transformed_data,
+        data,
         lastupdated=gcp_update_tag,
         ORG_RESOURCE_NAME=org_resource_name,
     )

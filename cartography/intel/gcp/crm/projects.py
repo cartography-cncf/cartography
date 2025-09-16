@@ -58,34 +58,26 @@ def load_gcp_projects(
     Load GCP projects into the graph.
     :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
     """
-    transformed_data = []
+    # Transform data in place: add parent_org or parent_folder fields based on parent type
     for project in data:
-        transformed_project = {
-            "projectId": project["projectId"],
-            "projectNumber": project.get("projectNumber"),
-            "name": project.get("name"),
-            "lifecycleState": project.get("lifecycleState"),
-            "parent_org": None,
-            "parent_folder": None,
-        }
+        project["parent_org"] = None
+        project["parent_folder"] = None
 
-        # Transform data to set parent_org or parent_folder based on parent type
+        # Set parent fields based on parent type
         if project["parent"].startswith("organizations"):
-            transformed_project["parent_org"] = project["parent"]
+            project["parent_org"] = project["parent"]
         elif project["parent"].startswith("folders"):
-            transformed_project["parent_folder"] = project["parent"]
+            project["parent_folder"] = project["parent"]
         else:
             logger.warning(
-                f"Skipping project {project['projectId']} with unexpected parent type: {project['parent']}"
+                f"Project {project['projectId']} has unexpected parent type: {project['parent']}"
             )
-            continue
-
-        transformed_data.append(transformed_project)
+            # Still include it but with both parent fields as None
 
     load(
         neo4j_session,
         GCPProjectSchema(),
-        transformed_data,
+        data,
         lastupdated=gcp_update_tag,
         ORG_RESOURCE_NAME=org_resource_name,
     )
