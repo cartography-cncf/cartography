@@ -5,6 +5,7 @@ from string import Template
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Pattern
 from typing import Tuple
 
@@ -12,7 +13,9 @@ import boto3
 import neo4j
 import yaml
 
-from cartography.graph.statement import GraphStatement
+from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
+from cartography.models.aws.permission_relationships import DynamicPermissionMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -301,87 +304,47 @@ def get_resource_arns(
     neo4j_session: neo4j.Session,
     account_id: str,
     node_label: str,
+    conditional_target_related_node: Optional[str] = None,
 ) -> List[Any]:
-    get_resource_query = Template(
+    """
+    Get resource ARNs with optional conditional filtering.
+
+    Args:
+        neo4j_session: Neo4j session
+        account_id: AWS account ID
+        node_label: Label of the nodes to fetch
+        conditional_target_related_node: Optional related node label to filter by connection
+
+    Returns:
+        List of ARNs
+    """
+    if not conditional_target_related_node:
+        query = """
+        MATCH (acc:AWSAccount{id:$AccountId})-[:RESOURCE]->(resource:$node_label)
+        RETURN resource.arn as arn
         """
-    MATCH (acc:AWSAccount{id:$AccountId})-[:RESOURCE]->(resource:$node_label)
-    return resource.arn as arn
-    """,
-    )
-    get_resource_query_template = get_resource_query.safe_substitute(
+    else:
+        query = """
+        MATCH (acc:AWSAccount{id:$AccountId})-[:RESOURCE]->(resource:$node_label)
+        MATCH (resource)--(related:$related_node_label)
+        RETURN resource.arn as arn
+        """
+
+    query_template = Template(query).safe_substitute(
         node_label=node_label,
+        related_node_label=(
+            conditional_target_related_node if conditional_target_related_node else ""
+        ),
     )
-    results = neo4j_session.run(
-        get_resource_query_template,
-        AccountId=account_id,
-    )
+
+    results = neo4j_session.run(query_template, AccountId=account_id)
     arns = [r["arn"] for r in results]
+
+    if arns and all(arn is None for arn in arns):
+        logger.error(f"Skipping... ARN is not configured for {node_label} yet.")
+        return []
+
     return arns
-
-
-def load_principal_mappings(
-    neo4j_session: neo4j.Session,
-    principal_mappings: List[Dict],
-    node_label: str,
-    relationship_name: str,
-    update_tag: int,
-) -> None:
-    map_policy_query = Template(
-        """
-    UNWIND $Mapping as mapping
-    MATCH (principal:AWSPrincipal{arn:mapping.principal_arn})
-    MATCH (resource:$node_label{arn:mapping.resource_arn})
-    MERGE (principal)-[r:$relationship_name]->(resource)
-    SET r.lastupdated = $aws_update_tag
-    """,
-    )
-    if not principal_mappings:
-        return
-    map_policy_query_template = map_policy_query.safe_substitute(
-        node_label=node_label,
-        relationship_name=relationship_name,
-    )
-    neo4j_session.run(
-        map_policy_query_template,
-        Mapping=principal_mappings,
-        aws_update_tag=update_tag,
-    )
-
-
-def cleanup_rpr(
-    neo4j_session: neo4j.Session,
-    node_label: str,
-    relationship_name: str,
-    update_tag: int,
-    current_aws_id: str,
-) -> None:
-    logger.info(
-        "Cleaning up relationship '%s' for node label '%s'",
-        relationship_name,
-        node_label,
-    )
-    cleanup_rpr_query = Template(
-        """
-        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(principal:AWSPrincipal)-[r:$relationship_name]->
-        (resource:$node_label)
-        WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE  DELETE (r) return COUNT(*) as TotalCompleted
-    """,
-    )
-    cleanup_rpr_query_template = cleanup_rpr_query.safe_substitute(
-        node_label=node_label,
-        relationship_name=relationship_name,
-    )
-
-    statement = GraphStatement(
-        cleanup_rpr_query_template,
-        {"UPDATE_TAG": update_tag, "AWS_ID": current_aws_id},
-        True,
-        1000,
-        parent_job_name=f"{relationship_name}:{node_label}",
-        parent_job_sequence_num=1,
-    )
-    statement.run(neo4j_session)
 
 
 def parse_permission_relationships_file(file_path: str) -> List[Any]:
@@ -409,6 +372,57 @@ def is_valid_rpr(rpr: Dict) -> bool:
     return True
 
 
+def load(
+    neo4j_session: neo4j.Session,
+    matchlink_schema: DynamicPermissionMatchLink,
+    matchlink_data: List[Dict],
+    account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Load matchlink relationships into Neo4j.
+
+    Args:
+        neo4j_session: Neo4j session
+        matchlink_schema: Matchlink schema
+        matchlink_data: Data to load
+        account_id: AWS account ID
+        update_tag: Update timestamp
+    """
+    load_matchlinks(
+        neo4j_session,
+        matchlink_schema,
+        matchlink_data,
+        lastupdated=update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=account_id,
+    )
+
+
+def cleanup(
+    neo4j_session: neo4j.Session,
+    matchlink_schema: DynamicPermissionMatchLink,
+    account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Cleanup stale matchlink relationships.
+
+    Args:
+        neo4j_session: Neo4j session
+        matchlink_schema: Matchlink schema
+        account_id: AWS account ID
+        update_tag: Update timestamp
+    """
+    cleanup_job = GraphJob.from_matchlink(
+        matchlink_schema,
+        "AWSAccount",
+        account_id,
+        update_tag,
+    )
+    cleanup_job.run(neo4j_session)
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -422,52 +436,55 @@ def sync(
         "Syncing Permission Relationships for account '%s'.",
         current_aws_account_id,
     )
+
     principals = get_principals_for_account(neo4j_session, current_aws_account_id)
-    pr_file = common_job_parameters["permission_relationships_file"]
+    pr_file = common_job_parameters.get("permission_relationships_file")
     if not pr_file:
         logger.warning(
             "Permission relationships file was not specified, skipping. If this is not expected, please check your "
             "value of --permission-relationships-file",
         )
         return
-    relationship_mapping = parse_permission_relationships_file(pr_file)
-    for rpr in relationship_mapping:
-        if not is_valid_rpr(rpr):
-            raise ValueError(
-                """
-        Resource permission relationship is missing fields.
-        Required fields: permissions, relationship_name, target_label"
-        """,
-            )
-        permissions = rpr["permissions"]
-        relationship_name = rpr["relationship_name"]
-        target_label = rpr["target_label"]
-        resource_arns = get_resource_arns(
-            neo4j_session,
-            current_aws_account_id,
-            target_label,
-        )
+
+    relationship_mappings = parse_permission_relationships_file(pr_file)
+
+    for mapping in relationship_mappings:
+        if not is_valid_rpr(mapping):
+            logger.error(f"Invalid resource permission relationship: {mapping}")
+            continue
+
+        target_label = mapping["target_label"]
+        permissions = mapping["permissions"]
+        relationship_name = mapping["relationship_name"]
+        conditional_target_related_node = mapping.get("conditional_target_related_node")
+
         logger.info(
             "Syncing relationship '%s' for node label '%s'",
             relationship_name,
             target_label,
         )
-        allowed_mappings = calculate_permission_relationships(
+
+        resource_data = get_resource_arns(
+            neo4j_session,
+            current_aws_account_id,
+            target_label,
+            conditional_target_related_node,
+        )
+
+        permission_mappings = calculate_permission_relationships(
             principals,
-            resource_arns,
+            resource_data,
             permissions,
         )
-        load_principal_mappings(
+
+        matchlink_schema = DynamicPermissionMatchLink(target_label, relationship_name)
+
+        load(
             neo4j_session,
-            allowed_mappings,
-            target_label,
-            relationship_name,
-            update_tag,
-        )
-        cleanup_rpr(
-            neo4j_session,
-            target_label,
-            relationship_name,
-            update_tag,
+            matchlink_schema,
+            permission_mappings,
             current_aws_account_id,
+            update_tag,
         )
+
+        cleanup(neo4j_session, matchlink_schema, current_aws_account_id, update_tag)
