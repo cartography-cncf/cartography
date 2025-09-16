@@ -14,6 +14,7 @@ from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.crm.folders import GCPFolderSchema
 from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_UPDATE_TAG_V2 = 123456790  # For simulating a second sync
@@ -297,6 +298,176 @@ def test_sync_functions_with_defer_cleanup_flag(neo4j_session):
 
         # Cleanup should have run
         assert len(cleanup_run) == 1, "Cleanup should run when defer_cleanup=False"
+
+
+@patch.object(
+    cartography.intel.gcp,
+    "_sync_project_resources",
+    return_value=None,  # Skip project resource sync for these tests
+)
+def test_project_migration_between_orgs(mock_sync_resources, neo4j_session):
+    """
+    Test that when a project migrates from one org to another,
+    old relationships are properly cleaned up using the full ingestion flow.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Two organizations
+    orgs_initial = [
+        {
+            "name": "organizations/1337",
+            "displayName": "org1.com",
+            "lifecycleState": "ACTIVE",
+        },
+        {
+            "name": "organizations/9999",
+            "displayName": "org2.com",
+            "lifecycleState": "ACTIVE",
+        },
+    ]
+
+    # Project initially under org1
+    projects_org1_initial = [
+        {
+            "projectId": "migrating-project",
+            "projectNumber": "123456",
+            "name": "Migrating Project",
+            "lifecycleState": "ACTIVE",
+            "parent": "organizations/1337",
+        },
+    ]
+    projects_org2_initial = []  # No projects in org2 initially
+
+    # Mock data for first sync
+    def get_projects_initial(org_id, folders):
+        if org_id == "1337":
+            return projects_org1_initial
+        elif org_id == "9999":
+            return projects_org2_initial
+        return []
+
+    # First sync: project belongs to org1
+    with (
+        patch.object(
+            cartography.intel.gcp.crm.orgs,
+            "get_gcp_organizations",
+            return_value=orgs_initial,
+        ),
+        patch.object(
+            cartography.intel.gcp.crm.folders,
+            "get_gcp_folders",
+            return_value=[],  # No folders for simplicity
+        ),
+        patch.object(
+            cartography.intel.gcp.crm.projects,
+            "get_gcp_projects",
+            side_effect=get_projects_initial,
+        ),
+    ):
+        config = Config(
+            neo4j_uri="bolt://localhost:7687",
+            update_tag=TEST_UPDATE_TAG,
+        )
+        cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
+
+    # Verify initial state
+    parent_rels = check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPOrganization",
+        "id",
+        "PARENT",
+        rel_direction_right=True,
+    )
+    assert parent_rels == {
+        ("migrating-project", "organizations/1337"),
+    }, "Project should have PARENT relationship to org1"
+
+    resource_rels = check_rels(
+        neo4j_session,
+        "GCPOrganization",
+        "id",
+        "GCPProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    )
+    assert resource_rels == {
+        ("organizations/1337", "migrating-project"),
+    }, "Org1 should have RESOURCE relationship to project"
+
+    # Project migrates to org2
+    projects_org1_after = []  # Project no longer in org1
+    projects_org2_after = [
+        {
+            "projectId": "migrating-project",
+            "projectNumber": "123456",
+            "name": "Migrating Project",
+            "lifecycleState": "ACTIVE",
+            "parent": "organizations/9999",  # Now under org2
+        },
+    ]
+
+    # Mock data for second sync
+    def get_projects_after_migration(org_id, folders):
+        if org_id == "1337":
+            return projects_org1_after
+        elif org_id == "9999":
+            return projects_org2_after
+        return []
+
+    # Second sync: project now belongs to org2
+    with (
+        patch.object(
+            cartography.intel.gcp.crm.orgs,
+            "get_gcp_organizations",
+            return_value=orgs_initial,  # Same orgs
+        ),
+        patch.object(
+            cartography.intel.gcp.crm.folders,
+            "get_gcp_folders",
+            return_value=[],  # No folders
+        ),
+        patch.object(
+            cartography.intel.gcp.crm.projects,
+            "get_gcp_projects",
+            side_effect=get_projects_after_migration,
+        ),
+    ):
+        config = Config(
+            neo4j_uri="bolt://localhost:7687",
+            update_tag=TEST_UPDATE_TAG_V2,
+        )
+        cartography.intel.gcp.start_gcp_ingestion(neo4j_session, config)
+
+    # Verify final state - project should only be related to org2 now
+    parent_rels_after = check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPOrganization",
+        "id",
+        "PARENT",
+        rel_direction_right=True,
+    )
+    assert parent_rels_after == {
+        ("migrating-project", "organizations/9999"),
+    }, f"Project should only have PARENT relationship to org2, but got {parent_rels_after}"
+
+    # Check RESOURCE relationships
+    resource_rels_after = check_rels(
+        neo4j_session,
+        "GCPOrganization",
+        "id",
+        "GCPProject",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    )
+    assert resource_rels_after == {
+        ("organizations/9999", "migrating-project"),
+    }, f"Only org2 should have RESOURCE relationship, but got {resource_rels_after}"
 
 
 def test_cleanup_with_multiple_orgs(neo4j_session):
