@@ -60,7 +60,6 @@ def load_gcp_projects(
             "projectNumber": project.get("projectNumber"),
             "name": project.get("name"),
             "lifecycleState": project.get("lifecycleState"),
-            "parent": project["parent"],
             "parent_org": None,
             "parent_folder": None,
         }

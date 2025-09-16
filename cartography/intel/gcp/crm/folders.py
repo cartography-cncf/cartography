@@ -67,7 +67,6 @@ def load_gcp_folders(
             "name": folder["name"],
             "displayName": folder.get("displayName"),
             "lifecycleState": folder.get("lifecycleState"),
-            "parent": folder["parent"],
             "parent_org": None,
             "parent_folder": None,
         }

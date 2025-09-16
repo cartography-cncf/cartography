@@ -20,7 +20,6 @@ class GCPFolderNodeProperties(CartographyNodeProperties):
     foldername: PropertyRef = PropertyRef("name")
     displayname: PropertyRef = PropertyRef("displayName")
     lifecyclestate: PropertyRef = PropertyRef("lifecycleState")
-    parent: PropertyRef = PropertyRef("parent")
     parent_org: PropertyRef = PropertyRef(
         "parent_org"
     )  # Will be set to org ID if parent is org
