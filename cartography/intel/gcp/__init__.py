@@ -196,28 +196,27 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     # For each org, sync its folders and projects (as sub-resources), then ingest per-project services
     for org in orgs:
-        name = org.get("name", "")  # e.g., organizations/123456789012
-        if not name or "/" not in name:
-            logger.error(f"Invalid org name: {name}")
+        org_resource_name = org.get("name", "")  # e.g., organizations/123456789012
+        if not org_resource_name or "/" not in org_resource_name:
+            logger.error(f"Invalid org resource name: {org_resource_name}")
             continue
-        org_id = name.split("/", 1)[1]
 
-        # Needed for cleanup operations
-        common_job_parameters["ORG_ID"] = f"organizations/{org_id}"
+        # Store the full resource name for cleanup operations
+        common_job_parameters["ORG_RESOURCE_NAME"] = org_resource_name
 
         # Sync folders under org
         folders = sync_gcp_folders(
             neo4j_session,
             config.update_tag,
             common_job_parameters,
-            org_id,
+            org_resource_name,
             defer_cleanup=True,
         )
 
         # Sync projects under org and each folder
         projects = sync_gcp_projects(
             neo4j_session,
-            org_id,
+            org_resource_name,
             folders,
             config.update_tag,
             common_job_parameters,
@@ -230,7 +229,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
 
         # Clean up projects and folders for this org (children before parents)
-        logger.debug(f"Running cleanup for projects and folders in org {org_id}")
+        logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
         GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
             neo4j_session
         )
@@ -242,7 +241,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         org_cleanup_jobs.append((GCPOrganizationSchema, dict(common_job_parameters)))
 
         # Remove org ID from common job parameters after processing
-        del common_job_parameters["ORG_ID"]
+        del common_job_parameters["ORG_RESOURCE_NAME"]
 
     # Run all org cleanup jobs at the very end, after all children have been cleaned up
     logger.info("Running cleanup for GCP organizations")

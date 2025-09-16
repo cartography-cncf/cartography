@@ -14,18 +14,18 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_folders(org_id: str) -> List[Dict]:
+def get_gcp_folders(org_resource_name: str) -> List[Dict]:
     """
     Return a list of all descendant GCP folders under the specified organization by traversing the folder tree.
 
-    :param org_id: Numeric organization id, e.g., "123456789012".
-    :return: List of folder dicts.
+    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    :return: List of folder dicts with 'name' field containing full resource names (e.g., "folders/123456")
     """
     results: List[Dict] = []
     client = resourcemanager_v3.FoldersClient()
     try:
         # BFS over folders starting at the org root
-        queue: List[str] = [f"organizations/{org_id}"]
+        queue: List[str] = [org_resource_name]
         seen: set[str] = set()
         while queue:
             parent = queue.pop(0)
@@ -58,8 +58,12 @@ def load_gcp_folders(
     neo4j_session: neo4j.Session,
     data: List[Dict],
     gcp_update_tag: int,
-    org_id: str,
+    org_resource_name: str,
 ) -> None:
+    """
+    Load GCP folders into the graph.
+    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    """
     # Transform data to set parent_org or parent_folder based on parent type
     transformed_data = []
     for folder in data:
@@ -88,7 +92,7 @@ def load_gcp_folders(
         GCPFolderSchema(),
         transformed_data,
         lastupdated=gcp_update_tag,
-        ORG_ID=f"organizations/{org_id}",
+        ORG_RESOURCE_NAME=org_resource_name,
     )
 
 
@@ -97,17 +101,18 @@ def sync_gcp_folders(
     neo4j_session: neo4j.Session,
     gcp_update_tag: int,
     common_job_parameters: Dict,
-    org_id: str,
+    org_resource_name: str,
     defer_cleanup: bool = False,
 ) -> List[Dict]:
     """
     Get GCP folder data using the CRM v2 resource object, load the data to Neo4j, and clean up stale nodes.
-    Returns the list of folders synced.
+    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
     :param defer_cleanup: If True, skip the cleanup job. Used for hierarchical cleanup scenarios.
+    :return: List of folders synced
     """
     logger.debug("Syncing GCP folders")
-    folders = get_gcp_folders(org_id)
-    load_gcp_folders(neo4j_session, folders, gcp_update_tag, org_id)
+    folders = get_gcp_folders(org_resource_name)
+    load_gcp_folders(neo4j_session, folders, gcp_update_tag, org_resource_name)
     if not defer_cleanup:
         GraphJob.from_node_schema(GCPFolderSchema(), common_job_parameters).run(
             neo4j_session

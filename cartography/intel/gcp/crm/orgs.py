@@ -46,18 +46,13 @@ def load_gcp_organizations(
     data: List[Dict],
     gcp_update_tag: int,
 ) -> None:
-    # Add id field if not present (for compatibility with test data)
-    transformed_data = []
     for org in data:
-        org_copy = org.copy()
-        if "id" not in org_copy:
-            org_copy["id"] = org_copy["name"]
-        transformed_data.append(org_copy)
+        org["id"] = org["name"]
 
     load(
         neo4j_session,
         GCPOrganizationSchema(),
-        transformed_data,
+        data,
         lastupdated=gcp_update_tag,
     )
 

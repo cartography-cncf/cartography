@@ -6,7 +6,10 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-COMMON_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": "organizations/1337"}
+COMMON_JOB_PARAMS = {
+    "UPDATE_TAG": TEST_UPDATE_TAG,
+    "ORG_RESOURCE_NAME": "organizations/1337",
+}
 
 
 @patch.object(
@@ -25,12 +28,15 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
         neo4j_session,
         gcp_update_tag=TEST_UPDATE_TAG,
         common_job_parameters=COMMON_JOB_PARAMS,
-        org_id="1337",
+        org_resource_name="organizations/1337",
     )
 
     # Load projects after folders exist
     cartography.intel.gcp.crm.projects.load_gcp_projects(
-        neo4j_session, tests.data.gcp.crm.GCP_PROJECTS, TEST_UPDATE_TAG, org_id="1337"
+        neo4j_session,
+        tests.data.gcp.crm.GCP_PROJECTS,
+        TEST_UPDATE_TAG,
+        org_resource_name="organizations/1337",
     )
 
     assert check_nodes(neo4j_session, "GCPFolder", ["id", "displayname"]) == {
@@ -80,7 +86,7 @@ def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
         neo4j_session,
         gcp_update_tag=TEST_UPDATE_TAG,
         common_job_parameters=COMMON_JOB_PARAMS,
-        org_id="1337",
+        org_resource_name="organizations/1337",
     )
 
     assert check_nodes(neo4j_session, "GCPFolder", ["id", "displayname"]) == {

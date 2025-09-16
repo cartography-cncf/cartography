@@ -535,7 +535,7 @@ def test_cleanup_with_multiple_orgs(neo4j_session):
     # Run cleanup for org1
     common_job_params = {
         "UPDATE_TAG": TEST_UPDATE_TAG_V2,
-        "ORG_ID": "organizations/1337",
+        "ORG_RESOURCE_NAME": "organizations/1337",
     }
     GraphJob.from_node_schema(GCPFolderSchema(), common_job_params).run(neo4j_session)
 

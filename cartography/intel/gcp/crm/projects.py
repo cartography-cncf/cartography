@@ -14,14 +14,16 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_projects(org_id: str, folders: List[Dict]) -> List[Dict]:
+def get_gcp_projects(org_resource_name: str, folders: List[Dict]) -> List[Dict]:
     """
     Return list of ACTIVE GCP projects under the specified organization
     and within the specified folders.
+    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    :param folders: List of folder dictionaries containing 'name' field with full resource names
     """
-    # Extract folder names from the folder data
     folder_names = [folder["name"] for folder in folders] if folders else []
-    parents = set([f"organizations/{org_id}"] + folder_names)
+    # Build list of parent resources to check (org and all folders)
+    parents = set([org_resource_name] + folder_names)
     results: List[Dict] = []
     for parent in parents:
         client = resourcemanager_v3.ProjectsClient()
@@ -50,9 +52,12 @@ def load_gcp_projects(
     neo4j_session: neo4j.Session,
     data: List[Dict],
     gcp_update_tag: int,
-    org_id: str,
+    org_resource_name: str,
 ) -> None:
-    # Transform data to set parent_org or parent_folder based on parent type
+    """
+    Load GCP projects into the graph.
+    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    """
     transformed_data = []
     for project in data:
         transformed_project = {
@@ -64,6 +69,7 @@ def load_gcp_projects(
             "parent_folder": None,
         }
 
+        # Transform data to set parent_org or parent_folder based on parent type
         if project["parent"].startswith("organizations"):
             transformed_project["parent_org"] = project["parent"]
         elif project["parent"].startswith("folders"):
@@ -81,27 +87,29 @@ def load_gcp_projects(
         GCPProjectSchema(),
         transformed_data,
         lastupdated=gcp_update_tag,
-        ORG_ID=f"organizations/{org_id}",
+        ORG_RESOURCE_NAME=org_resource_name,
     )
 
 
 @timeit
 def sync_gcp_projects(
     neo4j_session: neo4j.Session,
-    org_id: str,
+    org_resource_name: str,
     folders: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
     defer_cleanup: bool = False,
 ) -> List[Dict]:
     """
-    Get and sync GCP project data to Neo4j and clean up stale nodes.
-    Returns the list of projects synced.
+    Get and sync GCP project data to Neo4j and optionally clean up stale nodes.
+    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    :param folders: List of folder dictionaries containing 'name' field with full resource names
     :param defer_cleanup: If True, skip the cleanup job. Used for hierarchical cleanup scenarios.
+    :return: List of projects synced
     """
     logger.debug("Syncing GCP projects")
-    projects = get_gcp_projects(org_id, folders)
-    load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_id)
+    projects = get_gcp_projects(org_resource_name, folders)
+    load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_resource_name)
     if not defer_cleanup:
         GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
             neo4j_session
