@@ -322,7 +322,7 @@ def test_vpc_to_subnets(neo4j_session):
     _ensure_local_neo4j_has_test_vpc_data(neo4j_session)
     _ensure_local_neo4j_has_test_subnet_data(neo4j_session)
     query = """
-    MATCH(vpc:GCPVpc{id:$VpcId})-[:RESOURCE]->(subnet:GCPSubnet)
+    MATCH(vpc:GCPVpc{id:$VpcId})-[:HAS]->(subnet:GCPSubnet)
     RETURN vpc.id, subnet.id, subnet.region, subnet.gateway_address, subnet.ip_cidr_range,
     subnet.private_ip_google_access
     """
@@ -698,7 +698,7 @@ def test_sync_gcp_subnets(mock_get_subnets, neo4j_session):
         "id",
         "GCPSubnet",
         "id",
-        "RESOURCE",
+        "HAS",
         rel_direction_right=True,
     ) == {
         (

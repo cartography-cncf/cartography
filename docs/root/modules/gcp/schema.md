@@ -300,7 +300,7 @@ Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/re
 - GCPVpcs contain GCPSubnets
 
     ```
-    (:GCPVpc)-[:RESOURCE]->(:GCPSubnet)
+    (:GCPVpc)-[:HAS]->(:GCPSubnet)
     ```
 
 - GCPSubnets are part of GCP VPCs
@@ -434,19 +434,19 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 - GCPSubnets are resources of GCPProjects (primary organizational relationship)
 
     ```
-    (GCPProject)-[RESOURCE]->(GCPSubnet)
+    (:GCPProject)-[:RESOURCE]->(:GCPSubnet)
     ```
 
-- GCPSubnets are part of GCP VPCs (business relationship)
+- GCPSubnets are part of GCP VPCs
 
     ```
-    (GCPVpc)-[RESOURCE]->(GCPSubnet)
+    (:GCPVpc)-[:HAS]->(:GCPSubnet)
     ```
 
 - GCPNetworkInterfaces are connected to GCPSubnets
 
     ```
-    (GCPNetworkInterface)-[PART_OF_SUBNET]->(GCPSubnet)
+    (:GCPNetworkInterface)-[:PART_OF_SUBNET]->(:GCPSubnet)
     ```
 
 

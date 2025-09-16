@@ -58,7 +58,7 @@ class GCPSubnetToVpcRel(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "HAS"
     properties: GCPSubnetToVpcRelProperties = GCPSubnetToVpcRelProperties()
 
 
