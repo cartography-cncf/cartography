@@ -37,6 +37,7 @@ GITHUB_ORG_USERS_PAGINATED_GRAPHQL = """
                         isSiteAdmin
                         email
                         company
+                        organizationVerifiedDomainEmails(login: $login)
                     }
                     role
                 }
