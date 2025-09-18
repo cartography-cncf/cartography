@@ -864,7 +864,7 @@ def load_github_repos(
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = r.UpdateTag
     """
-    neo4j_session.run(
+    neo4j_session.execute_query(
         ingest_repo,
         RepoData=repo_data,
         UpdateTag=update_tag,
@@ -898,7 +898,7 @@ def load_github_languages(
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $UpdateTag"""
 
-    neo4j_session.run(
+    neo4j_session.execute_query(
         ingest_languages,
         Languages=repo_languages,
         UpdateTag=update_tag,
@@ -935,7 +935,7 @@ def load_github_owners(
 
         account_type = {"User": "GitHubUser", "Organization": "GitHubOrganization"}
 
-        neo4j_session.run(
+        neo4j_session.execute_query(
             ingest_owner_template.safe_substitute(
                 account_type=account_type[owner["type"]],
             ),
@@ -975,7 +975,7 @@ def load_collaborators(
     )
     for collab_type in collaborators.keys():
         relationship_label = f"{affiliation}_COLLAB_{collab_type}"
-        neo4j_session.run(
+        neo4j_session.execute_query(
             query.safe_substitute(rel_label=relationship_label),
             UserData=collaborators[collab_type],
             UpdateTag=update_tag,
@@ -1003,7 +1003,7 @@ def load_python_requirements(
         SET r.lastupdated = $UpdateTag,
         r.specifier = req.specifier
     """
-    neo4j_session.run(
+    neo4j_session.execute_query(
         query,
         Requirements=requirements_objects,
         UpdateTag=update_tag,
