@@ -40,7 +40,7 @@ ROLE_POLICY_DATA = {
             {
                 "Effect": "Allow",
                 "Action": ["s3:GetObject"],
-                "Resource": ["arn:aws:s3:::test-bucket/*"],
+                "Resource": ["arn:aws:s3:::test-bucket*"],
             }
         ]
     }
