@@ -64,20 +64,12 @@ class GithubSeed(Seed):
             tests.data.github.repos.DIRECT_COLLABORATORS,
             tests.data.github.repos.OUTSIDE_COLLABORATORS,
         )
-        cartography.intel.github.repos.load_github_repos(
+        org_url = tests.data.github.repos.GET_REPOS[0]["owner"]["url"]
+        cartography.intel.github.repos.load(
             self.neo4j_session,
-            self.update_tag,
-            repos_data["repos"],
-        )
-        cartography.intel.github.repos.load_github_owners(
-            self.neo4j_session,
-            self.update_tag,
-            repos_data["repo_owners"],
-        )
-        cartography.intel.github.repos.load_github_languages(
-            self.neo4j_session,
-            self.update_tag,
-            repos_data["repo_languages"],
+            {"UPDATE_TAG": self.update_tag},
+            repos_data,
+            org_url,
         )
 
     def _seed_teams(self) -> None:
