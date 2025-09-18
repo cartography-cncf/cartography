@@ -8,6 +8,7 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://fake.github.net/graphql/"
+TEST_ORG_URL = GET_REPOS[0]["owner"]["url"]
 
 
 def _ensure_local_neo4j_has_test_data(neo4j_session):
@@ -20,6 +21,7 @@ def _ensure_local_neo4j_has_test_data(neo4j_session):
         neo4j_session,
         TEST_JOB_PARAMS,
         repo_data,
+        TEST_ORG_URL,
     )
 
 
@@ -36,6 +38,7 @@ def test_transform_and_load_repositories(neo4j_session):
         neo4j_session,
         TEST_UPDATE_TAG,
         repos_data["repos"],
+        TEST_ORG_URL,
     )
     nodes = neo4j_session.run(
         "MATCH(repo:GitHubRepository) RETURN repo.id",
@@ -58,10 +61,15 @@ def test_transform_and_load_repository_owners(neo4j_session):
         DIRECT_COLLABORATORS,
         OUTSIDE_COLLABORATORS,
     )
-    cartography.intel.github.repos.load_github_owners(
+    cartography.intel.github.repos.load_owner_organizations(
         neo4j_session,
         TEST_UPDATE_TAG,
-        repos_data["repo_owners"],
+        repos_data["owner_organizations"],
+    )
+    cartography.intel.github.repos.load_owner_users(
+        neo4j_session,
+        TEST_UPDATE_TAG,
+        repos_data["owner_users"],
     )
     nodes = neo4j_session.run(
         "MATCH(owner:GitHubOrganization) RETURN owner.id",
