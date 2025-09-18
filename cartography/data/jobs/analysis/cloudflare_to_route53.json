@@ -1,0 +1,9 @@
+{
+  "name": "Links Cloudflare CNAMEs to AWS Route 53",
+  "statements": [
+    {
+      "query": "MATCH (cf:CloudflareDNSRecord{type: \"CNAME\"}) WITH cf MATCH (aws:AWSDNSRecord) WHERE cf.value = aws.name MERGE (cf)-[r:DNS_POINTS_TO]->(aws) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    }
+  ]
+}
