@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
@@ -24,10 +25,10 @@ SIMPLE_ROLE_DATA = {
                     {
                         "Effect": "Allow",
                         "Principal": {"AWS": "arn:aws:iam::000000000000:root"},
-                        "Action": "sts:AssumeRole"
+                        "Action": "sts:AssumeRole",
                     }
-                ]
-            }
+                ],
+            },
         }
     ]
 }
@@ -39,7 +40,7 @@ ROLE_POLICY_DATA = {
             {
                 "Effect": "Allow",
                 "Action": ["s3:GetObject"],
-                "Resource": ["arn:aws:s3:::test-bucket/*"]
+                "Resource": ["arn:aws:s3:::test-bucket/*"],
             }
         ]
     }
@@ -66,9 +67,19 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
     )
 
     # Step 3: Create IAM roles and policies using sync_roles
-    with patch('cartography.intel.aws.iam.get_role_list_data', return_value=SIMPLE_ROLE_DATA), \
-         patch('cartography.intel.aws.iam.get_role_policy_data', return_value=ROLE_POLICY_DATA), \
-         patch('cartography.intel.aws.iam.get_role_managed_policy_data', return_value={}):
+    with (
+        patch(
+            "cartography.intel.aws.iam.get_role_list_data",
+            return_value=SIMPLE_ROLE_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_policy_data",
+            return_value=ROLE_POLICY_DATA,
+        ),
+        patch(
+            "cartography.intel.aws.iam.get_role_managed_policy_data", return_value={}
+        ),
+    ):
 
         # Call sync_roles to create the complete IAM structure
         common_job_parameters = {"AWS_ID": TEST_ACCOUNT_ID}
@@ -80,14 +91,14 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
             common_job_parameters,
         )
 
-    # Act: 
+    # Act:
     # Call get_policies_for_principal which should trigger the bug
     # This function calls parse_statement_node and should crash with AttributeError
     # if the bug exists, or work correctly if the bug is fixed
     policies = cartography.intel.aws.iam.get_policies_for_principal(
-        neo4j_session,
-        "arn:aws:iam::000000000000:role/TestReadRole"
+        neo4j_session, "arn:aws:iam::000000000000:role/TestReadRole"
     )
+    assert policies
 
     # If we reach here, the bug is fixed - now test the full permission relationships flow
     cartography.intel.aws.permission_relationships.sync(
@@ -115,4 +126,6 @@ def test_permission_relationships_with_iam_integration(neo4j_session):
         ("arn:aws:iam::000000000000:role/TestReadRole", "arn:aws:s3:::test-bucket")
     }
 
-    assert actual_rels == expected_rels, f"Expected CAN_READ relationship not found. Got: {actual_rels}"
+    assert (
+        actual_rels == expected_rels
+    ), f"Expected CAN_READ relationship not found. Got: {actual_rels}"
