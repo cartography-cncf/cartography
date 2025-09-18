@@ -348,7 +348,7 @@ def transform(
 
         if owner_type == "Organization" and owner_url:
             owner_organizations[owner_url] = {
-                "id": owner_url,
+                "url": owner_url,
                 "login": owner_login,
             }
             repo_record["owner_org_id"] = owner_url
@@ -381,12 +381,14 @@ def transform(
                 repo_url,
                 outside_collaborators[repo_url],
                 collaborators_by_user,
+                "OUTSIDE",
             )
         if repo_url in direct_collaborators:
             _transform_collaborators(
                 repo_url,
                 direct_collaborators[repo_url],
                 collaborators_by_user,
+                "DIRECT",
             )
 
         _transform_requirements_txt(
@@ -555,6 +557,7 @@ def _transform_collaborators(
     repo_url: str,
     collaborators: List[UserAffiliationAndRepoPermission],
     collaborators_by_user: Dict[str, Dict[str, Any]],
+    list_type: str,
 ) -> None:
     """
     Aggregate collaborator information by user so it can be loaded via the data model.
@@ -563,6 +566,7 @@ def _transform_collaborators(
         cartography.tests.data.github.repos.OUTSIDE_COLLABORATORS
     :param repo_url: The URL of the GitHub repo.
     :param collaborators_by_user: Aggregated collaborator output keyed by user URL.
+    :param list_type: Either "DIRECT" or "OUTSIDE" to indicate which list this came from.
     :return: Nothing.
     """
     if not collaborators:
@@ -591,15 +595,15 @@ def _transform_collaborators(
                 collaborator_entry[metadata_key] = value
 
         relationship_field = _collaborator_relationship_field(
-            collaborator.affiliation,
+            list_type,
             collaborator.permission,
         )
         repo_ids = collaborator_entry.setdefault(relationship_field, set())
         repo_ids.add(repo_url)
 
 
-def _collaborator_relationship_field(affiliation: str, permission: str) -> str:
-    return f"{affiliation.lower()}_collab_{permission.lower()}_repo_ids"
+def _collaborator_relationship_field(list_type: str, permission: str) -> str:
+    return f"{list_type.lower()}_collab_{permission.lower()}_repo_ids"
 
 
 def _transform_requirements_txt(
@@ -1285,9 +1289,7 @@ def sync(
         neo4j_session, common_job_parameters, repo_urls_with_requirements
     )
 
-    cleanup_github_repositories(
-        neo4j_session, common_job_parameters, org_url
-    )
+    cleanup_github_repositories(neo4j_session, common_job_parameters, org_url)
     cleanup_github_branches(neo4j_session, common_job_parameters)
     cleanup_github_languages(neo4j_session, common_job_parameters)
     cleanup_github_collaborators(neo4j_session, common_job_parameters)

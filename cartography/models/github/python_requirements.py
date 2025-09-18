@@ -16,7 +16,7 @@ class PythonLibraryNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name", extra_index=True)
     version: PropertyRef = PropertyRef("version")
-    repo_url: PropertyRef = PropertyRef("repo_url", set_in_kwargs=True)
+    repo_url: PropertyRef = PropertyRef("repo_url")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -30,7 +30,7 @@ class PythonLibraryToRepositoryRelProperties(CartographyRelProperties):
 class PythonLibraryToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_url", set_in_kwargs=True)},
+        {"id": PropertyRef("repo_url")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "REQUIRES"
@@ -50,4 +50,3 @@ class PythonLibrarySchema(CartographyNodeSchema):
     @property
     def extra_node_labels(self) -> ExtraNodeLabels:
         return ExtraNodeLabels(["Dependency"])
-

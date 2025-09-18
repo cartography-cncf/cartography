@@ -30,8 +30,6 @@ class GitHubRepositoryNodeProperties(CartographyNodeProperties):
     url: PropertyRef = PropertyRef("url")
     sshurl: PropertyRef = PropertyRef("sshurl")
     updatedat: PropertyRef = PropertyRef("updatedat")
-    owner_org_id: PropertyRef = PropertyRef("owner_org_id", set_in_kwargs=True)
-    owner_user_id: PropertyRef = PropertyRef("owner_user_id", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -62,7 +60,7 @@ class GitHubRepositoryToOwnerOrganizationRelProperties(CartographyRelProperties)
 class GitHubRepositoryToOwnerOrganizationRel(CartographyRelSchema):
     target_node_label: str = "GitHubOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("owner_org_id", set_in_kwargs=True)},
+        {"id": PropertyRef("owner_org_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "OWNER"
@@ -80,7 +78,7 @@ class GitHubRepositoryToOwnerUserRelProperties(CartographyRelProperties):
 class GitHubRepositoryToOwnerUserRel(CartographyRelSchema):
     target_node_label: str = "GitHubUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("owner_user_id", set_in_kwargs=True)},
+        {"id": PropertyRef("owner_user_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "OWNER"
@@ -108,7 +106,7 @@ class GitHubRepositorySchema(CartographyNodeSchema):
 class GitHubBranchNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
-    repo_id: PropertyRef = PropertyRef("repo_id", set_in_kwargs=True)
+    repo_id: PropertyRef = PropertyRef("repo_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -121,7 +119,7 @@ class GitHubBranchToRepositoryRelProperties(CartographyRelProperties):
 class GitHubBranchToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_id", set_in_kwargs=True)},
+        {"id": PropertyRef("repo_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "BRANCH"
@@ -144,7 +142,6 @@ class GitHubBranchSchema(CartographyNodeSchema):
 class ProgrammingLanguageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
-    repo_id: PropertyRef = PropertyRef("repo_id", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -157,7 +154,7 @@ class ProgrammingLanguageToRepositoryRelProperties(CartographyRelProperties):
 class ProgrammingLanguageToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("repo_id", set_in_kwargs=True)},
+        {"id": PropertyRef("repo_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "LANGUAGE"
@@ -211,7 +208,6 @@ class GitHubUserToRepoDirectAdminRel(CartographyRelSchema):
             "id": PropertyRef(
                 "direct_collab_admin_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -228,7 +224,6 @@ class GitHubUserToRepoDirectMaintainRel(CartographyRelSchema):
             "id": PropertyRef(
                 "direct_collab_maintain_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -245,7 +240,6 @@ class GitHubUserToRepoDirectReadRel(CartographyRelSchema):
             "id": PropertyRef(
                 "direct_collab_read_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -262,7 +256,6 @@ class GitHubUserToRepoDirectTriageRel(CartographyRelSchema):
             "id": PropertyRef(
                 "direct_collab_triage_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -279,7 +272,6 @@ class GitHubUserToRepoDirectWriteRel(CartographyRelSchema):
             "id": PropertyRef(
                 "direct_collab_write_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -296,7 +288,6 @@ class GitHubUserToRepoOutsideAdminRel(CartographyRelSchema):
             "id": PropertyRef(
                 "outside_collab_admin_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -313,7 +304,6 @@ class GitHubUserToRepoOutsideMaintainRel(CartographyRelSchema):
             "id": PropertyRef(
                 "outside_collab_maintain_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -330,7 +320,6 @@ class GitHubUserToRepoOutsideReadRel(CartographyRelSchema):
             "id": PropertyRef(
                 "outside_collab_read_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -347,7 +336,6 @@ class GitHubUserToRepoOutsideTriageRel(CartographyRelSchema):
             "id": PropertyRef(
                 "outside_collab_triage_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -364,7 +352,6 @@ class GitHubUserToRepoOutsideWriteRel(CartographyRelSchema):
             "id": PropertyRef(
                 "outside_collab_write_repo_ids",
                 one_to_many=True,
-                set_in_kwargs=True,
             ),
         },
     )
@@ -383,52 +370,42 @@ class GitHubRepositoryCollaboratorNodeProperties(CartographyNodeProperties):
     direct_collab_admin_repo_ids: PropertyRef = PropertyRef(
         "direct_collab_admin_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     direct_collab_maintain_repo_ids: PropertyRef = PropertyRef(
         "direct_collab_maintain_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     direct_collab_read_repo_ids: PropertyRef = PropertyRef(
         "direct_collab_read_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     direct_collab_triage_repo_ids: PropertyRef = PropertyRef(
         "direct_collab_triage_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     direct_collab_write_repo_ids: PropertyRef = PropertyRef(
         "direct_collab_write_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     outside_collab_admin_repo_ids: PropertyRef = PropertyRef(
         "outside_collab_admin_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     outside_collab_maintain_repo_ids: PropertyRef = PropertyRef(
         "outside_collab_maintain_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     outside_collab_read_repo_ids: PropertyRef = PropertyRef(
         "outside_collab_read_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     outside_collab_triage_repo_ids: PropertyRef = PropertyRef(
         "outside_collab_triage_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     outside_collab_write_repo_ids: PropertyRef = PropertyRef(
         "outside_collab_write_repo_ids",
         one_to_many=True,
-        set_in_kwargs=True,
     )
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
