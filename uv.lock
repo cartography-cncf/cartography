@@ -606,7 +606,7 @@ requires-dist = [
     { name = "marshmallow", specifier = ">=3.0.0rc7" },
     { name = "msgraph-sdk" },
     { name = "msrestazure", specifier = ">=0.6.4" },
-    { name = "neo4j", specifier = ">=4.4.4" },
+    { name = "neo4j", specifier = ">=5.28.2" },
     { name = "oci", specifier = ">=2.71.0" },
     { name = "okta", specifier = "<1.0.0" },
     { name = "packaging" },
