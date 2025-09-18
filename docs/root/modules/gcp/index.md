@@ -1,4 +1,4 @@
-# Google Cloud Compute (GCP)
+# Google Cloud Platform (GCP)
 
 ```{toctree}
 config
