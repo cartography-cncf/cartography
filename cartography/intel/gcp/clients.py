@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # Default HTTP timeout (seconds) for Google API clients built via discovery.build
 _GCP_HTTP_TIMEOUT = 120
 
+
 def _authorized_http_with_timeout(
     credentials: GoogleCredentials,
     timeout: int = _GCP_HTTP_TIMEOUT,
