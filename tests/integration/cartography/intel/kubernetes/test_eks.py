@@ -3,8 +3,10 @@ from unittest.mock import patch
 
 from kubernetes.client.models import V1ConfigMap
 
-from cartography.intel.aws.iam import load_roles
+from cartography.intel.aws.iam import load_role_data
 from cartography.intel.aws.iam import load_users
+from cartography.intel.aws.iam import transform_role_trust_policies
+from cartography.intel.aws.iam import transform_users
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_DATA
@@ -55,17 +57,21 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
     load_kubernetes_cluster(neo4j_session, MOCK_CLUSTER_DATA, TEST_UPDATE_TAG)
 
     # Arrange: Set up prerequisite AWS Roles in the graph
-    load_roles(
+    transformed_role_data = transform_role_trust_policies(
+        MOCK_AWS_ROLES, TEST_ACCOUNT_ID
+    )
+    load_role_data(
         neo4j_session,
-        MOCK_AWS_ROLES,
+        transformed_role_data.role_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
     # Arrange: Set up prerequisite AWS Users in the graph
+    transformed_user_data = transform_users(MOCK_AWS_USERS)
     load_users(
         neo4j_session,
-        MOCK_AWS_USERS,
+        transformed_user_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )

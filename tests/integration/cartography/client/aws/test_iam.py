@@ -1,11 +1,14 @@
 from cartography.client.aws.iam import get_aws_admin_like_principals
+from cartography.client.core.tx import load
+from cartography.intel.aws.iam import _transform_policy_statements
 from cartography.intel.aws.iam import load_groups
-from cartography.intel.aws.iam import load_policy
 from cartography.intel.aws.iam import load_policy_statements
+from cartography.intel.aws.iam import transform_groups
+from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
 from tests.data.aws.iam import INLINE_POLICY_STATEMENTS
 from tests.data.aws.iam import LIST_GROUPS
 
-TEST_ACCOUNT_ID = "1111"
+TEST_ACCOUNT_ID = "000000000000"
 TEST_UPDATE_TAG = 0000
 TEST_ACCOUNT_NAME = "testaccount"
 
@@ -21,27 +24,39 @@ def _ensure_test_data(neo4j_session):
         AccountName=TEST_ACCOUNT_NAME,
     )
 
+    # Transform the raw AWS data to the format expected by the schema
+    group_data = transform_groups(LIST_GROUPS["Groups"], {})
     load_groups(
         neo4j_session,
-        LIST_GROUPS["Groups"],
+        group_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-
-    load_policy(
+    policy_id = "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy"
+    inline_policy_data = [
+        {
+            "id": policy_id,
+            "arn": None,
+            "name": "group_inline_policy",
+            "type": "inline",
+            "principal_arns": ["arn:aws:iam::000000000000:group/example-group-0"],
+        }
+    ]
+    load(
         neo4j_session,
-        "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
-        "group_inline_policy",
-        "inline",
-        "arn:aws:iam::000000000000:group/example-group-0",
-        TEST_UPDATE_TAG,
+        AWSInlinePolicySchema(),
+        inline_policy_data,
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
+    # Transform the policy statements to the format expected by the schema
+    transformed_statements = _transform_policy_statements(
+        INLINE_POLICY_STATEMENTS, policy_id
+    )
     load_policy_statements(
         neo4j_session,
-        "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
-        "group_inline_policy",
-        INLINE_POLICY_STATEMENTS,
+        transformed_statements,
         TEST_UPDATE_TAG,
     )
 
@@ -57,7 +72,7 @@ def test_get_aws_admin_like_principals(neo4j_session):
     assert len(admin_data) == 1
     assert admin_data[0] == {
         "account_name": "testaccount",
-        "account_id": "1111",
+        "account_id": "000000000000",
         "principal_name": "example-group-0",
         "policy_name": "group_inline_policy",
     }
