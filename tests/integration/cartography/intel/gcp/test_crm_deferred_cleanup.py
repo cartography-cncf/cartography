@@ -251,56 +251,6 @@ def test_partial_deletion_cleanup(
     ), "Projects should be cleaned up"
 
 
-def test_sync_functions_with_defer_cleanup_flag(neo4j_session):
-    """
-    Test that sync functions respect the defer_cleanup flag.
-    """
-    neo4j_session.run("MATCH (n) DETACH DELETE n")
-
-    common_job_params = {"UPDATE_TAG": TEST_UPDATE_TAG}
-
-    # Track if cleanup was run
-    cleanup_run = []
-    original_run = GraphJob.run
-
-    def track_cleanup(self, session):
-        cleanup_run.append(True)
-        return original_run(self, session)
-
-    with patch.object(GraphJob, "run", track_cleanup):
-        # Test with defer_cleanup=True
-        with patch.object(
-            cartography.intel.gcp.crm.orgs,
-            "get_gcp_organizations",
-            return_value=tests.data.gcp.crm.GCP_ORGANIZATIONS,
-        ):
-            cartography.intel.gcp.crm.orgs.sync_gcp_organizations(
-                neo4j_session,
-                TEST_UPDATE_TAG,
-                common_job_params,
-                defer_cleanup=True,
-            )
-
-        # Cleanup should NOT have run
-        assert len(cleanup_run) == 0, "Cleanup should not run when defer_cleanup=True"
-
-        # Test with defer_cleanup=False (default)
-        with patch.object(
-            cartography.intel.gcp.crm.orgs,
-            "get_gcp_organizations",
-            return_value=tests.data.gcp.crm.GCP_ORGANIZATIONS,
-        ):
-            cartography.intel.gcp.crm.orgs.sync_gcp_organizations(
-                neo4j_session,
-                TEST_UPDATE_TAG,
-                common_job_params,
-                defer_cleanup=False,
-            )
-
-        # Cleanup should have run
-        assert len(cleanup_run) == 1, "Cleanup should run when defer_cleanup=False"
-
-
 @patch.object(
     cartography.intel.gcp,
     "_sync_project_resources",

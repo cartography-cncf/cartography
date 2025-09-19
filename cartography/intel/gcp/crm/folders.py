@@ -6,7 +6,6 @@ import neo4j
 from google.cloud import resourcemanager_v3
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.util import timeit
 
@@ -23,34 +22,27 @@ def get_gcp_folders(org_resource_name: str) -> List[Dict]:
     """
     results: List[Dict] = []
     client = resourcemanager_v3.FoldersClient()
-    try:
-        # BFS over folders starting at the org root
-        queue: List[str] = [org_resource_name]
-        seen: set[str] = set()
-        while queue:
-            parent = queue.pop(0)
-            if parent in seen:
-                continue
-            seen.add(parent)
+    # BFS over folders starting at the org root
+    queue: List[str] = [org_resource_name]
+    seen: set[str] = set()
+    while queue:
+        parent = queue.pop(0)
+        if parent in seen:
+            continue
+        seen.add(parent)
 
-            for folder in client.list_folders(parent=parent):
-                results.append(
-                    {
-                        "name": folder.name,
-                        "parent": parent,
-                        "displayName": folder.display_name,
-                        "lifecycleState": folder.state.name,
-                    }
-                )
-                if folder.name:
-                    queue.append(folder.name)
-        return results
-    except Exception as e:
-        logger.warning(
-            "Exception occurred in crm.get_gcp_folders(), returning empty list. Details: %r",
-            e,
-        )
-        return []
+        for folder in client.list_folders(parent=parent):
+            results.append(
+                {
+                    "name": folder.name,
+                    "parent": parent,
+                    "displayName": folder.display_name,
+                    "lifecycleState": folder.state.name,
+                }
+            )
+            if folder.name:
+                queue.append(folder.name)
+    return results
 
 
 @timeit
@@ -94,19 +86,13 @@ def sync_gcp_folders(
     gcp_update_tag: int,
     common_job_parameters: Dict,
     org_resource_name: str,
-    defer_cleanup: bool = False,
 ) -> List[Dict]:
     """
-    Get GCP folder data using the CRM v2 resource object, load the data to Neo4j, and clean up stale nodes.
+    Get GCP folder data using the CRM v2 resource object and load the data to Neo4j.
     :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
-    :param defer_cleanup: If True, skip the cleanup job. Used for hierarchical cleanup scenarios.
     :return: List of folders synced
     """
     logger.debug("Syncing GCP folders")
     folders = get_gcp_folders(org_resource_name)
     load_gcp_folders(neo4j_session, folders, gcp_update_tag, org_resource_name)
-    if not defer_cleanup:
-        GraphJob.from_node_schema(GCPFolderSchema(), common_job_parameters).run(
-            neo4j_session
-        )
     return folders

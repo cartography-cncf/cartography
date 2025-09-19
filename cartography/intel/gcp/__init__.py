@@ -188,7 +188,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     # This ensures children are cleaned up before their parents.
 
     orgs = sync_gcp_organizations(
-        neo4j_session, config.update_tag, common_job_parameters, defer_cleanup=True
+        neo4j_session, config.update_tag, common_job_parameters
     )
 
     # Track org cleanup jobs to run at the very end
@@ -210,7 +210,6 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
             org_resource_name,
-            defer_cleanup=True,
         )
 
         # Sync projects under org and each folder
@@ -220,7 +219,6 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             folders,
             config.update_tag,
             common_job_parameters,
-            defer_cleanup=True,
         )
 
         # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)

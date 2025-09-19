@@ -6,7 +6,6 @@ import neo4j
 from google.cloud import resourcemanager_v3
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import timeit
 
@@ -27,23 +26,20 @@ def get_gcp_projects(org_resource_name: str, folders: List[Dict]) -> List[Dict]:
     results: List[Dict] = []
     for parent in parents:
         client = resourcemanager_v3.ProjectsClient()
-        try:
-            for proj in client.list_projects(parent=parent):
-                # list_projects returns ACTIVE projects by default
-                name_field = proj.name  # "projects/<number>"
-                project_number = name_field.split("/")[-1] if name_field else None
-                project_parent = proj.parent
-                results.append(
-                    {
-                        "projectId": getattr(proj, "project_id", None),
-                        "projectNumber": project_number,
-                        "name": getattr(proj, "display_name", None),
-                        "lifecycleState": proj.state.name,
-                        "parent": project_parent,
-                    }
-                )
-        except Exception as e:
-            logger.warning("Listing projects under %s failed: %r", parent, e)
+        for proj in client.list_projects(parent=parent):
+            # list_projects returns ACTIVE projects by default
+            name_field = proj.name  # "projects/<number>"
+            project_number = name_field.split("/")[-1] if name_field else None
+            project_parent = proj.parent
+            results.append(
+                {
+                    "projectId": getattr(proj, "project_id", None),
+                    "projectNumber": project_number,
+                    "name": getattr(proj, "display_name", None),
+                    "lifecycleState": proj.state.name,
+                    "parent": project_parent,
+                }
+            )
     return results
 
 
@@ -90,20 +86,14 @@ def sync_gcp_projects(
     folders: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
-    defer_cleanup: bool = False,
 ) -> List[Dict]:
     """
-    Get and sync GCP project data to Neo4j and optionally clean up stale nodes.
+    Get and sync GCP project data to Neo4j.
     :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
     :param folders: List of folder dictionaries containing 'name' field with full resource names
-    :param defer_cleanup: If True, skip the cleanup job. Used for hierarchical cleanup scenarios.
     :return: List of projects synced
     """
     logger.debug("Syncing GCP projects")
     projects = get_gcp_projects(org_resource_name, folders)
     load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_resource_name)
-    if not defer_cleanup:
-        GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
-            neo4j_session
-        )
     return projects
