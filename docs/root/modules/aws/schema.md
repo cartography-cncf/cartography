@@ -4573,3 +4573,24 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     ```
     (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
+
+### ServiceLastAccessed
+
+Representation of AWS service access information from [get_service_last_accessed_details](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetServiceLastAccessedDetails.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier: `{principal_arn}|{service_name}` |
+| service_name | The name of the service (e.g., "Amazon S3") |
+| service_namespace | The service namespace (e.g., "s3") |
+| last_authenticated | The date and time when the service was last accessed |
+| last_authenticated_entity | The entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
+| total_authenticated_entities | The total `number` of authenticated entities for this service |
+
+#### Relationships
+- AWS Principals have service access records.
+```cypher
+    (AWSPrincipal)-[LAST_ACCESSED_SERVICE]->(ServiceLastAccessed)

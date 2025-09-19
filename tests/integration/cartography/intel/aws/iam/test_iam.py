@@ -23,6 +23,10 @@ def test_permission_relationships_file_arguments():
     """
     Test that we correctly read arguments for --permission-relationships-file
     """
+    from cartography.cli import CLI
+    from cartography.config import Config
+    from cartography.sync import build_default_sync
+
     # Test the correct field is set in the Cartography config object
     fname = "/some/test/file.yaml"
     config = Config(
@@ -91,6 +95,43 @@ def test_load_groups(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
+
+
+def test_load_service_last_accessed_details(neo4j_session):
+    _create_base_account(neo4j_session)
+    
+    # Create a test principal first
+    test_principal_arn = "arn:aws:iam::000000000000:user/example-user-0"
+    neo4j_session.run(
+        "MERGE (u:AWSUser:AWSPrincipal{arn: $arn}) "
+        "WITH u "
+        "MATCH (aa:AWSAccount{id: $account_id}) "
+        "MERGE (aa)-[r:RESOURCE]->(u)",
+        arn=test_principal_arn,
+        account_id=TEST_ACCOUNT_ID
+    )
+    
+    cartography.intel.aws.iam.load_service_last_accessed_details(
+        neo4j_session,
+        tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS,
+        test_principal_arn,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    
+    # Verify service access records were created
+    result = neo4j_session.run(
+        """
+        MATCH (p:AWSPrincipal{arn: $arn})-[:LAST_ACCESSED_SERVICE]->(s:ServiceLastAccessed)
+        RETURN s.service_name AS service_name, s.service_namespace AS namespace
+        ORDER BY s.service_name
+        """,
+        arn=test_principal_arn,
+    )
+
+    services = [(record["service_name"], record["namespace"]) for record in result]
+    expected_services = [("Amazon EC2", "ec2"), ("Amazon S3", "s3")]
+    assert services == expected_services
 
 
 def _get_principal_role_nodes(neo4j_session):

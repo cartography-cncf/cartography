@@ -2,6 +2,7 @@ import enum
 import json
 import logging
 from collections import namedtuple
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -1208,6 +1209,41 @@ def _get_principals_with_pols_in_current_account(
     ]
 
 
+def _get_policies_in_current_account(
+    neo4j_session: neo4j.Session, current_aws_account_id: str
+) -> list[str]:
+    query = """
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(p:AWSPolicy)
+    RETURN p.id
+    """
+    return [
+        str(policy_id)
+        for policy_id in neo4j_session.execute_read(
+            read_list_of_values_tx,
+            query,
+            AWS_ID=current_aws_account_id,
+        )
+    ]
+
+
+def _get_principals_with_pols_in_current_account(
+    neo4j_session: neo4j.Session, current_aws_account_id: str
+) -> list[str]:
+    query = """
+    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(p:AWSPrincipal)
+    WHERE (p)-[:POLICY]->(:AWSPolicy)
+    RETURN p.id
+    """
+    return [
+        str(principal_id)
+        for principal_id in neo4j_session.execute_read(
+            read_list_of_values_tx,
+            query,
+            AWS_ID=current_aws_account_id,
+        )
+    ]
+
+
 @timeit
 def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     # List all policies in the current account
@@ -1274,6 +1310,132 @@ def sync_root_principal(
 
 
 @timeit
+def get_service_last_accessed_details(boto3_session: boto3.session.Session, arn: str) -> Dict:
+    """
+    Get service last accessed details for a given principal.
+    This is a two-step process: generate job, then get results.
+    """
+    client = boto3_session.client("iam")
+    
+    try:
+        response = client.generate_service_last_accessed_details(Arn=arn)
+        job_id = response['JobId']
+        
+        max_attempts = 30
+        for attempt in range(max_attempts):
+            job_response = client.get_service_last_accessed_details(JobId=job_id)
+            
+            if job_response['JobStatus'] == 'COMPLETED':
+                return job_response
+            elif job_response['JobStatus'] == 'FAILED':
+                logger.warning(f"Service last accessed job failed for ARN {arn}: {job_response.get('JobCompletionDate', 'Unknown error')}")
+                return {}
+            
+            time.sleep(2)
+        
+        logger.warning(f"Service last accessed job timed out for ARN {arn}")
+        return {}
+        
+    except client.exceptions.NoSuchEntityException:
+        logger.warning(f"Principal {arn} not found for service last accessed details")
+        return {}
+    except Exception as e:
+        logger.warning(f"Error getting service last accessed details for {arn}: {str(e)}")
+        return {}
+
+
+@timeit
+def load_service_last_accessed_details(
+    neo4j_session: neo4j.Session,
+    service_details: Dict,
+    principal_arn: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load only the most recently accessed service details into Neo4j.
+    Updates the principal with last accessed service information.
+    """
+    if not service_details or not service_details.get('ServicesLastAccessed'):
+        return
+
+    services = service_details.get('ServicesLastAccessed', [])
+    accessed_services = [s for s in services if s.get('LastAuthenticated')]
+
+    if not accessed_services:
+        return
+
+    most_recent_service = max(accessed_services, key=lambda s: s.get('LastAuthenticated'))
+
+    update_principal_query = """
+    MERGE (principal:AWSPrincipal{arn: $PrincipalArn})
+    SET
+        principal.last_accessed_service_name = $ServiceName,
+        principal.last_accessed_service_namespace = $ServiceNamespace,
+        principal.last_authenticated = $LastAuthenticated,
+        principal.last_authenticated_entity = $LastAuthenticatedEntity,
+        principal.last_authenticated_region = $LastAuthenticatedRegion,
+        principal.lastupdated = $aws_update_tag
+    """
+
+    neo4j_session.run(
+        update_principal_query,
+        PrincipalArn=principal_arn,
+        ServiceName=most_recent_service.get('ServiceName'),
+        ServiceNamespace=most_recent_service.get('ServiceNamespace'),
+        LastAuthenticated=str(most_recent_service.get('LastAuthenticated', '')),
+        LastAuthenticatedEntity=most_recent_service.get('LastAuthenticatedEntity', ''),
+        LastAuthenticatedRegion=most_recent_service.get('LastAuthenticatedRegion', ''),
+        aws_update_tag=aws_update_tag,
+    )
+
+
+@timeit
+def sync_service_last_accessed_details(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Sync service last accessed details for all principals in the account.
+    """
+    logger.info("Syncing service last accessed details for account '%s'.", current_aws_account_id)
+    
+    principals_query = """
+    MATCH (account:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(principal)
+    WHERE principal:AWSUser OR principal:AWSRole OR principal:AWSGroup
+    RETURN principal.arn as arn
+    """
+    
+    results = neo4j_session.run(principals_query, AWS_ACCOUNT_ID=current_aws_account_id)
+    principal_arns = [record["arn"] for record in results]
+    
+    logger.info(f"Found {len(principal_arns)} principals to process for service last accessed details")
+    
+    for principal_arn in principal_arns:
+        logger.debug(f"Getting service last accessed details for principal: {principal_arn}")
+        service_details = get_service_last_accessed_details(boto3_session, principal_arn)
+        
+        if service_details:
+            load_service_last_accessed_details(
+                neo4j_session,
+                service_details,
+                principal_arn,
+                current_aws_account_id,
+                aws_update_tag,
+            )
+    
+    run_cleanup_job(
+        "aws_import_service_last_accessed_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
@@ -1283,6 +1445,14 @@ def sync(
     common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing IAM for account '%s'.", current_aws_account_id)
+    sync_service_last_accessed_details(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
+        common_job_parameters,
+    )
+
     # This module only syncs IAM information that is in use.
     # As such only policies that are attached to a user, role or group are synced
     sync_root_principal(
