@@ -20,6 +20,7 @@ from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
+from cartography.intel.gcp.crm.projects import sync_orgless_gcp_projects
 from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
@@ -184,6 +185,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     #    b. Sync project resources (with immediate cleanup)
     #    c. Clean up projects and folders for this org
     # 3. Clean up all orgs at the end
+    # 4. Sync orgless projects (projects without any parent) - done last since they're independent
     #
     # This ensures children are cleaned up before their parents.
 
@@ -245,6 +247,18 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     logger.info("Running cleanup for GCP organizations")
     for schema_class, params in org_cleanup_jobs:
         GraphJob.from_node_schema(schema_class(), params).run(neo4j_session)
+
+    # Finally, sync projects without parents (these are independent)
+    orgless_projects = sync_orgless_gcp_projects(
+        neo4j_session, config.update_tag, common_job_parameters
+    )
+
+    # Sync resources for orgless projects
+    if orgless_projects:
+        logger.info(f"Syncing resources for {len(orgless_projects)} orgless projects")
+        _sync_project_resources(
+            neo4j_session, orgless_projects, config.update_tag, common_job_parameters
+        )
 
     run_analysis_job(
         "gcp_compute_asset_inet_exposure.json",
