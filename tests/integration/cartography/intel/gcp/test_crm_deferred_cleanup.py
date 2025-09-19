@@ -28,6 +28,11 @@ TEST_UPDATE_TAG_V2 = 123456790  # For simulating a second sync
 )
 @patch.object(
     cartography.intel.gcp.crm.projects,
+    "get_orgless_gcp_projects",
+    return_value=[],  # No orgless projects
+)
+@patch.object(
+    cartography.intel.gcp.crm.projects,
     "get_gcp_projects",
     return_value=tests.data.gcp.crm.GCP_PROJECTS,
 )
@@ -45,6 +50,7 @@ def test_deferred_cleanup_order(
     mock_get_orgs,
     mock_get_folders,
     mock_get_projects,
+    mock_get_orgless_projects,
     mock_sync_resources,
     neo4j_session,
 ):
@@ -114,6 +120,11 @@ def test_deferred_cleanup_order(
 )
 @patch.object(
     cartography.intel.gcp.crm.projects,
+    "get_orgless_gcp_projects",
+    return_value=[],  # No orgless projects
+)
+@patch.object(
+    cartography.intel.gcp.crm.projects,
     "get_gcp_projects",
 )
 @patch.object(
@@ -128,6 +139,7 @@ def test_org_deletion_cleanup(
     mock_get_orgs,
     mock_get_folders,
     mock_get_projects,
+    mock_get_orgless_projects,
     mock_sync_resources,
     neo4j_session,
 ):

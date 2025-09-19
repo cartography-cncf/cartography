@@ -2,6 +2,7 @@ from dataclasses import asdict
 from string import Template
 from typing import Dict
 from typing import List
+from typing import Set
 
 from cartography.graph.querybuilder import _asdict_with_validate_relprops
 from cartography.graph.querybuilder import _build_match_clause
@@ -13,6 +14,54 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
+def discover_sub_resource_relationships(parent_node_label: str) -> Set[str]:
+    """
+    Discovers all relationship labels from schemas that define the given node label
+    as their sub_resource_relationship target.
+
+    :param parent_node_label: The label of the parent node (e.g., "GCPProject")
+    :return: Set of relationship labels that connect to this parent node
+    """
+    rel_labels = set()
+
+    # Import model modules to ensure schemas are loaded
+    import importlib
+    import pkgutil
+
+    import cartography.models
+
+    # Walk through all submodules in the models package
+    for _, module_name, _ in pkgutil.walk_packages(
+        cartography.models.__path__, prefix="cartography.models."
+    ):
+        try:
+            module = importlib.import_module(module_name)
+
+            # Look for CartographyNodeSchema subclasses in the module
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, CartographyNodeSchema)
+                    and attr is not CartographyNodeSchema
+                ):
+                    # Check if this schema has a sub_resource_relationship
+                    # that targets the parent node
+                    instance = attr()
+                    if (
+                        hasattr(instance, "sub_resource_relationship")
+                        and instance.sub_resource_relationship
+                    ):
+                        sub_rel = instance.sub_resource_relationship
+                        if sub_rel.target_node_label == parent_node_label:
+                            rel_labels.add(sub_rel.rel_label)
+        except Exception:
+            # Skip modules that fail to import
+            continue
+
+    return rel_labels
+
+
 def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
     """
     Generates queries to clean up stale nodes and relationships from the given CartographyNodeSchema.
@@ -21,12 +70,16 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
     :param node_schema: The given CartographyNodeSchema
     :return: A list of Neo4j queries to clean up nodes and relationships.
     """
-    # If the node has no relationships, do not delete the node. Leave this behind for the user to manage.
-    # Oftentimes these are SyncMetadata nodes.
+    # If the node has no relationships, check if unscoped cleanup is requested
     if (
         not node_schema.sub_resource_relationship
         and not node_schema.other_relationships
     ):
+        # Allow unscoped cleanup for nodes without relationships if explicitly requested
+        if not node_schema.scoped_cleanup:
+            return [_build_cleanup_node_query_unscoped(node_schema)]
+        # Otherwise, do not delete the node. Leave this behind for the user to manage.
+        # Oftentimes these are SyncMetadata nodes.
         return []
 
     # Case 1 [Standard]: the node has a sub resource and scoped cleanup is true => clean up stale nodes
@@ -235,8 +288,44 @@ def _build_cleanup_node_query_unscoped(
             "definition is what you expect.",
         )
 
-    # The cleanup node query must always be before the cleanup rel query
-    delete_action_clause = """
+    # Check if cascade delete is requested
+    cascade_relationships = getattr(node_schema, "cascade_delete_relationships", None)
+    cascade_sub_resources = getattr(node_schema, "cascade_delete_sub_resources", False)
+
+    if cascade_sub_resources:
+        # Dynamically discover all relationship types from schemas that have this node as their sub_resource
+        sub_resource_rel_labels = discover_sub_resource_relationships(node_schema.label)
+
+        if sub_resource_rel_labels:
+            # Build a pattern for all discovered relationships
+            rel_pattern = "|".join(sub_resource_rel_labels)
+            # Delete the node and all nodes connected via discovered sub-resource relationships
+            delete_action_clause = f"""
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        OPTIONAL MATCH (n)-[r:{rel_pattern}]->(res)
+        DETACH DELETE n, res;
+    """
+        else:
+            # No sub-resources found, just delete the node normally
+            delete_action_clause = """
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n;
+    """
+    elif cascade_relationships:
+        # Build a pattern for specific relationships to cascade delete
+        rel_pattern = "|".join(cascade_relationships)
+        # Delete the node and all nodes connected via specified relationships
+        delete_action_clause = f"""
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        OPTIONAL MATCH (n)-[r:{rel_pattern}]->(res)
+        DETACH DELETE n, res;
+    """
+    else:
+        # Standard cleanup - just delete the node
+        delete_action_clause = """
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
         DETACH DELETE n;

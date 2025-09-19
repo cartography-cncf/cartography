@@ -6,6 +6,8 @@ import neo4j
 from google.cloud import resourcemanager_v3
 
 from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.gcp.crm.independent_projects import GCPIndependentProjectSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import timeit
 
@@ -90,6 +92,57 @@ def load_gcp_projects(
 
 
 @timeit
+def get_orgless_gcp_projects() -> List[Dict]:
+    """
+    Returns a list of ACTIVE GCP projects that do not have an Organization or Folder parent
+    (i.e., projects with no `parent` set). Uses the Resource Manager v3 `search_projects`
+    API and filters client-side for projects without a parent.
+    """
+    client = resourcemanager_v3.ProjectsClient()
+
+    # Search across all projects the caller has access to, limiting to ACTIVE only
+    try:
+        iterator = client.search_projects(request={"query": "state:ACTIVE"})
+    except Exception as e:
+        logger.warning(f"Failed to search for orgless projects: {e}")
+        return []
+
+    orgless_projects = []
+    for proj in iterator:
+        if not getattr(proj, "parent", None):
+            # Extract project number from name field
+            name_field = proj.name  # "projects/<number>"
+            project_number = name_field.split("/")[-1] if name_field else None
+
+            orgless_projects.append(
+                {
+                    "projectId": getattr(proj, "project_id", None),
+                    "projectNumber": project_number,
+                    "name": getattr(proj, "display_name", None),
+                    "lifecycleState": proj.state.name,
+                }
+            )
+
+    return orgless_projects
+
+
+@timeit
+def load_orgless_gcp_projects(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    gcp_update_tag: int,
+) -> None:
+    """Load GCP projects without parents into the graph"""
+    load(
+        neo4j_session,
+        GCPIndependentProjectSchema(),
+        data,
+        lastupdated=gcp_update_tag,
+        is_orgless=True,
+    )
+
+
+@timeit
 def sync_gcp_projects(
     neo4j_session: neo4j.Session,
     org_resource_name: str,
@@ -106,4 +159,27 @@ def sync_gcp_projects(
     logger.debug("Syncing GCP projects")
     projects = get_gcp_projects(org_resource_name, folders)
     load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_resource_name)
+    return projects
+
+
+@timeit
+def sync_orgless_gcp_projects(
+    neo4j_session: neo4j.Session,
+    gcp_update_tag: int,
+    common_job_parameters: Dict,
+) -> List[Dict]:
+    """
+    Sync GCP projects without parents (no organization or folder).
+    These are handled separately since they don't belong to any org hierarchy.
+    Returns the list of projects synced for resource sync.
+    """
+    logger.info("Syncing orgless GCP projects")
+    projects = get_orgless_gcp_projects()
+    if projects:
+        logger.info(f"Found {len(projects)} orgless projects")
+        load_orgless_gcp_projects(neo4j_session, projects, gcp_update_tag)
+        # Only run cleanup if we actually found and synced orgless projects
+        GraphJob.from_node_schema(
+            GCPIndependentProjectSchema(), common_job_parameters
+        ).run(neo4j_session)
     return projects
