@@ -30,6 +30,7 @@ from cartography.models.aws.iam.service_principal import AWSServicePrincipalSche
 from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
+from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
@@ -1209,41 +1210,6 @@ def _get_principals_with_pols_in_current_account(
     ]
 
 
-def _get_policies_in_current_account(
-    neo4j_session: neo4j.Session, current_aws_account_id: str
-) -> list[str]:
-    query = """
-    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(p:AWSPolicy)
-    RETURN p.id
-    """
-    return [
-        str(policy_id)
-        for policy_id in neo4j_session.execute_read(
-            read_list_of_values_tx,
-            query,
-            AWS_ID=current_aws_account_id,
-        )
-    ]
-
-
-def _get_principals_with_pols_in_current_account(
-    neo4j_session: neo4j.Session, current_aws_account_id: str
-) -> list[str]:
-    query = """
-    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(p:AWSPrincipal)
-    WHERE (p)-[:POLICY]->(:AWSPolicy)
-    RETURN p.id
-    """
-    return [
-        str(principal_id)
-        for principal_id in neo4j_session.execute_read(
-            read_list_of_values_tx,
-            query,
-            AWS_ID=current_aws_account_id,
-        )
-    ]
-
-
 @timeit
 def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     # List all policies in the current account
@@ -1310,6 +1276,7 @@ def sync_root_principal(
 
 
 @timeit
+@aws_handle_regions
 def get_service_last_accessed_details(boto3_session: boto3.session.Session, arn: str) -> Dict:
     """
     Get service last accessed details for a given principal.
@@ -1337,10 +1304,10 @@ def get_service_last_accessed_details(boto3_session: boto3.session.Session, arn:
         return {}
         
     except client.exceptions.NoSuchEntityException:
-        logger.warning(f"Principal {arn} not found for service last accessed details")
+        logger.warning(f"Principal {arn} not found for service last accessed details", exc_info=True)
         return {}
     except Exception as e:
-        logger.warning(f"Error getting service last accessed details for {arn}: {str(e)}")
+        logger.warning(f"Error getting service last accessed details for {arn}", exc_info=True)
         return {}
 
 
