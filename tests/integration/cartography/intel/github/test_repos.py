@@ -1,7 +1,11 @@
+from unittest.mock import patch
+
 import cartography.intel.github.repos
+from cartography.intel.github.util import PaginatedGraphqlData
 from tests.data.github.repos import DIRECT_COLLABORATORS
 from tests.data.github.repos import GET_REPOS
 from tests.data.github.repos import OUTSIDE_COLLABORATORS
+from tests.integration.cartography.intel.github import test_users
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -388,6 +392,79 @@ def test_python_library_in_multiple_requirements_files(neo4j_session):
     node_ids = {n["lib_ids"] for n in nodes}
     assert len(node_ids) == 2
     assert node_ids == {"okta", "okta|0.9.0"}
+
+
+@patch.object(cartography.intel.github.repos, "transform")
+@patch.object(cartography.intel.github.repos, "get")
+@patch.object(cartography.intel.github.repos, "_get_repo_collaborators")
+def test_collabs_sync(
+    mock_repo_collaborators, mock_get_repos, mock_transfrom, neo4j_session
+):
+    """
+    Ensure that sync sends the right collaborator data to transform
+    """
+
+    # load hjsimpson lmsimpson mbsimpson
+    test_users._ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # Return an empty result from transform
+    mock_transfrom.return_value = {
+        "repos": [],
+        "repo_languages": [],
+        "repo_owners": [],
+        "repo_outside_collaborators": {},
+        "repo_direct_collaborators": {},
+        "python_requirements": [],
+        "dependencies": [],
+        "manifests": [],
+    }
+
+    # return the normal repos
+    mock_get_repos.return_value = GET_REPOS
+
+    # mock the collaborators - numbers don't match the GET_REPOS data, but should be ok for a quick test.
+    # As long as there is  contributor in the repo data, we will fetch them
+    repo_users = {
+        GET_REPOS[1]["name"]: ["hjsimpson"],
+        GET_REPOS[2]["name"]: ["lmsimpson"],
+    }
+
+    def collaborators_side_effect(*args, **kwargs):
+        repo = args[3]
+        affiliation = args[4]
+        if affiliation == "OUTSIDE":
+            return PaginatedGraphqlData(nodes=[], edges=[])
+        users = repo_users.get(repo, [])
+        edges = [{"permission": "ADMIN"} for _user in users]
+        nodes = [
+            {
+                "url": f"https://github.com/{user}",
+                "login": user,
+                "name": None,
+                "email": "",
+                "company": None,
+            }
+            for user in users
+        ]
+        return PaginatedGraphqlData(nodes=nodes, edges=edges)
+
+    mock_repo_collaborators.side_effect = collaborators_side_effect
+
+    cartography.intel.github.repos.sync(
+        neo4j_session, TEST_JOB_PARAMS, "some_key", "http://localhost", "simpsoncorp"
+    )
+
+    # transform takes 3 args
+    assert len(mock_transfrom.call_args.args) == 3
+
+    # first arg is a list of all 3 repos
+    assert len(mock_transfrom.call_args.args[0]) == 3
+
+    # second arg is our direct contributors
+    assert len(mock_transfrom.call_args.args[1]) == 3
+    assert len(mock_transfrom.call_args.args[1][GET_REPOS[0]["url"]]) == 0
+    assert len(mock_transfrom.call_args.args[1][GET_REPOS[1]["url"]]) == 1
+    assert len(mock_transfrom.call_args.args[1][GET_REPOS[2]["url"]]) == 1
 
 
 def test_sync_github_dependencies_end_to_end(neo4j_session):
