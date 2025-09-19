@@ -7,19 +7,13 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
 class GCPGKEClusterNodeProperties(CartographyNodeProperties):
-    # Unique identifier (use GKE cluster selfLink for stability)
     id: PropertyRef = PropertyRef("id", extra_index=True)
-
-    # Automatic fields
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-    # Business fields
     name: PropertyRef = PropertyRef("name")
     self_link: PropertyRef = PropertyRef("self_link")
     description: PropertyRef = PropertyRef("description")
@@ -73,5 +67,3 @@ class GCPGKEClusterSchema(CartographyNodeSchema):
     label: str = "GKECluster"
     properties: GCPGKEClusterNodeProperties = GCPGKEClusterNodeProperties()
     sub_resource_relationship: GCPGKEClusterToProjectRel = GCPGKEClusterToProjectRel()
-    # Placeholders for future relationships (e.g., to networks, subnets, regions)
-    other_relationships: OtherRelationships = OtherRelationships([])
