@@ -23,6 +23,10 @@ def test_permission_relationships_file_arguments():
     """
     Test that we correctly read arguments for --permission-relationships-file
     """
+    from cartography.cli import CLI
+    from cartography.config import Config
+    from cartography.sync import build_default_sync
+
     # Test the correct field is set in the Cartography config object
     fname = "/some/test/file.yaml"
     config = Config(
@@ -91,6 +95,48 @@ def test_load_groups(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
+
+def test_load_service_last_accessed_details(neo4j_session):
+    _create_base_account(neo4j_session)
+
+    # Create a test principal first
+    test_principal_arn = "arn:aws:iam::000000000000:user/example-user-0"
+    neo4j_session.run(
+        "MERGE (u:AWSUser:AWSPrincipal{arn: $arn}) "
+        "WITH u "
+        "MATCH (aa:AWSAccount{id: $account_id}) "
+        "MERGE (aa)-[r:RESOURCE]->(u)",
+        arn=test_principal_arn,
+        account_id=TEST_ACCOUNT_ID
+    )
+
+    cartography.intel.aws.iam.load_service_last_accessed_details(
+        neo4j_session,
+        tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS,
+        test_principal_arn,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Verify service access data was stored as properties on the principal
+    result = neo4j_session.run(
+        """
+        MATCH (p:AWSPrincipal{arn: $arn})
+        RETURN p.last_accessed_service_name AS service_name,
+               p.last_accessed_service_namespace AS namespace,
+               p.last_authenticated AS last_authenticated,
+               p.last_authenticated_entity AS entity,
+               p.last_authenticated_region AS region
+        """,
+        arn=test_principal_arn,
+    ).single()
+
+    # Should have the most recent service (Amazon EC2 from 2019-01-02)
+    assert result["service_name"] == "Amazon EC2"
+    assert result["namespace"] == "ec2"
+    assert result["last_authenticated"] == "2019-01-02 00:00:01"
+    assert result["entity"] == "role/example-role-0"
+    assert result["region"] == "us-west-2"
 
 
 def _get_principal_role_nodes(neo4j_session):
