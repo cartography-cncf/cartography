@@ -182,10 +182,10 @@ def test_sync_saml_providers(mock_get_saml, neo4j_session):
         [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    nodes = check_nodes(neo4j_session, "AWSSAMLProvider", ["arn"])  
+    nodes = check_nodes(neo4j_session, "AWSSAMLProvider", ["arn"])
     expected = {
         ("arn:aws:iam::000000000000:saml-provider/ADFS",),
         ("arn:aws:iam::000000000000:saml-provider/Okta",),
