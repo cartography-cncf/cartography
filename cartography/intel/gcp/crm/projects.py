@@ -44,17 +44,13 @@ def get_gcp_projects(org_resource_name: str, folders: List[Dict]) -> List[Dict]:
 
 
 @timeit
-def load_gcp_projects(
-    neo4j_session: neo4j.Session,
-    data: List[Dict],
-    gcp_update_tag: int,
-    org_resource_name: str,
-) -> None:
+def transform_gcp_projects(data: List[Dict]) -> List[Dict]:
     """
-    Load GCP projects into the graph.
-    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    Transform GCP project data to add parent_org or parent_folder fields based on parent type.
+
+    :param data: List of project dicts
+    :return: List of transformed project dicts with parent_org and parent_folder fields
     """
-    # Transform data in place: add parent_org or parent_folder fields based on parent type
     for project in data:
         project["parent_org"] = None
         project["parent_folder"] = None
@@ -68,12 +64,26 @@ def load_gcp_projects(
             logger.warning(
                 f"Project {project['projectId']} has unexpected parent type: {project['parent']}"
             )
-            # Still include it but with both parent fields as None
 
+    return data
+
+
+@timeit
+def load_gcp_projects(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    gcp_update_tag: int,
+    org_resource_name: str,
+) -> None:
+    """
+    Load GCP projects into the graph.
+    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    """
+    transformed_data = transform_gcp_projects(data)
     load(
         neo4j_session,
         GCPProjectSchema(),
-        data,
+        transformed_data,
         lastupdated=gcp_update_tag,
         ORG_RESOURCE_NAME=org_resource_name,
     )

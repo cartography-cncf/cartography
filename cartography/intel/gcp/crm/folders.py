@@ -46,17 +46,13 @@ def get_gcp_folders(org_resource_name: str) -> List[Dict]:
 
 
 @timeit
-def load_gcp_folders(
-    neo4j_session: neo4j.Session,
-    data: List[Dict],
-    gcp_update_tag: int,
-    org_resource_name: str,
-) -> None:
+def transform_gcp_folders(data: List[Dict]) -> List[Dict]:
     """
-    Load GCP folders into the graph.
-    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    Transform GCP folder data to add parent_org or parent_folder fields based on parent type.
+
+    :param data: List of folder dicts
+    :return: List of transformed folder dicts with parent_org and parent_folder fields
     """
-    # Transform data in place: add parent_org or parent_folder fields based on parent type
     for folder in data:
         folder["parent_org"] = None
         folder["parent_folder"] = None
@@ -69,12 +65,26 @@ def load_gcp_folders(
             logger.warning(
                 f"Folder {folder['name']} has unexpected parent type: {folder['parent']}"
             )
-            # Still include it but with both parent fields as None
 
+    return data
+
+
+@timeit
+def load_gcp_folders(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    gcp_update_tag: int,
+    org_resource_name: str,
+) -> None:
+    """
+    Load GCP folders into the graph.
+    :param org_resource_name: Full organization resource name (e.g., "organizations/123456789012")
+    """
+    transformed_data = transform_gcp_folders(data)
     load(
         neo4j_session,
         GCPFolderSchema(),
-        data,
+        transformed_data,
         lastupdated=gcp_update_tag,
         ORG_RESOURCE_NAME=org_resource_name,
     )
