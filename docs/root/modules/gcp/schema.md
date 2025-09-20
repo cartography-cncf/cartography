@@ -419,7 +419,7 @@ Representation of a GCP [Resource Record Set](https://cloud.google.com/dns/docs/
 | ---------- | ------------------------------------------------------- |
 | data | Data contained in the record
 | firstseen  | Timestamp of when a sync job first discovered this node |
-| **id**                   |Same as `name`|
+| **id**                   |Composite key `name|type|zone_id` to ensure uniqueness across record types and zones|
 | name       | The name of the Resource Record Set                                    |
 | type | The identifier of a supported record type. See the list of [Supported DNS record types](https://cloud.google.om/dns/docs/overview#supported_dns_record_types).
 | ttl | Number of seconds that this ResourceRecordSet can be cached by resolvers.
