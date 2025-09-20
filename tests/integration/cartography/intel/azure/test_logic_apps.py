@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.azure.logic_apps as logic_apps
 from tests.data.azure.logic_apps import MOCK_LOGIC_APPS

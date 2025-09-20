@@ -1,8 +1,11 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError, HttpResponseError
+from azure.core.exceptions import ClientAuthenticationError
+from azure.core.exceptions import HttpResponseError
 from azure.mgmt.logic import LogicManagementClient
 
 from cartography.client.core.tx import load
@@ -25,7 +28,9 @@ def get_logic_apps(credentials: Credentials, subscription_id: str) -> List[Dict]
         # NOTE: The resource for a Logic App is called a "Workflow" in the SDK.
         return [w.as_dict() for w in client.workflows.list_by_subscription()]
     except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(f"Failed to get logic apps for subscription {subscription_id}: {str(e)}")
+        logger.warning(
+            f"Failed to get logic apps for subscription {subscription_id}: {str(e)}"
+        )
         return []
 
 
@@ -37,14 +42,14 @@ def transform_logic_apps(logic_apps_response: List[Dict]) -> List[Dict]:
     transformed_apps: List[Dict[str, Any]] = []
     for app in logic_apps_response:
         transformed_app = {
-            'id': app.get('id'),
-            'name': app.get('name'),
-            'location': app.get('location'),
-            'state': app.get('properties', {}).get('state'),
-            'created_time': app.get('properties', {}).get('created_time'),
-            'changed_time': app.get('properties', {}).get('changed_time'),
-            'version': app.get('properties', {}).get('version'),
-            'access_endpoint': app.get('properties', {}).get('access_endpoint'),
+            "id": app.get("id"),
+            "name": app.get("name"),
+            "location": app.get("location"),
+            "state": app.get("properties", {}).get("state"),
+            "created_time": app.get("properties", {}).get("created_time"),
+            "changed_time": app.get("properties", {}).get("changed_time"),
+            "version": app.get("properties", {}).get("version"),
+            "access_endpoint": app.get("properties", {}).get("access_endpoint"),
         }
         transformed_apps.append(transformed_app)
     return transformed_apps
@@ -52,7 +57,10 @@ def transform_logic_apps(logic_apps_response: List[Dict]) -> List[Dict]:
 
 @timeit
 def load_logic_apps(
-    neo4j_session: neo4j.Session, data: List[Dict[str, Any]], subscription_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load the transformed Azure Logic App data to Neo4j.
@@ -67,11 +75,15 @@ def load_logic_apps(
 
 
 @timeit
-def cleanup_logic_apps(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup_logic_apps(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
     """
     Run the cleanup job for Azure Logic Apps.
     """
-    GraphJob.from_node_schema(AzureLogicAppSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AzureLogicAppSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
