@@ -702,6 +702,7 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
     )
 
 
+# TODO: This function needs to be moved to a seperate module, as it has utility beyond just this. Moving it to util.py causes a circular import.
 def _get_cartography_version() -> str:
     """
     Get the current version of the cartography package.
