@@ -1239,5 +1239,5 @@ Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/ap
 
 - An Azure Logic App is a resource within an Azure Subscription.
     ```cypher
-    (AzureSubscription)-[RESOURCE]->(:AzureLogicApp)
+    (AzureSubscription)-[RESOURCE]->(AzureLogicApp)
     ```
