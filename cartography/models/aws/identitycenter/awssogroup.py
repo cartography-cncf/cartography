@@ -23,7 +23,7 @@ class SSOGroupProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AWSSSOGroupToAWSAccountRelRelProperties(CartographyRelProperties):
+class AWSSSOGroupToAWSAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -35,8 +35,8 @@ class AWSSSOGroupToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSSSOGroupToAWSAccountRelRelProperties = (
-        AWSSSOGroupToAWSAccountRelRelProperties()
+    properties: AWSSSOGroupToAWSAccountRelProperties = (
+        AWSSSOGroupToAWSAccountRelProperties()
     )
 
 

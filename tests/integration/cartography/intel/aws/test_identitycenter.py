@@ -2,10 +2,14 @@ import tests.data.aws.identitycenter
 from cartography.client.core.tx import load
 from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
+from cartography.intel.aws.identitycenter import load_role_assignments
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
+from cartography.models.aws.identitycenter.awspermissionset import (
+    RoleAssignmentAllowedByGroupMatchLink,
+)
 from cartography.models.aws.identitycenter.awssogroup import AWSSSOGroupSchema
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
 from tests.integration.util import check_nodes
@@ -289,5 +293,62 @@ def test_link_sso_user_to_permission_set(neo4j_session):
         (
             user["UserId"],
             ps["PermissionSetArn"],
+        )
+    }
+
+
+def test_group_allowed_by_role(neo4j_session):
+    """Quick check that ALLOWED_BY edges from roles to groups can be created via matchlinks."""
+    groups = tests.data.aws.identitycenter.LIST_GROUPS
+    permission_sets = tests.data.aws.identitycenter.LIST_PERMISSION_SETS
+
+    # Load base nodes
+    load_sso_groups(
+        neo4j_session,
+        transform_sso_groups(groups),
+        "d-1234567890",
+        "us-west-2",
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    # Create a sample AWSRole node that we'll link to the group
+    role_arn = "arn:aws:iam::1234567890:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_Test"
+    neo4j_session.run(
+        "MERGE (:AWSRole{arn: $arn, lastupdated: $tag})",
+        arn=role_arn,
+        tag="test_tag",
+    )
+
+    group = groups[0]
+    ps = permission_sets[0]
+    rel_data = [
+        {
+            "GroupId": group["GroupId"],
+            "PermissionSetArn": ps["PermissionSetArn"],
+            "RoleArn": role_arn,
+        }
+    ]
+
+    load_role_assignments(
+        neo4j_session,
+        rel_data,
+        TEST_ACCOUNT_ID,
+        "test_tag",
+        RoleAssignmentAllowedByGroupMatchLink(),
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "AWSSSOGroup",
+        "id",
+        "ALLOWED_BY",
+        True,
+    ) == {
+        (
+            role_arn,
+            group["GroupId"],
         )
     }
