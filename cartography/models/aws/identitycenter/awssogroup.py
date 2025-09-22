@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -40,7 +41,30 @@ class AWSSSOGroupToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSSSOGroupToOktaGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSSSOGroupToOktaGroupRel(CartographyRelSchema):
+    target_node_label: str = "OktaGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ExternalId")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "FEDERATES_TO"
+    properties: AWSSSOGroupToOktaGroupRelProperties = (
+        AWSSSOGroupToOktaGroupRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSSSOGroupSchema(CartographyNodeSchema):
     label: str = "AWSSSOGroup"
     properties: SSOGroupProperties = SSOGroupProperties()
     sub_resource_relationship: AWSSSOGroupToAWSAccountRel = AWSSSOGroupToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AWSSSOGroupToOktaGroupRel(),
+        ]
+    )
