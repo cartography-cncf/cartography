@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from azure.core.exceptions import ClientAuthenticationError
@@ -19,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_logic_apps(credentials: Credentials, subscription_id: str) -> List[Dict]:
+def get_logic_apps(credentials: Credentials, subscription_id: str) -> list[dict]:
     """
     Get a list of Logic Apps from the given Azure subscription.
     """
@@ -34,12 +32,11 @@ def get_logic_apps(credentials: Credentials, subscription_id: str) -> List[Dict]
         return []
 
 
-@timeit
-def transform_logic_apps(logic_apps_response: List[Dict]) -> List[Dict]:
+def transform_logic_apps(logic_apps_response: list[dict]) -> list[dict]:
     """
     Transform the raw API response to the dictionary structure that the model expects.
     """
-    transformed_apps: List[Dict[str, Any]] = []
+    transformed_apps: list[dict[str, Any]] = []
     for app in logic_apps_response:
         transformed_app = {
             "id": app.get("id"),
@@ -58,7 +55,7 @@ def transform_logic_apps(logic_apps_response: List[Dict]) -> List[Dict]:
 @timeit
 def load_logic_apps(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     subscription_id: str,
     update_tag: int,
 ) -> None:
@@ -76,7 +73,7 @@ def load_logic_apps(
 
 @timeit
 def cleanup_logic_apps(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict
+    neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
     Run the cleanup job for Azure Logic Apps.
@@ -92,7 +89,7 @@ def sync(
     credentials: Credentials,
     subscription_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     """
     The main sync function for Azure Logic Apps.
