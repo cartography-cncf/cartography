@@ -1,7 +1,9 @@
 import tests.data.aws.identitycenter
 from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
+from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
+from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
 from tests.integration.util import check_nodes
 
@@ -26,6 +28,24 @@ def test_load_sso_users(neo4j_session):
     # Use check_nodes to verify that the SSO users are correctly loaded
     assert check_nodes(neo4j_session, "AWSSSOUser", ["id", "external_id"]) == {
         ("aaaaaaaa-a0d1-aaac-5af0-59c813ec7671", "00aaaaabbbbb")
+    }
+
+
+def test_load_sso_groups(neo4j_session):
+    """Test loading SSO groups into Neo4j."""
+    groups = tests.data.aws.identitycenter.LIST_GROUPS
+
+    load_sso_groups(
+        neo4j_session,
+        transform_sso_groups(groups),
+        "d-1234567890",
+        "us-west-2",
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    assert check_nodes(neo4j_session, "AWSSSOGroup", ["id", "external_id"]) == {
+        ("gggggggg-a0d1-aaac-5af0-59c813ec7671", "00ggggghhhhh")
     }
 
 

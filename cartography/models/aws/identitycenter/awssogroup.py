@@ -1,0 +1,50 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+@dataclass(frozen=True)
+class SSOGroupProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("GroupId", extra_index=True)
+    display_name: PropertyRef = PropertyRef("DisplayName")
+    description: PropertyRef = PropertyRef("Description")
+    identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
+    external_id: PropertyRef = PropertyRef("ExternalId", extra_index=True)
+    region: PropertyRef = PropertyRef("Region")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSSSOGroupToAWSAccountRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSSSOGroupToAWSAccountRel(CartographyRelSchema):
+    target_node_label: str = "AWSAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AWSSSOGroupToAWSAccountRelRelProperties = (
+        AWSSSOGroupToAWSAccountRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSSSOGroupSchema(CartographyNodeSchema):
+    label: str = "AWSSSOGroup"
+    properties: SSOGroupProperties = SSOGroupProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([])
+    sub_resource_relationship: AWSSSOGroupToAWSAccountRel = (
+        AWSSSOGroupToAWSAccountRel()
+    )

@@ -16,9 +16,14 @@ from cartography.models.aws.identitycenter.awspermissionset import (
     AWSPermissionSetSchema,
 )
 from cartography.models.aws.identitycenter.awspermissionset import (
+    RoleAssignmentAllowedByGroupMatchLink,
+)
+from cartography.models.aws.identitycenter.awspermissionset import (
     RoleAssignmentAllowedByMatchLink,
 )
+from cartography.models.aws.identitycenter.awssogroup import AWSSSOGroupSchema
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
+from cartography.models.core.relationships import CartographyRelSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -150,6 +155,28 @@ def get_sso_users(
     return users
 
 
+@timeit
+@aws_handle_regions
+def get_sso_groups(
+    boto3_session: boto3.session.Session,
+    identity_store_id: str,
+    region: str,
+) -> List[Dict]:
+    """
+    Get all SSO groups for a given Identity Store
+    """
+    client = boto3_session.client("identitystore", region_name=region)
+    groups: List[Dict[str, Any]] = []
+
+    paginator = client.get_paginator("list_groups")
+    for page in paginator.paginate(IdentityStoreId=identity_store_id):
+        group_page = page.get("Groups", [])
+        for group in group_page:
+            groups.append(group)
+
+    return groups
+
+
 def transform_sso_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Transform SSO users to match the expected schema
@@ -160,6 +187,18 @@ def transform_sso_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             user["ExternalId"] = user["ExternalIds"][0].get("Id")
         transformed_users.append(user)
     return transformed_users
+
+
+def transform_sso_groups(groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Transform SSO groups to match the expected schema
+    """
+    transformed_groups: List[Dict[str, Any]] = []
+    for group in groups:
+        if group.get("ExternalIds") is not None:
+            group["ExternalId"] = group["ExternalIds"][0].get("Id")
+        transformed_groups.append(group)
+    return transformed_groups
 
 
 @timeit
@@ -182,6 +221,33 @@ def load_sso_users(
         neo4j_session,
         AWSSSOUserSchema(),
         users,
+        lastupdated=aws_update_tag,
+        IdentityStoreId=identity_store_id,
+        AWS_ID=aws_account_id,
+        Region=region,
+    )
+
+
+@timeit
+def load_sso_groups(
+    neo4j_session: neo4j.Session,
+    groups: List[Dict],
+    identity_store_id: str,
+    region: str,
+    aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load SSO groups into the graph
+    """
+    logger.info(
+        f"Loading {len(groups)} SSO groups for identity store {identity_store_id} in region {region}",
+    )
+
+    load(
+        neo4j_session,
+        AWSSSOGroupSchema(),
+        groups,
         lastupdated=aws_update_tag,
         IdentityStoreId=identity_store_id,
         AWS_ID=aws_account_id,
@@ -220,6 +286,42 @@ def get_role_assignments(
                         "PermissionSetArn": assignment.get("PermissionSetArn"),
                         "AccountId": assignment.get("AccountId"),
                     },
+                )
+
+    return role_assignments
+
+
+@timeit
+@aws_handle_regions
+def get_group_role_assignments(
+    boto3_session: boto3.session.Session,
+    groups: List[Dict],
+    instance_arn: str,
+    region: str,
+) -> List[Dict]:
+    """
+    Get role assignments for SSO groups
+    """
+
+    logger.info(f"Getting role assignments for {len(groups)} groups")
+    client = boto3_session.client("sso-admin", region_name=region)
+    role_assignments: List[Dict[str, Any]] = []
+
+    for group in groups:
+        group_id = group["GroupId"]
+        paginator = client.get_paginator("list_account_assignments_for_principal")
+        for page in paginator.paginate(
+            InstanceArn=instance_arn,
+            PrincipalId=group_id,
+            PrincipalType="GROUP",
+        ):
+            for assignment in page.get("AccountAssignments", []):
+                role_assignments.append(
+                    {
+                        "GroupId": group_id,
+                        "PermissionSetArn": assignment.get("PermissionSetArn"),
+                        "AccountId": assignment.get("AccountId"),
+                    }
                 )
 
     return role_assignments
@@ -270,14 +372,15 @@ def load_role_assignments(
     role_assignments: List[Dict],
     aws_account_id: str,
     aws_update_tag: int,
+    matchlink_schema: CartographyRelSchema,
 ) -> None:
     """
-    Load role assignments into the graph using MatchLink schema
+    Load role assignments into the graph using the provided MatchLink schema
     """
     logger.info(f"Loading {len(role_assignments)} role assignments")
     load_matchlinks(
         neo4j_session,
-        RoleAssignmentAllowedByMatchLink(),
+        matchlink_schema,
         role_assignments,
         lastupdated=aws_update_tag,
         _sub_resource_label="AWSAccount",
@@ -300,10 +403,19 @@ def cleanup(
     GraphJob.from_node_schema(AWSSSOUserSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    GraphJob.from_node_schema(AWSSSOGroupSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
 
     # Clean up role assignment MatchLinks
     GraphJob.from_matchlink(
         RoleAssignmentAllowedByMatchLink(),
+        "AWSAccount",
+        common_job_parameters["AWS_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+    GraphJob.from_matchlink(
+        RoleAssignmentAllowedByGroupMatchLink(),
         "AWSAccount",
         common_job_parameters["AWS_ID"],
         common_job_parameters["UPDATE_TAG"],
@@ -361,6 +473,17 @@ def sync_identity_center_instances(
                 update_tag,
             )
 
+            groups = get_sso_groups(boto3_session, identity_store_id, region)
+            transformed_groups = transform_sso_groups(groups)
+            load_sso_groups(
+                neo4j_session,
+                transformed_groups,
+                identity_store_id,
+                region,
+                current_aws_account_id,
+                update_tag,
+            )
+
             # Get and load role assignments
             role_assignments = get_role_assignments(
                 boto3_session,
@@ -379,6 +502,26 @@ def sync_identity_center_instances(
                 enriched_role_assignments,
                 current_aws_account_id,
                 update_tag,
+                RoleAssignmentAllowedByMatchLink(),
+            )
+
+            group_role_assignments = get_group_role_assignments(
+                boto3_session,
+                groups,
+                instance_arn,
+                region,
+            )
+
+            enriched_group_role_assignments = get_permset_roles(
+                neo4j_session,
+                group_role_assignments,
+            )
+            load_role_assignments(
+                neo4j_session,
+                enriched_group_role_assignments,
+                current_aws_account_id,
+                update_tag,
+                RoleAssignmentAllowedByGroupMatchLink(),
             )
 
     cleanup(neo4j_session, common_job_parameters)
