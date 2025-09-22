@@ -4390,6 +4390,11 @@ Representation of an AWS SSO User.
     (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
     ```
 
+- AWSSSOUser has direct permission set assignments.
+    ```
+    (AWSSSOUser)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
     (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)

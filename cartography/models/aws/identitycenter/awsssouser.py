@@ -74,6 +74,24 @@ class AWSSSOUserToSSOGroupRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSSSOUserToPermissionSetRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSSSOUserToPermissionSetRel(CartographyRelSchema):
+    target_node_label: str = "AWSPermissionSet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_PERMISSION_SET"
+    properties: AWSSSOUserToPermissionSetRelProperties = (
+        AWSSSOUserToPermissionSetRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSSSOUserSchema(CartographyNodeSchema):
     label: str = "AWSSSOUser"
     properties: SSOUserProperties = SSOUserProperties()
@@ -83,5 +101,6 @@ class AWSSSOUserSchema(CartographyNodeSchema):
         [
             SSOUserToOktaUserRel(),
             AWSSSOUserToSSOGroupRel(),
+            AWSSSOUserToPermissionSetRel(),
         ],
     )

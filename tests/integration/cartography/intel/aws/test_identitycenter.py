@@ -228,3 +228,66 @@ def test_link_sso_user_membership_to_group(neo4j_session):
             group["GroupId"],
         )
     }
+
+
+def test_link_sso_user_to_permission_set(neo4j_session):
+    """Test linking SSO users directly to permission sets via HAS_PERMISSION_SET."""
+    # Arrange
+    users = tests.data.aws.identitycenter.LIST_USERS
+    permission_sets = tests.data.aws.identitycenter.LIST_PERMISSION_SETS
+    transformed_users = transform_sso_users(users)
+    load_sso_users(
+        neo4j_session,
+        transformed_users,
+        "d-1234567890",
+        "us-west-2",
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+    load_permission_sets(
+        neo4j_session,
+        permission_sets,
+        "arn:aws:sso:::instance/ssoins-12345678901234567",
+        "us-west-2",
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    user = transformed_users[0]
+    ps = permission_sets[0]
+    mapping = [
+        {
+            "UserId": user["UserId"],
+            "UserName": user["UserName"],
+            "IdentityStoreId": user["IdentityStoreId"],
+            "ExternalId": user.get("ExternalId"),
+            "Region": "us-west-2",
+            # One-to-many assigned permission sets
+            "AssignedPermissionSets": [ps["PermissionSetArn"]],
+        }
+    ]
+
+    # Act
+    load(
+        neo4j_session,
+        AWSSSOUserSchema(),
+        mapping,
+        lastupdated="test_tag",
+        AWS_ID=TEST_ACCOUNT_ID,
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSSSOUser",
+        "id",
+        "AWSPermissionSet",
+        "arn",
+        "HAS_PERMISSION_SET",
+        True,
+    ) == {
+        (
+            user["UserId"],
+            ps["PermissionSetArn"],
+        )
+    }

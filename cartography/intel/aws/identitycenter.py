@@ -181,6 +181,7 @@ def get_sso_groups(
 def transform_sso_users(
     users: List[Dict[str, Any]],
     user_group_memberships: Optional[Dict[str, List[str]]] = None,
+    user_permission_sets: Optional[Dict[str, List[str]]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Transform SSO users to match the expected schema, optionally including group memberships
@@ -192,6 +193,11 @@ def transform_sso_users(
         # Add group memberships if provided
         if user_group_memberships:
             user["MemberOfGroups"] = user_group_memberships.get(user["UserId"], [])
+        # Add direct permission set assignments if provided
+        if user_permission_sets:
+            user["AssignedPermissionSets"] = user_permission_sets.get(
+                user["UserId"], []
+            )
         transformed_users.append(user)
     return transformed_users
 
@@ -530,18 +536,21 @@ def sync_identity_center_instances(
                 perm_set = assignment["PermissionSetArn"]
                 group_permission_sets.setdefault(group_id, []).append(perm_set)
 
-            # Transform and load users with their group memberships
-            transformed_users = transform_sso_users(users, user_group_memberships)
-            load_sso_users(
-                neo4j_session,
-                transformed_users,
-                identity_store_id,
+            # Get direct permission set assignments for users
+            user_permission_sets: Dict[str, List[str]] = {}
+            user_role_assignments_raw = get_role_assignments(
+                boto3_session,
+                users,
+                instance_arn,
                 region,
-                current_aws_account_id,
-                update_tag,
             )
+            for assignment in user_role_assignments_raw:
+                uid = assignment["UserId"]
+                perm_set = assignment["PermissionSetArn"]
+                user_permission_sets.setdefault(uid, []).append(perm_set)
 
-            # Transform and load groups with their permission set assignments
+            # Transform and load groups with their permission set assignments FIRST
+            # so that user->group membership edges can attach in the same run.
             transformed_groups = transform_sso_groups(groups, group_permission_sets)
             load_sso_groups(
                 neo4j_session,
@@ -552,18 +561,25 @@ def sync_identity_center_instances(
                 update_tag,
             )
 
-            # Get and load role assignments
-            role_assignments = get_role_assignments(
-                boto3_session,
+            # Transform and load users with their group memberships AFTER groups exist
+            transformed_users = transform_sso_users(
                 users,
-                instance_arn,
+                user_group_memberships,
+                user_permission_sets,
+            )
+            load_sso_users(
+                neo4j_session,
+                transformed_users,
+                identity_store_id,
                 region,
+                current_aws_account_id,
+                update_tag,
             )
 
             # Enrich role assignments with exact role ARNs using permission set relationships
             enriched_role_assignments = get_permset_roles(
                 neo4j_session,
-                role_assignments,
+                user_role_assignments_raw,
             )
             load_role_assignments(
                 neo4j_session,
