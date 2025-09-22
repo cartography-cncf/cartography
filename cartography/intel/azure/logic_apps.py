@@ -99,3 +99,4 @@ def sync(
     transformed_apps = transform_logic_apps(raw_apps)
     load_logic_apps(neo4j_session, transformed_apps, subscription_id, update_tag)
     cleanup_logic_apps(neo4j_session, common_job_parameters)
+    
