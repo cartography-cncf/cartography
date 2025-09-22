@@ -4390,7 +4390,7 @@ Representation of an AWS SSO User.
     (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
     ```
 
-- AWSSSOUser has direct permission set assignments.
+- AWSSSOUser has permission set assignments. These include direct assignments and via Identity Center groups.
     ```
     (AWSSSOUser)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
     ```
