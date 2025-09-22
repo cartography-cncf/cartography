@@ -2,6 +2,7 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import boto3
 import neo4j
@@ -177,26 +178,40 @@ def get_sso_groups(
     return groups
 
 
-def transform_sso_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def transform_sso_users(
+    users: List[Dict[str, Any]],
+    user_group_memberships: Optional[Dict[str, List[str]]] = None,
+) -> List[Dict[str, Any]]:
     """
-    Transform SSO users to match the expected schema
+    Transform SSO users to match the expected schema, optionally including group memberships
     """
     transformed_users = []
     for user in users:
         if user.get("ExternalIds"):
             user["ExternalId"] = user["ExternalIds"][0].get("Id")
+        # Add group memberships if provided
+        if user_group_memberships:
+            user["MemberOfGroups"] = user_group_memberships.get(user["UserId"], [])
         transformed_users.append(user)
     return transformed_users
 
 
-def transform_sso_groups(groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def transform_sso_groups(
+    groups: List[Dict[str, Any]],
+    group_permission_sets: Optional[Dict[str, List[str]]] = None,
+) -> List[Dict[str, Any]]:
     """
-    Transform SSO groups to match the expected schema
+    Transform SSO groups to match the expected schema, optionally including permission set assignments
     """
     transformed_groups: List[Dict[str, Any]] = []
     for group in groups:
         if group.get("ExternalIds"):
             group["ExternalId"] = group["ExternalIds"][0].get("Id")
+        # Add permission set assignments if provided
+        if group_permission_sets:
+            group["AssignedPermissionSets"] = group_permission_sets.get(
+                group["GroupId"], []
+            )
         transformed_groups.append(group)
     return transformed_groups
 
@@ -325,6 +340,35 @@ def get_group_role_assignments(
                 )
 
     return role_assignments
+
+
+@timeit
+@aws_handle_regions
+def get_user_group_memberships(
+    boto3_session: boto3.session.Session,
+    identity_store_id: str,
+    groups: List[Dict],
+    region: str,
+) -> Dict[str, List[str]]:
+    """
+    Return a mapping of UserId -> [GroupIds] for all group memberships in the identity store.
+    """
+    client = boto3_session.client("identitystore", region_name=region)
+    user_groups: Dict[str, List[str]] = {}
+
+    for group in groups:
+        group_id = group["GroupId"]
+        paginator = client.get_paginator("list_group_memberships")
+        for page in paginator.paginate(
+            IdentityStoreId=identity_store_id, GroupId=group_id
+        ):
+            for membership in page.get("GroupMemberships", []):
+                member = membership.get("MemberId", {})
+                user_id = member.get("UserId")
+                if user_id:
+                    user_groups.setdefault(user_id, []).append(group_id)
+
+    return user_groups
 
 
 @timeit
@@ -463,7 +507,31 @@ def sync_identity_center_instances(
             )
 
             users = get_sso_users(boto3_session, identity_store_id, region)
-            transformed_users = transform_sso_users(users)
+            groups = get_sso_groups(boto3_session, identity_store_id, region)
+
+            # Get group memberships for users
+            user_group_memberships = get_user_group_memberships(
+                boto3_session,
+                identity_store_id,
+                groups,
+                region,
+            )
+
+            # Get permission set assignments for groups
+            group_permission_sets: Dict[str, List[str]] = {}
+            group_role_assignments_raw = get_group_role_assignments(
+                boto3_session,
+                groups,
+                instance_arn,
+                region,
+            )
+            for assignment in group_role_assignments_raw:
+                group_id = assignment["GroupId"]
+                perm_set = assignment["PermissionSetArn"]
+                group_permission_sets.setdefault(group_id, []).append(perm_set)
+
+            # Transform and load users with their group memberships
+            transformed_users = transform_sso_users(users, user_group_memberships)
             load_sso_users(
                 neo4j_session,
                 transformed_users,
@@ -473,8 +541,8 @@ def sync_identity_center_instances(
                 update_tag,
             )
 
-            groups = get_sso_groups(boto3_session, identity_store_id, region)
-            transformed_groups = transform_sso_groups(groups)
+            # Transform and load groups with their permission set assignments
+            transformed_groups = transform_sso_groups(groups, group_permission_sets)
             load_sso_groups(
                 neo4j_session,
                 transformed_groups,
@@ -505,16 +573,9 @@ def sync_identity_center_instances(
                 RoleAssignmentAllowedByMatchLink(),
             )
 
-            group_role_assignments = get_group_role_assignments(
-                boto3_session,
-                groups,
-                instance_arn,
-                region,
-            )
-
             enriched_group_role_assignments = get_permset_roles(
                 neo4j_session,
-                group_role_assignments,
+                group_role_assignments_raw,
             )
             load_role_assignments(
                 neo4j_session,

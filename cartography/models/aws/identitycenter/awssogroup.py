@@ -41,20 +41,20 @@ class AWSSSOGroupToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AWSSSOGroupToOktaGroupRelProperties(CartographyRelProperties):
+class AWSSSOGroupToPermissionSetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AWSSSOGroupToOktaGroupRel(CartographyRelSchema):
-    target_node_label: str = "OktaGroup"
+class AWSSSOGroupToPermissionSetRel(CartographyRelSchema):
+    target_node_label: str = "AWSPermissionSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ExternalId")},
+        {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
     )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "FEDERATES_TO"
-    properties: AWSSSOGroupToOktaGroupRelProperties = (
-        AWSSSOGroupToOktaGroupRelProperties()
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_PERMISSION_SET"
+    properties: AWSSSOGroupToPermissionSetRelProperties = (
+        AWSSSOGroupToPermissionSetRelProperties()
     )
 
 
@@ -65,6 +65,6 @@ class AWSSSOGroupSchema(CartographyNodeSchema):
     sub_resource_relationship: AWSSSOGroupToAWSAccountRel = AWSSSOGroupToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AWSSSOGroupToOktaGroupRel(),
+            AWSSSOGroupToPermissionSetRel(),
         ]
     )

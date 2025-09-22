@@ -4425,13 +4425,15 @@ Representation of an AWS SSO Group.
     (AWSSSOGroup)<-[ALLOWED_BY]-(AWSRole)
     ```
 
-- OktaGroup can federate to AWSSSOGroup when ExternalId is present.
-  - When an SSO group carries an `external_id` (populated from the Identity Store `ExternalIds` field), it is linked to the corresponding Okta group by id.
+- AWSSSOGroup has assigned permission sets.
     ```
-    (OktaGroup)-[FEDERATES_TO]->(AWSSSOGroup)
+    (AWSSSOGroup)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
     ```
-  - Notes:
-    - Identity Store APIs may not return `ExternalIds` for groups in all configurations. Ensure SCIM provisioning populates group external IDs in your environment.
+
+- AWSSSOUser membership in SSO groups.
+    ```
+    (AWSSSOUser)-[MEMBER_OF_SSO_GROUP]->(AWSSSOGroup)
+    ```
 
 ### AWSPermissionSet
 
