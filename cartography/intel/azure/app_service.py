@@ -103,3 +103,4 @@ def sync(
     transformed_apps = transform_app_services(raw_apps)
     load_app_services(neo4j_session, transformed_apps, subscription_id, update_tag)
     cleanup_app_services(neo4j_session, common_job_parameters)
+    
