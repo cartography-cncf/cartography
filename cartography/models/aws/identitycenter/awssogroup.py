@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -13,7 +12,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SSOGroupProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("GroupId", extra_index=True)
+    id: PropertyRef = PropertyRef("GroupId")
     display_name: PropertyRef = PropertyRef("DisplayName")
     description: PropertyRef = PropertyRef("Description")
     identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
@@ -44,7 +43,4 @@ class AWSSSOGroupToAWSAccountRel(CartographyRelSchema):
 class AWSSSOGroupSchema(CartographyNodeSchema):
     label: str = "AWSSSOGroup"
     properties: SSOGroupProperties = SSOGroupProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([])
-    sub_resource_relationship: AWSSSOGroupToAWSAccountRel = (
-        AWSSSOGroupToAWSAccountRel()
-    )
+    sub_resource_relationship: AWSSSOGroupToAWSAccountRel = AWSSSOGroupToAWSAccountRel()
