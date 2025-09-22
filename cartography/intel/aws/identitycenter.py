@@ -183,7 +183,7 @@ def transform_sso_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     transformed_users = []
     for user in users:
-        if user.get("ExternalIds") is not None:
+        if user.get("ExternalIds"):
             user["ExternalId"] = user["ExternalIds"][0].get("Id")
         transformed_users.append(user)
     return transformed_users
@@ -195,7 +195,7 @@ def transform_sso_groups(groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     transformed_groups: List[Dict[str, Any]] = []
     for group in groups:
-        if group.get("ExternalIds") is not None:
+        if group.get("ExternalIds"):
             group["ExternalId"] = group["ExternalIds"][0].get("Id")
         transformed_groups.append(group)
     return transformed_groups
