@@ -3,6 +3,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Union
 
 import boto3
 import neo4j
@@ -24,7 +25,6 @@ from cartography.models.aws.identitycenter.awspermissionset import (
 )
 from cartography.models.aws.identitycenter.awssogroup import AWSSSOGroupSchema
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
-from cartography.models.core.relationships import CartographyRelSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -422,7 +422,10 @@ def load_role_assignments(
     role_assignments: List[Dict],
     aws_account_id: str,
     aws_update_tag: int,
-    matchlink_schema: CartographyRelSchema,
+    matchlink_schema: Union[
+        RoleAssignmentAllowedByMatchLink,
+        RoleAssignmentAllowedByGroupMatchLink,
+    ],
 ) -> None:
     """
     Load role assignments into the graph using the provided MatchLink schema
@@ -577,7 +580,10 @@ def sync_identity_center_instances(
                 update_tag,
             )
 
-            # Enrich role assignments with exact role ARNs using permission set relationships
+            # Enrich role assignments with exact role ARNs using permission set relationships.
+            # Note: we do this after groups and users are loaded so that
+            # load_role_assignments calls can MATCH existing AWSSSOUser/AWSSSOGroup
+            # nodes when drawing the ALLOWED_BY edges.
             enriched_role_assignments = get_permset_roles(
                 neo4j_session,
                 user_role_assignments_raw,
