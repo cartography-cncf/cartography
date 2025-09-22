@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import botocore.exceptions
 
+from cartography.intel.aws.identitycenter import get_group_role_assignments
 from cartography.intel.aws.identitycenter import get_permission_sets
 from cartography.intel.aws.identitycenter import get_role_assignments
 
@@ -80,4 +81,40 @@ def test_get_role_assignments_access_denied():
         InstanceArn="arn:aws:sso:::instance/test",
         PrincipalId="test-user-id",
         PrincipalType="USER",
+    )
+
+
+def test_get_group_role_assignments_access_denied():
+    mock_session = MagicMock()
+    mock_client = MagicMock()
+    mock_paginator = MagicMock()
+    groups = [{"GroupId": "test-group-id"}]
+
+    mock_session.client.return_value = mock_client
+    mock_client.get_paginator.return_value = mock_paginator
+
+    mock_paginator.paginate.side_effect = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {"Code": "AccessDeniedException", "Message": "Access Denied"},
+        },
+        operation_name="ListAccountAssignmentsForPrincipal",
+    )
+
+    result = get_group_role_assignments(
+        mock_session,
+        groups,
+        "arn:aws:sso:::instance/test",
+        "us-east-1",
+    )
+
+    assert result == []
+
+    mock_session.client.assert_called_once_with("sso-admin", region_name="us-east-1")
+    mock_client.get_paginator.assert_called_once_with(
+        "list_account_assignments_for_principal",
+    )
+    mock_paginator.paginate.assert_called_once_with(
+        InstanceArn="arn:aws:sso:::instance/test",
+        PrincipalId="test-group-id",
+        PrincipalType="GROUP",
     )

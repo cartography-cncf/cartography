@@ -122,6 +122,29 @@ class RoleAssignmentAllowedByMatchLink(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GroupRoleAssignmentAllowedByMatchLink(CartographyRelSchema):
+    """
+    MatchLink schema for ALLOWED_BY relationships created from group role assignments.
+    Creates relationships like: (AWSRole)-[:ALLOWED_BY]->(AWSSSOGroup)
+    """
+
+    source_node_label: str = "AWSRole"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"arn": PropertyRef("RoleArn")},
+    )
+
+    target_node_label: str = "AWSSSOGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("GroupId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ALLOWED_BY"
+    properties: RoleAssignmentAllowedByRelProperties = (
+        RoleAssignmentAllowedByRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSPermissionSetSchema(CartographyNodeSchema):
     label: str = "AWSPermissionSet"
     properties: PermissionSetProperties = PermissionSetProperties()
