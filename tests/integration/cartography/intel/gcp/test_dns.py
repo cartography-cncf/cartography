@@ -7,6 +7,7 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_PROJECT_ID = "000000000000"
+TEST_PROJECT_NUMBER = "000000000000"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -181,9 +182,9 @@ def test_rrs_relationships(neo4j_session):
     )
     actual_proj_rels = {(r["p.id"], r["r.id"]) for r in result}
     expected_proj_rels = {
-        (TEST_PROJECT_ID, "a.zone-1.example.com."),
-        (TEST_PROJECT_ID, "b.zone-1.example.com."),
-        (TEST_PROJECT_ID, "a.zone-2.example.com."),
+        (TEST_PROJECT_ID, "a.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_ID, "b.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_ID, "a.zone-2.example.com.|TXT|2222222222222222222"),
     }
     assert actual_proj_rels == expected_proj_rels
 
@@ -288,7 +289,7 @@ def test_sync_dns_records(mock_get_zones, mock_get_rrs, neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_PROJECT_ID, "a.zone-1.example.com."),
-        (TEST_PROJECT_ID, "b.zone-1.example.com."),
-        (TEST_PROJECT_ID, "a.zone-2.example.com."),
+        (TEST_PROJECT_ID, "a.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_ID, "b.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_ID, "a.zone-2.example.com.|TXT|2222222222222222222"),
     }
