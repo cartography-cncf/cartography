@@ -25,11 +25,12 @@ t1190_exploit_public_facing_application = Requirement(
         # Azure
         azure_storage_public_blob_access,
     ),
+    requirement_url="https://attack.mitre.org/techniques/T1190/",
+    # TODO: should we have a per-framework class represent the attributes?
     attributes={
         "tactic": "initial_access",
         "technique_id": "T1190",
         "services": ["ec2", "s3", "rds", "azure_storage"],
-        "mitre_url": "https://attack.mitre.org/techniques/T1190/",
         "providers": ["AWS", "AZURE"],
     },
 )

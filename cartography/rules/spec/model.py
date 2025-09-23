@@ -9,16 +9,16 @@ class Provider(str, Enum):
     AWS = "AWS"
     """Amazon Web Services"""
 
-    AZURE = "AZURE"
+    AZURE = "Azure"
     """Microsoft Azure"""
 
     GCP = "GCP"
     """Google Cloud Platform"""
 
-    GITHUB = "GITHUB"
+    GITHUB = "GitHub"
     """GitHub source code management"""
 
-    OKTA = "OKTA"
+    OKTA = "Okta"
     """Okta identity and access management"""
 
     CROSS_CLOUD = "CROSS_CLOUD"
@@ -62,6 +62,7 @@ class Requirement:
     description: str
     facts: tuple[Fact, ...]
     attributes: dict[str, Any] | None = None
+    requirement_url: str | None = None
 
 
 @dataclass(frozen=True)
