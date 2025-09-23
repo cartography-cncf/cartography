@@ -251,10 +251,20 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
     ![dockercompose-result.png](images/dockercompose-result.png)
 
+1. **Run security frameworks against your graph.**
+    You can run common security frameworks like MITRE ATT&CK against your graph using the `cartography-runrules` command.
+
+    ```bash
+    cartography-runrules all
+    ```
+
+    See [the rules docs](usage/rules) for more detail.
+
+
 ## Things to do next
 Here's some ideas to get the most out of Cartography:
 - [Set up other data providers](module-list)
 - View our [Operations Guide](ops) for tips on running Cartography in production
-- Read our [usage instructions](usage/tutorial) and [schema](usage/schema) to learn how to query the graph
+- Read our [graph querying tutorial](usage/tutorial) and [schema](usage/schema) to learn how to query the graph
 - Think of [applications](usage/applications) to build around it
 - Consider [writing your own Cartography custom modules](dev/writing-intel-modules)
