@@ -70,6 +70,7 @@ dependencies = [
     "cloudflare (>=4.1.0,<5.0.0)",
     "scaleway>=2.9.0",
     "google-cloud-resource-manager>=1.14.2",
+    "pygments>=2.19.2"
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
