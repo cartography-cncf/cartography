@@ -37,7 +37,7 @@ dependencies = [
     "boto3>=1.15.1",
     "botocore>=1.18.1",
     "dnspython>=1.15.0",
-    "neo4j>=4.4.4",
+    "neo4j>=5.28.2",
     "policyuniverse>=1.1.0.0",
     "google-api-python-client>=1.7.8",
     "google-auth>=2.37.0",
@@ -54,6 +54,7 @@ dependencies = [
     "azure-mgmt-compute>=5.0.0",
     "azure-mgmt-resource>=10.2.0",
     "azure-mgmt-cosmosdb>=6.0.0",
+    "azure-mgmt-web>=7.0.0",
     "msrestazure >= 0.6.4",
     "azure-mgmt-storage>=16.0.0",
     "azure-mgmt-sql<=1.0.0",
@@ -67,6 +68,7 @@ dependencies = [
     "duo-client",
     "cloudflare (>=4.1.0,<5.0.0)",
     "scaleway>=2.9.0",
+    "google-cloud-resource-manager>=1.14.2",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
@@ -79,12 +81,13 @@ dev = [
     "pre-commit",
     "pytest>=6.2.4",
     "pytest-mock",
-    "pytest-cov==6.3.0",
+    "pytest-cov==7.0.0",
     "pytest-rerunfailures",
     "pytest-asyncio",
     "types-PyYAML",
-    "black==25.1.0",
-    "types-requests<2.32.4.20250810",
+    "black==25.9.0",
+    "types-requests<2.32.4.20250914",
+    "azure-mgmt-web>=7.0.0",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",

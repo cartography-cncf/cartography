@@ -656,51 +656,25 @@ def load_gcp_subnets(
     neo4j_session: neo4j.Session,
     subnets: List[Dict],
     gcp_update_tag: int,
+    project_id: str,
 ) -> None:
     """
-    Ingest GCP subnet data to Neo4j
+    Ingest GCP subnet data to Neo4j using the data model
     :param neo4j_session: The Neo4j session
     :param subnets: List of the subnets
     :param gcp_update_tag: The timestamp to set these Neo4j nodes with
+    :param project_id: The project ID
     :return: Nothing
     """
-    query = """
-    MERGE(vpc:GCPVpc{id:$VpcPartialUri})
-    ON CREATE SET vpc.firstseen = timestamp(),
-    vpc.partial_uri = $VpcPartialUri
+    from cartography.models.gcp.compute.subnet import GCPSubnetSchema
 
-    MERGE(subnet:GCPSubnet{id:$PartialUri})
-    ON CREATE SET subnet.firstseen = timestamp(),
-    subnet.partial_uri = $PartialUri
-    SET subnet.self_link = $SubnetSelfLink,
-    subnet.project_id = $ProjectId,
-    subnet.name = $SubnetName,
-    subnet.region = $Region,
-    subnet.gateway_address = $GatewayAddress,
-    subnet.ip_cidr_range = $IpCidrRange,
-    subnet.private_ip_google_access = $PrivateIpGoogleAccess,
-    subnet.vpc_partial_uri = $VpcPartialUri,
-    subnet.lastupdated = $gcp_update_tag
-
-    MERGE (vpc)-[r:RESOURCE]->(subnet)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $gcp_update_tag
-    """
-    for s in subnets:
-        neo4j_session.run(
-            query,
-            VpcPartialUri=s["vpc_partial_uri"],
-            VpcSelfLink=s["vpc_self_link"],
-            PartialUri=s["partial_uri"],
-            SubnetSelfLink=s["self_link"],
-            ProjectId=s["project_id"],
-            SubnetName=s["name"],
-            Region=s["region"],
-            GatewayAddress=s["gateway_address"],
-            IpCidrRange=s["ip_cidr_range"],
-            PrivateIpGoogleAccess=s["private_ip_google_access"],
-            gcp_update_tag=gcp_update_tag,
-        )
+    load(
+        neo4j_session,
+        GCPSubnetSchema(),
+        subnets,
+        lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
+    )
 
 
 @timeit
@@ -981,7 +955,7 @@ def _attach_gcp_vpc(
     """
     query = """
     MATCH (i:GCPInstance{id:$InstanceId})-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)
-          -[p:PART_OF_SUBNET]->(sn:GCPSubnet)<-[r:RESOURCE]-(vpc:GCPVpc)
+          -[p:PART_OF_SUBNET]->(sn:GCPSubnet)<-[r:HAS]-(vpc:GCPVpc)
     MERGE (i)-[m:MEMBER_OF_GCP_VPC]->(vpc)
     ON CREATE SET m.firstseen = timestamp()
     SET m.lastupdated = $gcp_update_tag
@@ -1185,15 +1159,15 @@ def cleanup_gcp_subnets(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Delete out-of-date GCP VPC subnet nodes and relationships
+    Delete out-of-date GCP VPC subnet nodes and relationships using data model
     :param neo4j_session: The Neo4j session
     :param common_job_parameters: dict of other job parameters to pass to Neo4j
     :return: Nothing
     """
-    run_cleanup_job(
-        "gcp_compute_vpc_subnet_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    from cartography.models.gcp.compute.subnet import GCPSubnetSchema
+
+    GraphJob.from_node_schema(GCPSubnetSchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
@@ -1296,7 +1270,7 @@ def sync_gcp_subnets(
     for r in regions:
         subnet_res = get_gcp_subnets(project_id, r, compute)
         subnets = transform_gcp_subnets(subnet_res)
-        load_gcp_subnets(neo4j_session, subnets, gcp_update_tag)
+        load_gcp_subnets(neo4j_session, subnets, gcp_update_tag, project_id)
         # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
         cleanup_gcp_subnets(neo4j_session, common_job_parameters)
 
