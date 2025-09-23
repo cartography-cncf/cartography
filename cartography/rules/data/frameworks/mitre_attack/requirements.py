@@ -6,9 +6,6 @@ Security framework based on MITRE ATT&CK tactics and techniques
 from cartography.rules.data.facts.aws.ec2.instances import (
     aws_ec2_instance_internet_exposed,
 )
-from cartography.rules.data.facts.aws.ec2.security_groups import (
-    aws_ec2_security_groups_exposed_management_ports,
-)
 from cartography.rules.data.facts.aws.rds.db_instances import aws_rds_public_access
 from cartography.rules.data.facts.aws.s3.buckets import aws_s3_public
 from cartography.rules.data.facts.azure.storage.accounts import (
@@ -23,7 +20,6 @@ t1190_exploit_public_facing_application = Requirement(
     facts=(
         # AWS
         aws_ec2_instance_internet_exposed,
-        aws_ec2_security_groups_exposed_management_ports,
         aws_s3_public,
         aws_rds_public_access,
         # Azure
