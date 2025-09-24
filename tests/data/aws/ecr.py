@@ -1,4 +1,5 @@
 import datetime
+import json
 
 DESCRIBE_REPOSITORIES = {
     "repositories": [
@@ -114,4 +115,88 @@ LIST_REPOSITORY_IMAGES = {
             **DESCRIBE_IMAGES["imageDetails"],
         },
     ],
+}
+
+# Sample Docker manifest for testing
+SAMPLE_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+    "config": {
+        "mediaType": "application/vnd.docker.container.image.v1+json",
+        "size": 7023,
+        "digest": "sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f0c7a0b0c91",
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 977,
+            "digest": "sha256:e692418e3dfaf5b2d8b94d14cb0c9e5b5c28e45a5f8df7b7e4e1d094c4e1b3e0",
+        },
+        {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 1024,
+            "digest": "sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b",
+        },
+        {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 2048,
+            "digest": "sha256:ec4b8955958665577945c89419d1af06b5f7636b4ac3da7f12184802ad867736",
+        },
+    ],
+}
+
+# Sample config blob with diff_ids for testing
+SAMPLE_CONFIG_BLOB = {
+    "architecture": "amd64",
+    "os": "linux",
+    "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+            "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+            "sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
+            "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
+        ],
+    },
+}
+
+# Multi-arch manifest list for testing
+SAMPLE_MANIFEST_LIST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+    "manifests": [
+        {
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "size": 1024,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+            "platform": {"architecture": "amd64", "os": "linux"},
+        },
+        {
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "size": 1024,
+            "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2",
+            "platform": {"architecture": "arm64", "os": "linux", "variant": "v8"},
+        },
+    ],
+}
+
+# Response for batch_get_image API
+BATCH_GET_IMAGE_RESPONSE = {
+    "images": [
+        {
+            "imageManifest": json.dumps(SAMPLE_MANIFEST),
+            "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "imageId": {
+                "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "imageTag": "1",
+            },
+            "registryId": "000000000000",
+            "repositoryName": "example-repository",
+        }
+    ]
+}
+
+# Response for get_download_url_for_layer API
+GET_DOWNLOAD_URL_RESPONSE = {
+    "downloadUrl": "https://example.s3.amazonaws.com/layer?X-Amz-Algorithm=AWS4-HMAC-SHA256...",
+    "layerDigest": "sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f0c7a0b0c91",
 }
