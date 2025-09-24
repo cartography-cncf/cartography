@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -98,138 +99,150 @@ def test_sync_with_layers(
     neo4j_session,
 ):
     """Test ECR sync with image layer support."""
-    # Mock repository data
-    mock_get_repos.return_value = test_data.DESCRIBE_REPOSITORIES["repositories"][:1]
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        # Mock repository data
+        mock_get_repos.return_value = test_data.DESCRIBE_REPOSITORIES["repositories"][
+            :1
+        ]
 
-    # Mock image data
-    mock_get_images.return_value = [
-        {
-            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-            "imageTag": "1",
-            "repositoryName": "example-repository",
-            **test_data.DESCRIBE_IMAGES["imageDetails"],
+        # Mock image data
+        mock_get_images.return_value = [
+            {
+                "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "imageTag": "1",
+                "repositoryName": "example-repository",
+                **test_data.DESCRIBE_IMAGES["imageDetails"],
+            }
+        ]
+
+        # Mock manifest retrieval
+        mock_batch_get_manifest.return_value = (
+            test_data.SAMPLE_MANIFEST,
+            "application/vnd.docker.distribution.manifest.v2+json",
+        )
+
+        # Mock config blob retrieval
+        mock_get_blob.return_value = test_data.SAMPLE_CONFIG_BLOB
+
+        # Create mock boto3 session
+        boto3_session = MagicMock()
+        boto3_session.client.return_value.batch_get_image.return_value = (
+            test_data.BATCH_GET_IMAGE_RESPONSE
+        )
+        boto3_session.client.return_value.get_download_url_for_layer.return_value = (
+            test_data.GET_DOWNLOAD_URL_RESPONSE
+        )
+
+        # Run sync
+        sync_ecr(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+        )
+
+        # Check that ECRImage nodes were created
+        expected_ecr_images = {
+            (
+                "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                TEST_REGION,
+            ),
         }
-    ]
-
-    # Mock manifest retrieval
-    mock_batch_get_manifest.return_value = (
-        test_data.SAMPLE_MANIFEST,
-        "application/vnd.docker.distribution.manifest.v2+json",
-    )
-
-    # Mock config blob retrieval
-    mock_get_blob.return_value = test_data.SAMPLE_CONFIG_BLOB
-
-    # Create mock boto3 session
-    boto3_session = MagicMock()
-    boto3_session.client.return_value.batch_get_image.return_value = (
-        test_data.BATCH_GET_IMAGE_RESPONSE
-    )
-    boto3_session.client.return_value.get_download_url_for_layer.return_value = (
-        test_data.GET_DOWNLOAD_URL_RESPONSE
-    )
-
-    # Run sync
-    sync_ecr(
-        neo4j_session,
-        boto3_session,
-        [TEST_REGION],
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    # Check that ECRImage nodes were created
-    expected_ecr_images = {
-        (
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-            TEST_REGION,
-        ),
-    }
-    assert (
-        check_nodes(neo4j_session, "ECRImage", ["id", "region"]) == expected_ecr_images
-    )
-
-    # Check that ImageLayer nodes were created
-    expected_layers = {
-        (
-            "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
-            TEST_REGION,
-        ),
-        (
-            "sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
-            TEST_REGION,
-        ),
-        (
-            "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
-            TEST_REGION,
-        ),
-    }
-    assert check_nodes(neo4j_session, "ImageLayer", ["id", "region"]) == expected_layers
-
-    # Check NEXT relationships between layers
-    expected_next_rels = {
-        (
-            "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
-            "sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
-        ),
-        (
-            "sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
-            "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
-        ),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "ImageLayer",
-            "id",
-            "ImageLayer",
-            "id",
-            "NEXT",
-            rel_direction_right=True,
+        assert (
+            check_nodes(neo4j_session, "ECRImage", ["id", "region"])
+            == expected_ecr_images
         )
-        == expected_next_rels
-    )
 
-    # Check HEAD relationship from ECRImage to first layer
-    expected_head_rels = {
-        (
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-            "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
-        ),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "ECRImage",
-            "id",
-            "ImageLayer",
-            "id",
-            "HEAD",
-            rel_direction_right=True,
+        # Check that ImageLayer nodes were created
+        expected_layers = {
+            (
+                "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+                TEST_REGION,
+            ),
+            (
+                "sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
+                TEST_REGION,
+            ),
+            (
+                "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
+                TEST_REGION,
+            ),
+        }
+        assert (
+            check_nodes(neo4j_session, "ImageLayer", ["id", "region"])
+            == expected_layers
         )
-        == expected_head_rels
-    )
 
-    # Check TAIL relationship from ECRImage to last layer
-    expected_tail_rels = {
-        (
-            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-            "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
-        ),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "ECRImage",
-            "id",
-            "ImageLayer",
-            "id",
-            "TAIL",
-            rel_direction_right=True,
+        # Check NEXT relationships between layers
+        expected_next_rels = {
+            (
+                "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+                "sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
+            ),
+            (
+                "sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
+                "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
+            ),
+        }
+        assert (
+            check_rels(
+                neo4j_session,
+                "ImageLayer",
+                "id",
+                "ImageLayer",
+                "id",
+                "NEXT",
+                rel_direction_right=True,
+            )
+            == expected_next_rels
         )
-        == expected_tail_rels
-    )
+
+        # Check HEAD relationship from ECRImage to first layer
+        expected_head_rels = {
+            (
+                "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+            ),
+        }
+        assert (
+            check_rels(
+                neo4j_session,
+                "ECRImage",
+                "id",
+                "ImageLayer",
+                "id",
+                "HEAD",
+                rel_direction_right=True,
+            )
+            == expected_head_rels
+        )
+
+        # Check TAIL relationship from ECRImage to last layer
+        expected_tail_rels = {
+            (
+                "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
+            ),
+        }
+        assert (
+            check_rels(
+                neo4j_session,
+                "ECRImage",
+                "id",
+                "ImageLayer",
+                "id",
+                "TAIL",
+                rel_direction_right=True,
+            )
+            == expected_tail_rels
+        )
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
 
 
 def test_transform_layers_creates_graph_structure():
