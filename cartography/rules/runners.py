@@ -2,11 +2,13 @@
 Framework and Fact execution logic for Cartography rules.
 """
 
+import json
+from dataclasses import asdict
+
 from neo4j import GraphDatabase
 
 from cartography.rules.data.frameworks import FRAMEWORKS
 from cartography.rules.formatters import _generate_neo4j_browser_url
-from cartography.rules.formatters import _output_json
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Requirement
@@ -193,9 +195,7 @@ def run_frameworks(
         )
 
         if output_format == "json":
-            from dataclasses import asdict
-
-            _output_json(asdict(framework_result))
+            print(json.dumps(asdict(framework_result), indent=2))
         else:
             # Text summary for single framework
             print("\n" + "=" * 60)
@@ -239,10 +239,8 @@ def run_frameworks(
         # Output combined results
         if output_format == "json":
             # For JSON, output array of framework results
-            from dataclasses import asdict
-
             combined_output = [asdict(result) for result in all_results]
-            _output_json(combined_output)
+            print(json.dumps(combined_output, indent=2))
         else:
             # Text summary for all frameworks
             print("\n" + "=" * 60)

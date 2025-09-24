@@ -2,13 +2,8 @@
 Output formatting utilities for Cartography rules.
 """
 
-import json
 import re
 from urllib.parse import quote
-
-from pygments import highlight
-from pygments.formatters import TerminalFormatter
-from pygments.lexers import JsonLexer
 
 
 def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
@@ -45,10 +40,3 @@ def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
 
     # Construct the Neo4j Browser URL with pre-populated query
     return f"{browser_uri}browser/?cmd=edit&arg={encoded_query}"
-
-
-def _output_json(data):
-    """Output data as colorized JSON."""
-    json_str = json.dumps(data, indent=2)
-    colorized = highlight(json_str, JsonLexer(), TerminalFormatter())
-    print(colorized.rstrip())
