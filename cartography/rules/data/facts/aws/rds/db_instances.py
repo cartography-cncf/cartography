@@ -11,8 +11,8 @@ aws_rds_public_access = Fact(
     RETURN rds.id AS instance_id,
            rds.engine AS engine,
            rds.db_instance_class AS instance_class,
-           rds.endpoint AS endpoint,
-           rds.port AS port,
+           rds.endpoint_address AS endpoint,
+           rds.endpoint_port AS port,
            rds.region AS region,
            rds.storage_encrypted AS encrypted
     """,
