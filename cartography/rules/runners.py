@@ -145,6 +145,44 @@ def _run_single_framework(
     )
 
 
+def _format_and_output_results(
+    all_results: list[FrameworkResult],
+    framework_names: list[str],
+    output_format: str,
+    total_requirements: int,
+    total_facts: int,
+    total_findings: int,
+):
+    """Format and output the results of framework execution."""
+    if output_format == "json":
+        if len(framework_names) == 1:
+            print(json.dumps(asdict(all_results[0]), indent=2))
+        else:
+            combined_output = [asdict(result) for result in all_results]
+            print(json.dumps(combined_output, indent=2))
+    else:
+        # Text summary
+        print("\n" + "=" * 60)
+        if len(framework_names) == 1:
+            print(f"EXECUTION SUMMARY - {FRAMEWORKS[framework_names[0]].name}")
+        else:
+            print("OVERALL SUMMARY")
+        print("=" * 60)
+
+        if len(framework_names) > 1:
+            print(f"Frameworks executed: {len(framework_names)}")
+        print(f"Requirements: {total_requirements}")
+        print(f"Total facts: {total_facts}")
+        print(f"Total results: {total_findings}")
+
+        if total_findings > 0:
+            print(
+                f"\n\033[36mFramework execution completed with {total_findings} total results\033[0m"
+            )
+        else:
+            print("\n\033[90mFramework execution completed with no results\033[0m")
+
+
 def run_frameworks(
     framework_names: list[str],
     uri: str,
@@ -187,72 +225,38 @@ def run_frameworks(
         if output_format == "text":
             print(f"Connected successfully as {neo4j_user}")
 
-        # For multiple frameworks, we need different output handling
-        if len(framework_names) == 1:
-            # Single framework - existing behavior
-            framework_name = framework_names[0]
+        # Execute frameworks
+        all_results = []
+        total_requirements = 0
+        total_facts = 0
+        total_findings = 0
+
+        for i, framework_name in enumerate(framework_names):
+            if output_format == "text" and len(framework_names) > 1:
+                if i > 0:
+                    print("\n" + "=" * 60)
+                print(
+                    f"Executing framework {i + 1}/{len(framework_names)}: {framework_name}"
+                )
+
             framework_result = _run_single_framework(
                 framework_name, driver, neo4j_database, output_format, uri
             )
+            all_results.append(framework_result)
 
-            if output_format == "json":
-                print(json.dumps(asdict(framework_result), indent=2))
-            else:
-                # Text summary for single framework
-                print("\n" + "=" * 60)
-                print(f"EXECUTION SUMMARY - {FRAMEWORKS[framework_names[0]].name}")
-                print("=" * 60)
-                print(f"Requirements: {framework_result.total_requirements}")
-                print(f"Total facts: {framework_result.total_facts}")
-                print(f"Total results: {framework_result.total_findings}")
+            total_requirements += framework_result.total_requirements
+            total_facts += framework_result.total_facts
+            total_findings += framework_result.total_findings
 
-                if framework_result.total_findings > 0:
-                    print(
-                        f"\n\033[36mFramework execution completed with {framework_result.total_findings} total results\033[0m"
-                    )
-                else:
-                    print(
-                        "\n\033[90mFramework execution completed with no results\033[0m"
-                    )
-
-        else:
-            # Multiple frameworks
-            all_results = []
-            total_requirements = 0
-            total_facts = 0
-            total_findings = 0
-
-            for i, framework_name in enumerate(framework_names):
-                if output_format == "text":
-                    if i > 0:
-                        print("\n" + "=" * 60)
-                    print(
-                        f"Executing framework {i + 1}/{len(framework_names)}: {framework_name}"
-                    )
-
-                framework_result = _run_single_framework(
-                    framework_name, driver, neo4j_database, output_format, uri
-                )
-                all_results.append(framework_result)
-
-                total_requirements += framework_result.total_requirements
-                total_facts += framework_result.total_facts
-                total_findings += framework_result.total_findings
-
-            # Output combined results
-            if output_format == "json":
-                # For JSON, output array of framework results
-                combined_output = [asdict(result) for result in all_results]
-                print(json.dumps(combined_output, indent=2))
-            else:
-                # Text summary for all frameworks
-                print("\n" + "=" * 60)
-                print("OVERALL SUMMARY")
-                print("=" * 60)
-                print(f"Frameworks executed: {len(framework_names)}")
-                print(f"Total requirements: {total_requirements}")
-                print(f"Total facts: {total_facts}")
-                print(f"Total results: {total_findings}")
+        # Output results
+        _format_and_output_results(
+            all_results,
+            framework_names,
+            output_format,
+            total_requirements,
+            total_facts,
+            total_findings,
+        )
 
         return 0
     finally:
