@@ -5,6 +5,7 @@ Framework and Fact execution logic for Cartography rules.
 import json
 from dataclasses import asdict
 
+from neo4j import Driver
 from neo4j import GraphDatabase
 
 from cartography.rules.data.frameworks import FRAMEWORKS
@@ -20,7 +21,7 @@ def _run_fact(
     fact: Fact,
     requirement: Requirement,
     framework: Framework,
-    driver: GraphDatabase.driver,
+    driver: Driver,
     database: str,
     fact_counter: int,
     total_facts: int,
