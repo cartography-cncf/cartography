@@ -9,6 +9,7 @@ from typing import Tuple
 
 import boto3
 import neo4j
+import time
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
@@ -31,6 +32,7 @@ from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
+from cartography.util import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -1349,3 +1351,30 @@ def get_account_from_arn(arn: str) -> str:
         return ""
     else:
         return parts[4]
+
+@timeit
+@aws_handle_regions
+def sync_server_certificates(neo4j_session, boto3_session: boto3.Session, aws_account_id: str, regions: List[str], update_tag: int = None) -> None:
+    if update_tag is None:
+        update_tag = int(time.time())
+
+    client = boto3_session.client("iam")
+    paginator = client.get_paginator("list_server_certificates")
+    for page in paginator.paginate():
+        for cert in page.get("ServerCertificateMetadataList", []):
+            neo4j_session.run(
+                """
+                MERGE (c:AWSServerCertificate {arn: $arn})
+                SET c.name = $name,
+                    c.path = $path,
+                    c.upload_date = $upload_date,
+                    c.update_tag = $update_tag,
+                    c.aws_account_id = $aws_account_id
+                """,
+                arn=cert["Arn"],
+                name=cert["ServerCertificateName"],
+                path=cert["Path"],
+                upload_date=cert["UploadDate"].isoformat(),
+                update_tag=update_tag,
+                aws_account_id=aws_account_id,
+            )
