@@ -46,7 +46,7 @@ class ImageLayerToNextRelProperties(CartographyRelProperties):
 class ImageLayerToNextRel(CartographyRelSchema):
     target_node_label: str = "ImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"diff_id": PropertyRef("next_diff_id")}
+        {"diff_id": PropertyRef("next_diff_ids", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "NEXT"

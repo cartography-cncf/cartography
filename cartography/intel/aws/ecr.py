@@ -269,7 +269,7 @@ def transform_ecr_image_layers(
 
                     # Add NEXT relationship if not the last layer
                     if i < len(diff_ids) - 1:
-                        layer["next_diff_id"] = diff_ids[i + 1]
+                        layer["next_diff_ids"] = [diff_ids[i + 1]]
 
                     # Track which images this layer is HEAD or TAIL of
                     if i == 0:
@@ -283,9 +283,17 @@ def transform_ecr_image_layers(
                     layers.append(layer)
                     processed_diff_ids.add(diff_id)
                 else:
-                    # Layer already processed, but may need to update HEAD/TAIL relationships
+                    # Layer already processed, update relationships
                     for layer in layers:
                         if layer["diff_id"] == diff_id:
+                            # Add NEXT relationship if not the last layer
+                            if i < len(diff_ids) - 1:
+                                next_layer = diff_ids[i + 1]
+                                existing_nexts = layer.get("next_diff_ids", [])
+                                if next_layer not in existing_nexts:
+                                    existing_nexts.append(next_layer)
+                                    layer["next_diff_ids"] = existing_nexts
+
                             if i == 0:
                                 existing_heads: Any = layer.get("head_image_ids", [])
                                 if isinstance(existing_heads, list):

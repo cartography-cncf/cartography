@@ -45,17 +45,18 @@ def test_transform_ecr_image_layers():
     # Check layer1 is HEAD of both images
     layer1 = next(layer for layer in result if layer["diff_id"] == "sha256:layer1")
     assert set(layer1["head_image_ids"]) == {"sha256:digest1", "sha256:digest2"}
-    assert layer1["next_diff_id"] == "sha256:layer2"
+    # Layer1 should have NEXT edges to both layer2 and layer4
+    assert set(layer1["next_diff_ids"]) == {"sha256:layer2", "sha256:layer4"}
 
     # Check layer3 is TAIL of first image
     layer3 = next(layer for layer in result if layer["diff_id"] == "sha256:layer3")
     assert layer3["tail_image_ids"] == ["sha256:digest1"]
-    assert "next_diff_id" not in layer3
+    assert "next_diff_ids" not in layer3
 
     # Check layer5 is TAIL of second image
     layer5 = next(layer for layer in result if layer["diff_id"] == "sha256:layer5")
     assert layer5["tail_image_ids"] == ["sha256:digest2"]
-    assert "next_diff_id" not in layer5
+    assert "next_diff_ids" not in layer5
 
 
 def test_parse_image_uri():
@@ -298,3 +299,54 @@ def test_transform_layers_creates_graph_structure():
     assert api_layer["tail_image_ids"] == [
         "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
     ]
+
+
+def test_shared_layers_preserve_multiple_next_edges():
+    """Test that shared base layers preserve NEXT edges to different successor layers."""
+    # Example: Two images share layer1→layer2 but diverge after:
+    # Image A: layer1 → layer2 → layer3
+    # Image B: layer1 → layer2 → layer4
+
+    image_layers_data = {
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-a:v1": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # shared
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # shared
+                "sha256:3333333333333333333333333333333333333333333333333333333333333333",  # unique to A
+            ]
+        },
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-b:v1": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # shared
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # shared
+                "sha256:4444444444444444444444444444444444444444444444444444444444444444",  # unique to B
+            ]
+        },
+    }
+
+    image_digest_map = {
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-a:v1": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001",
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-b:v1": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
+    }
+
+    result = ecr.transform_ecr_image_layers(image_layers_data, image_digest_map)
+
+    # Find layer2 which should have NEXT edges to both layer3 and layer4
+    layer2 = next(
+        layer
+        for layer in result
+        if layer["diff_id"]
+        == "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    )
+
+    # Layer2 should have two NEXT relationships
+    assert "next_diff_ids" in layer2
+    assert len(layer2["next_diff_ids"]) == 2
+    assert (
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+        in layer2["next_diff_ids"]
+    )
+    assert (
+        "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+        in layer2["next_diff_ids"]
+    )
