@@ -35,6 +35,8 @@ export NEO4J_URI=bolt://localhost:7687 # or your Neo4j URI
 export NEO4J_USER=neo4j # or your username
 export NEO4J_DATABASE=neo4j
 
+# Store the Neo4j password in an environment variable. You can name this anything you want.
+```bash
 set +o history # avoid storing the password in the shell history; can also use something like 1password CLI.
 export NEO4J_PASSWORD=password
 set -o history # turn shell history back on
@@ -58,17 +60,20 @@ cartography-runrules all
 ```
 ![rules text output](../images/rules-text-output.png)
 
+### Authentication Options
+
+Use a custom environment variable for the password:
+```bash
+cartography-runrules mitre-attack --neo4j-password-env-var MY_NEO4J_PASSWORD
+```
+
+Use interactive password prompt:
+```bash
+cartography-runrules mitre-attack --neo4j-password-prompt
+```
 
 Run a specific framework and output as JSON
 ```bash
 cartography-runrules mitre-attack --output json
 ```
 ![rules json output](../images/rules-json-output.png)
-
-Just in case you didn't know, you can also prefix the `cartography-runrules` command with environment variables like this:
-
-```bash
-NEO4J_URI=bolt://localhost:7687 NEO4J_USER=neo4j NEO4J_PASSWORD=password NEO4J_DATABASE=neo4j cartography-runrules all
-```
-
-This way it's all a one-liner.
