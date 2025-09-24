@@ -62,6 +62,22 @@ class CLI:
         )
 
         parser.add_argument(
+            "--neo4j-password-env-var",
+            type=str,
+            default=None,
+            help="The name of an environment variable containing a password with which to authenticate to Neo4j.",
+        )
+
+        parser.add_argument(
+            "--neo4j-password-prompt",
+            action="store_true",
+            help=(
+                "Present an interactive prompt for a password with which to authenticate to Neo4j. This parameter "
+                "supersedes other methods of supplying a Neo4j password."
+            ),
+        )
+
+        parser.add_argument(
             "--database",
             default=os.getenv("NEO4J_DATABASE", "neo4j"),
             help="Neo4j database name (default: neo4j)",
@@ -101,9 +117,16 @@ class CLI:
             )
 
         # Get password
-        password = os.getenv("NEO4J_PASSWORD")
-        if not password:
+        password = None
+        if args.neo4j_password_prompt:
             password = getpass.getpass("Enter Neo4j password: ")
+        elif args.neo4j_password_env_var:
+            password = os.environ.get(args.neo4j_password_env_var)
+        else:
+            # Fall back to NEO4J_PASSWORD for backward compatibility
+            password = os.getenv("NEO4J_PASSWORD")
+            if not password:
+                password = getpass.getpass("Enter Neo4j password: ")
 
         # Determine which frameworks to run
         if args.framework == "all":
