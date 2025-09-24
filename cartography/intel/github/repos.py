@@ -864,11 +864,15 @@ def load_github_repos(
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = r.UpdateTag
     """
-    neo4j_session.run(
-        ingest_repo,
-        RepoData=repo_data,
-        UpdateTag=update_tag,
-    )
+
+    def _ingest_repos_tx(tx: neo4j.Transaction) -> None:
+        tx.run(
+            ingest_repo,
+            RepoData=repo_data,
+            UpdateTag=update_tag,
+        ).consume()
+
+    neo4j_session.execute_write(_ingest_repos_tx)
 
 
 @timeit
@@ -898,11 +902,14 @@ def load_github_languages(
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $UpdateTag"""
 
-    neo4j_session.run(
-        ingest_languages,
-        Languages=repo_languages,
-        UpdateTag=update_tag,
-    )
+    def _ingest_languages_tx(tx: neo4j.Transaction) -> None:
+        tx.run(
+            ingest_languages,
+            Languages=repo_languages,
+            UpdateTag=update_tag,
+        ).consume()
+
+    neo4j_session.execute_write(_ingest_languages_tx)
 
 
 @timeit
@@ -918,31 +925,42 @@ def load_github_owners(
     :param repo_owners: list of owner to repo mappings
     :return: Nothing
     """
-    for owner in repo_owners:
-        ingest_owner_template = Template(
-            """
-            MERGE (user:$account_type{id: $Id})
-            ON CREATE SET user.firstseen = timestamp()
-            SET user.username = $UserName,
-            user.lastupdated = $UpdateTag
-            WITH user
+    ingest_owner_template = Template(
+        """
+        MERGE (user:$account_type{id: $Id})
+        ON CREATE SET user.firstseen = timestamp()
+        SET user.username = $UserName,
+        user.lastupdated = $UpdateTag
+        WITH user
 
-            MATCH (repo:GitHubRepository{id: $RepoId})
-            MERGE (user)<-[r:OWNER]-(repo)
-            ON CREATE SET r.firstseen = timestamp()
-            SET r.lastupdated = $UpdateTag""",
-        )
+        MATCH (repo:GitHubRepository{id: $RepoId})
+        MERGE (user)<-[r:OWNER]-(repo)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UpdateTag""",
+    )
 
-        account_type = {"User": "GitHubUser", "Organization": "GitHubOrganization"}
+    account_type = {"User": "GitHubUser", "Organization": "GitHubOrganization"}
 
-        neo4j_session.run(
+    def _ingest_owner_tx(
+        tx: neo4j.Transaction,
+        owner_record: Dict,
+        owner_label: str,
+    ) -> None:
+        tx.run(
             ingest_owner_template.safe_substitute(
-                account_type=account_type[owner["type"]],
+                account_type=owner_label,
             ),
-            Id=owner["owner_id"],
-            UserName=owner["owner"],
-            RepoId=owner["repo_id"],
+            Id=owner_record["owner_id"],
+            UserName=owner_record["owner"],
+            RepoId=owner_record["repo_id"],
             UpdateTag=update_tag,
+        ).consume()
+
+    for owner in repo_owners:
+        neo4j_session.execute_write(
+            _ingest_owner_tx,
+            owner,
+            account_type[owner["type"]],
         )
 
 
@@ -973,12 +991,24 @@ def load_collaborators(
     SET o.lastupdated = $UpdateTag
     """,
     )
-    for collab_type in collaborators.keys():
-        relationship_label = f"{affiliation}_COLLAB_{collab_type}"
-        neo4j_session.run(
+
+    def _ingest_collaborators_tx(
+        tx: neo4j.Transaction,
+        relationship_label: str,
+        collaborator_data: List[Dict],
+    ) -> None:
+        tx.run(
             query.safe_substitute(rel_label=relationship_label),
-            UserData=collaborators[collab_type],
+            UserData=collaborator_data,
             UpdateTag=update_tag,
+        ).consume()
+
+    for collab_type, collab_data in collaborators.items():
+        relationship_label = f"{affiliation}_COLLAB_{collab_type}"
+        neo4j_session.execute_write(
+            _ingest_collaborators_tx,
+            relationship_label,
+            collab_data,
         )
 
 
@@ -1003,11 +1033,15 @@ def load_python_requirements(
         SET r.lastupdated = $UpdateTag,
         r.specifier = req.specifier
     """
-    neo4j_session.run(
-        query,
-        Requirements=requirements_objects,
-        UpdateTag=update_tag,
-    )
+
+    def _ingest_requirements_tx(tx: neo4j.Transaction) -> None:
+        tx.run(
+            query,
+            Requirements=requirements_objects,
+            UpdateTag=update_tag,
+        ).consume()
+
+    neo4j_session.execute_write(_ingest_requirements_tx)
 
 
 @timeit

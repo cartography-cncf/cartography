@@ -6,6 +6,7 @@ import neo4j
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -171,7 +172,12 @@ def load_gsuite_groups(
         g.lastupdated = $UpdateTag
     """
     logger.info(f"Ingesting {len(groups)} gsuite groups")
-    neo4j_session.run(ingestion_qry, GroupData=groups, UpdateTag=gsuite_update_tag)
+    run_write_query(
+        neo4j_session,
+        ingestion_qry,
+        GroupData=groups,
+        UpdateTag=gsuite_update_tag,
+    )
 
 
 @timeit
@@ -215,7 +221,12 @@ def load_gsuite_users(
         u.lastupdated = $UpdateTag
     """
     logger.info(f"Ingesting {len(users)} gsuite users")
-    neo4j_session.run(ingestion_qry, UserData=users, UpdateTag=gsuite_update_tag)
+    run_write_query(
+        neo4j_session,
+        ingestion_qry,
+        UserData=users,
+        UpdateTag=gsuite_update_tag,
+    )
 
 
 @timeit
@@ -234,7 +245,8 @@ def load_gsuite_members(
         SET
         r.lastupdated = $UpdateTag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_qry,
         MemberData=members,
         GroupID=group.get("id"),
@@ -249,7 +261,8 @@ def load_gsuite_members(
         SET
         r.lastupdated = $UpdateTag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         membership_qry,
         MemberData=members,
         GroupID=group.get("id"),
