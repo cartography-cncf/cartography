@@ -1,4 +1,3 @@
-import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -232,99 +231,70 @@ def test_sync_with_layers(
     )
 
 
-def test_get_image_diff_ids_single_manifest():
-    """Test get_image_diff_ids with a single platform manifest."""
-    mock_ecr_client = MagicMock()
-
-    # Mock batch_get_image to return single manifest
-    mock_ecr_client.batch_get_image.return_value = {
-        "images": [
-            {
-                "imageManifest": json.dumps(test_data.SAMPLE_MANIFEST),
-                "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
-            }
-        ]
+def test_transform_layers_creates_graph_structure():
+    """Test that transform creates proper graph structure from layer data."""
+    # Test images sharing base layers (common in Docker)
+    image_layers_data = {
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/web-app:v1": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # base OS layer
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # runtime layer
+                "sha256:3333333333333333333333333333333333333333333333333333333333333333",  # app-specific
+            ]
+        },
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/api-service:v1": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # shared base
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # shared runtime
+                "sha256:4444444444444444444444444444444444444444444444444444444444444444",  # api-specific
+            ]
+        },
     }
 
-    # Mock get_download_url_for_layer
-    mock_ecr_client.get_download_url_for_layer.return_value = {
-        "downloadUrl": "https://example.s3.amazonaws.com/blob"
+    image_digest_map = {
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/web-app:v1": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001",
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/api-service:v1": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
     }
 
-    # Mock URL fetch to return config blob
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(
-            test_data.SAMPLE_CONFIG_BLOB
-        ).encode()
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+    result = ecr.transform_ecr_image_layers(image_layers_data, image_digest_map)
 
-        result = ecr.get_image_diff_ids(
-            mock_ecr_client,
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
-        )
+    # Should have 4 unique layers (2 shared, 2 unique)
+    assert len(result) == 4
 
-    assert "linux/amd64" in result
-    assert result["linux/amd64"] == test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
+    # Base layer should be HEAD of both images
+    base_layer = next(
+        layer
+        for layer in result
+        if layer["diff_id"]
+        == "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    )
+    assert len(base_layer["head_image_ids"]) == 2
+    assert (
+        "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+        in base_layer["head_image_ids"]
+    )
+    assert (
+        "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
+        in base_layer["head_image_ids"]
+    )
 
-
-def test_get_image_diff_ids_manifest_list():
-    """Test get_image_diff_ids with a multi-arch manifest list."""
-    mock_ecr_client = MagicMock()
-
-    # First call returns manifest list
-    # Subsequent calls return platform-specific manifests
-    mock_ecr_client.batch_get_image.side_effect = [
-        {
-            "images": [
-                {
-                    "imageManifest": json.dumps(test_data.SAMPLE_MANIFEST_LIST),
-                    "imageManifestMediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
-                }
-            ]
-        },
-        # AMD64 manifest
-        {
-            "images": [
-                {
-                    "imageManifest": json.dumps(test_data.SAMPLE_MANIFEST),
-                    "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
-                }
-            ]
-        },
-        # ARM64 manifest
-        {
-            "images": [
-                {
-                    "imageManifest": json.dumps(test_data.SAMPLE_MANIFEST),
-                    "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
-                }
-            ]
-        },
+    # App-specific layers should be TAIL of their respective images
+    web_layer = next(
+        layer
+        for layer in result
+        if layer["diff_id"]
+        == "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    )
+    assert web_layer["tail_image_ids"] == [
+        "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
     ]
 
-    # Mock get_download_url_for_layer
-    mock_ecr_client.get_download_url_for_layer.return_value = {
-        "downloadUrl": "https://example.s3.amazonaws.com/blob"
-    }
-
-    # Mock URL fetch to return config blob
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(
-            test_data.SAMPLE_CONFIG_BLOB
-        ).encode()
-        mock_urlopen.return_value.__enter__.return_value = mock_response
-
-        result = ecr.get_image_diff_ids(
-            mock_ecr_client,
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
-        )
-
-    # Should have results for both platforms
-    assert "linux/amd64" in result
-    assert "linux/arm64/v8" in result
-    assert result["linux/amd64"] == test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
-    assert (
-        result["linux/arm64/v8"] == test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
+    api_layer = next(
+        layer
+        for layer in result
+        if layer["diff_id"]
+        == "sha256:4444444444444444444444444444444444444444444444444444444444444444"
     )
+    assert api_layer["tail_image_ids"] == [
+        "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
+    ]

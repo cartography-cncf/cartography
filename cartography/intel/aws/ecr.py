@@ -1,6 +1,6 @@
+import asyncio
 import json
 import logging
-import urllib.request
 from typing import Any
 from typing import Dict
 from typing import List
@@ -8,6 +8,7 @@ from typing import Optional
 from typing import Tuple
 
 import boto3
+import httpx
 import neo4j
 
 from cartography.client.core.tx import load
@@ -214,7 +215,12 @@ def batch_get_manifest(
         return {}, ""
 
 
-def get_blob_json_via_presigned(ecr_client: Any, repo: str, digest: str) -> Dict:
+async def get_blob_json_via_presigned(
+    ecr_client: Any,
+    repo: str,
+    digest: str,
+    http_client: httpx.AsyncClient,
+) -> Dict:
     """Download and parse JSON blob using presigned URL."""
     try:
         url_response = ecr_client.get_download_url_for_layer(
@@ -222,165 +228,12 @@ def get_blob_json_via_presigned(ecr_client: Any, repo: str, digest: str) -> Dict
             layerDigest=digest,
         )
         url = url_response["downloadUrl"]
-        with urllib.request.urlopen(url, timeout=30) as r:
-            return json.loads(r.read())
+        response = await http_client.get(url, timeout=30.0)
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
-        logger.warning(f"Failed to get blob {digest} for {repo}: {e}")
+        logger.debug(f"Failed to get blob {digest} for {repo}: {e}")
         return {}
-
-
-def diff_ids_from_manifest(ecr_client: Any, repo: str, manifest_doc: Dict) -> List[str]:
-    """Extract diff_ids from an image manifest by fetching its config blob."""
-    if not manifest_doc or "config" not in manifest_doc:
-        return []
-
-    config = manifest_doc["config"]
-    cfg_digest = config.get("digest")
-    if not cfg_digest:
-        return []
-
-    # Skip BuildKit cache manifests and other non-image configs
-    cfg_media_type = config.get("mediaType", "")
-    if "buildkit" in cfg_media_type.lower():
-        logger.debug(f"Skipping BuildKit cache manifest for {repo}")
-        return []
-
-    cfg_json = get_blob_json_via_presigned(ecr_client, repo, cfg_digest)
-    if not cfg_json:
-        return []
-
-    rootfs = cfg_json.get("rootfs") or cfg_json.get("RootFS") or {}
-    return rootfs.get("diff_ids") or rootfs.get("DiffIDs") or []
-
-
-def get_image_diff_ids_by_digest(
-    ecr_client: Any,
-    repo_name: str,
-    image_digest: str,
-    prefer_platform: Optional[str] = "linux/amd64",
-) -> Dict[str, List[str]]:
-    """
-    Get diff_ids for an ECR image using its digest directly.
-    This is more reliable than using tags which may change or not exist.
-    Returns a dict mapping platform strings to lists of diff_ids.
-    """
-    # Get manifest using digest
-    doc, mt = batch_get_manifest(ecr_client, repo_name, image_digest, ALL_ACCEPTED)
-    if not doc:
-        return {}
-
-    # Helper to stringify platform keys
-    def plat_key(m: Dict) -> str:
-        p = m.get("platform", {}) or {}
-        os_, arch, var = p.get("os"), p.get("architecture"), p.get("variant")
-        if os_ and arch:
-            return f"{os_}/{arch}" + (f"/{var}" if var else "")
-        return "unknown/unknown"
-
-    # If it's an index (OCI or Docker), walk into each manifest
-    if (mt in (ECR_OCI_INDEX_MT, ECR_DOCKER_INDEX_MT)) or ("manifests" in doc):
-        results: Dict[str, List[str]] = {}
-        manifests = []
-        for m in doc.get("manifests", []):
-            # Skip attestations
-            if (m.get("annotations") or {}).get(
-                "vnd.docker.reference.type"
-            ) == "attestation-manifest":
-                continue
-            manifests.append(m)
-
-        # Optional: prioritize prefer_platform first
-        def score(m: Dict) -> int:
-            k = plat_key(m)
-            return 0 if prefer_platform and k == prefer_platform else 1
-
-        for m in sorted(manifests, key=score):
-            digest = m.get("digest")
-            if not digest:
-                continue
-            plat_manifest, plat_mt = batch_get_manifest(
-                ecr_client,
-                repo_name,
-                digest,
-                [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
-            )
-            if plat_mt not in (ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT):
-                continue
-            diffs = diff_ids_from_manifest(ecr_client, repo_name, plat_manifest)
-            if diffs:
-                results[plat_key(m)] = diffs
-        return results
-
-    # Otherwise, it's a single (platform-specific) manifest
-    diffs = diff_ids_from_manifest(ecr_client, repo_name, doc)
-    return {prefer_platform or "linux/amd64": diffs} if diffs else {}
-
-
-def get_image_diff_ids(
-    ecr_client: Any,
-    image_uri: str,
-    prefer_platform: Optional[str] = "linux/amd64",
-) -> Dict[str, List[str]]:
-    """
-    Get diff_ids for an ECR image, handling both single-platform and multi-arch images.
-    Returns a dict mapping platform strings to lists of diff_ids.
-    """
-    try:
-        region, repo, ref = parse_image_uri(image_uri)
-    except Exception as e:
-        logger.warning(f"Failed to parse image URI {image_uri}: {e}")
-        return {}
-
-    # Get manifest (could be index or single manifest)
-    doc, mt = batch_get_manifest(ecr_client, repo, ref, ALL_ACCEPTED)
-    if not doc:
-        return {}
-
-    # Helper to stringify platform keys
-    def plat_key(m: Dict) -> str:
-        p = m.get("platform", {}) or {}
-        os_, arch, var = p.get("os"), p.get("architecture"), p.get("variant")
-        if os_ and arch:
-            return f"{os_}/{arch}" + (f"/{var}" if var else "")
-        return "unknown/unknown"
-
-    # If it's an index (OCI or Docker), walk into each manifest
-    if (mt in (ECR_OCI_INDEX_MT, ECR_DOCKER_INDEX_MT)) or ("manifests" in doc):
-        results: Dict[str, List[str]] = {}
-        manifests = []
-        for m in doc.get("manifests", []):
-            # Skip attestations
-            if (m.get("annotations") or {}).get(
-                "vnd.docker.reference.type"
-            ) == "attestation-manifest":
-                continue
-            manifests.append(m)
-
-        # Optional: prioritize prefer_platform first
-        def score(m: Dict) -> int:
-            k = plat_key(m)
-            return 0 if prefer_platform and k == prefer_platform else 1
-
-        for m in sorted(manifests, key=score):
-            digest = m.get("digest")
-            if not digest:
-                continue
-            plat_manifest, plat_mt = batch_get_manifest(
-                ecr_client,
-                repo,
-                digest,
-                [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
-            )
-            if plat_mt not in (ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT):
-                continue
-            diffs = diff_ids_from_manifest(ecr_client, repo, plat_manifest)
-            if diffs:
-                results[plat_key(m)] = diffs
-        return results
-
-    # Otherwise, it's a single (platform-specific) manifest
-    diffs = diff_ids_from_manifest(ecr_client, repo, doc)
-    return {prefer_platform or "linux/amd64": diffs} if diffs else {}
 
 
 @timeit
@@ -524,6 +377,124 @@ def _get_image_data(
     return image_data
 
 
+async def fetch_image_layers_async(
+    ecr_client: Any,
+    repo_images_list: List[Dict],
+    max_concurrent: int = 20,
+) -> Tuple[Dict[str, Dict[str, List[str]]], Dict[str, str]]:
+    """
+    Fetch image layers for ECR images in parallel.
+    """
+    image_layers_data = {}
+    image_digest_map = {}
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def fetch_single_image_layers(
+        repo_image: Dict,
+        http_client: httpx.AsyncClient,
+    ) -> Optional[Tuple[str, Dict[str, List[str]]]]:
+        """Fetch layers for a single image."""
+        async with semaphore:
+            uri = repo_image.get("uri")
+            digest = repo_image.get("imageDigest")
+            repo_uri = repo_image.get("repo_uri")
+
+            if not (uri and digest and repo_uri):
+                return None
+
+            try:
+                # Extract repository name
+                parts = repo_uri.split("/", 1)
+                if len(parts) != 2:
+                    return None
+                repo_name = parts[1]
+
+                # Get manifest
+                doc, _ = batch_get_manifest(ecr_client, repo_name, digest, ALL_ACCEPTED)
+                if not doc:
+                    return None
+
+                # Skip BuildKit cache manifests and attestation images
+                config = doc.get("config", {})
+                config_media_type = config.get("mediaType", "").lower()
+
+                # Skip various non-container image types
+                if any(
+                    skip_type in config_media_type
+                    for skip_type in ["buildkit", "attestation", "in-toto"]
+                ):
+                    logger.debug(f"Skipping non-container image: {config_media_type}")
+                    return None
+
+                # Also check if layers are attestations
+                layers = doc.get("layers", [])
+                if layers and all(
+                    "in-toto" in layer.get("mediaType", "").lower() for layer in layers
+                ):
+                    # All layers are attestations, skip this image
+                    logger.debug(
+                        f"Skipping attestation-only image with {len(layers)} attestation layers"
+                    )
+                    return None
+
+                cfg_digest = config.get("digest")
+                if not cfg_digest:
+                    return None
+
+                # Fetch config blob
+                cfg_json = await get_blob_json_via_presigned(
+                    ecr_client, repo_name, cfg_digest, http_client
+                )
+                if not cfg_json:
+                    return None
+
+                rootfs = cfg_json.get("rootfs") or cfg_json.get("RootFS") or {}
+                diff_ids = rootfs.get("diff_ids") or rootfs.get("DiffIDs") or []
+
+                if diff_ids:
+                    return uri, {"linux/amd64": diff_ids}
+
+                return None
+
+            except Exception as e:
+                logger.debug(f"Could not get layers for {uri}: {e}")
+                return None
+
+    async with httpx.AsyncClient() as http_client:
+        # Create tasks for all images
+        tasks = [
+            fetch_single_image_layers(repo_image, http_client)
+            for repo_image in repo_images_list
+        ]
+
+        # Process with progress logging
+        total = len(tasks)
+        logger.info(
+            f"Fetching layers for {total} images with {max_concurrent} concurrent connections..."
+        )
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Process results
+        for i, result in enumerate(results):
+            if (
+                result
+                and not isinstance(result, Exception)
+                and isinstance(result, tuple)
+            ):
+                uri, layer_data = result
+                image_layers_data[uri] = layer_data
+                # Get digest from original list
+                digest = repo_images_list[i].get("imageDigest")
+                if digest:
+                    image_digest_map[uri] = digest
+
+    logger.info(
+        f"Successfully fetched layers for {len(image_layers_data)}/{len(repo_images_list)} images"
+    )
+    return image_layers_data, image_digest_map
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -561,47 +532,28 @@ def sync(
 
         # Fetch and load image layers
         ecr_client = boto3_session.client("ecr", region_name=region)
-        image_layers_data = {}
-        image_digest_map = {}
 
-        for repo_image in repo_images_list:
-            uri = repo_image.get("uri")
-            digest = repo_image.get("imageDigest")
-            repo_uri = repo_image.get("repo_uri")
-
-            if uri and digest and repo_uri:
-                image_digest_map[uri] = digest
-                try:
-                    # Extract repository name from repo_uri
-                    # repo_uri format: registry.region.amazonaws.com/repo-name
-                    parts = repo_uri.split("/", 1)
-                    if len(parts) == 2:
-                        repo_name = parts[1]
-                    else:
-                        logger.warning(
-                            f"Could not parse repository name from {repo_uri}"
-                        )
-                        continue
-
-                    # Use digest directly to fetch manifest
-                    # This avoids issues with missing or changed tags
-                    diff_ids = get_image_diff_ids_by_digest(
-                        ecr_client, repo_name, digest
-                    )
-                    if diff_ids:
-                        image_layers_data[uri] = diff_ids
-                except Exception as e:
-                    logger.debug(f"Could not get layers for {uri}: {e}")
-                    continue
-
-        if image_layers_data:
-            layers = transform_ecr_image_layers(image_layers_data, image_digest_map)
-            load_ecr_image_layers(
-                neo4j_session,
-                layers,
-                region,
-                current_aws_account_id,
-                update_tag,
+        if repo_images_list:
+            logger.info(
+                f"Starting to fetch layers for {len(repo_images_list)} images..."
             )
+            image_layers_data, image_digest_map = asyncio.run(
+                fetch_image_layers_async(ecr_client, repo_images_list)
+            )
+
+            if image_layers_data:
+                logger.info(
+                    f"Successfully fetched layers for {len(image_layers_data)} images"
+                )
+                layers = transform_ecr_image_layers(image_layers_data, image_digest_map)
+                load_ecr_image_layers(
+                    neo4j_session,
+                    layers,
+                    region,
+                    current_aws_account_id,
+                    update_tag,
+                )
+            else:
+                logger.info("No image layers fetched")
 
     cleanup(neo4j_session, common_job_parameters)

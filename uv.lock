@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
@@ -556,6 +556,7 @@ dependencies = [
     { name = "google-api-python-client" },
     { name = "google-auth" },
     { name = "google-cloud-resource-manager" },
+    { name = "httpx" },
     { name = "kubernetes" },
     { name = "marshmallow" },
     { name = "msgraph-sdk" },
@@ -622,6 +623,7 @@ requires-dist = [
     { name = "google-api-python-client", specifier = ">=1.7.8" },
     { name = "google-auth", specifier = ">=2.37.0" },
     { name = "google-cloud-resource-manager", specifier = ">=1.14.2" },
+    { name = "httpx", specifier = ">=0.24.0" },
     { name = "kubernetes", specifier = ">=22.6.0" },
     { name = "marshmallow", specifier = ">=3.0.0rc7" },
     { name = "msgraph-sdk" },

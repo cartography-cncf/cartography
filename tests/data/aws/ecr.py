@@ -200,3 +200,87 @@ GET_DOWNLOAD_URL_RESPONSE = {
     "downloadUrl": "https://example.s3.amazonaws.com/layer?X-Amz-Algorithm=AWS4-HMAC-SHA256...",
     "layerDigest": "sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f0c7a0b0c91",
 }
+
+# Attestation image manifest (in-toto format) - should be filtered
+ATTESTATION_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "config": {
+        "mediaType": "application/vnd.in-toto+json",
+        "digest": "sha256:3a5a1d9c5f5b4e7e8f9d1c2b3a4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
+        "size": 1582,
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.in-toto+json",
+            "digest": "sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+            "size": 13268,
+        }
+    ],
+}
+
+# Multi-layer container image manifest
+MULTI_LAYER_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+    "config": {
+        "mediaType": "application/vnd.docker.container.image.v1+json",
+        "size": 9276,
+        "digest": "sha256:5e3e8642f7c9a07c6e3c1df7e71d9a5f08d8bb8d99f4c7a1e8f9a0b1c2d3e4f5",
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 3370706,
+            "digest": "sha256:layer1digest0000000000000000000000000000000000000000000000000001",
+        },
+        {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "size": 1234567,
+            "digest": "sha256:layer2digest0000000000000000000000000000000000000000000000000002",
+        },
+    ],
+}
+
+# Config blob for multi-layer container
+MULTI_LAYER_CONFIG = {
+    "architecture": "amd64",
+    "os": "linux",
+    "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+            "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+            "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+            "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+            "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ],
+    },
+    "config": {
+        "Env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
+        "Cmd": ["/bin/sh"],
+    },
+}
+
+# BuildKit cache manifest (should be filtered out)
+BUILDKIT_CACHE_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "config": {
+        "mediaType": "application/vnd.buildkit.cacheconfig.v0",
+        "digest": "sha256:buildkit0000000000000000000000000000000000000000000000000000001",
+        "size": 573,
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.buildkit.cache.v0",
+            "digest": "sha256:cachelayer00000000000000000000000000000000000000000000000000001",
+            "size": 1024,
+        }
+    ],
+}
