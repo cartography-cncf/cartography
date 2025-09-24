@@ -7,6 +7,7 @@ Execute security frameworks and present facts about your environment.
 import argparse
 import getpass
 import json
+import logging
 import os
 import sys
 from dataclasses import asdict
@@ -21,6 +22,10 @@ from pygments.lexers import JsonLexer
 from cartography.rules.data.frameworks import FRAMEWORKS
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
+
+# Reduce Neo4j logging noise - only show errors
+neo4j_logger = logging.getLogger("neo4j")
+neo4j_logger.setLevel(logging.ERROR)
 
 
 # Execution result classes

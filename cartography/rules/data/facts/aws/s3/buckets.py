@@ -4,10 +4,7 @@ from cartography.rules.spec.model import Provider
 aws_s3_public = Fact(
     id="aws_s3_public",
     name="Internet-Accessible S3 Storage Attack Surface",
-    description=(
-        "AWS S3 buckets accessible from the internet that provide attack surface for "
-        "public-facing application exploitation and data exfiltration"
-    ),
+    description=("AWS S3 buckets accessible from the internet"),
     cypher_query="""
     MATCH (b:S3Bucket)
     WHERE b.anonymous_access = true
