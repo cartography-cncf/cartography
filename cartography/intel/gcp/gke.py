@@ -1,12 +1,16 @@
 import json
 import logging
+from typing import Any
 from typing import Dict
+from typing import List
 
 import neo4j
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
-from cartography.util import run_cleanup_job
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.gcp.gke import GCPGKEClusterSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -56,105 +60,20 @@ def load_gke_clusters(
     gcp_update_tag: int,
 ) -> None:
     """
-    Ingest GCP GKE Clusters to Neo4j
-
-    :type neo4j_session: Neo4j session object
-    :param neo4j session: The Neo4j session object
-
-    :type cluster_resp: Dict
-    :param cluster_resp: A cluster response object from the GKE API
-
-    :type gcp_update_tag: timestamp
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-
-    :rtype: NoneType
-    :return: Nothing
+    Ingest GCP GKE clusters using the data model loader.
     """
+    clusters: List[Dict[str, Any]] = transform_gke_clusters(cluster_resp)
 
-    query = """
-    MERGE(cluster:GKECluster{id:$ClusterSelfLink})
-    ON CREATE SET
-        cluster.firstseen = timestamp(),
-        cluster.created_at = $ClusterCreateTime
-    SET
-        cluster.name = $ClusterName,
-        cluster.self_link = $ClusterSelfLink,
-        cluster.description = $ClusterDescription,
-        cluster.logging_service = $ClusterLoggingService,
-        cluster.monitoring_service = $ClusterMonitoringService,
-        cluster.network = $ClusterNetwork,
-        cluster.subnetwork = $ClusterSubnetwork,
-        cluster.cluster_ipv4cidr = $ClusterIPv4Cidr,
-        cluster.zone = $ClusterZone,
-        cluster.location = $ClusterLocation,
-        cluster.endpoint = $ClusterEndpoint,
-        cluster.initial_version = $ClusterInitialVersion,
-        cluster.current_master_version = $ClusterMasterVersion,
-        cluster.status = $ClusterStatus,
-        cluster.services_ipv4cidr = $ClusterServicesIPv4Cidr,
-        cluster.database_encryption = $ClusterDatabaseEncryption,
-        cluster.network_policy = $ClusterNetworkPolicy,
-        cluster.master_authorized_networks = $ClusterMasterAuthorizedNetworks,
-        cluster.legacy_abac = $ClusterAbac,
-        cluster.shielded_nodes = $ClusterShieldedNodes,
-        cluster.private_nodes = $ClusterPrivateNodes,
-        cluster.private_endpoint_enabled = $ClusterPrivateEndpointEnabled,
-        cluster.private_endpoint = $ClusterPrivateEndpoint,
-        cluster.public_endpoint = $ClusterPublicEndpoint,
-        cluster.masterauth_username = $ClusterMasterUsername,
-        cluster.masterauth_password = $ClusterMasterPassword
-    WITH cluster
-    MATCH (owner:GCPProject{id:$ProjectId})
-    MERGE (owner)-[r:RESOURCE]->(cluster)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $gcp_update_tag
-    """
-    for cluster in cluster_resp.get("clusters", []):
-        neo4j_session.run(
-            query,
-            ProjectId=project_id,
-            ClusterSelfLink=cluster["selfLink"],
-            ClusterCreateTime=cluster["createTime"],
-            ClusterName=cluster["name"],
-            ClusterDescription=cluster.get("description"),
-            ClusterLoggingService=cluster.get("loggingService"),
-            ClusterMonitoringService=cluster.get("monitoringService"),
-            ClusterNetwork=cluster.get("network"),
-            ClusterSubnetwork=cluster.get("subnetwork"),
-            ClusterIPv4Cidr=cluster.get("clusterIpv4Cidr"),
-            ClusterZone=cluster.get("zone"),
-            ClusterLocation=cluster.get("location"),
-            ClusterEndpoint=cluster.get("endpoint"),
-            ClusterInitialVersion=cluster.get("initialClusterVersion"),
-            ClusterMasterVersion=cluster.get("currentMasterVersion"),
-            ClusterStatus=cluster.get("status"),
-            ClusterServicesIPv4Cidr=cluster.get("servicesIpv4Cidr"),
-            ClusterDatabaseEncryption=cluster.get("databaseEncryption", {}).get(
-                "state",
-            ),
-            ClusterNetworkPolicy=_process_network_policy(cluster),
-            ClusterMasterAuthorizedNetworks=cluster.get(
-                "masterAuthorizedNetworksConfig",
-                {},
-            ).get("enabled"),
-            ClusterAbac=cluster.get("legacyAbac", {}).get("enabled"),
-            ClusterShieldedNodes=cluster.get("shieldedNodes", {}).get("enabled"),
-            ClusterPrivateNodes=cluster.get("privateClusterConfig", {}).get(
-                "enablePrivateNodes",
-            ),
-            ClusterPrivateEndpointEnabled=cluster.get("privateClusterConfig", {}).get(
-                "enablePrivateEndpoint",
-            ),
-            ClusterPrivateEndpoint=cluster.get("privateClusterConfig", {}).get(
-                "privateEndpoint",
-            ),
-            ClusterPublicEndpoint=cluster.get("privateClusterConfig", {}).get(
-                "publicEndpoint",
-            ),
-            ClusterMasterUsername=cluster.get("masterAuth", {}).get("username"),
-            ClusterMasterPassword=cluster.get("masterAuth", {}).get("password"),
-            gcp_update_tag=gcp_update_tag,
-        )
+    if not clusters:
+        return
+
+    load(
+        neo4j_session,
+        GCPGKEClusterSchema(),
+        clusters,
+        lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
+    )
 
 
 def _process_network_policy(cluster: Dict) -> bool:
@@ -175,21 +94,10 @@ def cleanup_gke_clusters(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Delete out-of-date GCP GKE Clusters nodes and relationships
-
-    :type neo4j_session: The Neo4j session object
-    :param neo4j_session: The Neo4j session
-
-    :type common_job_parameters: dict
-    :param common_job_parameters: Dictionary of other job parameters to pass to Neo4j
-
-    :rtype: NoneType
-    :return: Nothing
+    Scoped cleanup for GKE clusters based on the project sub-resource relationship.
     """
-    run_cleanup_job(
-        "gcp_gke_cluster_cleanup.json",
+    GraphJob.from_node_schema(GCPGKEClusterSchema(), common_job_parameters).run(
         neo4j_session,
-        common_job_parameters,
     )
 
 
@@ -222,8 +130,59 @@ def sync_gke_clusters(
     :rtype: NoneType
     :return: Nothing
     """
-    logger.info("Syncing Compute objects for project %s.", project_id)
+    logger.info("Syncing GKE clusters for project %s.", project_id)
     gke_res = get_gke_clusters(container, project_id)
     load_gke_clusters(neo4j_session, gke_res, project_id, gcp_update_tag)
-    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
     cleanup_gke_clusters(neo4j_session, common_job_parameters)
+
+
+def transform_gke_clusters(api_result: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Transform GKE API response into a list of dicts suitable for the data model loader.
+    """
+    result: List[Dict[str, Any]] = []
+    for c in api_result.get("clusters", []):
+        transformed: Dict[str, Any] = {
+            # Required fields
+            "id": c["selfLink"],
+            "self_link": c["selfLink"],
+            "name": c["name"],
+            "created_at": c.get("createTime"),
+            # Optional fields
+            "description": c.get("description"),
+            "logging_service": c.get("loggingService"),
+            "monitoring_service": c.get("monitoringService"),
+            "network": c.get("network"),
+            "subnetwork": c.get("subnetwork"),
+            "cluster_ipv4cidr": c.get("clusterIpv4Cidr"),
+            "zone": c.get("zone"),
+            "location": c.get("location"),
+            "endpoint": c.get("endpoint"),
+            "initial_version": c.get("initialClusterVersion"),
+            "current_master_version": c.get("currentMasterVersion"),
+            "status": c.get("status"),
+            "services_ipv4cidr": c.get("servicesIpv4Cidr"),
+            "database_encryption": (c.get("databaseEncryption", {}) or {}).get("state"),
+            "network_policy": _process_network_policy(c),
+            "master_authorized_networks": (
+                c.get("masterAuthorizedNetworksConfig", {}) or {}
+            ).get("enabled"),
+            "legacy_abac": (c.get("legacyAbac", {}) or {}).get("enabled"),
+            "shielded_nodes": (c.get("shieldedNodes", {}) or {}).get("enabled"),
+            "private_nodes": (c.get("privateClusterConfig", {}) or {}).get(
+                "enablePrivateNodes"
+            ),
+            "private_endpoint_enabled": (c.get("privateClusterConfig", {}) or {}).get(
+                "enablePrivateEndpoint"
+            ),
+            "private_endpoint": (c.get("privateClusterConfig", {}) or {}).get(
+                "privateEndpoint"
+            ),
+            "public_endpoint": (c.get("privateClusterConfig", {}) or {}).get(
+                "publicEndpoint"
+            ),
+            "masterauth_username": (c.get("masterAuth", {}) or {}).get("username"),
+            "masterauth_password": (c.get("masterAuth", {}) or {}).get("password"),
+        }
+        result.append(transformed)
+    return result

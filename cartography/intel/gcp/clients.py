@@ -14,13 +14,6 @@ logger = logging.getLogger(__name__)
 # Default HTTP timeout (seconds) for Google API clients built via discovery.build
 _GCP_HTTP_TIMEOUT = 120
 
-# Simple in-process cache for discovery clients. Keyed by (service, version).
-# Assumes one identity per process (Cartography run). If that changes later,
-# include an identity component in the key.
-# Note: Cached clients remain valid even after credential expiration because
-# AuthorizedHttp automatically refreshes expired credentials on 401 responses.
-_CLIENT_CACHE: dict[tuple[str, str], Resource] = {}
-
 
 def _authorized_http_with_timeout(
     credentials: GoogleCredentials,
@@ -33,10 +26,6 @@ def _authorized_http_with_timeout(
 
 
 def build_client(service: str, version: str = "v1") -> Resource:
-    key = (service, version)
-    cached = _CLIENT_CACHE.get(key)
-    if cached is not None:
-        return cached
     credentials = get_gcp_credentials()
     if credentials is None:
         raise RuntimeError("GCP credentials are not available; cannot build client.")
@@ -46,7 +35,6 @@ def build_client(service: str, version: str = "v1") -> Resource:
         http=_authorized_http_with_timeout(credentials),
         cache_discovery=False,
     )
-    _CLIENT_CACHE[key] = client
     return client
 
 

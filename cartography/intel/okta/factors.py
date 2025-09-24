@@ -8,6 +8,7 @@ from okta import FactorsClient
 from okta.framework.OktaError import OktaError
 from okta.models.factor.Factor import Factor
 
+from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.util import timeit
 
@@ -130,7 +131,8 @@ def _load_user_factors(
     SET r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         USER_ID=user_id,
         FACTOR_LIST=factors,

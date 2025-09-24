@@ -12,6 +12,8 @@ import boto3
 import neo4j
 import yaml
 
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.statement import GraphStatement
 from cartography.util import timeit
 
@@ -210,18 +212,6 @@ def calculate_permission_relationships(
     return allowed_mappings
 
 
-def parse_statement_node(node_group: List[Any]) -> List[Any]:
-    """Parse a dict from group of Neo4J node
-
-    Arguments:
-        node_group {[Neo4j.Node]} -- the node to parse
-
-    Returns:
-        [list] -- A list of statements from the node
-    """
-    return [n._properties for n in node_group]
-
-
 def compile_regex(item: str) -> Pattern:
     r"""Compile a clause into a regex. Clause checking in AWS is case insensitive
     The following regex symbols will be replaced to make AWS * and ? matching a regex
@@ -280,7 +270,8 @@ def get_principals_for_account(neo4j_session: neo4j.Session, account_id: str) ->
     RETURN
     DISTINCT principal.arn as principal_arn, policy.id as policy_id, collect(statements) as statements
     """
-    results = neo4j_session.run(
+    results = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
         get_policy_query,
         AccountId=account_id,
     )
@@ -291,9 +282,7 @@ def get_principals_for_account(neo4j_session: neo4j.Session, account_id: str) ->
         statements = r["statements"]
         if principal_arn not in principals:
             principals[principal_arn] = {}
-        principals[principal_arn][policy_id] = compile_statement(
-            parse_statement_node(statements),
-        )
+        principals[principal_arn][policy_id] = compile_statement(statements)
     return principals
 
 
@@ -341,7 +330,8 @@ def load_principal_mappings(
         node_label=node_label,
         relationship_name=relationship_name,
     )
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         map_policy_query_template,
         Mapping=principal_mappings,
         aws_update_tag=update_tag,

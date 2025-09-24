@@ -7,6 +7,7 @@ from typing import List
 import neo4j
 from okta.framework.ApiClient import ApiClient
 
+from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
@@ -117,7 +118,8 @@ def _load_user_role(
     SET r2.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         USER_ID=user_id,
         ROLES_DATA=roles_data,
@@ -149,7 +151,8 @@ def _load_group_role(
     SET r2.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         GROUP_ID=group_id,
         ROLES_DATA=roles_data,

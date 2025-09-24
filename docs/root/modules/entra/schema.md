@@ -73,7 +73,7 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 - Entra users can have a manager
 
     ```cypher
-    (:EntraUser)-[:MANAGES]->(:EntraUser)
+    (:EntraUser)-[:REPORTS_TO]->(:EntraUser)
     ```
 
 - Entra users can be owners of groups

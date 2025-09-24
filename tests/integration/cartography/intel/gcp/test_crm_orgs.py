@@ -17,7 +17,7 @@ def test_sync_gcp_organizations(_mock_get_orgs, neo4j_session):
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
     cartography.intel.gcp.crm.orgs.sync_gcp_organizations(
-        neo4j_session, None, TEST_UPDATE_TAG, COMMON_JOB_PARAMS
+        neo4j_session, TEST_UPDATE_TAG, COMMON_JOB_PARAMS
     )
 
     assert check_nodes(neo4j_session, "GCPOrganization", ["id", "displayname"]) == {

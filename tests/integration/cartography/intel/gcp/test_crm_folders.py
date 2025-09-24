@@ -6,7 +6,10 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-COMMON_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
+COMMON_JOB_PARAMS = {
+    "UPDATE_TAG": TEST_UPDATE_TAG,
+    "ORG_RESOURCE_NAME": "organizations/1337",
+}
 
 
 @patch.object(
@@ -15,24 +18,39 @@ COMMON_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
     return_value=tests.data.gcp.crm.GCP_FOLDERS,
 )
 def test_sync_gcp_folders(mock_get_folders, neo4j_session):
-    # Pre-load org and project
+    # Pre-load org first
     cartography.intel.gcp.crm.orgs.load_gcp_organizations(
         neo4j_session, tests.data.gcp.crm.GCP_ORGANIZATIONS, TEST_UPDATE_TAG
     )
-    cartography.intel.gcp.crm.projects.load_gcp_projects(
-        neo4j_session, tests.data.gcp.crm.GCP_PROJECTS, TEST_UPDATE_TAG
-    )
 
+    # Load folders
     cartography.intel.gcp.crm.folders.sync_gcp_folders(
         neo4j_session,
-        crm_v2=None,
         gcp_update_tag=TEST_UPDATE_TAG,
         common_job_parameters=COMMON_JOB_PARAMS,
+        org_resource_name="organizations/1337",
+    )
+
+    # Load projects after folders exist
+    cartography.intel.gcp.crm.projects.load_gcp_projects(
+        neo4j_session,
+        tests.data.gcp.crm.GCP_PROJECTS,
+        TEST_UPDATE_TAG,
+        org_resource_name="organizations/1337",
     )
 
     assert check_nodes(neo4j_session, "GCPFolder", ["id", "displayname"]) == {
         ("folders/1414", "my-folder"),
     }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPFolder",
+        "id",
+        "GCPOrganization",
+        "id",
+        "PARENT",
+    ) == {("folders/1414", "organizations/1337")}
 
     assert check_rels(
         neo4j_session,
@@ -45,12 +63,12 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
 
     assert check_rels(
         neo4j_session,
-        "GCPFolder",
-        "id",
         "GCPProject",
         "id",
-        "RESOURCE",
-    ) == {("folders/1414", "this-project-has-a-parent-232323")}
+        "GCPFolder",
+        "id",
+        "PARENT",
+    ) == {("this-project-has-a-parent-232323", "folders/1414")}
 
 
 @patch.object(
@@ -66,9 +84,9 @@ def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
 
     cartography.intel.gcp.crm.folders.sync_gcp_folders(
         neo4j_session,
-        crm_v2=None,
         gcp_update_tag=TEST_UPDATE_TAG,
         common_job_parameters=COMMON_JOB_PARAMS,
+        org_resource_name="organizations/1337",
     )
 
     assert check_nodes(neo4j_session, "GCPFolder", ["id", "displayname"]) == {
@@ -78,12 +96,24 @@ def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
 
     assert check_rels(
         neo4j_session,
+        "GCPFolder",
+        "id",
+        "GCPOrganization",
+        "id",
+        "PARENT",
+    ) == {("folders/2000", "organizations/1337")}
+
+    assert check_rels(
+        neo4j_session,
         "GCPOrganization",
         "id",
         "GCPFolder",
         "id",
         "RESOURCE",
-    ) == {("organizations/1337", "folders/2000")}
+    ) == {
+        ("organizations/1337", "folders/2000"),
+        ("organizations/1337", "folders/2001"),
+    }
 
     assert check_rels(
         neo4j_session,
@@ -91,5 +121,5 @@ def test_sync_gcp_nested_folders(_mock_get_folders, neo4j_session) -> None:
         "id",
         "GCPFolder",
         "id",
-        "RESOURCE",
-    ) == {("folders/2000", "folders/2001")}
+        "PARENT",
+    ) == {("folders/2001", "folders/2000")}

@@ -15,7 +15,6 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.permission_relationships import parse_statement_node
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
 from cartography.models.aws.iam.access_key import AccountAccessKeySchema
 from cartography.models.aws.iam.account_role import AWSAccountAWSRoleSchema
@@ -389,7 +388,7 @@ def get_policies_for_principal(
         get_policy_query,
         Arn=principal_arn,
     )
-    policies = {r["policy_id"]: parse_statement_node(r["statements"]) for r in results}
+    policies = {r["policy_id"]: r["statements"] for r in results}
     return policies
 
 

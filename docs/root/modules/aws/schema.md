@@ -4390,6 +4390,11 @@ Representation of an AWS SSO User.
     (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
     ```
 
+- AWSSSOUser has permission set assignments. These include direct assignments and via Identity Center groups.
+    ```
+    (AWSSSOUser)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
     (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)
@@ -4398,6 +4403,41 @@ Representation of an AWS SSO User.
 - Entra users can sign on to AWSSSOUser via SAML federation through AWS Identity Center. See https://docs.aws.amazon.com/singlesignon/latest/userguide/idp-microsoft-entra.html and https://learn.microsoft.com/en-us/entra/identity/saas-apps/aws-single-sign-on-tutorial.
     ```
     (:EntraUser)-[:CAN_SIGN_ON_TO]->(:AWSSSOUser)
+    ```
+
+### AWSSSOGroup
+
+Representation of an AWS SSO Group.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the SSO group |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| display_name | The display name of the SSO group |
+| description | The description of the SSO group |
+| external_id | The external ID of the SSO group |
+| identity_store_id | The identity store ID of the SSO group |
+
+#### Relationships
+- AWSSSOGroup is part of an AWSAccount.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSSSOGroup)
+    ```
+
+- AWSSSOGroup can have roles assigned.
+    ```
+    (AWSSSOGroup)<-[ALLOWED_BY]-(AWSRole)
+    ```
+
+- AWSSSOGroup has assigned permission sets.
+    ```
+    (AWSSSOGroup)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
+- AWSSSOUser membership in SSO groups.
+    ```
+    (AWSSSOUser)-[MEMBER_OF_SSO_GROUP]->(AWSSSOGroup)
     ```
 
 ### AWSPermissionSet

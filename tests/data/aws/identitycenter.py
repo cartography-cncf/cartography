@@ -32,6 +32,21 @@ LIST_USERS = [
     },
 ]
 
+LIST_GROUPS = [
+    {
+        "DisplayName": "Test Group",
+        "GroupId": "gggggggg-a0d1-aaac-5af0-59c813ec7671",
+        "ExternalIds": [
+            {
+                "Issuer": "https://scim.aws.com/1223122",
+                "Id": "00ggggghhhhh",
+            },
+        ],
+        "Description": "Example AWS Identity Center group.",
+        "IdentityStoreId": "d-1234567890",
+    },
+]
+
 LIST_INSTANCES = [
     {
         "InstanceArn": "arn:aws:sso:::instance/ssoins-12345678901234567",

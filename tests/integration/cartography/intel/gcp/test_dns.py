@@ -7,6 +7,7 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_PROJECT_ID = "000000000000"
+TEST_PROJECT_NUMBER = "000000000000"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -57,10 +58,10 @@ def test_load_rrs(neo4j_session):
     )
 
     expected_nodes = {
-        # flake8: noqa
-        "a.zone-1.example.com.",
-        "b.zone-1.example.com.",
-        "a.zone-2.example.com.",
+        # id is name|type|zone
+        "a.zone-1.example.com.|TXT|111111111111111111111",
+        "b.zone-1.example.com.|TXT|111111111111111111111",
+        "a.zone-2.example.com.|TXT|2222222222222222222",
     }
 
     nodes = neo4j_session.run(
@@ -142,22 +143,35 @@ def test_rrs_relationships(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    expected = {
-        ("111111111111111111111", "a.zone-1.example.com."),
-        ("111111111111111111111", "b.zone-1.example.com."),
-        ("2222222222222222222", "a.zone-2.example.com."),
+    expected_zone_rels = {
+        ("111111111111111111111", "a.zone-1.example.com.|TXT|111111111111111111111"),
+        ("111111111111111111111", "b.zone-1.example.com.|TXT|111111111111111111111"),
+        ("2222222222222222222", "a.zone-2.example.com.|TXT|2222222222222222222"),
     }
 
-    # Fetch relationships
+    # Fetch zone -> record relationships
     result = neo4j_session.run(
         """
         MATCH (n1:GCPDNSZone)-[:HAS_RECORD]->(n2:GCPRecordSet) RETURN n1.id, n2.id;
         """,
     )
+    actual_zone_rels = {(r["n1.id"], r["n2.id"]) for r in result}
+    assert actual_zone_rels == expected_zone_rels
 
-    actual = {(r["n1.id"], r["n2.id"]) for r in result}
-
-    assert actual == expected
+    # Project -> record relationships
+    result = neo4j_session.run(
+        """
+        MATCH (p:GCPProject{id:$PROJECT})-[:RESOURCE]->(r:GCPRecordSet) RETURN p.id, r.id;
+        """,
+        PROJECT=TEST_PROJECT_NUMBER,
+    )
+    actual_proj_rels = {(r["p.id"], r["r.id"]) for r in result}
+    expected_proj_rels = {
+        (TEST_PROJECT_NUMBER, "a.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_NUMBER, "b.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_NUMBER, "a.zone-2.example.com.|TXT|2222222222222222222"),
+    }
+    assert actual_proj_rels == expected_proj_rels
 
     # Project -> record relationships
     result = neo4j_session.run(
@@ -168,9 +182,9 @@ def test_rrs_relationships(neo4j_session):
     )
     actual_proj_rels = {(r["p.id"], r["r.id"]) for r in result}
     expected_proj_rels = {
-        (TEST_PROJECT_ID, "a.zone-1.example.com."),
-        (TEST_PROJECT_ID, "b.zone-1.example.com."),
-        (TEST_PROJECT_ID, "a.zone-2.example.com."),
+        (TEST_PROJECT_ID, "a.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_ID, "b.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_ID, "a.zone-2.example.com.|TXT|2222222222222222222"),
     }
     assert actual_proj_rels == expected_proj_rels
 
@@ -224,9 +238,9 @@ def test_sync_dns_records(mock_get_zones, mock_get_rrs, neo4j_session):
         "GCPRecordSet",
         ["id"],
     ) == {
-        ("a.zone-1.example.com.",),
-        ("b.zone-1.example.com.",),
-        ("a.zone-2.example.com.",),
+        ("a.zone-1.example.com.|TXT|111111111111111111111",),
+        ("b.zone-1.example.com.|TXT|111111111111111111111",),
+        ("a.zone-2.example.com.|TXT|2222222222222222222",),
     }
     assert check_rels(
         neo4j_session,
@@ -249,9 +263,9 @@ def test_sync_dns_records(mock_get_zones, mock_get_rrs, neo4j_session):
         "HAS_RECORD",
         rel_direction_right=True,
     ) == {
-        ("111111111111111111111", "a.zone-1.example.com."),
-        ("111111111111111111111", "b.zone-1.example.com."),
-        ("2222222222222222222", "a.zone-2.example.com."),
+        ("111111111111111111111", "a.zone-1.example.com.|TXT|111111111111111111111"),
+        ("111111111111111111111", "b.zone-1.example.com.|TXT|111111111111111111111"),
+        ("2222222222222222222", "a.zone-2.example.com.|TXT|2222222222222222222"),
     }
     assert check_rels(
         neo4j_session,
@@ -262,7 +276,20 @@ def test_sync_dns_records(mock_get_zones, mock_get_rrs, neo4j_session):
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        (TEST_PROJECT_ID, "a.zone-1.example.com."),
-        (TEST_PROJECT_ID, "b.zone-1.example.com."),
-        (TEST_PROJECT_ID, "a.zone-2.example.com."),
+        (TEST_PROJECT_NUMBER, "a.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_NUMBER, "b.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_NUMBER, "a.zone-2.example.com.|TXT|2222222222222222222"),
+    }
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPRecordSet",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_PROJECT_ID, "a.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_ID, "b.zone-1.example.com.|TXT|111111111111111111111"),
+        (TEST_PROJECT_ID, "a.zone-2.example.com.|TXT|2222222222222222222"),
     }

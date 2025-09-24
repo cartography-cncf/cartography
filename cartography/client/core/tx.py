@@ -19,6 +19,17 @@ from cartography.util import batch
 logger = logging.getLogger(__name__)
 
 
+def run_write_query(
+    neo4j_session: neo4j.Session, query: str, **parameters: Any
+) -> None:
+    """Execute a write query inside a managed transaction."""
+
+    def _run_query_tx(tx: neo4j.Transaction) -> None:
+        tx.run(query, **parameters).consume()
+
+    neo4j_session.execute_write(_run_query_tx)
+
+
 def read_list_of_values_tx(
     tx: neo4j.Transaction,
     query: str,

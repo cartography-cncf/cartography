@@ -8,6 +8,7 @@ import dns.rdatatype
 import dns.resolver
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -104,7 +105,8 @@ def _link_ip_to_A_record(
     SET r.lastupdated = $update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         ParentId=parent_record,
         IP_LIST=ip_list,
@@ -151,7 +153,8 @@ def ingest_dns_record(
 
     record_id = f"{name}+{type}"
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         template.safe_substitute(
             record_label=record_label,
             dns_node_additional_label=dns_node_additional_label,
