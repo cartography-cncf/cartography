@@ -4,7 +4,7 @@ from cartography.rules.spec.model import Provider
 aws_rds_public_access = Fact(
     id="aws_rds_public_access",
     name="Internet-Accessible RDS Database Attack Surface",
-    description="AWS RDS instances accessible from the internet that provide attack surface for public-facing application exploitation",
+    description="AWS RDS instances accessible from the internet",
     cypher_query="""
     MATCH (rds:RDSInstance)
     WHERE rds.publicly_accessible = true
