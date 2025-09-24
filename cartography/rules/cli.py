@@ -136,7 +136,7 @@ def main(argv=None):
     logging.getLogger("neo4j").setLevel(logging.ERROR)
 
     argv = argv if argv is not None else sys.argv[1:]
-    return CLI(prog="cartography-rules").main(argv)
+    return CLI(prog="cartography-runrules").main(argv)
 
 
 if __name__ == "__main__":
