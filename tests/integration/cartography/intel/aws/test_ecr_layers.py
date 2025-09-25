@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import pytest
 
-import cartography.intel.aws.ecr as ecr
+import cartography.intel.aws.ecr_image_layers as ecr_layers
 import tests.data.aws.ecr as test_data
-from cartography.intel.aws.ecr import sync as sync_ecr
+from cartography.intel.aws.ecr_image_layers import sync as sync_ecr_layers
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -41,7 +41,7 @@ def test_transform_ecr_image_layers():
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:2": "sha256:digest2",
     }
 
-    layers, memberships = ecr.transform_ecr_image_layers(
+    layers, memberships = ecr_layers.transform_ecr_image_layers(
         image_layers_data,
         image_digest_map,
     )
@@ -96,7 +96,7 @@ def test_transform_ecr_image_layers():
 def test_parse_image_uri():
     """Test the parse_image_uri function."""
     # Test with tag
-    region, repo, ref = ecr.parse_image_uri(
+    region, repo, ref = ecr_layers.parse_image_uri(
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest"
     )
     assert region == "us-east-1"
@@ -104,7 +104,7 @@ def test_parse_image_uri():
     assert ref == "latest"
 
     # Test with digest
-    region, repo, ref = ecr.parse_image_uri(
+    region, repo, ref = ecr_layers.parse_image_uri(
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository@sha256:abc123"
     )
     assert region == "us-east-1"
@@ -112,7 +112,7 @@ def test_parse_image_uri():
     assert ref == "sha256:abc123"
 
     # Test without tag or digest (defaults to latest)
-    region, repo, ref = ecr.parse_image_uri(
+    region, repo, ref = ecr_layers.parse_image_uri(
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     )
     assert region == "us-east-1"
@@ -120,14 +120,14 @@ def test_parse_image_uri():
     assert ref == "latest"
 
 
-@patch("cartography.intel.aws.ecr.get_ecr_repositories")
-@patch("cartography.intel.aws.ecr.get_ecr_repository_images")
-@patch("cartography.intel.aws.ecr.batch_get_manifest")
-@patch("cartography.intel.aws.ecr.get_blob_json_via_presigned")
+@patch("cartography.intel.aws.ecr_image_layers.get_ecr_repositories")
+@patch("cartography.intel.aws.ecr_image_layers._get_image_data")
+@patch("cartography.intel.aws.ecr_image_layers.batch_get_manifest")
+@patch("cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned")
 def test_sync_with_layers(
     mock_get_blob,
     mock_batch_get_manifest,
-    mock_get_images,
+    mock_get_image_data,
     mock_get_repos,
     neo4j_session,
 ):
@@ -140,15 +140,17 @@ def test_sync_with_layers(
             :1
         ]
 
-        # Mock image data
-        mock_get_images.return_value = [
-            {
-                "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-                "imageTag": "1",
-                "repositoryName": "example-repository",
-                **test_data.DESCRIBE_IMAGES["imageDetails"],
-            }
-        ]
+        # Mock image data - _get_image_data returns a dict mapping repo URIs to image lists
+        mock_get_image_data.return_value = {
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository": [
+                {
+                    "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "imageTag": "1",
+                    "repositoryName": "example-repository",
+                    **test_data.DESCRIBE_IMAGES["imageDetails"],
+                }
+            ]
+        }
 
         # Mock manifest retrieval
         mock_batch_get_manifest.return_value = (
@@ -168,8 +170,8 @@ def test_sync_with_layers(
             test_data.GET_DOWNLOAD_URL_RESPONSE
         )
 
-        # Run sync
-        sync_ecr(
+        # Run sync with layer support
+        sync_ecr_layers(
             neo4j_session,
             boto3_session,
             [TEST_REGION],
@@ -362,7 +364,7 @@ def test_transform_layers_creates_graph_structure():
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/api-service:v1": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
     }
 
-    layers, memberships = ecr.transform_ecr_image_layers(
+    layers, memberships = ecr_layers.transform_ecr_image_layers(
         image_layers_data,
         image_digest_map,
     )
@@ -462,7 +464,7 @@ def test_shared_layers_preserve_multiple_next_edges():
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-b:v1": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
     }
 
-    layers, memberships = ecr.transform_ecr_image_layers(
+    layers, memberships = ecr_layers.transform_ecr_image_layers(
         image_layers_data,
         image_digest_map,
     )
@@ -510,11 +512,11 @@ def test_shared_layers_preserve_multiple_next_edges():
 
 
 def test_transform_marks_empty_layer():
-    layers, _ = ecr.transform_ecr_image_layers(
+    layers, _ = ecr_layers.transform_ecr_image_layers(
         {
             "repo/image:tag": {
                 "linux/amd64": [
-                    ecr.EMPTY_LAYER_DIFF_ID,
+                    ecr_layers.EMPTY_LAYER_DIFF_ID,
                     "sha256:abcdef0123456789",
                 ],
             },
@@ -523,7 +525,7 @@ def test_transform_marks_empty_layer():
     )
 
     empty_layer = next(
-        layer for layer in layers if layer["diff_id"] == ecr.EMPTY_LAYER_DIFF_ID
+        layer for layer in layers if layer["diff_id"] == ecr_layers.EMPTY_LAYER_DIFF_ID
     )
     non_empty_layer = next(
         layer for layer in layers if layer["diff_id"] == "sha256:abcdef0123456789"
@@ -534,8 +536,11 @@ def test_transform_marks_empty_layer():
 
 
 @pytest.mark.asyncio
-@patch("cartography.intel.aws.ecr.get_blob_json_via_presigned", new_callable=AsyncMock)
-@patch("cartography.intel.aws.ecr.batch_get_manifest")
+@patch(
+    "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
+    new_callable=AsyncMock,
+)
+@patch("cartography.intel.aws.ecr_image_layers.batch_get_manifest")
 async def test_fetch_image_layers_async_handles_manifest_list(
     mock_batch_get_manifest,
     mock_get_blob_json,
@@ -547,18 +552,21 @@ async def test_fetch_image_layers_async_handles_manifest_list(
     }
 
     manifest_lookup = {
-        repo_image["imageDigest"]: (test_data.MULTI_ARCH_INDEX, ecr.ECR_OCI_INDEX_MT),
+        repo_image["imageDigest"]: (
+            test_data.MULTI_ARCH_INDEX,
+            ecr_layers.ECR_OCI_INDEX_MT,
+        ),
         "sha256:1111111111111111111111111111111111111111111111111111111111111111": (
             test_data.MULTI_ARCH_AMD64_MANIFEST,
-            ecr.ECR_OCI_MANIFEST_MT,
+            ecr_layers.ECR_OCI_MANIFEST_MT,
         ),
         "sha256:2222222222222222222222222222222222222222222222222222222222222222": (
             test_data.MULTI_ARCH_ARM64_MANIFEST,
-            ecr.ECR_OCI_MANIFEST_MT,
+            ecr_layers.ECR_OCI_MANIFEST_MT,
         ),
         "sha256:3333333333333333333333333333333333333333333333333333333333333333": (
             test_data.ATTESTATION_MANIFEST,
-            ecr.ECR_OCI_MANIFEST_MT,
+            ecr_layers.ECR_OCI_MANIFEST_MT,
         ),
     }
 
@@ -580,7 +588,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map = await ecr.fetch_image_layers_async(
+    image_layers_data, digest_map = await ecr_layers.fetch_image_layers_async(
         MagicMock(),
         [repo_image],
         max_concurrent=1,
@@ -596,8 +604,11 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
 
 @pytest.mark.asyncio
-@patch("cartography.intel.aws.ecr.get_blob_json_via_presigned", new_callable=AsyncMock)
-@patch("cartography.intel.aws.ecr.batch_get_manifest")
+@patch(
+    "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
+    new_callable=AsyncMock,
+)
+@patch("cartography.intel.aws.ecr_image_layers.batch_get_manifest")
 async def test_fetch_image_layers_async_skips_attestation_only(
     mock_batch_get_manifest,
     mock_get_blob_json,
@@ -610,10 +621,10 @@ async def test_fetch_image_layers_async_skips_attestation_only(
 
     mock_batch_get_manifest.return_value = (
         test_data.ATTESTATION_MANIFEST,
-        ecr.ECR_OCI_MANIFEST_MT,
+        ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map = await ecr.fetch_image_layers_async(
+    image_layers_data, digest_map = await ecr_layers.fetch_image_layers_async(
         MagicMock(),
         [repo_image],
         max_concurrent=1,
