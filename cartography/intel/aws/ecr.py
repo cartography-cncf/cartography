@@ -25,6 +25,11 @@ from cartography.util import to_synchronous
 logger = logging.getLogger(__name__)
 
 
+EMPTY_LAYER_DIFF_ID = (
+    "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+)
+
+
 @timeit
 @aws_handle_regions
 def get_ecr_repositories(
@@ -137,7 +142,7 @@ def load_ecr_repository_images(
         f"Loading {len(repo_images_list)} ECR repository images in {region} into graph.",
     )
     image_digests = {img["imageDigest"] for img in repo_images_list}
-    ecr_images = [{"imageDigest": d} for d in image_digests]
+    ecr_images = [{"imageDigest": d, "layer_diff_ids": []} for d in image_digests]
 
     load(
         neo4j_session,
@@ -306,7 +311,7 @@ async def _diff_ids_for_manifest(
 def transform_ecr_image_layers(
     image_layers_data: Dict[str, Dict[str, List[str]]],
     image_digest_map: Dict[str, str],
-) -> List[Dict]:
+) -> Tuple[List[Dict], List[Dict]]:
     """
     Transform image layer data into format suitable for Neo4j ingestion.
     Creates linked list structure with NEXT relationships and HEAD/TAIL markers.
@@ -317,6 +322,8 @@ def transform_ecr_image_layers(
     """
     layers: List[Dict[str, Any]] = []
     processed_diff_ids = set()
+    memberships: List[Dict[str, Any]] = []
+    membership_keys: set[Tuple[str]] = set()
 
     for image_uri, platforms in sorted(image_layers_data.items()):
         image_digest = image_digest_map.get(image_uri)
@@ -324,14 +331,22 @@ def transform_ecr_image_layers(
             logger.warning(f"No digest found for image {image_uri}")
             continue
 
+        ordered_layers_for_image: Optional[List[str]] = None
+
         for platform, diff_ids in sorted(platforms.items()):
             if not diff_ids:
                 continue
 
+            if ordered_layers_for_image is None:
+                ordered_layers_for_image = list(diff_ids)
+
             # Process each layer in the chain
             for i, diff_id in enumerate(diff_ids):
                 if diff_id not in processed_diff_ids:
-                    layer: Dict[str, Any] = {"diff_id": diff_id}
+                    layer: Dict[str, Any] = {
+                        "diff_id": diff_id,
+                        "is_empty": diff_id == EMPTY_LAYER_DIFF_ID,
+                    }
 
                     # Add NEXT relationship if not the last layer
                     if i < len(diff_ids) - 1:
@@ -352,6 +367,10 @@ def transform_ecr_image_layers(
                     # Layer already processed, update relationships
                     for layer in layers:
                         if layer["diff_id"] == diff_id:
+                            layer.setdefault(
+                                "is_empty",
+                                diff_id == EMPTY_LAYER_DIFF_ID,
+                            )
                             # Add NEXT relationship if not the last layer
                             if i < len(diff_ids) - 1:
                                 next_layer = diff_ids[i + 1]
@@ -378,7 +397,18 @@ def transform_ecr_image_layers(
                                     layer["tail_image_ids"] = [image_digest]
                             break
 
-    return layers
+        if ordered_layers_for_image:
+            membership_key = (image_digest,)
+            if membership_key not in membership_keys:
+                memberships.append(
+                    {
+                        "imageDigest": image_digest,
+                        "layer_diff_ids": ordered_layers_for_image,
+                    }
+                )
+                membership_keys.add(membership_key)
+
+    return layers, memberships
 
 
 @timeit
@@ -401,6 +431,27 @@ def load_ecr_image_layers(
         neo4j_session,
         ImageLayerSchema(),
         image_layers,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def load_ecr_image_layer_memberships(
+    neo4j_session: neo4j.Session,
+    memberships: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    if not memberships:
+        return
+
+    load(
+        neo4j_session,
+        ECRImageSchema(),
+        memberships,
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
@@ -641,10 +692,20 @@ def sync(
                 logger.info(
                     f"Successfully fetched layers for {len(image_layers_data)} images"
                 )
-                layers = transform_ecr_image_layers(image_layers_data, image_digest_map)
+                layers, memberships = transform_ecr_image_layers(
+                    image_layers_data,
+                    image_digest_map,
+                )
                 load_ecr_image_layers(
                     neo4j_session,
                     layers,
+                    region,
+                    current_aws_account_id,
+                    update_tag,
+                )
+                load_ecr_image_layer_memberships(
+                    neo4j_session,
+                    memberships,
                     region,
                     current_aws_account_id,
                     update_tag,
