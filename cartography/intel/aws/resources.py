@@ -89,7 +89,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "ec2:volumes": sync_ebs_volumes,
     "ec2:snapshots": sync_ebs_snapshots,
     "ecr": ecr.sync,
-    "ecr:image-layers": ecr_image_layers.sync,
+    "ecr:image_layers": ecr_image_layers.sync,
     "ecs": ecs.sync,
     "eks": eks.sync,
     "elasticache": elasticache.sync,
