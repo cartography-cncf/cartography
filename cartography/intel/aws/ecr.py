@@ -58,7 +58,7 @@ def get_ecr_repository_images(
         for response in describe_response:
             image_details = response["imageDetails"]
             for detail in image_details:
-                tags = detail.get("imageTags", [])
+                tags = detail.get("imageTags") or []
                 if tags:
                     for tag in tags:
                         image_detail = {**detail, "imageTag": tag}
@@ -104,7 +104,7 @@ def transform_ecr_repository_images(repo_data: Dict) -> List[Dict]:
             digest = img.get("imageDigest")
             if digest:
                 tag = img.get("imageTag")
-                uri = f"{repo_uri}:{tag}" if tag else repo_uri
+                uri = repo_uri + (f":{tag}" if tag else "")
                 img["repo_uri"] = repo_uri
                 img["uri"] = uri
                 img["id"] = uri
@@ -131,7 +131,7 @@ def load_ecr_repository_images(
         f"Loading {len(repo_images_list)} ECR repository images in {region} into graph.",
     )
     image_digests = {img["imageDigest"] for img in repo_images_list}
-    ecr_images = [{"imageDigest": d, "layer_diff_ids": []} for d in image_digests]
+    ecr_images = [{"imageDigest": d} for d in image_digests]
 
     load(
         neo4j_session,
@@ -202,7 +202,6 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
-    """Sync ECR repositories and images without layer information (fast)."""
     for region in regions:
         logger.info(
             "Syncing ECR for region '%s' in account '%s'.",
@@ -228,5 +227,4 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
-
     cleanup(neo4j_session, common_job_parameters)
