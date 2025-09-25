@@ -93,63 +93,61 @@ def test_transform_ecr_image_layers():
     assert membership_tuples == expected_memberships
 
 
-def test_parse_image_uri():
-    """Test the parse_image_uri function."""
-    # Test with tag
-    region, repo, ref = ecr_layers.parse_image_uri(
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest"
-    )
-    assert region == "us-east-1"
-    assert repo == "example-repository"
-    assert ref == "latest"
-
-    # Test with digest
-    region, repo, ref = ecr_layers.parse_image_uri(
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository@sha256:abc123"
-    )
-    assert region == "us-east-1"
-    assert repo == "example-repository"
-    assert ref == "sha256:abc123"
-
-    # Test without tag or digest (defaults to latest)
-    region, repo, ref = ecr_layers.parse_image_uri(
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
-    )
-    assert region == "us-east-1"
-    assert repo == "example-repository"
-    assert ref == "latest"
-
-
-@patch("cartography.intel.aws.ecr_image_layers.get_ecr_repositories")
-@patch("cartography.intel.aws.ecr_image_layers._get_image_data")
+@patch("cartography.client.aws.ecr.get_ecr_images")
 @patch("cartography.intel.aws.ecr_image_layers.batch_get_manifest")
 @patch("cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned")
 def test_sync_with_layers(
     mock_get_blob,
     mock_batch_get_manifest,
-    mock_get_image_data,
-    mock_get_repos,
+    mock_get_ecr_images,
     neo4j_session,
 ):
-    """Test ECR sync with image layer support."""
+    """Test ECR sync with image layer support using graph-based approach."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        # Mock repository data
-        mock_get_repos.return_value = test_data.DESCRIBE_REPOSITORIES["repositories"][
-            :1
+        # First, create the basic ECR data that would normally be created by 'ecr' module
+        from cartography.intel.aws.ecr import load_ecr_repositories
+        from cartography.intel.aws.ecr import load_ecr_repository_images
+
+        # Create minimal test data
+        mock_repositories = test_data.DESCRIBE_REPOSITORIES["repositories"][:1]
+        uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1"
+        mock_repo_images = [
+            {
+                "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "imageTag": "1",
+                "uri": uri,
+                "id": uri,
+                "repo_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository",
+                **test_data.DESCRIBE_IMAGES["imageDetails"],
+            }
         ]
 
-        # Mock image data - _get_image_data returns a dict mapping repo URIs to image lists
-        mock_get_image_data.return_value = {
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository": [
-                {
-                    "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-                    "imageTag": "1",
-                    "repositoryName": "example-repository",
-                    **test_data.DESCRIBE_IMAGES["imageDetails"],
-                }
-            ]
+        load_ecr_repositories(
+            neo4j_session,
+            mock_repositories,
+            TEST_REGION,
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+        )
+        load_ecr_repository_images(
+            neo4j_session,
+            mock_repo_images,
+            TEST_REGION,
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+        )
+
+        # Mock images from graph
+        mock_get_ecr_images.return_value = {
+            (
+                "us-east-1",
+                "1",
+                "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
+                "example-repository",
+                "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            )
         }
 
         # Mock manifest retrieval

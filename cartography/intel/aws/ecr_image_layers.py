@@ -21,15 +21,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ecr import _get_image_data
-from cartography.intel.aws.ecr import get_ecr_repositories
-from cartography.intel.aws.ecr import load_ecr_repositories
-from cartography.intel.aws.ecr import load_ecr_repository_images
-from cartography.intel.aws.ecr import transform_ecr_repository_images
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.image_layer import ImageLayerSchema
-from cartography.models.aws.ecr.repository import ECRRepositorySchema
-from cartography.models.aws.ecr.repository_image import ECRRepositoryImageSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -91,44 +84,6 @@ def _format_platform(
     if variant:
         components.append(variant)
     return "/".join(components)
-
-
-def parse_image_uri(image_uri: str) -> Tuple[str, str, str]:
-    """Parse ECR image URI into region, repository name, and reference (tag or digest).
-
-    :param image_uri: ECR image URI in format: {account}.dkr.ecr.{region}.amazonaws.com/{repo}:{tag}
-    :return: Tuple of (region, repository_name, reference)
-    :raises ValueError: If the image URI is malformed
-    """
-    if not image_uri or "/" not in image_uri:
-        raise ValueError(f"Invalid image URI format: {image_uri}")
-
-    try:
-        registry, rest = image_uri.split("/", 1)
-    except ValueError:
-        raise ValueError(f"Invalid image URI format: {image_uri}")
-
-    # Parse registry to extract region
-    registry_parts = registry.split(".")
-    if len(registry_parts) < 6 or "ecr" not in registry_parts:
-        raise ValueError(f"Invalid ECR registry format: {registry}")
-
-    region = registry_parts[3]
-
-    # Parse repository and reference (tag or digest)
-    if "@sha256:" in rest:
-        repo, ref = rest.split("@", 1)
-    elif ":" in rest:
-        repo, ref = rest.rsplit(":", 1)
-    else:
-        repo = rest
-        ref = "latest"
-
-    # Normalize sha256 references
-    if ref.startswith("sha256:"):
-        ref = f"sha256:{ref.split(':', 1)[1]}"
-
-    return region, repo, ref
 
 
 def batch_get_manifest(
@@ -370,11 +325,16 @@ async def fetch_image_layers_async(
     max_concurrent: int = 20,
 ) -> Tuple[Dict[str, Dict[str, List[str]]], Dict[str, str]]:
     """
-    Fetch image layers for ECR images in parallel.
+    Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
     """
     image_layers_data = {}
     image_digest_map = {}
     semaphore = asyncio.Semaphore(max_concurrent)
+
+    # Cache for manifest fetches keyed by (repo_name, imageDigest)
+    manifest_cache: Dict[Tuple[str, str], Tuple[Dict, str]] = {}
+    # Lock for thread-safe cache access
+    cache_lock = asyncio.Lock()
 
     async def fetch_single_image_layers(
         repo_image: Dict,
@@ -396,13 +356,23 @@ async def fetch_image_layers_async(
                     return None
                 repo_name = parts[1]
 
-                # Get manifest
-                doc, media_type = batch_get_manifest(
-                    ecr_client,
-                    repo_name,
-                    digest,
-                    ALL_ACCEPTED,
-                )
+                # Check cache for manifest to avoid duplicate fetches
+                cache_key = (repo_name, digest)
+                async with cache_lock:
+                    if cache_key in manifest_cache:
+                        doc, media_type = manifest_cache[cache_key]
+                    else:
+                        # Get manifest using non-blocking I/O
+                        doc, media_type = await asyncio.to_thread(
+                            batch_get_manifest,
+                            ecr_client,
+                            repo_name,
+                            digest,
+                            ALL_ACCEPTED,
+                        )
+                        # Cache the result for potential reuse
+                        manifest_cache[cache_key] = (doc, media_type)
+
                 if not doc:
                     return None
 
@@ -426,12 +396,24 @@ async def fetch_image_layers_async(
                         if not child_digest:
                             continue
 
-                        child_doc, _ = batch_get_manifest(
-                            ecr_client,
-                            repo_name,
-                            child_digest,
-                            [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
-                        )
+                        # Check cache for child manifest
+                        child_cache_key = (repo_name, child_digest)
+                        async with cache_lock:
+                            if child_cache_key in manifest_cache:
+                                child_doc, _ = manifest_cache[child_cache_key]
+                            else:
+                                child_doc, child_media_type = await asyncio.to_thread(
+                                    batch_get_manifest,
+                                    ecr_client,
+                                    repo_name,
+                                    child_digest,
+                                    [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
+                                )
+                                # Cache the child manifest result
+                                manifest_cache[child_cache_key] = (
+                                    child_doc,
+                                    child_media_type,
+                                )
                         if not child_doc:
                             continue
 
@@ -500,17 +482,7 @@ async def fetch_image_layers_async(
 
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    """Run ECR cleanup including image layer cleanup."""
-    logger.debug("Running ECR cleanup job including image layers.")
-    GraphJob.from_node_schema(ECRRepositorySchema(), common_job_parameters).run(
-        neo4j_session
-    )
-    GraphJob.from_node_schema(ECRRepositoryImageSchema(), common_job_parameters).run(
-        neo4j_session
-    )
-    GraphJob.from_node_schema(ECRImageSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    logger.debug("Running image layer cleanup job.")
     GraphJob.from_node_schema(ImageLayerSchema(), common_job_parameters).run(
         neo4j_session
     )
@@ -526,9 +498,12 @@ def sync(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Sync ECR image layers. This fetches detailed layer information for all ECR images.
+    Sync ECR image layers. This fetches detailed layer information for ECR images
+    that already exist in the graph.
 
-    Note: This also syncs basic ECR repositories and images to ensure data consistency.
+    Prerequisites: Basic ECR data (repositories and images) must already be loaded
+    via the 'ecr' module before running this.
+
     Layer fetching can be slow for accounts with many container images.
     """
 
@@ -539,28 +514,49 @@ def sync(
             current_aws_account_id,
         )
 
-        # First sync basic ECR data (repositories and images)
-        repositories = get_ecr_repositories(boto3_session, region)
-        image_data = _get_image_data(boto3_session, region, repositories)
+        # Get ECR images from graph using standard client function
+        from cartography.client.aws.ecr import get_ecr_images
 
-        load_ecr_repositories(
-            neo4j_session,
-            repositories,
-            region,
-            current_aws_account_id,
-            update_tag,
+        ecr_images = get_ecr_images(neo4j_session, current_aws_account_id)
+
+        # Filter by region and deduplicate by digest
+        repo_images_list = []
+        seen_digests = set()
+
+        for region_name, _, uri, _, digest in ecr_images:
+            if region_name == region and digest not in seen_digests:
+                seen_digests.add(digest)
+                # Extract repo_uri by removing tag/digest from URI
+                if "@sha256:" in uri:
+                    repo_uri = uri.split("@", 1)[0]
+                elif ":" in uri:
+                    repo_uri = uri.rsplit(":", 1)[0]
+                else:
+                    repo_uri = uri
+
+                # Create digest-based URI for manifest fetching
+                digest_uri = f"{repo_uri}@{digest}"
+
+                repo_images_list.append(
+                    {
+                        "imageDigest": digest,
+                        "uri": digest_uri,
+                        "repo_uri": repo_uri,
+                    }
+                )
+
+        logger.info(
+            f"Found {len(repo_images_list)} distinct ECR image digests in graph for region {region}"
         )
 
-        repo_images_list = transform_ecr_repository_images(image_data)
-        load_ecr_repository_images(
-            neo4j_session,
-            repo_images_list,
-            region,
-            current_aws_account_id,
-            update_tag,
-        )
+        if not repo_images_list:
+            logger.warning(
+                f"No ECR images found in graph for region {region}. "
+                f"Run 'ecr' sync first to populate basic ECR data."
+            )
+            continue
 
-        # Now fetch and load image layers
+        # Fetch and load image layers
         ecr_client = boto3_session.client("ecr", region_name=region)
 
         if repo_images_list:
