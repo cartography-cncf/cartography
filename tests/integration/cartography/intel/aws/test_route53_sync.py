@@ -39,6 +39,18 @@ def test_sync_route53(mock_get_zones, neo4j_session):
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_ec2_records(neo4j_session)
 
+    # Create IP nodes that DNS records will point to
+    neo4j_session.run(
+        """
+        UNWIND $ip_addresses as ip
+        MERGE (ip_node:Ip{id: ip})
+        ON CREATE SET ip_node.firstseen = timestamp(), ip_node.ip = ip
+        SET ip_node.lastupdated = $update_tag
+        """,
+        ip_addresses=["1.2.3.4", "5.6.7.8", "9.10.11.12", "2001:db8::1", "2001:db8::2"],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
     # Act
     sync(
         neo4j_session,
@@ -126,7 +138,10 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE",
         ),
         ("/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS", "/hostedzone/HOSTED_ZONE"),
-        ("/hostedzone/HOSTED_ZONE/aliasv6.example.com/ALIAS_AAAA", "/hostedzone/HOSTED_ZONE"),
+        (
+            "/hostedzone/HOSTED_ZONE/aliasv6.example.com/ALIAS_AAAA",
+            "/hostedzone/HOSTED_ZONE",
+        ),
         (
             "/hostedzone/HOSTED_ZONE/www.example.com/WEIGHTED_CNAME",
             "/hostedzone/HOSTED_ZONE",
