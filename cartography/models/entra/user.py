@@ -50,7 +50,7 @@ class EntraTenantToUserRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 # (:EntraUser)<-[:RESOURCE]-(:AzureTenant)
 class EntraUserToTenantRel(CartographyRelSchema):
-    target_node_label: str = "AzureTenant"
+    target_node_label: str = "AzureTenant"  # Shouldn't this be EntraTenant?
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )

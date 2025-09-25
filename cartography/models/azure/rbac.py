@@ -44,8 +44,20 @@ class AzureRoleDefinitionProperties(CartographyNodeProperties):
     type: PropertyRef = PropertyRef("type")
     role_name: PropertyRef = PropertyRef("roleName")
     description: PropertyRef = PropertyRef("description")
-    permissions: PropertyRef = PropertyRef("permissions")
     assignable_scopes: PropertyRef = PropertyRef("assignableScopes")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    subscription_id: PropertyRef = PropertyRef(
+        "AZURE_SUBSCRIPTION_ID", set_in_kwargs=True
+    )
+
+
+@dataclass(frozen=True)
+class AzurePermissionsProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("id")
+    actions: PropertyRef = PropertyRef("actions")
+    not_actions: PropertyRef = PropertyRef("not_actions")
+    data_actions: PropertyRef = PropertyRef("data_actions")
+    not_data_actions: PropertyRef = PropertyRef("not_data_actions")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     subscription_id: PropertyRef = PropertyRef(
         "AZURE_SUBSCRIPTION_ID", set_in_kwargs=True
@@ -83,6 +95,16 @@ class AzureRoleAssignmentToRoleDefinitionRelProperties(CartographyRelProperties)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+@dataclass(frozen=True)
+class AzureRoleDefinitionToPermissionsRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzurePermissionsToSubscriptionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
 # Standard Relationships
 @dataclass(frozen=True)
 class AzureRoleAssignmentToSubscriptionRel(CartographyRelSchema):
@@ -115,6 +137,22 @@ class AzureRoleDefinitionToSubscriptionRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AzureRoleAssignmentToRoleDefinitionRel(CartographyRelSchema):
+    target_node_label: str = "AzureRoleDefinition"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("roleDefinitionId"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROLE_ASSIGNED"
+    properties: AzureRoleAssignmentToRoleDefinitionRelProperties = (
+        AzureRoleAssignmentToRoleDefinitionRelProperties()
+    )
+
+
+# Relationships from Azure Role Assignment to Entra Principals
+@dataclass(frozen=True)
 class AzureRoleAssignmentToEntraUserRel(CartographyRelSchema):
     target_node_label: str = "EntraUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -122,7 +160,7 @@ class AzureRoleAssignmentToEntraUserRel(CartographyRelSchema):
             "id": PropertyRef("principalId"),
         }
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_ROLE_ASSIGNMENT"
     properties: AzureRoleAssignmentToEntraUserRelProperties = (
         AzureRoleAssignmentToEntraUserRelProperties()
@@ -137,7 +175,7 @@ class AzureRoleAssignmentToEntraGroupRel(CartographyRelSchema):
             "id": PropertyRef("principalId"),
         }
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_ROLE_ASSIGNMENT"
     properties: AzureRoleAssignmentToEntraGroupRelProperties = (
         AzureRoleAssignmentToEntraGroupRelProperties()
@@ -152,7 +190,7 @@ class AzureRoleAssignmentToEntraApplicationRel(CartographyRelSchema):
             "service_principal_id": PropertyRef("principalId"),
         }
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_ROLE_ASSIGNMENT"
     properties: AzureRoleAssignmentToEntraApplicationRelProperties = (
         AzureRoleAssignmentToEntraApplicationRelProperties()
@@ -160,17 +198,32 @@ class AzureRoleAssignmentToEntraApplicationRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AzureRoleAssignmentToRoleDefinitionRel(CartographyRelSchema):
-    target_node_label: str = "AzureRoleDefinition"
+class AzureRoleDefinitionToPermissionsRel(CartographyRelSchema):
+    target_node_label: str = "AzurePermissions"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("roleDefinitionId"),
+            "id": PropertyRef("permission_ids", one_to_many=True),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "ASSIGNED_ROLE"
-    properties: AzureRoleAssignmentToRoleDefinitionRelProperties = (
-        AzureRoleAssignmentToRoleDefinitionRelProperties()
+    rel_label: str = "HAS_PERMISSIONS"
+    properties: AzureRoleDefinitionToPermissionsRelProperties = (
+        AzureRoleDefinitionToPermissionsRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzurePermissionsToSubscriptionRel(CartographyRelSchema):
+    target_node_label: str = "AzureSubscription"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AzurePermissionsToSubscriptionRelProperties = (
+        AzurePermissionsToSubscriptionRelProperties()
     )
 
 
@@ -198,4 +251,18 @@ class AzureRoleDefinitionSchema(CartographyNodeSchema):
     properties: AzureRoleDefinitionProperties = AzureRoleDefinitionProperties()
     sub_resource_relationship: AzureRoleDefinitionToSubscriptionRel = (
         AzureRoleDefinitionToSubscriptionRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AzureRoleDefinitionToPermissionsRel(),
+        ]
+    )
+
+
+@dataclass(frozen=True)
+class AzurePermissionsSchema(CartographyNodeSchema):
+    label: str = "AzurePermissions"
+    properties: AzurePermissionsProperties = AzurePermissionsProperties()
+    sub_resource_relationship: AzurePermissionsToSubscriptionRel = (
+        AzurePermissionsToSubscriptionRel()
     )
