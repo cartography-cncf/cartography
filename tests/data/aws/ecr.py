@@ -284,3 +284,92 @@ BUILDKIT_CACHE_MANIFEST = {
         }
     ],
 }
+
+
+# Multi-arch fixtures shaped like AWS CLI responses
+MULTI_ARCH_INDEX = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.index.v1+json",
+    "manifests": [
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "size": 2198,
+            "platform": {"architecture": "amd64", "os": "linux"},
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "size": 2198,
+            "platform": {"architecture": "arm64", "os": "linux", "variant": "v8"},
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "size": 566,
+            "annotations": {
+                "vnd.docker.reference.type": "attestation-manifest",
+                "vnd.docker.reference.digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            },
+            "platform": {"architecture": "unknown", "os": "unknown"},
+        },
+    ],
+}
+
+MULTI_ARCH_AMD64_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "config": {
+        "mediaType": "application/vnd.oci.image.config.v1+json",
+        "digest": "sha256:aaaabbbbccccddddeeeeffff0000111122223333444455556666777788889999",
+        "size": 7404,
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:layeramd640000000000000000000000000000000000000000000000000000001",
+            "size": 28227259,
+        }
+    ],
+}
+
+MULTI_ARCH_ARM64_MANIFEST = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "config": {
+        "mediaType": "application/vnd.oci.image.config.v1+json",
+        "digest": "sha256:9999888877776666555544443333222211110000fffedddcccbbbbaaa9998888",
+        "size": 7403,
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:layerarm640000000000000000000000000000000000000000000000000000001",
+            "size": 28066320,
+        }
+    ],
+}
+
+MULTI_ARCH_AMD64_CONFIG = {
+    "architecture": "amd64",
+    "os": "linux",
+    "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+            "sha256:diffamd6400000000000000000000000000000000000000000000000000000001",
+            "sha256:diffamd6400000000000000000000000000000000000000000000000000000002",
+        ],
+    },
+}
+
+MULTI_ARCH_ARM64_CONFIG = {
+    "architecture": "arm64",
+    "os": "linux",
+    "variant": "v8",
+    "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+            "sha256:diffarm6400000000000000000000000000000000000000000000000000000001",
+        ],
+    },
+}

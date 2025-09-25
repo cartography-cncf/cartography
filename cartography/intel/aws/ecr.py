@@ -170,6 +170,20 @@ ALL_ACCEPTED = [
     ECR_DOCKER_MANIFEST_MT,
 ]
 
+INDEX_MEDIA_TYPES = {ECR_OCI_INDEX_MT, ECR_DOCKER_INDEX_MT}
+INDEX_MEDIA_TYPES_LOWER = {mt.lower() for mt in INDEX_MEDIA_TYPES}
+
+
+def _format_platform(
+    os_name: Optional[str],
+    architecture: Optional[str],
+    variant: Optional[str] = None,
+) -> str:
+    components = [os_name or "unknown", architecture or "unknown"]
+    if variant:
+        components.append(variant)
+    return "/".join(components)
+
 
 def parse_image_uri(image_uri: str) -> Tuple[str, str, str]:
     """Parse ECR image URI into region, repository name, and reference (tag or digest)."""
@@ -234,6 +248,58 @@ async def get_blob_json_via_presigned(
     except Exception as e:
         logger.debug(f"Failed to get blob {digest} for {repo}: {e}")
         return {}
+
+
+async def _diff_ids_for_manifest(
+    ecr_client: Any,
+    repo_name: str,
+    manifest_doc: Dict[str, Any],
+    http_client: httpx.AsyncClient,
+    platform_hint: Optional[str],
+) -> Dict[str, List[str]]:
+    config = manifest_doc.get("config") or {}
+    config_media_type = (config.get("mediaType") or "").lower()
+
+    if any(
+        skip_fragment in config_media_type
+        for skip_fragment in ("buildkit", "attestation", "in-toto")
+    ):
+        return {}
+
+    layers = manifest_doc.get("layers") or []
+    if layers and all(
+        "in-toto" in (layer.get("mediaType") or "").lower() for layer in layers
+    ):
+        return {}
+
+    cfg_digest = config.get("digest")
+    if not cfg_digest:
+        return {}
+
+    cfg_json = await get_blob_json_via_presigned(
+        ecr_client,
+        repo_name,
+        cfg_digest,
+        http_client,
+    )
+    if not cfg_json:
+        return {}
+
+    rootfs = cfg_json.get("rootfs") or cfg_json.get("RootFS") or {}
+    diff_ids = rootfs.get("diff_ids") or rootfs.get("DiffIDs") or []
+    if not diff_ids:
+        return {}
+
+    if platform_hint:
+        platform = platform_hint
+    else:
+        platform = _format_platform(
+            cfg_json.get("os") or cfg_json.get("OS"),
+            cfg_json.get("architecture") or cfg_json.get("Architecture"),
+            cfg_json.get("variant") or cfg_json.get("Variant"),
+        )
+
+    return {platform: diff_ids}
 
 
 @timeit
@@ -418,49 +484,71 @@ async def fetch_image_layers_async(
                 repo_name = parts[1]
 
                 # Get manifest
-                doc, _ = batch_get_manifest(ecr_client, repo_name, digest, ALL_ACCEPTED)
+                doc, media_type = batch_get_manifest(
+                    ecr_client,
+                    repo_name,
+                    digest,
+                    ALL_ACCEPTED,
+                )
                 if not doc:
                     return None
 
-                # Skip BuildKit cache manifests and attestation images
-                config = doc.get("config", {})
-                config_media_type = config.get("mediaType", "").lower()
+                manifest_media_type = (media_type or doc.get("mediaType") or "").lower()
+                platform_layers: Dict[str, List[str]] = {}
 
-                # Skip various non-container image types
-                if any(
-                    skip_type in config_media_type
-                    for skip_type in ["buildkit", "attestation", "in-toto"]
+                if (
+                    doc.get("manifests")
+                    and manifest_media_type in INDEX_MEDIA_TYPES_LOWER
                 ):
-                    logger.debug(f"Skipping non-container image: {config_media_type}")
-                    return None
+                    for manifest_ref in doc.get("manifests", []):
+                        if (
+                            manifest_ref.get("annotations", {}).get(
+                                "vnd.docker.reference.type"
+                            )
+                            == "attestation-manifest"
+                        ):
+                            continue
 
-                # Also check if layers are attestations
-                layers = doc.get("layers", [])
-                if layers and all(
-                    "in-toto" in layer.get("mediaType", "").lower() for layer in layers
-                ):
-                    # All layers are attestations, skip this image
-                    logger.debug(
-                        f"Skipping attestation-only image with {len(layers)} attestation layers"
+                        child_digest = manifest_ref.get("digest")
+                        if not child_digest:
+                            continue
+
+                        child_doc, child_media_type = batch_get_manifest(
+                            ecr_client,
+                            repo_name,
+                            child_digest,
+                            [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
+                        )
+                        if not child_doc:
+                            continue
+
+                        platform_info = manifest_ref.get("platform") or {}
+                        platform_hint = _format_platform(
+                            platform_info.get("os"),
+                            platform_info.get("architecture"),
+                            platform_info.get("variant"),
+                        )
+
+                        diff_map = await _diff_ids_for_manifest(
+                            ecr_client,
+                            repo_name,
+                            child_doc,
+                            http_client,
+                            platform_hint,
+                        )
+                        platform_layers.update(diff_map)
+                else:
+                    diff_map = await _diff_ids_for_manifest(
+                        ecr_client,
+                        repo_name,
+                        doc,
+                        http_client,
+                        None,
                     )
-                    return None
+                    platform_layers.update(diff_map)
 
-                cfg_digest = config.get("digest")
-                if not cfg_digest:
-                    return None
-
-                # Fetch config blob
-                cfg_json = await get_blob_json_via_presigned(
-                    ecr_client, repo_name, cfg_digest, http_client
-                )
-                if not cfg_json:
-                    return None
-
-                rootfs = cfg_json.get("rootfs") or cfg_json.get("RootFS") or {}
-                diff_ids = rootfs.get("diff_ids") or rootfs.get("DiffIDs") or []
-
-                if diff_ids:
-                    return uri, {"linux/amd64": diff_ids}
+                if platform_layers:
+                    return uri, platform_layers
 
                 return None
 

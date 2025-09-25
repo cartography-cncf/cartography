@@ -1,6 +1,9 @@
 import asyncio
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
+
+import pytest
 
 import cartography.intel.aws.ecr as ecr
 import tests.data.aws.ecr as test_data
@@ -363,3 +366,93 @@ def test_shared_layers_preserve_multiple_next_edges():
         "sha256:4444444444444444444444444444444444444444444444444444444444444444"
         in layer2["next_diff_ids"]
     )
+
+
+@pytest.mark.asyncio
+@patch("cartography.intel.aws.ecr.get_blob_json_via_presigned", new_callable=AsyncMock)
+@patch("cartography.intel.aws.ecr.batch_get_manifest")
+async def test_fetch_image_layers_async_handles_manifest_list(
+    mock_batch_get_manifest,
+    mock_get_blob_json,
+):
+    repo_image = {
+        "uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared:multi",
+        "imageDigest": "sha256:indexdigest000000000000000000000000000000000000000000000000000000000000",
+        "repo_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared",
+    }
+
+    manifest_lookup = {
+        repo_image["imageDigest"]: (test_data.MULTI_ARCH_INDEX, ecr.ECR_OCI_INDEX_MT),
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111": (
+            test_data.MULTI_ARCH_AMD64_MANIFEST,
+            ecr.ECR_OCI_MANIFEST_MT,
+        ),
+        "sha256:2222222222222222222222222222222222222222222222222222222222222222": (
+            test_data.MULTI_ARCH_ARM64_MANIFEST,
+            ecr.ECR_OCI_MANIFEST_MT,
+        ),
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333": (
+            test_data.ATTESTATION_MANIFEST,
+            ecr.ECR_OCI_MANIFEST_MT,
+        ),
+    }
+
+    def fake_batch_get_manifest(ecr_client, repo_name, image_ref, accepted_media_types):
+        return manifest_lookup[image_ref]
+
+    mock_batch_get_manifest.side_effect = fake_batch_get_manifest
+
+    async def fake_get_blob_json(ecr_client, repo_name, digest, http_client):
+        config_lookup = {
+            test_data.MULTI_ARCH_AMD64_MANIFEST["config"][
+                "digest"
+            ]: test_data.MULTI_ARCH_AMD64_CONFIG,
+            test_data.MULTI_ARCH_ARM64_MANIFEST["config"][
+                "digest"
+            ]: test_data.MULTI_ARCH_ARM64_CONFIG,
+        }
+        return config_lookup.get(digest, {})
+
+    mock_get_blob_json.side_effect = fake_get_blob_json
+
+    image_layers_data, digest_map = await ecr.fetch_image_layers_async(
+        MagicMock(),
+        [repo_image],
+        max_concurrent=1,
+    )
+
+    assert image_layers_data == {
+        repo_image["uri"]: {
+            "linux/amd64": test_data.MULTI_ARCH_AMD64_CONFIG["rootfs"]["diff_ids"],
+            "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"]["diff_ids"],
+        }
+    }
+    assert digest_map == {repo_image["uri"]: repo_image["imageDigest"]}
+
+
+@pytest.mark.asyncio
+@patch("cartography.intel.aws.ecr.get_blob_json_via_presigned", new_callable=AsyncMock)
+@patch("cartography.intel.aws.ecr.batch_get_manifest")
+async def test_fetch_image_layers_async_skips_attestation_only(
+    mock_batch_get_manifest,
+    mock_get_blob_json,
+):
+    repo_image = {
+        "uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared:attestation",
+        "imageDigest": "sha256:attestationindex0000000000000000000000000000000000000000000000000000",
+        "repo_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared",
+    }
+
+    mock_batch_get_manifest.return_value = (
+        test_data.ATTESTATION_MANIFEST,
+        ecr.ECR_OCI_MANIFEST_MT,
+    )
+
+    image_layers_data, digest_map = await ecr.fetch_image_layers_async(
+        MagicMock(),
+        [repo_image],
+        max_concurrent=1,
+    )
+
+    assert image_layers_data == {}
+    assert digest_map == {}
