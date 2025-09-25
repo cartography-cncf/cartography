@@ -320,8 +320,7 @@ def transform_ecr_image_layers(
     :param image_digest_map: Map of image URI to image digest
     :return: List of layer objects ready for ingestion
     """
-    layers: List[Dict[str, Any]] = []
-    processed_diff_ids = set()
+    layers_by_diff_id: Dict[str, Dict[str, Any]] = {}
     memberships: List[Dict[str, Any]] = []
     membership_keys: set[Tuple[str]] = set()
 
@@ -333,7 +332,7 @@ def transform_ecr_image_layers(
 
         ordered_layers_for_image: Optional[List[str]] = None
 
-        for platform, diff_ids in sorted(platforms.items()):
+        for _, diff_ids in sorted(platforms.items()):
             if not diff_ids:
                 continue
 
@@ -342,60 +341,27 @@ def transform_ecr_image_layers(
 
             # Process each layer in the chain
             for i, diff_id in enumerate(diff_ids):
-                if diff_id not in processed_diff_ids:
-                    layer: Dict[str, Any] = {
+                # Get or create layer
+                if diff_id not in layers_by_diff_id:
+                    layers_by_diff_id[diff_id] = {
                         "diff_id": diff_id,
                         "is_empty": diff_id == EMPTY_LAYER_DIFF_ID,
+                        "next_diff_ids": set(),
+                        "head_image_ids": set(),
+                        "tail_image_ids": set(),
                     }
 
-                    # Add NEXT relationship if not the last layer
-                    if i < len(diff_ids) - 1:
-                        layer["next_diff_ids"] = [diff_ids[i + 1]]
+                layer = layers_by_diff_id[diff_id]
 
-                    # Track which images this layer is HEAD or TAIL of
-                    if i == 0:
-                        # This is the first layer (HEAD)
-                        layer["head_image_ids"] = [image_digest]
+                # Add NEXT relationship if not the last layer
+                if i < len(diff_ids) - 1:
+                    layer["next_diff_ids"].add(diff_ids[i + 1])
 
-                    if i == len(diff_ids) - 1:
-                        # This is the last layer (TAIL)
-                        layer["tail_image_ids"] = [image_digest]
-
-                    layers.append(layer)
-                    processed_diff_ids.add(diff_id)
-                else:
-                    # Layer already processed, update relationships
-                    for layer in layers:
-                        if layer["diff_id"] == diff_id:
-                            layer.setdefault(
-                                "is_empty",
-                                diff_id == EMPTY_LAYER_DIFF_ID,
-                            )
-                            # Add NEXT relationship if not the last layer
-                            if i < len(diff_ids) - 1:
-                                next_layer = diff_ids[i + 1]
-                                existing_nexts = layer.get("next_diff_ids", [])
-                                if next_layer not in existing_nexts:
-                                    existing_nexts.append(next_layer)
-                                    layer["next_diff_ids"] = existing_nexts
-
-                            if i == 0:
-                                existing_heads: Any = layer.get("head_image_ids", [])
-                                if isinstance(existing_heads, list):
-                                    if image_digest not in existing_heads:
-                                        existing_heads.append(image_digest)
-                                        layer["head_image_ids"] = existing_heads
-                                else:
-                                    layer["head_image_ids"] = [image_digest]
-                            if i == len(diff_ids) - 1:
-                                existing_tails: Any = layer.get("tail_image_ids", [])
-                                if isinstance(existing_tails, list):
-                                    if image_digest not in existing_tails:
-                                        existing_tails.append(image_digest)
-                                        layer["tail_image_ids"] = existing_tails
-                                else:
-                                    layer["tail_image_ids"] = [image_digest]
-                            break
+                # Track which images this layer is HEAD or TAIL of
+                if i == 0:
+                    layer["head_image_ids"].add(image_digest)
+                if i == len(diff_ids) - 1:
+                    layer["tail_image_ids"].add(image_digest)
 
         if ordered_layers_for_image:
             membership_key = (image_digest,)
@@ -407,6 +373,21 @@ def transform_ecr_image_layers(
                     }
                 )
                 membership_keys.add(membership_key)
+
+    # Convert sets back to lists for Neo4j ingestion
+    layers = []
+    for layer in layers_by_diff_id.values():
+        layer_dict: Dict[str, Any] = {
+            "diff_id": layer["diff_id"],
+            "is_empty": layer["is_empty"],
+        }
+        if layer["next_diff_ids"]:
+            layer_dict["next_diff_ids"] = list(layer["next_diff_ids"])
+        if layer["head_image_ids"]:
+            layer_dict["head_image_ids"] = list(layer["head_image_ids"])
+        if layer["tail_image_ids"]:
+            layer_dict["tail_image_ids"] = list(layer["tail_image_ids"])
+        layers.append(layer_dict)
 
     return layers, memberships
 
