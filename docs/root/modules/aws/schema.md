@@ -1888,6 +1888,7 @@ ECRRepositoryImage.
 |--------|-----------|
 | digest | The hash of this ECR image |
 | **id** | Same as digest |
+| layer_diff_ids | Ordered list of image layer digests for this image. Mirrors the manifest order and includes duplicates (for example, the Docker empty layer). |
 
 #### Relationships
 
@@ -1901,6 +1902,11 @@ ECRRepositoryImage.
     (:Package)-[:DEPLOYED]->(:ECRImage)
     ```
 
+- An ECRImage references its layers
+    ```
+    (:ECRImage)-[:HAS_LAYER]->(:ImageLayer)
+    ```
+
 - A TrivyImageFinding is a vulnerability that affects an ECRImage.
 
     ```
@@ -1910,6 +1916,83 @@ ECRRepositoryImage.
 - ECSContainers have images.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    ```
+
+
+### ImageLayer
+
+Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `ImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream—Docker’s canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`; both refer to the same empty layer.)
+
+| Field | Description |
+|-------|-------------|
+| **id** | Same as `diff_id` |
+| diff_id | Digest of the layer |
+| region | AWS region where the layer metadata was retrieved |
+| lastupdated | Timestamp of the last time the node was updated |
+| is_empty | Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`). |
+
+#### Relationships
+
+- Image layers belong to an AWSAccount
+    ```
+    (:ImageLayer)<-[:RESOURCE]-(:AWSAccount)
+    ```
+
+- Layers point to the next layer in the manifest
+    ```
+    (:ImageLayer)-[:NEXT]->(:ImageLayer)
+    ```
+
+- A layer can be the head of an image
+    ```
+    (:ImageLayer)-[:HEAD]->(:ECRImage)
+    ```
+
+- A layer can be the tail of an image
+    ```
+    (:ImageLayer)-[:TAIL]->(:ECRImage)
+    ```
+
+- Images reference all of their layers
+    ```
+    (:ECRImage)-[:HAS_LAYER]->(:ImageLayer)
+    ```
+
+#### Query Examples
+
+- List the ordered layers for a specific image directly from graph relationships:
+    ```cypher
+    MATCH (img:ECRImage {digest: $digest})-[:HEAD]->(head:ImageLayer)
+    MATCH (img)-[:TAIL]->(tail:ImageLayer)
+    MATCH path = (head)-[:NEXT*0..]->(tail)
+    WHERE ALL(layer IN nodes(path) WHERE (img)-[:HAS_LAYER]->(layer))
+    WITH path
+    ORDER BY length(path) DESC
+    LIMIT 1
+    UNWIND range(0, length(path)) AS idx
+    RETURN idx AS position, nodes(path)[idx].diff_id AS diff_id
+    ORDER BY position;
+    ```
+
+- Use the stored manifest order when you only need the digests:
+    ```cypher
+    MATCH (img:ECRImage {digest: $digest})
+    UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+    RETURN idx AS position, img.layer_diff_ids[idx] AS diff_id
+    ORDER BY position;
+    ```
+
+- Detect images whose layer chains diverge (typically because the Docker empty layer is repeated):
+    ```cypher
+    MATCH (img:ECRImage)-[:HAS_LAYER]->(layer:ImageLayer)
+    MATCH (layer)-[:NEXT]->(child:ImageLayer)
+    WHERE (img)-[:HAS_LAYER]->(child)
+    WITH img, layer, collect(DISTINCT child.diff_id) AS next_diff_ids
+    WHERE size(next_diff_ids) > 1
+    RETURN img.digest AS digest,
+           layer.diff_id AS branching_layer,
+           next_diff_ids AS successors
+    ORDER BY digest, branching_layer;
     ```
 
 
