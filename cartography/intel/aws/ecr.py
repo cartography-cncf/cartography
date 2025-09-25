@@ -5,6 +5,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Protocol
 from typing import Tuple
 
 import boto3
@@ -28,6 +29,47 @@ logger = logging.getLogger(__name__)
 EMPTY_LAYER_DIFF_ID = (
     "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
 )
+
+# ECR manifest media types
+ECR_DOCKER_INDEX_MT = "application/vnd.docker.distribution.manifest.list.v2+json"
+ECR_DOCKER_MANIFEST_MT = "application/vnd.docker.distribution.manifest.v2+json"
+ECR_OCI_INDEX_MT = "application/vnd.oci.image.index.v1+json"
+ECR_OCI_MANIFEST_MT = "application/vnd.oci.image.manifest.v1+json"
+
+ALL_ACCEPTED = [
+    ECR_OCI_INDEX_MT,
+    ECR_DOCKER_INDEX_MT,
+    ECR_OCI_MANIFEST_MT,
+    ECR_DOCKER_MANIFEST_MT,
+]
+
+INDEX_MEDIA_TYPES = {ECR_OCI_INDEX_MT, ECR_DOCKER_INDEX_MT}
+INDEX_MEDIA_TYPES_LOWER = {mt.lower() for mt in INDEX_MEDIA_TYPES}
+
+# Media types that should be skipped when processing manifests
+SKIP_CONFIG_MEDIA_TYPE_FRAGMENTS = {"buildkit", "attestation", "in-toto"}
+
+
+class ECRClient(Protocol):
+    """Protocol for ECR client operations."""
+
+    def batch_get_image(self, **kwargs: Any) -> Dict:
+        """Get image manifest using batch_get_image API."""
+        ...
+
+    def get_download_url_for_layer(self, **kwargs: Any) -> Dict:
+        """Get presigned URL for layer download."""
+        ...
+
+
+def extract_platform_from_manifest(manifest_ref: Dict) -> str:
+    """Extract platform string from manifest reference."""
+    platform_info = manifest_ref.get("platform", {})
+    return _format_platform(
+        platform_info.get("os"),
+        platform_info.get("architecture"),
+        platform_info.get("variant"),
+    )
 
 
 @timeit
@@ -69,7 +111,7 @@ def get_ecr_repository_images(
         for response in describe_response:
             image_details = response["imageDetails"]
             for detail in image_details:
-                tags = detail.get("imageTags") or []
+                tags = detail.get("imageTags", [])
                 if tags:
                     for tag in tags:
                         image_detail = {**detail, "imageTag": tag}
@@ -115,7 +157,7 @@ def transform_ecr_repository_images(repo_data: Dict) -> List[Dict]:
             digest = img.get("imageDigest")
             if digest:
                 tag = img.get("imageTag")
-                uri = repo_uri + (f":{tag}" if tag else "")
+                uri = f"{repo_uri}:{tag}" if tag else repo_uri
                 img["repo_uri"] = repo_uri
                 img["uri"] = uri
                 img["id"] = uri
@@ -163,22 +205,6 @@ def load_ecr_repository_images(
     )
 
 
-ECR_DOCKER_INDEX_MT = "application/vnd.docker.distribution.manifest.list.v2+json"
-ECR_DOCKER_MANIFEST_MT = "application/vnd.docker.distribution.manifest.v2+json"
-ECR_OCI_INDEX_MT = "application/vnd.oci.image.index.v1+json"
-ECR_OCI_MANIFEST_MT = "application/vnd.oci.image.manifest.v1+json"
-
-ALL_ACCEPTED = [
-    ECR_OCI_INDEX_MT,
-    ECR_DOCKER_INDEX_MT,
-    ECR_OCI_MANIFEST_MT,
-    ECR_DOCKER_MANIFEST_MT,
-]
-
-INDEX_MEDIA_TYPES = {ECR_OCI_INDEX_MT, ECR_DOCKER_INDEX_MT}
-INDEX_MEDIA_TYPES_LOWER = {mt.lower() for mt in INDEX_MEDIA_TYPES}
-
-
 def _format_platform(
     os_name: Optional[str],
     architecture: Optional[str],
@@ -191,8 +217,28 @@ def _format_platform(
 
 
 def parse_image_uri(image_uri: str) -> Tuple[str, str, str]:
-    """Parse ECR image URI into region, repository name, and reference (tag or digest)."""
-    registry, rest = image_uri.split("/", 1)
+    """Parse ECR image URI into region, repository name, and reference (tag or digest).
+
+    :param image_uri: ECR image URI in format: {account}.dkr.ecr.{region}.amazonaws.com/{repo}:{tag}
+    :return: Tuple of (region, repository_name, reference)
+    :raises ValueError: If the image URI is malformed
+    """
+    if not image_uri or "/" not in image_uri:
+        raise ValueError(f"Invalid image URI format: {image_uri}")
+
+    try:
+        registry, rest = image_uri.split("/", 1)
+    except ValueError:
+        raise ValueError(f"Invalid image URI format: {image_uri}")
+
+    # Parse registry to extract region
+    registry_parts = registry.split(".")
+    if len(registry_parts) < 6 or "ecr" not in registry_parts:
+        raise ValueError(f"Invalid ECR registry format: {registry}")
+
+    region = registry_parts[3]
+
+    # Parse repository and reference (tag or digest)
     if "@sha256:" in rest:
         repo, ref = rest.split("@", 1)
     elif ":" in rest:
@@ -201,8 +247,7 @@ def parse_image_uri(image_uri: str) -> Tuple[str, str, str]:
         repo = rest
         ref = "latest"
 
-    region = registry.split(".")[3]
-
+    # Normalize sha256 references
     if ref.startswith("sha256:"):
         ref = f"sha256:{ref.split(':', 1)[1]}"
 
@@ -210,7 +255,7 @@ def parse_image_uri(image_uri: str) -> Tuple[str, str, str]:
 
 
 def batch_get_manifest(
-    ecr_client: Any, repo: str, image_ref: str, accepted_media_types: List[str]
+    ecr_client: ECRClient, repo: str, image_ref: str, accepted_media_types: List[str]
 ) -> Tuple[Dict, str]:
     """Get image manifest using batch_get_image API."""
     try:
@@ -235,7 +280,7 @@ def batch_get_manifest(
 
 
 async def get_blob_json_via_presigned(
-    ecr_client: Any,
+    ecr_client: ECRClient,
     repo: str,
     digest: str,
     http_client: httpx.AsyncClient,
@@ -256,24 +301,25 @@ async def get_blob_json_via_presigned(
 
 
 async def _diff_ids_for_manifest(
-    ecr_client: Any,
+    ecr_client: ECRClient,
     repo_name: str,
     manifest_doc: Dict[str, Any],
     http_client: httpx.AsyncClient,
     platform_hint: Optional[str],
 ) -> Dict[str, List[str]]:
-    config = manifest_doc.get("config") or {}
-    config_media_type = (config.get("mediaType") or "").lower()
+    config = manifest_doc.get("config", {})
+    config_media_type = config.get("mediaType", "").lower()
 
+    # Skip certain media types
     if any(
         skip_fragment in config_media_type
-        for skip_fragment in ("buildkit", "attestation", "in-toto")
+        for skip_fragment in SKIP_CONFIG_MEDIA_TYPE_FRAGMENTS
     ):
         return {}
 
-    layers = manifest_doc.get("layers") or []
+    layers = manifest_doc.get("layers", [])
     if layers and all(
-        "in-toto" in (layer.get("mediaType") or "").lower() for layer in layers
+        "in-toto" in layer.get("mediaType", "").lower() for layer in layers
     ):
         return {}
 
@@ -290,6 +336,7 @@ async def _diff_ids_for_manifest(
     if not cfg_json:
         return {}
 
+    # Docker API uses inconsistent casing - check for known variations
     rootfs = cfg_json.get("rootfs") or cfg_json.get("RootFS") or {}
     diff_ids = rootfs.get("diff_ids") or rootfs.get("DiffIDs") or []
     if not diff_ids:
@@ -298,6 +345,7 @@ async def _diff_ids_for_manifest(
     if platform_hint:
         platform = platform_hint
     else:
+        # Docker API uses inconsistent casing for platform components
         platform = _format_platform(
             cfg_json.get("os") or cfg_json.get("OS"),
             cfg_json.get("architecture") or cfg_json.get("Architecture"),
@@ -484,7 +532,7 @@ def _get_image_data(
 
 
 async def fetch_image_layers_async(
-    ecr_client: Any,
+    ecr_client: ECRClient,
     repo_images_list: List[Dict],
     max_concurrent: int = 20,
 ) -> Tuple[Dict[str, Dict[str, List[str]]], Dict[str, str]]:
@@ -525,7 +573,7 @@ async def fetch_image_layers_async(
                 if not doc:
                     return None
 
-                manifest_media_type = (media_type or doc.get("mediaType") or "").lower()
+                manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
                 platform_layers: Dict[str, List[str]] = {}
 
                 if (
@@ -545,7 +593,7 @@ async def fetch_image_layers_async(
                         if not child_digest:
                             continue
 
-                        child_doc, child_media_type = batch_get_manifest(
+                        child_doc, _ = batch_get_manifest(
                             ecr_client,
                             repo_name,
                             child_digest,
@@ -554,12 +602,7 @@ async def fetch_image_layers_async(
                         if not child_doc:
                             continue
 
-                        platform_info = manifest_ref.get("platform") or {}
-                        platform_hint = _format_platform(
-                            platform_info.get("os"),
-                            platform_info.get("architecture"),
-                            platform_info.get("variant"),
-                        )
+                        platform_hint = extract_platform_from_manifest(manifest_ref)
 
                         diff_map = await _diff_ids_for_manifest(
                             ecr_client,
