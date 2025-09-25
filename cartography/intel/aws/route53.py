@@ -24,6 +24,7 @@ DnsData = namedtuple(
     [
         "zones",
         "a_records",
+        "aaaa_records",
         "alias_records",
         "cname_records",
         "ns_records",
@@ -73,7 +74,7 @@ def get_zones(
 def transform_record_set(
     record_set: dict[str, Any], zone_id: str, name: str
 ) -> dict[str, Any] | None:
-    # process CNAME, ALIAS and A records
+    # process CNAME, ALIAS, A, and AAAA records
     if record_set["Type"] == "CNAME":
         if "AliasTarget" in record_set:
             # this is a weighted CNAME record
@@ -127,6 +128,31 @@ def transform_record_set(
                 "value": value,
                 "id": _create_dns_record_id(zone_id, name, "A"),
             }
+    elif record_set["Type"] == "AAAA":
+        if "AliasTarget" in record_set:
+            # AAAA alias records follow the same pattern as A aliases but map to IPv6 targets
+            value = record_set["AliasTarget"]["DNSName"]
+            if value.endswith("."):
+                value = value[:-1]
+            return {
+                "name": name,
+                "type": "ALIAS",
+                "zoneid": zone_id,
+                "value": value,
+                "id": _create_dns_record_id(zone_id, name, "ALIAS_AAAA"),
+            }
+        else:
+            ip_addresses = [record["Value"] for record in record_set["ResourceRecords"]]
+            value = ",".join(ip_addresses)
+
+            return {
+                "name": name,
+                "type": "AAAA",
+                "zoneid": zone_id,
+                "ip_addresses": ip_addresses,
+                "value": value,
+                "id": _create_dns_record_id(zone_id, name, "AAAA"),
+            }
     # This should never happen since we only call this for A and CNAME records,
     # but we'll log it and return None.
     logger.warning(f"Unsupported record type: {record_set['Type']}")
@@ -179,10 +205,11 @@ def transform_all_dns_data(
 ) -> DnsData:
     """
     Transform all DNS data into flat lists for loading.
-    Returns: (zones, a_records, alias_records, cname_records, ns_records)
+    Returns: (zones, a_records, aaaa_records, alias_records, cname_records, ns_records)
     """
     transformed_zones = []
     all_a_records = []
+    all_aaaa_records = []
     all_alias_records = []
     all_cname_records = []
     all_ns_records = []
@@ -196,7 +223,7 @@ def transform_all_dns_data(
         zone_name = parsed_zone["name"]
 
         for rs in zone_record_sets:
-            if rs["Type"] == "A" or rs["Type"] == "CNAME":
+            if rs["Type"] in {"A", "AAAA", "CNAME"}:
                 transformed_rs = transform_record_set(
                     rs,
                     zone_id,
@@ -209,6 +236,8 @@ def transform_all_dns_data(
                     all_a_records.append(transformed_rs)
                     # TODO consider creating IPs as a first-class node from here.
                     # Right now we just match on them from the A record.
+                elif transformed_rs["type"] == "AAAA":
+                    all_aaaa_records.append(transformed_rs)
                 elif transformed_rs["type"] == "ALIAS":
                     all_alias_records.append(transformed_rs)
                 elif transformed_rs["type"] == "CNAME":
@@ -232,6 +261,7 @@ def transform_all_dns_data(
     return DnsData(
         zones=transformed_zones,
         a_records=all_a_records,
+        aaaa_records=all_aaaa_records,
         alias_records=all_alias_records,
         cname_records=all_cname_records,
         ns_records=all_ns_records,
@@ -244,6 +274,7 @@ def _load_dns_details_flat(
     neo4j_session: neo4j.Session,
     zones: list[dict[str, Any]],
     a_records: list[dict[str, Any]],
+    aaaa_records: list[dict[str, Any]],
     alias_records: list[dict[str, Any]],
     cname_records: list[dict[str, Any]],
     ns_records: list[dict[str, Any]],
@@ -253,6 +284,7 @@ def _load_dns_details_flat(
 ) -> None:
     load_zones(neo4j_session, zones, current_aws_id, update_tag)
     load_a_records(neo4j_session, a_records, update_tag, current_aws_id)
+    load_aaaa_records(neo4j_session, aaaa_records, update_tag, current_aws_id)
     load_alias_records(neo4j_session, alias_records, update_tag, current_aws_id)
     load_cname_records(neo4j_session, cname_records, update_tag, current_aws_id)
     load_name_servers(neo4j_session, name_servers, update_tag, current_aws_id)
@@ -274,6 +306,7 @@ def load_dns_details(
         neo4j_session,
         transformed_data.zones,
         transformed_data.a_records,
+        transformed_data.aaaa_records,
         transformed_data.alias_records,
         transformed_data.cname_records,
         transformed_data.ns_records,
@@ -285,6 +318,22 @@ def load_dns_details(
 
 @timeit
 def load_a_records(
+    neo4j_session: neo4j.Session,
+    records: list[dict[str, Any]],
+    update_tag: int,
+    current_aws_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSDNSRecordSchema(),
+        records,
+        lastupdated=update_tag,
+        AWS_ID=current_aws_id,
+    )
+
+
+@timeit
+def load_aaaa_records(
     neo4j_session: neo4j.Session,
     records: list[dict[str, Any]],
     update_tag: int,
@@ -468,6 +517,7 @@ def sync(
         neo4j_session,
         transformed_data.zones,
         transformed_data.a_records,
+        transformed_data.aaaa_records,
         transformed_data.alias_records,
         transformed_data.cname_records,
         transformed_data.ns_records,

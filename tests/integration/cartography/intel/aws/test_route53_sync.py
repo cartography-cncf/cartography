@@ -62,6 +62,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
 
     assert check_nodes(neo4j_session, "AWSDNSRecord", ["id", "name", "type"]) == {
         ("/hostedzone/HOSTED_ZONE/example.com/A", "example.com", "A"),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "ipv6.example.com", "AAAA"),
         ("/hostedzone/HOSTED_ZONE/example.com/NS", "example.com", "NS"),
         (
             "/hostedzone/HOSTED_ZONE/_b6e76e6a1b6853211abcdef123454.example.com/CNAME",
@@ -71,6 +72,11 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         (
             "/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS",
             "elbv2.example.com",
+            "ALIAS",
+        ),
+        (
+            "/hostedzone/HOSTED_ZONE/aliasv6.example.com/ALIAS_AAAA",
+            "aliasv6.example.com",
             "ALIAS",
         ),
         (
@@ -120,6 +126,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE",
         ),
         ("/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS", "/hostedzone/HOSTED_ZONE"),
+        ("/hostedzone/HOSTED_ZONE/aliasv6.example.com/ALIAS_AAAA", "/hostedzone/HOSTED_ZONE"),
         (
             "/hostedzone/HOSTED_ZONE/www.example.com/WEIGHTED_CNAME",
             "/hostedzone/HOSTED_ZONE",
@@ -132,6 +139,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/hello.what.example.com/A",
             "/hostedzone/HOSTED_ZONE",
         ),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "/hostedzone/HOSTED_ZONE"),
     }, "DNS records aren't connected to DNS zones"
 
     assert check_nodes(neo4j_session, "NameServer", ["id", "name"]) == {
@@ -189,6 +197,26 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/hello.what.example.com/A",
         ),
     }, "DNS records don't point to other DNS records"
+
+    # DNS records -- IP addresses
+    assert check_rels(
+        neo4j_session,
+        "AWSDNSRecord",
+        "id",
+        "Ip",
+        "id",
+        "DNS_POINTS_TO",
+        rel_direction_right=True,
+    ) == {
+        ("/hostedzone/HOSTED_ZONE/example.com/A", "1.2.3.4"),
+        (
+            "/hostedzone/HOSTED_ZONE/_1f9ee9f5c4304947879ee77d0a995cc9.something.something.aws/A",
+            "5.6.7.8",
+        ),
+        ("/hostedzone/HOSTED_ZONE/hello.what.example.com/A", "9.10.11.12"),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "2001:db8::1"),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "2001:db8::2"),
+    }, "DNS records don't point to IP addresses"
 
 
 @patch.object(
@@ -304,9 +332,11 @@ def test_sync_route53_cleanup(mock_get_zones, neo4j_session):
     # Assert - Stale record should be cleaned up (not present)
     assert check_nodes(neo4j_session, "AWSDNSRecord", ["id"]) == {
         ("/hostedzone/HOSTED_ZONE/example.com/A",),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA",),
         ("/hostedzone/HOSTED_ZONE/example.com/NS",),
         ("/hostedzone/HOSTED_ZONE/_b6e76e6a1b6853211abcdef123454.example.com/CNAME",),
         ("/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS",),
+        ("/hostedzone/HOSTED_ZONE/aliasv6.example.com/ALIAS_AAAA",),
         ("/hostedzone/HOSTED_ZONE/www.example.com/WEIGHTED_CNAME",),
         (
             "/hostedzone/HOSTED_ZONE/_1f9ee9f5c4304947879ee77d0a995cc9.something.something.aws/A",
