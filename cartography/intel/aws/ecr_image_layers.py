@@ -15,9 +15,11 @@ from typing import Optional
 from typing import Protocol
 from typing import Tuple
 
+import aioboto3
 import boto3
 import httpx
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -56,11 +58,11 @@ SKIP_CONFIG_MEDIA_TYPE_FRAGMENTS = {"buildkit", "attestation", "in-toto"}
 class ECRClient(Protocol):
     """Protocol for ECR client operations."""
 
-    def batch_get_image(self, **kwargs: Any) -> Dict:
+    async def batch_get_image(self, **kwargs: Any) -> Dict:
         """Get image manifest using batch_get_image API."""
         ...
 
-    def get_download_url_for_layer(self, **kwargs: Any) -> Dict:
+    async def get_download_url_for_layer(self, **kwargs: Any) -> Dict:
         """Get presigned URL for layer download."""
         ...
 
@@ -86,12 +88,12 @@ def _format_platform(
     return "/".join(components)
 
 
-def batch_get_manifest(
+async def batch_get_manifest(
     ecr_client: ECRClient, repo: str, image_ref: str, accepted_media_types: List[str]
 ) -> Tuple[Dict, str]:
     """Get image manifest using batch_get_image API."""
     try:
-        resp = ecr_client.batch_get_image(
+        resp = await ecr_client.batch_get_image(
             repositoryName=repo,
             imageIds=(
                 [{"imageDigest": image_ref}]
@@ -100,15 +102,34 @@ def batch_get_manifest(
             ),
             acceptedMediaTypes=accepted_media_types,
         )
-        if not resp.get("images"):
-            logger.warning(f"No image found for {repo}:{image_ref}")
+    except ClientError as error:
+        error_code = error.response.get("Error", {}).get("Code", "")
+        if error_code == "ImageNotFoundException":
+            logger.warning(
+                "Image %s:%s not found while fetching manifest", repo, image_ref
+            )
             return {}, ""
-        manifest_json = json.loads(resp["images"][0]["imageManifest"])
-        media_type = resp["images"][0].get("imageManifestMediaType", "")
-        return manifest_json, media_type
-    except Exception as e:
-        logger.warning(f"Failed to get manifest for {repo}:{image_ref}: {e}")
+        # Fail loudly on throttling or unexpected AWS errors
+        logger.error(
+            "Failed to get manifest for %s:%s due to AWS error %s",
+            repo,
+            image_ref,
+            error_code,
+        )
+        raise
+    except Exception:
+        logger.exception(
+            "Unexpected error fetching manifest for %s:%s", repo, image_ref
+        )
+        raise
+
+    if not resp.get("images"):
+        logger.warning(f"No image found for {repo}:{image_ref}")
         return {}, ""
+
+    manifest_json = json.loads(resp["images"][0]["imageManifest"])
+    media_type = resp["images"][0].get("imageManifestMediaType", "")
+    return manifest_json, media_type
 
 
 async def get_blob_json_via_presigned(
@@ -119,17 +140,33 @@ async def get_blob_json_via_presigned(
 ) -> Dict:
     """Download and parse JSON blob using presigned URL."""
     try:
-        url_response = ecr_client.get_download_url_for_layer(
+        url_response = await ecr_client.get_download_url_for_layer(
             repositoryName=repo,
             layerDigest=digest,
         )
-        url = url_response["downloadUrl"]
+    except ClientError as error:
+        logger.error(
+            "Failed to request download URL for layer %s in repo %s: %s",
+            digest,
+            repo,
+            error.response.get("Error", {}).get("Code", "unknown"),
+        )
+        raise
+
+    url = url_response["downloadUrl"]
+    try:
         response = await http_client.get(url, timeout=30.0)
         response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        logger.debug(f"Failed to get blob {digest} for {repo}: {e}")
-        return {}
+    except httpx.HTTPError as error:
+        logger.error(
+            "HTTP error downloading blob %s for repo %s: %s",
+            digest,
+            repo,
+            error,
+        )
+        raise
+
+    return response.json()
 
 
 async def _diff_ids_for_manifest(
@@ -321,24 +358,60 @@ def load_ecr_image_layer_memberships(
 async def fetch_image_layers_async(
     ecr_client: ECRClient,
     repo_images_list: List[Dict],
-    max_concurrent: int = 20,
+    max_concurrent: int = 1000,
 ) -> Tuple[Dict[str, Dict[str, List[str]]], Dict[str, str]]:
     """
     Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
     """
-    image_layers_data = {}
-    image_digest_map = {}
+    image_layers_data: Dict[str, Dict[str, List[str]]] = {}
+    image_digest_map: Dict[str, str] = {}
     semaphore = asyncio.Semaphore(max_concurrent)
 
     # Cache for manifest fetches keyed by (repo_name, imageDigest)
     manifest_cache: Dict[Tuple[str, str], Tuple[Dict, str]] = {}
     # Lock for thread-safe cache access
     cache_lock = asyncio.Lock()
+    # In-flight requests to coalesce duplicate fetches
+    inflight: Dict[Tuple[str, str], asyncio.Task] = {}
+
+    async def _fetch_and_cache_manifest(
+        repo_name: str, digest_or_tag: str, accepted: List[str]
+    ) -> Tuple[Dict, str]:
+        """
+        Fetch and cache manifest with double-checked locking and in-flight coalescing.
+        """
+        key = (repo_name, digest_or_tag)
+
+        # Fast path: check cache without lock
+        if key in manifest_cache:
+            return manifest_cache[key]
+
+        # Check for existing in-flight request
+        task = inflight.get(key)
+        if task is None:
+            # Create new task for this manifest
+            async def _do() -> Tuple[Dict, str]:
+                # Fetch without holding the lock
+                doc, mt = await batch_get_manifest(
+                    ecr_client, repo_name, digest_or_tag, accepted
+                )
+                # Store result under lock (second check to avoid races)
+                async with cache_lock:
+                    return manifest_cache.setdefault(key, (doc, mt))
+
+            task = asyncio.create_task(_do())
+            inflight[key] = task
+
+        try:
+            return await task
+        finally:
+            # Clean up inflight entry
+            inflight.pop(key, None)
 
     async def fetch_single_image_layers(
         repo_image: Dict,
         http_client: httpx.AsyncClient,
-    ) -> Optional[Tuple[str, Dict[str, List[str]]]]:
+    ) -> Optional[Tuple[str, str, Dict[str, List[str]]]]:
         """Fetch layers for a single image."""
         async with semaphore:
             uri = repo_image.get("uri")
@@ -348,107 +421,92 @@ async def fetch_image_layers_async(
             if not (uri and digest and repo_uri):
                 return None
 
-            try:
-                # Extract repository name
-                parts = repo_uri.split("/", 1)
-                if len(parts) != 2:
-                    return None
-                repo_name = parts[1]
+            # Extract repository name
+            parts = repo_uri.split("/", 1)
+            if len(parts) != 2:
+                raise ValueError(f"Unexpected ECR repository URI format: {repo_uri}")
+            repo_name = parts[1]
 
-                # Check cache for manifest to avoid duplicate fetches
-                cache_key = (repo_name, digest)
-                async with cache_lock:
-                    if cache_key in manifest_cache:
-                        doc, media_type = manifest_cache[cache_key]
-                    else:
-                        # Get manifest using non-blocking I/O
-                        doc, media_type = await asyncio.to_thread(
-                            batch_get_manifest,
-                            ecr_client,
-                            repo_name,
-                            digest,
-                            ALL_ACCEPTED,
+            # Get manifest using optimized caching
+            doc, media_type = await _fetch_and_cache_manifest(
+                repo_name, digest, ALL_ACCEPTED
+            )
+
+            if not doc:
+                return None
+
+            manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
+            platform_layers: Dict[str, List[str]] = {}
+
+            if doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER:
+
+                async def _process_child_manifest(
+                    manifest_ref: Dict,
+                ) -> Dict[str, List[str]]:
+                    if (
+                        manifest_ref.get("annotations", {}).get(
+                            "vnd.docker.reference.type"
                         )
-                        # Cache the result for potential reuse
-                        manifest_cache[cache_key] = (doc, media_type)
+                        == "attestation-manifest"
+                    ):
+                        return {}
 
-                if not doc:
-                    return None
+                    child_digest = manifest_ref.get("digest")
+                    if not child_digest:
+                        return {}
 
-                manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
-                platform_layers: Dict[str, List[str]] = {}
+                    # Use optimized caching for child manifest
+                    child_doc, _ = await _fetch_and_cache_manifest(
+                        repo_name,
+                        child_digest,
+                        [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
+                    )
+                    if not child_doc:
+                        return {}
 
-                if (
-                    doc.get("manifests")
-                    and manifest_media_type in INDEX_MEDIA_TYPES_LOWER
-                ):
-                    for manifest_ref in doc.get("manifests", []):
-                        if (
-                            manifest_ref.get("annotations", {}).get(
-                                "vnd.docker.reference.type"
-                            )
-                            == "attestation-manifest"
-                        ):
-                            continue
-
-                        child_digest = manifest_ref.get("digest")
-                        if not child_digest:
-                            continue
-
-                        # Check cache for child manifest
-                        child_cache_key = (repo_name, child_digest)
-                        async with cache_lock:
-                            if child_cache_key in manifest_cache:
-                                child_doc, _ = manifest_cache[child_cache_key]
-                            else:
-                                child_doc, child_media_type = await asyncio.to_thread(
-                                    batch_get_manifest,
-                                    ecr_client,
-                                    repo_name,
-                                    child_digest,
-                                    [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
-                                )
-                                # Cache the child manifest result
-                                manifest_cache[child_cache_key] = (
-                                    child_doc,
-                                    child_media_type,
-                                )
-                        if not child_doc:
-                            continue
-
-                        platform_hint = extract_platform_from_manifest(manifest_ref)
-
-                        diff_map = await _diff_ids_for_manifest(
-                            ecr_client,
-                            repo_name,
-                            child_doc,
-                            http_client,
-                            platform_hint,
-                        )
-                        platform_layers.update(diff_map)
-                else:
-                    diff_map = await _diff_ids_for_manifest(
+                    platform_hint = extract_platform_from_manifest(manifest_ref)
+                    return await _diff_ids_for_manifest(
                         ecr_client,
                         repo_name,
-                        doc,
+                        child_doc,
                         http_client,
-                        None,
+                        platform_hint,
                     )
-                    platform_layers.update(diff_map)
 
-                if platform_layers:
-                    return uri, platform_layers
+                # Process all child manifests in parallel
+                child_tasks = [
+                    _process_child_manifest(manifest_ref)
+                    for manifest_ref in doc.get("manifests", [])
+                ]
+                child_results = await asyncio.gather(
+                    *child_tasks, return_exceptions=True
+                )
 
-                return None
+                # Merge results from successful child manifest processing
+                for result in child_results:
+                    if isinstance(result, dict):
+                        platform_layers.update(result)
+            else:
+                diff_map = await _diff_ids_for_manifest(
+                    ecr_client,
+                    repo_name,
+                    doc,
+                    http_client,
+                    None,
+                )
+                platform_layers.update(diff_map)
 
-            except Exception as e:
-                logger.debug(f"Could not get layers for {uri}: {e}")
-                return None
+            if platform_layers:
+                return uri, digest, platform_layers
+
+            return None
 
     async with httpx.AsyncClient() as http_client:
         # Create tasks for all images
         tasks = [
-            fetch_single_image_layers(repo_image, http_client)
+            asyncio.create_task(
+                fetch_single_image_layers(repo_image, http_client),
+            )
             for repo_image in repo_images_list
         ]
 
@@ -458,21 +516,29 @@ async def fetch_image_layers_async(
             f"Fetching layers for {total} images with {max_concurrent} concurrent connections..."
         )
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        if not tasks:
+            return image_layers_data, image_digest_map
 
-        # Process results
-        for i, result in enumerate(results):
-            if (
-                result
-                and not isinstance(result, Exception)
-                and isinstance(result, tuple)
-            ):
-                uri, layer_data = result
+        progress_interval = max(1, min(100, total // 10 or 1))
+        completed = 0
+
+        for task in asyncio.as_completed(tasks):
+            result = await task
+            completed += 1
+
+            if completed % progress_interval == 0 or completed == total:
+                percent = (completed / total) * 100
+                logger.info(
+                    "Fetched layer metadata for %d/%d images (%.1f%%)",
+                    completed,
+                    total,
+                    percent,
+                )
+
+            if result:
+                uri, digest, layer_data = result
                 image_layers_data[uri] = layer_data
-                # Get digest from original list
-                digest = repo_images_list[i].get("imageDigest")
-                if digest:
-                    image_digest_map[uri] = digest
+                image_digest_map[uri] = digest
 
     logger.info(
         f"Successfully fetched layers for {len(image_layers_data)}/{len(repo_images_list)} images"
@@ -555,15 +621,28 @@ def sync(
             )
             continue
 
-        # Fetch and load image layers
-        ecr_client = boto3_session.client("ecr", region_name=region)
-
+        # Fetch and load image layers using async ECR client
         if repo_images_list:
             logger.info(
                 f"Starting to fetch layers for {len(repo_images_list)} images..."
             )
+
+            async def _fetch_with_async_client() -> (
+                Tuple[Dict[str, Dict[str, List[str]]], Dict[str, str]]
+            ):
+                # Use credentials from the existing boto3 session
+                credentials = boto3_session.get_credentials()
+                session = aioboto3.Session(
+                    aws_access_key_id=credentials.access_key,
+                    aws_secret_access_key=credentials.secret_key,
+                    aws_session_token=credentials.token,
+                    region_name=region,
+                )
+                async with session.client("ecr") as ecr_client:
+                    return await fetch_image_layers_async(ecr_client, repo_images_list)
+
             image_layers_data, image_digest_map = asyncio.run(
-                fetch_image_layers_async(ecr_client, repo_images_list)
+                _fetch_with_async_client()
             )
 
             if image_layers_data:
