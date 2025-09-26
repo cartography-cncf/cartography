@@ -1,4 +1,3 @@
-import asyncio
 import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -52,49 +51,41 @@ def test_sync_trivy_aws_ecr(
     """
     Ensure that Trivy scan results are properly loaded into Neo4j
     """
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        # Arrange
-        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    # Arrange
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-        # First sync ECR data
-        boto3_session = MagicMock()
-        cartography.intel.aws.ecr.sync(
+    # First sync ECR data
+    boto3_session = MagicMock()
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Mock boto3 to return our test data
+    with patch("boto3.Session") as mock_boto3:
+        s3_client_mock = MagicMock()
+        mock_boto3.return_value.client.return_value = s3_client_mock
+
+        # Mock the S3 get_object response
+        mock_response_body = MagicMock()
+        mock_response_body.read.return_value = json.dumps(TRIVY_SAMPLE).encode("utf-8")
+        s3_client_mock.get_object.return_value = {"Body": mock_response_body}
+
+        # Act
+        sync_trivy_aws_ecr_from_s3(
             neo4j_session,
-            boto3_session,
-            [TEST_REGION],
-            TEST_ACCOUNT_ID,
+            "test-bucket",
+            "trivy-scans/",
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+            mock_boto3.return_value,
         )
 
-        # Mock boto3 to return our test data
-        with patch("boto3.Session") as mock_boto3:
-            s3_client_mock = MagicMock()
-            mock_boto3.return_value.client.return_value = s3_client_mock
-
-            # Mock the S3 get_object response
-            mock_response_body = MagicMock()
-            mock_response_body.read.return_value = json.dumps(TRIVY_SAMPLE).encode(
-                "utf-8"
-            )
-            s3_client_mock.get_object.return_value = {"Body": mock_response_body}
-
-            # Act
-            sync_trivy_aws_ecr_from_s3(
-                neo4j_session,
-                "test-bucket",
-                "trivy-scans/",
-                TEST_UPDATE_TAG,
-                {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-                mock_boto3.return_value,
-            )
-
-            # Assert using shared helpers
-            assert_trivy_findings(neo4j_session)
-            assert_trivy_packages(neo4j_session)
-            assert_all_trivy_relationships(neo4j_session)
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
+        # Assert using shared helpers
+        assert_trivy_findings(neo4j_session)
+        assert_trivy_packages(neo4j_session)
+        assert_all_trivy_relationships(neo4j_session)

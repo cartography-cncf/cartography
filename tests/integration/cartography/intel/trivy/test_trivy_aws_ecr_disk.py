@@ -1,4 +1,3 @@
-import asyncio
 import json
 from unittest.mock import MagicMock
 from unittest.mock import mock_open
@@ -57,35 +56,29 @@ def test_sync_trivy_aws_ecr(
     """
     Ensure that Trivy scan results are properly loaded into Neo4j
     """
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        # Arrange
-        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    # Arrange
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-        # First sync ECR data
-        boto3_session = MagicMock()
-        cartography.intel.aws.ecr.sync(
-            neo4j_session,
-            boto3_session,
-            [TEST_REGION],
-            TEST_ACCOUNT_ID,
-            TEST_UPDATE_TAG,
-            {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-        )
+    # First sync ECR data
+    boto3_session = MagicMock()
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
 
-        # Act
-        sync_trivy_aws_ecr_from_dir(
-            neo4j_session,
-            "/tmp",
-            TEST_UPDATE_TAG,
-            {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-        )
+    # Act
+    sync_trivy_aws_ecr_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
 
-        # Assert using shared helpers
-        assert_trivy_findings(neo4j_session)
-        assert_trivy_packages(neo4j_session)
-        assert_all_trivy_relationships(neo4j_session)
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
+    # Assert using shared helpers
+    assert_trivy_findings(neo4j_session)
+    assert_trivy_packages(neo4j_session)
+    assert_all_trivy_relationships(neo4j_session)

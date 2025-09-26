@@ -641,7 +641,15 @@ def sync(
                 async with session.client("ecr") as ecr_client:
                     return await fetch_image_layers_async(ecr_client, repo_images_list)
 
-            image_layers_data, image_digest_map = asyncio.run(
+            # Use get_event_loop() + run_until_complete() to avoid tearing down loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # No event loop in current thread, create one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            image_layers_data, image_digest_map = loop.run_until_complete(
                 _fetch_with_async_client()
             )
 
