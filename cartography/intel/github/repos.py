@@ -159,8 +159,6 @@ def _get_repo_collaborators_inner_func(
     token: str,
     repo_raw_data: list[dict[str, Any]],
     affiliation: str,
-    collab_users: list[dict[str, Any]],
-    collab_permission: list[str],
 ) -> dict[str, list[UserAffiliationAndRepoPermission]]:
     result: dict[str, list[UserAffiliationAndRepoPermission]] = {}
 
@@ -193,6 +191,9 @@ def _get_repo_collaborators_inner_func(
             repo_name,
             affiliation,
         )
+
+        collab_users: List[dict[str, Any]] = []
+        collab_permission: List[str] = []
 
         # nodes and edges are expected to always be present given that we only call for them if totalCount is > 0
         # however sometimes GitHub returns None, as in issue 1334 and 1404.
@@ -230,8 +231,6 @@ def _get_repo_collaborators_for_multiple_repos(
     logger.info(
         f'Retrieving repo collaborators for affiliation "{affiliation}" on org "{org}".',
     )
-    collab_users: List[dict[str, Any]] = []
-    collab_permission: List[str] = []
 
     result: dict[str, list[UserAffiliationAndRepoPermission]] = retries_with_backoff(
         _get_repo_collaborators_inner_func,
@@ -244,8 +243,6 @@ def _get_repo_collaborators_for_multiple_repos(
         token=token,
         repo_raw_data=repo_raw_data,
         affiliation=affiliation,
-        collab_users=collab_users,
-        collab_permission=collab_permission,
     )
     return result
 
