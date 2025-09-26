@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -12,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class ImageLayerNodeProperties(CartographyNodeProperties):
+class ECRImageLayerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("diff_id")
     diff_id: PropertyRef = PropertyRef("diff_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -20,84 +21,87 @@ class ImageLayerNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ImageLayerToAWSAccountRelProperties(CartographyRelProperties):
+class ECRImageLayerToAWSAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class ImageLayerToAWSAccountRel(CartographyRelSchema):
+class ECRImageLayerToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: ImageLayerToAWSAccountRelProperties = (
-        ImageLayerToAWSAccountRelProperties()
+    properties: ECRImageLayerToAWSAccountRelProperties = (
+        ECRImageLayerToAWSAccountRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class ImageLayerToNextRelProperties(CartographyRelProperties):
+class ECRImageLayerToNextRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class ImageLayerToNextRel(CartographyRelSchema):
-    target_node_label: str = "ImageLayer"
+class ECRImageLayerToNextRel(CartographyRelSchema):
+    target_node_label: str = "ECRImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"diff_id": PropertyRef("next_diff_ids", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "NEXT"
-    properties: ImageLayerToNextRelProperties = ImageLayerToNextRelProperties()
+    properties: ECRImageLayerToNextRelProperties = ECRImageLayerToNextRelProperties()
 
 
 @dataclass(frozen=True)
-class ImageLayerHeadOfImageRelProperties(CartographyRelProperties):
+class ECRImageLayerHeadOfImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class ImageLayerHeadOfImageRel(CartographyRelSchema):
+class ECRImageLayerHeadOfImageRel(CartographyRelSchema):
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("head_image_ids", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HEAD"
-    properties: ImageLayerHeadOfImageRelProperties = (
-        ImageLayerHeadOfImageRelProperties()
+    properties: ECRImageLayerHeadOfImageRelProperties = (
+        ECRImageLayerHeadOfImageRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class ImageLayerTailOfImageRelProperties(CartographyRelProperties):
+class ECRImageLayerTailOfImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class ImageLayerTailOfImageRel(CartographyRelSchema):
+class ECRImageLayerTailOfImageRel(CartographyRelSchema):
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("tail_image_ids", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "TAIL"
-    properties: ImageLayerTailOfImageRelProperties = (
-        ImageLayerTailOfImageRelProperties()
+    properties: ECRImageLayerTailOfImageRelProperties = (
+        ECRImageLayerTailOfImageRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class ImageLayerSchema(CartographyNodeSchema):
-    label: str = "ImageLayer"
-    properties: ImageLayerNodeProperties = ImageLayerNodeProperties()
-    sub_resource_relationship: ImageLayerToAWSAccountRel = ImageLayerToAWSAccountRel()
+class ECRImageLayerSchema(CartographyNodeSchema):
+    label: str = "ECRImageLayer"
+    properties: ECRImageLayerNodeProperties = ECRImageLayerNodeProperties()
+    sub_resource_relationship: ECRImageLayerToAWSAccountRel = (
+        ECRImageLayerToAWSAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            ImageLayerToNextRel(),
-            ImageLayerHeadOfImageRel(),
-            ImageLayerTailOfImageRel(),
+            ECRImageLayerToNextRel(),
+            ECRImageLayerHeadOfImageRel(),
+            ECRImageLayerTailOfImageRel(),
         ]
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageLayer"])

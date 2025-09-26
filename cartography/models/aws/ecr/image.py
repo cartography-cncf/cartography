@@ -43,7 +43,7 @@ class ECRImageHasLayerRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECRImageHasLayerRel(CartographyRelSchema):
-    target_node_label: str = "ImageLayer"
+    target_node_label: str = "ECRImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"diff_id": PropertyRef("layer_diff_ids", one_to_many=True)},
     )

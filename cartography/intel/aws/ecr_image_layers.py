@@ -22,7 +22,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.aws.ecr.image import ECRImageSchema
-from cartography.models.aws.ecr.image_layer import ImageLayerSchema
+from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -290,7 +290,7 @@ def load_ecr_image_layers(
 
     load(
         neo4j_session,
-        ImageLayerSchema(),
+        ECRImageLayerSchema(),
         image_layers,
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
@@ -482,7 +482,7 @@ async def fetch_image_layers_async(
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     logger.debug("Running image layer cleanup job.")
-    GraphJob.from_node_schema(ImageLayerSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(ECRImageLayerSchema(), common_job_parameters).run(
         neo4j_session
     )
 

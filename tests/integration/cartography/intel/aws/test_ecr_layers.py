@@ -190,7 +190,7 @@ def test_sync_with_layers(
             == expected_ecr_images
         )
 
-        # Check that ImageLayer nodes were created
+        # Check that ECRImageLayer nodes were created
         expected_layers = {
             (
                 "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
@@ -202,6 +202,8 @@ def test_sync_with_layers(
                 "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
             ),
         }
+        assert check_nodes(neo4j_session, "ECRImageLayer", ["id"]) == expected_layers
+        # Also verify they have the ImageLayer extra label
         assert check_nodes(neo4j_session, "ImageLayer", ["id"]) == expected_layers
 
         # Check NEXT relationships between layers
@@ -218,9 +220,9 @@ def test_sync_with_layers(
         assert (
             check_rels(
                 neo4j_session,
-                "ImageLayer",
+                "ECRImageLayer",
                 "id",
-                "ImageLayer",
+                "ECRImageLayer",
                 "id",
                 "NEXT",
                 rel_direction_right=True,
@@ -247,7 +249,7 @@ def test_sync_with_layers(
                 neo4j_session,
                 "ECRImage",
                 "id",
-                "ImageLayer",
+                "ECRImageLayer",
                 "id",
                 "HAS_LAYER",
                 rel_direction_right=True,
@@ -271,8 +273,8 @@ def test_sync_with_layers(
 
         path_rows = neo4j_session.run(
             """
-            MATCH (img:ECRImage {id: $digest})-[:HEAD]->(head:ImageLayer)
-            MATCH (img)-[:TAIL]->(tail:ImageLayer)
+            MATCH (img:ECRImage {id: $digest})-[:HEAD]->(head:ECRImageLayer)
+            MATCH (img)-[:TAIL]->(tail:ECRImageLayer)
             MATCH path = (head)-[:NEXT*0..]->(tail)
             WHERE ALL(layer IN nodes(path) WHERE (img)-[:HAS_LAYER]->(layer))
             WITH path

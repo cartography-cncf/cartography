@@ -1904,7 +1904,7 @@ ECRRepositoryImage.
 
 - An ECRImage references its layers
     ```
-    (:ECRImage)-[:HAS_LAYER]->(:ImageLayer)
+    (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
     ```
 
 - A TrivyImageFinding is a vulnerability that affects an ECRImage.
@@ -1919,9 +1919,9 @@ ECRRepositoryImage.
     ```
 
 
-### ImageLayer
+### ECRImageLayer
 
-Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `ImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream—Docker’s canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`; both refer to the same empty layer.)
+Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `ECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream—Docker’s canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`; both refer to the same empty layer.)
 
 | Field | Description |
 |-------|-------------|
@@ -1934,35 +1934,35 @@ Representation of an individual Docker image layer discovered while processing E
 
 - Image layers belong to an AWSAccount
     ```
-    (:ImageLayer)<-[:RESOURCE]-(:AWSAccount)
+    (:ECRImageLayer)<-[:RESOURCE]-(:AWSAccount)
     ```
 
 - Layers point to the next layer in the manifest
     ```
-    (:ImageLayer)-[:NEXT]->(:ImageLayer)
+    (:ECRImageLayer)-[:NEXT]->(:ECRImageLayer)
     ```
 
 - A layer can be the head of an image
     ```
-    (:ImageLayer)-[:HEAD]->(:ECRImage)
+    (:ECRImageLayer)-[:HEAD]->(:ECRImage)
     ```
 
 - A layer can be the tail of an image
     ```
-    (:ImageLayer)-[:TAIL]->(:ECRImage)
+    (:ECRImageLayer)-[:TAIL]->(:ECRImage)
     ```
 
 - Images reference all of their layers
     ```
-    (:ECRImage)-[:HAS_LAYER]->(:ImageLayer)
+    (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
     ```
 
 #### Query Examples
 
 - List the ordered layers for a specific image directly from graph relationships:
     ```cypher
-    MATCH (img:ECRImage {digest: $digest})-[:HEAD]->(head:ImageLayer)
-    MATCH (img)-[:TAIL]->(tail:ImageLayer)
+    MATCH (img:ECRImage {digest: $digest})-[:HEAD]->(head:ECRImageLayer)
+    MATCH (img)-[:TAIL]->(tail:ECRImageLayer)
     MATCH path = (head)-[:NEXT*0..]->(tail)
     WHERE ALL(layer IN nodes(path) WHERE (img)-[:HAS_LAYER]->(layer))
     WITH path
@@ -1983,8 +1983,8 @@ Representation of an individual Docker image layer discovered while processing E
 
 - Detect images whose layer chains diverge (typically because the Docker empty layer is repeated):
     ```cypher
-    MATCH (img:ECRImage)-[:HAS_LAYER]->(layer:ImageLayer)
-    MATCH (layer)-[:NEXT]->(child:ImageLayer)
+    MATCH (img:ECRImage)-[:HAS_LAYER]->(layer:ECRImageLayer)
+    MATCH (layer)-[:NEXT]->(child:ECRImageLayer)
     WHERE (img)-[:HAS_LAYER]->(child)
     WITH img, layer, collect(DISTINCT child.diff_id) AS next_diff_ids
     WHERE size(next_diff_ids) > 1
