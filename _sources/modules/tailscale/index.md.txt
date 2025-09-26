@@ -1,0 +1,6 @@
+# Tailscale
+
+```{toctree}
+config
+schema
+```
