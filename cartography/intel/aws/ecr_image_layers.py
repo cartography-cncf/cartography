@@ -358,7 +358,7 @@ def load_ecr_image_layer_memberships(
 async def fetch_image_layers_async(
     ecr_client: ECRClient,
     repo_images_list: List[Dict],
-    max_concurrent: int = 1000,
+    max_concurrent: int = 200,
 ) -> Tuple[Dict[str, Dict[str, List[str]]], Dict[str, str]]:
     """
     Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
