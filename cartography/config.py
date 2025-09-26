@@ -33,6 +33,8 @@ class Config:
         exceptions will be raised.
     :type aws_cloudtrail_management_events_lookback_hours: int
     :param aws_cloudtrail_management_events_lookback_hours: Number of hours back to retrieve CloudTrail management events from. Optional.
+    :type aws_eks_sync_cluster_resources: bool
+    :param aws_eks_sync_cluster_resources: If True, AWS EKS cluster resources sync will be enabled. If False (default), it will be disabled. Optional.
     :type azure_sync_all_subscriptions: bool
     :param azure_sync_all_subscriptions: If True, Azure sync will run for all profiles in azureProfile.json. If
         False (default), Azure sync will run using current user session via CLI credentials. Optional.
@@ -195,6 +197,7 @@ class Config:
         aws_regions=None,
         aws_best_effort_mode=False,
         aws_cloudtrail_management_events_lookback_hours=None,
+        aws_eks_sync_cluster_resources=False,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
@@ -287,6 +290,7 @@ class Config:
         self.aws_cloudtrail_management_events_lookback_hours = (
             aws_cloudtrail_management_events_lookback_hours
         )
+        self.aws_eks_sync_cluster_resources = aws_eks_sync_cluster_resources
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id
