@@ -3,6 +3,7 @@ from typing import List
 
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.config import Config
 from cartography.util import load_resource_binary
 
@@ -23,4 +24,4 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     logger.info("Creating indexes for cartography node types.")
     for statement in get_index_statements():
         logger.debug("Executing statement: %s", statement)
-        neo4j_session.run(statement)
+        run_write_query(neo4j_session, statement)
