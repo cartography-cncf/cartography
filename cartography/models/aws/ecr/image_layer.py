@@ -15,7 +15,6 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class ImageLayerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("diff_id")
     diff_id: PropertyRef = PropertyRef("diff_id")
-    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     is_empty: PropertyRef = PropertyRef("is_empty")
 

@@ -1927,7 +1927,6 @@ Representation of an individual Docker image layer discovered while processing E
 |-------|-------------|
 | **id** | Same as `diff_id` |
 | diff_id | Digest of the layer |
-| region | AWS region where the layer metadata was retrieved |
 | lastupdated | Timestamp of the last time the node was updated |
 | is_empty | Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`). |
 

@@ -194,21 +194,15 @@ def test_sync_with_layers(
         expected_layers = {
             (
                 "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
-                TEST_REGION,
             ),
             (
                 "sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
-                TEST_REGION,
             ),
             (
                 "sha256:4ac5bb3f45ba451e817df5f30b950f6eb32145e00ba5f134973810881fde7ac0",
-                TEST_REGION,
             ),
         }
-        assert (
-            check_nodes(neo4j_session, "ImageLayer", ["id", "region"])
-            == expected_layers
-        )
+        assert check_nodes(neo4j_session, "ImageLayer", ["id"]) == expected_layers
 
         # Check NEXT relationships between layers
         expected_next_rels = {

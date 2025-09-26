@@ -293,7 +293,6 @@ def load_ecr_image_layers(
         ImageLayerSchema(),
         image_layers,
         lastupdated=aws_update_tag,
-        Region=region,
         AWS_ID=current_aws_account_id,
     )
 
