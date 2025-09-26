@@ -1,5 +1,4 @@
 from datetime import timezone
-from unittest.mock import AsyncMock
 from unittest.mock import patch
 
 import pytest
@@ -7,6 +6,7 @@ from neo4j.time import DateTime
 
 import cartography.intel.entra.ou
 from cartography.intel.entra.ou import sync_entra_ous
+from cartography.intel.entra.users import load_tenant
 from tests.data.entra.ou import MOCK_ENTRA_OUS
 from tests.data.entra.ou import TEST_CLIENT_ID
 from tests.data.entra.ou import TEST_CLIENT_SECRET
@@ -17,11 +17,16 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 1234567890
 
 
+async def _mock_get_entra_ous(client):
+    """Mock async generator for get_entra_ous"""
+    for ou in MOCK_ENTRA_OUS:
+        yield ou
+
+
 @patch.object(
     cartography.intel.entra.ou,
     "get_entra_ous",
-    new_callable=AsyncMock,
-    return_value=MOCK_ENTRA_OUS,
+    side_effect=_mock_get_entra_ous,
 )
 @pytest.mark.asyncio
 async def test_sync_entra_ous(mock_get_ous, neo4j_session):
@@ -29,18 +34,16 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
     Ensure that OUs are loaded and linked to the tenant
     """
     # Arrange
-    mock_tenant_id = TEST_TENANT_ID
-    mock_client_id = TEST_CLIENT_ID
-    mock_client_secret = TEST_CLIENT_SECRET
+    load_tenant(neo4j_session, {"id": TEST_TENANT_ID}, TEST_UPDATE_TAG)
 
     # Act
     await sync_entra_ous(
         neo4j_session,
-        mock_tenant_id,
-        mock_client_id,
-        mock_client_secret,
+        TEST_TENANT_ID,
+        TEST_CLIENT_ID,
+        TEST_CLIENT_SECRET,
         TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": mock_tenant_id},
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "TENANT_ID": TEST_TENANT_ID},
     )
 
     # Assert OUs exist with core fields
@@ -59,8 +62,8 @@ async def test_sync_entra_ous(mock_get_ous, neo4j_session):
 
     # Assert OU-Tenant relationships exist
     expected_rels = {
-        ("a8f9e4b2-1234-5678-9abc-def012345678", mock_tenant_id),
-        ("b6c5d3e4-5678-90ab-cdef-1234567890ab", mock_tenant_id),
+        ("a8f9e4b2-1234-5678-9abc-def012345678", TEST_TENANT_ID),
+        ("b6c5d3e4-5678-90ab-cdef-1234567890ab", TEST_TENANT_ID),
     }
     assert (
         check_rels(

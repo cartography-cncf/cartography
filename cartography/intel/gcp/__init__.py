@@ -3,30 +3,30 @@ import logging
 from collections import namedtuple
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import Set
 
-import googleapiclient.discovery
 import neo4j
-from google.auth import default
-from google.auth.credentials import Credentials as GoogleCredentials
-from google.auth.exceptions import DefaultCredentialsError
+from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
 from cartography.config import Config
+from cartography.graph.job import GraphJob
 from cartography.intel.gcp import compute
-from cartography.intel.gcp import crm
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import storage
+from cartography.intel.gcp.clients import build_client
+from cartography.intel.gcp.crm.folders import sync_gcp_folders
+from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
+from cartography.intel.gcp.crm.projects import sync_gcp_projects
+from cartography.models.gcp.crm.folders import GCPFolderSchema
+from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
+from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-Resources = namedtuple(
-    "Resources", "compute container crm_v1 crm_v2 dns storage serviceusage iam"
-)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
@@ -38,145 +38,6 @@ service_names = Services(
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
 )
-
-
-def _get_crm_resource_v1(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Compute Resource Manager v1 resource object to call the Resource Manager API.
-    See https://cloud.google.com/resource-manager/reference/rest/.
-    :param credentials: The GoogleCredentials object
-    :return: A CRM v1 resource object
-    """
-    # cache_discovery=False to suppress extra warnings.
-    # See https://github.com/googleapis/google-api-python-client/issues/299#issuecomment-268915510 and related issues
-    return googleapiclient.discovery.build(
-        "cloudresourcemanager",
-        "v1",
-        credentials=credentials,
-        cache_discovery=False,
-    )
-
-
-def _get_crm_resource_v2(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Compute Resource Manager v2 resource object to call the Resource Manager API.
-    We need a v2 resource object to query for GCP folders.
-    :param credentials: The GoogleCredentials object
-    :return: A CRM v2 resource object
-    """
-    return googleapiclient.discovery.build(
-        "cloudresourcemanager",
-        "v2",
-        credentials=credentials,
-        cache_discovery=False,
-    )
-
-
-def _get_compute_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Compute resource object to call the Compute API. This is used to pull zone, instance, and
-    networking data. See https://cloud.google.com/compute/docs/reference/rest/v1/.
-    :param credentials: The GoogleCredentials object
-    :return: A Compute resource object
-    """
-    return googleapiclient.discovery.build(
-        "compute",
-        "v1",
-        credentials=credentials,
-        cache_discovery=False,
-    )
-
-
-def _get_storage_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Cloud Storage resource object to call the Storage API.
-    This is used to pull bucket metadata and IAM Policies
-    as well as list buckets in a specified project.
-    See https://cloud.google.com/storage/docs/json_api/.
-    :param credentials: The GoogleCredentials object
-    :return: A Storage resource object
-    """
-    return googleapiclient.discovery.build(
-        "storage",
-        "v1",
-        credentials=credentials,
-        cache_discovery=False,
-    )
-
-
-def _get_container_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Cloud Container resource object to call the
-    Container API. See: https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/.
-
-    :param credentials: The GoogleCredentials object
-    :return: A Container resource object
-    """
-    return googleapiclient.discovery.build(
-        "container",
-        "v1",
-        credentials=credentials,
-        cache_discovery=False,
-    )
-
-
-def _get_dns_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google Cloud DNS resource object to call the
-    Container API. See: https://cloud.google.com/dns/docs/reference/v1/.
-
-    :param credentials: The GoogleCredentials object
-    :return: A DNS resource object
-    """
-    return googleapiclient.discovery.build(
-        "dns",
-        "v1",
-        credentials=credentials,
-        cache_discovery=False,
-    )
-
-
-def _get_serviceusage_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a serviceusage resource object.
-    See: https://cloud.google.com/service-usage/docs/reference/rest/v1/operations/list.
-
-    :param credentials: The GoogleCredentials object
-    :return: A serviceusage resource object
-    """
-    return googleapiclient.discovery.build(
-        "serviceusage",
-        "v1",
-        credentials=credentials,
-        cache_discovery=False,
-    )
-
-
-def _get_iam_resource(credentials: GoogleCredentials) -> Resource:
-    """
-    Instantiates a Google IAM resource object to call the IAM API.
-    """
-    return googleapiclient.discovery.build(
-        "iam", "v1", credentials=credentials, cache_discovery=False
-    )
-
-
-def _initialize_resources(credentials: GoogleCredentials) -> Resource:
-    """
-    Create namedtuple of all resource objects necessary for GCP data gathering.
-    :param credentials: The GoogleCredentials object
-    :return: namedtuple of all resource objects
-    """
-    return Resources(
-        crm_v1=_get_crm_resource_v1(credentials),
-        crm_v2=_get_crm_resource_v2(credentials),
-        serviceusage=_get_serviceusage_resource(credentials),
-        compute=None,
-        container=None,
-        dns=None,
-        storage=None,
-        iam=_get_iam_resource(credentials),
-    )
 
 
 def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set:
@@ -203,7 +64,7 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
                 previous_response=res,
             )
         return services
-    except googleapiclient.discovery.HttpError as http_error:
+    except HttpError as http_error:
         http_error = json.loads(http_error.content.decode("utf-8"))
         # This is set to log-level `info` because Google creates many projects under the hood that cartography cannot
         # audit (e.g. adding a script to a Google spreadsheet causes a project to get created) and we don't need to emit
@@ -216,272 +77,85 @@ def _services_enabled_on_project(serviceusage: Resource, project_id: str) -> Set
         return set()
 
 
-def _sync_single_project_compute(
+def _sync_project_resources(
     neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project on Compute resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine the resources available on the project.
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    compute_cred = _get_compute_resource(get_gcp_credentials())
-    if service_names.compute in enabled_services:
-        compute.sync(
-            neo4j_session,
-            compute_cred,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-
-
-def _sync_single_project_storage(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project on Storage resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine the resources available on the project.
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    storage_cred = _get_storage_resource(get_gcp_credentials())
-    if service_names.storage in enabled_services:
-        storage.sync_gcp_buckets(
-            neo4j_session,
-            storage_cred,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-
-
-def _sync_single_project_gke(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project GKE resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine the resources available on the project.
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    container_cred = _get_container_resource(get_gcp_credentials())
-    if service_names.gke in enabled_services:
-        gke.sync_gke_clusters(
-            neo4j_session,
-            container_cred,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-
-
-def _sync_single_project_dns(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project DNS resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine the resources available on the project.
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    dns_cred = _get_dns_resource(get_gcp_credentials())
-    if service_names.dns in enabled_services:
-        dns.sync(
-            neo4j_session,
-            dns_cred,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-
-
-def _sync_single_project_iam(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
-    project_id: str,
-    gcp_update_tag: int,
-    common_job_parameters: Dict,
-) -> None:
-    """
-    Handles graph sync for a single GCP project's IAM resources.
-    :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param project_id: The project ID number to sync.  See  the `projectId` field in
-    https://cloud.google.com/resource-manager/reference/rest/v1/projects
-    :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
-    :param common_job_parameters: Other parameters sent to Neo4j
-    :return: Nothing
-    """
-    # Determine if IAM service is enabled
-    enabled_services = _services_enabled_on_project(resources.serviceusage, project_id)
-    iam_cred = _get_iam_resource(get_gcp_credentials())
-    if service_names.iam in enabled_services:
-        iam.sync(
-            neo4j_session, iam_cred, project_id, gcp_update_tag, common_job_parameters
-        )
-
-
-def _sync_multiple_projects(
-    neo4j_session: neo4j.Session,
-    resources: Resource,
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     """
-    Handles graph sync for multiple GCP projects.
+    Syncs GCP service-specific resources (Compute, Storage, GKE, DNS, IAM) for each project.
     :param neo4j_session: The Neo4j session
-    :param resources: namedtuple of the GCP resource objects
-    :param: projects: A list of projects. At minimum, this list should contain a list of dicts with the key "projectId"
-     defined; so it would look like this: [{"projectId": "my-project-id-12345"}].
-    This is the returned data from `crm.get_gcp_projects()`.
-    See https://cloud.google.com/resource-manager/reference/rest/v1/projects.
+    :param projects: A list of projects containing at minimum a "projectId" field.
     :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
     :param common_job_parameters: Other parameters sent to Neo4j
     :return: Nothing
     """
-    logger.info("Syncing %d GCP projects.", len(projects))
-    crm.sync_gcp_projects(
-        neo4j_session,
-        projects,
-        gcp_update_tag,
-        common_job_parameters,
-    )
-    # Compute data sync
+    logger.info("Syncing resources for %d GCP projects.", len(projects))
+    # Per-project sync across services
     for project in projects:
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for Compute.", project_id)
-        _sync_single_project_compute(
-            neo4j_session,
-            resources,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
+        enabled_services = _services_enabled_on_project(
+            build_client("serviceusage", "v1"), project_id
         )
+
+        if service_names.compute in enabled_services:
+            logger.info("Syncing GCP project %s for Compute.", project_id)
+            compute_cred = build_client("compute", "v1")
+            compute.sync(
+                neo4j_session,
+                compute_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.storage in enabled_services:
+            logger.info("Syncing GCP project %s for Storage.", project_id)
+            storage_cred = build_client("storage", "v1")
+            storage.sync_gcp_buckets(
+                neo4j_session,
+                storage_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.gke in enabled_services:
+            logger.info("Syncing GCP project %s for GKE.", project_id)
+            container_cred = build_client("container", "v1")
+            gke.sync_gke_clusters(
+                neo4j_session,
+                container_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.dns in enabled_services:
+            logger.info("Syncing GCP project %s for DNS.", project_id)
+            dns_cred = build_client("dns", "v1")
+            dns.sync(
+                neo4j_session,
+                dns_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.iam in enabled_services:
+            logger.info("Syncing GCP project %s for IAM.", project_id)
+            iam_cred = build_client("iam", "v1")
+            iam.sync(
+                neo4j_session,
+                iam_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
         del common_job_parameters["PROJECT_ID"]
-
-    # Storage data sync
-    for project in projects:
-        project_id = project["projectId"]
-        common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for Storage", project_id)
-        _sync_single_project_storage(
-            neo4j_session,
-            resources,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-        del common_job_parameters["PROJECT_ID"]
-
-    # GKE data sync
-    for project in projects:
-        project_id = project["projectId"]
-        common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for GKE", project_id)
-        _sync_single_project_gke(
-            neo4j_session,
-            resources,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-        del common_job_parameters["PROJECT_ID"]
-
-    # DNS data sync
-    for project in projects:
-        project_id = project["projectId"]
-        common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for DNS", project_id)
-        _sync_single_project_dns(
-            neo4j_session,
-            resources,
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
-        del common_job_parameters["PROJECT_ID"]
-
-    # IAM data sync
-    for project in projects:
-        project_id = project["projectId"]
-        common_job_parameters["PROJECT_ID"] = project_id
-        logger.info("Syncing GCP project %s for IAM", project_id)
-        _sync_single_project_iam(
-            neo4j_session, resources, project_id, gcp_update_tag, common_job_parameters
-        )
-        del common_job_parameters["PROJECT_ID"]
-
-
-@timeit
-def get_gcp_credentials() -> Optional[GoogleCredentials]:
-    """
-    Gets access tokens for GCP API access.
-    :param: None
-    :return: GoogleCredentials
-    """
-    try:
-        # Explicitly use Application Default Credentials.
-        # See https://google-auth.readthedocs.io/en/master/user-guide.html#application-default-credentials
-        credentials, project_id = default()
-        return credentials
-    except DefaultCredentialsError as e:
-        logger.debug(
-            "Error occurred calling GoogleCredentials.get_application_default().",
-            exc_info=True,
-        )
-        logger.error(
-            (
-                "Unable to initialize Google Compute Platform creds. If you don't have GCP data or don't want to load "
-                "GCP data then you can ignore this message. Otherwise, the error code is: %s "
-                "Make sure your GCP credentials are configured correctly, your credentials file (if any) is valid, and "
-                "that the identity you are authenticating to has the securityReviewer role attached."
-            ),
-            e,
-        )
-    return None
 
 
 @timeit
@@ -498,36 +172,79 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "UPDATE_TAG": config.update_tag,
     }
 
-    credentials = get_gcp_credentials()
-    if credentials is None:
-        logger.warning("Unable to initialize GCP credentials. Skipping module.")
-        return
+    # IMPORTANT: We defer cleanup for hierarchical resources (orgs, folders, projects) and run them
+    # in reverse order. This prevents orphaned nodes when a parent is deleted.
+    # Without this, deleting an org would break its relationships to projects/folders, leaving them
+    # disconnected and unable to be cleaned up by their own cleanup jobs.
+    #
+    # Order of operations:
+    # 1. Sync all orgs
+    # 2. For each org:
+    #    a. Sync folders and projects
+    #    b. Sync project resources (with immediate cleanup)
+    #    c. Clean up projects and folders for this org
+    # 3. Clean up all orgs at the end
+    #
+    # This ensures children are cleaned up before their parents.
 
-    resources = _initialize_resources(credentials)
-
-    # If we don't have perms to pull Orgs or Folders from GCP, we will skip safely
-    crm.sync_gcp_organizations(
-        neo4j_session,
-        resources.crm_v1,
-        config.update_tag,
-        common_job_parameters,
-    )
-    crm.sync_gcp_folders(
-        neo4j_session,
-        resources.crm_v2,
-        config.update_tag,
-        common_job_parameters,
+    orgs = sync_gcp_organizations(
+        neo4j_session, config.update_tag, common_job_parameters
     )
 
-    projects = crm.get_gcp_projects(resources.crm_v1)
+    # Track org cleanup jobs to run at the very end
+    org_cleanup_jobs = []
 
-    _sync_multiple_projects(
-        neo4j_session,
-        resources,
-        projects,
-        config.update_tag,
-        common_job_parameters,
-    )
+    # For each org, sync its folders and projects (as sub-resources), then ingest per-project services
+    for org in orgs:
+        org_resource_name = org.get("name", "")  # e.g., organizations/123456789012
+        if not org_resource_name or "/" not in org_resource_name:
+            logger.error(f"Invalid org resource name: {org_resource_name}")
+            continue
+
+        # Store the full resource name for cleanup operations
+        common_job_parameters["ORG_RESOURCE_NAME"] = org_resource_name
+
+        # Sync folders under org
+        folders = sync_gcp_folders(
+            neo4j_session,
+            config.update_tag,
+            common_job_parameters,
+            org_resource_name,
+        )
+
+        # Sync projects under org and each folder
+        projects = sync_gcp_projects(
+            neo4j_session,
+            org_resource_name,
+            folders,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+        # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)
+        _sync_project_resources(
+            neo4j_session, projects, config.update_tag, common_job_parameters
+        )
+
+        # Clean up projects and folders for this org (children before parents)
+        logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
+        GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(GCPFolderSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+
+        # Save org cleanup job for later
+        org_cleanup_jobs.append((GCPOrganizationSchema, dict(common_job_parameters)))
+
+        # Remove org ID from common job parameters after processing
+        del common_job_parameters["ORG_RESOURCE_NAME"]
+
+    # Run all org cleanup jobs at the very end, after all children have been cleaned up
+    logger.info("Running cleanup for GCP organizations")
+    for schema_class, params in org_cleanup_jobs:
+        GraphJob.from_node_schema(schema_class(), params).run(neo4j_session)
 
     run_analysis_job(
         "gcp_compute_asset_inet_exposure.json",
