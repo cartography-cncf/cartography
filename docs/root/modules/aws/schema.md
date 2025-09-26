@@ -1292,7 +1292,7 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 |value| If it is an A, AAAA, ALIAS, or CNAME record, this is the IP address that the DNSRecord points to. If it is an NS record, the `name` is used here.|
 
 #### Relationships
-- AWSDNSRecords can point to IP addresses (both IPv4 and IPv6).
+- AWSDNSRecords can point to IP addresses.
     ```
     (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:Ip)
     ```
