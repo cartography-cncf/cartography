@@ -1,0 +1,10 @@
+{
+    "name": "cleanup AWS service last accessed details",
+    "statements": [
+        {
+            "query": "MATCH (:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(p:AWSPrincipal) WHERE p.lastupdated <> $UPDATE_TAG SET p.last_accessed_service_name = null, p.last_accessed_service_namespace = null, p.last_authenticated = null, p.last_authenticated_entity = null, p.last_authenticated_region = null",
+            "iterative": true,
+            "iterationsize": 100
+        }
+    ]
+}
