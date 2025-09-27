@@ -1241,3 +1241,23 @@ Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/ap
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureLogicApp)
     ```
+
+### AzureResourceGroup
+
+Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/rest/api/resources/resource-groups/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Resource Group. |
+|name| The name of the Resource Group. |
+|location| The Azure region where the Resource Group is deployed. |
+|provisioning_state| The deployment status of the Resource Group (e.g., Succeeded). |
+
+#### Relationships
+
+- An Azure Resource Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
+    ```
