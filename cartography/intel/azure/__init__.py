@@ -10,6 +10,7 @@ from cartography.util import timeit
 from . import app_service
 from . import compute
 from . import cosmosdb
+from . import event_grid
 from . import functions
 from . import sql
 from . import storage
@@ -50,6 +51,13 @@ def _sync_one_subscription(
         common_job_parameters,
     )
     functions.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    event_grid.sync(
         neo4j_session,
         credentials,
         subscription_id,
