@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.azure.resource_groups as resource_groups
 from tests.data.azure.resource_group import MOCK_RESOURCE_GROUPS
