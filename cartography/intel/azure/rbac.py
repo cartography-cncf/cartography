@@ -306,7 +306,6 @@ def sync(
         transformed_definitions = transform_role_definitions(role_definitions)
         transformed_assignments = transform_role_assignments(role_assignments)
         transformed_permissions = transform_permissions(role_definitions)
-        logger.info(f"Transformed permissions: {transformed_permissions}")
 
         # LOAD
         load_permissions(
@@ -318,22 +317,11 @@ def sync(
         load_role_assignments(
             neo4j_session, transformed_assignments, subscription_id, update_tag
         )
-        logger.info(f"Loaded {len(transformed_assignments)} role assignments")
-        logger.info(f"Loaded {len(transformed_definitions)} role definitions")
-        logger.info(f"Loaded {len(transformed_permissions)} permissions")
 
         # CLEANUp
         cleanup_permissions(neo4j_session, common_job_parameters)
-
-        logger.info(f"Cleaned up {len(transformed_assignments)} role assignments")
         cleanup_role_definitions(neo4j_session, common_job_parameters)
-
-        logger.info(f"Cleaned up {len(transformed_assignments)} role assignments")
         cleanup_role_assignments(neo4j_session, common_job_parameters)
-
-        logger.info(f"Cleaned up {len(transformed_assignments)} role assignments")
-        logger.info(f"Cleaned up {len(transformed_definitions)} role definitions")
-        logger.info(f"Cleaned up {len(transformed_permissions)} permissions")
 
     except Exception as e:
         logger.error(
