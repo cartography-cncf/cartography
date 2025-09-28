@@ -42,7 +42,9 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
             "location": group.get("location"),
             "type": group.get("type"),
             "provisioning_state": group.get("properties", {}).get("provisioning_state"),
-            "ip_address": ((group.get("properties") or {}).get("ip_address") or {}).get("ip"),
+            "ip_address": ((group.get("properties") or {}).get("ip_address") or {}).get(
+                "ip"
+            ),
             "os_type": group.get("properties", {}).get("os_type"),
         }
         transformed_instances.append(transformed_instance)
