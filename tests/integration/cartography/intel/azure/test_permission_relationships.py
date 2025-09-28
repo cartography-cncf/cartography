@@ -333,6 +333,7 @@ def test_sync_azure_permission_relationships(
     mock_get_table_services_details,
     mock_get_file_services_details,
     mock_get_blob_services_details,
+    mock_get_entra_service_principals,
     neo4j_session,
 ):
 
