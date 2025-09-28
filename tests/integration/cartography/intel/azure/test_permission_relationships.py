@@ -54,10 +54,20 @@ async def async_return_empty_tuple():
     return ([], [])
 
 
+async def async_return_service_principal_id(client, app):
+    """Helper function to return service principal ID from test data."""
+    return getattr(app, "_service_principal_id", None)
+
+
 @patch.object(
     cartography.intel.entra.applications,
     "get_app_role_assignments_for_app",
     return_value=async_generator_from_list([]),
+)
+@patch.object(
+    cartography.intel.entra.applications,
+    "get_service_principal_id_for_app",
+    side_effect=async_return_service_principal_id,
 )
 @patch.object(
     cartography.intel.entra.applications,
@@ -296,6 +306,7 @@ def test_sync_azure_permission_relationships(
     mock_get_group_members,
     mock_get_group_owners,
     mock_get_entra_applications,
+    mock_get_service_principal_id_for_app,
     mock_get_app_role_assignments_for_app,
     mock_get_role_definitions,
     mock_get_role_assignments,

@@ -33,6 +33,13 @@ MOCK_ENTRA_APPLICATIONS = [
     ),
 ]
 
+MOCK_ENTRA_APPLICATIONS[0]._service_principal_id = (
+    "11111111-1111-1111-1111-111111111111"
+)
+MOCK_ENTRA_APPLICATIONS[1]._service_principal_id = (
+    "22222222-2222-2222-2222-222222222222"
+)
+
 # New dict-based mock data for the refactored API functions
 MOCK_ENTRA_APPLICATIONS_DICT = [
     {

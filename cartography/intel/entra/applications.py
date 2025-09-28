@@ -397,9 +397,7 @@ async def sync_entra_applications(
         total_app_count += 1
 
         # Fetch service principal ID for this application
-        app._service_principal_id = await get_service_principal_id_for_app(
-            client, app
-        )  # havent made changes to get role assignments for now to match this change. EXPERIMENTING
+        app._service_principal_id = await get_service_principal_id_for_app(client, app)
 
         apps_batch.append(app)
 

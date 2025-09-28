@@ -91,10 +91,8 @@ ENTRA_APPLICATIONS = [
     ),
 ]
 
-# Add the _service_principal_id attribute after creation
-ENTRA_APPLICATIONS[0]._service_principal_id = (
-    "app-101"  # This matches the principalId in role assignments
-)
+
+ENTRA_APPLICATIONS[0]._service_principal_id = "app-101"
 
 # Mock Azure Role Definitions
 AZURE_ROLE_DEFINITIONS = [
