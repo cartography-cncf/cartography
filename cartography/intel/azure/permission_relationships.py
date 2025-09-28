@@ -337,7 +337,7 @@ def cleanup_rpr(
         MATCH (:AzureSubscription{id: $AZURE_ID})-[:RESOURCE]->(principal)-[r:$relationship_name]->
         (resource:$node_label)
         WHERE r.lastupdated <> $UPDATE_TAG
-        AND (principal:EntraUser OR principal:EntraGroup OR principal:EntraApplication)
+        AND (principal:EntraUser OR principal:EntraGroup OR principal:EntraServicePrincipal)
         WITH r LIMIT $LIMIT_SIZE  DELETE (r) return COUNT(*) as TotalCompleted
         """,
     )

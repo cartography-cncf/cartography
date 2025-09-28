@@ -157,7 +157,6 @@ async def sync_entra_applications(
     # Stream and load applications
     async for app in get_entra_applications(client):
         total_app_count += 1
-
         apps_batch.append(app)
 
         # Transform and load applications in batches
