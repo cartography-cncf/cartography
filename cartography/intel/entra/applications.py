@@ -76,9 +76,6 @@ def transform_applications(
             "display_name": app.display_name,
             "publisher_domain": app.publisher_domain,
             "sign_in_audience": app.sign_in_audience,
-            "service_principal_id": getattr(
-                app, "_service_principal_id", None
-            ),  # Service Principal Object ID
         }
 
 

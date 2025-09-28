@@ -86,7 +86,7 @@ class AzureRoleAssignmentToEntraGroupRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class AzureRoleAssignmentToEntraApplicationRelProperties(CartographyRelProperties):
+class AzureRoleAssignmentToEntraServicePrincipalRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -183,17 +183,17 @@ class AzureRoleAssignmentToEntraGroupRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AzureRoleAssignmentToEntraApplicationRel(CartographyRelSchema):
-    target_node_label: str = "EntraApplication"
+class AzureRoleAssignmentToEntraServicePrincipalRel(CartographyRelSchema):
+    target_node_label: str = "EntraServicePrincipal"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "service_principal_id": PropertyRef("principalId"),
+            "id": PropertyRef("principalId"),
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_ROLE_ASSIGNMENT"
-    properties: AzureRoleAssignmentToEntraApplicationRelProperties = (
-        AzureRoleAssignmentToEntraApplicationRelProperties()
+    properties: AzureRoleAssignmentToEntraServicePrincipalRelProperties = (
+        AzureRoleAssignmentToEntraServicePrincipalRelProperties()
     )
 
 
@@ -240,7 +240,7 @@ class AzureRoleAssignmentSchema(CartographyNodeSchema):
             AzureRoleAssignmentToRoleDefinitionRel(),
             AzureRoleAssignmentToEntraUserRel(),
             AzureRoleAssignmentToEntraGroupRel(),
-            AzureRoleAssignmentToEntraApplicationRel(),
+            AzureRoleAssignmentToEntraServicePrincipalRel(),
         ]
     )
 

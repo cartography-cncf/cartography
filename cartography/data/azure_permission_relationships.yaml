@@ -1,5 +1,5 @@
 # Map principals that can manage Azure SQL Servers. Specifically,
-# create an (:EntraUser|EntraGroup|EntraApplication)-[:CAN_MANAGE]->(:AzureSQLServer) relationship
+# create an (:EntraUser|EntraGroup|EntraServicePrincipal)-[:CAN_MANAGE]->(:AzureSQLServer) relationship
 # for principals that have a role assignment with _any_ of the below
 # permissions. Similar logic applies for the other entries in this file.
 - target_label: AzureSQLServer

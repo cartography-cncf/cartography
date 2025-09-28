@@ -13,16 +13,18 @@ from typing import AsyncGenerator
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.azure.rbac
 import cartography.intel.azure.subscription
 import cartography.intel.azure.tenant
-import cartography.intel.entra.applications
 import cartography.intel.entra.groups
+import cartography.intel.entra.service_principals
 import cartography.intel.entra.users
 from tests.data.azure.rbac import AZURE_ROLE_ASSIGNMENTS
 from tests.data.azure.rbac import AZURE_ROLE_DEFINITIONS
-from tests.data.azure.rbac import ENTRA_APPLICATIONS
 from tests.data.azure.rbac import ENTRA_GROUPS
+from tests.data.azure.rbac import ENTRA_SERVICE_PRINCIPALS
 from tests.data.azure.rbac import ENTRA_USERS
 from tests.data.azure.rbac import MOCK_ENTRA_TENANT
 from tests.integration.cartography.intel.azure.common import (
@@ -53,28 +55,6 @@ async def async_return_empty_tuple():
     return ([], [])
 
 
-async def async_return_service_principal_id(client, app):
-    """Helper function to return service principal ID based on the application."""
-    if hasattr(app, "_service_principal_id"):
-        return app._service_principal_id
-    return None
-
-
-@patch.object(
-    cartography.intel.entra.applications,
-    "get_app_role_assignments_for_app",
-    return_value=async_generator_from_list([]),
-)
-@patch.object(
-    cartography.intel.entra.applications,
-    "get_service_principal_id_for_app",
-    side_effect=async_return_service_principal_id,
-)
-@patch.object(
-    cartography.intel.entra.applications,
-    "get_entra_applications",
-    return_value=async_generator_from_list(ENTRA_APPLICATIONS),
-)
 @patch.object(
     cartography.intel.entra.groups,
     "get_group_owners",
@@ -101,6 +81,11 @@ async def async_return_service_principal_id(client, app):
     return_value=async_generator_from_list(ENTRA_USERS),
 )
 @patch.object(
+    cartography.intel.entra.service_principals,
+    "get_entra_service_principals",
+    return_value=async_generator_from_list(ENTRA_SERVICE_PRINCIPALS),
+)
+@patch.object(
     cartography.intel.azure.rbac,
     "get_role_assignments",
     return_value=AZURE_ROLE_ASSIGNMENTS,
@@ -110,17 +95,16 @@ async def async_return_service_principal_id(client, app):
     "get_role_definitions_by_ids",
     return_value=AZURE_ROLE_DEFINITIONS,
 )
+@pytest.mark.asyncio
 def test_sync_azure_rbac(
     mock_get_role_definitions,
     mock_get_role_assignments,
+    mock_get_entra_service_principals,
     mock_get_users,
     mock_get_tenant,
     mock_get_entra_groups,
     mock_get_group_members,
     mock_get_group_owners,
-    mock_get_entra_applications,
-    mock_get_service_principal_id_for_app,
-    mock_get_app_role_assignments,
     neo4j_session,
 ):
     """
@@ -164,9 +148,9 @@ def test_sync_azure_rbac(
         )
     )
 
-    # 3. Sync Entra Applications
+    # 3. Sync Entra Service Principals
     asyncio.run(
-        cartography.intel.entra.applications.sync_entra_applications(
+        cartography.intel.entra.service_principals.sync_service_principals(
             neo4j_session,
             TEST_TENANT_ID,
             "client-id",
@@ -198,9 +182,9 @@ def test_sync_azure_rbac(
         ("group-789",),
     }
 
-    # Check Entra applications
-    assert check_nodes(neo4j_session, "EntraApplication", ["id"]) == {
-        ("app-101",),
+    # Check Entra service principals
+    assert check_nodes(neo4j_session, "EntraServicePrincipal", ["id"]) == {
+        ("sp-101",),
     }
 
     # Check Azure role assignments
@@ -313,14 +297,14 @@ def test_sync_azure_rbac(
         neo4j_session,
         "AzureRoleAssignment",
         "id",
-        "EntraApplication",
+        "EntraServicePrincipal",
         "id",
         "HAS_ROLE_ASSIGNMENT",
         rel_direction_right=False,
     ) == {
         (
             "/subscriptions/12345678-1234-1234-1234-123456789012/providers/Microsoft.Authorization/roleAssignments/assignment-4",
-            "app-101",
+            "sp-101",
         ),
     }
 

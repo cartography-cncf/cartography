@@ -1,8 +1,8 @@
 import datetime
 
-from msgraph.generated.models.application import Application
 from msgraph.generated.models.group import Group
 from msgraph.generated.models.organization import Organization
+from msgraph.generated.models.service_principal import ServicePrincipal
 from msgraph.generated.models.user import User
 
 # Mock Azure Subscription
@@ -78,21 +78,19 @@ ENTRA_GROUPS = [
     ),
 ]
 
-# Mock Entra Applications (as Application objects from msgraph)
-ENTRA_APPLICATIONS = [
-    Application(
-        id="app-101",
-        odata_type="#microsoft.graph.application",
-        display_name="Test App",
+
+# Mock Entra Service Principals (as ServicePrincipal objects from msgraph)
+ENTRA_SERVICE_PRINCIPALS = [
+    ServicePrincipal(
+        id="sp-101",
+        odata_type="#microsoft.graph.servicePrincipal",
+        display_name="Test App Service Principal",
         app_id="11111111-1111-1111-1111-111111111111",
-        description="Test application for RBAC",
-        publisher_domain="contoso.com",
+        account_enabled=True,
+        service_principal_type="Application",
         sign_in_audience="AzureADMyOrg",
     ),
 ]
-
-
-ENTRA_APPLICATIONS[0]._service_principal_id = "app-101"
 
 # Mock Azure Role Definitions
 AZURE_ROLE_DEFINITIONS = [
@@ -208,7 +206,7 @@ AZURE_ROLE_ASSIGNMENTS = [
     {
         "id": "/subscriptions/12345678-1234-1234-1234-123456789012/providers/Microsoft.Authorization/roleAssignments/assignment-4",
         "name": "assignment-4",
-        "principal_id": "app-101",
+        "principal_id": "sp-101",
         "principal_type": "ServicePrincipal",
         "role_definition_id": "/subscriptions/12345678-1234-1234-1234-123456789012/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
         "scope": "/subscriptions/12345678-1234-1234-1234-123456789012",
