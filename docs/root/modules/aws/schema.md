@@ -371,6 +371,8 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 | architectures | The instruction set architecture that the function supports. Architecture is a string array with one of the valid values. |
 | masterarn | For Lambda@Edge functions, the ARN of the main function. |
 | kmskeyarn | The KMS key that's used to encrypt the function's environment variables. This key is only returned if you've configured a customer managed key. |
+| anonymous_actions |  List of anonymous internet accessible actions that may be run on the function. |
+| anonymous_access | True if this function has a policy applied to it that allows anonymous access or if it is open to the internet. |
 | region | The AWS region where the Lambda function is deployed. |
 
 #### Relationships
@@ -491,6 +493,7 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
     ```cypher
     (:AWSLambda)-[:HAS]->(:AWSLambdaLayer)
     ```
+
 
 ### AWSPolicy
 
@@ -1288,29 +1291,34 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 |name| The name of the DNSRecord|
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The zoneid for the record, the value of the record, and the type concatenated together|
-|type| The record type of the DNS record|
-|value| If it is an A, ALIAS, or CNAME record, this is the IP address that the DNSRecord points to. If it is an NS record, the `name` is used here.|
+|type| The record type of the DNS record (A, AAAA, ALIAS, CNAME, NS, etc.)|
+|value| If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. For CNAME or ALIAS records, this is the target hostname or AWS resource name. If it is an NS record, the `name` is used here.|
 
 #### Relationships
+- AWSDNSRecords can point to IP addresses.
+    ```
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:Ip)
+    ```
+
 - DNSRecords/AWSDNSRecords can point to each other.
     ```
-    (AWSDNSRecord, DNSRecord)-[DNS_POINTS_TO]->(AWSDNSRecord, DNSRecord)
+    (:AWSDNSRecord, :DNSRecord)-[:DNS_POINTS_TO]->(:AWSDNSRecord, :DNSRecord)
     ```
 
 
 - AWSDNSRecords can point to LoadBalancers.
     ```
-    (AWSDNSRecord)-[DNS_POINTS_TO]->(LoadBalancer, ESDomain)
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:LoadBalancer, :ESDomain)
     ```
 
 - AWSDNSRecords can point to ElasticIPAddresses.
     ```
-    (AWSDNSRecord)-[DNS_POINTS_TO]->(ElasticIPAddress)
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:ElasticIPAddress)
     ```
 
 - AWSDNSRecords can be members of AWSDNSZones.
     ```
-    (AWSDNSRecord)-[MEMBER_OF_DNS_ZONE]->(AWSDNSZone)
+    (:AWSDNSRecord)-[:MEMBER_OF_DNS_ZONE]->(:AWSDNSZone)
     ```
 
 
@@ -4390,6 +4398,11 @@ Representation of an AWS SSO User.
     (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
     ```
 
+- AWSSSOUser has permission set assignments. These include direct assignments and via Identity Center groups.
+    ```
+    (AWSSSOUser)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
     (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)
@@ -4398,6 +4411,41 @@ Representation of an AWS SSO User.
 - Entra users can sign on to AWSSSOUser via SAML federation through AWS Identity Center. See https://docs.aws.amazon.com/singlesignon/latest/userguide/idp-microsoft-entra.html and https://learn.microsoft.com/en-us/entra/identity/saas-apps/aws-single-sign-on-tutorial.
     ```
     (:EntraUser)-[:CAN_SIGN_ON_TO]->(:AWSSSOUser)
+    ```
+
+### AWSSSOGroup
+
+Representation of an AWS SSO Group.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the SSO group |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| display_name | The display name of the SSO group |
+| description | The description of the SSO group |
+| external_id | The external ID of the SSO group |
+| identity_store_id | The identity store ID of the SSO group |
+
+#### Relationships
+- AWSSSOGroup is part of an AWSAccount.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSSSOGroup)
+    ```
+
+- AWSSSOGroup can have roles assigned.
+    ```
+    (AWSSSOGroup)<-[ALLOWED_BY]-(AWSRole)
+    ```
+
+- AWSSSOGroup has assigned permission sets.
+    ```
+    (AWSSSOGroup)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
+- AWSSSOUser membership in SSO groups.
+    ```
+    (AWSSSOUser)-[MEMBER_OF_SSO_GROUP]->(AWSSSOGroup)
     ```
 
 ### AWSPermissionSet

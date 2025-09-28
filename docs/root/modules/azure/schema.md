@@ -1217,3 +1217,47 @@ Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureAppService)
     ```
+
+### AzureLogicApp
+
+Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Logic App. |
+|name| The name of the Logic App. |
+|location| The Azure region where the Logic App is deployed. |
+|state| The operational state of the Logic App (e.g., Enabled, Disabled). |
+|created_time| The timestamp of when the Logic App was created. |
+|changed_time| The timestamp of when the Logic App was last modified. |
+|version| The version of the Logic App's definition. |
+|access_endpoint| The public URL that can be used to trigger the Logic App. |
+
+#### Relationships
+
+- An Azure Logic App is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureLogicApp)
+    ```
+
+### AzureResourceGroup
+
+Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/rest/api/resources/resource-groups/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Resource Group. |
+|name| The name of the Resource Group. |
+|location| The Azure region where the Resource Group is deployed. |
+|provisioning_state| The deployment status of the Resource Group (e.g., Succeeded). |
+
+#### Relationships
+
+- An Azure Resource Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
+    ```

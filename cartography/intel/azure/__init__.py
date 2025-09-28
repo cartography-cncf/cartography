@@ -11,6 +11,8 @@ from . import app_service
 from . import compute
 from . import cosmosdb
 from . import functions
+from . import logic_apps
+from . import resource_groups
 from . import sql
 from . import storage
 from . import subscription
@@ -56,6 +58,13 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    logic_apps.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     sql.sync(
         neo4j_session,
         credentials.credential,
@@ -66,6 +75,13 @@ def _sync_one_subscription(
     storage.sync(
         neo4j_session,
         credentials.credential,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    resource_groups.sync(
+        neo4j_session,
+        credentials,
         subscription_id,
         update_tag,
         common_job_parameters,

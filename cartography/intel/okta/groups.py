@@ -11,6 +11,7 @@ from okta.framework.OktaError import OktaError
 from okta.framework.PagedResults import PagedResults
 from okta.models.usergroup import UserGroup
 
+from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
@@ -204,7 +205,8 @@ def _load_okta_groups(
     SET org_r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_statement,
         ORG_ID=okta_org_id,
         GROUP_LIST=group_list,
@@ -251,7 +253,8 @@ def load_okta_group_members(
         SET r.lastupdated = $okta_update_tag
     """
     logging.info(f"Loading {len(member_list)} members of group {group_id}")
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         GROUP_ID=group_id,
         MEMBER_LIST=member_list,
