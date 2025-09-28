@@ -1,7 +1,7 @@
 ## Permissions Mapping
 
 ### How to use Permissions Mapping
-An Azure principal (EntraUser, EntraGroup, or EntraApplication) can be assigned Azure roles which contain permissions that grant access to Azure resources. Cartography can map permission relationships between Azure principals and the resources they have permission to.
+An Azure principal (EntraUser, EntraGroup, or EntraServicePrincipal) can be assigned Azure roles which contain permissions that grant access to Azure resources. Cartography can map permission relationships between Azure principals and the resources they have permission to.
 
 As mapping all permissions is infeasible both to calculate and store, Cartography will only map the relationships defined in the [permission relationship file](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml) which includes some default permission mappings including SQL Server read access.
 
