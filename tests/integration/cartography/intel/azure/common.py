@@ -10,7 +10,7 @@ def create_test_azure_subscription(
         MERGE (sub:AzureSubscription{id: $subscription_id})
         ON CREATE SET sub.firstseen = timestamp()
         SET sub.lastupdated = $update_tag,
-            sub.displayName = $display_name,
+            sub.name = $display_name,
             sub.state = $state
         """,
         subscription_id=subscription_id,

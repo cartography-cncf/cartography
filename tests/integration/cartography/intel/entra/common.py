@@ -9,7 +9,7 @@ def create_test_entra_tenant(
         MERGE (tenant:EntraTenant{id: $tenant_id})
         ON CREATE SET tenant.firstseen = timestamp()
         SET tenant.lastupdated = $update_tag,
-            tenant.displayName = $display_name
+            tenant.display_name = $display_name
         """,
         tenant_id=tenant_id,
         display_name="Test Tenant",

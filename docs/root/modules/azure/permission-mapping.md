@@ -16,9 +16,9 @@ The [permission relationship file](https://github.com/cartography-cncf/cartograp
   relationship_name: CAN_READ
 ```
 Each RPR consists of
-- ResourceType (string) - The node Label that permissions will be built for
-- Permissions (list(string)) - The list of permissions to map. If any of these permissions are present between a resource and a principal then the relationship is created.
-- RelationshipName - (string) - The name of the relationship cartography will create
+- target_label (string) - The node Label that permissions will be built for
+- permissions (list(string)) - The list of permissions to map. If any of these permissions are present between a resource and a principal then the relationship is created.
+- relationship_name (string) - The name of the relationship cartography will create
 
 It can also be used to abstract many different permissions into one. This example combines all of the permissions that would allow a SQL server to be managed.
 ```yaml
