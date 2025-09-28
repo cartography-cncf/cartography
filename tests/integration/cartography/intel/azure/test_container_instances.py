@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.azure.container_instances as container_instances
 from tests.data.azure.container_instances import MOCK_CONTAINER_GROUPS
