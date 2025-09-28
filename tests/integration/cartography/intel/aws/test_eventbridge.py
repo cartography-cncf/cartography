@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 import cartography.intel.aws.eventbridge
 from cartography.intel.aws.eventbridge import sync
-from cartography.intel.aws.iam import load_roles
+from cartography.intel.aws.iam import load_role_data
+from cartography.intel.aws.iam import transform_role_trust_policies
 from tests.data.aws.eventbridge import GET_EVENTBRIDGE_RULES
 from tests.data.aws.eventbridge import GET_EVENTBRIDGE_TARGETS
 from tests.data.aws.iam.roles import ROLES
@@ -36,9 +37,12 @@ def test_sync_eventbridge(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    load_roles(
+    transformed_role_data = transform_role_trust_policies(
+        ROLES["Roles"], TEST_ACCOUNT_ID
+    )
+    load_role_data(
         neo4j_session,
-        ROLES["Roles"],
+        transformed_role_data.role_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )

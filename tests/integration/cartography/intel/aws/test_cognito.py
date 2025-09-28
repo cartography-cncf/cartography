@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 import cartography.intel.aws.cognito
 from cartography.intel.aws.cognito import sync
-from cartography.intel.aws.iam import load_roles
+from cartography.intel.aws.iam import load_role_data
+from cartography.intel.aws.iam import transform_role_trust_policies
 from tests.data.aws.cognito import GET_COGNITO_IDENTITY_POOLS
 from tests.data.aws.cognito import GET_COGNITO_USER_POOLS
 from tests.data.aws.cognito import GET_POOLS
@@ -48,9 +49,12 @@ def test_sync_cognito(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    load_roles(
+    transformed_role_data = transform_role_trust_policies(
+        ROLES["Roles"], TEST_ACCOUNT_ID
+    )
+    load_role_data(
         neo4j_session,
-        ROLES["Roles"],
+        transformed_role_data.role_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )

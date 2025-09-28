@@ -90,6 +90,29 @@ def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict]:
         return []
 
 
+def transform_gcp_service_accounts(
+    raw_accounts: List[Dict[str, Any]],
+    project_id: str,
+) -> List[Dict[str, Any]]:
+    """
+    Transform raw GCP service accounts into loader-friendly dicts.
+    """
+    result: List[Dict[str, Any]] = []
+    for sa in raw_accounts:
+        result.append(
+            {
+                "id": sa["uniqueId"],
+                "email": sa.get("email"),
+                "displayName": sa.get("displayName"),
+                "oauth2ClientId": sa.get("oauth2ClientId"),
+                "uniqueId": sa.get("uniqueId"),
+                "disabled": sa.get("disabled", False),
+                "projectId": project_id,
+            },
+        )
+    return result
+
+
 @timeit
 def load_gcp_service_accounts(
     neo4j_session: neo4j.Session,
@@ -99,36 +122,53 @@ def load_gcp_service_accounts(
 ) -> None:
     """
     Load GCP service account data into Neo4j.
-
-    :param neo4j_session: The Neo4j session.
-    :param service_accounts: A list of service account data to load.
-    :param project_id: The GCP Project ID associated with the service accounts.
-    :param gcp_update_tag: The timestamp of the current sync run.
     """
     logger.debug(
         f"Loading {len(service_accounts)} service accounts for project {project_id}"
     )
-    transformed_service_accounts = []
-    for sa in service_accounts:
-        transformed_sa = {
-            "id": sa["uniqueId"],
-            "email": sa.get("email"),
-            "displayName": sa.get("displayName"),
-            "oauth2ClientId": sa.get("oauth2ClientId"),
-            "uniqueId": sa.get("uniqueId"),
-            "disabled": sa.get("disabled", False),
-            "projectId": project_id,
-        }
-        transformed_service_accounts.append(transformed_sa)
 
     load(
         neo4j_session,
         GCPServiceAccountSchema(),
-        transformed_service_accounts,
+        service_accounts,
         lastupdated=gcp_update_tag,
         projectId=project_id,
-        additional_labels=["GCPPrincipal"],
     )
+
+
+def transform_gcp_roles(
+    raw_roles: List[Dict[str, Any]],
+    project_id: str,
+) -> List[Dict[str, Any]]:
+    """
+    Transform raw GCP roles into loader-friendly dicts.
+    """
+    result: List[Dict[str, Any]] = []
+    for role in raw_roles:
+        role_name = role["name"]
+        if role_name.startswith("roles/"):
+            role_type = (
+                "BASIC"
+                if role_name in ["roles/owner", "roles/editor", "roles/viewer"]
+                else "PREDEFINED"
+            )
+        else:
+            role_type = "CUSTOM"
+
+        result.append(
+            {
+                "id": role_name,
+                "name": role_name,
+                "title": role.get("title"),
+                "description": role.get("description"),
+                "deleted": role.get("deleted", False),
+                "etag": role.get("etag"),
+                "includedPermissions": role.get("includedPermissions", []),
+                "roleType": role_type,
+                "projectId": project_id,
+            },
+        )
+    return result
 
 
 @timeit
@@ -140,41 +180,13 @@ def load_gcp_roles(
 ) -> None:
     """
     Load GCP role data into Neo4j.
-
-    :param neo4j_session: The Neo4j session.
-    :param roles: A list of role data to load.
-    :param project_id: The GCP Project ID associated with the roles.
-    :param gcp_update_tag: The timestamp of the current sync run.
     """
     logger.debug(f"Loading {len(roles)} roles for project {project_id}")
-    transformed_roles = []
-    for role in roles:
-        role_name = role["name"]
-        if role_name.startswith("roles/"):
-            if role_name in ["roles/owner", "roles/editor", "roles/viewer"]:
-                role_type = "BASIC"
-            else:
-                role_type = "PREDEFINED"
-        else:
-            role_type = "CUSTOM"
-
-        transformed_role = {
-            "id": role_name,
-            "name": role_name,
-            "title": role.get("title"),
-            "description": role.get("description"),
-            "deleted": role.get("deleted", False),
-            "etag": role.get("etag"),
-            "includedPermissions": role.get("includedPermissions", []),
-            "roleType": role_type,
-            "projectId": project_id,
-        }
-        transformed_roles.append(transformed_role)
 
     load(
         neo4j_session,
         GCPRoleSchema(),
-        transformed_roles,
+        roles,
         lastupdated=gcp_update_tag,
         projectId=project_id,
     )
@@ -224,18 +236,18 @@ def sync(
     """
     logger.info(f"Syncing GCP IAM for project {project_id}")
 
-    # Get and load service accounts
-    service_accounts = get_gcp_service_accounts(iam_client, project_id)
+    service_accounts_raw = get_gcp_service_accounts(iam_client, project_id)
     logger.info(
-        f"Found {len(service_accounts)} service accounts in project {project_id}"
+        f"Found {len(service_accounts_raw)} service accounts in project {project_id}"
     )
+    service_accounts = transform_gcp_service_accounts(service_accounts_raw, project_id)
     load_gcp_service_accounts(
         neo4j_session, service_accounts, project_id, gcp_update_tag
     )
 
-    # Get and load roles
-    roles = get_gcp_roles(iam_client, project_id)
-    logger.info(f"Found {len(roles)} roles in project {project_id}")
+    roles_raw = get_gcp_roles(iam_client, project_id)
+    logger.info(f"Found {len(roles_raw)} roles in project {project_id}")
+    roles = transform_gcp_roles(roles_raw, project_id)
     load_gcp_roles(neo4j_session, roles, project_id, gcp_update_tag)
 
     # Run cleanup

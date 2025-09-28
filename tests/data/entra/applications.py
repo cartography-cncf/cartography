@@ -4,6 +4,7 @@ from uuid import UUID
 
 from msgraph.generated.models.app_role_assignment import AppRoleAssignment
 from msgraph.generated.models.application import Application
+from msgraph.generated.models.service_principal import ServicePrincipal
 from msgraph.generated.models.web_application import WebApplication
 
 TEST_TENANT_ID = "02b2b7cc-fb03-4324-bf6b-eb207b39c479"
@@ -158,5 +159,59 @@ MOCK_APP_ROLE_ASSIGNMENTS_DICT = [
         "resource_display_name": "HR Portal",
         "resource_id": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
         "application_app_id": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
+    },
+]
+
+MOCK_SERVICE_PRINCIPALS = [
+    ServicePrincipal(
+        id="sp-11111111-1111-1111-1111-111111111111",
+        app_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        display_name="Finance Tracker Service Principal",
+        reply_urls=[
+            "https://finance.example.com/callback",
+            "https://d-1234567890.awsapps.com/start",
+        ],
+        account_enabled=True,
+        service_principal_type="Application",
+        login_url="https://d-1234567890.awsapps.com/start",
+        sign_in_audience="AzureADMyOrg",
+    ),
+    ServicePrincipal(
+        id="sp-22222222-2222-2222-2222-222222222222",
+        app_id="ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
+        display_name="HR Portal Service Principal",
+        reply_urls=["https://hr.example.org/login"],
+        account_enabled=True,
+        service_principal_type="Application",
+        login_url="https://hr.example.org/login",
+        sign_in_audience="AzureADMultipleOrgs",
+    ),
+]
+
+MOCK_SERVICE_PRINCIPALS_DICT = [
+    {
+        "id": "sp-11111111-1111-1111-1111-111111111111",
+        "app_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "display_name": "Finance Tracker Service Principal",
+        "reply_urls": [
+            "https://finance.example.com/callback",
+            "https://d-1234567890.awsapps.com/start",
+        ],
+        "aws_identity_center_instance_id": "d-1234567890",
+        "account_enabled": True,
+        "service_principal_type": "Application",
+        "login_url": "https://d-1234567890.awsapps.com/start",
+        "sign_in_audience": "AzureADMyOrg",
+    },
+    {
+        "id": "sp-22222222-2222-2222-2222-222222222222",
+        "app_id": "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
+        "display_name": "HR Portal Service Principal",
+        "reply_urls": ["https://hr.example.org/login"],
+        "aws_identity_center_instance_id": None,
+        "account_enabled": True,
+        "service_principal_type": "Application",
+        "login_url": "https://hr.example.org/login",
+        "sign_in_audience": "AzureADMultipleOrgs",
     },
 ]

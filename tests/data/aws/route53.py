@@ -33,6 +33,27 @@ CNAME_RECORD = {
     },
 }
 
+AAAA_RECORD = {
+    "Name": "ipv6.example.com.",
+    "Type": "AAAA",
+    "TTL": 300,
+    "ResourceRecords": [
+        {"Value": "2001:db8::1"},
+        {"Value": "2001:db8::2"},
+    ],
+}
+
+AAAA_ALIAS_RECORD = {
+    "Name": "aliasv6.example.com.",
+    "Type": "AAAA",
+    "TTL": 60,
+    "AliasTarget": {
+        "HostedZoneId": "HOSTED_ZONE_2",
+        "DNSName": "target-ipv6.example.com.",
+        "EvaluateTargetHealth": False,
+    },
+}
+
 ZONE_RECORDS = [
     {
         "Id": "/hostedzone/FAKEZONEID1",
@@ -77,6 +98,15 @@ GET_ZONES_SAMPLE_RESPONSE = [
                 "Type": "A",
             },
             {
+                "Name": "ipv6.example.com.",
+                "ResourceRecords": [
+                    {"Value": "2001:db8::1"},
+                    {"Value": "2001:db8::2"},
+                ],
+                "TTL": 300,
+                "Type": "AAAA",
+            },
+            {
                 "Name": "example.com.",
                 "ResourceRecords": [
                     {
@@ -116,6 +146,16 @@ GET_ZONES_SAMPLE_RESPONSE = [
                 },
                 "TTL": 60,
                 "Type": "A",
+            },
+            {
+                "Name": "aliasv6.example.com.",
+                "AliasTarget": {
+                    "HostedZoneId": "HOSTED_ZONE_2",
+                    "DNSName": "target-ipv6.example.com.",
+                    "EvaluateTargetHealth": False,
+                },
+                "TTL": 60,
+                "Type": "AAAA",
             },
             {
                 "AliasTarget": {

@@ -10,6 +10,7 @@ import neo4j
 
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_single_value_tx
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 AccountRole = namedtuple("AccountRole", ["account_id", "role_name"])
@@ -116,7 +117,8 @@ def _load_okta_group_to_aws_roles(
     SET r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_statement,
         GROUP_TO_ROLE=group_to_role,
         okta_update_tag=okta_update_tag,
@@ -140,7 +142,8 @@ def _load_human_can_assume_role(
     SET r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_statement,
         okta_update_tag=okta_update_tag,
     )

@@ -30,7 +30,7 @@ def test_load_gke_clusters(neo4j_session):
     assert actual_nodes == expected_nodes
 
 
-def test_load_eks_clusters_relationships(neo4j_session):
+def test_load_gke_clusters_relationships(neo4j_session):
     # Create Test GCPProject
     neo4j_session.run(
         """

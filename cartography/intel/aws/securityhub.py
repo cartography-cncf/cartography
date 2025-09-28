@@ -6,6 +6,7 @@ import boto3
 import neo4j
 from dateutil import parser
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -50,7 +51,8 @@ def load_hub(
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $aws_update_tag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_hub,
         Hub=data,
         AWS_ACCOUNT_ID=current_aws_account_id,

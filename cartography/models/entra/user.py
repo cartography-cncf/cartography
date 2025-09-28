@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 # The user resource in Microsoft Graph exposes hundreds of properties but, in
@@ -48,6 +49,18 @@ class EntraTenantToUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
+# (:EntraUser)-[:REPORTS_TO]->(:EntraUser)
+class EntraUserReportsToRel(CartographyRelSchema):
+    target_node_label: str = "EntraUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("manager_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "REPORTS_TO"
+    properties: EntraTenantToUserRelProperties = EntraTenantToUserRelProperties()
+
+
+@dataclass(frozen=True)
 # (:EntraUser)<-[:RESOURCE]-(:AzureTenant)
 class EntraUserToTenantRel(CartographyRelSchema):
     target_node_label: str = "AzureTenant"  # Shouldn't this be EntraTenant?
@@ -64,6 +77,11 @@ class EntraUserSchema(CartographyNodeSchema):
     label: str = "EntraUser"
     properties: EntraUserNodeProperties = EntraUserNodeProperties()
     sub_resource_relationship: EntraUserToTenantRel = EntraUserToTenantRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            EntraUserReportsToRel(),
+        ]
+    )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "EntraIdentity",

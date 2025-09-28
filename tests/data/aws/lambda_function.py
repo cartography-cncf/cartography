@@ -368,6 +368,49 @@ LIST_LAYERS = [
     },
 ]
 
+LIST_LAMBDA_PERMISSIONS = {
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-1": {
+        "AnonymousAccess": False,
+        "AnonymousActions": (),
+    },
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-2": {
+        "AnonymousAccess": True,
+        "AnonymousActions": ("lambda:InvokeFunction"),
+    },
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-3": {
+        "AnonymousAccess": None,
+        "AnonymousActions": None,
+    },
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-4": {
+        "AnonymousAccess": None,
+        "AnonymousActions": None,
+    },
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-5": {
+        "AnonymousAccess": None,
+        "AnonymousActions": None,
+    },
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-6": {
+        "AnonymousAccess": None,
+        "AnonymousActions": None,
+    },
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-7": {
+        "AnonymousAccess": None,
+        "AnonymousActions": None,
+    },
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-8": {
+        "AnonymousAccess": None,
+        "AnonymousActions": None,
+    },
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-9": {
+        "AnonymousAccess": None,
+        "AnonymousActions": None,
+    },
+    "arn:aws:lambda:us-west-2:000000000000:function:sample-function-10": {
+        "AnonymousAccess": None,
+        "AnonymousActions": None,
+    },
+}
+
 
 # Mock functions for comprehensive sync test
 def mock_get_function_aliases_for_sync_test(lambda_function, client):

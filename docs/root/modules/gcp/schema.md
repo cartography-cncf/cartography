@@ -24,7 +24,7 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
 - GCPOrganizations can contain GCPProjects.
 
     ```
-    (GCPOrganization)-[RESOURCE]->(GCPProjects)
+    (GCPOrganization)-[RESOURCE]->(GCPProject)
     ```
 
 ### GCPFolder
@@ -36,28 +36,43 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
 | firstseen      | Timestamp of when a sync job first discovered this node                                                                                                                     |
 | lastupdated    | Timestamp of the last time the node was updated                                                                                                                             |
 | id             | The name of the folder, e.g. "folders/1234"                                                                                                                                 |
+| foldername     | The name of the folder, e.g. "folders/1234"                                                                                                                                 |
 | displayname    | A friendly name of the folder, e.g. "My Folder".                                                                                                                            |
 | lifecyclestate | The folder's current lifecycle state. Assigned by the server.  See the [official docs](https://cloud.google.com/resource-manager/reference/rest/v2/folders#LifecycleState). |
+| parent_org     | If the folder's parent is an organization, this field contains the organization ID, e.g. "organizations/1234"                                                               |
+| parent_folder  | If the folder's parent is another folder, this field contains the folder ID, e.g. "folders/5678"                                                                            |
 
 
 #### Relationships
 
- - GCPOrganizations are parents of GCPFolders.
+- GCPFolders are sub-resources of GCPOrganizations.
 
     ```
-    (GCPOrganization)<-[PARENT]-(GCPFolder)
+    (GCPOrganization)-[RESOURCE]->(GCPFolder)
     ```
 
- - GCPFolders can contain GCPProjects
+- GCPFolders can have parent GCPOrganizations.
 
     ```
-    (GCPFolder)-[RESOURCE]->(GCPProject)
+    (GCPFolder)-[PARENT]->(GCPOrganization)
     ```
 
- - GCPFolders can contain other GCPFolders.
+- GCPFolders can have parent GCPFolders.
 
     ```
-    (GCPFolder)-[RESOURCE]->(GCPFolder)
+    (GCPFolder)-[PARENT]->(GCPFolder)
+    ```
+
+- GCPFolders can contain GCPProjects
+
+    ```
+    (GCPProject)-[PARENT]->(GCPFolder)
+    ```
+
+- GCPFolders can contain other GCPFolders.
+
+    ```
+    (GCPFolder)-[PARENT]->(GCPFolder)
     ```
 
 ### GCPProject
@@ -69,22 +84,31 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
  | firstseen      | Timestamp of when a sync job first discovered this node                                                                                                                       |
  | lastupdated    | Timestamp of the last time the node was updated                                                                                                                               |
  | id             | The ID of the project, e.g. "sys-12345"                                                                                                                                       |
+ | projectid      | The ID of the project, e.g. "sys-12345"                                                                                                                                       |
  | projectnumber  | The number uniquely identifying the project, e.g. '987654'                                                                                                                    |
  | displayname    | A friendly name of the project, e.g. "MyProject".                                                                                                                             |
  | lifecyclestate | The project's current lifecycle state. Assigned by the server.  See the [official docs](https://cloud.google.com/resource-manager/reference/rest/v1/projects#LifecycleState). |
+ | parent_org     | If the project's parent is an organization, this field contains the organization ID, e.g. "organizations/1234"                                                                |
+ | parent_folder  | If the project's parent is a folder, this field contains the folder ID, e.g. "folders/5678"                                                                                  |
 
  ### Relationships
 
-- GCPOrganizations contain GCPProjects.
+- GCPProjects are sub-resources of GCPOrganizations.
 
     ```
-    (GCPOrganization)-[RESOURCE]->(GCPProjects)
+    (GCPOrganization)-[RESOURCE]->(GCPProject)
     ```
 
- - GCPFolders can contain GCPProjects
+- GCPProjects can have a parent GCPOrganization.
 
     ```
-    (GCPFolder)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[PARENT]->(GCPOrganization)
+    ```
+
+- GCPProjects can have a parent GCPFolder.
+
+    ```
+    (GCPProject)-[PARENT]->(GCPFolder)
     ```
 
 - GCPVpcs are part of GCPProjects
@@ -300,7 +324,7 @@ Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/re
 - GCPVpcs contain GCPSubnets
 
     ```
-    (:GCPVpc)-[:RESOURCE]->(:GCPSubnet)
+    (:GCPVpc)-[:HAS]->(:GCPSubnet)
     ```
 
 - GCPSubnets are part of GCP VPCs
@@ -395,7 +419,7 @@ Representation of a GCP [Resource Record Set](https://cloud.google.com/dns/docs/
 | ---------- | ------------------------------------------------------- |
 | data | Data contained in the record
 | firstseen  | Timestamp of when a sync job first discovered this node |
-| **id**                   |Same as `name`|
+| **id**                   |Composite key `name|type|zone_id` to ensure uniqueness across record types and zones|
 | name       | The name of the Resource Record Set                                    |
 | type | The identifier of a supported record type. See the list of [Supported DNS record types](https://cloud.google.om/dns/docs/overview#supported_dns_record_types).
 | ttl | Number of seconds that this ResourceRecordSet can be cached by resolvers.
@@ -431,16 +455,22 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 
 #### Relationships
 
+- GCPSubnets are resources of GCPProjects (primary organizational relationship)
+
+    ```
+    (:GCPProject)-[:RESOURCE]->(:GCPSubnet)
+    ```
+
 - GCPSubnets are part of GCP VPCs
 
     ```
-    (GCPVpc)-[RESOURCE]->(GCPSubnet)
+    (:GCPVpc)-[:HAS]->(:GCPSubnet)
     ```
 
 - GCPNetworkInterfaces are connected to GCPSubnets
 
     ```
-    (GCPNetworkInterface)-[PART_OF_SUBNET]->(GCPSubnet)
+    (:GCPNetworkInterface)-[:PART_OF_SUBNET]->(:GCPSubnet)
     ```
 
 

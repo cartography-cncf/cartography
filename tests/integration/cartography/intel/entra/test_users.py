@@ -77,6 +77,25 @@ async def test_sync_entra_users(
         == expected_nodes
     )
 
+    # Assert Users are linked to their managers
+    expected_reports_to_rels = {
+        (
+            "ae4ac864-4433-4ba6-96a6-20f8cffdadcb",
+            "11dca63b-cb03-4e53-bb75-fa8060285550",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "EntraUser",
+            "id",
+            "EntraUser",
+            "id",
+            "REPORTS_TO",
+        )
+        == expected_reports_to_rels
+    )
+
     # Assert Users are connected with Tenant
     expected_rels = {
         ("ae4ac864-4433-4ba6-96a6-20f8cffdadcb", TEST_TENANT_ID),

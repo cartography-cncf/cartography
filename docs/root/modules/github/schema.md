@@ -11,6 +11,7 @@ U -- UNAFFILIATED --> O
 U -- OWNER --> R
 U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
+U -- COMMITTED_TO --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
 R -- REQUIRES --> D(Dependency)
@@ -19,7 +20,7 @@ M -- HAS_DEP --> D
 T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
-U -- MAINTENER --> T
+U -- MAINTAINER --> T
 ```
 
 ### GitHubRepository
@@ -86,6 +87,17 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
   ```
   (GitHubTeam)-[ADMIN|READ|WRITE|TRIAGE|MAINTAIN]->(GitHubRepository)
   ```
+
+- GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
+
+  ```
+  (GitHubUser)-[:COMMITTED_TO]->(GitHubRepository)
+  ```
+
+  This relationship includes the following properties:
+  - **commit_count**: Number of commits made by the user to the repository in the last 30 days
+  - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
+  - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
 
 ### GitHubOrganization
 
@@ -243,6 +255,17 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
     ```
     (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
     ```
+
+- GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
+
+    ```
+    (GitHubUser)-[:COMMITTED_TO]->(GitHubRepository)
+    ```
+
+    This relationship includes the following properties:
+    - **commit_count**: Number of commits made by the user to the repository in the last 30 days
+    - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
+    - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
 
 
 ### GitHubBranch

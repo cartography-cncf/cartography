@@ -91,7 +91,7 @@ def transform_network_interface_data(
                 "InterfaceType": network_interface["InterfaceType"],
                 "MacAddress": network_interface["MacAddress"],
                 "PrivateDnsName": network_interface.get("PrivateDnsName"),
-                "PrivateIpAddress": network_interface["PrivateIpAddress"],
+                "PrivateIpAddress": network_interface.get("PrivateIpAddress"),
                 "PublicIp": network_interface.get("Association", {}).get("PublicIp"),
                 "RequesterId": network_interface.get("RequesterId"),
                 "RequesterManaged": network_interface["RequesterManaged"],

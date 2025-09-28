@@ -5,6 +5,7 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -80,7 +81,8 @@ def load_configuration_recorders(
     for recorder in data:
         recorder["_id"] = f'{recorder["name"]}:{current_aws_account_id}:{region}'
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_configuration_recorders,
         Recorders=data,
         Region=region,
@@ -120,7 +122,8 @@ def load_delivery_channels(
     for channel in data:
         channel["_id"] = f'{channel["name"]}:{current_aws_account_id}:{region}'
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_delivery_channels,
         Channels=data,
         Region=region,
@@ -167,7 +170,8 @@ def load_config_rules(
             for detail in rule["Source"]["SourceDetails"]:
                 details.append(f"{detail}")
         rule["_source_details"] = details
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_config_rules,
         Rules=data,
         Region=region,

@@ -11,8 +11,8 @@ from typing import Optional
 from typing import Set
 
 import neo4j
-from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -22,6 +22,10 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
+
+
+# Maximum number of retries for Google API requests
+GOOGLE_API_NUM_RETRIES = 5
 
 
 def _get_error_reason(http_error: HttpError) -> str:
@@ -66,7 +70,7 @@ def get_zones_in_project(
     """
     try:
         req = compute.zones().list(project=project_id, maxResults=max_results)
-        res = req.execute()
+        res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
         return res["items"]
     except HttpError as e:
         reason = _get_error_reason(e)
@@ -120,22 +124,53 @@ def get_gcp_instance_responses(
     response_objects: List[Resource] = []
     for zone in zones:
         req = compute.instances().list(project=project_id, zone=zone["name"])
-        res = req.execute()
-        response_objects.append(res)
+        try:
+            res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+            response_objects.append(res)
+        except HttpError as e:
+            reason = _get_error_reason(e)
+            if reason in {"backendError", "rateLimitExceeded", "internalError"}:
+                logger.warning(
+                    "Transient error listing instances for project %s zone %s: %s; skipping this zone.",
+                    project_id,
+                    zone.get("name"),
+                    e,
+                )
+                continue
+            raise
     return response_objects
 
 
 @timeit
-def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Resource:
+def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Dict:
     """
-    Return list of all subnets in the given projectid and region
-    :param projectid: THe projectid
+    Return list of all subnets in the given projectid and region.  If the API
+    call times out mid-pagination, return any subnets gathered so far rather than
+    bubbling the error up to the caller.
+    :param projectid: The project ID
     :param region: The region to pull subnets from
     :param compute: The compute resource object created by googleapiclient.discovery.build()
     :return: Response object containing data on all GCP subnets for a given project
     """
     req = compute.subnetworks().list(project=projectid, region=region)
-    return req.execute()
+    items: List[Dict] = []
+    response_id = f"projects/{projectid}/regions/{region}/subnetworks"
+    while req is not None:
+        try:
+            res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        except TimeoutError:
+            logger.warning(
+                "GCP: subnetworks.list for project %s region %s timed out; continuing with partial data.",
+                projectid,
+                region,
+            )
+            break
+        items.extend(res.get("items", []))
+        response_id = res.get("id", response_id)
+        req = compute.subnetworks().list_next(
+            previous_request=req, previous_response=res
+        )
+    return {"id": response_id, "items": items}
 
 
 @timeit
@@ -147,7 +182,7 @@ def get_gcp_vpcs(projectid: str, compute: Resource) -> Resource:
     :return: VPC response object
     """
     req = compute.networks().list(project=projectid)
-    return req.execute()
+    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
 
 
 @timeit
@@ -164,7 +199,7 @@ def get_gcp_regional_forwarding_rules(
     :return: Response object containing data on all GCP forwarding rules for a given project
     """
     req = compute.forwardingRules().list(project=project_id, region=region)
-    return req.execute()
+    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
 
 
 @timeit
@@ -176,7 +211,7 @@ def get_gcp_global_forwarding_rules(project_id: str, compute: Resource) -> Resou
     :return: Response object containing data on all GCP forwarding rules for a given project
     """
     req = compute.globalForwardingRules().list(project=project_id)
-    return req.execute()
+    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
 
 
 @timeit
@@ -188,7 +223,7 @@ def get_gcp_firewall_ingress_rules(project_id: str, compute: Resource) -> Resour
     :return: Firewall response object
     """
     req = compute.firewalls().list(project=project_id, filter='(direction="INGRESS")')
-    return req.execute()
+    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
 
 
 @timeit
@@ -621,51 +656,25 @@ def load_gcp_subnets(
     neo4j_session: neo4j.Session,
     subnets: List[Dict],
     gcp_update_tag: int,
+    project_id: str,
 ) -> None:
     """
-    Ingest GCP subnet data to Neo4j
+    Ingest GCP subnet data to Neo4j using the data model
     :param neo4j_session: The Neo4j session
     :param subnets: List of the subnets
     :param gcp_update_tag: The timestamp to set these Neo4j nodes with
+    :param project_id: The project ID
     :return: Nothing
     """
-    query = """
-    MERGE(vpc:GCPVpc{id:$VpcPartialUri})
-    ON CREATE SET vpc.firstseen = timestamp(),
-    vpc.partial_uri = $VpcPartialUri
+    from cartography.models.gcp.compute.subnet import GCPSubnetSchema
 
-    MERGE(subnet:GCPSubnet{id:$PartialUri})
-    ON CREATE SET subnet.firstseen = timestamp(),
-    subnet.partial_uri = $PartialUri
-    SET subnet.self_link = $SubnetSelfLink,
-    subnet.project_id = $ProjectId,
-    subnet.name = $SubnetName,
-    subnet.region = $Region,
-    subnet.gateway_address = $GatewayAddress,
-    subnet.ip_cidr_range = $IpCidrRange,
-    subnet.private_ip_google_access = $PrivateIpGoogleAccess,
-    subnet.vpc_partial_uri = $VpcPartialUri,
-    subnet.lastupdated = $gcp_update_tag
-
-    MERGE (vpc)-[r:RESOURCE]->(subnet)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $gcp_update_tag
-    """
-    for s in subnets:
-        neo4j_session.run(
-            query,
-            VpcPartialUri=s["vpc_partial_uri"],
-            VpcSelfLink=s["vpc_self_link"],
-            PartialUri=s["partial_uri"],
-            SubnetSelfLink=s["self_link"],
-            ProjectId=s["project_id"],
-            SubnetName=s["name"],
-            Region=s["region"],
-            GatewayAddress=s["gateway_address"],
-            IpCidrRange=s["ip_cidr_range"],
-            PrivateIpGoogleAccess=s["private_ip_google_access"],
-            gcp_update_tag=gcp_update_tag,
-        )
+    load(
+        neo4j_session,
+        GCPSubnetSchema(),
+        subnets,
+        lastupdated=gcp_update_tag,
+        PROJECT_ID=project_id,
+    )
 
 
 @timeit
@@ -946,7 +955,7 @@ def _attach_gcp_vpc(
     """
     query = """
     MATCH (i:GCPInstance{id:$InstanceId})-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)
-          -[p:PART_OF_SUBNET]->(sn:GCPSubnet)<-[r:RESOURCE]-(vpc:GCPVpc)
+          -[p:PART_OF_SUBNET]->(sn:GCPSubnet)<-[r:HAS]-(vpc:GCPVpc)
     MERGE (i)-[m:MEMBER_OF_GCP_VPC]->(vpc)
     ON CREATE SET m.firstseen = timestamp()
     SET m.lastupdated = $gcp_update_tag
@@ -1150,15 +1159,15 @@ def cleanup_gcp_subnets(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Delete out-of-date GCP VPC subnet nodes and relationships
+    Delete out-of-date GCP VPC subnet nodes and relationships using data model
     :param neo4j_session: The Neo4j session
     :param common_job_parameters: dict of other job parameters to pass to Neo4j
     :return: Nothing
     """
-    run_cleanup_job(
-        "gcp_compute_vpc_subnet_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    from cartography.models.gcp.compute.subnet import GCPSubnetSchema
+
+    GraphJob.from_node_schema(GCPSubnetSchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
@@ -1261,7 +1270,7 @@ def sync_gcp_subnets(
     for r in regions:
         subnet_res = get_gcp_subnets(project_id, r, compute)
         subnets = transform_gcp_subnets(subnet_res)
-        load_gcp_subnets(neo4j_session, subnets, gcp_update_tag)
+        load_gcp_subnets(neo4j_session, subnets, gcp_update_tag, project_id)
         # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
         cleanup_gcp_subnets(neo4j_session, common_job_parameters)
 

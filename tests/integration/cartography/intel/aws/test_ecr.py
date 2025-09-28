@@ -116,6 +116,12 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
             "2025-01-01T00:00:00.000000-00:00",
         ),
         (
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
+            "latest",
+            1024,
+            "2025-01-01T00:00:00.000000-00:00",
+        ),
+        (
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:2",
             "2",
             1024,
@@ -193,6 +199,10 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
         ),
         (
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
+        ),
+        (
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository",
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:2",
         ),
         (
@@ -229,6 +239,10 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     ) == {
         (
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
         (
@@ -402,6 +416,10 @@ def test_load_ecr_repository_images(neo4j_session):
         ),
         (
             "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
+            "latest",
+        ),
+        (
+            "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
             "2",
         ),
     }
@@ -446,6 +464,10 @@ def test_load_ecr_images(neo4j_session):
         ),
         (
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
     }

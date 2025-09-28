@@ -270,6 +270,8 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         "AccessDenied",
         "AccessDeniedException",
         "AuthFailure",
+        "AuthorizationError",
+        "AuthorizationErrorException",
         "InvalidClientTokenId",
         "UnauthorizedOperation",
         "UnrecognizedClientException",

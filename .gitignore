@@ -25,3 +25,4 @@ poetry.lock
 .python-version
 .python_history
 github_config.json
+.env.local

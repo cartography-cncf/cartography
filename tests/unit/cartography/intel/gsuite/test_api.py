@@ -144,7 +144,8 @@ def test_sync_gsuite_groups(
     )
 
 
-def test_load_gsuite_groups():
+@patch("cartography.intel.gsuite.api.run_write_query")
+def test_load_gsuite_groups(mock_run_write_query):
     ingestion_qry = """
         UNWIND $GroupData as group
         MERGE (g:GSuiteGroup{id: group.id})
@@ -166,14 +167,16 @@ def test_load_gsuite_groups():
     update_tag = 1
     session = mock.MagicMock()
     api.load_gsuite_groups(session, groups, update_tag)
-    session.run.assert_called_with(
+    mock_run_write_query.assert_called_once_with(
+        session,
         ingestion_qry,
         GroupData=groups,
         UpdateTag=update_tag,
     )
 
 
-def test_load_gsuite_users():
+@patch("cartography.intel.gsuite.api.run_write_query")
+def test_load_gsuite_users(mock_run_write_query):
     ingestion_qry = """
         UNWIND $UserData as user
         MERGE (u:GSuiteUser{id: user.id})
@@ -212,7 +215,8 @@ def test_load_gsuite_users():
     update_tag = 1
     session = mock.MagicMock()
     api.load_gsuite_users(session, users, update_tag)
-    session.run.assert_called_with(
+    mock_run_write_query.assert_called_once_with(
+        session,
         ingestion_qry,
         UserData=users,
         UpdateTag=update_tag,

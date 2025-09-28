@@ -10,6 +10,7 @@ import neo4j
 from okta.framework.ApiClient import ApiClient
 from okta.framework.OktaError import OktaError
 
+from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
 from cartography.intel.okta.utils import is_last_page
@@ -293,7 +294,8 @@ def _load_okta_applications(
     SET org_r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_statement,
         ORG_ID=okta_org_id,
         APP_LIST=app_list,
@@ -327,7 +329,8 @@ def _load_application_user(
     SET r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         APP_ID=app_id,
         USER_LIST=user_list,
@@ -361,7 +364,8 @@ def _load_application_group(
     SET r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         APP_ID=app_id,
         GROUP_LIST=group_list,
@@ -400,7 +404,8 @@ def _load_application_reply_urls(
     SET r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         APP_ID=app_id,
         URL_LIST=reply_urls,

@@ -14,7 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class SSOUserProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("UserId", extra_index=True)
+    id: PropertyRef = PropertyRef("UserId")
     user_name: PropertyRef = PropertyRef("UserName")
     identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
     external_id: PropertyRef = PropertyRef("ExternalId", extra_index=True)
@@ -58,6 +58,40 @@ class AWSSSOUserToAWSAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AWSSSOUserToSSOGroupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSSSOUserToSSOGroupRel(CartographyRelSchema):
+    target_node_label: str = "AWSSSOGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("MemberOfGroups", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF_SSO_GROUP"
+    properties: AWSSSOUserToSSOGroupRelProperties = AWSSSOUserToSSOGroupRelProperties()
+
+
+@dataclass(frozen=True)
+class AWSSSOUserToPermissionSetRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSSSOUserToPermissionSetRel(CartographyRelSchema):
+    target_node_label: str = "AWSPermissionSet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_PERMISSION_SET"
+    properties: AWSSSOUserToPermissionSetRelProperties = (
+        AWSSSOUserToPermissionSetRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AWSSSOUserSchema(CartographyNodeSchema):
     label: str = "AWSSSOUser"
     properties: SSOUserProperties = SSOUserProperties()
@@ -66,5 +100,7 @@ class AWSSSOUserSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SSOUserToOktaUserRel(),
+            AWSSSOUserToSSOGroupRel(),
+            AWSSSOUserToPermissionSetRel(),
         ],
     )

@@ -60,6 +60,12 @@ LIST_REPOSITORY_IMAGES = {
             **DESCRIBE_IMAGES["imageDetails"],
         },
         {
+            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "imageTag": "latest",
+            "repositoryName": "example-repository",
+            **DESCRIBE_IMAGES["imageDetails"],
+        },
+        {
             "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
             "imageTag": "2",
             "repositoryName": "example-repository",

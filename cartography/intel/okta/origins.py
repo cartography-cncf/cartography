@@ -7,6 +7,7 @@ from typing import List
 import neo4j
 from okta.framework.ApiClient import ApiClient
 
+from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.utils import create_api_client
 from cartography.util import timeit
 
@@ -96,7 +97,8 @@ def _load_trusted_origins(
     SET r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         ORG_ID=okta_org_id,
         TRUSTED_LIST=trusted_list,

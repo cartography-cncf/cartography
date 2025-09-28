@@ -329,6 +329,14 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--github-commit-lookback-days",
+            type=int,
+            default=30,
+            help=(
+                "Number of days to look back for tracking GitHub users committing to repositories. Defaults to 30 days."
+            ),
+        )
+        parser.add_argument(
             "--digitalocean-token-env-var",
             type=str,
             default=None,
@@ -968,8 +976,8 @@ class CLI:
                 logger.warning("A Kandji base URI was provided but a token was not.")
                 config.kandji_token = None
         else:
-            logger.warning("A Kandji base URI was not provided.")
             config.kandji_base_uri = None
+            config.kandji_token = None
 
         if config.statsd_enabled:
             logger.debug(
@@ -1097,8 +1105,8 @@ class CLI:
                 logger.warning("A SnipeIT base URI was provided but a token was not.")
                 config.snipeit_token = None
         else:
-            logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
+            config.snipeit_token = None
 
         # Tailscale config
         if config.tailscale_token_env_var:
