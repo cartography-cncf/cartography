@@ -108,18 +108,6 @@ def evaluate_notdataaction_for_permission(permissions: Dict, permission: str) ->
     return False
 
 
-def compile_permissions(permissions: Dict[str, Any]) -> Dict[str, Any]:
-    action_types = ["actions", "not_actions", "data_actions", "not_data_actions"]
-    compiled_permissions = {}
-
-    for action_type in action_types:
-        compiled_permissions[action_type] = [
-            compile_azure_regex(item) for item in permissions[action_type]
-        ]
-
-    return compiled_permissions
-
-
 def evaluate_role_assignment_for_permissions(
     assignment_data: Dict[str, Any],
     permissions: List[str],
@@ -243,6 +231,18 @@ def compile_permissions_from_nodes(permissions_nodes: List[Dict]) -> Dict[str, A
         )
 
     return compile_permissions(permissions)
+
+
+def compile_permissions(permissions: Dict[str, Any]) -> Dict[str, Any]:
+    action_types = ["actions", "not_actions", "data_actions", "not_data_actions"]
+    compiled_permissions = {}
+
+    for action_type in action_types:
+        compiled_permissions[action_type] = [
+            compile_azure_regex(item) for item in permissions[action_type]
+        ]
+
+    return compiled_permissions
 
 
 def get_resource_ids(
