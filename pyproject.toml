@@ -56,6 +56,7 @@ dependencies = [
     "azure-mgmt-cosmosdb>=6.0.0",
     "azure-mgmt-web>=7.0.0",
     "azure-mgmt-logic>=10.0.0",
+    "azure-mgmt-containerservice>=30.0.0",
     "msrestazure >= 0.6.4",
     "azure-mgmt-storage>=16.0.0",
     "azure-mgmt-sql<=1.0.0",
@@ -90,6 +91,7 @@ dev = [
     "types-requests<2.32.4.20250914",
     "azure-mgmt-web>=7.0.0",
     "azure-mgmt-logic>=10.0.0",
+    "azure-mgmt-containerservice>=30.0.0",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",
