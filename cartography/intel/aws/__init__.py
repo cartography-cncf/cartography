@@ -176,6 +176,7 @@ def _sync_multiple_accounts(
     sync_tag: int,
     common_job_parameters: Dict[str, Any],
     aws_best_effort_mode: bool,
+    aws_sync_all_profiles: bool,
     aws_requested_syncs: List[str] = [],
     regions: list[str] | None = None,
 ) -> bool:
@@ -185,8 +186,6 @@ def _sync_multiple_accounts(
     failed_account_ids = []
     exception_tracebacks = []
 
-    num_accounts = len(accounts)
-
     for profile_name, account_id in accounts.items():
         logger.info(
             "Syncing AWS account with ID '%s' using configured profile '%s'.",
@@ -194,11 +193,10 @@ def _sync_multiple_accounts(
             profile_name,
         )
         common_job_parameters["AWS_ID"] = account_id
-        if num_accounts == 1:
-            # Use the default boto3 session because boto3 gets confused if you give it a profile name with 1 account
-            boto3_session = boto3.Session()
-        else:
+        if aws_sync_all_profiles:
             boto3_session = boto3.Session(profile_name=profile_name)
+        else:
+            boto3_session = boto3.Session()
 
         _autodiscover_accounts(
             neo4j_session,
@@ -365,6 +363,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         common_job_parameters,
         config.aws_best_effort_mode,
+        config.aws_sync_all_profiles,
         requested_syncs,
         regions=regions,
     )
