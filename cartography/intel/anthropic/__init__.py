@@ -1,12 +1,12 @@
 import logging
 
 import neo4j
-import requests
 
 import cartography.intel.anthropic.apikeys
 import cartography.intel.anthropic.users
 import cartography.intel.anthropic.workspaces
 from cartography.config import Config
+from cartography.util import build_session
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ def start_anthropic_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         return
 
     # Create requests sessions
-    api_session = requests.session()
+    api_session = build_session()
     api_session.headers.update(
         {
             "X-Api-Key": config.anthropic_apikey,
