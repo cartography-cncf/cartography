@@ -631,8 +631,6 @@ def test_sync_multi_region_event_loop_preserved(
     # Create mock boto3 session
     boto3_session = MagicMock()
 
-    # This should not crash on Python 3.11+ when processing multiple regions
-    # The old asyncio.run() approach would tear down the event loop after first region
     try:
         sync_ecr_layers(
             neo4j_session,
@@ -642,11 +640,10 @@ def test_sync_multi_region_event_loop_preserved(
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
         )
-        # If we reach here without RuntimeError, the fix works
+        # If we reach here without RuntimeError, our loop management is working
         assert True
     except RuntimeError as e:
         if "no current event loop" in str(e).lower():
             pytest.fail("Event loop was torn down between regions - fix needed")
         else:
-            # Re-raise other RuntimeErrors
             raise

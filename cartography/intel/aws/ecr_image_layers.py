@@ -12,7 +12,6 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Protocol
 from typing import Tuple
 
 import aioboto3
@@ -20,6 +19,7 @@ import boto3
 import httpx
 import neo4j
 from botocore.exceptions import ClientError
+from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -30,7 +30,6 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-# Constants
 EMPTY_LAYER_DIFF_ID = (
     "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
 )
@@ -55,16 +54,21 @@ INDEX_MEDIA_TYPES_LOWER = {mt.lower() for mt in INDEX_MEDIA_TYPES}
 SKIP_CONFIG_MEDIA_TYPE_FRAGMENTS = {"buildkit", "attestation", "in-toto"}
 
 
-class ECRClient(Protocol):
-    """Protocol for ECR client operations."""
+def extract_repo_uri_from_image_uri(image_uri: str) -> str:
+    """
+    Extract repository URI from image URI by removing tag or digest.
 
-    async def batch_get_image(self, **kwargs: Any) -> Dict:
-        """Get image manifest using batch_get_image API."""
-        ...
-
-    async def get_download_url_for_layer(self, **kwargs: Any) -> Dict:
-        """Get presigned URL for layer download."""
-        ...
+    Examples:
+        "repo@sha256:digest" -> "repo"
+        "repo:tag" -> "repo"
+        "repo" -> "repo"
+    """
+    if "@sha256:" in image_uri:
+        return image_uri.split("@", 1)[0]
+    elif ":" in image_uri:
+        return image_uri.rsplit(":", 1)[0]
+    else:
+        return image_uri
 
 
 def extract_platform_from_manifest(manifest_ref: Dict) -> str:
@@ -238,15 +242,14 @@ def transform_ecr_image_layers(
     :return: List of layer objects ready for ingestion
     """
     layers_by_diff_id: Dict[str, Dict[str, Any]] = {}
-    memberships: List[Dict[str, Any]] = []
-    membership_keys: set[Tuple[str]] = set()
+    memberships_by_digest: Dict[str, Dict[str, Any]] = {}
 
-    for image_uri, platforms in sorted(image_layers_data.items()):
+    for image_uri, platforms in image_layers_data.items():
         image_digest = image_digest_map[image_uri]
 
         ordered_layers_for_image: Optional[List[str]] = None
 
-        for _, diff_ids in sorted(platforms.items()):
+        for _, diff_ids in platforms.items():
             if not diff_ids:
                 continue
 
@@ -278,15 +281,9 @@ def transform_ecr_image_layers(
                     layer["tail_image_ids"].add(image_digest)
 
         if ordered_layers_for_image:
-            membership_key = (image_digest,)
-            if membership_key not in membership_keys:
-                memberships.append(
-                    {
-                        "imageDigest": image_digest,
-                        "layer_diff_ids": ordered_layers_for_image,
-                    }
-                )
-                membership_keys.add(membership_key)
+            memberships_by_digest[image_digest] = {
+                "layer_diff_ids": ordered_layers_for_image,
+            }
 
     # Convert sets back to lists for Neo4j ingestion
     layers = []
@@ -302,6 +299,12 @@ def transform_ecr_image_layers(
         if layer["tail_image_ids"]:
             layer_dict["tail_image_ids"] = list(layer["tail_image_ids"])
         layers.append(layer_dict)
+
+    # Reconstruct memberships list with imageDigest field
+    memberships = [
+        {"imageDigest": digest, **membership_data}
+        for digest, membership_data in memberships_by_digest.items()
+    ]
 
     return layers, memberships
 
@@ -437,6 +440,7 @@ async def fetch_image_layers_async(
                 async def _process_child_manifest(
                     manifest_ref: Dict,
                 ) -> Dict[str, List[str]]:
+                    # Skip attestation manifests - these aren't real images
                     if (
                         manifest_ref.get("annotations", {}).get(
                             "vnd.docker.reference.type"
@@ -587,13 +591,7 @@ def sync(
         for region_name, _, uri, _, digest in ecr_images:
             if region_name == region and digest not in seen_digests:
                 seen_digests.add(digest)
-                # Extract repo_uri by removing tag/digest from URI
-                if "@sha256:" in uri:
-                    repo_uri = uri.split("@", 1)[0]
-                elif ":" in uri:
-                    repo_uri = uri.rsplit(":", 1)[0]
-                else:
-                    repo_uri = uri
+                repo_uri = extract_repo_uri_from_image_uri(uri)
 
                 # Create digest-based URI for manifest fetching
                 digest_uri = f"{repo_uri}@{digest}"
