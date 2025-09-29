@@ -242,10 +242,7 @@ def transform_ecr_image_layers(
     membership_keys: set[Tuple[str]] = set()
 
     for image_uri, platforms in sorted(image_layers_data.items()):
-        image_digest = image_digest_map.get(image_uri)
-        if not image_digest:
-            logger.warning(f"No digest found for image {image_uri}")
-            continue
+        image_digest = image_digest_map[image_uri]
 
         ordered_layers_for_image: Optional[List[str]] = None
 
@@ -414,12 +411,9 @@ async def fetch_image_layers_async(
     ) -> Optional[Tuple[str, str, Dict[str, List[str]]]]:
         """Fetch layers for a single image."""
         async with semaphore:
-            uri = repo_image.get("uri")
-            digest = repo_image.get("imageDigest")
-            repo_uri = repo_image.get("repo_uri")
-
-            if not (uri and digest and repo_uri):
-                return None
+            uri = repo_image["uri"]
+            digest = repo_image["imageDigest"]
+            repo_uri = repo_image["repo_uri"]
 
             # Extract repository name
             parts = repo_uri.split("/", 1)
@@ -537,6 +531,8 @@ async def fetch_image_layers_async(
 
             if result:
                 uri, digest, layer_data = result
+                if not digest:
+                    raise ValueError(f"Empty digest returned for image {uri}")
                 image_layers_data[uri] = layer_data
                 image_digest_map[uri] = digest
 
