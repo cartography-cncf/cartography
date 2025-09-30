@@ -1261,3 +1261,47 @@ Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/re
     ```cypher
     (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
     ```
+
+### AzureKubernetesCluster
+
+Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the AKS Cluster. |
+|name| The name of the AKS Cluster. |
+|location| The Azure region where the Cluster is deployed. |
+|provisioning_state| The deployment status of the Cluster (e.g., Succeeded). |
+|kubernetes_version| The version of Kubernetes the Cluster is running. |
+|fqdn| The fully qualified domain name of the Cluster's API server. |
+
+#### Relationships
+
+- An Azure Kubernetes Cluster is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKubernetesCluster)
+    ```
+
+### AzureKubernetesAgentPool
+
+Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microsoft.com/en-us/rest/api/aks/agent-pools/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Agent Pool. |
+|name| The name of the Agent Pool. |
+|provisioning_state| The deployment status of the Agent Pool (e.g., Succeeded). |
+|vm_size| The size of the virtual machines in the pool. |
+|os_type| The operating system of the nodes (e.g., Linux). |
+|count| The number of virtual machines in the pool. |
+
+#### Relationships
+
+- An Azure Kubernetes Cluster has one or more Agent Pools.
+    ```cypher
+    (AzureKubernetesCluster)-[:HAS_AGENT_POOL]->(:AzureKubernetesAgentPool)
+    ```
