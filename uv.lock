@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
@@ -285,6 +285,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-authorization"
+version = "4.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9e/ab/e79874f166eed24f4456ce4d532b29a926fb4c798c2c609eefd916a3f73d/azure-mgmt-authorization-4.0.0.zip", hash = "sha256:69b85abc09ae64fc72975bd43431170d8c7eb5d166754b98aac5f3845de57dc4", size = 1134795, upload-time = "2023-07-25T04:47:46.033Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/b3/8ec1268082f4d20cc8bf723a1a8e6b9e330bcc338a4dbcee9c7737e9dc1c/azure_mgmt_authorization-4.0.0-py3-none-any.whl", hash = "sha256:d8feeb3842e6ddf1a370963ca4f61fb6edc124e8997b807dd025bc9b2379cd1a", size = 1072620, upload-time = "2023-07-25T04:47:49.26Z" },
+]
+
+[[package]]
 name = "azure-mgmt-compute"
 version = "35.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -539,6 +553,7 @@ dependencies = [
     { name = "adal" },
     { name = "azure-cli-core" },
     { name = "azure-identity" },
+    { name = "azure-mgmt-authorization" },
     { name = "azure-mgmt-compute" },
     { name = "azure-mgmt-cosmosdb" },
     { name = "azure-mgmt-logic" },
@@ -605,6 +620,7 @@ requires-dist = [
     { name = "adal", specifier = ">=1.2.4" },
     { name = "azure-cli-core", specifier = ">=2.26.0" },
     { name = "azure-identity", specifier = ">=1.5.0" },
+    { name = "azure-mgmt-authorization", specifier = ">=0.60.0" },
     { name = "azure-mgmt-compute", specifier = ">=5.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },

@@ -59,6 +59,7 @@ dependencies = [
     "msrestazure >= 0.6.4",
     "azure-mgmt-storage>=16.0.0",
     "azure-mgmt-sql<=1.0.0",
+    "azure-mgmt-authorization>=0.60.0",
     "azure-identity>=1.5.0",
     "msgraph-sdk",
     "kubernetes>=22.6.0",
