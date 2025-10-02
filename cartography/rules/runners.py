@@ -37,10 +37,12 @@ def _run_fact(
         # Display requirement with optional clickable link
         if requirement.requirement_url:
             print(
-                f"  \033[36m{'Requirement:':<12}\033[0m \033]8;;{requirement.requirement_url}\033\\{requirement.id}\033]8;;\033\\"
+                f"  \033[36m{'Requirement:':<12}\033[0m \033]8;;{requirement.requirement_url}\033\\{requirement.id}\033]8;;\033\\ - {requirement.name}"
             )
         else:
-            print(f"  \033[36m{'Requirement:':<12}\033[0m {requirement.id}")
+            print(
+                f"  \033[36m{'Requirement:':<12}\033[0m {requirement.id} - {requirement.name}"
+            )
         print(f"  \033[36m{'Fact ID:':<12}\033[0m {fact.id}")
         print(f"  \033[36m{'Description:':<12}\033[0m {fact.description}")
         print(f"  \033[36m{'Provider:':<12}\033[0m {fact.module.value}")
