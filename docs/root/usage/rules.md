@@ -11,7 +11,7 @@ With `cartography-runrules`, we provide a set of pre-defined queries that let yo
 
 These rules are designed from an attacker’s perspective. For each framework technique, we ask: "What does an attacker actually need to execute this technique?"
 
-Our queries surface opportunities that enable attacks at all stages of the kill chain—initial access, lateral movement, data exfiltration, and beyond.
+Our queries surface opportunities that enable attacks at all stages of the kill chain: initial access, lateral movement, data exfiltration, and beyond.
 
 **What we don’t do**: impose thresholds or arbitrary expectations.
 Every organization has different risk tolerances. Saying “you should have at most 5 admin roles” is overly simplistic and rarely useful.
