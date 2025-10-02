@@ -67,6 +67,16 @@ class CLI:
             help='Security framework to execute (or "all" to execute all frameworks)',
         )
         run_parser.add_argument(
+            "requirement",
+            nargs="?",
+            help="Optional: Specific requirement ID to run (e.g., T1190)",
+        )
+        run_parser.add_argument(
+            "fact",
+            nargs="?",
+            help="Optional: Specific fact ID to run (e.g., aws_rds_public_access)",
+        )
+        run_parser.add_argument(
             "--uri",
             default=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
             help="Neo4j URI (default: bolt://localhost:7687)",
@@ -205,6 +215,53 @@ class CLI:
 
         # Handle run command
         if args.command == "run":
+            # Validate fact requires requirement
+            if args.fact and not args.requirement:
+                print("Error: Cannot specify a fact without specifying a requirement")
+                return 1
+
+            # Validate requirement/fact only work with single framework
+            if (args.requirement or args.fact) and args.framework == "all":
+                print(
+                    "Error: Cannot filter by requirement or fact when running all frameworks"
+                )
+                return 1
+
+            # Validate requirement exists in framework
+            if args.requirement:
+                framework = FRAMEWORKS[args.framework]
+                requirement = None
+                for req in framework.requirements:
+                    if req.id.lower() == args.requirement.lower():
+                        requirement = req
+                        break
+
+                if not requirement:
+                    print(
+                        f"Error: Requirement '{args.requirement}' not found in framework '{args.framework}'"
+                    )
+                    print("\nAvailable requirements:")
+                    for req in framework.requirements:
+                        print(f"  {req.id}")
+                    return 1
+
+                # Validate fact exists in requirement
+                if args.fact:
+                    fact = None
+                    for f in requirement.facts:
+                        if f.id.lower() == args.fact.lower():
+                            fact = f
+                            break
+
+                    if not fact:
+                        print(
+                            f"Error: Fact '{args.fact}' not found in requirement '{args.requirement}'"
+                        )
+                        print("\nAvailable facts:")
+                        for f in requirement.facts:
+                            print(f"  {f.id}")
+                        return 1
+
             # Get password
             password = None
             if args.neo4j_password_prompt:
@@ -232,6 +289,8 @@ class CLI:
                     password,
                     args.database,
                     args.output,
+                    requirement_filter=args.requirement,
+                    fact_filter=args.fact,
                 )
             except KeyboardInterrupt:
                 return 130

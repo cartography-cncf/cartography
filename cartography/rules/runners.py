@@ -101,16 +101,31 @@ def _run_single_framework(
     database: str,
     output_format: str,
     neo4j_uri: str,
+    requirement_filter: str | None = None,
+    fact_filter: str | None = None,
 ) -> FrameworkResult:
     """Execute a single framework and return results."""
     framework = FRAMEWORKS[framework_name]
 
+    # Filter requirements if needed
+    requirements_to_run = framework.requirements
+    if requirement_filter:
+        requirements_to_run = tuple(
+            req
+            for req in framework.requirements
+            if req.id.lower() == requirement_filter.lower()
+        )
+
     # Count total facts for display
-    total_facts = sum(len(req.facts) for req in framework.requirements)
+    total_facts = sum(len(req.facts) for req in requirements_to_run)
 
     if output_format == "text":
         print(f"Executing {framework.name} framework")
-        print(f"Requirements: {len(framework.requirements)}")
+        if requirement_filter:
+            print(f"Filtered to requirement: {requirement_filter}")
+            if fact_filter:
+                print(f"Filtered to fact: {fact_filter}")
+        print(f"Requirements: {len(requirements_to_run)}")
         print(f"Total facts: {total_facts}")
 
     # Execute facts and collect results
@@ -118,11 +133,18 @@ def _run_single_framework(
     requirement_results = []
     fact_counter = 0
 
-    for requirement in framework.requirements:
+    for requirement in requirements_to_run:
+        # Filter facts if needed
+        facts_to_run = requirement.facts
+        if fact_filter:
+            facts_to_run = tuple(
+                f for f in requirement.facts if f.id.lower() == fact_filter.lower()
+            )
+
         fact_results = []
         requirement_findings = 0
 
-        for fact in requirement.facts:
+        for fact in facts_to_run:
             fact_counter += 1
             fact_result = _run_fact(
                 fact,
@@ -156,7 +178,7 @@ def _run_single_framework(
         framework_name=framework.name,
         framework_version=framework.version,
         requirements=requirement_results,
-        total_requirements=len(framework.requirements),
+        total_requirements=len(requirements_to_run),
         total_facts=total_facts,
         total_findings=total_findings,
     )
@@ -204,6 +226,8 @@ def run_frameworks(
     neo4j_password: str,
     neo4j_database: str,
     output_format: str = "text",
+    requirement_filter: str | None = None,
+    fact_filter: str | None = None,
 ):
     """
     Execute the specified frameworks and present results.
@@ -214,6 +238,8 @@ def run_frameworks(
     :param neo4j_password: The password for the Neo4j database.
     :param neo4j_database: The name of the Neo4j database.
     :param output_format: Either "text" or "json". Defaults to "text".
+    :param requirement_filter: Optional requirement ID to filter execution (case-insensitive).
+    :param fact_filter: Optional fact ID to filter execution (case-insensitive).
     :return: The exit code.
     """
     # Validate all frameworks exist
@@ -247,7 +273,13 @@ def run_frameworks(
                 )
 
             framework_result = _run_single_framework(
-                framework_name, driver, neo4j_database, output_format, uri
+                framework_name,
+                driver,
+                neo4j_database,
+                output_format,
+                uri,
+                requirement_filter,
+                fact_filter,
             )
             all_results.append(framework_result)
 
