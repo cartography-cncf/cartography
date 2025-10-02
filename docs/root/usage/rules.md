@@ -4,7 +4,7 @@ You can use the `cartography-runrules` command to evaluate your environment agai
 
 ## What are rules in Cartography?
 
-Cartography ingests data from your environment and stores it in a knowledge graph. With `cartography-runrules`, we provide a set of pre-defined queries that let you evaluate your environment against common security frameworks, along with community-curated rules.
+With `cartography-runrules`, we provide a set of pre-defined queries that let you evaluate your environment against common security frameworks, along with community-curated rules.
 
 
 ## Our opinionated approach

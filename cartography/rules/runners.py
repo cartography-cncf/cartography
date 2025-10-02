@@ -8,6 +8,7 @@ from dataclasses import asdict
 from neo4j import Driver
 from neo4j import GraphDatabase
 
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.rules.data.frameworks import FRAMEWORKS
 from cartography.rules.formatters import _generate_neo4j_browser_url
 from cartography.rules.spec.model import Fact
@@ -50,8 +51,7 @@ def _run_fact(
         )
 
     with driver.session(database=database) as session:
-        result = session.run(fact.cypher_query)
-        findings = [dict(record) for record in result]
+        findings = session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
         finding_count = len(findings)
 
     if output_format == "text":
@@ -217,14 +217,7 @@ def run_frameworks(
     driver = GraphDatabase.driver(uri, auth=(neo4j_user, neo4j_password))
 
     try:
-        # Test connection
-        with driver.session(database=neo4j_database) as session:
-            result = session.run("RETURN 1 as test")
-            if result.single()["test"] != 1:
-                raise Exception("Connection test failed")
-
-        if output_format == "text":
-            print(f"Connected successfully as {neo4j_user}")
+        driver.verify_connectivity()
 
         # Execute frameworks
         all_results = []

@@ -42,7 +42,7 @@ def read_list_of_values_tx(
     Example usage:
         query = "MATCH (a:TestNode) RETURN a.name ORDER BY a.name"
 
-        values = neo4j_session.read_transaction(read_list_of_values_tx, query)
+        values = neo4j_session.execute_read(read_list_of_values_tx, query)
 
     :param tx: A neo4j read transaction object
     :param query: A neo4j query string that returns a list of single values. For example,
