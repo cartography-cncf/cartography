@@ -107,7 +107,7 @@ include = ["cartography*"]
 [project.scripts]
 cartography = "cartography.cli:main"
 cartography-detectdrift = "cartography.driftdetect.cli:main"
-cartography-runrules = "cartography.rules.cli:main"
+cartography-rules = "cartography.rules.cli:main"
 
 [tool.setuptools.package-data]
 "cartography" = ["py.typed"]
