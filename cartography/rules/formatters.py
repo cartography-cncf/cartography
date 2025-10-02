@@ -13,10 +13,14 @@ def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
         browser_uri = neo4j_uri.replace("bolt://", "http://", 1)
     elif neo4j_uri.startswith("bolt+s://"):
         browser_uri = neo4j_uri.replace("bolt+s://", "https://", 1)
+    elif neo4j_uri.startswith("bolt+ssc://"):
+        browser_uri = neo4j_uri.replace("bolt+ssc://", "https://", 1)
     elif neo4j_uri.startswith("neo4j://"):
         browser_uri = neo4j_uri.replace("neo4j://", "http://", 1)
     elif neo4j_uri.startswith("neo4j+s://"):
         browser_uri = neo4j_uri.replace("neo4j+s://", "https://", 1)
+    elif neo4j_uri.startswith("neo4j+ssc://"):
+        browser_uri = neo4j_uri.replace("neo4j+ssc://", "https://", 1)
     else:
         browser_uri = neo4j_uri
 

@@ -62,6 +62,17 @@ class Requirement:
     description: str
     facts: tuple[Fact, ...]
     attributes: dict[str, Any] | None = None
+    """
+    Metadata attributes for the requirement. Example:
+    ```json
+    {
+        "tactic": "initial_access",
+        "technique_id": "T1190",
+        "services": ["ec2", "s3", "rds", "azure_storage"],
+        "providers": ["AWS", "AZURE"],
+    }
+    ```
+    """
     requirement_url: str | None = None
 
 
