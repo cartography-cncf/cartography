@@ -36,7 +36,7 @@ export NEO4J_USER=neo4j # or your username
 export NEO4J_DATABASE=neo4j
 
 # Store the Neo4j password in an environment variable. You can name this anything you want.
-```bash
+
 set +o history # avoid storing the password in the shell history; can also use something like 1password CLI.
 export NEO4J_PASSWORD=password
 set -o history # turn shell history back on
