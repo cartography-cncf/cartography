@@ -4,313 +4,349 @@ Cartography RunRules CLI
 Execute security frameworks and present facts about your environment.
 """
 
-import argparse
-import getpass
+import builtins
 import logging
 import os
-import sys
+from enum import Enum
+
+import typer
+from typing_extensions import Annotated
 
 from cartography.rules.data.frameworks import FRAMEWORKS
 from cartography.rules.runners import run_frameworks
 
+app = typer.Typer(
+    help="Execute Cartography security frameworks",
+    no_args_is_help=True,
+)
 
-class CLI:
+
+class OutputFormat(str, Enum):
+    """Output format options."""
+
+    text = "text"
+    json = "json"
+
+
+# ============================================================================
+# Autocompletion Functions
+# ============================================================================
+
+
+def complete_frameworks(incomplete: str):
+    """Autocomplete framework names."""
+    for name in FRAMEWORKS.keys():
+        if name.startswith(incomplete):
+            yield name
+
+
+def complete_frameworks_with_all(incomplete: str):
+    """Autocomplete framework names plus 'all'."""
+    for name in builtins.list(FRAMEWORKS.keys()) + ["all"]:
+        if name.startswith(incomplete):
+            yield name
+
+
+def complete_requirements(ctx: typer.Context, incomplete: str):
+    """Autocomplete requirement IDs based on selected framework."""
+    framework = ctx.params.get("framework")
+    if not framework or framework not in FRAMEWORKS:
+        return
+
+    for req in FRAMEWORKS[framework].requirements:
+        if req.id.lower().startswith(incomplete.lower()):
+            yield req.id
+
+
+def complete_facts(ctx: typer.Context, incomplete: str):
+    """Autocomplete fact IDs based on selected framework and requirement."""
+    framework = ctx.params.get("framework")
+    requirement_id = ctx.params.get("requirement")
+
+    if not framework or framework not in FRAMEWORKS:
+        return
+    if not requirement_id:
+        return
+
+    # Find the requirement
+    for req in FRAMEWORKS[framework].requirements:
+        if req.id.lower() == requirement_id.lower():
+            for fact in req.facts:
+                if fact.id.lower().startswith(incomplete.lower()):
+                    yield fact.id
+            break
+
+
+# ============================================================================
+# List Command
+# ============================================================================
+
+
+@app.command()
+def list(
+    framework: Annotated[
+        str | None,
+        typer.Argument(
+            help="Framework name (e.g., mitre-attack)",
+            autocompletion=complete_frameworks,
+        ),
+    ] = None,
+    requirement: Annotated[
+        str | None,
+        typer.Argument(
+            help="Requirement ID (e.g., T1190)",
+            autocompletion=complete_requirements,
+        ),
+    ] = None,
+):
     """
-    Command line interface for Cartography security framework execution.
+    List available frameworks, requirements, and facts.
+
+    \b
+    Examples:
+        cartography-rules list
+        cartography-rules list mitre-attack
+        cartography-rules list mitre-attack T1190
     """
+    # List all frameworks
+    if not framework:
+        typer.secho("\nAvailable Frameworks\n", bold=True)
+        for fw_name, fw in FRAMEWORKS.items():
+            typer.secho(f"{fw_name}", fg=typer.colors.CYAN)
+            typer.echo(f"  Name:         {fw.name}")
+            typer.echo(f"  Version:      {fw.version}")
+            typer.echo(f"  Requirements: {len(fw.requirements)}")
+            total_facts = sum(len(req.facts) for req in fw.requirements)
+            typer.echo(f"  Total Facts:  {total_facts}")
+            if fw.source_url:
+                typer.echo(f"  Source:       {fw.source_url}")
+            typer.echo()
+        return
 
-    def __init__(self, prog=None):
-        self.prog = prog
-        self.parser = self._build_parser()
+    # Validate framework
+    if framework not in FRAMEWORKS:
+        typer.secho(
+            f"Error: Unknown framework '{framework}'", fg=typer.colors.RED, err=True
+        )
+        typer.echo(f"Available: {', '.join(FRAMEWORKS.keys())}", err=True)
+        raise typer.Exit(1)
 
-    def _build_parser(self):
-        """
-        Build the argument parser for the rules CLI.
+    fw = FRAMEWORKS[framework]
 
-        :rtype: argparse.ArgumentParser
-        :return: A rules argument parser.
-        """
-        parser = argparse.ArgumentParser(
-            prog=self.prog,
-            description="Execute Cartography security frameworks",
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-            epilog="For more documentation please visit: https://github.com/cartography-cncf/cartography",
-        )
+    # List all requirements in framework
+    if not requirement:
+        typer.secho(f"\n{fw.name}", bold=True)
+        typer.echo(f"Version: {fw.version}\n")
+        for req in fw.requirements:
+            typer.secho(f"{req.id}", fg=typer.colors.CYAN)
+            typer.echo(f"  Name:  {req.name}")
+            typer.echo(f"  Facts: {len(req.facts)}")
+            if req.requirement_url:
+                typer.echo(f"  URL:   {req.requirement_url}")
+            typer.echo()
+        return
 
-        subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    # Find and list facts in requirement
+    req = None
+    for r in fw.requirements:
+        if r.id.lower() == requirement.lower():
+            req = r
+            break
 
-        # List command
-        list_parser = subparsers.add_parser(
-            "list",
-            help="List available frameworks, requirements, and facts",
+    if not req:
+        typer.secho(
+            f"Error: Requirement '{requirement}' not found",
+            fg=typer.colors.RED,
+            err=True,
         )
-        list_parser.add_argument(
-            "framework",
-            nargs="?",
-            help="Framework to inspect (e.g., mitre-attack)",
-        )
-        list_parser.add_argument(
-            "requirement",
-            nargs="?",
-            help="Requirement ID to inspect (e.g., T1190)",
-        )
+        typer.echo("\nAvailable requirements:", err=True)
+        for r in fw.requirements:
+            typer.echo(f"  {r.id}", err=True)
+        raise typer.Exit(1)
 
-        # Run command
-        run_parser = subparsers.add_parser(
-            "run",
-            help="Execute a security framework",
-        )
-        available_frameworks = list(FRAMEWORKS.keys()) + ["all"]
-        run_parser.add_argument(
-            "framework",
-            choices=available_frameworks,
-            help='Security framework to execute (or "all" to execute all frameworks)',
-        )
-        run_parser.add_argument(
-            "requirement",
-            nargs="?",
-            help="Optional: Specific requirement ID to run (e.g., T1190)",
-        )
-        run_parser.add_argument(
-            "fact",
-            nargs="?",
-            help="Optional: Specific fact ID to run (e.g., aws_rds_public_access)",
-        )
-        run_parser.add_argument(
-            "--uri",
-            default=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
-            help="Neo4j URI (default: bolt://localhost:7687)",
-        )
-        run_parser.add_argument(
-            "--user",
-            default=os.getenv("NEO4J_USER", "neo4j"),
-            help="Neo4j username (default: neo4j)",
-        )
-        run_parser.add_argument(
-            "--neo4j-password-env-var",
-            type=str,
-            default=None,
-            help="The name of an environment variable containing a password with which to authenticate to Neo4j.",
-        )
-        run_parser.add_argument(
-            "--neo4j-password-prompt",
-            action="store_true",
-            help=(
-                "Present an interactive prompt for a password with which to authenticate to Neo4j. This parameter "
-                "supersedes other methods of supplying a Neo4j password."
-            ),
-        )
-        run_parser.add_argument(
-            "--database",
-            default=os.getenv("NEO4J_DATABASE", "neo4j"),
-            help="Neo4j database name (default: neo4j)",
-        )
-        run_parser.add_argument(
-            "--output",
-            choices=["text", "json"],
-            default="text",
-            help="Output format (default: text)",
-        )
+    typer.secho(f"\n{req.name}\n", bold=True)
+    typer.echo(f"ID:  {req.id}")
+    if req.requirement_url:
+        typer.echo(f"URL: {req.requirement_url}")
+    typer.secho(f"\nFacts ({len(req.facts)})\n", bold=True)
 
-        return parser
+    for fact in req.facts:
+        typer.secho(f"{fact.id}", fg=typer.colors.CYAN)
+        typer.echo(f"  Name:        {fact.name}")
+        typer.echo(f"  Description: {fact.description}")
+        typer.echo(f"  Provider:    {fact.module.value}")
+        typer.echo()
 
-    def _list_all_frameworks(self):
-        """List all available frameworks."""
-        print("\n\033[1mAvailable Frameworks\033[0m\n")
-        for framework_name, framework in FRAMEWORKS.items():
-            print(f"\033[36m{framework_name}\033[0m")
-            print(f"  Name:         {framework.name}")
-            print(f"  Version:      {framework.version}")
-            print(f"  Requirements: {len(framework.requirements)}")
-            total_facts = sum(len(req.facts) for req in framework.requirements)
-            print(f"  Total Facts:  {total_facts}")
-            if framework.source_url:
-                print(f"  Source:       {framework.source_url}")
-            print()
 
-    def _list_framework_requirements(self, framework_name: str):
-        """List all requirements in a framework."""
-        if framework_name not in FRAMEWORKS:
-            print(f"Error: Unknown framework '{framework_name}'")
-            print(f"Available frameworks: {', '.join(FRAMEWORKS.keys())}")
-            return 1
+# ============================================================================
+# Run Command
+# ============================================================================
 
-        framework = FRAMEWORKS[framework_name]
-        print(f"\n\033[1m{framework.name}\033[0m (v{framework.version})\n")
 
-        for requirement in framework.requirements:
-            print(f"\033[36m{requirement.id}\033[0m - {requirement.name}")
-            print(f"  Facts: {len(requirement.facts)}")
-            if requirement.requirement_url:
-                print(f"  URL:   {requirement.requirement_url}")
-            print()
-        return 0
+@app.command()
+def run(
+    framework: Annotated[
+        str,
+        typer.Argument(
+            help="Framework to execute (or 'all' for all frameworks)",
+            autocompletion=complete_frameworks_with_all,
+        ),
+    ],
+    requirement: Annotated[
+        str | None,
+        typer.Argument(
+            help="Specific requirement ID to run",
+            autocompletion=complete_requirements,
+        ),
+    ] = None,
+    fact: Annotated[
+        str | None,
+        typer.Argument(
+            help="Specific fact ID to run",
+            autocompletion=complete_facts,
+        ),
+    ] = None,
+    uri: Annotated[
+        str,
+        typer.Option(help="Neo4j URI", envvar="NEO4J_URI"),
+    ] = "bolt://localhost:7687",
+    user: Annotated[
+        str,
+        typer.Option(help="Neo4j username", envvar="NEO4J_USER"),
+    ] = "neo4j",
+    database: Annotated[
+        str,
+        typer.Option(help="Neo4j database name", envvar="NEO4J_DATABASE"),
+    ] = "neo4j",
+    neo4j_password_env_var: Annotated[
+        str | None,
+        typer.Option(help="Environment variable containing Neo4j password"),
+    ] = None,
+    neo4j_password_prompt: Annotated[
+        bool,
+        typer.Option(help="Prompt for Neo4j password interactively"),
+    ] = False,
+    output: Annotated[
+        OutputFormat,
+        typer.Option(help="Output format"),
+    ] = OutputFormat.text,
+):
+    """
+    Execute a security framework.
 
-    def _list_requirement_facts(self, framework_name: str, requirement_id: str):
-        """List all facts in a requirement."""
-        if framework_name not in FRAMEWORKS:
-            print(f"Error: Unknown framework '{framework_name}'")
-            print(f"Available frameworks: {', '.join(FRAMEWORKS.keys())}")
-            return 1
+    \b
+    Examples:
+        cartography-rules run all
+        cartography-rules run mitre-attack
+        cartography-rules run mitre-attack T1190
+        cartography-rules run mitre-attack T1190 aws_rds_public_access
+    """
+    # Validate framework
+    valid_frameworks = builtins.list(FRAMEWORKS.keys()) + ["all"]
+    if framework not in valid_frameworks:
+        typer.secho(
+            f"Error: Unknown framework '{framework}'", fg=typer.colors.RED, err=True
+        )
+        typer.echo(f"Available: {', '.join(valid_frameworks)}", err=True)
+        raise typer.Exit(1)
 
-        framework = FRAMEWORKS[framework_name]
+    # Validate fact requires requirement
+    if fact and not requirement:
+        typer.secho(
+            "Error: Cannot specify fact without requirement",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(1)
 
-        # Find the requirement (case-insensitive match)
-        requirement = None
-        for req in framework.requirements:
-            if req.id.lower() == requirement_id.lower():
-                requirement = req
+    # Validate filtering with 'all'
+    if framework == "all" and (requirement or fact):
+        typer.secho(
+            "Error: Cannot filter by requirement/fact when running all frameworks",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    # Validate requirement exists
+    if requirement and framework != "all":
+        fw = FRAMEWORKS[framework]
+        req = None
+        for r in fw.requirements:
+            if r.id.lower() == requirement.lower():
+                req = r
                 break
 
-        if not requirement:
-            print(
-                f"Error: Requirement '{requirement_id}' not found in framework '{framework_name}'"
+        if not req:
+            typer.secho(
+                f"Error: Requirement '{requirement}' not found",
+                fg=typer.colors.RED,
+                err=True,
             )
-            print("\nAvailable requirements:")
-            for req in framework.requirements:
-                print(f"  {req.id}")
-            return 1
+            typer.echo("\nAvailable requirements:", err=True)
+            for r in fw.requirements:
+                typer.echo(f"  {r.id}", err=True)
+            raise typer.Exit(1)
 
-        print(f"\n\033[1m{requirement.name}\033[0m\n")
-        print(f"ID:  {requirement.id}")
-        if requirement.requirement_url:
-            print(f"URL: {requirement.requirement_url}")
-        print(f"\n\033[1mFacts ({len(requirement.facts)})\033[0m\n")
+        # Validate fact exists
+        if fact:
+            fact_found = None
+            for f in req.facts:
+                if f.id.lower() == fact.lower():
+                    fact_found = f
+                    break
 
-        for fact in requirement.facts:
-            print(f"\033[36m{fact.id}\033[0m")
-            print(f"  Name:        {fact.name}")
-            print(f"  Description: {fact.description}")
-            print(f"  Provider:    {fact.module.value}")
-            print()
-        return 0
-
-    def main(self, argv):
-        """
-        Entrypoint for the command line interface.
-
-        :type argv: List of strings
-        :param argv: The parameters supplied to the command line program.
-        :return: Exit code
-        """
-        args = self.parser.parse_args(argv)
-
-        # Handle no command
-        if not args.command:
-            self.parser.print_help()
-            return 1
-
-        # Handle list command
-        if args.command == "list":
-            if args.requirement:
-                # List facts in a requirement
-                return self._list_requirement_facts(args.framework, args.requirement)
-            elif args.framework:
-                # List requirements in a framework
-                return self._list_framework_requirements(args.framework)
-            else:
-                # List all frameworks
-                self._list_all_frameworks()
-                return 0
-
-        # Handle run command
-        if args.command == "run":
-            # Validate fact requires requirement
-            if args.fact and not args.requirement:
-                print("Error: Cannot specify a fact without specifying a requirement")
-                return 1
-
-            # Validate requirement/fact only work with single framework
-            if (args.requirement or args.fact) and args.framework == "all":
-                print(
-                    "Error: Cannot filter by requirement or fact when running all frameworks"
+            if not fact_found:
+                typer.secho(
+                    f"Error: Fact '{fact}' not found in requirement '{requirement}'",
+                    fg=typer.colors.RED,
+                    err=True,
                 )
-                return 1
+                typer.echo("\nAvailable facts:", err=True)
+                for f in req.facts:
+                    typer.echo(f"  {f.id}", err=True)
+                raise typer.Exit(1)
 
-            # Validate requirement exists in framework
-            if args.requirement:
-                framework = FRAMEWORKS[args.framework]
-                requirement = None
-                for req in framework.requirements:
-                    if req.id.lower() == args.requirement.lower():
-                        requirement = req
-                        break
+    # Get password
+    password = None
+    if neo4j_password_prompt:
+        password = typer.prompt("Neo4j password", hide_input=True)
+    elif neo4j_password_env_var:
+        password = os.environ.get(neo4j_password_env_var)
+    else:
+        password = os.getenv("NEO4J_PASSWORD")
+        if not password:
+            password = typer.prompt("Neo4j password", hide_input=True)
 
-                if not requirement:
-                    print(
-                        f"Error: Requirement '{args.requirement}' not found in framework '{args.framework}'"
-                    )
-                    print("\nAvailable requirements:")
-                    for req in framework.requirements:
-                        print(f"  {req.id}")
-                    return 1
+    # Determine frameworks to run
+    if framework == "all":
+        frameworks_to_run = builtins.list(FRAMEWORKS.keys())
+    else:
+        frameworks_to_run = [framework]
 
-                # Validate fact exists in requirement
-                if args.fact:
-                    fact = None
-                    for f in requirement.facts:
-                        if f.id.lower() == args.fact.lower():
-                            fact = f
-                            break
-
-                    if not fact:
-                        print(
-                            f"Error: Fact '{args.fact}' not found in requirement '{args.requirement}'"
-                        )
-                        print("\nAvailable facts:")
-                        for f in requirement.facts:
-                            print(f"  {f.id}")
-                        return 1
-
-            # Get password
-            password = None
-            if args.neo4j_password_prompt:
-                password = getpass.getpass("Enter Neo4j password: ")
-            elif args.neo4j_password_env_var:
-                password = os.environ.get(args.neo4j_password_env_var)
-            else:
-                # Fall back to NEO4J_PASSWORD for backward compatibility
-                password = os.getenv("NEO4J_PASSWORD")
-                if not password:
-                    password = getpass.getpass("Enter Neo4j password: ")
-
-            # Determine which frameworks to run
-            if args.framework == "all":
-                frameworks_to_run = list(FRAMEWORKS.keys())
-            else:
-                frameworks_to_run = [args.framework]
-
-            # Execute framework(s)
-            try:
-                return run_frameworks(
-                    frameworks_to_run,
-                    args.uri,
-                    args.user,
-                    password,
-                    args.database,
-                    args.output,
-                    requirement_filter=args.requirement,
-                    fact_filter=args.fact,
-                )
-            except KeyboardInterrupt:
-                return 130
-
-        return 1
+    # Execute
+    try:
+        exit_code = run_frameworks(
+            frameworks_to_run,
+            uri,
+            user,
+            password,
+            database,
+            output.value,
+            requirement_filter=requirement,
+            fact_filter=fact,
+        )
+        raise typer.Exit(exit_code)
+    except KeyboardInterrupt:
+        raise typer.Exit(130)
 
 
-def main(argv=None):
-    """
-    Entrypoint for the default rules command line interface.
-
-    :rtype: int
-    :return: The return code.
-    """
+def main():
+    """Entrypoint for cartography-rules CLI."""
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("neo4j").setLevel(logging.ERROR)
-
-    argv = argv if argv is not None else sys.argv[1:]
-    return CLI(prog="cartography-runrules").main(argv)
+    app()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
