@@ -92,12 +92,13 @@ def test_load_cloudflare_zones_for_account(mock_cloudflare, mock_api, neo4j_sess
     _ensure_local_neo4j_has_test_accounts(neo4j_session)
 
     # Act
-    cartography.intel.cloudflare.zones.sync(
+    synced_zones = cartography.intel.cloudflare.zones.sync(
         neo4j_session,
         mock_cloudflare,
         common_job_parameters,
         ACCOUNT_ID,
     )
+    assert len(synced_zones) == 1
 
     # Assert Zones exist
     expected_nodes = {
@@ -106,4 +107,3 @@ def test_load_cloudflare_zones_for_account(mock_cloudflare, mock_api, neo4j_sess
     assert (
         check_nodes(neo4j_session, "CloudflareZone", ["id", "name"]) == expected_nodes
     )
-
