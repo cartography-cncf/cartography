@@ -9,10 +9,7 @@ import asyncio
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
 
 import aioboto3
 import boto3
@@ -71,7 +68,7 @@ def extract_repo_uri_from_image_uri(image_uri: str) -> str:
         return image_uri
 
 
-def extract_platform_from_manifest(manifest_ref: Dict) -> str:
+def extract_platform_from_manifest(manifest_ref: dict) -> str:
     """Extract platform string from manifest reference."""
     platform_info = manifest_ref.get("platform", {})
     return _format_platform(
@@ -93,8 +90,8 @@ def _format_platform(
 
 
 async def batch_get_manifest(
-    ecr_client: ECRClient, repo: str, image_ref: str, accepted_media_types: List[str]
-) -> Tuple[Dict, str]:
+    ecr_client: ECRClient, repo: str, image_ref: str, accepted_media_types: list[str]
+) -> tuple[dict, str]:
     """Get image manifest using batch_get_image API."""
     try:
         resp = await ecr_client.batch_get_image(
@@ -141,7 +138,7 @@ async def get_blob_json_via_presigned(
     repo: str,
     digest: str,
     http_client: httpx.AsyncClient,
-) -> Dict:
+) -> dict:
     """Download and parse JSON blob using presigned URL."""
     try:
         url_response = await ecr_client.get_download_url_for_layer(
@@ -176,10 +173,10 @@ async def get_blob_json_via_presigned(
 async def _diff_ids_for_manifest(
     ecr_client: ECRClient,
     repo_name: str,
-    manifest_doc: Dict[str, Any],
+    manifest_doc: dict[str, Any],
     http_client: httpx.AsyncClient,
     platform_hint: Optional[str],
-) -> Dict[str, List[str]]:
+) -> dict[str, list[str]]:
     config = manifest_doc.get("config", {})
     config_media_type = config.get("mediaType", "").lower()
 
@@ -228,11 +225,10 @@ async def _diff_ids_for_manifest(
     return {platform: diff_ids}
 
 
-@timeit
 def transform_ecr_image_layers(
-    image_layers_data: Dict[str, Dict[str, List[str]]],
-    image_digest_map: Dict[str, str],
-) -> Tuple[List[Dict], List[Dict]]:
+    image_layers_data: dict[str, dict[str, list[str]]],
+    image_digest_map: dict[str, str],
+) -> tuple[list[dict], list[dict]]:
     """
     Transform image layer data into format suitable for Neo4j ingestion.
     Creates linked list structure with NEXT relationships and HEAD/TAIL markers.
@@ -241,13 +237,14 @@ def transform_ecr_image_layers(
     :param image_digest_map: Map of image URI to image digest
     :return: List of layer objects ready for ingestion
     """
-    layers_by_diff_id: Dict[str, Dict[str, Any]] = {}
-    memberships_by_digest: Dict[str, Dict[str, Any]] = {}
+    layers_by_diff_id: dict[str, dict[str, Any]] = {}
+    memberships_by_digest: dict[str, dict[str, Any]] = {}
 
     for image_uri, platforms in image_layers_data.items():
+        # fetch_image_layers_async guarantees every uri in image_layers_data has a digest
         image_digest = image_digest_map[image_uri]
 
-        ordered_layers_for_image: Optional[List[str]] = None
+        ordered_layers_for_image: Optional[list[str]] = None
 
         for _, diff_ids in platforms.items():
             if not diff_ids:
@@ -288,7 +285,7 @@ def transform_ecr_image_layers(
     # Convert sets back to lists for Neo4j ingestion
     layers = []
     for layer in layers_by_diff_id.values():
-        layer_dict: Dict[str, Any] = {
+        layer_dict: dict[str, Any] = {
             "diff_id": layer["diff_id"],
             "is_empty": layer["is_empty"],
         }
@@ -312,15 +309,12 @@ def transform_ecr_image_layers(
 @timeit
 def load_ecr_image_layers(
     neo4j_session: neo4j.Session,
-    image_layers: List[Dict],
+    image_layers: list[dict],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     """Load image layers into Neo4j."""
-    if not image_layers:
-        return
-
     logger.info(
         f"Loading {len(image_layers)} image layers for region {region} into graph.",
     )
@@ -337,14 +331,11 @@ def load_ecr_image_layers(
 @timeit
 def load_ecr_image_layer_memberships(
     neo4j_session: neo4j.Session,
-    memberships: List[Dict[str, Any]],
+    memberships: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    if not memberships:
-        return
-
     load(
         neo4j_session,
         ECRImageSchema(),
@@ -357,26 +348,26 @@ def load_ecr_image_layer_memberships(
 
 async def fetch_image_layers_async(
     ecr_client: ECRClient,
-    repo_images_list: List[Dict],
+    repo_images_list: list[dict],
     max_concurrent: int = 200,
-) -> Tuple[Dict[str, Dict[str, List[str]]], Dict[str, str]]:
+) -> tuple[dict[str, dict[str, list[str]]], dict[str, str]]:
     """
     Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
     """
-    image_layers_data: Dict[str, Dict[str, List[str]]] = {}
-    image_digest_map: Dict[str, str] = {}
+    image_layers_data: dict[str, dict[str, list[str]]] = {}
+    image_digest_map: dict[str, str] = {}
     semaphore = asyncio.Semaphore(max_concurrent)
 
     # Cache for manifest fetches keyed by (repo_name, imageDigest)
-    manifest_cache: Dict[Tuple[str, str], Tuple[Dict, str]] = {}
+    manifest_cache: dict[tuple[str, str], tuple[dict, str]] = {}
     # Lock for thread-safe cache access
     cache_lock = asyncio.Lock()
     # In-flight requests to coalesce duplicate fetches
-    inflight: Dict[Tuple[str, str], asyncio.Task] = {}
+    inflight: dict[tuple[str, str], asyncio.Task] = {}
 
     async def _fetch_and_cache_manifest(
-        repo_name: str, digest_or_tag: str, accepted: List[str]
-    ) -> Tuple[Dict, str]:
+        repo_name: str, digest_or_tag: str, accepted: list[str]
+    ) -> tuple[dict, str]:
         """
         Fetch and cache manifest with double-checked locking and in-flight coalescing.
         """
@@ -390,7 +381,7 @@ async def fetch_image_layers_async(
         task = inflight.get(key)
         if task is None:
             # Create new task for this manifest
-            async def _do() -> Tuple[Dict, str]:
+            async def _do() -> tuple[dict, str]:
                 # Fetch without holding the lock
                 doc, mt = await batch_get_manifest(
                     ecr_client, repo_name, digest_or_tag, accepted
@@ -409,11 +400,12 @@ async def fetch_image_layers_async(
             inflight.pop(key, None)
 
     async def fetch_single_image_layers(
-        repo_image: Dict,
+        repo_image: dict,
         http_client: httpx.AsyncClient,
-    ) -> Optional[Tuple[str, str, Dict[str, List[str]]]]:
+    ) -> Optional[tuple[str, str, dict[str, list[str]]]]:
         """Fetch layers for a single image."""
         async with semaphore:
+            # Caller guarantees these fields exist in every repo_image
             uri = repo_image["uri"]
             digest = repo_image["imageDigest"]
             repo_uri = repo_image["repo_uri"]
@@ -433,13 +425,13 @@ async def fetch_image_layers_async(
                 return None
 
             manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
-            platform_layers: Dict[str, List[str]] = {}
+            platform_layers: dict[str, list[str]] = {}
 
             if doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER:
 
                 async def _process_child_manifest(
-                    manifest_ref: Dict,
-                ) -> Dict[str, List[str]]:
+                    manifest_ref: dict,
+                ) -> dict[str, list[str]]:
                     # Skip attestation manifests - these aren't real images
                     if (
                         manifest_ref.get("annotations", {}).get(
@@ -546,7 +538,7 @@ async def fetch_image_layers_async(
     return image_layers_data, image_digest_map
 
 
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
     logger.debug("Running image layer cleanup job.")
     GraphJob.from_node_schema(ECRImageLayerSchema(), common_job_parameters).run(
         neo4j_session
@@ -557,10 +549,10 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     """
     Sync ECR image layers. This fetches detailed layer information for ECR images
@@ -622,7 +614,7 @@ def sync(
             )
 
             async def _fetch_with_async_client() -> (
-                Tuple[Dict[str, Dict[str, List[str]]], Dict[str, str]]
+                tuple[dict[str, dict[str, list[str]]], dict[str, str]]
             ):
                 # Use credentials from the existing boto3 session
                 credentials = boto3_session.get_credentials()
@@ -647,29 +639,26 @@ def sync(
                 _fetch_with_async_client()
             )
 
-            if image_layers_data:
-                logger.info(
-                    f"Successfully fetched layers for {len(image_layers_data)} images"
-                )
-                layers, memberships = transform_ecr_image_layers(
-                    image_layers_data,
-                    image_digest_map,
-                )
-                load_ecr_image_layers(
-                    neo4j_session,
-                    layers,
-                    region,
-                    current_aws_account_id,
-                    update_tag,
-                )
-                load_ecr_image_layer_memberships(
-                    neo4j_session,
-                    memberships,
-                    region,
-                    current_aws_account_id,
-                    update_tag,
-                )
-            else:
-                logger.info("No image layers fetched")
+            logger.info(
+                f"Successfully fetched layers for {len(image_layers_data)} images"
+            )
+            layers, memberships = transform_ecr_image_layers(
+                image_layers_data,
+                image_digest_map,
+            )
+            load_ecr_image_layers(
+                neo4j_session,
+                layers,
+                region,
+                current_aws_account_id,
+                update_tag,
+            )
+            load_ecr_image_layer_memberships(
+                neo4j_session,
+                memberships,
+                region,
+                current_aws_account_id,
+                update_tag,
+            )
 
     cleanup(neo4j_session, common_job_parameters)

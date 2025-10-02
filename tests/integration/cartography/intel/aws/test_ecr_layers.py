@@ -4,9 +4,11 @@ from unittest.mock import patch
 
 import pytest
 
+import cartography.intel.aws.ecr
 import cartography.intel.aws.ecr_image_layers as ecr_layers
 import tests.data.aws.ecr as test_data
 from cartography.intel.aws.ecr_image_layers import sync as sync_ecr_layers
+from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -15,83 +17,18 @@ TEST_UPDATE_TAG = 123456789
 TEST_REGION = "us-east-1"
 
 
-def test_transform_ecr_image_layers():
-    """Test the transform_ecr_image_layers function."""
-    # Sample layer data for testing
-    image_layers_data = {
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": {
-            "linux/amd64": [
-                "sha256:layer1",
-                "sha256:layer2",
-                "sha256:layer3",
-            ]
-        },
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:2": {
-            "linux/amd64": [
-                "sha256:layer1",  # Shared layer
-                "sha256:layer4",
-                "sha256:layer5",
-            ]
-        },
-    }
-
-    image_digest_map = {
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": "sha256:digest1",
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:2": "sha256:digest2",
-    }
-
-    layers, memberships = ecr_layers.transform_ecr_image_layers(
-        image_layers_data,
-        image_digest_map,
-    )
-
-    # Check that we have 5 unique layers
-    assert len(layers) == 5
-
-    # Check layer1 is HEAD of both images
-    layer1 = next(layer for layer in layers if layer["diff_id"] == "sha256:layer1")
-    assert not layer1["is_empty"]
-    assert set(layer1["head_image_ids"]) == {"sha256:digest1", "sha256:digest2"}
-    # Layer1 should have NEXT edges to both layer2 and layer4
-    assert set(layer1["next_diff_ids"]) == {"sha256:layer2", "sha256:layer4"}
-
-    # Check layer3 is TAIL of first image
-    layer3 = next(layer for layer in layers if layer["diff_id"] == "sha256:layer3")
-    assert not layer3["is_empty"]
-    assert layer3["tail_image_ids"] == ["sha256:digest1"]
-    assert "next_diff_ids" not in layer3
-
-    # Check layer5 is TAIL of second image
-    layer5 = next(layer for layer in layers if layer["diff_id"] == "sha256:layer5")
-    assert not layer5["is_empty"]
-    assert layer5["tail_image_ids"] == ["sha256:digest2"]
-    assert "next_diff_ids" not in layer5
-
-    # Membership list should include each layer per image with index information
-    expected_memberships = {
-        (
-            "sha256:digest1",
-            (
-                "sha256:layer1",
-                "sha256:layer2",
-                "sha256:layer3",
-            ),
-        ),
-        (
-            "sha256:digest2",
-            (
-                "sha256:layer1",
-                "sha256:layer4",
-                "sha256:layer5",
-            ),
-        ),
-    }
-    membership_tuples = {
-        (m["imageDigest"], tuple(m["layer_diff_ids"])) for m in memberships
-    }
-    assert membership_tuples == expected_memberships
-
-
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=test_data.DESCRIBE_REPOSITORIES["repositories"][:1],
+)
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repository_images",
+    return_value=test_data.LIST_REPOSITORY_IMAGES[
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    ][:1],
+)
 @patch("cartography.client.aws.ecr.get_ecr_images")
 @patch("cartography.intel.aws.ecr_image_layers.batch_get_manifest")
 @patch("cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned")
@@ -99,40 +36,22 @@ def test_sync_with_layers(
     mock_get_blob,
     mock_batch_get_manifest,
     mock_get_ecr_images,
+    mock_get_repo_images,
+    mock_get_repos,
     neo4j_session,
 ):
-    """Test ECR sync with image layer support using graph-based approach."""
-    # First, create the basic ECR data that would normally be created by 'ecr' module
-    from cartography.intel.aws.ecr import load_ecr_repositories
-    from cartography.intel.aws.ecr import load_ecr_repository_images
+    """Test ECR sync with image layer support"""
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    # Create minimal test data
-    mock_repositories = test_data.DESCRIBE_REPOSITORIES["repositories"][:1]
-    uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1"
-    mock_repo_images = [
-        {
-            "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-            "imageTag": "1",
-            "uri": uri,
-            "id": uri,
-            "repo_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository",
-            **test_data.DESCRIBE_IMAGES["imageDetails"],
-        }
-    ]
-
-    load_ecr_repositories(
+    cartography.intel.aws.ecr.sync(
         neo4j_session,
-        mock_repositories,
-        TEST_REGION,
+        boto3_session,
+        [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-    )
-    load_ecr_repository_images(
-        neo4j_session,
-        mock_repo_images,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     # Mock images from graph
@@ -164,6 +83,7 @@ def test_sync_with_layers(
         test_data.GET_DOWNLOAD_URL_RESPONSE
     )
 
+    # Act
     # Run sync with layer support
     sync_ecr_layers(
         neo4j_session,
@@ -174,6 +94,7 @@ def test_sync_with_layers(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
+    # Assert
     # Check that ECRImage nodes were created
     expected_ecr_images = {
         (
@@ -317,103 +238,6 @@ def test_sync_with_layers(
         )
         == expected_tail_rels
     )
-
-
-def test_transform_layers_creates_graph_structure():
-    """Test that transform creates proper graph structure from layer data."""
-    # Test images sharing base layers (common in Docker)
-    image_layers_data = {
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/web-app:v1": {
-            "linux/amd64": [
-                "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # base OS layer
-                "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # runtime layer
-                "sha256:3333333333333333333333333333333333333333333333333333333333333333",  # app-specific
-            ]
-        },
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/api-service:v1": {
-            "linux/amd64": [
-                "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # shared base
-                "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # shared runtime
-                "sha256:4444444444444444444444444444444444444444444444444444444444444444",  # api-specific
-            ]
-        },
-    }
-
-    image_digest_map = {
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/web-app:v1": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001",
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/api-service:v1": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
-    }
-
-    layers, memberships = ecr_layers.transform_ecr_image_layers(
-        image_layers_data,
-        image_digest_map,
-    )
-
-    # Should have 4 unique layers (2 shared, 2 unique)
-    assert len(layers) == 4
-
-    # Base layer should be HEAD of both images
-    base_layer = next(
-        layer
-        for layer in layers
-        if layer["diff_id"]
-        == "sha256:1111111111111111111111111111111111111111111111111111111111111111"
-    )
-    assert len(base_layer["head_image_ids"]) == 2
-    assert (
-        "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
-        in base_layer["head_image_ids"]
-    )
-    assert (
-        "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
-        in base_layer["head_image_ids"]
-    )
-
-    # App-specific layers should be TAIL of their respective images
-    web_layer = next(
-        layer
-        for layer in layers
-        if layer["diff_id"]
-        == "sha256:3333333333333333333333333333333333333333333333333333333333333333"
-    )
-    assert web_layer["tail_image_ids"] == [
-        "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
-    ]
-
-    api_layer = next(
-        layer
-        for layer in layers
-        if layer["diff_id"]
-        == "sha256:4444444444444444444444444444444444444444444444444444444444444444"
-    )
-    assert api_layer["tail_image_ids"] == [
-        "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
-    ]
-
-    # Memberships should correspond to both images' layer sequences
-    expected_memberships = {
-        (
-            "sha256:aaaa000000000000000000000000000000000000000000000000000000000001",
-            (
-                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-                "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-            ),
-        ),
-        (
-            "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
-            (
-                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-                "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-            ),
-        ),
-    }
-
-    observed_memberships = {
-        (m["imageDigest"], tuple(m["layer_diff_ids"])) for m in memberships
-    }
-    assert observed_memberships == expected_memberships
 
 
 def test_shared_layers_preserve_multiple_next_edges():

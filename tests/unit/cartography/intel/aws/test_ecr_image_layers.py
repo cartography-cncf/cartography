@@ -4,11 +4,9 @@ from cartography.intel.aws.ecr_image_layers import extract_repo_uri_from_image_u
 from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
 
 
-def test_extract_repo_uri_from_image_uri():
-    """Test the extract_repo_uri_from_image_uri helper function."""
-
-    test_cases = [
-        # Format: (input_uri, expected_repo_uri)
+@pytest.mark.parametrize(
+    "input_uri,expected_repo_uri",
+    [
         # Digest-based URI
         (
             "123456789.dkr.ecr.us-east-1.amazonaws.com/my-repo@sha256:abcdef123456789",
@@ -39,20 +37,7 @@ def test_extract_repo_uri_from_image_uri():
             "123456789.dkr.ecr.eu-west-1.amazonaws.com/app:build-123",
             "123456789.dkr.ecr.eu-west-1.amazonaws.com/app",
         ),
-    ]
-
-    for input_uri, expected_repo_uri in test_cases:
-        actual_repo_uri = extract_repo_uri_from_image_uri(input_uri)
-        assert actual_repo_uri == expected_repo_uri, (
-            f"URI extraction failed for {input_uri}. "
-            f"Expected: {expected_repo_uri}, Got: {actual_repo_uri}"
-        )
-
-
-def test_extract_repo_uri_edge_cases():
-    """Test edge cases for the extract_repo_uri_from_image_uri function."""
-
-    edge_cases = [
+        # Edge cases
         # Empty string
         ("", ""),
         # Only digest marker (malformed)
@@ -63,34 +48,12 @@ def test_extract_repo_uri_edge_cases():
         ("repo@sha256:abc@def", "repo"),
         # Mixed digest and tag markers (digest takes precedence)
         ("repo@sha256:abc:tag", "repo"),
-    ]
-
-    for input_uri, expected_repo_uri in edge_cases:
-        actual_repo_uri = extract_repo_uri_from_image_uri(input_uri)
-        assert actual_repo_uri == expected_repo_uri, (
-            f"Edge case URI extraction failed for {input_uri}. "
-            f"Expected: {expected_repo_uri}, Got: {actual_repo_uri}"
-        )
-
-
-def test_transform_ecr_image_layers_basic():
-    """Basic test for transform_ecr_image_layers function."""
-    image_layers_data = {
-        "repo/image:tag": {"linux/amd64": ["sha256:layer1", "sha256:layer2"]}
-    }
-    image_digest_map = {"repo/image:tag": "sha256:imagedigest"}
-
-    layers, memberships = transform_ecr_image_layers(
-        image_layers_data, image_digest_map
-    )
-
-    # Should have 2 layers
-    assert len(layers) == 2
-
-    # Should have 1 membership
-    assert len(memberships) == 1
-    assert memberships[0]["imageDigest"] == "sha256:imagedigest"
-    assert memberships[0]["layer_diff_ids"] == ["sha256:layer1", "sha256:layer2"]
+    ],
+)
+def test_extract_repo_uri_from_image_uri(input_uri, expected_repo_uri):
+    """Test the extract_repo_uri_from_image_uri helper function."""
+    actual_repo_uri = extract_repo_uri_from_image_uri(input_uri)
+    assert actual_repo_uri == expected_repo_uri
 
 
 def test_transform_ecr_image_layers_missing_digest_fails():
@@ -109,3 +72,119 @@ def test_transform_ecr_image_layers_empty_input():
 
     assert layers == []
     assert memberships == []
+
+
+def test_transform_layers_creates_graph_structure():
+    """Test that transform creates proper graph structure from layer data."""
+    # Test images sharing base layers (common in Docker)
+    image_layers_data = {
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/web-app:v1": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # base OS layer
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # runtime layer
+                "sha256:3333333333333333333333333333333333333333333333333333333333333333",  # app-specific
+            ]
+        },
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/api-service:v1": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # shared base
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # shared runtime
+                "sha256:4444444444444444444444444444444444444444444444444444444444444444",  # api-specific
+            ]
+        },
+    }
+
+    image_digest_map = {
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/web-app:v1": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001",
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/api-service:v1": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
+    }
+
+    layers, memberships = transform_ecr_image_layers(
+        image_layers_data,
+        image_digest_map,
+    )
+
+    # Should have 4 unique layers (2 shared, 2 unique)
+    assert len(layers) == 4
+
+    # Base layer should be HEAD of both images
+    base_layer = next(
+        layer
+        for layer in layers
+        if layer["diff_id"]
+        == "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    )
+    assert len(base_layer["head_image_ids"]) == 2
+    assert (
+        "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+        in base_layer["head_image_ids"]
+    )
+    assert (
+        "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
+        in base_layer["head_image_ids"]
+    )
+    # Base layer should have NEXT pointing to runtime layer
+    assert base_layer["next_diff_ids"] == [
+        "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    ]
+
+    # Runtime layer should have NEXT pointing to both app-specific layers (divergence point)
+    runtime_layer = next(
+        layer
+        for layer in layers
+        if layer["diff_id"]
+        == "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    )
+    assert set(runtime_layer["next_diff_ids"]) == {
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    }
+
+    # App-specific layers should be TAIL of their respective images
+    web_layer = next(
+        layer
+        for layer in layers
+        if layer["diff_id"]
+        == "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    )
+    assert web_layer["tail_image_ids"] == [
+        "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+    ]
+
+    api_layer = next(
+        layer
+        for layer in layers
+        if layer["diff_id"]
+        == "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    )
+    assert api_layer["tail_image_ids"] == [
+        "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
+    ]
+    # TAIL layers should have no NEXT relationships
+    assert "next_diff_ids" not in web_layer
+    assert "next_diff_ids" not in api_layer
+
+    # Memberships should correspond to both images' layer sequences
+    expected_memberships = {
+        (
+            "sha256:aaaa000000000000000000000000000000000000000000000000000000000001",
+            (
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            ),
+        ),
+        (
+            "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
+            (
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            ),
+        ),
+    }
+
+    observed_memberships = {
+        (m["imageDigest"], tuple(m["layer_diff_ids"])) for m in memberships
+    }
+    assert observed_memberships == expected_memberships
