@@ -14,8 +14,8 @@ from cartography.rules.formatters import _generate_neo4j_browser_url
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Requirement
-from cartography.rules.spec.output import FactResult
-from cartography.rules.spec.output import FrameworkResult
+from cartography.rules.spec.result import FactResult
+from cartography.rules.spec.result import FrameworkResult
 
 
 def _run_fact(
