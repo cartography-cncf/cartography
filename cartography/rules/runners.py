@@ -16,6 +16,7 @@ from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Requirement
 from cartography.rules.spec.result import FactResult
 from cartography.rules.spec.result import FrameworkResult
+from cartography.rules.spec.result import RequirementResult
 
 
 def _run_fact(
@@ -87,10 +88,8 @@ def _run_fact(
         fact_name=fact.name,
         fact_description=fact.description,
         fact_provider=fact.module.value,
-        requirement_id=requirement.id,
         finding_count=finding_count,
         findings=findings if output_format == "json" else findings[:10],
-        requirement_url=requirement.requirement_url,
     )
 
 
@@ -114,10 +113,13 @@ def _run_single_framework(
 
     # Execute facts and collect results
     total_findings = 0
-    fact_results = []
+    requirement_results = []
     fact_counter = 0
 
     for requirement in framework.requirements:
+        fact_results = []
+        requirement_findings = 0
+
         for fact in requirement.facts:
             fact_counter += 1
             fact_result = _run_fact(
@@ -132,14 +134,26 @@ def _run_single_framework(
                 neo4j_uri,
             )
             fact_results.append(fact_result)
-            total_findings += fact_result.finding_count
+            requirement_findings += fact_result.finding_count
+
+        # Create requirement result
+        requirement_result = RequirementResult(
+            requirement_id=requirement.id,
+            requirement_name=requirement.name,
+            requirement_url=requirement.requirement_url,
+            facts=fact_results,
+            total_facts=len(fact_results),
+            total_findings=requirement_findings,
+        )
+        requirement_results.append(requirement_result)
+        total_findings += requirement_findings
 
     # Create and return framework result
     return FrameworkResult(
         framework_id=framework.id,
         framework_name=framework.name,
         framework_version=framework.version,
-        results=fact_results,
+        requirements=requirement_results,
         total_requirements=len(framework.requirements),
         total_facts=total_facts,
         total_findings=total_findings,

@@ -5,26 +5,42 @@ from typing import Any
 
 @dataclass
 class FactResult:
+    """
+    Results for a single Fact.
+    """
+
     fact_id: str
     fact_name: str
     fact_description: str
     fact_provider: str
-    requirement_id: str
     finding_count: int = 0
     findings: list[dict[str, Any]] | None = None
-    requirement_url: str | None = None
+
+
+@dataclass
+class RequirementResult:
+    """
+    Results for a single requirement, containing all its Facts.
+    """
+
+    requirement_id: str
+    requirement_name: str
+    requirement_url: str | None
+    facts: list[FactResult]
+    total_facts: int
+    total_findings: int
 
 
 @dataclass
 class FrameworkResult:
     """
-    The formal object output by `--output json`.
+    The formal object output by `--output json` from the `cartography-runrules` CLI.
     """
 
     framework_id: str
     framework_name: str
     framework_version: str
-    results: list[FactResult]
+    requirements: list[RequirementResult]
     total_requirements: int
     total_facts: int
     total_findings: int
