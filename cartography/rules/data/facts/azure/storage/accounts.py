@@ -1,5 +1,5 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Provider
+from cartography.rules.spec.model import Module
 
 azure_storage_public_blob_access = Fact(
     id="azure_storage_public_blob_access",
@@ -23,5 +23,5 @@ azure_storage_public_blob_access = Fact(
     WHERE bc.publicaccess IN ['Container', 'Blob']
     RETURN *
     """,
-    provider=Provider.AZURE,
+    module=Module.AZURE,
 )

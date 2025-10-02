@@ -1,5 +1,5 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Provider
+from cartography.rules.spec.model import Module
 
 aws_rds_public_access = Fact(
     id="aws_rds_public_access",
@@ -23,5 +23,5 @@ aws_rds_public_access = Fact(
     OPTIONAL MATCH p4=(rds)--(sg:EC2SecurityGroup)--(rule:IpPermissionInbound:IpRule)--(ip:IpRange)
     RETURN *
     """,
-    provider=Provider.AWS,
+    module=Module.AWS,
 )

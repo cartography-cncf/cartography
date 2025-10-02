@@ -1,5 +1,5 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Provider
+from cartography.rules.spec.model import Module
 
 aws_ec2_instance_internet_exposed = Fact(
     id="aws_ec2_instance_internet_exposed",
@@ -19,5 +19,5 @@ aws_ec2_instance_internet_exposed = Fact(
     WHERE rule.fromport IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
     RETURN *
     """,
-    provider=Provider.AWS,
+    module=Module.AWS,
 )

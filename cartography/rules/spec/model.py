@@ -3,8 +3,8 @@ from enum import Enum
 from typing import Any
 
 
-class Provider(str, Enum):
-    """Cloud and service providers that can be monitored"""
+class Module(str, Enum):
+    """Services that can be monitored"""
 
     AWS = "AWS"
     """Amazon Web Services"""
@@ -35,8 +35,8 @@ class Fact:
     """A descriptive name for the Fact."""
     description: str
     """More details about the Fact. Information on details that we're querying for."""
-    provider: Provider
-    """The Provider that the Fact is associated with e.g. AWS, Azure, GCP, etc."""
+    module: Module
+    """The Module that the Fact is associated with e.g. AWS, Azure, GCP, etc."""
     # TODO can we lint the queries. full-on integ tests here are overkill though.
     cypher_query: str
     """The Cypher query to gather information about the environment. Returns data field by field e.g. `RETURN node.prop1, node.prop2`."""

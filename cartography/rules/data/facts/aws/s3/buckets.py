@@ -1,5 +1,5 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Provider
+from cartography.rules.spec.model import Module
 
 aws_s3_public = Fact(
     id="aws_s3_public",
@@ -32,5 +32,5 @@ aws_s3_public = Fact(
     OPTIONAL MATCH p=(b)--(:S3PolicyStatement)
     RETURN *
     """,
-    provider=Provider.AWS,
+    module=Module.AWS,
 )

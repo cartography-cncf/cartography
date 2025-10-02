@@ -42,7 +42,7 @@ def _run_fact(
             print(f"  \033[36m{'Requirement:':<12}\033[0m {requirement.id}")
         print(f"  \033[36m{'Fact ID:':<12}\033[0m {fact.id}")
         print(f"  \033[36m{'Description:':<12}\033[0m {fact.description}")
-        print(f"  \033[36m{'Provider:':<12}\033[0m {fact.provider.value}")
+        print(f"  \033[36m{'Provider:':<12}\033[0m {fact.module.value}")
 
         # Generate and display clickable Neo4j Browser URL
         browser_url = _generate_neo4j_browser_url(neo4j_uri, fact.cypher_visual_query)
@@ -86,7 +86,7 @@ def _run_fact(
         fact_id=fact.id,
         fact_name=fact.name,
         fact_description=fact.description,
-        fact_provider=fact.provider.value,
+        fact_provider=fact.module.value,
         requirement_id=requirement.id,
         finding_count=finding_count,
         findings=findings if output_format == "json" else findings[:10],
