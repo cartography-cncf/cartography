@@ -1993,6 +1993,48 @@ Representation of an individual Docker image layer discovered while processing E
            next_diff_ids AS successors
     ORDER BY digest, branching_layer;
     ```
+- Find parent image given a digest (need to specify base image repository):
+    ```cypher
+    WITH $target_digest as target_digest
+    // Get target image's layer chain via graph traversal
+    MATCH (target:ECRImage {digest: target_digest})
+    MATCH (target)-[:HAS_LAYER]->(tl:ECRImageLayer)
+    WITH target, collect(id(tl)) AS targetAllowedIds
+    CALL {
+    WITH target, targetAllowedIds
+    MATCH p = (target)-[:HEAD]->(:ECRImageLayer)-[:NEXT*0..]->(:ECRImageLayer)<-[:TAIL]-(target)
+    WITH p, targetAllowedIds, [n IN nodes(p) WHERE n:ECRImageLayer | id(n)] AS layerIds
+    WHERE all(i IN layerIds WHERE i IN targetAllowedIds)
+    RETURN [n IN nodes(p) WHERE n:ECRImageLayer | n.diff_id] AS target_diff_ids
+    ORDER BY length(p) DESC
+    LIMIT 1
+    }
+    // Get all base images with their layer chains from a repo called 'base-images'
+    MATCH (base_repo:ECRRepository {name: 'base-images'})-[:REPO_IMAGE]->(base_img:ECRRepositoryImage)-[:IMAGE]->(base:ECRImage)
+    MATCH (base)-[:HAS_LAYER]->(bl:ECRImageLayer)
+    WITH target_diff_ids, base, base_img, collect(id(bl)) AS baseAllowedIds
+    CALL {
+    WITH base, baseAllowedIds
+    MATCH p = (base)-[:HEAD]->(:ECRImageLayer)-[:NEXT*0..]->(:ECRImageLayer)<-[:TAIL]-(base)
+    WITH p, baseAllowedIds, [n IN nodes(p) WHERE n:ECRImageLayer | id(n)] AS layerIds
+    WHERE all(i IN layerIds WHERE i IN baseAllowedIds)
+    RETURN [n IN nodes(p) WHERE n:ECRImageLayer | n.diff_id] AS base_diff_ids
+    ORDER BY length(p) DESC
+    LIMIT 1
+    }
+    // Calculate longest common prefix
+    WITH target_diff_ids, base, base_img, base_diff_ids,
+        REDUCE(lcp = 0, i IN RANGE(0, SIZE(base_diff_ids)-1) |
+        CASE WHEN i < SIZE(target_diff_ids) AND base_diff_ids[i] = target_diff_ids[i]
+                THEN lcp + 1 ELSE lcp END
+        ) as lcp_length
+    // Only keep matches where ALL base layers match (complete prefix)
+    WHERE lcp_length = SIZE(base_diff_ids)
+    RETURN base.digest, base_img.uri, base_img.tag, base_img.image_pushed_at,
+        SIZE(base_diff_ids) as base_layer_count, lcp_length
+    ORDER BY lcp_length DESC, base_img.image_pushed_at DESC
+    LIMIT 1
+    ```
 
 
 ### Package
