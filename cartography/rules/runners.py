@@ -156,11 +156,8 @@ def _format_and_output_results(
 ):
     """Format and output the results of framework execution."""
     if output_format == "json":
-        if len(framework_names) == 1:
-            print(json.dumps(asdict(all_results[0]), indent=2))
-        else:
-            combined_output = [asdict(result) for result in all_results]
-            print(json.dumps(combined_output, indent=2))
+        combined_output = [asdict(result) for result in all_results]
+        print(json.dumps(combined_output, indent=2))
     else:
         # Text summary
         print("\n" + "=" * 60)
