@@ -33,6 +33,7 @@ jobs:
   build-and-publish-to-ghcr:
     # Explicitly grant the `secrets.GITHUB_TOKEN` permissions.
     name: Build and publish Docker 🐳 images 📦 to GitHub Container Registry
+    needs: build-and-publish-to-pypi
     runs-on: ubuntu-latest
     permissions:
       # Grant the ability to write to GitHub Packages (push Docker images to
@@ -79,12 +80,29 @@ jobs:
           # for more detailed information.
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Get the cartography version from the GitHub release event metadata and sleep to wait for PyPI to finish publishing
-      - name: Extract version and sleep
+      # Get the cartography version from the GitHub release event metadata and verify it's available on PyPI
+      - name: Extract version and verify PyPI availability
         id: version
         run: |
           echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-          sleep 10
+          VERSION="${{ github.event.release.tag_name }}"
+          echo "Waiting for cartography==$VERSION to be available on PyPI..."
+
+          # Poll PyPI for up to 5 minutes
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            if pip index versions cartography 2>&1 | grep -q "$VERSION"; then
+              echo "✅ cartography==$VERSION is now available on PyPI"
+              exit 0
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Package not yet available, waiting 10 seconds..."
+            sleep 10
+          done
+
+          echo "❌ Failed to verify cartography==$VERSION on PyPI after $MAX_ATTEMPTS attempts"
+          exit 1
 
       - name: Build and push
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
