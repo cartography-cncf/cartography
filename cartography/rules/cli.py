@@ -31,11 +31,6 @@ class OutputFormat(str, Enum):
     json = "json"
 
 
-# ============================================================================
-# Autocompletion Functions
-# ============================================================================
-
-
 def complete_frameworks(incomplete: str) -> Generator[str, None, None]:
     """Autocomplete framework names."""
     for name in FRAMEWORKS.keys():
@@ -80,11 +75,6 @@ def complete_facts(ctx: typer.Context, incomplete: str) -> Generator[str, None, 
                 if fact.id.lower().startswith(incomplete.lower()):
                     yield fact.id
             break
-
-
-# ============================================================================
-# List Command
-# ============================================================================
 
 
 @app.command()  # type: ignore[misc]
@@ -181,11 +171,6 @@ def list(
         typer.echo(f"  Description: {fact.description}")
         typer.echo(f"  Provider:    {fact.module.value}")
         typer.echo()
-
-
-# ============================================================================
-# Run Command
-# ============================================================================
 
 
 @app.command()  # type: ignore[misc]

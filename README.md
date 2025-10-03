@@ -85,10 +85,10 @@ When you are ready to try it in production, read [here](https://cartography-cncf
 
 ### Running rules
 
-You can check your environment against common security frameworks using the `cartography-runrules` command.
+You can check your environment against common security frameworks using the `cartography-rules` command.
 
 ```bash
-cartography-runrules all
+cartography-rules run all
 ```
 
 See [the rules docs](https://cartography-cncf.github.io/cartography/usage/rules.html) for more detail.
