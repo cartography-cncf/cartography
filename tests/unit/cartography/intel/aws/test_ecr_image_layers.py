@@ -1,11 +1,5 @@
-from unittest.mock import AsyncMock
-from unittest.mock import MagicMock
-
 import pytest
 
-from cartography.intel.aws.ecr_image_layers import (
-    _extract_parent_image_from_attestation,
-)
 from cartography.intel.aws.ecr_image_layers import extract_repo_uri_from_image_uri
 from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
 
@@ -64,25 +58,30 @@ def test_extract_repo_uri_from_image_uri(input_uri, expected_repo_uri):
 
 def test_transform_ecr_image_layers_missing_digest_fails():
     """Test that transform_ecr_image_layers fails when digest is missing from map."""
+    # Arrange
     image_layers_data = {"repo/image:tag": {"linux/amd64": ["sha256:layer1"]}}
     image_digest_map = {}  # Missing the digest mapping
 
-    # Should raise KeyError since we use direct dictionary access
+    # Act & Assert
     with pytest.raises(KeyError):
         transform_ecr_image_layers(image_layers_data, image_digest_map)
 
 
 def test_transform_ecr_image_layers_empty_input():
     """Test transform_ecr_image_layers with empty input."""
+    # Arrange - empty inputs
+
+    # Act
     layers, memberships = transform_ecr_image_layers({}, {})
 
+    # Assert
     assert layers == []
     assert memberships == []
 
 
 def test_transform_layers_creates_graph_structure():
     """Test that transform creates proper graph structure from layer data."""
-    # Test images sharing base layers (common in Docker)
+    # Arrange - Test images sharing base layers (common in Docker)
     image_layers_data = {
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/web-app:v1": {
             "linux/amd64": [
@@ -105,12 +104,13 @@ def test_transform_layers_creates_graph_structure():
         "000000000000.dkr.ecr.us-east-1.amazonaws.com/api-service:v1": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
     }
 
+    # Act
     layers, memberships = transform_ecr_image_layers(
         image_layers_data,
         image_digest_map,
     )
 
-    # Should have 4 unique layers (2 shared, 2 unique)
+    # Assert - Should have 4 unique layers (2 shared, 2 unique)
     assert len(layers) == 4
 
     # Base layer should be HEAD of both images
@@ -196,239 +196,9 @@ def test_transform_layers_creates_graph_structure():
     assert observed_memberships == expected_memberships
 
 
-@pytest.mark.asyncio
-async def test_extract_parent_image_from_attestation_success():
-    """Test extracting base image from valid attestation with real API shapes (obfuscated)."""
-    # Mock ECR client and HTTP client
-    mock_ecr_client = MagicMock()
-    mock_http_client = AsyncMock()
-
-    # Real attestation manifest shape (obfuscated)
-    attestation_manifest = {
-        "schemaVersion": 2,
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "config": {
-            "mediaType": "application/vnd.oci.image.config.v1+json",
-            "digest": "sha256:0f2d70373ae9ec2671e88ad22a01fbf4e3c7ce34dad0f9f95c032752039a514c",
-            "size": 167,
-        },
-        "layers": [
-            {
-                "mediaType": "application/vnd.in-toto+json",
-                "digest": "sha256:74893207cf10d458c45c0e29b05e95f7a1bd942d5d0900b40eca468b5561f15c",
-                "size": 11284,
-                "annotations": {
-                    "in-toto.io/predicate-type": "https://slsa.dev/provenance/v0.2"
-                },
-            }
-        ],
-    }
-
-    # Real attestation blob shape (obfuscated)
-    attestation_blob = {
-        "predicate": {
-            "materials": [
-                {
-                    "uri": "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-base-images@abc123def456",
-                    "digest": {
-                        "sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-                    },
-                },
-                {
-                    "uri": "pkg:docker/docker/dockerfile@1.7",
-                    "digest": {
-                        "sha256": "a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e"
-                    },
-                },
-            ]
-        }
-    }
-
-    # Mock the async functions
-    from cartography.intel.aws import ecr_image_layers
-
-    original_batch_get_manifest = ecr_image_layers.batch_get_manifest
-    original_get_blob = ecr_image_layers.get_blob_json_via_presigned
-
-    ecr_image_layers.batch_get_manifest = AsyncMock(
-        return_value=(attestation_manifest, "")
-    )
-    ecr_image_layers.get_blob_json_via_presigned = AsyncMock(
-        return_value=attestation_blob
-    )
-
-    try:
-        result = await _extract_parent_image_from_attestation(
-            mock_ecr_client,
-            "test-repo",
-            "sha256:4150a0d40f045d45614ee1b7ecb2549872dd49ebced5af1ea3a32c5b5523aad2",
-            mock_http_client,
-        )
-
-        assert result is not None
-        assert (
-            result["parent_image_uri"]
-            == "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-base-images@abc123def456"
-        )
-        assert (
-            result["parent_image_digest"]
-            == "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-        )
-    finally:
-        # Restore original functions
-        ecr_image_layers.batch_get_manifest = original_batch_get_manifest
-        ecr_image_layers.get_blob_json_via_presigned = original_get_blob
-
-
-@pytest.mark.asyncio
-async def test_extract_parent_image_from_attestation_no_materials():
-    """Test attestation with no materials returns None."""
-    mock_ecr_client = MagicMock()
-    mock_http_client = AsyncMock()
-
-    attestation_manifest = {
-        "schemaVersion": 2,
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "config": {"digest": "sha256:abc123"},
-        "layers": [
-            {
-                "mediaType": "application/vnd.in-toto+json",
-                "digest": "sha256:def456",
-            }
-        ],
-    }
-
-    attestation_blob = {"predicate": {"materials": []}}  # Empty materials
-
-    from cartography.intel.aws import ecr_image_layers
-
-    original_batch_get_manifest = ecr_image_layers.batch_get_manifest
-    original_get_blob = ecr_image_layers.get_blob_json_via_presigned
-
-    ecr_image_layers.batch_get_manifest = AsyncMock(
-        return_value=(attestation_manifest, "")
-    )
-    ecr_image_layers.get_blob_json_via_presigned = AsyncMock(
-        return_value=attestation_blob
-    )
-
-    try:
-        result = await _extract_parent_image_from_attestation(
-            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
-        )
-
-        assert result is None
-    finally:
-        ecr_image_layers.batch_get_manifest = original_batch_get_manifest
-        ecr_image_layers.get_blob_json_via_presigned = original_get_blob
-
-
-@pytest.mark.asyncio
-async def test_extract_parent_image_from_attestation_only_dockerfile():
-    """Test attestation with only dockerfile material returns None."""
-    mock_ecr_client = MagicMock()
-    mock_http_client = AsyncMock()
-
-    attestation_manifest = {
-        "layers": [
-            {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:def456"}
-        ]
-    }
-
-    attestation_blob = {
-        "predicate": {
-            "materials": [
-                {
-                    "uri": "pkg:docker/docker/dockerfile@1.7",
-                    "digest": {"sha256": "abc123"},
-                }
-            ]
-        }
-    }
-
-    from cartography.intel.aws import ecr_image_layers
-
-    original_batch_get_manifest = ecr_image_layers.batch_get_manifest
-    original_get_blob = ecr_image_layers.get_blob_json_via_presigned
-
-    ecr_image_layers.batch_get_manifest = AsyncMock(
-        return_value=(attestation_manifest, "")
-    )
-    ecr_image_layers.get_blob_json_via_presigned = AsyncMock(
-        return_value=attestation_blob
-    )
-
-    try:
-        result = await _extract_parent_image_from_attestation(
-            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
-        )
-
-        assert result is None
-    finally:
-        ecr_image_layers.batch_get_manifest = original_batch_get_manifest
-        ecr_image_layers.get_blob_json_via_presigned = original_get_blob
-
-
-@pytest.mark.asyncio
-async def test_extract_parent_image_from_attestation_no_intoto_layer():
-    """Test attestation manifest with no in-toto layer returns None."""
-    mock_ecr_client = MagicMock()
-    mock_http_client = AsyncMock()
-
-    attestation_manifest = {
-        "layers": [
-            {
-                "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-                "digest": "sha256:wrong",
-            }
-        ]
-    }
-
-    from cartography.intel.aws import ecr_image_layers
-
-    original_batch_get_manifest = ecr_image_layers.batch_get_manifest
-
-    ecr_image_layers.batch_get_manifest = AsyncMock(
-        return_value=(attestation_manifest, "")
-    )
-
-    try:
-        result = await _extract_parent_image_from_attestation(
-            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
-        )
-
-        assert result is None
-    finally:
-        ecr_image_layers.batch_get_manifest = original_batch_get_manifest
-
-
-@pytest.mark.asyncio
-async def test_extract_parent_image_from_attestation_handles_exceptions():
-    """Test that exceptions are caught and None is returned."""
-    mock_ecr_client = MagicMock()
-    mock_http_client = AsyncMock()
-
-    from cartography.intel.aws import ecr_image_layers
-
-    original_batch_get_manifest = ecr_image_layers.batch_get_manifest
-
-    # Mock to raise an exception
-    ecr_image_layers.batch_get_manifest = AsyncMock(
-        side_effect=Exception("Network error")
-    )
-
-    try:
-        result = await _extract_parent_image_from_attestation(
-            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
-        )
-
-        assert result is None
-    finally:
-        ecr_image_layers.batch_get_manifest = original_batch_get_manifest
-
-
 def test_transform_ecr_image_layers_with_attestation_data():
     """Test that attestation data is correctly added to memberships."""
+    # Arrange
     image_layers_data = {
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
             "linux/amd64": [
@@ -449,19 +219,18 @@ def test_transform_ecr_image_layers_with_attestation_data():
         }
     }
 
+    # Act
     layers, memberships = transform_ecr_image_layers(
         image_layers_data,
         image_digest_map,
         image_attestation_map,
     )
 
-    # Should have 2 layers
+    # Assert
     assert len(layers) == 2
-
-    # Should have 1 membership with attestation data
     assert len(memberships) == 1
-    membership = memberships[0]
 
+    membership = memberships[0]
     assert (
         membership["imageDigest"]
         == "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
@@ -479,6 +248,7 @@ def test_transform_ecr_image_layers_with_attestation_data():
 
 def test_transform_ecr_image_layers_without_attestation_data():
     """Test that transform works without attestation data (backward compatibility)."""
+    # Arrange
     image_layers_data = {
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
             "linux/amd64": [
@@ -491,17 +261,16 @@ def test_transform_ecr_image_layers_without_attestation_data():
         "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
     }
 
-    # No attestation map provided
+    # Act - No attestation map provided
     layers, memberships = transform_ecr_image_layers(
         image_layers_data,
         image_digest_map,
     )
 
-    # Should work without errors
+    # Assert
     assert len(layers) == 1
     assert len(memberships) == 1
 
     membership = memberships[0]
-    # Should NOT have parent_image_uri or parent_image_digest
     assert "parent_image_uri" not in membership
     assert "parent_image_digest" not in membership

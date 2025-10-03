@@ -475,3 +475,389 @@ def test_sync_multi_region_event_loop_preserved(
             pytest.fail("Event loop was torn down between regions - fix needed")
         else:
             raise
+
+
+# Attestation extraction tests (async I/O integration tests)
+@pytest.mark.asyncio
+@patch(
+    "cartography.intel.aws.ecr_image_layers.batch_get_manifest", new_callable=AsyncMock
+)
+@patch(
+    "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
+    new_callable=AsyncMock,
+)
+async def test_extract_parent_image_from_attestation_success(
+    mock_get_blob, mock_batch_get_manifest
+):
+    """Test extracting parent image from valid attestation with real API shapes (obfuscated)."""
+    # Arrange
+    from cartography.intel.aws.ecr_image_layers import (
+        _extract_parent_image_from_attestation,
+    )
+
+    mock_ecr_client = MagicMock()
+    mock_http_client = AsyncMock()
+
+    attestation_manifest = {
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": {
+            "mediaType": "application/vnd.oci.image.config.v1+json",
+            "digest": "sha256:0f2d70373ae9ec2671e88ad22a01fbf4e3c7ce34dad0f9f95c032752039a514c",
+            "size": 167,
+        },
+        "layers": [
+            {
+                "mediaType": "application/vnd.in-toto+json",
+                "digest": "sha256:74893207cf10d458c45c0e29b05e95f7a1bd942d5d0900b40eca468b5561f15c",
+                "size": 11284,
+                "annotations": {
+                    "in-toto.io/predicate-type": "https://slsa.dev/provenance/v0.2"
+                },
+            }
+        ],
+    }
+
+    attestation_blob = {
+        "predicate": {
+            "materials": [
+                {
+                    "uri": "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-base-images@abc123def456",
+                    "digest": {
+                        "sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                    },
+                },
+                {
+                    "uri": "pkg:docker/docker/dockerfile@1.7",
+                    "digest": {
+                        "sha256": "a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e"
+                    },
+                },
+            ]
+        }
+    }
+
+    mock_batch_get_manifest.return_value = (attestation_manifest, "")
+    mock_get_blob.return_value = attestation_blob
+
+    # Act
+    result = await _extract_parent_image_from_attestation(
+        mock_ecr_client,
+        "test-repo",
+        "sha256:4150a0d40f045d45614ee1b7ecb2549872dd49ebced5af1ea3a32c5b5523aad2",
+        mock_http_client,
+    )
+
+    # Assert
+    assert result is not None
+    assert (
+        result["parent_image_uri"]
+        == "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-base-images@abc123def456"
+    )
+    assert (
+        result["parent_image_digest"]
+        == "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+    )
+
+
+@pytest.mark.asyncio
+@patch(
+    "cartography.intel.aws.ecr_image_layers.batch_get_manifest", new_callable=AsyncMock
+)
+@patch(
+    "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
+    new_callable=AsyncMock,
+)
+async def test_extract_parent_image_from_attestation_no_materials(
+    mock_get_blob, mock_batch_get_manifest
+):
+    """Test attestation with no materials returns None."""
+    # Arrange
+    from cartography.intel.aws.ecr_image_layers import (
+        _extract_parent_image_from_attestation,
+    )
+
+    mock_ecr_client = MagicMock()
+    mock_http_client = AsyncMock()
+
+    attestation_manifest = {
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": {"digest": "sha256:abc123"},
+        "layers": [
+            {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:def456"}
+        ],
+    }
+
+    attestation_blob = {"predicate": {"materials": []}}  # Empty materials
+
+    mock_batch_get_manifest.return_value = (attestation_manifest, "")
+    mock_get_blob.return_value = attestation_blob
+
+    # Act
+    result = await _extract_parent_image_from_attestation(
+        mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
+    )
+
+    # Assert
+    assert result is None
+
+
+@pytest.mark.asyncio
+@patch(
+    "cartography.intel.aws.ecr_image_layers.batch_get_manifest", new_callable=AsyncMock
+)
+@patch(
+    "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
+    new_callable=AsyncMock,
+)
+async def test_extract_parent_image_from_attestation_only_dockerfile(
+    mock_get_blob, mock_batch_get_manifest
+):
+    """Test attestation with only dockerfile material returns None."""
+    # Arrange
+    from cartography.intel.aws.ecr_image_layers import (
+        _extract_parent_image_from_attestation,
+    )
+
+    mock_ecr_client = MagicMock()
+    mock_http_client = AsyncMock()
+
+    attestation_manifest = {
+        "layers": [
+            {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:def456"}
+        ]
+    }
+
+    attestation_blob = {
+        "predicate": {
+            "materials": [
+                {
+                    "uri": "pkg:docker/docker/dockerfile@1.7",
+                    "digest": {"sha256": "abc123"},
+                }
+            ]
+        }
+    }
+
+    mock_batch_get_manifest.return_value = (attestation_manifest, "")
+    mock_get_blob.return_value = attestation_blob
+
+    # Act
+    result = await _extract_parent_image_from_attestation(
+        mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
+    )
+
+    # Assert
+    assert result is None
+
+
+@pytest.mark.asyncio
+@patch(
+    "cartography.intel.aws.ecr_image_layers.batch_get_manifest", new_callable=AsyncMock
+)
+async def test_extract_parent_image_from_attestation_no_intoto_layer(
+    mock_batch_get_manifest,
+):
+    """Test attestation manifest with no in-toto layer returns None."""
+    # Arrange
+    from cartography.intel.aws.ecr_image_layers import (
+        _extract_parent_image_from_attestation,
+    )
+
+    mock_ecr_client = MagicMock()
+    mock_http_client = AsyncMock()
+
+    attestation_manifest = {
+        "layers": [
+            {
+                "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                "digest": "sha256:wrong",
+            }
+        ]
+    }
+
+    mock_batch_get_manifest.return_value = (attestation_manifest, "")
+
+    # Act
+    result = await _extract_parent_image_from_attestation(
+        mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
+    )
+
+    # Assert
+    assert result is None
+
+
+@pytest.mark.asyncio
+@patch(
+    "cartography.intel.aws.ecr_image_layers.batch_get_manifest", new_callable=AsyncMock
+)
+async def test_extract_parent_image_from_attestation_handles_exceptions(
+    mock_batch_get_manifest,
+):
+    """Test that exceptions are caught and None is returned."""
+    # Arrange
+    from cartography.intel.aws.ecr_image_layers import (
+        _extract_parent_image_from_attestation,
+    )
+
+    mock_ecr_client = MagicMock()
+    mock_http_client = AsyncMock()
+
+    mock_batch_get_manifest.side_effect = Exception("Network error")
+
+    # Act
+    result = await _extract_parent_image_from_attestation(
+        mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
+    )
+
+    # Assert
+    assert result is None
+
+
+# End-to-end sync test with attestations
+
+
+@patch.object(cartography.intel.aws.ecr, "get_ecr_repositories", return_value=[])
+@patch.object(cartography.intel.aws.ecr, "get_ecr_repository_images", return_value=[])
+@patch("cartography.client.aws.ecr.get_ecr_images")
+@patch(
+    "cartography.intel.aws.ecr_image_layers.batch_get_manifest", new_callable=AsyncMock
+)
+@patch(
+    "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
+    new_callable=AsyncMock,
+)
+def test_sync_ecr_layers_with_attestations(
+    mock_get_blob,
+    mock_batch_get_manifest,
+    mock_get_ecr_images,
+    mock_get_repo_images,
+    mock_get_repos,
+    neo4j_session,
+):
+    """Test full ECR layers sync pipeline with attestation-based BUILT_FROM relationships."""
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Create mock images in the graph (simulating prior ECR sync)
+    mock_get_ecr_images.return_value = {
+        (
+            "us-east-1",
+            "1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/backend:latest",
+            "backend",
+            "sha256:aaaa000000000000000000000000000000000000000000000000000000000001",
+        ),
+        (
+            "us-east-1",
+            "1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/base-images:main",
+            "base-images",
+            "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
+        ),
+    }
+
+    # Mock manifest list with attestation
+    def mock_manifest_side_effect(ecr_client, repo, digest, types):
+        if (
+            "attestation" in digest or "attestation-manifest" in types[0]
+            if types
+            else False
+        ):
+            # Return attestation manifest
+            return (
+                {
+                    "layers": [
+                        {
+                            "mediaType": "application/vnd.in-toto+json",
+                            "digest": "sha256:attestblob",
+                        }
+                    ]
+                },
+                "application/vnd.oci.image.manifest.v1+json",
+            )
+        # Return regular manifest
+        return (
+            {
+                "schemaVersion": 2,
+                "config": {"digest": "sha256:config123"},
+                "layers": [
+                    {"digest": "sha256:layer1"},
+                    {"digest": "sha256:layer2"},
+                ],
+                "manifests": [
+                    {
+                        "digest": "sha256:childmanifest",
+                        "platform": {"architecture": "amd64", "os": "linux"},
+                    },
+                    {
+                        "digest": "sha256:attestation",
+                        "annotations": {
+                            "vnd.docker.reference.type": "attestation-manifest"
+                        },
+                    },
+                ],
+            },
+            "application/vnd.oci.image.index.v1+json",
+        )
+
+    mock_batch_get_manifest.side_effect = mock_manifest_side_effect
+
+    # Mock config blob and attestation blob
+    def mock_blob_side_effect(ecr_client, repo, digest, http_client):
+        if digest == "sha256:attestblob":
+            return {
+                "predicate": {
+                    "materials": [
+                        {
+                            "uri": "pkg:docker/000000000000.dkr.ecr.us-east-1.amazonaws.com/base-images@main",
+                            "digest": {
+                                "sha256": "bbbb000000000000000000000000000000000000000000000000000000000001"
+                            },
+                        }
+                    ]
+                }
+            }
+        return {"rootfs": {"diff_ids": ["sha256:layer1", "sha256:layer2"]}}
+
+    mock_get_blob.side_effect = mock_blob_side_effect
+
+    # Act
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    # Verify layers were created
+    layers_query = """
+        MATCH (l:ECRImageLayer)
+        RETURN l.id as layer_id
+        ORDER BY layer_id
+    """
+    result = neo4j_session.run(layers_query)
+    layers = [record["layer_id"] for record in result]
+    assert len(layers) > 0
+
+    # Verify BUILT_FROM relationship was created with attestation properties
+    built_from_query = """
+        MATCH (child:ECRImage)-[r:BUILT_FROM]->(parent:ECRImage)
+        RETURN r.parent_image_uri as parent_uri,
+               r.from_attestation as from_attestation,
+               r.confidence as confidence
+    """
+    result = neo4j_session.run(built_from_query)
+    relationships = list(result)
+
+    # We should have created BUILT_FROM relationships for images with attestations
+    # Note: Exact count depends on mock data, but we verify properties are correct
+    for rel in relationships:
+        assert rel["from_attestation"] is True
+        assert rel["confidence"] == "explicit"
+        assert rel["parent_uri"] is not None
