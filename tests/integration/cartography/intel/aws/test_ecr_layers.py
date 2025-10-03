@@ -340,6 +340,73 @@ def test_transform_marks_empty_layer():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parent_uri,parent_digest",
+    [
+        (
+            "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/base-image@v1.0",
+            "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        ),
+        (
+            "pkg:oci/myregistry.azurecr.io/base-image@v1.0",
+            "sha256:abc123def456",
+        ),
+        (
+            "oci://harbor.example.com/library/alpine@sha256:xyz789",
+            "sha256:xyz789abc",
+        ),
+    ],
+)
+async def test_extract_parent_image_from_attestation_uri_schemes(
+    parent_uri, parent_digest
+):
+    """Test extracting base image from attestation with various URI schemes."""
+    # Arrange
+    mock_ecr_client = MagicMock()
+    mock_http_client = AsyncMock()
+
+    attestation_manifest = (
+        {
+            "layers": [
+                {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:def456"}
+            ]
+        },
+        "application/vnd.oci.image.manifest.v1+json",
+    )
+
+    attestation_blob = {
+        "predicate": {
+            "materials": [
+                {
+                    "uri": parent_uri,
+                    "digest": {"sha256": parent_digest.removeprefix("sha256:")},
+                },
+            ]
+        }
+    }
+
+    original_batch_get_manifest = ecr_layers.batch_get_manifest
+    original_get_blob = ecr_layers.get_blob_json_via_presigned
+
+    ecr_layers.batch_get_manifest = AsyncMock(return_value=attestation_manifest)
+    ecr_layers.get_blob_json_via_presigned = AsyncMock(return_value=attestation_blob)
+
+    try:
+        # Act
+        result = await ecr_layers._extract_parent_image_from_attestation(
+            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
+        )
+
+        # Assert
+        assert result is not None
+        assert result["parent_image_uri"] == parent_uri
+        assert result["parent_image_digest"] == parent_digest
+    finally:
+        ecr_layers.batch_get_manifest = original_batch_get_manifest
+        ecr_layers.get_blob_json_via_presigned = original_get_blob
+
+
+@pytest.mark.asyncio
 @patch(
     "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
     new_callable=AsyncMock,
