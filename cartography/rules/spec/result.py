@@ -34,7 +34,7 @@ class RequirementResult:
 @dataclass
 class FrameworkResult:
     """
-    The formal object output by `--output json` from the `cartography-runrules` CLI.
+    The formal object output by `--output json` from the `cartography-rules` CLI.
     """
 
     framework_id: str
