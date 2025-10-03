@@ -8,12 +8,15 @@ import builtins
 import logging
 import os
 from enum import Enum
+from typing import Generator
 
 import typer
 from typing_extensions import Annotated
 
 from cartography.rules.data.frameworks import FRAMEWORKS
 from cartography.rules.runners import run_frameworks
+from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Requirement
 
 app = typer.Typer(
     help="Execute Cartography security frameworks",
@@ -33,21 +36,23 @@ class OutputFormat(str, Enum):
 # ============================================================================
 
 
-def complete_frameworks(incomplete: str):
+def complete_frameworks(incomplete: str) -> Generator[str, None, None]:
     """Autocomplete framework names."""
     for name in FRAMEWORKS.keys():
         if name.startswith(incomplete):
             yield name
 
 
-def complete_frameworks_with_all(incomplete: str):
+def complete_frameworks_with_all(incomplete: str) -> Generator[str, None, None]:
     """Autocomplete framework names plus 'all'."""
     for name in builtins.list(FRAMEWORKS.keys()) + ["all"]:
         if name.startswith(incomplete):
             yield name
 
 
-def complete_requirements(ctx: typer.Context, incomplete: str):
+def complete_requirements(
+    ctx: typer.Context, incomplete: str
+) -> Generator[str, None, None]:
     """Autocomplete requirement IDs based on selected framework."""
     framework = ctx.params.get("framework")
     if not framework or framework not in FRAMEWORKS:
@@ -58,7 +63,7 @@ def complete_requirements(ctx: typer.Context, incomplete: str):
             yield req.id
 
 
-def complete_facts(ctx: typer.Context, incomplete: str):
+def complete_facts(ctx: typer.Context, incomplete: str) -> Generator[str, None, None]:
     """Autocomplete fact IDs based on selected framework and requirement."""
     framework = ctx.params.get("framework")
     requirement_id = ctx.params.get("requirement")
@@ -82,7 +87,7 @@ def complete_facts(ctx: typer.Context, incomplete: str):
 # ============================================================================
 
 
-@app.command()
+@app.command()  # type: ignore[misc]
 def list(
     framework: Annotated[
         str | None,
@@ -98,7 +103,7 @@ def list(
             autocompletion=complete_requirements,
         ),
     ] = None,
-):
+) -> None:
     """
     List available frameworks, requirements, and facts.
 
@@ -137,17 +142,17 @@ def list(
     if not requirement:
         typer.secho(f"\n{fw.name}", bold=True)
         typer.echo(f"Version: {fw.version}\n")
-        for req in fw.requirements:
-            typer.secho(f"{req.id}", fg=typer.colors.CYAN)
-            typer.echo(f"  Name:  {req.name}")
-            typer.echo(f"  Facts: {len(req.facts)}")
-            if req.requirement_url:
-                typer.echo(f"  URL:   {req.requirement_url}")
+        for r in fw.requirements:
+            typer.secho(f"{r.id}", fg=typer.colors.CYAN)
+            typer.echo(f"  Name:  {r.name}")
+            typer.echo(f"  Facts: {len(r.facts)}")
+            if r.requirement_url:
+                typer.echo(f"  URL:   {r.requirement_url}")
             typer.echo()
         return
 
     # Find and list facts in requirement
-    req = None
+    req: Requirement | None = None
     for r in fw.requirements:
         if r.id.lower() == requirement.lower():
             req = r
@@ -183,7 +188,7 @@ def list(
 # ============================================================================
 
 
-@app.command()
+@app.command()  # type: ignore[misc]
 def run(
     framework: Annotated[
         str,
@@ -230,7 +235,7 @@ def run(
         OutputFormat,
         typer.Option(help="Output format"),
     ] = OutputFormat.text,
-):
+) -> None:
     """
     Execute a security framework.
 
@@ -271,7 +276,7 @@ def run(
     # Validate requirement exists
     if requirement and framework != "all":
         fw = FRAMEWORKS[framework]
-        req = None
+        req: Requirement | None = None
         for r in fw.requirements:
             if r.id.lower() == requirement.lower():
                 req = r
@@ -290,7 +295,7 @@ def run(
 
         # Validate fact exists
         if fact:
-            fact_found = None
+            fact_found: Fact | None = None
             for f in req.facts:
                 if f.id.lower() == fact.lower():
                     fact_found = f
