@@ -95,6 +95,63 @@ def _run_fact(
     )
 
 
+def _run_single_requirement(
+    requirement: Requirement,
+    framework: Framework,
+    driver: Driver,
+    database: str,
+    output_format: str,
+    neo4j_uri: str,
+    fact_counter_start: int,
+    total_facts: int,
+    fact_filter: str | None = None,
+) -> tuple[RequirementResult, int]:
+    """
+    Execute a single requirement and return its result.
+
+    Returns:
+        A tuple of (RequirementResult, facts_executed_count)
+    """
+    # Filter facts if needed
+    facts_to_run = requirement.facts
+    if fact_filter:
+        facts_to_run = tuple(
+            f for f in requirement.facts if f.id.lower() == fact_filter.lower()
+        )
+
+    fact_results = []
+    requirement_findings = 0
+    fact_counter = fact_counter_start
+
+    for fact in facts_to_run:
+        fact_counter += 1
+        fact_result = _run_fact(
+            fact,
+            requirement,
+            framework,
+            driver,
+            database,
+            fact_counter,
+            total_facts,
+            output_format,
+            neo4j_uri,
+        )
+        fact_results.append(fact_result)
+        requirement_findings += fact_result.finding_count
+
+    # Create requirement result
+    requirement_result = RequirementResult(
+        requirement_id=requirement.id,
+        requirement_name=requirement.name,
+        requirement_url=requirement.requirement_url,
+        facts=fact_results,
+        total_facts=len(fact_results),
+        total_findings=requirement_findings,
+    )
+
+    return requirement_result, len(facts_to_run)
+
+
 def _run_single_framework(
     framework_name: str,
     driver: GraphDatabase.driver,
@@ -116,8 +173,8 @@ def _run_single_framework(
             if req.id.lower() == requirement_filter.lower()
         )
 
-    # Count total facts for display
-    total_facts = sum(len(req.facts) for req in requirements_to_run)
+    # Count total facts for display (before filtering)
+    total_facts_display = sum(len(req.facts) for req in requirements_to_run)
 
     if output_format == "text":
         print(f"Executing {framework.name} framework")
@@ -126,51 +183,30 @@ def _run_single_framework(
             if fact_filter:
                 print(f"Filtered to fact: {fact_filter}")
         print(f"Requirements: {len(requirements_to_run)}")
-        print(f"Total facts: {total_facts}")
+        print(f"Total facts: {total_facts_display}")
 
-    # Execute facts and collect results
+    # Execute requirements and collect results
     total_findings = 0
+    total_facts_executed = 0
     requirement_results = []
     fact_counter = 0
 
     for requirement in requirements_to_run:
-        # Filter facts if needed
-        facts_to_run = requirement.facts
-        if fact_filter:
-            facts_to_run = tuple(
-                f for f in requirement.facts if f.id.lower() == fact_filter.lower()
-            )
-
-        fact_results = []
-        requirement_findings = 0
-
-        for fact in facts_to_run:
-            fact_counter += 1
-            fact_result = _run_fact(
-                fact,
-                requirement,
-                framework,
-                driver,
-                database,
-                fact_counter,
-                total_facts,
-                output_format,
-                neo4j_uri,
-            )
-            fact_results.append(fact_result)
-            requirement_findings += fact_result.finding_count
-
-        # Create requirement result
-        requirement_result = RequirementResult(
-            requirement_id=requirement.id,
-            requirement_name=requirement.name,
-            requirement_url=requirement.requirement_url,
-            facts=fact_results,
-            total_facts=len(fact_results),
-            total_findings=requirement_findings,
+        requirement_result, facts_executed = _run_single_requirement(
+            requirement,
+            framework,
+            driver,
+            database,
+            output_format,
+            neo4j_uri,
+            fact_counter,
+            total_facts_display,
+            fact_filter,
         )
         requirement_results.append(requirement_result)
-        total_findings += requirement_findings
+        total_findings += requirement_result.total_findings
+        total_facts_executed += facts_executed
+        fact_counter += facts_executed
 
     # Create and return framework result
     return FrameworkResult(
@@ -179,7 +215,7 @@ def _run_single_framework(
         framework_version=framework.version,
         requirements=requirement_results,
         total_requirements=len(requirements_to_run),
-        total_facts=total_facts,
+        total_facts=total_facts_executed,  # Use actual executed count
         total_findings=total_findings,
     )
 
