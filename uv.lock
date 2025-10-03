@@ -285,6 +285,49 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-keyvault-certificates"
+version = "4.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2c/bc/07497d7118178729f59043153083bcdfdfc9629a365cbc5bc5690b4ff21b/azure_keyvault_certificates-4.10.0.tar.gz", hash = "sha256:004ff47a73152f9f40f678e5a07719b753a3ca86f0460bfeaaf6a23304872e05", size = 179157, upload-time = "2025-06-16T22:52:24.547Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/03/71cfb1ee68a625ca1c211a3b18e1051a4dd9fe8774329e48bb3c67afcf86/azure_keyvault_certificates-4.10.0-py3-none-any.whl", hash = "sha256:fa76cbc329274cb5f4ab61b0ed7d209d44377df4b4d6be2fd01e741c2fbb83a9", size = 155683, upload-time = "2025-06-16T22:52:26.02Z" },
+]
+
+[[package]]
+name = "azure-keyvault-keys"
+version = "4.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "cryptography" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/69/ed/450c9389d76be1a95a056528ec2b832a3721858dd47b1f4eb12dab7060a1/azure_keyvault_keys-4.11.0.tar.gz", hash = "sha256:f257b1917a2c3a88983e3f5675a6419449eb262318888d5b51e1cb3bed79779a", size = 241309, upload-time = "2025-06-16T22:52:04.296Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c3/ac/fa42e6b316712604a63bf7b3cb60d619d92890e038b87e1b4bba7437bc36/azure_keyvault_keys-4.11.0-py3-none-any.whl", hash = "sha256:fa5febd5805f0fed4c0a1d13c9096081c72a6fa36ccae1299a137f34280eda53", size = 191303, upload-time = "2025-06-16T22:52:06.1Z" },
+]
+
+[[package]]
+name = "azure-keyvault-secrets"
+version = "4.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/e5/3074e581b6e8923c4a1f2e42192ea6f390bb52de3600c68baaaed529ef05/azure_keyvault_secrets-4.10.0.tar.gz", hash = "sha256:666fa42892f9cee749563e551a90f060435ab878977c95265173a8246d546a36", size = 129695, upload-time = "2025-06-16T22:52:20.986Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/94/7c902e966b28e7cb5080a8e0dd6bffc22ba44bc907f09c4c633d2b7c4f6a/azure_keyvault_secrets-4.10.0-py3-none-any.whl", hash = "sha256:9dbde256077a4ee1a847646671580692e3f9bea36bcfc189c3cf2b9a94eb38b9", size = 125237, upload-time = "2025-06-16T22:52:22.489Z" },
+]
+
+[[package]]
 name = "azure-mgmt-compute"
 version = "35.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -324,6 +367,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a1/cd/b5d1eac32515370da90454fe64500d29e20daffd15575550fca5628eb300/azure_mgmt_cosmosdb-9.8.0.tar.gz", hash = "sha256:214ee47165387e578f86e6611fb329b4d54dc295ad79da37b9d92c5d6d20d1b1", size = 268379, upload-time = "2025-05-07T06:26:42.148Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c0/c0/ebedd65a8e5ce1073899e5ca29ee208ec8ff5e64a5dcfe696531416685cf/azure_mgmt_cosmosdb-9.8.0-py3-none-any.whl", hash = "sha256:00eea8038ebe619ab8c27cd4572eb4b3509a4973fdfd46636006c889a86096be", size = 389836, upload-time = "2025-05-07T06:26:44.447Z" },
+]
+
+[[package]]
+name = "azure-mgmt-keyvault"
+version = "12.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-mgmt-core" },
+    { name = "msrest" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ca/79/a2200a22c0aa36a85b9e9d93a0702adf75afcf3b79791041ee9872d7a940/azure_mgmt_keyvault-12.1.0.tar.gz", hash = "sha256:ced572c166354db5db89c9bbe5e215f607c46eabeaac1211138bb9db5de421d3", size = 109544, upload-time = "2025-09-22T06:09:08.572Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/97/7ad035a03b749d4e297fb18e15ce9d0112366d664ad0e7a7e1fa9b987913/azure_mgmt_keyvault-12.1.0-py3-none-any.whl", hash = "sha256:d0ed52cd839618795164bb3823ff6aeb537ec14582d2246bea034b8272babe87", size = 220769, upload-time = "2025-09-22T06:09:10.153Z" },
 ]
 
 [[package]]
@@ -539,8 +596,12 @@ dependencies = [
     { name = "adal" },
     { name = "azure-cli-core" },
     { name = "azure-identity" },
+    { name = "azure-keyvault-certificates" },
+    { name = "azure-keyvault-keys" },
+    { name = "azure-keyvault-secrets" },
     { name = "azure-mgmt-compute" },
     { name = "azure-mgmt-cosmosdb" },
+    { name = "azure-mgmt-keyvault" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-resource" },
     { name = "azure-mgmt-sql" },
@@ -577,6 +638,10 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "azure-keyvault-certificates" },
+    { name = "azure-keyvault-keys" },
+    { name = "azure-keyvault-secrets" },
+    { name = "azure-mgmt-keyvault" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-web" },
     { name = "backoff" },
@@ -605,8 +670,12 @@ requires-dist = [
     { name = "adal", specifier = ">=1.2.4" },
     { name = "azure-cli-core", specifier = ">=2.26.0" },
     { name = "azure-identity", specifier = ">=1.5.0" },
+    { name = "azure-keyvault-certificates", specifier = ">=4.0.0" },
+    { name = "azure-keyvault-keys", specifier = ">=4.0.0" },
+    { name = "azure-keyvault-secrets", specifier = ">=4.0.0" },
     { name = "azure-mgmt-compute", specifier = ">=5.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
+    { name = "azure-mgmt-keyvault", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
     { name = "azure-mgmt-sql", specifier = "<=1.0.0" },
@@ -643,6 +712,10 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "azure-keyvault-certificates", specifier = ">=4.0.0" },
+    { name = "azure-keyvault-keys", specifier = ">=4.0.0" },
+    { name = "azure-keyvault-secrets", specifier = ">=4.0.0" },
+    { name = "azure-mgmt-keyvault", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
     { name = "backoff", specifier = ">=2.1.2" },
