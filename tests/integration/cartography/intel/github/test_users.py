@@ -159,6 +159,23 @@ def test_sync(mock_owners, mock_users, neo4j_session):
     }
     assert actual_nodes == expected_nodes
 
+    # Ensure organization_verified_domain_emails emails come through
+    nodes = neo4j_session.run(
+        """
+        MATCH (g:GitHubUser) RETURN g.id, g.organization_verified_domain_emails
+        """,
+    )
+    expected_nodes = {
+        "https://github.com/hjsimpson": ["hjsimpson@burns.corp"],
+        "https://github.com/lmsimpson": None,
+        "https://github.com/mbsimpson": None,
+        "https://github.com/kbroflovski": None,
+    }
+    actual_nodes = {
+        n["g.id"]: n["g.organization_verified_domain_emails"] for n in nodes
+    }
+    assert actual_nodes == expected_nodes
+
 
 @patch.object(
     cartography.intel.github.users,
