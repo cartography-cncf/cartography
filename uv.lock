@@ -599,7 +599,7 @@ wheels = [
 
 [[package]]
 name = "cartography"
-version = "0.115.1.dev35+gbbcc5188a.d20251003"
+version = "0.116.1.dev0+gcdf5ff73d.d20251003"
 source = { editable = "." }
 dependencies = [
     { name = "adal" },
@@ -641,6 +641,7 @@ dependencies = [
     { name = "scaleway" },
     { name = "statsd" },
     { name = "typer" },
+    { name = "types-aioboto3", extra = ["ecr"] },
     { name = "xmltodict" },
 ]
 
@@ -711,6 +712,7 @@ requires-dist = [
     { name = "scaleway", specifier = ">=2.9.0" },
     { name = "statsd" },
     { name = "typer", specifier = ">=0.9.0" },
+    { name = "types-aioboto3", extras = ["ecr"], specifier = ">=15.1.0" },
     { name = "xmltodict" },
 ]
 
