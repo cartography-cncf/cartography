@@ -392,10 +392,12 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map = await ecr_layers.fetch_image_layers_async(
-        MagicMock(),
-        [repo_image],
-        max_concurrent=1,
+    image_layers_data, digest_map, attestation_map = (
+        await ecr_layers.fetch_image_layers_async(
+            MagicMock(),
+            [repo_image],
+            max_concurrent=1,
+        )
     )
 
     assert image_layers_data == {
@@ -428,10 +430,12 @@ async def test_fetch_image_layers_async_skips_attestation_only(
         ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map = await ecr_layers.fetch_image_layers_async(
-        MagicMock(),
-        [repo_image],
-        max_concurrent=1,
+    image_layers_data, digest_map, attestation_map = (
+        await ecr_layers.fetch_image_layers_async(
+            MagicMock(),
+            [repo_image],
+            max_concurrent=1,
+        )
     )
 
     assert image_layers_data == {}
