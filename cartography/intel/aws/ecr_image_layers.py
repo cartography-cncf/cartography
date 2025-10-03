@@ -11,12 +11,12 @@ import logging
 from typing import Any
 from typing import Optional
 
+import aioboto3
 import boto3
 import httpx
 import neo4j
-from aiobotocore.session import get_session
 from botocore.exceptions import ClientError
-from types_aiobotocore_ecr.client import ECRClient
+from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -618,14 +618,13 @@ def sync(
             ):
                 # Use credentials from the existing boto3 session
                 credentials = boto3_session.get_credentials()
-                session = get_session()
-                async with session.create_client(
-                    "ecr",
-                    region_name=region,
+                session = aioboto3.Session(
                     aws_access_key_id=credentials.access_key,
                     aws_secret_access_key=credentials.secret_key,
                     aws_session_token=credentials.token,
-                ) as ecr_client:
+                    region_name=region,
+                )
+                async with session.client("ecr") as ecr_client:
                     return await fetch_image_layers_async(ecr_client, repo_images_list)
 
             # Use get_event_loop() + run_until_complete() to avoid tearing down loop
