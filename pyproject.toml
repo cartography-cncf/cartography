@@ -77,7 +77,6 @@ dependencies = [
 # Comes from Git tag
 dynamic = [ "version" ]
 
-# TODO when moving to uv or something other than pip, move this to [dependency-groups].dev.
 [dependency-groups]
 dev = [
     "backoff>=2.1.2",
