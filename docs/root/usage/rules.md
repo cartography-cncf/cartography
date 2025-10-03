@@ -1,10 +1,6 @@
 # Cartography Rules
 
-You can use the `cartography-runrules` command to evaluate your environment against security frameworks.
-
-## What are rules in Cartography?
-
-With `cartography-runrules`, we provide a set of pre-defined queries that let you evaluate your environment against common security frameworks, along with community-curated rules.
+With the `cartography-rules` command, we provide a set of pre-defined queries that let you evaluate your environment against common security frameworks, along with community-curated rules.
 
 
 ## Our opinionated approach
@@ -23,10 +19,10 @@ Instead, we focus on providing _facts_ and context so you can make your own info
 
 ## Why do it this way
 
-Security teams already face too many competing priorities. Our goal is to highlight only the facts that represent meaningful risks.
+For some organizations, showing an EC2 security group that allows inbound internet traffic from the public internet even if there are no compute instances attached to it may be useful because someone in the future may attach a compute instance to it. For others, this is noise.
 
-For example:
-An EC2 security group that allows inbound internet traffic is only relevant if there are compute instances actually attached to it. Otherwise, it’s noise.
+Our goal is to build a comprehensive set of facts that can extract the full picture of your environment.
+
 
 ## Setup
 
@@ -44,36 +40,75 @@ set -o history # turn shell history back on
 
 ## Usage
 
-See available frameworks and facts
+### `list`
+See available frameworks
 ```bash
-cartography-runrules list
+cartography-rules list
+```
+
+See available requirements for a framework
+```bash
+cartography-rules list mitre-attack
+```
+
+See available facts for a requirement
+```bash
+cartography-rules list mitre-attack t1190
+```
+
+### `run`
+
+Run all frameworks
+```bash
+cartography-rules run all
 ```
 
 Run a specific framework
 ```bash
-cartography-runrules mitre-attack
+cartography-rules run mitre-attack
 ```
 
-Run all frameworks
+Run a specific requirement on a framework
 ```bash
-cartography-runrules all
+cartography-rules run mitre-attack t1190
 ```
-![rules text output](../images/rules-text-output.png)
+
+Run a specific fact on a requirement
+
+```bash
+cartography-rules run mitre-attack t1190 aws_rds_public_access
+```
+
 
 ### Authentication Options
 
 Use a custom environment variable for the password:
 ```bash
-cartography-runrules mitre-attack --neo4j-password-env-var MY_NEO4J_PASSWORD
+cartography-rules run mitre-attack --neo4j-password-env-var MY_NEO4J_PASSWORD
 ```
 
 Use interactive password prompt:
 ```bash
-cartography-runrules mitre-attack --neo4j-password-prompt
+cartography-rules run mitre-attack --neo4j-password-prompt
 ```
 
 Run a specific framework and output as JSON
 ```bash
-cartography-runrules mitre-attack --output json
+cartography-rules run mitre-attack --output json
 ```
-![rules json output](../images/rules-json-output.png)
+
+### Tab completion
+
+Note that you can TAB complete. Install it with
+
+```bash
+cartography-rules --install-completion
+```
+
+and then restart your shell and then you can get TAB completion like:
+
+```bash
+cartography-rules run <TAB>
+```
+
+and then it will show you all the available frameworks.

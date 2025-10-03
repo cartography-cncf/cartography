@@ -67,7 +67,7 @@ machine to pull data from AWS.
 1. **Run security frameworks against your graph.**
 
     ```bash
-    docker-compose run --rm cartography cartography-runrules all --uri bolt://cartography-neo4j-1:7687 --neo4j-password-prompt
+    docker-compose run --rm cartography cartography-rules run all --uri bolt://cartography-neo4j-1:7687 --neo4j-password-prompt
     ```
 
     Full docs [here](usage/rules).
@@ -163,7 +163,7 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 1. **Run security frameworks against your graph.**
 
     ```bash
-    docker run --rm --network cartography-network cartography-cncf/cartography cartography-runrules all --uri bolt://cartography-neo4j:7687 --neo4j-password-prompt
+    docker run --rm --network cartography-network cartography-cncf/cartography cartography-rules run all --uri bolt://cartography-neo4j:7687 --neo4j-password-prompt
     ```
 
     Full docs [here](usage/rules).
@@ -258,7 +258,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 1. **Run security frameworks against your graph.**
 
     ```bash
-    cartography-runrules all
+    cartography-rules run all
     ```
 
     Full docs [here](usage/rules).
