@@ -533,7 +533,7 @@ wheels = [
 
 [[package]]
 name = "cartography"
-version = "0.115.1.dev27+g0530b689c.d20251003"
+version = "0.115.1.dev28+g247c740e3"
 source = { editable = "." }
 dependencies = [
     { name = "adal" },
