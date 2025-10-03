@@ -35,7 +35,8 @@ requires-python = ">=3.10"
 dependencies = [
     "backoff>=2.1.2",
     "boto3>=1.15.1",
-    "aioboto3>=13.0.0",
+    "aiobotocore>=2.15.0",
+    "types-aiobotocore-ecr>=2.15.0",
     "httpx>=0.24.0",
     "botocore>=1.18.1",
     "dnspython>=1.15.0",
@@ -93,7 +94,6 @@ dev = [
     "types-requests<2.32.4.20250914",
     "azure-mgmt-web>=7.0.0",
     "azure-mgmt-logic>=10.0.0",
-    "types-aioboto3[ecr]>=15.1.0",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",
