@@ -189,7 +189,6 @@ async def _extract_parent_image_from_attestation(
     :return: Dict with parent_image_uri and parent_image_digest, or None if no parent image found
     """
     try:
-        # Fetch the attestation manifest
         attestation_manifest, _ = await batch_get_manifest(
             ecr_client,
             repo_name,
@@ -207,11 +206,14 @@ async def _extract_parent_image_from_attestation(
 
         # Get the in-toto layer from the attestation manifest
         layers = attestation_manifest.get("layers", [])
-        intoto_layer = None
-        for layer in layers:
-            if "in-toto" in layer.get("mediaType", "").lower():
-                intoto_layer = layer
-                break
+        intoto_layer = next(
+            (
+                layer
+                for layer in layers
+                if "in-toto" in layer.get("mediaType", "").lower()
+            ),
+            None,
+        )
 
         if not intoto_layer:
             logger.debug(
@@ -241,8 +243,14 @@ async def _extract_parent_image_from_attestation(
         materials = attestation_blob.get("predicate", {}).get("materials", [])
         for material in materials:
             uri = material.get("uri", "")
-            # Look for Docker package URIs that are NOT the dockerfile itself
-            if uri.startswith("pkg:docker/") and "dockerfile" not in uri.lower():
+            uri_l = uri.lower()
+            # Look for container image URIs that are NOT the dockerfile itself
+            is_container_ref = (
+                uri_l.startswith("pkg:docker/")
+                or uri_l.startswith("pkg:oci/")
+                or uri_l.startswith("oci://")
+            )
+            if is_container_ref and "dockerfile" not in uri_l:
                 digest_obj = material.get("digest", {})
                 sha256_digest = digest_obj.get("sha256")
                 if sha256_digest:
@@ -557,7 +565,7 @@ async def fetch_image_layers_async(
                         )
                         == "attestation-manifest"
                     ):
-                        # Extract base image from attestation before skipping
+                        # Extract base image from attestation
                         child_digest = manifest_ref.get("digest")
                         if child_digest:
                             attestation_info = (
