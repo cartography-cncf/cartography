@@ -188,3 +188,83 @@ def test_transform_layers_creates_graph_structure():
         (m["imageDigest"], tuple(m["layer_diff_ids"])) for m in memberships
     }
     assert observed_memberships == expected_memberships
+
+
+def test_transform_ecr_image_layers_with_attestation_data():
+    """Test that attestation data is correctly added to memberships."""
+    image_layers_data = {
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            ]
+        }
+    }
+
+    image_digest_map = {
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+    }
+
+    image_attestation_map = {
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
+            "parent_image_uri": "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/base-images@abc123",
+            "parent_image_digest": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
+        }
+    }
+
+    layers, memberships = transform_ecr_image_layers(
+        image_layers_data,
+        image_digest_map,
+        image_attestation_map,
+    )
+
+    # Should have 2 layers
+    assert len(layers) == 2
+
+    # Should have 1 membership with attestation data
+    assert len(memberships) == 1
+    membership = memberships[0]
+
+    assert (
+        membership["imageDigest"]
+        == "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+    )
+    assert len(membership["layer_diff_ids"]) == 2
+    assert (
+        membership["parent_image_uri"]
+        == "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/base-images@abc123"
+    )
+    assert (
+        membership["parent_image_digest"]
+        == "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
+    )
+
+
+def test_transform_ecr_image_layers_without_attestation_data():
+    """Test that transform works without attestation data (backward compatibility)."""
+    image_layers_data = {
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            ]
+        }
+    }
+
+    image_digest_map = {
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+    }
+
+    # No attestation map provided
+    layers, memberships = transform_ecr_image_layers(
+        image_layers_data,
+        image_digest_map,
+    )
+
+    # Should work without errors
+    assert len(layers) == 1
+    assert len(memberships) == 1
+
+    membership = memberships[0]
+    # Should NOT have parent_image_uri or parent_image_digest
+    assert "parent_image_uri" not in membership
+    assert "parent_image_digest" not in membership
