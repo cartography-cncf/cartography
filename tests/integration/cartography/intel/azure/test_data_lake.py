@@ -1,7 +1,9 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.azure.data_lake as data_lake
-from tests.data.azure.data_lake import MOCK_FILESYSTEMS, MOCK_STORAGE_ACCOUNTS
+from tests.data.azure.data_lake import MOCK_FILESYSTEMS
+from tests.data.azure.data_lake import MOCK_STORAGE_ACCOUNTS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -12,7 +14,9 @@ TEST_STORAGE_ACCOUNT_ID = "/subscriptions/00-00-00-00/resourceGroups/TestRG/prov
 
 @patch("cartography.intel.azure.data_lake.get_filesystems_for_account")
 @patch("cartography.intel.azure.data_lake.get_datalake_accounts")
-def test_sync_datalake_filesystems(mock_get_accounts, mock_get_filesystems, neo4j_session):
+def test_sync_datalake_filesystems(
+    mock_get_accounts, mock_get_filesystems, neo4j_session
+):
     """
     Test that we can correctly sync Data Lake File System data and relationships.
     """
@@ -66,7 +70,7 @@ def test_sync_datalake_filesystems(mock_get_accounts, mock_get_filesystems, neo4
     expected_rels = {
         (
             TEST_STORAGE_ACCOUNT_ID,
-            MOCK_FILESYSTEMS[0]['id'],
+            MOCK_FILESYSTEMS[0]["id"],
         ),
     }
     actual_rels = check_rels(
