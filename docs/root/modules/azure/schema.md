@@ -1261,3 +1261,25 @@ Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/re
     ```cypher
     (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
     ```
+
+### AzureDataLakeFileSystem
+
+Representation of an [Azure Data Lake File System](https://learn.microsoft.com/en-us/rest/api/storagerp/blob-containers/get), which is a container within a Data Lake enabled Storage Account.
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the File System. |
+|name| The name of the File System. |
+|public_access| The public access level of the File System (e.g., None). |
+|last_modified_time| The timestamp of when the File System was last modified. |
+|has_immutability_policy| A boolean indicating if the data is protected from being changed or deleted. |
+|has_legal_hold| A boolean indicating if the data is locked for legal reasons. |
+
+#### Relationships
+
+- An Azure Storage Account contains one or more File Systems.
+    ```cypher
+    (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
+    ```
