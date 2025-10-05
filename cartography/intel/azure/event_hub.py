@@ -57,6 +57,7 @@ def get_event_hubs(
         return []
 
 
+@timeit
 def transform_namespaces(namespaces: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for ns in namespaces:
@@ -81,6 +82,7 @@ def transform_namespaces(namespaces: list[dict]) -> list[dict]:
     return transformed
 
 
+@timeit
 def transform_event_hubs(event_hubs: list[dict], namespace_id: str) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for eh in event_hubs:
@@ -119,19 +121,25 @@ def load_namespaces(
 def load_event_hubs(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
+    namespace_id: str,
     update_tag: int,
 ) -> None:
-    load(neo4j_session, AzureEventHubSchema(), data, lastupdated=update_tag)
+    load(
+        neo4j_session,
+        AzureEventHubSchema(),
+        data,
+        lastupdated=update_tag,
+        NAMESPACE_ID=namespace_id,
+    )
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
+def cleanup_namespaces(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
     GraphJob.from_node_schema(
         AzureEventHubsNamespaceSchema(), common_job_parameters
     ).run(neo4j_session)
-    GraphJob.from_node_schema(AzureEventHubSchema(), common_job_parameters).run(
-        neo4j_session
-    )
 
 
 @timeit
@@ -158,6 +166,12 @@ def sync(
         if rg_name:
             event_hubs = get_event_hubs(client, rg_name, ns["name"])
             transformed_event_hubs = transform_event_hubs(event_hubs, ns_id)
-            load_event_hubs(neo4j_session, transformed_event_hubs, update_tag)
+            load_event_hubs(neo4j_session, transformed_event_hubs, ns_id, update_tag)
 
-    cleanup(neo4j_session, common_job_parameters)
+            eh_cleanup_params = common_job_parameters.copy()
+            eh_cleanup_params["NAMESPACE_ID"] = ns_id
+            GraphJob.from_node_schema(AzureEventHubSchema(), eh_cleanup_params).run(
+                neo4j_session
+            )
+
+    cleanup_namespaces(neo4j_session, common_job_parameters)
