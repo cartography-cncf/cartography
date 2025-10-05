@@ -22,7 +22,7 @@ You can learn more about the story behind Cartography in our [presentation at BS
 
 ## Supported platforms
 - [Airbyte](https://cartography-cncf.github.io/cartography/modules/airbyte/index.html) - Organization, Workspace, User, Source, Destination, Connection, Tag, Stream
-- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, CodeBuild, Config, Cognito, EC2, ECS, ECR, EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue,  GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
+- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, CodeBuild, Config, Cognito, EC2, ECS, ECR (including image layers), EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue,  GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
 - [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 - [BigFix](https://cartography-cncf.github.io/cartography/modules/bigfix/index.html) - Computers
 - [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
@@ -82,6 +82,17 @@ Start [here](https://cartography-cncf.github.io/cartography/install.html) to set
 When you are ready to try it in production, read [here](https://cartography-cncf.github.io/cartography/ops.html) for recommendations on getting cartography spun up in your environment.
 
 ## Usage
+
+### Running rules
+
+You can check your environment against common security frameworks using the `cartography-rules` command.
+
+```bash
+cartography-rules run all
+```
+
+See [the rules docs](https://cartography-cncf.github.io/cartography/usage/rules.html) for more detail.
+
 
 ### Querying the database directly
 
