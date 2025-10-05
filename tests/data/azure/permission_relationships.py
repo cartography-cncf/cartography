@@ -66,7 +66,7 @@ AZURE_VMS = [
         "plan": {
             "product": "Standard",
         },
-        "handware_profile": {
+        "hardware_profile": {
             "vm_size": "Standard_D2s_v3",
         },
         "license_type": "Windows_Client",

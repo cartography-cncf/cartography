@@ -60,7 +60,7 @@ def evaluate_clause(clause: str, match: str) -> bool:
     Returns:
         [bool] -- True if the clause matched, False otherwise
     """
-    result = compile_azure_regex(clause).fullmatch(match.lower())
+    result = compile_azure_regex(clause).fullmatch(match)
     return result is not None
 
 
@@ -182,6 +182,7 @@ def get_principals_for_subscription(
     (permissions:AzurePermissions)
     MATCH
     (principal)-[:HAS_ROLE_ASSIGNMENT]->(assignment)
+    WHERE principal:EntraUser OR principal:EntraGroup OR principal:EntraServicePrincipal
     RETURN
     DISTINCT principal.id as principal_id, assignment.id as assignment_id,
     assignment.scope as assignment_scope, collect(permissions) as permissions,
@@ -303,6 +304,7 @@ def load_principal_mappings(
         """
         UNWIND $Mapping as mapping
         MATCH (principal{id:mapping.principal_id})
+        WHERE principal:EntraUser OR principal:EntraGroup OR principal:EntraServicePrincipal
         MATCH (resource:$node_label{id:mapping.resource_id})
         MERGE (principal)-[r:$relationship_name]->(resource)
         SET r.lastupdated = $azure_update_tag
@@ -334,10 +336,9 @@ def cleanup_rpr(
     )
     cleanup_rpr_query = Template(
         """
-        MATCH (:AzureSubscription{id: $AZURE_ID})-[:RESOURCE]->(principal)-[r:$relationship_name]->
-        (resource:$node_label)
-        WHERE r.lastupdated <> $UPDATE_TAG
-        AND (principal:EntraUser OR principal:EntraGroup OR principal:EntraServicePrincipal)
+        MATCH (:AzureSubscription{id: $AZURE_ID})-[:RESOURCE]->(principal)-[r:$relationship_name]->(resource:$node_label)
+        WHERE (principal:EntraUser OR principal:EntraGroup OR principal:EntraServicePrincipal)
+        AND r.lastupdated <> $UPDATE_TAG
         WITH r LIMIT $LIMIT_SIZE  DELETE (r) return COUNT(*) as TotalCompleted
         """,
     )
