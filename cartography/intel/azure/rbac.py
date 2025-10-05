@@ -292,39 +292,32 @@ def sync(
     """
     logger.info("Syncing Azure RBAC for subscription '%s'.", subscription_id)
 
-    try:
-        # GET
-        role_assignments = get_role_assignments(credentials, subscription_id)
+    # GET
+    role_assignments = get_role_assignments(credentials, subscription_id)
 
-        # Intermediate step - to get the required role definitions
-        role_definition_ids = extract_role_definition_ids(role_assignments)
-        role_definitions = get_role_definitions_by_ids(
-            credentials, subscription_id, role_definition_ids
-        )
+    # Intermediate step - to get the required role definitions
+    role_definition_ids = extract_role_definition_ids(role_assignments)
+    role_definitions = get_role_definitions_by_ids(
+        credentials, subscription_id, role_definition_ids
+    )
 
-        # TRANSFORM
-        transformed_definitions = transform_role_definitions(role_definitions)
-        transformed_assignments = transform_role_assignments(role_assignments)
-        transformed_permissions = transform_permissions(role_definitions)
+    # TRANSFORM
+    transformed_definitions = transform_role_definitions(role_definitions)
+    transformed_assignments = transform_role_assignments(role_assignments)
+    transformed_permissions = transform_permissions(role_definitions)
 
-        # LOAD
-        load_permissions(
-            neo4j_session, transformed_permissions, subscription_id, update_tag
-        )
-        load_role_definitions(
-            neo4j_session, transformed_definitions, subscription_id, update_tag
-        )
-        load_role_assignments(
-            neo4j_session, transformed_assignments, subscription_id, update_tag
-        )
+    # LOAD
+    load_permissions(
+        neo4j_session, transformed_permissions, subscription_id, update_tag
+    )
+    load_role_definitions(
+        neo4j_session, transformed_definitions, subscription_id, update_tag
+    )
+    load_role_assignments(
+        neo4j_session, transformed_assignments, subscription_id, update_tag
+    )
 
-        # CLEANUp
-        cleanup_permissions(neo4j_session, common_job_parameters)
-        cleanup_role_definitions(neo4j_session, common_job_parameters)
-        cleanup_role_assignments(neo4j_session, common_job_parameters)
-
-    except Exception as e:
-        logger.error(
-            f"Error during Azure RBAC sync for subscription {subscription_id}: {e}"
-        )
-        raise
+    # CLEANUp
+    cleanup_permissions(neo4j_session, common_job_parameters)
+    cleanup_role_definitions(neo4j_session, common_job_parameters)
+    cleanup_role_assignments(neo4j_session, common_job_parameters)
