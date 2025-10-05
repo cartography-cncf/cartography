@@ -18,14 +18,15 @@ logger = logging.getLogger(__name__)
 
 
 def _get_resource_group_from_id(resource_id: str) -> str:
+    """
+    Helper function to parse the resource group name from a full resource ID string.
+    """
     parts = resource_id.lower().split("/")
     try:
         rg_index = parts.index("resourcegroups")
         return parts[rg_index + 1]
     except (ValueError, IndexError):
-        logger.warning(
-            f"Could not parse resource group name from resource ID: {resource_id}"
-        )
+        logger.warning("Could not parse resource group name from a resource ID.")
         return ""
 
 
@@ -80,7 +81,7 @@ def transform_namespaces(namespaces: list[dict]) -> list[dict]:
     return transformed
 
 
-def transform_event_hubs(event_hubs: list[dict]) -> list[dict]:
+def transform_event_hubs(event_hubs: list[dict], namespace_id: str) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for eh in event_hubs:
         transformed.append(
@@ -92,6 +93,7 @@ def transform_event_hubs(event_hubs: list[dict]) -> list[dict]:
                 "message_retention_in_days": eh.get("properties", {}).get(
                     "message_retention_in_days"
                 ),
+                "NAMESPACE_ID": namespace_id,
             }
         )
     return transformed
@@ -117,25 +119,19 @@ def load_namespaces(
 def load_event_hubs(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
-    namespace_id: str,
     update_tag: int,
 ) -> None:
-    load(
-        neo4j_session,
-        AzureEventHubSchema(),
-        data,
-        lastupdated=update_tag,
-        NAMESPACE_ID=namespace_id,
-    )
+    load(neo4j_session, AzureEventHubSchema(), data, lastupdated=update_tag)
 
 
 @timeit
-def cleanup_namespaces(
-    neo4j_session: neo4j.Session, common_job_parameters: dict
-) -> None:
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
     GraphJob.from_node_schema(
         AzureEventHubsNamespaceSchema(), common_job_parameters
     ).run(neo4j_session)
+    GraphJob.from_node_schema(AzureEventHubSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -146,7 +142,7 @@ def sync(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Azure Event Hub for subscription {subscription_id}.")
+    logger.info("Syncing Azure Event Hub.")
     client = EventHubManagementClient(credentials.credential, subscription_id)
 
     namespaces = get_event_hub_namespaces(client)
@@ -161,13 +157,7 @@ def sync(
         rg_name = _get_resource_group_from_id(ns_id)
         if rg_name:
             event_hubs = get_event_hubs(client, rg_name, ns["name"])
-            transformed_event_hubs = transform_event_hubs(event_hubs)
-            load_event_hubs(neo4j_session, transformed_event_hubs, ns_id, update_tag)
+            transformed_event_hubs = transform_event_hubs(event_hubs, ns_id)
+            load_event_hubs(neo4j_session, transformed_event_hubs, update_tag)
 
-            eh_cleanup_params = common_job_parameters.copy()
-            eh_cleanup_params["NAMESPACE_ID"] = ns_id
-            GraphJob.from_node_schema(AzureEventHubSchema(), eh_cleanup_params).run(
-                neo4j_session
-            )
-
-    cleanup_namespaces(neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters)
