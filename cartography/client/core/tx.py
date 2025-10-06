@@ -269,7 +269,7 @@ def ensure_indexes(
             raise ValueError(
                 'Query provided to `ensure_indexes()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        neo4j_session.run(query)
+        run_write_query(neo4j_session, query)
 
 
 def ensure_indexes_for_matchlinks(
@@ -288,7 +288,7 @@ def ensure_indexes_for_matchlinks(
             raise ValueError(
                 'Query provided to `ensure_indexes_for_matchlinks()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        neo4j_session.run(query)
+        run_write_query(neo4j_session, query)
 
 
 def load(
