@@ -454,6 +454,8 @@ def load_team_repos(
         data,
         lastupdated=update_tag,
         org_url=organization_url,
+        # Issue #1957: Relationship-heavy data should use smaller batch sizes.
+        batch_size=5000,
     )
 
 
