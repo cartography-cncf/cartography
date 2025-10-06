@@ -81,22 +81,24 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
     (:OktaUser)<-[:IDENTITY_OKTA]-(:Human)
     ```
  - An OktaUser can be a member of an OktaGroup
-     ```
+    ```
     (:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(:OktaGroup)
     ```
  - An OktaUser can be a member of an OktaAdministrationRole
-     ```
+    ```
     (:OktaUser)-[:MEMBER_OF_OKTA_ROLE]->(:OktaAdministrationRole)
     ```
  - OktaUsers can have authentication factors
-     ```
+    ```
     (:OktaUser)-[:FACTOR]->(:OktaUserFactor)
     ```
  - OktaUsers can assume AWS SSO users via SAML federation
-     ```
+    ```
     (:OktaUser)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
     The more generic label is UserAccount:
+    ```
+    (:UserAccount)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
 
 ### OktaGroup
