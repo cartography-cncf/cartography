@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
@@ -381,6 +381,21 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-datafactory"
+version = "9.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fc/7a/253f8d0b4c3971ad0f11408b80c3429dc75408834e219ed2f0d928b4a586/azure_mgmt_datafactory-9.2.0.tar.gz", hash = "sha256:5132e9c24c441ac225f2a60225924baa55079ca81eff7db99a70d661d64bb0d7", size = 484275, upload-time = "2025-04-21T04:21:28.539Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/dd/2e7b6bac7420a05bc4ad17cb64099948117b12ca50ea68d6d4665867085e/azure_mgmt_datafactory-9.2.0-py3-none-any.whl", hash = "sha256:d870a7a6099227e91d1c258a956c2aa32c2ea4c0a4409913d8f215887349f128", size = 554231, upload-time = "2025-04-21T04:21:30.956Z" },
+]
+
+[[package]]
 name = "azure-mgmt-logic"
 version = "10.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -596,6 +611,7 @@ dependencies = [
     { name = "azure-identity" },
     { name = "azure-mgmt-compute" },
     { name = "azure-mgmt-cosmosdb" },
+    { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-resource" },
     { name = "azure-mgmt-sql" },
@@ -635,6 +651,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-web" },
     { name = "backoff" },
@@ -666,6 +683,7 @@ requires-dist = [
     { name = "azure-identity", specifier = ">=1.5.0" },
     { name = "azure-mgmt-compute", specifier = ">=5.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
+    { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
     { name = "azure-mgmt-sql", specifier = "<=1.0.0" },
@@ -705,6 +723,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
     { name = "backoff", specifier = ">=2.1.2" },

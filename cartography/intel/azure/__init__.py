@@ -10,6 +10,7 @@ from cartography.util import timeit
 from . import app_service
 from . import compute
 from . import cosmosdb
+from . import data_factory
 from . import functions
 from . import logic_apps
 from . import resource_groups
@@ -80,6 +81,13 @@ def _sync_one_subscription(
         common_job_parameters,
     )
     resource_groups.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    data_factory.sync(
         neo4j_session,
         credentials,
         subscription_id,
