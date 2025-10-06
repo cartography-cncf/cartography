@@ -98,10 +98,8 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
     ```
     The more generic label is UserAccount:
     ```
-    (:UserAccount)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
-    ```
 
-### OktaGroup :: AWSGroup
+### OktaGroup
 
 Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/groups/#group-object).
 
