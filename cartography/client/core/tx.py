@@ -14,10 +14,13 @@ from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.querybuilder import build_matchlink_query
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
-from cartography.util import DEFAULT_BATCH_SIZE
 from cartography.util import batch
 
 logger = logging.getLogger(__name__)
+
+
+# Number of rows to include in each message when loading data.
+DEFAULT_DB_WRITE_BATCH_SIZE = 10_000
 
 
 def run_write_query(
@@ -229,7 +232,7 @@ def load_graph_data(
     neo4j_session: neo4j.Session,
     query: str,
     dict_list: List[Dict[str, Any]],
-    batch_size: int = DEFAULT_BATCH_SIZE,
+    batch_size: int = DEFAULT_DB_WRITE_BATCH_SIZE,
     **kwargs,
 ) -> None:
     """
@@ -238,15 +241,17 @@ def load_graph_data(
     :param query: The Neo4j write query to run. This query is not meant to be handwritten, rather it should be generated
     with cartography.graph.querybuilder.build_ingestion_query().
     :param dict_list: The data to load to the graph represented as a list of dicts.
-    :param batch_size: Number of rows to include in each Bolt message when loading data.
+    :param batch_size: Number of rows to include in each message when loading data. If the data in a single message is
+    too large, Neo4j will throw a ConnectionResetError - see issue #1957. Relationship-heavy data should use smaller
+    batch sizes.
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
-    # Keep batches small enough that we don't exceed the Neo4j Bolt message size limit
-    # when the payload contains large relationship fan-out (for example GitHub teams
-    # with tens of thousands of repo links).
+    if batch_size <= 0:
+        raise ValueError("batch_size must be greater than 0.")
+
     for data_batch in batch(dict_list, size=batch_size):
-        neo4j_session.write_transaction(
+        neo4j_session.execute_write(
             write_list_of_dicts_tx,
             query,
             DictList=data_batch,
@@ -301,7 +306,7 @@ def load(
     neo4j_session: neo4j.Session,
     node_schema: CartographyNodeSchema,
     dict_list: List[Dict[str, Any]],
-    batch_size: int = DEFAULT_BATCH_SIZE,
+    batch_size: int = DEFAULT_DB_WRITE_BATCH_SIZE,
     **kwargs,
 ) -> None:
     """
@@ -310,7 +315,8 @@ def load(
     :param neo4j_session: The Neo4j session
     :param node_schema: The CartographyNodeSchema object to create indexes for and generate a query.
     :param dict_list: The data to load to the graph represented as a list of dicts.
-    :param batch_size: Number of rows to include in each Bolt message when loading data.
+    :param batch_size: Number of rows to include in each message when loading data to the graph. Only override this
+    parameter if you are receiving ConnectionResetErrors from Neo4j - see issue #1957.
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
@@ -332,7 +338,7 @@ def load_matchlinks(
     neo4j_session: neo4j.Session,
     rel_schema: CartographyRelSchema,
     dict_list: list[dict[str, Any]],
-    batch_size: int = DEFAULT_BATCH_SIZE,
+    batch_size: int = DEFAULT_DB_WRITE_BATCH_SIZE,
     **kwargs,
 ) -> None:
     """
@@ -341,7 +347,8 @@ def load_matchlinks(
     :param rel_schema: The CartographyRelSchema object to generate a query.
     :param dict_list: The data to load to the graph represented as a list of dicts. The dicts must contain the source and
     target node ids.
-    :param batch_size: Number of rows to include in each Bolt message when loading data.
+    :param batch_size: Number of rows to include in each message when loading data to the graph. Only override this
+    parameter if you are receiving ConnectionResetErrors from Neo4j - see issue #1957.
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
