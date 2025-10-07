@@ -1304,7 +1304,7 @@ Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microso
 - An Azure Kubernetes Cluster has one or more Agent Pools.
     ```cypher
     (AzureKubernetesCluster)-[:HAS_AGENT_POOL]->(:AzureKubernetesAgentPool)
-    
+
 ### AzureContainerInstance
 
 Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
