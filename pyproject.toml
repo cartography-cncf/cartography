@@ -54,6 +54,7 @@ dependencies = [
     "adal>=1.2.4",
     "azure-cli-core>=2.26.0",
     "azure-mgmt-compute>=5.0.0",
+    "azure-mgmt-containerinstance>=10.0.0",
     "azure-mgmt-resource>=10.2.0",
     "azure-mgmt-cosmosdb>=6.0.0",
     "azure-mgmt-web>=7.0.0",
@@ -72,6 +73,7 @@ dependencies = [
     "cloudflare (>=4.1.0,<5.0.0)",
     "scaleway>=2.9.0",
     "google-cloud-resource-manager>=1.14.2",
+    "types-aiobotocore-ecr",
     "typer>=0.9.0"
 ]
 # Comes from Git tag
@@ -93,7 +95,7 @@ dev = [
     "types-requests<2.32.4.20250914",
     "azure-mgmt-web>=7.0.0",
     "azure-mgmt-logic>=10.0.0",
-    "types-aioboto3[ecr]>=15.1.0",
+    "azure-mgmt-containerinstance>=10.0.0",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",
