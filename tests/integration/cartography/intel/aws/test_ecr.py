@@ -399,10 +399,13 @@ def test_load_ecr_repository_images(neo4j_session):
     _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
 
     data = tests.data.aws.ecr.LIST_REPOSITORY_IMAGES
-    repo_images_list = cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    repo_images_list, ecr_images_list = (
+        cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    )
     cartography.intel.aws.ecr.load_ecr_repository_images(
         neo4j_session,
         repo_images_list,
+        ecr_images_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -443,10 +446,13 @@ def test_load_ecr_images(neo4j_session):
     _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
 
     data = tests.data.aws.ecr.LIST_REPOSITORY_IMAGES
-    repo_images_list = cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    repo_images_list, ecr_images_list = (
+        cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    )
     cartography.intel.aws.ecr.load_ecr_repository_images(
         neo4j_session,
         repo_images_list,
+        ecr_images_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -481,3 +487,145 @@ def test_load_ecr_images(neo4j_session):
     )
     actual_nodes = {(n["repo_image.id"], n["image.digest"]) for n in nodes}
     assert actual_nodes == expected_nodes
+
+    # Clean up the database after the test
+    neo4j_session.run("MATCH (n) detach delete n")
+
+
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=[
+        {
+            "repositoryArn": "arn:aws:ecr:us-east-1:000000000000:repository/multi-arch-repository",
+            "registryId": "000000000000",
+            "repositoryName": "multi-arch-repository",
+            "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository",
+            "createdAt": datetime.datetime(2025, 1, 1, 0, 0, 1),
+        }
+    ],
+)
+def test_sync_manifest_list(mock_get_repos, neo4j_session):
+    """
+    Ensure that manifest lists are properly handled:
+    - ECRRepositoryImage points to both manifest list and platform-specific ECRImages
+    - ECRImage nodes have correct type, architecture, os, variant fields
+    - Attestation manifests are filtered out
+    """
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Mock the ECR client and its paginator methods
+    mock_client = MagicMock()
+
+    # Mock list_images paginator
+    mock_list_paginator = MagicMock()
+    mock_list_paginator.paginate.return_value = [
+        {
+            "imageIds": [
+                {
+                    "imageDigest": tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
+                    "imageTag": "v1.0",
+                }
+            ]
+        }
+    ]
+
+    # Mock describe_images paginator
+    mock_describe_paginator = MagicMock()
+    mock_describe_paginator.paginate.return_value = [
+        {"imageDetails": [tests.data.aws.ecr.MULTI_ARCH_IMAGE_DETAILS]}
+    ]
+
+    # Configure get_paginator to return the appropriate paginator
+    def get_paginator(name):
+        if name == "list_images":
+            return mock_list_paginator
+        elif name == "describe_images":
+            return mock_describe_paginator
+        raise ValueError(f"Unexpected paginator: {name}")
+
+    mock_client.get_paginator = get_paginator
+
+    # Mock batch_get_image to return the manifest list
+    mock_client.batch_get_image.return_value = (
+        tests.data.aws.ecr.BATCH_GET_MANIFEST_LIST_RESPONSE
+    )
+
+    boto3_session.client.return_value = mock_client
+
+    # Act
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert - Check that 3 ECRImage nodes were created (manifest list + 2 platform-specific)
+    ecr_images = neo4j_session.run(
+        """
+        MATCH (img:ECRImage)
+        RETURN img.digest AS digest, img.type AS type, img.architecture AS architecture,
+               img.os AS os, img.variant AS variant
+        ORDER BY img.digest
+        """
+    ).data()
+
+    assert len(ecr_images) == 3
+
+    # Manifest list image
+    manifest_list_img = [
+        img
+        for img in ecr_images
+        if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_DIGEST
+    ][0]
+    assert manifest_list_img["type"] == "manifest_list"
+    assert manifest_list_img["architecture"] is None
+    assert manifest_list_img["os"] is None
+    assert manifest_list_img["variant"] is None
+
+    # AMD64 platform image
+    amd64_img = [
+        img
+        for img in ecr_images
+        if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST
+    ][0]
+    assert amd64_img["type"] == "image"
+    assert amd64_img["architecture"] == "amd64"
+    assert amd64_img["os"] == "linux"
+    assert amd64_img["variant"] is None
+
+    # ARM64 platform image
+    arm64_img = [
+        img
+        for img in ecr_images
+        if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST
+    ][0]
+    assert arm64_img["type"] == "image"
+    assert arm64_img["architecture"] == "arm64"
+    assert arm64_img["os"] == "linux"
+    assert arm64_img["variant"] == "v8"
+
+    # Assert - Check that ECRRepositoryImage has relationships to all 3 images
+    repo_image_rels = neo4j_session.run(
+        """
+        MATCH (repo_img:ECRRepositoryImage)-[:IMAGE]->(img:ECRImage)
+        WHERE repo_img.id = '000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0'
+        RETURN img.digest AS digest
+        ORDER BY img.digest
+        """
+    ).data()
+
+    assert len(repo_image_rels) == 3
+    assert {rel["digest"] for rel in repo_image_rels} == {
+        tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
+        tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST,
+        tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST,
+    }
+
+    # Clean up the database after the test
+    neo4j_session.run("MATCH (n) detach delete n")
