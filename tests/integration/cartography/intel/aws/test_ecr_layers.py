@@ -339,6 +339,170 @@ def test_transform_marks_empty_layer():
     assert non_empty_layer["is_empty"] is False
 
 
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=test_data.DESCRIBE_REPOSITORIES["repositories"][:1],
+)
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repository_images",
+    return_value=test_data.LIST_REPOSITORY_IMAGES[
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    ][:2],
+)
+@patch("cartography.intel.aws.ecr_image_layers.fetch_image_layers_async")
+@patch("cartography.client.aws.ecr.get_ecr_images")
+def test_sync_built_from_relationship(
+    mock_get_ecr_images,
+    mock_fetch_layers,
+    mock_get_repo_images,
+    mock_get_repos,
+    neo4j_session,
+):
+    """Test that BUILT_FROM relationship is created between ECRImage nodes."""
+    parent_digest = (
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    )
+    child_digest = (
+        "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+    )
+
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    mock_get_ecr_images.return_value = {
+        (
+            "us-east-1",
+            "1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
+            "example-repository",
+            parent_digest,
+        ),
+        (
+            "us-east-1",
+            "2",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
+            "example-repository",
+            child_digest,
+        ),
+    }
+
+    mock_fetch_layers.return_value = (
+        {
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": {
+                "linux/amd64": test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
+            },
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": {
+                "linux/amd64": test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
+            },
+        },
+        {
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": parent_digest,
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": child_digest,
+        },
+        {
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": {
+                "parent_image_uri": "pkg:docker/000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository@1",
+                "parent_image_digest": parent_digest,
+            }
+        },
+    )
+
+    sync_ecr_layers(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "ECRImage",
+        "id",
+        "ECRImage",
+        "id",
+        "BUILT_FROM",
+        rel_direction_right=True,
+    ) >= {(child_digest, parent_digest)}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parent_uri,parent_digest",
+    [
+        (
+            "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/base-image@v1.0",
+            "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        ),
+        (
+            "pkg:oci/myregistry.azurecr.io/base-image@v1.0",
+            "sha256:abc123def456",
+        ),
+        (
+            "oci://harbor.example.com/library/alpine@sha256:xyz789",
+            "sha256:xyz789abc",
+        ),
+    ],
+)
+async def test_extract_parent_image_from_attestation_uri_schemes(
+    parent_uri, parent_digest
+):
+    """Test extracting base image from attestation with various URI schemes."""
+    # Arrange
+    mock_ecr_client = MagicMock()
+    mock_http_client = AsyncMock()
+
+    attestation_manifest = (
+        {
+            "layers": [
+                {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:def456"}
+            ]
+        },
+        "application/vnd.oci.image.manifest.v1+json",
+    )
+
+    attestation_blob = {
+        "predicate": {
+            "materials": [
+                {
+                    "uri": parent_uri,
+                    "digest": {"sha256": parent_digest.removeprefix("sha256:")},
+                },
+            ]
+        }
+    }
+
+    original_batch_get_manifest = ecr_layers.batch_get_manifest
+    original_get_blob = ecr_layers.get_blob_json_via_presigned
+
+    ecr_layers.batch_get_manifest = AsyncMock(return_value=attestation_manifest)
+    ecr_layers.get_blob_json_via_presigned = AsyncMock(return_value=attestation_blob)
+
+    try:
+        # Act
+        result = await ecr_layers._extract_parent_image_from_attestation(
+            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
+        )
+
+        # Assert
+        assert result is not None
+        assert result["parent_image_uri"] == parent_uri
+        assert result["parent_image_digest"] == parent_digest
+    finally:
+        ecr_layers.batch_get_manifest = original_batch_get_manifest
+        ecr_layers.get_blob_json_via_presigned = original_get_blob
+
+
 @pytest.mark.asyncio
 @patch(
     "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
@@ -392,10 +556,12 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map = await ecr_layers.fetch_image_layers_async(
-        MagicMock(),
-        [repo_image],
-        max_concurrent=1,
+    image_layers_data, digest_map, attestation_map = (
+        await ecr_layers.fetch_image_layers_async(
+            MagicMock(),
+            [repo_image],
+            max_concurrent=1,
+        )
     )
 
     assert image_layers_data == {
@@ -428,10 +594,12 @@ async def test_fetch_image_layers_async_skips_attestation_only(
         ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map = await ecr_layers.fetch_image_layers_async(
-        MagicMock(),
-        [repo_image],
-        max_concurrent=1,
+    image_layers_data, digest_map, attestation_map = (
+        await ecr_layers.fetch_image_layers_async(
+            MagicMock(),
+            [repo_image],
+            max_concurrent=1,
+        )
     )
 
     assert image_layers_data == {}

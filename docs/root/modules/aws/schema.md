@@ -1918,6 +1918,16 @@ ECRRepositoryImage.
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
+- An ECRImage may be built from a parent ECRImage (derived from provenance attestations).
+    ```
+    (:ECRImage)-[:BUILT_FROM]->(:ECRImage)
+    ```
+
+    Relationship properties:
+    - `parent_image_uri`: The package URI of the parent image from the attestation (e.g., `pkg:docker/account.dkr.ecr.region.amazonaws.com/repo@digest`)
+    - `from_attestation`: Boolean flag indicating the relationship was derived from provenance attestation (always `true`)
+    - `confidence`: Confidence level of the relationship (always `"explicit"` for attestation-based relationships)
+
 
 ### ECRImageLayer
 

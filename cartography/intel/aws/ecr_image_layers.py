@@ -170,6 +170,111 @@ async def get_blob_json_via_presigned(
     return response.json()
 
 
+async def _extract_parent_image_from_attestation(
+    ecr_client: ECRClient,
+    repo_name: str,
+    attestation_manifest_digest: str,
+    http_client: httpx.AsyncClient,
+) -> Optional[dict[str, str]]:
+    """
+    Extract parent image information from an in-toto provenance attestation.
+
+    This function fetches an attestation manifest, downloads its in-toto layer,
+    and extracts the parent image reference from the SLSA provenance materials.
+
+    :param ecr_client: ECR client for fetching manifests and layers
+    :param repo_name: ECR repository name
+    :param attestation_manifest_digest: Digest of the attestation manifest
+    :param http_client: HTTP client for downloading blobs
+    :return: Dict with parent_image_uri and parent_image_digest, or None if no parent image found
+    """
+    try:
+        attestation_manifest, _ = await batch_get_manifest(
+            ecr_client,
+            repo_name,
+            attestation_manifest_digest,
+            [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
+        )
+
+        if not attestation_manifest:
+            logger.debug(
+                "No attestation manifest found for digest %s in repo %s",
+                attestation_manifest_digest,
+                repo_name,
+            )
+            return None
+
+        # Get the in-toto layer from the attestation manifest
+        layers = attestation_manifest.get("layers", [])
+        intoto_layer = next(
+            (
+                layer
+                for layer in layers
+                if "in-toto" in layer.get("mediaType", "").lower()
+            ),
+            None,
+        )
+
+        if not intoto_layer:
+            logger.debug(
+                "No in-toto layer found in attestation manifest %s",
+                attestation_manifest_digest,
+            )
+            return None
+
+        # Download the in-toto attestation blob
+        intoto_digest = intoto_layer.get("digest")
+        if not intoto_digest:
+            logger.debug("No digest found for in-toto layer")
+            return None
+
+        attestation_blob = await get_blob_json_via_presigned(
+            ecr_client,
+            repo_name,
+            intoto_digest,
+            http_client,
+        )
+
+        if not attestation_blob:
+            logger.debug("Failed to download attestation blob")
+            return None
+
+        # Extract parent image from SLSA provenance materials
+        materials = attestation_blob.get("predicate", {}).get("materials", [])
+        for material in materials:
+            uri = material.get("uri", "")
+            uri_l = uri.lower()
+            # Look for container image URIs that are NOT the dockerfile itself
+            is_container_ref = (
+                uri_l.startswith("pkg:docker/")
+                or uri_l.startswith("pkg:oci/")
+                or uri_l.startswith("oci://")
+            )
+            if is_container_ref and "dockerfile" not in uri_l:
+                digest_obj = material.get("digest", {})
+                sha256_digest = digest_obj.get("sha256")
+                if sha256_digest:
+                    return {
+                        "parent_image_uri": uri,
+                        "parent_image_digest": f"sha256:{sha256_digest}",
+                    }
+
+        logger.debug(
+            "No parent image found in attestation materials for %s",
+            attestation_manifest_digest,
+        )
+        return None
+
+    except Exception as e:
+        logger.warning(
+            "Error extracting parent image from attestation %s in repo %s: %s",
+            attestation_manifest_digest,
+            repo_name,
+            e,
+        )
+        return None
+
+
 async def _diff_ids_for_manifest(
     ecr_client: ECRClient,
     repo_name: str,
@@ -228,6 +333,7 @@ async def _diff_ids_for_manifest(
 def transform_ecr_image_layers(
     image_layers_data: dict[str, dict[str, list[str]]],
     image_digest_map: dict[str, str],
+    image_attestation_map: Optional[dict[str, dict[str, str]]] = None,
 ) -> tuple[list[dict], list[dict]]:
     """
     Transform image layer data into format suitable for Neo4j ingestion.
@@ -235,8 +341,11 @@ def transform_ecr_image_layers(
 
     :param image_layers_data: Map of image URI to platform to diff_ids
     :param image_digest_map: Map of image URI to image digest
+    :param image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
     :return: List of layer objects ready for ingestion
     """
+    if image_attestation_map is None:
+        image_attestation_map = {}
     layers_by_diff_id: dict[str, dict[str, Any]] = {}
     memberships_by_digest: dict[str, dict[str, Any]] = {}
 
@@ -278,9 +387,19 @@ def transform_ecr_image_layers(
                     layer["tail_image_ids"].add(image_digest)
 
         if ordered_layers_for_image:
-            memberships_by_digest[image_digest] = {
+            membership: dict[str, Any] = {
                 "layer_diff_ids": ordered_layers_for_image,
             }
+
+            # Add attestation data if available for this image
+            if image_uri in image_attestation_map:
+                attestation = image_attestation_map[image_uri]
+                membership["parent_image_uri"] = attestation["parent_image_uri"]
+                membership["parent_image_digest"] = attestation["parent_image_digest"]
+                membership["from_attestation"] = True
+                membership["confidence"] = "explicit"
+
+            memberships_by_digest[image_digest] = membership
 
     # Convert sets back to lists for Neo4j ingestion
     layers = []
@@ -350,12 +469,18 @@ async def fetch_image_layers_async(
     ecr_client: ECRClient,
     repo_images_list: list[dict],
     max_concurrent: int = 200,
-) -> tuple[dict[str, dict[str, list[str]]], dict[str, str]]:
+) -> tuple[dict[str, dict[str, list[str]]], dict[str, str], dict[str, dict[str, str]]]:
     """
     Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
+
+    Returns:
+        - image_layers_data: Map of image URI to platform to diff_ids
+        - image_digest_map: Map of image URI to image digest
+        - image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
     """
     image_layers_data: dict[str, dict[str, list[str]]] = {}
     image_digest_map: dict[str, str] = {}
+    image_attestation_map: dict[str, dict[str, str]] = {}
     semaphore = asyncio.Semaphore(max_concurrent)
 
     # Cache for manifest fetches keyed by (repo_name, imageDigest)
@@ -402,8 +527,8 @@ async def fetch_image_layers_async(
     async def fetch_single_image_layers(
         repo_image: dict,
         http_client: httpx.AsyncClient,
-    ) -> Optional[tuple[str, str, dict[str, list[str]]]]:
-        """Fetch layers for a single image."""
+    ) -> Optional[tuple[str, str, dict[str, list[str]], Optional[dict[str, str]]]]:
+        """Fetch layers for a single image and extract attestation if present."""
         async with semaphore:
             # Caller guarantees these fields exist in every repo_image
             uri = repo_image["uri"]
@@ -426,24 +551,37 @@ async def fetch_image_layers_async(
 
             manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
             platform_layers: dict[str, list[str]] = {}
+            attestation_data: Optional[dict[str, str]] = None
 
             if doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER:
 
                 async def _process_child_manifest(
                     manifest_ref: dict,
-                ) -> dict[str, list[str]]:
-                    # Skip attestation manifests - these aren't real images
+                ) -> tuple[dict[str, list[str]], Optional[dict[str, str]]]:
+                    # Check if this is an attestation manifest
                     if (
                         manifest_ref.get("annotations", {}).get(
                             "vnd.docker.reference.type"
                         )
                         == "attestation-manifest"
                     ):
-                        return {}
+                        # Extract base image from attestation
+                        child_digest = manifest_ref.get("digest")
+                        if child_digest:
+                            attestation_info = (
+                                await _extract_parent_image_from_attestation(
+                                    ecr_client,
+                                    repo_name,
+                                    child_digest,
+                                    http_client,
+                                )
+                            )
+                            return {}, attestation_info
+                        return {}, None
 
                     child_digest = manifest_ref.get("digest")
                     if not child_digest:
-                        return {}
+                        return {}, None
 
                     # Use optimized caching for child manifest
                     child_doc, _ = await _fetch_and_cache_manifest(
@@ -452,16 +590,17 @@ async def fetch_image_layers_async(
                         [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
                     )
                     if not child_doc:
-                        return {}
+                        return {}, None
 
                     platform_hint = extract_platform_from_manifest(manifest_ref)
-                    return await _diff_ids_for_manifest(
+                    diff_map = await _diff_ids_for_manifest(
                         ecr_client,
                         repo_name,
                         child_doc,
                         http_client,
                         platform_hint,
                     )
+                    return diff_map, None
 
                 # Process all child manifests in parallel
                 child_tasks = [
@@ -474,8 +613,13 @@ async def fetch_image_layers_async(
 
                 # Merge results from successful child manifest processing
                 for result in child_results:
-                    if isinstance(result, dict):
-                        platform_layers.update(result)
+                    if isinstance(result, tuple) and len(result) == 2:
+                        layer_data, attest_data = result
+                        if layer_data:
+                            platform_layers.update(layer_data)
+                        if attest_data and not attestation_data:
+                            # Use first attestation found
+                            attestation_data = attest_data
             else:
                 diff_map = await _diff_ids_for_manifest(
                     ecr_client,
@@ -487,7 +631,7 @@ async def fetch_image_layers_async(
                 platform_layers.update(diff_map)
 
             if platform_layers:
-                return uri, digest, platform_layers
+                return uri, digest, platform_layers, attestation_data
 
             return None
 
@@ -507,7 +651,7 @@ async def fetch_image_layers_async(
         )
 
         if not tasks:
-            return image_layers_data, image_digest_map
+            return image_layers_data, image_digest_map, image_attestation_map
 
         progress_interval = max(1, min(100, total // 10 or 1))
         completed = 0
@@ -526,16 +670,22 @@ async def fetch_image_layers_async(
                 )
 
             if result:
-                uri, digest, layer_data = result
+                uri, digest, layer_data, attestation_data = result
                 if not digest:
                     raise ValueError(f"Empty digest returned for image {uri}")
                 image_layers_data[uri] = layer_data
                 image_digest_map[uri] = digest
+                if attestation_data:
+                    image_attestation_map[uri] = attestation_data
 
     logger.info(
         f"Successfully fetched layers for {len(image_layers_data)}/{len(repo_images_list)} images"
     )
-    return image_layers_data, image_digest_map
+    if image_attestation_map:
+        logger.info(
+            f"Found attestations with base image info for {len(image_attestation_map)} images"
+        )
+    return image_layers_data, image_digest_map, image_attestation_map
 
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
@@ -613,9 +763,11 @@ def sync(
                 f"Starting to fetch layers for {len(repo_images_list)} images..."
             )
 
-            async def _fetch_with_async_client() -> (
-                tuple[dict[str, dict[str, list[str]]], dict[str, str]]
-            ):
+            async def _fetch_with_async_client() -> tuple[
+                dict[str, dict[str, list[str]]],
+                dict[str, str],
+                dict[str, dict[str, str]],
+            ]:
                 # Use credentials from the existing boto3 session
                 credentials = boto3_session.get_credentials()
                 session = aioboto3.Session(
@@ -635,8 +787,8 @@ def sync(
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            image_layers_data, image_digest_map = loop.run_until_complete(
-                _fetch_with_async_client()
+            image_layers_data, image_digest_map, image_attestation_map = (
+                loop.run_until_complete(_fetch_with_async_client())
             )
 
             logger.info(
@@ -645,6 +797,7 @@ def sync(
             layers, memberships = transform_ecr_image_layers(
                 image_layers_data,
                 image_digest_map,
+                image_attestation_map,
             )
             load_ecr_image_layers(
                 neo4j_session,
