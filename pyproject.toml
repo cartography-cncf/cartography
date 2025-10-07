@@ -35,9 +35,11 @@ requires-python = ">=3.10"
 dependencies = [
     "backoff>=2.1.2",
     "boto3>=1.15.1",
+    "aioboto3>=13.0.0",
+    "httpx>=0.24.0",
     "botocore>=1.18.1",
     "dnspython>=1.15.0",
-    "neo4j>=5.28.2",
+    "neo4j (>=5.28.2,<6.0.0)",
     "policyuniverse>=1.1.0.0",
     "google-api-python-client>=1.7.8",
     "google-auth>=2.37.0",
@@ -52,6 +54,7 @@ dependencies = [
     "adal>=1.2.4",
     "azure-cli-core>=2.26.0",
     "azure-mgmt-compute>=5.0.0",
+    "azure-mgmt-containerinstance>=10.0.0",
     "azure-mgmt-resource>=10.2.0",
     "azure-mgmt-cosmosdb>=6.0.0",
     "azure-mgmt-web>=7.0.0",
@@ -71,6 +74,8 @@ dependencies = [
     "cloudflare (>=4.1.0,<5.0.0)",
     "scaleway>=2.9.0",
     "google-cloud-resource-manager>=1.14.2",
+    "types-aiobotocore-ecr",
+    "typer>=0.9.0"
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
@@ -92,6 +97,7 @@ dev = [
     "azure-mgmt-web>=7.0.0",
     "azure-mgmt-logic>=10.0.0",
     "azure-mgmt-containerservice>=30.0.0",
+    "azure-mgmt-containerinstance>=10.0.0",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",
@@ -109,6 +115,7 @@ include = ["cartography*"]
 [project.scripts]
 cartography = "cartography.cli:main"
 cartography-detectdrift = "cartography.driftdetect.cli:main"
+cartography-rules = "cartography.rules.cli:main"
 
 [tool.setuptools.package-data]
 "cartography" = ["py.typed"]
