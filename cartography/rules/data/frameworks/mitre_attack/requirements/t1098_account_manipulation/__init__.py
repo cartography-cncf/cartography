@@ -14,6 +14,7 @@ _aws_account_manipulation_permissions = Fact(
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
         MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
+        AND NOT principal.name CONTAINS 'QuickSetup'
         AND principal.name <> 'OrganizationAccountAccessRole'
         AND stmt.effect = 'Allow'
         WITH a, principal, stmt,
@@ -44,6 +45,7 @@ _aws_account_manipulation_permissions = Fact(
         MATCH p = (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
         MATCH p1 = (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
+        AND NOT principal.name CONTAINS 'QuickSetup'
         AND NOT principal.name = 'OrganizationAccountAccessRole'
         AND stmt.effect = 'Allow'
         AND ANY(action IN stmt.action WHERE
@@ -72,6 +74,7 @@ _aws_trust_relationship_manipulation = Fact(
         MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
         OPTIONAL MATCH (groupmember:AWSUser)
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
+        AND NOT principal.name CONTAINS 'QuickSetup'
         AND principal.name <> 'OrganizationAccountAccessRole'
         AND stmt.effect = 'Allow'
         WITH a, principal, stmt,
@@ -231,6 +234,7 @@ _aws_policy_manipulation_capabilities = Fact(
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
         MATCH (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
+        AND NOT principal.name CONTAINS 'QuickSetup'
         AND principal.name <> 'OrganizationAccountAccessRole'
         AND stmt.effect = 'Allow'
 
@@ -264,6 +268,7 @@ _aws_policy_manipulation_capabilities = Fact(
     MATCH p1=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
     MATCH p2=(principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
     WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
+    AND NOT principal.name CONTAINS 'QuickSetup'
     AND principal.name <> 'OrganizationAccountAccessRole'
     AND stmt.effect = 'Allow'
     AND ANY(action IN stmt.action WHERE
