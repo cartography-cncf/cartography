@@ -339,6 +339,103 @@ def test_transform_marks_empty_layer():
     assert non_empty_layer["is_empty"] is False
 
 
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=test_data.DESCRIBE_REPOSITORIES["repositories"][:1],
+)
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repository_images",
+    return_value=test_data.LIST_REPOSITORY_IMAGES[
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    ][:2],
+)
+@patch("cartography.intel.aws.ecr_image_layers.fetch_image_layers_async")
+@patch("cartography.client.aws.ecr.get_ecr_images")
+def test_sync_built_from_relationship(
+    mock_get_ecr_images,
+    mock_fetch_layers,
+    mock_get_repo_images,
+    mock_get_repos,
+    neo4j_session,
+):
+    """Test that BUILT_FROM relationship is created between ECRImage nodes."""
+    parent_digest = (
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    )
+    child_digest = (
+        "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+    )
+
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    mock_get_ecr_images.return_value = {
+        (
+            "us-east-1",
+            "1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
+            "example-repository",
+            parent_digest,
+        ),
+        (
+            "us-east-1",
+            "2",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
+            "example-repository",
+            child_digest,
+        ),
+    }
+
+    mock_fetch_layers.return_value = (
+        {
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": {
+                "linux/amd64": test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
+            },
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": {
+                "linux/amd64": test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
+            },
+        },
+        {
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": parent_digest,
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": child_digest,
+        },
+        {
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": {
+                "parent_image_uri": "pkg:docker/000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository@1",
+                "parent_image_digest": parent_digest,
+            }
+        },
+    )
+
+    sync_ecr_layers(
+        neo4j_session,
+        MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "ECRImage",
+        "id",
+        "ECRImage",
+        "id",
+        "BUILT_FROM",
+        rel_direction_right=True,
+    ) >= {(child_digest, parent_digest)}
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parent_uri,parent_digest",
