@@ -33,13 +33,13 @@ _aws_account_manipulation_permissions = Fact(
         // Return only statement actions that we matched on
         WHERE size(matched_actions) > 0
         UNWIND matched_actions AS action
-        RETURN a.name AS account,
+        RETURN DISTINCT a.name AS account,
             principal.name AS principal_name,
             principal.arn AS principal_arn,
             principal_type,
-            action,
+            collect(action) as action,
             stmt.resource AS resource
-        ORDER BY account, principal_name, action
+        ORDER BY account, principal_name
     """,
     cypher_visual_query="""
         MATCH p = (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
@@ -79,7 +79,6 @@ _aws_trust_relationship_manipulation = Fact(
         AND stmt.effect = 'Allow'
         WITH a, principal, stmt,
             [label IN labels(principal) WHERE label <> 'AWSPrincipal'][0] AS principal_type,
-            // define interesting actions once
             ['iam:UpdateAssumeRolePolicy','iam:CreateRole'] AS patterns
         WITH a, principal, principal_type, stmt,
             [action IN stmt.action
@@ -88,13 +87,13 @@ _aws_trust_relationship_manipulation = Fact(
             ] AS matched_actions
         WHERE size(matched_actions) > 0
         UNWIND matched_actions AS action
-        RETURN a.name AS account,
+        RETURN DISTINCT a.name AS account,
             principal.name AS principal_name,
             principal.arn AS principal_arn,
             principal_type,
-            action,
+            collect(distinct action) as action,
             stmt.resource AS resource
-        ORDER BY account, principal_name, action;
+        ORDER BY account, principal_name
     """,
     cypher_visual_query="""
         MATCH p = (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
@@ -137,12 +136,13 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         UNWIND actions AS flat_action
         WITH a, ec2, role, sg, ip,
             collect(DISTINCT flat_action) AS actions
-        RETURN a.name AS account,
+        RETURN DISTINCT a.name AS account,
             a.id as account_id,
             ec2.instanceid AS instance_id,
             ec2.exposed_internet AS internet_accessible,
+            ec2.publicipaddress as public_ip_address,
             role.name AS role_name,
-            actions,
+            collect(actions) as action,
             ip.fromport as from_port,
             ip.toport as to_port
         ORDER BY account, instance_id, internet_accessible, from_port
@@ -196,7 +196,7 @@ _aws_service_account_manipulation_via_lambda = Fact(
         UNWIND actions AS flat_action
         WITH a, lambda, role, stmt,
             collect(DISTINCT flat_action) AS actions
-        RETURN a.name AS account,
+        RETURN DISTINCT a.name AS account,
             a.id as account_id,
             lambda.arn AS arn,
             lambda.description AS description,
@@ -256,13 +256,13 @@ _aws_policy_manipulation_capabilities = Fact(
             ] AS matched_actions
         WHERE size(matched_actions) > 0
         UNWIND matched_actions AS action
-        RETURN a.name AS account,
+        RETURN DISTINCT a.name AS account,
             principal.name AS principal_name,
             principal.arn AS principal_arn,
             principal_type,
-            action,
+            collect(action) as action,
             stmt.resource AS resource
-        ORDER BY account, principal_name, action
+        ORDER BY account, principal_name
     """,
     cypher_visual_query="""
     MATCH p1=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
