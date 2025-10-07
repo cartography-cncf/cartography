@@ -6,6 +6,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import backoff
 import neo4j
 
 from cartography.graph.querybuilder import build_create_index_queries
@@ -14,9 +15,29 @@ from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.querybuilder import build_matchlink_query
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
+from cartography.util import backoff_handler
 from cartography.util import batch
 
 logger = logging.getLogger(__name__)
+
+
+@backoff.on_exception(  # type: ignore
+    backoff.expo,
+    (
+        ConnectionResetError,
+        neo4j.exceptions.ServiceUnavailable,
+        neo4j.exceptions.SessionExpired,
+        neo4j.exceptions.TransientError,
+    ),
+    max_tries=5,
+    on_backoff=backoff_handler,
+)
+def _run_index_query_with_retry(neo4j_session: neo4j.Session, query: str) -> None:
+    """
+    Execute an index creation query with retry logic.
+    Index creation requires autocommit transactions and can experience transient errors.
+    """
+    neo4j_session.run(query)
 
 
 def run_write_query(
@@ -42,7 +63,7 @@ def read_list_of_values_tx(
     Example usage:
         query = "MATCH (a:TestNode) RETURN a.name ORDER BY a.name"
 
-        values = neo4j_session.read_transaction(read_list_of_values_tx, query)
+        values = neo4j_session.execute_read(read_list_of_values_tx, query)
 
     :param tx: A neo4j read transaction object
     :param query: A neo4j query string that returns a list of single values. For example,
@@ -269,7 +290,7 @@ def ensure_indexes(
             raise ValueError(
                 'Query provided to `ensure_indexes()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        neo4j_session.run(query)
+        _run_index_query_with_retry(neo4j_session, query)
 
 
 def ensure_indexes_for_matchlinks(
@@ -288,7 +309,7 @@ def ensure_indexes_for_matchlinks(
             raise ValueError(
                 'Query provided to `ensure_indexes_for_matchlinks()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        neo4j_session.run(query)
+        _run_index_query_with_retry(neo4j_session, query)
 
 
 def load(
