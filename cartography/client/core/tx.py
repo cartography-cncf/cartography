@@ -23,7 +23,12 @@ logger = logging.getLogger(__name__)
 
 @backoff.on_exception(  # type: ignore
     backoff.expo,
-    (ConnectionResetError),
+    (
+        ConnectionResetError,
+        neo4j.exceptions.ServiceUnavailable,
+        neo4j.exceptions.SessionExpired,
+        neo4j.exceptions.TransientError,
+    ),
     max_tries=5,
     on_backoff=backoff_handler,
 )
