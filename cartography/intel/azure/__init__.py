@@ -9,6 +9,7 @@ from cartography.util import timeit
 
 from . import app_service
 from . import compute
+from . import container_instances
 from . import cosmosdb
 from . import functions
 from . import logic_apps
@@ -30,6 +31,13 @@ def _sync_one_subscription(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    container_instances.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     compute.sync(
         neo4j_session,
         credentials.credential,

@@ -4509,27 +4509,31 @@ Representation of an AWS SSO User.
 #### Relationships
 - AWSSSOUser is part of an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(AWSSSOUser)
+    (:AWSAccount)-[:RESOURCE]->(:AWSSSOUser)
     ```
 
 - AWSSSOUser can have roles assigned.
     ```
-    (AWSSSOUser)<-[ALLOWED_BY]-(AWSRole)
+    (:AWSSSOUser)<-[:ALLOWED_BY]-(:AWSRole)
     ```
 
-- UserAccount can be assumed by AWSSSOUser.
+ - OktaUsers can assume AWS SSO users via SAML federation
+     ```
+    (:OktaUser)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
-    (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
+    More generically, user accounts can assume AWS SSO users via SAML federation.
+    ```
+    (:UserAccount)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
 
 - AWSSSOUser has permission set assignments. These include direct assignments and via Identity Center groups.
     ```
-    (AWSSSOUser)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
-    (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)
+    (:AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML]->(:AWSRole)
     ```
 
 - Entra users can sign on to AWSSSOUser via SAML federation through AWS Identity Center. See https://docs.aws.amazon.com/singlesignon/latest/userguide/idp-microsoft-entra.html and https://learn.microsoft.com/en-us/entra/identity/saas-apps/aws-single-sign-on-tutorial.

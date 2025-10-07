@@ -354,6 +354,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-containerinstance"
+version = "10.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4c/19/cdb22d87560238893f5c014176b4e6868c3befbd6585bb5c44bdb1ddc997/azure-mgmt-containerinstance-10.1.0.zip", hash = "sha256:78d437adb28574f448c838ed5f01f9ced378196098061deb59d9f7031704c17e", size = 106507, upload-time = "2023-04-21T03:30:50.199Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/34/11/3bfa586ac0514e1fe224879c065dbec39c0d9d2653b74549ac8080408f07/azure_mgmt_containerinstance-10.1.0-py3-none-any.whl", hash = "sha256:ee7977b7b70f2233e44ec6ce8c99027f3f7892bb3452b4bad46df340d9f98959", size = 87314, upload-time = "2023-04-21T03:30:52.379Z" },
+]
+
+[[package]]
 name = "azure-mgmt-core"
 version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -595,6 +609,7 @@ dependencies = [
     { name = "azure-cli-core" },
     { name = "azure-identity" },
     { name = "azure-mgmt-compute" },
+    { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-cosmosdb" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-resource" },
@@ -635,6 +650,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-web" },
     { name = "backoff" },
@@ -665,6 +681,7 @@ requires-dist = [
     { name = "azure-cli-core", specifier = ">=2.26.0" },
     { name = "azure-identity", specifier = ">=1.5.0" },
     { name = "azure-mgmt-compute", specifier = ">=5.0.0" },
+    { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
@@ -705,6 +722,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
     { name = "backoff", specifier = ">=2.1.2" },
