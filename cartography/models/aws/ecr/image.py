@@ -22,6 +22,10 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     architecture: PropertyRef = PropertyRef("architecture")
     os: PropertyRef = PropertyRef("os")
     variant: PropertyRef = PropertyRef("variant")
+    attestation_type: PropertyRef = PropertyRef("attestation_type")
+    attests_digest: PropertyRef = PropertyRef("attests_digest")
+    media_type: PropertyRef = PropertyRef("media_type")
+    artifact_media_type: PropertyRef = PropertyRef("artifact_media_type")
 
 
 @dataclass(frozen=True)
