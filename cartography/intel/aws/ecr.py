@@ -57,15 +57,15 @@ def get_ecr_repository_images(
         )
         for response in describe_response:
             image_details = response["imageDetails"]
-            image_details = [
-                (
-                    {**detail, "imageTag": detail["imageTags"][0]}
-                    if detail.get("imageTags")
-                    else detail
-                )
-                for detail in image_details
-            ]
-            ecr_repository_images.extend(image_details)
+            for detail in image_details:
+                tags = detail.get("imageTags") or []
+                if tags:
+                    for tag in tags:
+                        image_detail = {**detail, "imageTag": tag}
+                        image_detail.pop("imageTags", None)
+                        ecr_repository_images.append(image_detail)
+                else:
+                    ecr_repository_images.append({**detail})
     return ecr_repository_images
 
 

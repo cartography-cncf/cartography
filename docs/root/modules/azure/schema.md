@@ -1238,3 +1238,66 @@ Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureEventGridTopic)
     ```
+    
+### AzureLogicApp
+
+Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
+
+|**id**| The full resource ID of the Logic App. |
+|name| The name of the Logic App. |
+|location| The Azure region where the Logic App is deployed. |
+|state| The operational state of the Logic App (e.g., Enabled, Disabled). |
+|created_time| The timestamp of when the Logic App was created. |
+|changed_time| The timestamp of when the Logic App was last modified. |
+|version| The version of the Logic App's definition. |
+|access_endpoint| The public URL that can be used to trigger the Logic App. |
+
+#### Relationships
+
+- An Azure Logic App is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureLogicApp)
+    ```
+
+### AzureResourceGroup
+
+Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/rest/api/resources/resource-groups/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Resource Group. |
+|name| The name of the Resource Group. |
+|location| The Azure region where the Resource Group is deployed. |
+|provisioning_state| The deployment status of the Resource Group (e.g., Succeeded). |
+
+#### Relationships
+
+- An Azure Resource Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
+    ```
+
+### AzureContainerInstance
+
+Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Container Instance. |
+|name| The name of the Container Instance. |
+|location| The Azure region where the Container Instance is deployed. |
+|type| The type of the resource (e.g., `Microsoft.ContainerInstance/containerGroups`). |
+|provisioning_state| The deployment status of the Container Instance (e.g., Succeeded). |
+|ip_address| The public IP address of the Container Instance, if one is assigned. |
+|os_type| The operating system type of the Container Instance (e.g., Linux or Windows). |
+
+#### Relationships
+
+- An Azure Container Instance is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    ```

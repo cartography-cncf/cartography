@@ -1,7 +1,12 @@
+from unittest.mock import patch
+
 import cartography.intel.github.repos
+from cartography.intel.github.util import PaginatedGraphqlData
+from tests.data.github.collaborators_test_data import COLLABORATORS_TEST_REPOS
 from tests.data.github.repos import DIRECT_COLLABORATORS
 from tests.data.github.repos import GET_REPOS
 from tests.data.github.repos import OUTSIDE_COLLABORATORS
+from tests.integration.cartography.intel.github import test_users
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -388,6 +393,119 @@ def test_python_library_in_multiple_requirements_files(neo4j_session):
     node_ids = {n["lib_ids"] for n in nodes}
     assert len(node_ids) == 2
     assert node_ids == {"okta", "okta|0.9.0"}
+
+
+@patch.object(cartography.intel.github.repos, "get")
+@patch.object(cartography.intel.github.repos, "_get_repo_collaborators")
+def test_collabs_sync(mock_repo_collaborators, mock_get_repos, neo4j_session):
+    """
+    Test that collaborators are synced correctly.
+    See https://cloud-native.slack.com/archives/C080M2LRLDA/p1758092875954949.
+    """
+    # Arrange
+    # Setup test users in Neo4j
+    test_users._ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # Use test repo data from external file
+    mock_get_repos.return_value = COLLABORATORS_TEST_REPOS
+
+    def collaborators_side_effect(*args):
+        repo = args[3]
+        affiliation = args[4]
+
+        if affiliation == "OUTSIDE":
+            return PaginatedGraphqlData(nodes=[], edges=[])
+
+        # Return different collaborators for each repo
+        if repo == "repo1":
+            nodes = [
+                {
+                    "url": "https://github.com/hjsimpson",
+                    "login": "hjsimpson",
+                    "name": "Homer Simpson",
+                    "email": "homer@example.com",
+                    "company": None,
+                }
+            ]
+            edges = [{"permission": "ADMIN"}]
+        elif repo == "repo2":
+            nodes = [
+                {
+                    "url": "https://github.com/lmsimpson",
+                    "login": "lmsimpson",
+                    "name": "Lisa Simpson",
+                    "email": "lisa@example.com",
+                    "company": None,
+                }
+            ]
+            edges = [{"permission": "WRITE"}]
+        else:
+            nodes = []
+            edges = []
+
+        return PaginatedGraphqlData(nodes=nodes, edges=edges)
+
+    mock_repo_collaborators.side_effect = collaborators_side_effect
+
+    # Act
+    cartography.intel.github.repos.sync(
+        neo4j_session, TEST_JOB_PARAMS, "some_key", "http://localhost", "testorg"
+    )
+
+    # Assert
+    # Use check_rels to verify correct collaborator relationships
+    # Get all DIRECT_COLLAB_ADMIN relationships
+    all_admin_rels = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubUser",
+        "username",
+        "DIRECT_COLLAB_ADMIN",
+        rel_direction_right=False,  # User <-[DIRECT_COLLAB_ADMIN]- Repo
+    )
+
+    # Filter to only our test repositories
+    repo1_admin_rels = {
+        rel for rel in all_admin_rels if rel[0] == "https://github.com/testorg/repo1"
+    }
+    repo2_admin_rels = {
+        rel for rel in all_admin_rels if rel[0] == "https://github.com/testorg/repo2"
+    }
+
+    # Repo1 should have ADMIN relationship with hjsimpson only
+    expected_repo1_rels = {("https://github.com/testorg/repo1", "hjsimpson")}
+    assert (
+        repo1_admin_rels == expected_repo1_rels
+    ), f"Repo1 should have only hjsimpson as ADMIN, got: {repo1_admin_rels}"
+
+    # Get all DIRECT_COLLAB_WRITE relationships
+    all_write_rels = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubUser",
+        "username",
+        "DIRECT_COLLAB_WRITE",
+        rel_direction_right=False,  # User <-[DIRECT_COLLAB_WRITE]- Repo
+    )
+
+    # Filter to only our test repositories
+    repo2_write_rels = {
+        rel for rel in all_write_rels if rel[0] == "https://github.com/testorg/repo2"
+    }
+
+    # Repo2 should have WRITE relationship with lmsimpson only
+    expected_repo2_rels = {("https://github.com/testorg/repo2", "lmsimpson")}
+    assert (
+        repo2_write_rels == expected_repo2_rels
+    ), f"Repo2 should have only lmsimpson as WRITE, got: {repo2_write_rels}"
+
+    # Critical test: Verify repo2 does NOT have hjsimpson as ADMIN (this would fail with the bug)
+    # The bug would cause repo2 to also have hjsimpson with ADMIN permission
+    assert (
+        repo2_admin_rels == set()
+    ), f"Repo2 should NOT have any ADMIN collaborators, got: {repo2_admin_rels}"
 
 
 def test_sync_github_dependencies_end_to_end(neo4j_session):
