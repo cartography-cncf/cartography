@@ -1238,7 +1238,7 @@ Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureEventGridTopic)
     ```
-    
+
 ### AzureLogicApp
 
 Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).

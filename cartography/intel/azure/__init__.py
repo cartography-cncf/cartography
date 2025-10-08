@@ -67,7 +67,7 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
-    event_grid.sync( 
+    event_grid.sync(
         neo4j_session,
         credentials,
         subscription_id,

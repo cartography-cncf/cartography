@@ -2,7 +2,8 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError, HttpResponseError
+from azure.core.exceptions import ClientAuthenticationError
+from azure.core.exceptions import HttpResponseError
 from azure.mgmt.eventgrid import EventGridManagementClient
 
 from cartography.client.core.tx import load
@@ -24,7 +25,9 @@ def get_event_grid_topics(credentials: Credentials, subscription_id: str) -> lis
         client = EventGridManagementClient(credentials.credential, subscription_id)
         return [topic.as_dict() for topic in client.topics.list_by_subscription()]
     except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(f"Failed to get Event Grid topics for subscription {subscription_id}: {str(e)}")
+        logger.warning(
+            f"Failed to get Event Grid topics for subscription {subscription_id}: {str(e)}"
+        )
         return []
 
 
@@ -36,11 +39,13 @@ def transform_event_grid_topics(topics_response: list[dict]) -> list[dict]:
     transformed_topics: list[dict[str, Any]] = []
     for topic in topics_response:
         transformed_topic = {
-            'id': topic.get('id'),
-            'name': topic.get('name'),
-            'location': topic.get('location'),
-            'provisioning_state': topic.get('properties', {}).get('provisioning_state'),
-            'public_network_access': topic.get('properties', {}).get('public_network_access'),
+            "id": topic.get("id"),
+            "name": topic.get("name"),
+            "location": topic.get("location"),
+            "provisioning_state": topic.get("properties", {}).get("provisioning_state"),
+            "public_network_access": topic.get("properties", {}).get(
+                "public_network_access"
+            ),
         }
         transformed_topics.append(transformed_topic)
     return transformed_topics
@@ -48,7 +53,10 @@ def transform_event_grid_topics(topics_response: list[dict]) -> list[dict]:
 
 @timeit
 def load_event_grid_topics(
-    neo4j_session: neo4j.Session, data: list[dict[str, Any]], subscription_id: str, update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load the transformed Azure Event Grid Topic data to Neo4j.
@@ -64,11 +72,15 @@ def load_event_grid_topics(
 
 
 @timeit
-def cleanup_event_grid_topics(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
+def cleanup_event_grid_topics(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
     """
     Run the cleanup job for Azure Event Grid Topics.
     """
-    GraphJob.from_node_schema(AzureEventGridTopicSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AzureEventGridTopicSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -85,5 +97,7 @@ def sync(
     logger.info(f"Syncing Azure Event Grid Topics for subscription {subscription_id}.")
     raw_topics = get_event_grid_topics(credentials, subscription_id)
     transformed_topics = transform_event_grid_topics(raw_topics)
-    load_event_grid_topics(neo4j_session, transformed_topics, subscription_id, update_tag)
+    load_event_grid_topics(
+        neo4j_session, transformed_topics, subscription_id, update_tag
+    )
     cleanup_event_grid_topics(neo4j_session, common_job_parameters)
