@@ -1,7 +1,5 @@
 import json
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
 from azure.core.exceptions import HttpResponseError
@@ -30,10 +28,11 @@ def get_client(
     return client
 
 
+@timeit
 def get_role_assignments(
     credentials: Credentials,
     subscription_id: str,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Fetch all role assignments for a subscription
     """
@@ -56,11 +55,12 @@ def get_role_assignments(
         return []
 
 
+@timeit
 def get_role_definitions_by_ids(
     credentials: Credentials,
     subscription_id: str,
-    role_definition_ids: List[str],
-) -> List[Dict]:
+    role_definition_ids: list[str],
+) -> list[dict]:
     """
     Fetch specific role definitions by their IDs (more efficient than fetching all)
     """
@@ -96,7 +96,7 @@ def get_role_definitions_by_ids(
         return []
 
 
-def extract_role_definition_ids(role_assignments: List[Dict]) -> List[str]:
+def extract_role_definition_ids(role_assignments: list[dict]) -> list[str]:
     """
     Extract unique role definition IDs from role assignments
     """
@@ -109,8 +109,8 @@ def extract_role_definition_ids(role_assignments: List[Dict]) -> List[str]:
 
 
 def transform_role_definitions(
-    role_definitions: List[Dict],
-) -> List[Dict]:
+    role_definitions: list[dict],
+) -> list[dict]:
     """
     Transform role definition data for Neo4j ingestion
     """
@@ -140,8 +140,8 @@ def transform_role_definitions(
 
 
 def transform_permissions(
-    role_definitions: List[Dict],
-) -> List[Dict]:
+    role_definitions: list[dict],
+) -> list[dict]:
     """
     Transform permissions data for Neo4j ingestion as separate nodes
     """
@@ -170,8 +170,8 @@ def transform_permissions(
 
 
 def transform_role_assignments(
-    role_assignments: List[Dict],
-) -> List[Dict]:
+    role_assignments: list[dict],
+) -> list[dict]:
     """
     Transform role assignment data for Neo4j ingestion as nodes
     """
@@ -207,9 +207,10 @@ def transform_role_assignments(
     return result
 
 
+@timeit
 def load_role_definitions(
     neo4j_session: neo4j.Session,
-    data: List[Dict],
+    data: list[dict],
     subscription_id: str,
     update_tag: int,
 ) -> None:
@@ -222,9 +223,10 @@ def load_role_definitions(
     )
 
 
+@timeit
 def load_role_assignments(
     neo4j_session: neo4j.Session,
-    data: List[Dict],
+    data: list[dict],
     subscription_id: str,
     update_tag: int,
 ) -> None:
@@ -237,9 +239,10 @@ def load_role_assignments(
     )
 
 
+@timeit
 def load_permissions(
     neo4j_session: neo4j.Session,
-    data: List[Dict],
+    data: list[dict],
     subscription_id: str,
     update_tag: int,
 ) -> None:
@@ -252,27 +255,30 @@ def load_permissions(
     )
 
 
+@timeit
 def cleanup_role_definitions(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     GraphJob.from_node_schema(AzureRoleDefinitionSchema(), common_job_parameters).run(
         neo4j_session
     )
 
 
+@timeit
 def cleanup_role_assignments(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     GraphJob.from_node_schema(AzureRoleAssignmentSchema(), common_job_parameters).run(
         neo4j_session
     )
 
 
+@timeit
 def cleanup_permissions(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     GraphJob.from_node_schema(AzurePermissionsSchema(), common_job_parameters).run(
         neo4j_session
@@ -285,7 +291,7 @@ def sync(
     credentials: Credentials,
     subscription_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     """
     Main sync function for Azure RBAC data with role assignments as nodes and standard relationships
