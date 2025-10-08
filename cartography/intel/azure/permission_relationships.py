@@ -3,13 +3,13 @@ import os
 import re
 from string import Template
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 import yaml
 
-from cartography.graph.statement import GraphStatement
+from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
+from cartography.models.azure.permission_relationships import AzurePermissionMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ def evaluate_clause(clause: str, match: str) -> bool:
     return result is not None
 
 
-def evaluate_scope_for_resource(assignment: Dict, resource_id: str) -> bool:
+def evaluate_scope_for_resource(assignment: dict, resource_id: str) -> bool:
     if "scope" not in assignment:
         return False
     scope = assignment["scope"]
@@ -72,7 +72,7 @@ def evaluate_scope_for_resource(assignment: Dict, resource_id: str) -> bool:
     return evaluate_clause(scope, resource_id)
 
 
-def evaluate_action_for_permission(permissions: Dict, permission: str) -> bool:
+def evaluate_action_for_permission(permissions: dict, permission: str) -> bool:
     if not permissions["actions"]:
         return False
     for clause in permissions["actions"]:
@@ -81,7 +81,7 @@ def evaluate_action_for_permission(permissions: Dict, permission: str) -> bool:
     return False
 
 
-def evaluate_notaction_for_permission(permissions: Dict, permission: str) -> bool:
+def evaluate_notaction_for_permission(permissions: dict, permission: str) -> bool:
     if not permissions["not_actions"]:
         return False  # Even tough most likely to not occur ever, should we still make this true?
     for clause in permissions["not_actions"]:
@@ -90,7 +90,7 @@ def evaluate_notaction_for_permission(permissions: Dict, permission: str) -> boo
     return False
 
 
-def evaluate_dataaction_for_permission(permissions: Dict, permission: str) -> bool:
+def evaluate_dataaction_for_permission(permissions: dict, permission: str) -> bool:
     if not permissions["data_actions"]:
         return False
     for clause in permissions["data_actions"]:
@@ -99,7 +99,7 @@ def evaluate_dataaction_for_permission(permissions: Dict, permission: str) -> bo
     return False
 
 
-def evaluate_notdataaction_for_permission(permissions: Dict, permission: str) -> bool:
+def evaluate_notdataaction_for_permission(permissions: dict, permission: str) -> bool:
     if not permissions["not_data_actions"]:
         return False  # Even tough most likely to not occur ever, should we still make this true?
     for clause in permissions["not_data_actions"]:
@@ -109,8 +109,8 @@ def evaluate_notdataaction_for_permission(permissions: Dict, permission: str) ->
 
 
 def evaluate_role_assignment_for_permissions(
-    assignment_data: Dict[str, Any],
-    permissions: List[str],
+    assignment_data: dict[str, Any],
+    permissions: list[str],
     resource_id: str,
 ) -> bool:
     permissions_dict = assignment_data["permissions"]
@@ -135,9 +135,9 @@ def evaluate_role_assignment_for_permissions(
 
 
 def principal_allowed_on_resource(
-    role_assignments: Dict[str, Any],
+    role_assignments: dict[str, Any],
     resource_id: str,
-    permissions: List[str],
+    permissions: list[str],
 ) -> bool:
     if not isinstance(permissions, list):
         raise ValueError("permissions is not a list")
@@ -152,28 +152,32 @@ def principal_allowed_on_resource(
 
 
 def calculate_permission_relationships(
-    principals: Dict[str, Any],
-    resource_ids: List[str],
-    permissions: List[str],
-) -> List[Dict[str, Any]]:
-    allowed_mappings: List[Dict[str, Any]] = []
+    principals: dict[str, Any],
+    resource_ids: list[str],
+    permissions: list[str],
+) -> list[dict[str, Any]]:
+    allowed_mappings: list[dict[str, Any]] = []
     for resource_id in resource_ids:
         for principal_id, role_assignments in principals.items():
             if principal_allowed_on_resource(
                 role_assignments, resource_id, permissions
             ):
+                # Get the principal type from the first role assignment
+                principal_type = next(iter(role_assignments.values()))["principal_type"]
                 allowed_mappings.append(
                     {
                         "principal_id": principal_id,
                         "resource_id": resource_id,
+                        "principal_type": principal_type,
                     }
                 )
     return allowed_mappings
 
 
+@timeit
 def get_principals_for_subscription(
     neo4j_session: neo4j.Session, subscription_id: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     get_principals_query = """
     MATCH
     (sub:AzureSubscription{id: $SubscriptionId})-[:RESOURCE]->
@@ -191,7 +195,7 @@ def get_principals_for_subscription(
 
     results = neo4j_session.run(get_principals_query, SubscriptionId=subscription_id)
 
-    principals: Dict[str, Any] = {}
+    principals: dict[str, Any] = {}
     for r in results:
         principal_id = r["principal_id"]
         assignment_id = r["assignment_id"]
@@ -215,8 +219,8 @@ def get_principals_for_subscription(
     return principals
 
 
-def compile_permissions_from_nodes(permissions_nodes: List[Dict]) -> Dict[str, Any]:
-    permissions: Dict[str, List[str]] = {
+def compile_permissions_from_nodes(permissions_nodes: list[dict]) -> dict[str, Any]:
+    permissions: dict[str, list[str]] = {
         "actions": [],
         "not_actions": [],
         "data_actions": [],
@@ -234,7 +238,7 @@ def compile_permissions_from_nodes(permissions_nodes: List[Dict]) -> Dict[str, A
     return compile_permissions(permissions)
 
 
-def compile_permissions(permissions: Dict[str, Any]) -> Dict[str, Any]:
+def compile_permissions(permissions: dict[str, Any]) -> dict[str, Any]:
     action_types = ["actions", "not_actions", "data_actions", "not_data_actions"]
     compiled_permissions = {}
 
@@ -246,9 +250,10 @@ def compile_permissions(permissions: Dict[str, Any]) -> Dict[str, Any]:
     return compiled_permissions
 
 
+@timeit
 def get_resource_ids(
     neo4j_session: neo4j.Session, subscription_id: str, target_label: str
-) -> List[str]:
+) -> list[str]:
     get_resource_query = Template(
         """
     MATCH (sub:AzureSubscription{id:$SubscriptionId})-[:RESOURCE]->(resource:$node_label)
@@ -266,7 +271,7 @@ def get_resource_ids(
     return resource_ids
 
 
-def parse_permission_relationships_file(file_path: str) -> List[Dict[str, Any]]:
+def parse_permission_relationships_file(file_path: str) -> list[dict[str, Any]]:
     try:
         if not os.path.isabs(file_path):
             file_path = os.path.join(os.getcwd(), file_path)
@@ -282,7 +287,7 @@ def parse_permission_relationships_file(file_path: str) -> List[Dict[str, Any]]:
         return []
 
 
-def is_valid_azure_rpr(rpr: Dict[str, Any]) -> bool:
+def is_valid_azure_rpr(rpr: dict[str, Any]) -> bool:
     required_fields = ["permissions", "relationship_name", "target_label"]
     for field in required_fields:
         if field not in rpr:
@@ -290,72 +295,108 @@ def is_valid_azure_rpr(rpr: Dict[str, Any]) -> bool:
     return True
 
 
+def transform_mappings(principal_mappings: list[dict]) -> dict[str, list[dict]]:
+    """
+    Transform principal mappings by grouping them by principal type.
+    Adds 'Entra' prefix to principal types to match Entra node labels.
+    """
+    # Expected principal types for validation
+    expected_types = {"User", "Group", "ServicePrincipal"}
+
+    mappings_by_type: dict[str, list[dict]] = {}
+
+    for mapping in principal_mappings:
+        assignment_principal_type = mapping["principal_type"]
+
+        # Validate principal type, no silent failure in case of change in expected principal types from MS
+        if assignment_principal_type not in expected_types:
+            logger.warning(
+                f"Unknown principal type '{assignment_principal_type}' encountered - skipping permission relationships sync for this principal type."
+            )
+            continue
+
+        # Add 'Entra' prefix to match Entra node labels
+        entra_principal_type = f"Entra{assignment_principal_type}"
+
+        if entra_principal_type not in mappings_by_type:
+            mappings_by_type[entra_principal_type] = []
+        mappings_by_type[entra_principal_type].append(mapping)
+
+    return mappings_by_type
+
+
+@timeit
 def load_principal_mappings(
     neo4j_session: neo4j.Session,
-    principal_mappings: List[Dict],
+    mappings_by_type: dict[str, list[dict]],
     node_label: str,
     relationship_name: str,
     update_tag: int,
+    subscription_id: str,
 ) -> None:
-    if not principal_mappings:
+    if not mappings_by_type:
         return
 
-    map_policy_query = Template(
-        """
-        UNWIND $Mapping as mapping
-        MATCH (principal{id:mapping.principal_id})
-        WHERE principal:EntraUser OR principal:EntraGroup OR principal:EntraServicePrincipal
-        MATCH (resource:$node_label{id:mapping.resource_id})
-        MERGE (principal)-[r:$relationship_name]->(resource)
-        SET r.lastupdated = $azure_update_tag
-        """,
-    )
+    # Iterate over each principal type
+    principal_types = ["EntraUser", "EntraGroup", "EntraServicePrincipal"]
 
-    map_policy_query_template = map_policy_query.safe_substitute(
-        node_label=node_label,
-        relationship_name=relationship_name,
-    )
-    neo4j_session.run(
-        map_policy_query_template,
-        Mapping=principal_mappings,
-        azure_update_tag=update_tag,
-    )
+    for principal_type in principal_types:
+        type_mappings = mappings_by_type.get(principal_type, [])
+
+        if not type_mappings:
+            continue
+
+        # Create MatchLink schema with dynamic attributes
+        matchlink_schema = AzurePermissionMatchLink(
+            source_node_label=principal_type,
+            target_node_label=node_label,
+            rel_label=relationship_name,
+        )
+
+        logger.info(
+            f"Loading {len(type_mappings)} {relationship_name} relationships for {principal_type} -> {node_label}"
+        )
+
+        load_matchlinks(
+            neo4j_session,
+            matchlink_schema,
+            type_mappings,
+            lastupdated=update_tag,
+            _sub_resource_label="AzureSubscription",
+            _sub_resource_id=subscription_id,
+        )
 
 
+@timeit
 def cleanup_rpr(
     neo4j_session: neo4j.Session,
     node_label: str,
     relationship_name: str,
     update_tag: int,
-    current_azure_id: str,
+    subscription_id: str,
 ) -> None:
     logger.info(
         "Cleaning up relationship '%s' for node label '%s'",
         relationship_name,
         node_label,
     )
-    cleanup_rpr_query = Template(
-        """
-        MATCH (:AzureSubscription{id: $AZURE_ID})-[:RESOURCE]->(principal)-[r:$relationship_name]->(resource:$node_label)
-        WHERE (principal:EntraUser OR principal:EntraGroup OR principal:EntraServicePrincipal)
-        AND r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE  DELETE (r) return COUNT(*) as TotalCompleted
-        """,
-    )
-    cleanup_rpr_query_template = cleanup_rpr_query.safe_substitute(
-        node_label=node_label,
-        relationship_name=relationship_name,
-    )
 
-    statement = GraphStatement(
-        cleanup_rpr_query_template,
-        {"UPDATE_TAG": update_tag, "AZURE_ID": current_azure_id},  # Azure id figure out
-        True,
-        1000,
-        parent_job_name=f"{relationship_name}:{node_label}",
-        parent_job_sequence_num=1,
-    )
-    statement.run(neo4j_session)
+    # Clean up for each principal type
+    principal_types = ["EntraUser", "EntraGroup", "EntraServicePrincipal"]
+    for principal_type in principal_types:
+        # Create MatchLink schema with dynamic attributes
+        matchlink_schema = AzurePermissionMatchLink(
+            source_node_label=principal_type,
+            target_node_label=node_label,
+            rel_label=relationship_name,
+        )
+
+        GraphJob.from_matchlink(
+            matchlink_schema,
+            "AzureSubscription",
+            subscription_id,
+            update_tag,
+        ).run(neo4j_session)
 
 
 @timeit
@@ -363,7 +404,7 @@ def sync(
     neo4j_session: neo4j.Session,
     subscription_id: str,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info(
         "Syncing Azure Permission Relationships for subscription '%s'.", subscription_id
@@ -402,12 +443,15 @@ def sync(
             principals, resource_ids, permissions
         )
 
+        matches_by_type = transform_mappings(matches)
+
         load_principal_mappings(
             neo4j_session,
-            matches,
+            matches_by_type,
             target_label,
             relationship_name,
             update_tag,
+            subscription_id,
         )
         cleanup_rpr(
             neo4j_session,
