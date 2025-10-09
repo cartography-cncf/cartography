@@ -826,6 +826,35 @@ def start_your_service_ingestion(neo4j_session: neo4j.Session, config: Config) -
 
 Follow these principles for robust error handling:
 
+### Fail Loudly When Assumptions Break
+
+Cartography (both the backend ingestion jobs and any frontend surfaces that consume their results)
+likes to fail loudly so that broken assumptions bubble exceptions up to operators instead of being
+papered over.
+
+- When key assumptions your code relies upon stop being true, **stop execution immediately** and let
+  the error propagate. Add context if needed, then re-raise, rather than swallowing or downgrading
+  the exception.
+- Lean toward propagating errors up to callers instead of logging a warning inside a `try`/`except`
+  block and continuing. Every time we continue execution after an unexpected error we risk silently
+  corrupting downstream data.
+- If you're confident data should always exist, access it directly. Allow natural `KeyError`,
+  `AttributeError`, or `IndexError` exceptions to signal corruption instead of building extra guard
+  rails or default placeholders.
+- Avoid using `hasattr()`/`getattr()` (or language equivalents) to probe for attributes that our
+  schemas guarantee. These checks often hide real contract violations and make debugging harder.
+- Never manufacture "safe" default return values for dictionary keys, tuple indices, or other
+  required data. Emit the real exception so the upstream issue can be fixed.
+
+To mitigate common pitfalls:
+
+- **Harmful try/except blocks** → Only catch exceptions when you can remediate them meaningfully.
+  Otherwise, let them bubble up and fail fast.
+- **Redundant attribute guards** → Remove `hasattr()`/`getattr()` shims for required fields and rely
+  on our strongly-defined schemas and tests to detect breakage.
+- **Defaulting required data** → Do not set fallback values for required dictionary keys or sequence
+  indices. Allow the error to surface so the caller can address it.
+
 ### DON'T: Catch Base Exception
 ```python
 # ❌ Don't do this - makes debugging impossible

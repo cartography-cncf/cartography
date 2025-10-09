@@ -13,6 +13,7 @@ import neo4j
 import yaml
 
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.statement import GraphStatement
 from cartography.util import timeit
 
@@ -329,7 +330,8 @@ def load_principal_mappings(
         node_label=node_label,
         relationship_name=relationship_name,
     )
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         map_policy_query_template,
         Mapping=principal_mappings,
         aws_update_tag=update_tag,

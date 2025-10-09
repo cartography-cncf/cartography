@@ -116,7 +116,8 @@ def transform_dns_rrs(dns_rrs: List[Dict]) -> List[Dict]:
     for r in dns_rrs:
         records.append(
             {
-                "id": r["name"],
+                # Compose a unique ID to avoid collisions across types and zones
+                "id": f"{r['name']}|{r.get('type')}|{r.get('zone')}",
                 "name": r["name"],
                 "type": r.get("type"),
                 "ttl": r.get("ttl"),

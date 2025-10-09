@@ -102,8 +102,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:GCPVpc) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GCPVpc) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:GitHubRepository) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GitHubRepository) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:GKECluster) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:GKECluster) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:GSuiteGroup) ON (n.email);
 CREATE INDEX IF NOT EXISTS FOR (n:GSuiteGroup) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GSuiteGroup) ON (n.lastupdated);
