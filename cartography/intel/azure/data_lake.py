@@ -17,15 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 def _get_resource_group_from_id(resource_id: str) -> str:
+    """
+    Helper function to parse the resource group name from a full resource ID string.
+    """
     parts = resource_id.lower().split("/")
-    try:
-        rg_index = parts.index("resourcegroups")
-        return parts[rg_index + 1]
-    except (ValueError, IndexError):
-        logger.warning(
-            f"Could not parse resource group name from resource ID: {resource_id}"
-        )
-        return ""
+    rg_index = parts.index("resourcegroups")
+    return parts[rg_index + 1]
 
 
 @timeit
@@ -45,20 +42,19 @@ def get_filesystems_for_account(
     account: dict,
 ) -> list[dict]:
     resource_group_name = _get_resource_group_from_id(account["id"])
-    if resource_group_name:
-        try:
-            return [
-                c.as_dict()
-                for c in client.blob_containers.list(
-                    resource_group_name, account["name"]
-                )
-            ]
-        except (ClientAuthenticationError, HttpResponseError) as e:
-            logger.warning(
-                f"Failed to get containers for storage account {account['name']}: {str(e)}"
+    try:
+        return [
+            c.as_dict()
+            for c in client.blob_containers.list(
+                resource_group_name,
+                account["name"],
             )
-            return []
-    return []
+        ]
+    except (ClientAuthenticationError, HttpResponseError) as e:
+        logger.warning(
+            f"Failed to get containers for storage account {account['name']}: {str(e)}",
+        )
+        return []
 
 
 @timeit
@@ -71,7 +67,7 @@ def transform_datalake_filesystems(filesystems_response: list[dict]) -> list[dic
             "public_access": fs.get("properties", {}).get("public_access"),
             "last_modified_time": fs.get("properties", {}).get("last_modified_time"),
             "has_immutability_policy": fs.get("properties", {}).get(
-                "has_immutability_policy"
+                "has_immutability_policy",
             ),
             "has_legal_hold": fs.get("properties", {}).get("has_legal_hold"),
         }
@@ -104,7 +100,7 @@ def sync(
     common_job_parameters: dict,
 ) -> None:
     logger.info(
-        f"Syncing Azure Data Lake File Systems for subscription {subscription_id}."
+        f"Syncing Azure Data Lake File Systems for subscription {subscription_id}.",
     )
     client = StorageManagementClient(credentials.credential, subscription_id)
 
@@ -115,11 +111,14 @@ def sync(
         transformed_filesystems = transform_datalake_filesystems(raw_filesystems)
 
         load_datalake_filesystems(
-            neo4j_session, transformed_filesystems, account_id, update_tag
+            neo4j_session,
+            transformed_filesystems,
+            account_id,
+            update_tag,
         )
 
         cleanup_params = common_job_parameters.copy()
         cleanup_params["STORAGE_ACCOUNT_ID"] = account_id
         GraphJob.from_node_schema(AzureDataLakeFileSystemSchema(), cleanup_params).run(
-            neo4j_session
+            neo4j_session,
         )
