@@ -5,6 +5,7 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -88,7 +89,8 @@ def load_redshift_cluster_data(
     SET r.lastupdated = $aws_update_tag
     """
     for cluster in clusters:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_cluster,
             Arn=cluster["arn"],
             AZ=cluster["AvailabilityZone"],
@@ -128,7 +130,8 @@ def _attach_ec2_security_groups(
     SET m.lastupdated = $aws_update_tag
     """
     for group in cluster.get("VpcSecurityGroups", []):
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             attach_cluster_to_group,
             ClusterArn=cluster["arn"],
             GroupId=group["VpcSecurityGroupId"],
@@ -150,7 +153,8 @@ def _attach_iam_roles(
     SET s.lastupdated = $aws_update_tag
     """
     for role in cluster.get("IamRoles", []):
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             attach_cluster_to_role,
             ClusterArn=cluster["arn"],
             RoleArn=role["IamRoleArn"],
@@ -172,7 +176,8 @@ def _attach_aws_vpc(
     SET m.lastupdated = $aws_update_tag
     """
     if cluster.get("VpcId"):
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             attach_cluster_to_vpc,
             ClusterArn=cluster["arn"],
             VpcId=cluster["VpcId"],

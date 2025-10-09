@@ -8,6 +8,7 @@ import neo4j
 from okta import UsersClient
 from okta.models.user import User
 
+from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.util import timeit
@@ -174,7 +175,8 @@ def _load_okta_users(
     SET h.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_statement,
         ORG_ID=okta_org_id,
         USER_LIST=user_list,

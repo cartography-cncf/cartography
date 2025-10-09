@@ -967,8 +967,8 @@ class CLI:
                 logger.warning("A Kandji base URI was provided but a token was not.")
                 config.kandji_token = None
         else:
-            logger.warning("A Kandji base URI was not provided.")
             config.kandji_base_uri = None
+            config.kandji_token = None
 
         if config.statsd_enabled:
             logger.debug(
@@ -1096,8 +1096,8 @@ class CLI:
                 logger.warning("A SnipeIT base URI was provided but a token was not.")
                 config.snipeit_token = None
         else:
-            logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
+            config.snipeit_token = None
 
         # Tailscale config
         if config.tailscale_token_env_var:

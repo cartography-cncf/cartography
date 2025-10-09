@@ -371,6 +371,8 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 | architectures | The instruction set architecture that the function supports. Architecture is a string array with one of the valid values. |
 | masterarn | For Lambda@Edge functions, the ARN of the main function. |
 | kmskeyarn | The KMS key that's used to encrypt the function's environment variables. This key is only returned if you've configured a customer managed key. |
+| anonymous_actions |  List of anonymous internet accessible actions that may be run on the function. |
+| anonymous_access | True if this function has a policy applied to it that allows anonymous access or if it is open to the internet. |
 | region | The AWS region where the Lambda function is deployed. |
 
 #### Relationships
@@ -491,6 +493,7 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
     ```cypher
     (:AWSLambda)-[:HAS]->(:AWSLambdaLayer)
     ```
+
 
 ### AWSPolicy
 
@@ -1288,29 +1291,34 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 |name| The name of the DNSRecord|
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The zoneid for the record, the value of the record, and the type concatenated together|
-|type| The record type of the DNS record|
-|value| If it is an A, ALIAS, or CNAME record, this is the IP address that the DNSRecord points to. If it is an NS record, the `name` is used here.|
+|type| The record type of the DNS record (A, AAAA, ALIAS, CNAME, NS, etc.)|
+|value| If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. For CNAME or ALIAS records, this is the target hostname or AWS resource name. If it is an NS record, the `name` is used here.|
 
 #### Relationships
+- AWSDNSRecords can point to IP addresses.
+    ```
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:Ip)
+    ```
+
 - DNSRecords/AWSDNSRecords can point to each other.
     ```
-    (AWSDNSRecord, DNSRecord)-[DNS_POINTS_TO]->(AWSDNSRecord, DNSRecord)
+    (:AWSDNSRecord, :DNSRecord)-[:DNS_POINTS_TO]->(:AWSDNSRecord, :DNSRecord)
     ```
 
 
 - AWSDNSRecords can point to LoadBalancers.
     ```
-    (AWSDNSRecord)-[DNS_POINTS_TO]->(LoadBalancer, ESDomain)
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:LoadBalancer, :ESDomain)
     ```
 
 - AWSDNSRecords can point to ElasticIPAddresses.
     ```
-    (AWSDNSRecord)-[DNS_POINTS_TO]->(ElasticIPAddress)
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:ElasticIPAddress)
     ```
 
 - AWSDNSRecords can be members of AWSDNSZones.
     ```
-    (AWSDNSRecord)-[MEMBER_OF_DNS_ZONE]->(AWSDNSZone)
+    (:AWSDNSRecord)-[:MEMBER_OF_DNS_ZONE]->(:AWSDNSZone)
     ```
 
 
@@ -1880,6 +1888,7 @@ ECRRepositoryImage.
 |--------|-----------|
 | digest | The hash of this ECR image |
 | **id** | Same as digest |
+| layer_diff_ids | Ordered list of image layer digests for this image. Mirrors the manifest order and includes duplicates (for example, the Docker empty layer). |
 
 #### Relationships
 
@@ -1893,6 +1902,11 @@ ECRRepositoryImage.
     (:Package)-[:DEPLOYED]->(:ECRImage)
     ```
 
+- An ECRImage references its layers
+    ```
+    (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
+    ```
+
 - A TrivyImageFinding is a vulnerability that affects an ECRImage.
 
     ```
@@ -1902,6 +1916,134 @@ ECRRepositoryImage.
 - ECSContainers have images.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    ```
+
+- An ECRImage may be built from a parent ECRImage (derived from provenance attestations).
+    ```
+    (:ECRImage)-[:BUILT_FROM]->(:ECRImage)
+    ```
+
+    Relationship properties:
+    - `parent_image_uri`: The package URI of the parent image from the attestation (e.g., `pkg:docker/account.dkr.ecr.region.amazonaws.com/repo@digest`)
+    - `from_attestation`: Boolean flag indicating the relationship was derived from provenance attestation (always `true`)
+    - `confidence`: Confidence level of the relationship (always `"explicit"` for attestation-based relationships)
+
+
+### ECRImageLayer
+
+Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `ECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker’s canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)
+
+| Field | Description |
+|-------|-------------|
+| **id** | Same as `diff_id` |
+| diff_id | Digest of the layer |
+| lastupdated | Timestamp of the last time the node was updated |
+| is_empty | Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`). |
+
+#### Relationships
+
+- Image layers belong to an AWSAccount
+    ```
+    (:ECRImageLayer)<-[:RESOURCE]-(:AWSAccount)
+    ```
+
+- Layers point to the next layer in the manifest
+    ```
+    (:ECRImageLayer)-[:NEXT]->(:ECRImageLayer)
+    ```
+
+- A layer can be the head of an image
+    ```
+    (:ECRImageLayer)-[:HEAD]->(:ECRImage)
+    ```
+
+- A layer can be the tail of an image
+    ```
+    (:ECRImageLayer)-[:TAIL]->(:ECRImage)
+    ```
+
+- Images reference all of their layers
+    ```
+    (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
+    ```
+
+#### Query Examples
+
+- List the ordered layers for a specific image directly from graph relationships:
+    ```cypher
+    MATCH (img:ECRImage {digest: $digest})-[:HEAD]->(head:ECRImageLayer)
+    MATCH (img)-[:TAIL]->(tail:ECRImageLayer)
+    MATCH path = (head)-[:NEXT*0..]->(tail)
+    WHERE ALL(layer IN nodes(path) WHERE (img)-[:HAS_LAYER]->(layer))
+    WITH path
+    ORDER BY length(path) DESC
+    LIMIT 1
+    UNWIND range(0, length(path)) AS idx
+    RETURN idx AS position, nodes(path)[idx].diff_id AS diff_id
+    ORDER BY position;
+    ```
+
+- Use the stored manifest order when you only need the digests:
+    ```cypher
+    MATCH (img:ECRImage {digest: $digest})
+    UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+    RETURN idx AS position, img.layer_diff_ids[idx] AS diff_id
+    ORDER BY position;
+    ```
+
+- Detect images whose layer chains diverge (typically because the Docker empty layer is repeated):
+    ```cypher
+    MATCH (img:ECRImage)-[:HAS_LAYER]->(layer:ECRImageLayer)
+    MATCH (layer)-[:NEXT]->(child:ECRImageLayer)
+    WHERE (img)-[:HAS_LAYER]->(child)
+    WITH img, layer, collect(DISTINCT child.diff_id) AS next_diff_ids
+    WHERE size(next_diff_ids) > 1
+    RETURN img.digest AS digest,
+           layer.diff_id AS branching_layer,
+           next_diff_ids AS successors
+    ORDER BY digest, branching_layer;
+    ```
+- Find parent image given a digest (need to specify base image repository):
+    ```cypher
+    WITH $target_digest as target_digest
+    // Get target image's layer chain via graph traversal
+    MATCH (target:ECRImage {digest: target_digest})
+    MATCH (target)-[:HAS_LAYER]->(tl:ECRImageLayer)
+    WITH target, collect(id(tl)) AS targetAllowedIds
+    CALL {
+    WITH target, targetAllowedIds
+    MATCH p = (target)-[:HEAD]->(:ECRImageLayer)-[:NEXT*0..]->(:ECRImageLayer)<-[:TAIL]-(target)
+    WITH p, targetAllowedIds, [n IN nodes(p) WHERE n:ECRImageLayer | id(n)] AS layerIds
+    WHERE all(i IN layerIds WHERE i IN targetAllowedIds)
+    RETURN [n IN nodes(p) WHERE n:ECRImageLayer | n.diff_id] AS target_diff_ids
+    ORDER BY length(p) DESC
+    LIMIT 1
+    }
+    // Get all base images with their layer chains from a repo called 'base-images'
+    MATCH (base_repo:ECRRepository {name: 'base-images'})-[:REPO_IMAGE]->(base_img:ECRRepositoryImage)-[:IMAGE]->(base:ECRImage)
+    MATCH (base)-[:HAS_LAYER]->(bl:ECRImageLayer)
+    WITH target_diff_ids, base, base_img, collect(id(bl)) AS baseAllowedIds
+    CALL {
+    WITH base, baseAllowedIds
+    MATCH p = (base)-[:HEAD]->(:ECRImageLayer)-[:NEXT*0..]->(:ECRImageLayer)<-[:TAIL]-(base)
+    WITH p, baseAllowedIds, [n IN nodes(p) WHERE n:ECRImageLayer | id(n)] AS layerIds
+    WHERE all(i IN layerIds WHERE i IN baseAllowedIds)
+    RETURN [n IN nodes(p) WHERE n:ECRImageLayer | n.diff_id] AS base_diff_ids
+    ORDER BY length(p) DESC
+    LIMIT 1
+    }
+    // Calculate longest common prefix
+    WITH target_diff_ids, base, base_img, base_diff_ids,
+        REDUCE(lcp = 0, i IN RANGE(0, SIZE(base_diff_ids)-1) |
+        CASE WHEN i < SIZE(target_diff_ids) AND base_diff_ids[i] = target_diff_ids[i]
+                THEN lcp + 1 ELSE lcp END
+        ) as lcp_length
+    // Only keep matches where ALL base layers match (complete prefix)
+    WHERE lcp_length = SIZE(base_diff_ids)
+    RETURN base.digest, base_img.uri, base_img.tag, base_img.image_pushed_at,
+        SIZE(base_diff_ids) as base_layer_count, lcp_length
+    ORDER BY lcp_length DESC, base_img.image_pushed_at DESC
+    LIMIT 1
     ```
 
 
@@ -4377,27 +4519,71 @@ Representation of an AWS SSO User.
 #### Relationships
 - AWSSSOUser is part of an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(AWSSSOUser)
+    (:AWSAccount)-[:RESOURCE]->(:AWSSSOUser)
     ```
 
 - AWSSSOUser can have roles assigned.
     ```
-    (AWSSSOUser)<-[ALLOWED_BY]-(AWSRole)
+    (:AWSSSOUser)<-[:ALLOWED_BY]-(:AWSRole)
     ```
 
-- UserAccount can be assumed by AWSSSOUser.
+ - OktaUsers can assume AWS SSO users via SAML federation
+     ```
+    (:OktaUser)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
-    (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
+    More generically, user accounts can assume AWS SSO users via SAML federation.
+    ```
+    (:UserAccount)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
+    ```
+
+- AWSSSOUser has permission set assignments. These include direct assignments and via Identity Center groups.
+    ```
+    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
-    (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)
+    (:AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML]->(:AWSRole)
     ```
 
 - Entra users can sign on to AWSSSOUser via SAML federation through AWS Identity Center. See https://docs.aws.amazon.com/singlesignon/latest/userguide/idp-microsoft-entra.html and https://learn.microsoft.com/en-us/entra/identity/saas-apps/aws-single-sign-on-tutorial.
     ```
     (:EntraUser)-[:CAN_SIGN_ON_TO]->(:AWSSSOUser)
+    ```
+
+### AWSSSOGroup
+
+Representation of an AWS SSO Group.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the SSO group |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| display_name | The display name of the SSO group |
+| description | The description of the SSO group |
+| external_id | The external ID of the SSO group |
+| identity_store_id | The identity store ID of the SSO group |
+
+#### Relationships
+- AWSSSOGroup is part of an AWSAccount.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSSSOGroup)
+    ```
+
+- AWSSSOGroup can have roles assigned.
+    ```
+    (AWSSSOGroup)<-[ALLOWED_BY]-(AWSRole)
+    ```
+
+- AWSSSOGroup has assigned permission sets.
+    ```
+    (AWSSSOGroup)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
+- AWSSSOUser membership in SSO groups.
+    ```
+    (AWSSSOUser)-[MEMBER_OF_SSO_GROUP]->(AWSSSOGroup)
     ```
 
 ### AWSPermissionSet
