@@ -12,6 +12,7 @@ from . import compute
 from . import container_instances
 from . import cosmosdb
 from . import event_hub
+from . import data_lake
 from . import functions
 from . import logic_apps
 from . import resource_groups
@@ -95,7 +96,14 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
-    event_hub.sync(
+    event_hub.sync( 
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    data_lake.sync(
         neo4j_session,
         credentials,
         subscription_id,
