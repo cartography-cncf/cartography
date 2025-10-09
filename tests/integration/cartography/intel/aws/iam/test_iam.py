@@ -99,10 +99,10 @@ def test_load_groups(neo4j_session):
 def test_load_service_last_accessed_details(neo4j_session):
     _create_base_account(neo4j_session)
 
-    # Create a test principal first
     test_principal_arn = "arn:aws:iam::000000000000:user/example-user-0"
     neo4j_session.run(
-        "MERGE (u:AWSUser:AWSPrincipal{arn: $arn}) "
+        "MERGE (u:AWSUser:AWSPrincipal{id: $arn}) "
+        "SET u.arn = $arn "
         "WITH u "
         "MATCH (aa:AWSAccount{id: $account_id}) "
         "MERGE (aa)-[r:RESOURCE]->(u)",
@@ -117,26 +117,37 @@ def test_load_service_last_accessed_details(neo4j_session):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
+    
+    nodes = check_nodes(
+        neo4j_session,
+        "AWSPrincipal",
+        [
+            "arn",
+            "last_accessed_service_name",
+            "last_accessed_service_namespace",
+            "last_authenticated",
+            "last_authenticated_entity",
+            "last_authenticated_region",
+        ],
+    )
 
-    # Verify service access data was stored as properties on the principal
-    result = neo4j_session.run(
-        """
-        MATCH (p:AWSPrincipal{arn: $arn})
-        RETURN p.last_accessed_service_name AS service_name,
-               p.last_accessed_service_namespace AS namespace,
-               p.last_authenticated AS last_authenticated,
-               p.last_authenticated_entity AS entity,
-               p.last_authenticated_region AS region
-        """,
-        arn=test_principal_arn,
-    ).single()
+    test_principal_data = {
+        node for node in nodes
+        if node[0] == test_principal_arn and node[1] is not None
+    }
 
-    # Should have the most recent service (Amazon EC2 from 2019-01-02)
-    assert result["service_name"] == "Amazon EC2"
-    assert result["namespace"] == "ec2"
-    assert result["last_authenticated"] == "2019-01-02 00:00:01"
-    assert result["entity"] == "role/example-role-0"
-    assert result["region"] == "us-west-2"
+    expected_data = {
+        (
+            test_principal_arn,
+            "Amazon EC2",
+            "ec2",
+            "2019-01-02 00:00:01",
+            "role/example-role-0",
+            "us-west-2",
+        ),
+    }
+
+    assert test_principal_data == expected_data
 
 
 def _get_principal_role_nodes(neo4j_session):
