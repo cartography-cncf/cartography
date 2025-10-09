@@ -11,8 +11,8 @@ from . import app_service
 from . import compute
 from . import container_instances
 from . import cosmosdb
-from . import event_grid
 from . import data_lake
+from . import event_grid
 from . import functions
 from . import logic_apps
 from . import resource_groups
