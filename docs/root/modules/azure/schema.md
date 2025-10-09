@@ -1277,9 +1277,26 @@ Representation of an [Azure Data Lake File System](https://learn.microsoft.com/e
 |has_immutability_policy| A boolean indicating if the data is protected from being changed or deleted. |
 |has_legal_hold| A boolean indicating if the data is locked for legal reasons. |
 
+### AzureContainerInstance
+
+Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
+
 #### Relationships
 
 - An Azure Storage Account contains one or more File Systems.
     ```cypher
     (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
+|**id**| The full resource ID of the Container Instance. |
+|name| The name of the Container Instance. |
+|location| The Azure region where the Container Instance is deployed. |
+|type| The type of the resource (e.g., `Microsoft.ContainerInstance/containerGroups`). |
+|provisioning_state| The deployment status of the Container Instance (e.g., Succeeded). |
+|ip_address| The public IP address of the Container Instance, if one is assigned. |
+|os_type| The operating system type of the Container Instance (e.g., Linux or Windows). |
+
+#### Relationships
+
+- An Azure Container Instance is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```

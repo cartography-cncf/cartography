@@ -58,9 +58,21 @@ class Requirement:
     """
 
     id: str
+    """A unique identifier for the requirement, e.g. T1098 in MITRE ATT&CK."""
     name: str
+    """A brief name for the requirement, e.g. "Account Manipulation"."""
     description: str
+    """A brief description of the requirement."""
+    target_assets: str
+    """
+    A short description of the assets that this requirement is related to. E.g. "Cloud
+    identities that can manipulate other identities". This field is used as
+    documentation: `description` tells us information about the requirement;
+    `target_assets` tells us what specific objects in cartography we will search for to
+    find Facts related to the requirement.
+    """
     facts: tuple[Fact, ...]
+    """The facts that are related to this requirement."""
     attributes: dict[str, Any] | None = None
     """
     Metadata attributes for the requirement. Example:
@@ -74,6 +86,7 @@ class Requirement:
     ```
     """
     requirement_url: str | None = None
+    """A URL reference to the requirement in the framework, e.g. https://attack.mitre.org/techniques/T1098/"""
 
 
 @dataclass(frozen=True)
