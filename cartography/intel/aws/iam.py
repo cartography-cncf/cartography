@@ -1392,10 +1392,9 @@ def sync_service_last_accessed_details(
                 aws_update_tag,
             )
     
-    run_cleanup_job(
-        "aws_import_service_last_accessed_cleanup.json",
+    # Cleanup: Remove service access data from principals that weren't updated in this sync
+    GraphJob.from_node_schema(AWSPrincipalServiceAccessSchema(), common_job_parameters).run(
         neo4j_session,
-        common_job_parameters,
     )
 
 
