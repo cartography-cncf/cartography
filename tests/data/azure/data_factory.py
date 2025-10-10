@@ -12,13 +12,16 @@ MOCK_FACTORIES = [
     },
 ]
 
-# Mock data for a Linked Service that connects to a Data Lake
+# Mock data for a Linked Service that connects to a Data Lake (AzureBlobFS)
 MOCK_LINKED_SERVICES = [
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.DataFactory/factories/my-test-adf/linkedservices/MyTestDataLakeLink",
         "name": "MyTestDataLakeLink",
         "properties": {
             "type": "AzureBlobFS",
+            "type_properties": {
+                "connectionString": "DefaultEndpointsProtocol=https;AccountName=mytestdatalake;EndpointSuffix=core.windows.net;",
+            },
         },
     },
 ]
@@ -45,19 +48,20 @@ MOCK_PIPELINES = [
         "name": "MyTestPipeline",
         "properties": {
             "description": "A test pipeline.",
-            "activities": [
-                {
-                    "name": "MyCopyActivity",
-                    "type": "Copy",
-                    "inputs": [
-                        {
-                            "type": "DatasetReference",
-                            "reference_name": "MyTestSourceDataset",
-                        },
-                    ],
-                    "outputs": [],
-                },
-            ],
         },
+        # This is the key correction: `activities` is at the top level
+        "activities": [
+            {
+                "name": "MyCopyActivity",
+                "type": "Copy",
+                "inputs": [
+                    {
+                        "type": "DatasetReference",
+                        "reference_name": "MyTestSourceDataset",
+                    },
+                ],
+                "outputs": [],
+            },
+        ],
     },
 ]
