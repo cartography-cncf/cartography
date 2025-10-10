@@ -2,6 +2,7 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
+import json
 
 import boto3
 import neo4j
@@ -26,7 +27,15 @@ def get_cloudtrail_trails(
     )
 
     trails = client.describe_trails()["trailList"]
-    trails_filtered = [trail for trail in trails if trail.get("HomeRegion") == region]
+    trails_filtered = []
+    for trail in trails:
+        if trail.get("HomeRegion") == region:
+            selectors = client.get_event_selectors(TrailName=trail["TrailARN"])
+            trail["EventSelectors"] = selectors.get("EventSelectors", [])
+            trail["AdvancedEventSelectors"] = selectors.get(
+                "AdvancedEventSelectors", [],
+            )
+            trails_filtered.append(trail)
 
     return trails_filtered
 
@@ -41,6 +50,10 @@ def transform_cloudtrail_trails(
         arn = trail.get("CloudWatchLogsLogGroupArn")
         if arn:
             trail["CloudWatchLogsLogGroupArn"] = arn.split(":*")[0]
+        trail["EventSelectors"] = json.dumps(trail.get("EventSelectors", []))
+        trail["AdvancedEventSelectors"] = json.dumps(
+            trail.get("AdvancedEventSelectors", []),
+        )
 
     return trails
 
