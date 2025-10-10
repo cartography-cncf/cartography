@@ -1,7 +1,11 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import cartography.intel.azure.data_factory as data_factory
-from tests.data.azure.data_factory import MOCK_DATASETS, MOCK_FACTORIES, MOCK_LINKED_SERVICES, MOCK_PIPELINES
+from tests.data.azure.data_factory import MOCK_DATASETS
+from tests.data.azure.data_factory import MOCK_FACTORIES
+from tests.data.azure.data_factory import MOCK_LINKED_SERVICES
+from tests.data.azure.data_factory import MOCK_PIPELINES
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -13,11 +17,17 @@ TEST_UPDATE_TAG = 123456789
 @patch("cartography.intel.azure.data_factory.get_datasets")
 @patch("cartography.intel.azure.data_factory.get_pipelines")
 @patch("cartography.intel.azure.data_factory.get_factories")
-def test_sync_data_factory(mock_get_factories, mock_get_pipelines, mock_get_datasets, mock_get_ls, neo4j_session):
+def test_sync_data_factory_internal_rels(
+    mock_get_factories,
+    mock_get_pipelines,
+    mock_get_datasets,
+    mock_get_ls,
+    neo4j_session,
+):
     """
-    Test that we can correctly sync Data Factory and its child components.
+    Test that we can correctly sync a Data Factory and its internal components and relationships.
     """
-    # Arrange
+    # Arrange: Mock all four API calls
     mock_get_factories.return_value = MOCK_FACTORIES
     mock_get_pipelines.return_value = MOCK_PIPELINES
     mock_get_datasets.return_value = MOCK_DATASETS
@@ -25,12 +35,9 @@ def test_sync_data_factory(mock_get_factories, mock_get_pipelines, mock_get_data
 
     # Create the prerequisite AzureSubscription node
     neo4j_session.run(
-        """
-        MERGE (s:AzureSubscription{id: $sub_id})
-        SET s.lastupdated = $update_tag
-        """,
+        "MERGE (s:AzureSubscription{id: $sub_id}) SET s.lastupdated = $tag",
         sub_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
+        tag=TEST_UPDATE_TAG,
     )
 
     common_job_parameters = {
@@ -47,54 +54,88 @@ def test_sync_data_factory(mock_get_factories, mock_get_pipelines, mock_get_data
         common_job_parameters,
     )
 
-    # Assert Factories
-    expected_factories = {(MOCK_FACTORIES[0]['id'], MOCK_FACTORIES[0]['name'])}
-    actual_factories = check_nodes(neo4j_session, "AzureDataFactory", ["id", "name"])
-    assert actual_factories == expected_factories
-
-    # Assert Pipelines
-    expected_pipelines = {(MOCK_PIPELINES[0]['id'], MOCK_PIPELINES[0]['name'])}
-    actual_pipelines = check_nodes(neo4j_session, "AzureDataFactoryPipeline", ["id", "name"])
-    assert actual_pipelines == expected_pipelines
-
-    # Assert Datasets
-    expected_datasets = {(MOCK_DATASETS[0]['id'], MOCK_DATASETS[0]['name'])}
-    actual_datasets = check_nodes(neo4j_session, "AzureDataFactoryDataset", ["id", "name"])
-    assert actual_datasets == expected_datasets
-
-    # Assert Linked Services
-    expected_ls = {(MOCK_LINKED_SERVICES[0]['id'], MOCK_LINKED_SERVICES[0]['name'])}
-    actual_ls = check_nodes(neo4j_session, "AzureDataFactoryLinkedService", ["id", "name"])
-    assert actual_ls == expected_ls
+    # Assert Nodes for all four types
+    assert check_nodes(neo4j_session, "AzureDataFactory", ["id"]) == {
+        (MOCK_FACTORIES[0]["id"],)
+    }
+    assert check_nodes(neo4j_session, "AzureDataFactoryPipeline", ["id"]) == {
+        (MOCK_PIPELINES[0]["id"],)
+    }
+    assert check_nodes(neo4j_session, "AzureDataFactoryDataset", ["id"]) == {
+        (MOCK_DATASETS[0]["id"],)
+    }
+    assert check_nodes(neo4j_session, "AzureDataFactoryLinkedService", ["id"]) == {
+        (MOCK_LINKED_SERVICES[0]["id"],)
+    }
 
     # Assert Relationships
-    factory_id = MOCK_FACTORIES[0]['id']
-    pipeline_id = MOCK_PIPELINES[0]['id']
-    dataset_id = MOCK_DATASETS[0]['id']
-    ls_id = MOCK_LINKED_SERVICES[0]['id']
+    factory_id = MOCK_FACTORIES[0]["id"]
+    pipeline_id = MOCK_PIPELINES[0]["id"]
+    dataset_id = MOCK_DATASETS[0]["id"]
+    ls_id = MOCK_LINKED_SERVICES[0]["id"]
 
-    expected_rels = {
+    # Test :RESOURCE and :CONTAINS relationships
+    expected_hierarchy = {
         (TEST_SUBSCRIPTION_ID, factory_id),
         (factory_id, pipeline_id),
         (factory_id, dataset_id),
         (factory_id, ls_id),
     }
-    actual_rels = check_rels(
-        neo4j_session, "AzureSubscription", "id", "AzureDataFactory", "id", "RESOURCE",
+    actual_hierarchy = check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzureDataFactory",
+        "id",
+        "RESOURCE",
     )
-    actual_rels.update(
+    actual_hierarchy.update(
         check_rels(
-            neo4j_session, "AzureDataFactory", "id", "AzureDataFactoryPipeline", "id", "CONTAINS",
+            neo4j_session,
+            "AzureDataFactory",
+            "id",
+            "AzureDataFactoryPipeline",
+            "id",
+            "CONTAINS",
         ),
     )
-    actual_rels.update(
+    actual_hierarchy.update(
         check_rels(
-            neo4j_session, "AzureDataFactory", "id", "AzureDataFactoryDataset", "id", "CONTAINS",
+            neo4j_session,
+            "AzureDataFactory",
+            "id",
+            "AzureDataFactoryDataset",
+            "id",
+            "CONTAINS",
         ),
     )
-    actual_rels.update(
+    actual_hierarchy.update(
         check_rels(
-            neo4j_session, "AzureDataFactory", "id", "AzureDataFactoryLinkedService", "id", "CONTAINS",
+            neo4j_session,
+            "AzureDataFactory",
+            "id",
+            "AzureDataFactoryLinkedService",
+            "id",
+            "CONTAINS",
         ),
     )
-    assert actual_rels == expected_rels
+    assert actual_hierarchy == expected_hierarchy
+
+    # Test internal data flow relationships
+    assert check_rels(
+        neo4j_session,
+        "AzureDataFactoryPipeline",
+        "id",
+        "AzureDataFactoryDataset",
+        "id",
+        "USES_DATASET",
+    ) == {(pipeline_id, dataset_id)}
+
+    assert check_rels(
+        neo4j_session,
+        "AzureDataFactoryDataset",
+        "id",
+        "AzureDataFactoryLinkedService",
+        "id",
+        "USES_LINKED_SERVICE",
+    ) == {(dataset_id, ls_id)}

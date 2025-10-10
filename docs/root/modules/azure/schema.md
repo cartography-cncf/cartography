@@ -1261,3 +1261,89 @@ Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/re
     ```cypher
     (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
     ```
+
+### AzureDataFactory
+
+Representation of an [Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/factories/get).
+
+| Field                | Description                                                 |
+| -------------------- | ----------------------------------------------------------- |
+| firstseen            | Timestamp of when a sync job discovered this node           |
+| lastupdated          | Timestamp of the last time the node was updated             |
+| **id** | The full resource ID of the Data Factory.                   |
+| name                 | The name of the Data Factory.                               |
+| location             | The Azure region where the Data Factory is deployed.        |
+| provisioning_state   | The deployment status of the Data Factory (e.g., Succeeded). |
+| create_time          | The timestamp of when the Data Factory was created.         |
+| version              | The version of the Data Factory.                            |
+
+#### Relationships
+
+- An Azure Data Factory is a resource within an Azure Subscription.
+  ```cypher
+  (AzureSubscription)-[:RESOURCE]->(:AzureDataFactory)
+````
+
+  - An Azure Data Factory contains Pipelines, Datasets, and Linked Services.
+    ```cypher
+    (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryPipeline)
+    (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryDataset)
+    (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryLinkedService)
+    ```
+
+### AzureDataFactoryPipeline
+
+Representation of a [Pipeline within an Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/pipelines/get).
+
+| Field       | Description                                       |
+| ----------- | ------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the Pipeline.             |
+| name        | The name of the Pipeline.                         |
+| description | The description of the Pipeline.                  |
+
+#### Relationships
+
+  - A Pipeline uses one or more Datasets.
+    ```cypher
+    (AzureDataFactoryPipeline)-[:USES_DATASET]->(:AzureDataFactoryDataset)
+    ```
+
+### AzureDataFactoryDataset
+
+Representation of a [Dataset within an Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/datasets/get).
+
+| Field       | Description                                       |
+| ----------- | ------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the Dataset.              |
+| name        | The name of the Dataset.                          |
+| type        | The type of the Dataset (e.g., `DelimitedText`).  |
+
+#### Relationships
+
+  - A Dataset uses a Linked Service for its connection.
+    ```cypher
+    (AzureDataFactoryDataset)-[:USES_LINKED_SERVICE]->(:AzureDataFactoryLinkedService)
+    ```
+
+### AzureDataFactoryLinkedService
+
+Representation of a [Linked Service within an Azure Data Factory](https://www.google.com/search?q=https://learn.microsoft.com/en-us/rest/api/datafactory/linked-services/get).
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Linked Service.           |
+| name        | The name of the Linked Service.                       |
+| type        | The type of the Linked Service (e.g., `AzureBlobFS`). |
+
+#### Relationships
+
+*(External `[:CONNECTS_TO]` relationships will be added in a future PR.)*
+
+```
+```
