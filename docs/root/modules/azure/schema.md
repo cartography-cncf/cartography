@@ -1282,9 +1282,9 @@ Representation of an [Azure Data Factory](https://learn.microsoft.com/en-us/rest
 - An Azure Data Factory is a resource within an Azure Subscription.
   ```cypher
   (AzureSubscription)-[:RESOURCE]->(:AzureDataFactory)
-````
+  ````
 
-  - An Azure Data Factory contains Pipelines, Datasets, and Linked Services.
+- An Azure Data Factory contains Pipelines, Datasets, and Linked Services.
     ```cypher
     (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryPipeline)
     (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryDataset)
@@ -1347,3 +1347,43 @@ Representation of a [Linked Service within an Azure Data Factory](https://www.go
 
 ```
 ```
+### AzureDataLakeFileSystem
+
+Representation of an [Azure Data Lake File System](https://learn.microsoft.com/en-us/rest/api/storagerp/blob-containers/get), which is a container within a Data Lake enabled Storage Account.
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the File System. |
+|name| The name of the File System. |
+|public_access| The public access level of the File System (e.g., None). |
+|last_modified_time| The timestamp of when the File System was last modified. |
+|has_immutability_policy| A boolean indicating if the data is protected from being changed or deleted. |
+|has_legal_hold| A boolean indicating if the data is locked for legal reasons. |
+
+#### Relationships
+
+- An Azure Storage Account contains one or more File Systems.
+    ```cypher
+    (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
+    ```
+
+### AzureContainerInstance
+
+Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
+
+|**id**| The full resource ID of the Container Instance. |
+|name| The name of the Container Instance. |
+|location| The Azure region where the Container Instance is deployed. |
+|type| The type of the resource (e.g., `Microsoft.ContainerInstance/containerGroups`). |
+|provisioning_state| The deployment status of the Container Instance (e.g., Succeeded). |
+|ip_address| The public IP address of the Container Instance, if one is assigned. |
+|os_type| The operating system type of the Container Instance (e.g., Linux or Windows). |
+
+#### Relationships
+
+- An Azure Container Instance is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    ```

@@ -53,10 +53,39 @@ class ECRImageHasLayerRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECRImageToParentImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    from_attestation: PropertyRef = PropertyRef("from_attestation")
+    parent_image_uri: PropertyRef = PropertyRef("parent_image_uri")
+    confidence: PropertyRef = PropertyRef("confidence")
+
+
+@dataclass(frozen=True)
+class ECRImageToParentImageRel(CartographyRelSchema):
+    """
+    Relationship from an ECRImage to its parent ECRImage (BUILT_FROM).
+    This relationship is created when provenance attestations explicitly specify the parent image.
+    """
+
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("parent_image_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "BUILT_FROM"
+    properties: ECRImageToParentImageRelProperties = (
+        ECRImageToParentImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
     label: str = "ECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAWSAccountRel = ECRImageToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [ECRImageHasLayerRel()],
+        [
+            ECRImageHasLayerRel(),
+            ECRImageToParentImageRel(),
+        ],
     )
