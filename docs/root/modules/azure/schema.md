@@ -1331,7 +1331,7 @@ Representation of a [Dataset within an Azure Data Factory](https://learn.microso
 
 ### AzureDataFactoryLinkedService
 
-Representation of a [Linked Service within an Azure Data Factory](https://www.google.com/search?q=https://learn.microsoft.com/en-us/rest/api/datafactory/linked-services/get).
+Representation of a [Linked Service within an Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/linked-services/get).
 
 | Field       | Description                                           |
 | ----------- | ----------------------------------------------------- |
