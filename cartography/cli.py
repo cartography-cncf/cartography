@@ -191,6 +191,14 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--aws-eks-sync-cluster-resources",
+            action="store_true",
+            help=(
+                "[EXPERIMENTAL!] Enable AWS EKS cluster resources sync. If enabled, cartography will create access entries for the EKS cluster"
+                " and associate the AmazonEKSAdminViewPolicy with the access entry. It will then sync EKS cluster resources using the Kubernetes intel module."
+            ),
+        )
+        parser.add_argument(
             "--oci-sync-all-profiles",
             action="store_true",
             help=(

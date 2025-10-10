@@ -312,6 +312,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "permission_relationships_file": config.permission_relationships_file,
         "aws_guardduty_severity_threshold": config.aws_guardduty_severity_threshold,
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
+        "aws_eks_sync_cluster_resources": config.aws_eks_sync_cluster_resources,
     }
     try:
         boto3_session = boto3.Session()
