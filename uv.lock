@@ -409,6 +409,21 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-network"
+version = "29.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/19/b6/fbd5320047659af1bd26aa55529dbe5a8c2faeeb62a8aadc72e1dd88f66c/azure_mgmt_network-29.0.0.tar.gz", hash = "sha256:577fbc76a195f744b97bac4275e11279f7f3e63c659d98773f3b4a9a6e0943b9", size = 684284, upload-time = "2025-05-23T03:06:56.309Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/93/949392272f177f8e92dcb916afd20f67ceae62998e798e4a3d98c5f59af3/azure_mgmt_network-29.0.0-py3-none-any.whl", hash = "sha256:c04dc0d9f6b936abe4ec7c5fa9cee1514795b1f84d2742dead2115dcde33476c", size = 608014, upload-time = "2025-05-23T03:06:58.557Z" },
+]
+
+[[package]]
 name = "azure-mgmt-resource"
 version = "24.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -612,6 +627,7 @@ dependencies = [
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-cosmosdb" },
     { name = "azure-mgmt-logic" },
+    { name = "azure-mgmt-network" },
     { name = "azure-mgmt-resource" },
     { name = "azure-mgmt-sql" },
     { name = "azure-mgmt-storage" },
@@ -652,6 +668,7 @@ dependencies = [
 dev = [
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-logic" },
+    { name = "azure-mgmt-network" },
     { name = "azure-mgmt-web" },
     { name = "backoff" },
     { name = "black" },
@@ -684,6 +701,7 @@ requires-dist = [
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-network", specifier = ">=25.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
     { name = "azure-mgmt-sql", specifier = "<=1.0.0" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
@@ -724,6 +742,7 @@ requires-dist = [
 dev = [
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-network", specifier = ">=25.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
     { name = "backoff", specifier = ">=2.1.2" },
     { name = "black", specifier = "==25.9.0" },
