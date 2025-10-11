@@ -1300,3 +1300,101 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```
+
+### AzureLoadBalancer
+
+Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/load-balancers/get).
+
+| Field      | Description                                                 |
+| ---------- | ----------------------------------------------------------- |
+| firstseen  | Timestamp of when a sync job discovered this node           |
+| lastupdated| Timestamp of the last time the node was updated             |
+| **id** | The full resource ID of the Load Balancer.                  |
+| name       | The name of the Load Balancer.                              |
+| location   | The Azure region where the Load Balancer is deployed.       |
+| sku_name   | The SKU of the Load Balancer (e.g., `Standard`, `Basic`).   |
+
+#### Relationships
+
+- An Azure Load Balancer is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancer)
+    ```
+
+- An Azure Load Balancer contains its component parts.
+    ```cypher
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerFrontendIPConfiguration)
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerBackendPool)
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerRule)
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerInboundNatRule)
+    ```
+
+### AzureLoadBalancerFrontendIPConfiguration
+
+Representation of a Frontend IP Configuration for an Azure Load Balancer.
+
+| Field                | Description                                                              |
+| -------------------- | ------------------------------------------------------------------------ |
+| firstseen            | Timestamp of when a sync job discovered this node                        |
+| lastupdated          | Timestamp of the last time the node was updated                          |
+| **id** | The full resource ID of the Frontend IP Configuration.                   |
+| name                 | The name of the Frontend IP Configuration.                               |
+| private\_ip\_address   | The private IP address of the configuration, if applicable.              |
+| public\_ip\_address\_id | The resource ID of the associated Public IP Address object, if applicable. |
+
+### AzureLoadBalancerBackendPool
+
+Representation of a Backend Pool for an Azure Load Balancer.
+
+| Field       | Description                                       |
+| ----------- | ------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the Backend Pool.         |
+| name        | The name of the Backend Pool.                     |
+
+### AzureLoadBalancerRule
+
+Representation of a Load Balancing Rule for an Azure Load Balancer.
+
+| Field         | Description                                       |
+| ------------- | ------------------------------------------------- |
+| firstseen     | Timestamp of when a sync job discovered this node |
+| lastupdated   | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the Rule.                 |
+| name          | The name of the Rule.                             |
+| protocol      | The network protocol for the rule (e.g., `Tcp`).  |
+| frontend\_port | The port that receives traffic.                   |
+| backend\_port  | The port that traffic is sent to.                 |
+
+#### Relationships
+
+  - A Rule uses a Frontend IP Configuration.
+    ```cypher
+    (AzureLoadBalancerRule)-[:USES_FRONTEND_IP]->(:AzureLoadBalancerFrontendIPConfiguration)
+    ```
+  - A Rule routes traffic to a Backend Pool.
+    ```cypher
+    (AzureLoadBalancerRule)-[:ROUTES_TO]->(:AzureLoadBalancerBackendPool)
+    ```
+
+### AzureLoadBalancerInboundNatRule
+
+Representation of an Inbound NAT Rule for an Azure Load Balancer.
+
+| Field         | Description                                       |
+| ------------- | ------------------------------------------------- |
+| firstseen     | Timestamp of when a sync job discovered this node |
+| lastupdated   | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the NAT Rule.             |
+| name          | The name of the NAT Rule.                         |
+| protocol      | The network protocol for the rule (e.g., `Tcp`).  |
+| frontend\_port | The public port that receives traffic.            |
+| backend\_port  | The private port on the target VM.                |
+
+#### Relationships
+
+*(External `[:FORWARDS_TO]` relationships to Network Interfaces will be added in a future PR.)*
+
+```
+```
