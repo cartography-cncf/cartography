@@ -38,9 +38,11 @@ def get_virtual_networks(client: NetworkManagementClient) -> list[dict]:
     """
     try:
         return [vnet.as_dict() for vnet in client.virtual_networks.list_all()]
-    except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(f"Failed to get Virtual Networks: {str(e)}")
+    except ClientAuthenticationError:
         raise
+    except HttpResponseError as e:
+        logger.warning(f"Failed to get Virtual Networks: {str(e)}")
+        return []
 
 
 @timeit
@@ -52,7 +54,9 @@ def get_subnets(
     """
     try:
         return [subnet.as_dict() for subnet in client.subnets.list(rg_name, vnet_name)]
-    except (ClientAuthenticationError, HttpResponseError) as e:
+    except ClientAuthenticationError:
+        raise
+    except HttpResponseError as e:
         logger.warning(f"Failed to get subnets for VNet {vnet_name}: {str(e)}")
         return []
 
@@ -64,7 +68,9 @@ def get_network_security_groups(client: NetworkManagementClient) -> list[dict]:
     """
     try:
         return [nsg.as_dict() for nsg in client.network_security_groups.list_all()]
-    except (ClientAuthenticationError, HttpResponseError) as e:
+    except ClientAuthenticationError:
+        raise
+    except HttpResponseError as e:
         logger.warning(f"Failed to get Network Security Groups: {str(e)}")
         return []
 
