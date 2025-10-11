@@ -1,5 +1,3 @@
-"""Test data for cartography.intel.gsuite.api integration tests."""
-
 MOCK_GSUITE_USERS_RESPONSE = [
     {
         "users": [
