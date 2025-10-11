@@ -14,6 +14,8 @@ from . import cosmosdb
 from . import data_lake
 from . import functions
 from . import logic_apps
+from . import permission_relationships
+from . import rbac
 from . import resource_groups
 from . import sql
 from . import storage
@@ -74,6 +76,13 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    rbac.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     sql.sync(
         neo4j_session,
         credentials.credential,
@@ -98,6 +107,12 @@ def _sync_one_subscription(
     data_lake.sync(
         neo4j_session,
         credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    permission_relationships.sync(
+        neo4j_session,
         subscription_id,
         update_tag,
         common_job_parameters,
@@ -152,6 +167,7 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
+        "azure_permission_relationships_file": config.azure_permission_relationships_file,
     }
 
     try:
