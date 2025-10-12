@@ -1280,9 +1280,9 @@ Representation of an [Azure Data Factory](https://learn.microsoft.com/en-us/rest
 #### Relationships
 
 - An Azure Data Factory is a resource within an Azure Subscription.
-  ```cypher
-  (AzureSubscription)-[:RESOURCE]->(:AzureDataFactory)
-  ````
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureDataFactory)
+    ```
 
 - An Azure Data Factory contains Pipelines, Datasets, and Linked Services.
     ```cypher

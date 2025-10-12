@@ -47,7 +47,7 @@ def get_factories(client: DataFactoryManagementClient) -> list[dict]:
         return [f.as_dict() for f in client.factories.list()]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(f"Failed to get Data Factories: {str(e)}")
-        return []
+        raise
 
 
 @timeit
