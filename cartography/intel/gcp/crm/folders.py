@@ -4,8 +4,8 @@ from typing import List
 from typing import Optional
 
 import neo4j
-from google.cloud import resourcemanager_v3
 from google.auth.credentials import Credentials as GoogleCredentials
+from google.cloud import resourcemanager_v3
 
 from cartography.client.core.tx import load
 from cartography.models.gcp.crm.folders import GCPFolderSchema

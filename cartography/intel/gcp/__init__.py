@@ -7,9 +7,9 @@ from typing import Optional
 from typing import Set
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
-from google.auth.credentials import Credentials as GoogleCredentials
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
