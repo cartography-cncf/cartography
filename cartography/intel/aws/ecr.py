@@ -62,6 +62,8 @@ def _get_platform_specific_digests(
             f"No manifest list found for digest {manifest_list_digest} in repository {repository_name}"
         )
 
+    # batch_get_image returns a single manifest list (hence [0])
+    # The manifests[] array inside contains all platform-specific images and attestations
     manifest_json = json.loads(response["images"][0]["imageManifest"])
     manifests = manifest_json.get("manifests", [])
 
@@ -112,11 +114,6 @@ def _get_platform_specific_digests(
                 "media_type": manifest_ref.get("mediaType"),
                 "artifact_media_type": manifest_ref.get("artifactType"),
             }
-        )
-
-    if not all_images:
-        raise ValueError(
-            f"Manifest list {manifest_list_digest} has no manifests in repository {repository_name}"
         )
 
     return all_images, all_referenced_digests
