@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 from typing import Dict
@@ -18,6 +19,12 @@ from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 
+# Manifest list media types
+MANIFEST_LIST_MEDIA_TYPES = {
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.oci.image.index.v1+json",
+}
+
 
 @timeit
 @aws_handle_regions
@@ -34,6 +41,84 @@ def get_ecr_repositories(
     return ecr_repositories
 
 
+def _get_platform_specific_digests(
+    client: Any, repository_name: str, manifest_list_digest: str
+) -> tuple[List[Dict[str, Any]], set[str]]:
+    """
+    Fetch manifest list and extract platform-specific image digests and attestations.
+
+    Returns:
+        - List of all images (platform-specific + attestations) with digest, type, architecture, os, variant
+        - Set of ALL digests referenced in the manifest list
+    """
+    response = client.batch_get_image(
+        repositoryName=repository_name,
+        imageIds=[{"imageDigest": manifest_list_digest}],
+        acceptedMediaTypes=list(MANIFEST_LIST_MEDIA_TYPES),
+    )
+
+    if not response.get("images"):
+        raise ValueError(
+            f"No manifest list found for digest {manifest_list_digest} in repository {repository_name}"
+        )
+
+    # batch_get_image returns a single manifest list (hence [0])
+    # The manifests[] array inside contains all platform-specific images and attestations
+    manifest_json = json.loads(response["images"][0]["imageManifest"])
+    manifests = manifest_json.get("manifests", [])
+
+    if not manifests:
+        raise ValueError(
+            f"Manifest list {manifest_list_digest} has no manifests in repository {repository_name}"
+        )
+
+    all_images = []
+    all_referenced_digests = set()
+
+    for manifest_ref in manifests:
+        digest = manifest_ref.get("digest")
+        if not digest:
+            raise ValueError(
+                f"Manifest in list {manifest_list_digest} has no digest in repository {repository_name}"
+            )
+
+        all_referenced_digests.add(digest)
+
+        platform_info = manifest_ref.get("platform", {})
+        architecture = platform_info.get("architecture")
+        os_name = platform_info.get("os")
+
+        # Determine if this is an attestation
+        annotations = manifest_ref.get("annotations", {})
+        is_attestation = (
+            architecture == "unknown" and os_name == "unknown"
+        ) or annotations.get("vnd.docker.reference.type") == "attestation-manifest"
+
+        all_images.append(
+            {
+                "digest": digest,
+                "type": "attestation" if is_attestation else "image",
+                "architecture": architecture,
+                "os": os_name,
+                "variant": platform_info.get("variant"),
+                "attestation_type": (
+                    annotations.get("vnd.docker.reference.type")
+                    if is_attestation
+                    else None
+                ),
+                "attests_digest": (
+                    annotations.get("vnd.docker.reference.digest")
+                    if is_attestation
+                    else None
+                ),
+                "media_type": manifest_ref.get("mediaType"),
+                "artifact_media_type": manifest_ref.get("artifactType"),
+            }
+        )
+
+    return all_images, all_referenced_digests
+
+
 @timeit
 @aws_handle_regions
 def get_ecr_repository_images(
@@ -46,7 +131,11 @@ def get_ecr_repository_images(
     )
     client = boto3_session.client("ecr", region_name=region)
     list_paginator = client.get_paginator("list_images")
-    ecr_repository_images: List[Dict] = []
+
+    # First pass: Collect all image details and track manifest list referenced digests
+    all_image_details: List[Dict] = []
+    manifest_list_referenced_digests: set[str] = set()
+
     for page in list_paginator.paginate(repositoryName=repository_name):
         image_ids = page["imageIds"]
         if not image_ids:
@@ -58,14 +147,37 @@ def get_ecr_repository_images(
         for response in describe_response:
             image_details = response["imageDetails"]
             for detail in image_details:
-                tags = detail.get("imageTags") or []
-                if tags:
-                    for tag in tags:
-                        image_detail = {**detail, "imageTag": tag}
-                        image_detail.pop("imageTags", None)
-                        ecr_repository_images.append(image_detail)
-                else:
-                    ecr_repository_images.append({**detail})
+                # Check if this is a manifest list
+                media_type = detail.get("imageManifestMediaType")
+                if media_type in MANIFEST_LIST_MEDIA_TYPES:
+                    # Fetch all images from manifest list (platform-specific + attestations)
+                    manifest_list_digest = detail["imageDigest"]
+                    manifest_images, all_digests = _get_platform_specific_digests(
+                        client, repository_name, manifest_list_digest
+                    )
+                    detail["_manifest_images"] = manifest_images
+
+                    # Track ALL digests so we don't create ECRRepositoryImages for them
+                    manifest_list_referenced_digests.update(all_digests)
+
+                all_image_details.append(detail)
+
+    # Second pass: Only add images that should have ECRRepositoryImage nodes
+    ecr_repository_images: List[Dict] = []
+    for detail in all_image_details:
+        tags = detail.get("imageTags") or []
+        digest = detail.get("imageDigest")
+
+        if tags:
+            # Tagged images always get ECRRepositoryImage nodes (one per tag)
+            for tag in tags:
+                image_detail = {**detail, "imageTag": tag}
+                image_detail.pop("imageTags", None)
+                ecr_repository_images.append(image_detail)
+        elif digest not in manifest_list_referenced_digests:
+            # Untagged images only get nodes if they're NOT part of a manifest list
+            ecr_repository_images.append({**detail})
+
     return ecr_repository_images
 
 
@@ -91,52 +203,115 @@ def load_ecr_repositories(
 
 
 @timeit
-def transform_ecr_repository_images(repo_data: Dict) -> List[Dict]:
+def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[Dict]]:
     """
-    Ensure that we only load ECRImage nodes to the graph if they have a defined imageDigest field.
-    Process repositories in a consistent order to handle overlapping image digests deterministically.
+    Transform ECR repository images into repo image list and ECR image list.
+    For manifest lists, creates ECR images for manifest list, platform-specific images, and attestations.
+
+    Returns:
+        - repo_images_list: List of ECRRepositoryImage nodes with imageDigests field (one-to-many)
+        - ecr_images_list: List of ECRImage nodes with type, architecture, os, variant fields
     """
     repo_images_list = []
+    ecr_images_dict: Dict[str, Dict] = {}  # Deduplicate by digest
+
     # Sort repository URIs to ensure consistent processing order
     for repo_uri in sorted(repo_data.keys()):
         repo_images = repo_data[repo_uri]
         for img in repo_images:
             digest = img.get("imageDigest")
-            if digest:
-                tag = img.get("imageTag")
-                uri = repo_uri + (f":{tag}" if tag else "")
-                img["repo_uri"] = repo_uri
-                img["uri"] = uri
-                img["id"] = uri
-                repo_images_list.append(img)
-            else:
+            if not digest:
                 logger.warning(
                     "Repo %s has an image that has no imageDigest. Its tag is %s. Continuing on.",
                     repo_uri,
                     img.get("imageTag"),
                 )
+                continue
 
-    return repo_images_list
+            tag = img.get("imageTag")
+            uri = repo_uri + (f":{tag}" if tag else "")
+
+            # Build ECRRepositoryImage node
+            repo_image = {
+                **img,
+                "repo_uri": repo_uri,
+                "uri": uri,
+                "id": uri,
+            }
+
+            # Check if this is a manifest list with images
+            manifest_images = img.get("_manifest_images")
+            if manifest_images:
+                # For manifest list: include manifest list digest + all referenced digests
+                all_digests = [digest] + [m["digest"] for m in manifest_images]
+                repo_image["imageDigests"] = all_digests
+
+                # Create ECRImage for the manifest list itself
+                if digest not in ecr_images_dict:
+                    ecr_images_dict[digest] = {
+                        "imageDigest": digest,
+                        "type": "manifest_list",
+                        "architecture": None,
+                        "os": None,
+                        "variant": None,
+                    }
+
+                # Create ECRImage nodes for each image in the manifest list
+                for manifest_img in manifest_images:
+                    manifest_digest = manifest_img["digest"]
+                    if manifest_digest not in ecr_images_dict:
+                        ecr_images_dict[manifest_digest] = {
+                            "imageDigest": manifest_digest,
+                            "type": manifest_img.get("type"),
+                            "architecture": manifest_img.get("architecture"),
+                            "os": manifest_img.get("os"),
+                            "variant": manifest_img.get("variant"),
+                            "attestation_type": manifest_img.get("attestation_type"),
+                            "attests_digest": manifest_img.get("attests_digest"),
+                            "media_type": manifest_img.get("media_type"),
+                            "artifact_media_type": manifest_img.get(
+                                "artifact_media_type"
+                            ),
+                        }
+            else:
+                # Regular image: single digest
+                repo_image["imageDigests"] = [digest]
+
+                # Create ECRImage for regular image
+                if digest not in ecr_images_dict:
+                    ecr_images_dict[digest] = {
+                        "imageDigest": digest,
+                        "type": "image",
+                        "architecture": None,
+                        "os": None,
+                        "variant": None,
+                    }
+
+            # Remove internal field before returning
+            repo_image.pop("_manifest_images", None)
+            repo_images_list.append(repo_image)
+
+    ecr_images_list = list(ecr_images_dict.values())
+    return repo_images_list, ecr_images_list
 
 
 @timeit
 def load_ecr_repository_images(
     neo4j_session: neo4j.Session,
     repo_images_list: List[Dict],
+    ecr_images_list: List[Dict],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     logger.info(
-        f"Loading {len(repo_images_list)} ECR repository images in {region} into graph.",
+        f"Loading {len(ecr_images_list)} ECR images and {len(repo_images_list)} ECR repository images in {region} into graph.",
     )
-    image_digests = {img["imageDigest"] for img in repo_images_list}
-    ecr_images = [{"imageDigest": d} for d in image_digests]
 
     load(
         neo4j_session,
         ECRImageSchema(),
-        ecr_images,
+        ecr_images_list,
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
@@ -219,10 +394,11 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
-        repo_images_list = transform_ecr_repository_images(image_data)
+        repo_images_list, ecr_images_list = transform_ecr_repository_images(image_data)
         load_ecr_repository_images(
             neo4j_session,
             repo_images_list,
+            ecr_images_list,
             region,
             current_aws_account_id,
             update_tag,

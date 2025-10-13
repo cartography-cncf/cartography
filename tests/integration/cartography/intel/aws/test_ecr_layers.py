@@ -524,15 +524,15 @@ async def test_fetch_image_layers_async_handles_manifest_list(
             test_data.MULTI_ARCH_INDEX,
             ecr_layers.ECR_OCI_INDEX_MT,
         ),
-        "sha256:1111111111111111111111111111111111111111111111111111111111111111": (
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": (
             test_data.MULTI_ARCH_AMD64_MANIFEST,
             ecr_layers.ECR_OCI_MANIFEST_MT,
         ),
-        "sha256:2222222222222222222222222222222222222222222222222222222222222222": (
+        "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc": (
             test_data.MULTI_ARCH_ARM64_MANIFEST,
             ecr_layers.ECR_OCI_MANIFEST_MT,
         ),
-        "sha256:3333333333333333333333333333333333333333333333333333333333333333": (
+        "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd": (
             test_data.ATTESTATION_MANIFEST,
             ecr_layers.ECR_OCI_MANIFEST_MT,
         ),
