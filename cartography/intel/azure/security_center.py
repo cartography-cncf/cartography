@@ -30,7 +30,7 @@ def get_assessments(client: SecurityCenter, subscription_id: str) -> list[dict]:
         logger.warning(
             f"Failed to get Security Assessments for subscription {subscription_id}: {str(e)}"
         )
-        return []
+        raise
 
 
 def transform_assessments(assessments: list[dict]) -> list[dict]:

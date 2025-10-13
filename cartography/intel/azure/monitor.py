@@ -27,7 +27,7 @@ def get_metric_alerts(client: MonitorManagementClient) -> list[dict]:
         ]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(f"Failed to get Azure Monitor Metric Alerts: {str(e)}")
-        return []
+        raise
 
 
 def transform_metric_alerts(metric_alerts: list[dict]) -> list[dict]:
