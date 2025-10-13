@@ -519,7 +519,9 @@ def sync_identity_center_instances(
 
             permission_set_sync_supported = True
             try:
-                permission_sets = get_permission_sets(boto3_session, instance_arn, region)
+                permission_sets = get_permission_sets(
+                    boto3_session, instance_arn, region
+                )
             except botocore.exceptions.ClientError as error:
                 if _is_permission_set_sync_unsupported_error(error):
                     permission_set_sync_supported = False
