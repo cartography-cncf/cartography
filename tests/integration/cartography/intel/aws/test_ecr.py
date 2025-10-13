@@ -488,9 +488,6 @@ def test_load_ecr_images(neo4j_session):
     actual_nodes = {(n["repo_image.id"], n["image.digest"]) for n in nodes}
     assert actual_nodes == expected_nodes
 
-    # Clean up the database after the test
-    neo4j_session.run("MATCH (n) detach delete n")
-
 
 @patch.object(
     cartography.intel.aws.ecr,
@@ -512,11 +509,16 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     - ECRImage nodes have correct type, architecture, os, variant fields
     - Attestations are included as type="attestation"
     """
+
+    # Remove everything previously put in the test graph since the fixture scope is set to module and not function.
+    neo4j_session.run(
+        """
+        MATCH (n) DETACH DELETE n;
+        """,
+    )
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-
-    # Mock the ECR client and its paginator methods
     mock_client = MagicMock()
 
     # Mock list_images paginator
@@ -565,7 +567,7 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert - Check that 4 ECRImage nodes were created (manifest list + 2 platform-specific + 1 attestation)
+    # Assert - Check that 4 ECRImage nodes were created (manifest list + 2 platform-specific + 1 attestation for the AMD64 image)
     ecr_images = neo4j_session.run(
         """
         MATCH (img:ECRImage)
@@ -580,22 +582,22 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     assert len(ecr_images) == 4
 
     # Manifest list image
-    manifest_list_img = [
+    manifest_list_img = next(
         img
         for img in ecr_images
         if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_DIGEST
-    ][0]
+    )
     assert manifest_list_img["type"] == "manifest_list"
     assert manifest_list_img["architecture"] is None
     assert manifest_list_img["os"] is None
     assert manifest_list_img["variant"] is None
 
     # AMD64 platform image
-    amd64_img = [
+    amd64_img = next(
         img
         for img in ecr_images
         if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST
-    ][0]
+    )
     assert amd64_img["type"] == "image"
     assert amd64_img["architecture"] == "amd64"
     assert amd64_img["os"] == "linux"
@@ -603,11 +605,11 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     assert amd64_img["media_type"] == "application/vnd.oci.image.manifest.v1+json"
 
     # ARM64 platform image
-    arm64_img = [
+    arm64_img = next(
         img
         for img in ecr_images
         if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST
-    ][0]
+    )
     assert arm64_img["type"] == "image"
     assert arm64_img["architecture"] == "arm64"
     assert arm64_img["os"] == "linux"
@@ -615,11 +617,11 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     assert arm64_img["media_type"] == "application/vnd.oci.image.manifest.v1+json"
 
     # Attestation image
-    attestation_img = [
+    attestation_img = next(
         img
         for img in ecr_images
         if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_ATTESTATION_DIGEST
-    ][0]
+    )
     assert attestation_img["type"] == "attestation"
     assert attestation_img["architecture"] == "unknown"
     assert attestation_img["os"] == "unknown"
@@ -632,22 +634,28 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
     assert attestation_img["media_type"] == "application/vnd.oci.image.manifest.v1+json"
 
     # Assert - Check that ECRRepositoryImage has relationships to all 4 images
-    repo_image_rels = neo4j_session.run(
-        """
-        MATCH (repo_img:ECRRepositoryImage)-[:IMAGE]->(img:ECRImage)
-        WHERE repo_img.id = '000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0'
-        RETURN img.digest AS digest
-        ORDER BY img.digest
-        """
-    ).data()
+    all_rels = check_rels(
+        neo4j_session,
+        "ECRRepositoryImage",
+        "id",
+        "ECRImage",
+        "digest",
+        "IMAGE",
+        rel_direction_right=True,
+    )
 
-    assert len(repo_image_rels) == 4
-    assert {rel["digest"] for rel in repo_image_rels} == {
+    # Filter to only relationships from our specific repository image
+    repo_image_id = (
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0"
+    )
+    image_digests = {
+        img_digest for (repo_id, img_digest) in all_rels if repo_id == repo_image_id
+    }
+
+    assert len(image_digests) == 4
+    assert image_digests == {
         tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
         tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST,
         tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST,
         tests.data.aws.ecr.MANIFEST_LIST_ATTESTATION_DIGEST,
     }
-
-    # Clean up the database after the test
-    neo4j_session.run("MATCH (n) detach delete n")

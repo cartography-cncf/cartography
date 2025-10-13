@@ -374,7 +374,6 @@ MULTI_ARCH_ARM64_CONFIG = {
     },
 }
 
-# Manifest list test data for integration tests
 MANIFEST_LIST_DIGEST = (
     "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 )
