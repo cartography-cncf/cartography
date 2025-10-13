@@ -187,7 +187,7 @@ def get_rest_api_resources_methods_integrations(
                 except ClientError as e:
                     error_code = e.response.get("Error", {}).get("Code")
                     if error_code == "NotFoundException":
-                        logger.debug(
+                        logger.warning(
                             "No integration found for API %s resource %s method %s: %s",
                             api["id"],
                             resource_id,
