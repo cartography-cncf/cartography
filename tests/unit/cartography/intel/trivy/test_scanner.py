@@ -401,7 +401,7 @@ def test_sync_single_image_from_s3_load_error(
 
 
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
-@patch("cartography.intel.trivy.scanner.get_json_files_in_s3")
+@patch("cartography.intel.trivy.get_json_files_in_s3")
 def test_sync_trivy_aws_ecr_from_s3_no_matches(
     mock_get_json_files,
     mock_get_targets_and_aliases,
@@ -426,15 +426,17 @@ def test_sync_trivy_aws_ecr_from_s3_no_matches(
         )
 
 
+@patch("cartography.intel.trivy.cleanup")
 @patch("cartography.intel.trivy.sync_single_image")
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
-@patch("cartography.intel.trivy.scanner.get_json_files_in_s3")
+@patch("cartography.intel.trivy.get_json_files_in_s3")
 @patch("boto3.Session")
 def test_sync_trivy_aws_ecr_from_s3_digest_files(
     mock_boto_session,
     mock_get_json_files,
     mock_get_targets_and_aliases,
     mock_sync_single_image,
+    mock_cleanup,
 ):
     """Ensure digest-named files are processed and mapped to the tag URI."""
     display_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/app:1.2.3"
