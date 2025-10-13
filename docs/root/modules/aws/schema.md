@@ -1884,11 +1884,21 @@ Representation of an ECR image identified by its digest (e.g. a SHA hash). Speci
 [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html). Also see
 ECRRepositoryImage.
 
+For multi-architecture images, Cartography creates ECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+
 | Field | Description |
 |--------|-----------|
 | digest | The hash of this ECR image |
 | **id** | Same as digest |
 | layer_diff_ids | Ordered list of image layer digests for this image. Mirrors the manifest order and includes duplicates (for example, the Docker empty layer). |
+| type | Type of image: `"image"` (platform-specific or single-arch image), `"manifest_list"` (multi-arch index), or `"attestation"` (attestation manifest) |
+| architecture | CPU architecture (e.g., `"amd64"`, `"arm64"`). Set to `"unknown"` for attestations, `null` for manifest lists. |
+| os | Operating system (e.g., `"linux"`, `"windows"`). Set to `"unknown"` for attestations, `null` for manifest lists. |
+| variant | Architecture variant (e.g., `"v8"` for ARM). Optional field. |
+| attestation_type | For attestations only: the type of attestation (e.g., `"attestation-manifest"`). `null` for regular images. |
+| attests_digest | For attestations only: the digest of the image this attestation is for. `null` for regular images. |
+| media_type | The OCI/Docker media type of this manifest (e.g., `"application/vnd.oci.image.manifest.v1+json"`) |
+| artifact_media_type | The artifact media type if this is an OCI artifact. Optional field. |
 
 #### Relationships
 
