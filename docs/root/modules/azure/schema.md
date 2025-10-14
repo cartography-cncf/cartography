@@ -1324,7 +1324,7 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```
-    
+
 ### AzureDataLakeFileSystem
 
 Representation of an [Azure Data Lake File System](https://learn.microsoft.com/en-us/rest/api/storagerp/blob-containers/get), which is a container within a Data Lake enabled Storage Account.
