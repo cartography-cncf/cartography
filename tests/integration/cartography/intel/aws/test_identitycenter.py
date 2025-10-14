@@ -1,3 +1,8 @@
+from unittest.mock import patch
+
+import botocore.exceptions
+
+import cartography.intel.aws.identitycenter
 import tests.data.aws.identitycenter
 from cartography.client.core.tx import load
 from cartography.intel.aws.identitycenter import load_identity_center_instances
@@ -352,3 +357,99 @@ def test_group_allowed_by_role(neo4j_session):
             group["GroupId"],
         )
     }
+
+
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_permission_sets",
+    side_effect=botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "The operation is not supported for this Identity Center instance",
+            }
+        },
+        operation_name="ListPermissionSets",
+    ),
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_identity_center_instances",
+    return_value=[
+        {
+            "InstanceArn": "arn:aws:sso:::instance/ssoins-test",
+            "IdentityStoreId": "d-test123",
+        }
+    ],
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_sso_users",
+    return_value=tests.data.aws.identitycenter.LIST_USERS,
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_sso_groups",
+    return_value=tests.data.aws.identitycenter.LIST_GROUPS,
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_user_group_memberships",
+    return_value={},
+)
+def test_sync_account_instance_skips_permission_sets(
+    mock_memberships,
+    mock_groups,
+    mock_users,
+    mock_instances,
+    mock_permission_sets,
+    neo4j_session,
+):
+    """
+    Test that account-scoped Identity Center instances gracefully skip permission set sync.
+
+    Account-scoped Identity Center instances don't support permission sets and return a
+    ValidationException when ListPermissionSets is called. This test verifies that:
+    1. Users and groups ARE synced successfully
+    2. Permission sets are NOT synced (no nodes created)
+    3. The sync doesn't crash
+    """
+    # Act - Call the sync function
+    cartography.intel.aws.identitycenter.sync_identity_center_instances(
+        neo4j_session,
+        boto3_session=None,  # Mocked via patches
+        regions=["us-east-1"],
+        current_aws_account_id=TEST_ACCOUNT_ID,
+        update_tag=123,
+        common_job_parameters={"AWS_ID": TEST_ACCOUNT_ID, "UPDATE_TAG": 123},
+    )
+
+    # Assert OUTCOME 1: Users ARE synced
+    expected_users = {
+        (user["UserId"],) for user in tests.data.aws.identitycenter.LIST_USERS
+    }
+    assert check_nodes(neo4j_session, "AWSSSOUser", ["id"]) == expected_users
+
+    # Assert OUTCOME 2: Groups ARE synced
+    expected_groups = {
+        (group["GroupId"],) for group in tests.data.aws.identitycenter.LIST_GROUPS
+    }
+    assert check_nodes(neo4j_session, "AWSSSOGroup", ["id"]) == expected_groups
+
+    # Assert OUTCOME 3: Permission sets are NOT synced for our test instance
+    # Query for permission sets belonging to our test instance
+    query = """
+    MATCH (i:AWSIdentityCenter {id: $instance_arn})-[:RESOURCE]->(ps:AWSPermissionSet)
+    RETURN ps.id as id
+    """
+    result = neo4j_session.run(query, instance_arn="arn:aws:sso:::instance/ssoins-test")
+    permission_sets_for_test_instance = {(record["id"],) for record in result}
+    assert (
+        permission_sets_for_test_instance == set()
+    ), f"Expected no permission sets for test instance, but found: {permission_sets_for_test_instance}"
+
+    # Assert OUTCOME 4: Our test instance is synced
+    all_instances = check_nodes(neo4j_session, "AWSIdentityCenter", ["id"])
+    assert (
+        "arn:aws:sso:::instance/ssoins-test",
+    ) in all_instances, f"Expected test instance to be synced, but it wasn't found. Instances: {all_instances}"

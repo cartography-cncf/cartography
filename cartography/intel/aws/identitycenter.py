@@ -6,6 +6,7 @@ from typing import Optional
 from typing import Union
 
 import boto3
+import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
@@ -30,6 +31,18 @@ from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _is_permission_set_sync_unsupported_error(
+    error: botocore.exceptions.ClientError,
+) -> bool:
+    """Return True when the Identity Center instance does not support permission sets."""
+    error_info = error.response.get("Error", {})
+    if error_info.get("Code") != "ValidationException":
+        return False
+
+    message = error_info.get("Message", "").lower()
+    return "not supported for this identity center instance" in message
 
 
 @timeit
@@ -508,32 +521,51 @@ def sync_identity_center_instances(
             instance_arn = instance["InstanceArn"]
             identity_store_id = instance["IdentityStoreId"]
 
-            permission_sets = get_permission_sets(boto3_session, instance_arn, region)
+            permission_set_sync_supported = True
+            try:
+                permission_sets = get_permission_sets(
+                    boto3_session, instance_arn, region
+                )
+            except botocore.exceptions.ClientError as error:
+                if _is_permission_set_sync_unsupported_error(error):
+                    permission_set_sync_supported = False
+                    permission_sets = []
+                    logger.warning(
+                        "Skipping permission set sync for Identity Center instance %s in region %s "
+                        "because the instance does not support permission sets.",
+                        instance_arn,
+                        region,
+                    )
+                else:
+                    raise
 
-            load_permission_sets(
-                neo4j_session,
-                permission_sets,
-                instance_arn,
-                region,
-                current_aws_account_id,
-                update_tag,
-            )
+            if permission_set_sync_supported:
+                load_permission_sets(
+                    neo4j_session,
+                    permission_sets,
+                    instance_arn,
+                    region,
+                    current_aws_account_id,
+                    update_tag,
+                )
 
             # Fetch groups first to avoid interleaving between groups and users
             groups = get_sso_groups(boto3_session, identity_store_id, region)
 
             # Get permission set assignments for groups
             group_permission_sets: Dict[str, List[str]] = {}
-            group_role_assignments_raw = get_group_role_assignments(
-                boto3_session,
-                groups,
-                instance_arn,
-                region,
-            )
-            for assignment in group_role_assignments_raw:
-                group_id = assignment["GroupId"]
-                perm_set = assignment["PermissionSetArn"]
-                group_permission_sets.setdefault(group_id, []).append(perm_set)
+            group_role_assignments_raw: List[Dict[str, Any]] = []
+            if permission_set_sync_supported:
+                group_role_assignments_raw = get_group_role_assignments(
+                    boto3_session,
+                    groups,
+                    instance_arn,
+                    region,
+                )
+                for assignment in group_role_assignments_raw:
+                    group_id = assignment["GroupId"]
+                    perm_set = assignment["PermissionSetArn"]
+                    group_permission_sets.setdefault(group_id, []).append(perm_set)
 
             # Transform and load groups with their permission set assignments FIRST
             # so that user->group membership edges can attach in the same run.
@@ -558,16 +590,18 @@ def sync_identity_center_instances(
 
             # Get direct permission set assignments for users
             user_permission_sets: Dict[str, List[str]] = {}
-            user_role_assignments_raw = get_role_assignments(
-                boto3_session,
-                users,
-                instance_arn,
-                region,
-            )
-            for assignment in user_role_assignments_raw:
-                uid = assignment["UserId"]
-                perm_set = assignment["PermissionSetArn"]
-                user_permission_sets.setdefault(uid, []).append(perm_set)
+            user_role_assignments_raw: List[Dict[str, Any]] = []
+            if permission_set_sync_supported:
+                user_role_assignments_raw = get_role_assignments(
+                    boto3_session,
+                    users,
+                    instance_arn,
+                    region,
+                )
+                for assignment in user_role_assignments_raw:
+                    uid = assignment["UserId"]
+                    perm_set = assignment["PermissionSetArn"]
+                    user_permission_sets.setdefault(uid, []).append(perm_set)
 
             # Transform and load users with their group memberships AFTER groups exist
             transformed_users = transform_sso_users(
@@ -588,28 +622,29 @@ def sync_identity_center_instances(
             # Note: we do this after groups and users are loaded so that
             # load_role_assignments calls can MATCH existing AWSSSOUser/AWSSSOGroup
             # nodes when drawing the ALLOWED_BY edges.
-            enriched_role_assignments = get_permset_roles(
-                neo4j_session,
-                user_role_assignments_raw,
-            )
-            load_role_assignments(
-                neo4j_session,
-                enriched_role_assignments,
-                current_aws_account_id,
-                update_tag,
-                RoleAssignmentAllowedByMatchLink(),
-            )
+            if permission_set_sync_supported:
+                enriched_role_assignments = get_permset_roles(
+                    neo4j_session,
+                    user_role_assignments_raw,
+                )
+                load_role_assignments(
+                    neo4j_session,
+                    enriched_role_assignments,
+                    current_aws_account_id,
+                    update_tag,
+                    RoleAssignmentAllowedByMatchLink(),
+                )
 
-            enriched_group_role_assignments = get_permset_roles(
-                neo4j_session,
-                group_role_assignments_raw,
-            )
-            load_role_assignments(
-                neo4j_session,
-                enriched_group_role_assignments,
-                current_aws_account_id,
-                update_tag,
-                RoleAssignmentAllowedByGroupMatchLink(),
-            )
+                enriched_group_role_assignments = get_permset_roles(
+                    neo4j_session,
+                    group_role_assignments_raw,
+                )
+                load_role_assignments(
+                    neo4j_session,
+                    enriched_group_role_assignments,
+                    current_aws_account_id,
+                    update_tag,
+                    RoleAssignmentAllowedByGroupMatchLink(),
+                )
 
     cleanup(neo4j_session, common_job_parameters)
