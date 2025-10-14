@@ -80,13 +80,10 @@ def _prepare_trivy_data(
     if artifact_name:
         candidates.append(artifact_name)
 
-    if isinstance(metadata, dict):
-        for key in ("RepoTags", "RepoDigests"):
-            values = metadata.get(key)
-            if isinstance(values, list):
-                candidates.extend(str(v).strip() for v in values if v)
-            elif isinstance(values, str):
-                candidates.append(values.strip())
+    repo_tags = metadata.get("RepoTags", [])
+    repo_digests = metadata.get("RepoDigests", [])
+    stripped_tags_digests = [item.strip() for item in repo_tags + repo_digests]
+    candidates.extend(stripped_tags_digests)
 
     display_uri: str | None = None
 
