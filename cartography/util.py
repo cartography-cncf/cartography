@@ -27,7 +27,6 @@ import botocore
 import neo4j
 from botocore.exceptions import EndpointConnectionError
 
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
@@ -154,6 +153,9 @@ def merge_module_sync_metadata(
     :param synced_type: The sub-module's type
     :param update_tag: Timestamp used to determine data freshness
     """
+    # Import here to avoid circular import with cartography.client.core.tx
+    from cartography.client.core.tx import run_write_query
+
     template = Template(
         """
         MERGE (n:ModuleSyncMetadata{id:'${group_type}_${group_id}_${synced_type}'})
