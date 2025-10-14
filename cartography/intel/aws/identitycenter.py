@@ -10,6 +10,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.models.aws.identitycenter.awsidentitycenter import (
     AWSIdentityCenterInstanceSchema,
@@ -394,8 +395,11 @@ def get_permset_roles(
     WHERE permset.arn IN $PermSetIds
     RETURN permset.arn AS PermissionSetArn, role.arn AS RoleArn
     """
-    result = neo4j_session.run(query, PermSetIds=permset_ids)
-    permset_to_role = [record.data() for record in result]
+    permset_to_role = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query,
+        PermSetIds=permset_ids,
+    )
 
     # Create mapping from permission set ARN to role ARN
     permset_to_role_map = {

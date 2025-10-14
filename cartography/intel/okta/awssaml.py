@@ -68,24 +68,25 @@ def query_for_okta_to_aws_role_mapping(
     :param neo4j_session: session from the Neo4j server
     :param mapping_regex: the regex used by the organization to map groups to aws roles
     """
-    query = "MATCH (app:OktaApplication{name:'amazon_aws'})--(group:OktaGroup) return group.id, group.name"
+    query = (
+        "MATCH (app:OktaApplication{name:'amazon_aws'})--(group:OktaGroup) "
+        "RETURN group.id AS group_id, group.name AS group_name"
+    )
 
     group_to_role_mapping: List[Dict] = []
-    has_results = False
-    results = neo4j_session.run(query)
+    results = neo4j_session.execute_read(read_list_of_dicts_tx, query)
 
     for res in results:
-        has_results = True
         # input: okta group id, okta group name. output: aws role arn.
         mapping = transform_okta_group_to_aws_role(
-            res["group.id"],
-            res["group.name"],
+            res["group_id"],
+            res["group_name"],
             mapping_regex,
         )
         if mapping:
             group_to_role_mapping.append(mapping)
 
-    if has_results and not group_to_role_mapping:
+    if results and not group_to_role_mapping:
         logger.warning(
             "AWS Okta Application present, but no mappings were found. "
             "Please verify the mapping regex is correct",

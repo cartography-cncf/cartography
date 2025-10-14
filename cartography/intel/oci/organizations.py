@@ -11,6 +11,7 @@ from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
 from oci.exceptions import ProfileNotFound
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 
 logger = logging.getLogger(__name__)
@@ -100,7 +101,8 @@ def load_oci_accounts(
     SET aa.lastupdated = $oci_update_tag, aa.name = $ACCOUNT_NAME
     """
     for name in oci_accounts:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             query,
             TENANCY_ID=oci_accounts[name]["tenancy"],
             ACCOUNT_NAME=name,

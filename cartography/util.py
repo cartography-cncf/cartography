@@ -27,6 +27,7 @@ import botocore
 import neo4j
 from botocore.exceptions import EndpointConnectionError
 
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
 from cartography.stats import get_stats_client
@@ -164,7 +165,8 @@ def merge_module_sync_metadata(
             n.lastupdated=$UPDATE_TAG
     """,
     )
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         template.safe_substitute(
             group_type=group_type,
             group_id=group_id,

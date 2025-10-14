@@ -72,7 +72,8 @@ def load_escalation_policy_data(
             for team in policy["teams"]:
                 teams.append({"escalation_policy": policy["id"], "team": team["id"]})
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         EscalationPolicies=data,
         update_tag=update_tag,
@@ -115,7 +116,8 @@ def _attach_rules(
                 elif target["type"] == "schedule":
                     schedules.append({"rule": rule["id"], "schedule": target["id"]})
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Rules=data,
         update_tag=update_tag,
@@ -140,7 +142,8 @@ def _attach_user_targets(
         MERGE (p)-[r:ASSOCIATED_WITH]->(u)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
@@ -162,7 +165,8 @@ def _attach_schedule_targets(
         MERGE (p)-[r:ASSOCIATED_WITH]->(s)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
@@ -184,7 +188,8 @@ def _attach_services(
         MERGE (s)-[r:ASSOCIATED_WITH]->(p)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
@@ -206,7 +211,8 @@ def _attach_teams(
         MERGE (t)-[r:ASSOCIATED_WITH]->(p)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,

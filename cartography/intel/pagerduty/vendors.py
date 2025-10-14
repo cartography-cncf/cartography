@@ -53,7 +53,8 @@ def load_vendor_data(
     """
     logger.info(f"Loading {len(data)} pagerduty vendors.")
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Vendors=data,
         update_tag=update_tag,
