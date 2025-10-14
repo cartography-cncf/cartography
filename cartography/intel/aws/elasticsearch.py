@@ -8,6 +8,7 @@ import botocore.config
 import neo4j
 from policyuniverse.policy import Policy
 
+from cartography.client.core.tx import run_write_query
 from cartography.intel.dns import ingest_dns_record_by_fqdn
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
@@ -95,7 +96,8 @@ def _load_es_domains(
     for d in domain_list:
         del d["ServiceSoftwareOptions"]
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_records,
         Records=domain_list,
         AWS_ACCOUNT_ID=aws_account_id,
@@ -179,7 +181,8 @@ def _link_es_domain_vpc(
         groupList = vpc_data.get("SecurityGroupIds", [])
 
         if len(subnetList) > 0:
-            neo4j_session.run(
+            run_write_query(
+                neo4j_session,
                 ingest_subnet,
                 DomainId=domain_id,
                 SubnetList=subnetList,
@@ -187,7 +190,8 @@ def _link_es_domain_vpc(
             )
 
         if len(groupList) > 0:
-            neo4j_session.run(
+            run_write_query(
+                neo4j_session,
                 ingest_sec_groups,
                 DomainId=domain_id,
                 SecGroupList=groupList,
@@ -220,7 +224,12 @@ def _process_access_policy(
         if policy.is_internet_accessible():
             exposed_internet = True
 
-    neo4j_session.run(tag_es, DomainId=domain_id, InternetExposed=exposed_internet)
+    run_write_query(
+        neo4j_session,
+        tag_es,
+        DomainId=domain_id,
+        InternetExposed=exposed_internet,
+    )
 
 
 @timeit
