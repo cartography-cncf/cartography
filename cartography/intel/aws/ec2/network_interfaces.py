@@ -98,6 +98,7 @@ def transform_network_interface_data(
                 "SourceDestCheck": network_interface["SourceDestCheck"],
                 "Status": network_interface["Status"],
                 "SubnetId": network_interface["SubnetId"],
+                "AttachTime": network_interface.get("Attachment", {}).get("AttachTime"),
                 "ElbV1Id": elb_v1_id,
                 "ElbV2Id": elb_v2_id,
             },

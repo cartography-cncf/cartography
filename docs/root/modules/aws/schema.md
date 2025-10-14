@@ -2525,6 +2525,7 @@ Representation of a generic Network Interface.  Currently however, we only creat
 | requester_managed  |  Indicates whether the interface is managed by the requester |
 | source_dest_check   | Indicates whether to validate network traffic to or from this network interface.  |
 | public_ip   | Public IPv4 address attached to the interface  |
+| attach_time | The timestamp when the network interface was attached to an EC2 instance. This is the time when the instance was launched [according to AWS](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html)(see the `launchTime` field there). |
 
 
 #### Relationships

@@ -109,3 +109,10 @@ def test_load_network_interfaces(mock_get_network_interfaces, neo4j_session):
         ("eni-0d9877f559c240362", "sg-0e866e64db0c84705"),
         ("eni-0e106a07c15ff7d14", "sg-0e866e64db0c84705"),
     }
+
+    # Assert NetworkInterface attach_time property is set correctly
+    assert check_nodes(neo4j_session, "NetworkInterface", ["id", "attach_time"]) == {
+        ("eni-0e106a07c15ff7d14", "2020-10-09 06:51:30+00:00"),
+        ("eni-0d9877f559c240362", "2020-10-09 06:47:06+00:00"),
+        ("eni-04b4289e1be7634e4", "2020-10-09 06:46:17+00:00"),
+    }
