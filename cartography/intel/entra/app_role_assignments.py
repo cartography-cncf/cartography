@@ -119,10 +119,17 @@ async def get_app_role_assignments_for_app(
         # Clear previous page before fetching next
         assignments_page.value = None
 
-        # Fetch next page
+        # Fetch next page using the SAME request builder to preserve response typing
+        # Using the root service_principals builder here can return ServicePrincipal objects,
+        # which lack AppRoleAssignment fields like principal_id. Stay on the
+        # app_role_assigned_to builder to ensure AppRoleAssignmentCollectionResponse typing.
         logger.debug(f"Fetching page {page_count + 1} of assignments for {app_id}")
         next_page_url = assignments_page.odata_next_link
-        assignments_page = await client.service_principals.with_url(next_page_url).get()
+        assignments_page = await (
+            client.service_principals.by_service_principal_id(service_principal_id)
+            .app_role_assigned_to.with_url(next_page_url)
+            .get()
+        )
 
     logger.info(
         f"Successfully retrieved {assignment_count} assignments for application {app_id} (pages: {page_count})"

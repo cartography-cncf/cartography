@@ -293,23 +293,23 @@ MULTI_ARCH_INDEX = {
     "manifests": [
         {
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "size": 2198,
             "platform": {"architecture": "amd64", "os": "linux"},
         },
         {
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             "size": 2198,
             "platform": {"architecture": "arm64", "os": "linux", "variant": "v8"},
         },
         {
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
             "size": 566,
             "annotations": {
                 "vnd.docker.reference.type": "attestation-manifest",
-                "vnd.docker.reference.digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "vnd.docker.reference.digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             },
             "platform": {"architecture": "unknown", "os": "unknown"},
         },
@@ -372,4 +372,44 @@ MULTI_ARCH_ARM64_CONFIG = {
             "sha256:diffarm6400000000000000000000000000000000000000000000000000000001",
         ],
     },
+}
+
+MANIFEST_LIST_DIGEST = (
+    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+MANIFEST_LIST_AMD64_DIGEST = (
+    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+MANIFEST_LIST_ARM64_DIGEST = (
+    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+)
+MANIFEST_LIST_ATTESTATION_DIGEST = (
+    "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+)
+
+# Mock response for batch_get_image when fetching manifest list
+BATCH_GET_MANIFEST_LIST_RESPONSE = {
+    "images": [
+        {
+            "imageManifest": json.dumps(MULTI_ARCH_INDEX),
+            "imageManifestMediaType": "application/vnd.oci.image.index.v1+json",
+            "imageId": {
+                "imageDigest": MANIFEST_LIST_DIGEST,
+            },
+            "registryId": "000000000000",
+            "repositoryName": "multi-arch-repository",
+        }
+    ]
+}
+
+# Image details for a multi-arch manifest list
+MULTI_ARCH_IMAGE_DETAILS = {
+    "registryId": "000000000000",
+    "repositoryName": "multi-arch-repository",
+    "imageDigest": MANIFEST_LIST_DIGEST,
+    "imageTags": ["v1.0"],
+    "imageSizeInBytes": 50000000,
+    "imagePushedAt": "2025-01-01T00:00:00.000000-00:00",
+    "imageManifestMediaType": "application/vnd.oci.image.index.v1+json",
+    "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00",
 }

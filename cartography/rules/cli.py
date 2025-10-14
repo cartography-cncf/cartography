@@ -47,19 +47,21 @@ def complete_frameworks_with_all(incomplete: str) -> Generator[str, None, None]:
 
 def complete_requirements(
     ctx: typer.Context, incomplete: str
-) -> Generator[str, None, None]:
-    """Autocomplete requirement IDs based on selected framework."""
+) -> Generator[tuple[str, str], None, None]:
+    """Autocomplete requirement IDs with descriptions based on selected framework."""
     framework = ctx.params.get("framework")
     if not framework or framework not in FRAMEWORKS:
         return
 
     for req in FRAMEWORKS[framework].requirements:
         if req.id.lower().startswith(incomplete.lower()):
-            yield req.id
+            yield (req.id, req.name)
 
 
-def complete_facts(ctx: typer.Context, incomplete: str) -> Generator[str, None, None]:
-    """Autocomplete fact IDs based on selected framework and requirement."""
+def complete_facts(
+    ctx: typer.Context, incomplete: str
+) -> Generator[tuple[str, str], None, None]:
+    """Autocomplete fact IDs with descriptions based on selected framework and requirement."""
     framework = ctx.params.get("framework")
     requirement_id = ctx.params.get("requirement")
 
@@ -73,7 +75,7 @@ def complete_facts(ctx: typer.Context, incomplete: str) -> Generator[str, None, 
         if req.id.lower() == requirement_id.lower():
             for fact in req.facts:
                 if fact.id.lower().startswith(incomplete.lower()):
-                    yield fact.id
+                    yield (fact.id, fact.name)
             break
 
 
