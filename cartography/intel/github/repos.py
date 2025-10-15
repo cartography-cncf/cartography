@@ -163,6 +163,12 @@ def _get_repo_collaborators_inner_func(
     result: dict[str, list[UserAffiliationAndRepoPermission]] = {}
 
     for repo in repo_raw_data:
+        if repo is None:
+            logger.debug(
+                "Skipping null repository entry while fetching %s collaborators.",
+                affiliation,
+            )
+            continue
         repo_name = repo["name"]
         repo_url = repo["url"]
 
@@ -340,6 +346,9 @@ def transform(
     transformed_dependencies: List[Dict] = []
     transformed_manifests: List[Dict] = []
     for repo_object in repos_json:
+        if repo_object is None:
+            logger.debug("Skipping null repository entry during transformation.")
+            continue
         _transform_repo_languages(
             repo_object["url"],
             repo_object,
