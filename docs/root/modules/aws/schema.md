@@ -1884,7 +1884,7 @@ Representation of an ECR image identified by its digest (e.g. a SHA hash). Speci
 [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html). Also see
 ECRRepositoryImage.
 
-For multi-architecture images, Cartography creates ECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+For multi-architecture images, Cartography creates ECRImage nodes for the manifest list, each platform-specific image, and any attestations. Note that manifest list nodes (where `type = "manifest_list"`) do not have HEAD, TAIL, or HAS_LAYER relationships - only the platform-specific image nodes have layer relationships.
 
 | Field | Description |
 |--------|-----------|
