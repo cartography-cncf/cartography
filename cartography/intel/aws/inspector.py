@@ -376,6 +376,7 @@ def _sync_findings_for_account(
                 )
             return
         else:
+            # Re-raise other types of errors
             raise
 
 
