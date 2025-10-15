@@ -1,6 +1,7 @@
 # Usage
 
 ```{toctree}
+rules
 tutorial
 drift-detect
 applications

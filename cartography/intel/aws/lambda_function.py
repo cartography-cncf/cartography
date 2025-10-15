@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 from typing import Dict
@@ -6,6 +7,7 @@ from typing import List
 import boto3
 import botocore
 import neo4j
+from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -36,7 +38,11 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     return lambda_functions
 
 
-def transform_lambda_functions(lambda_functions: List[Dict], region: str) -> List[Dict]:
+def transform_lambda_functions(
+    lambda_functions: List[Dict],
+    permissions_by_arn: Dict[str, Dict[str, Any]],
+    region: str,
+) -> List[Dict]:
     transformed_functions = []
 
     for function_data in lambda_functions:
@@ -47,6 +53,11 @@ def transform_lambda_functions(lambda_functions: List[Dict], region: str) -> Lis
         transformed_function["TracingConfigMode"] = tracing_config.get("Mode")
 
         transformed_function["Region"] = region
+
+        function_arn = function_data["FunctionArn"]
+        permission_data = permissions_by_arn[function_arn]
+        transformed_function["AnonymousAccess"] = permission_data["AnonymousAccess"]
+        transformed_function["AnonymousActions"] = permission_data["AnonymousActions"]
 
         transformed_functions.append(transformed_function)
 
@@ -124,6 +135,61 @@ def get_event_source_mappings(
         event_source_mappings.extend(page["EventSourceMappings"])
 
     return event_source_mappings
+
+
+@timeit
+@aws_handle_regions
+def get_lambda_permissions(
+    lambda_functions: List[Dict],
+    boto3_session: boto3.Session,
+    region: str,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Get Lambda permissions for the given functions in the specified region.
+    """
+    client = boto3_session.client("lambda", region_name=region)
+    all_permissions = {}
+    for function in lambda_functions:
+        function_name = function["FunctionName"]
+        function_arn = function["FunctionArn"]
+
+        all_permissions[function_arn] = {
+            "AnonymousAccess": None,
+            "AnonymousActions": None,
+        }
+
+        try:
+            response = client.get_policy(FunctionName=function_name)
+            policy = response.get("Policy")
+
+            if policy:
+                parsed_policy = parse_policy(function_arn, policy)
+                all_permissions[function_arn] = {
+                    "AnonymousAccess": parsed_policy.get("AnonymousAccess"),
+                    "AnonymousActions": parsed_policy.get("AnonymousActions"),
+                }
+        except client.exceptions.ResourceNotFoundException:
+            logger.debug(f"No policy found for Lambda function {function_name}")
+            pass
+        except Exception as e:
+            logger.warning(
+                f"Error getting policy for Lambda function {function_name}: {e}"
+            )
+
+    return all_permissions
+
+
+def parse_policy(function_arn: str, policy: str) -> Dict[str, Any]:
+    """
+    Parse the Lambda permission policy to extract anonymous access and actions.
+    """
+    policy_obj = Policy(json.loads(policy))
+    inet_actions = policy_obj.internet_accessible_actions()
+
+    return {
+        "AnonymousAccess": policy_obj.is_internet_accessible(),
+        "AnonymousActions": list(inet_actions) if inet_actions else [],
+    }
 
 
 @timeit
@@ -306,7 +372,8 @@ def sync(
 
         # Get and load core lambda functions
         data = get_lambda_data(boto3_session, region)
-        transformed_data = transform_lambda_functions(data, region)
+        permissions_by_arn = get_lambda_permissions(data, boto3_session, region)
+        transformed_data = transform_lambda_functions(data, permissions_by_arn, region)
         load_lambda_functions(
             neo4j_session,
             transformed_data,

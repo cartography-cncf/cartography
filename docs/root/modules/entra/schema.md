@@ -73,13 +73,18 @@ Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/us
 - Entra users can have a manager
 
     ```cypher
-    (:EntraUser)-[:MANAGES]->(:EntraUser)
+    (:EntraUser)-[:REPORTS_TO]->(:EntraUser)
     ```
 
 - Entra users can be owners of groups
 
     ```cypher
     (:EntraUser)-[:OWNER_OF]->(:EntraGroup)
+    ```
+
+- Entra users can sign on to AWSSSOUser via SAML federation to AWS Identity Center. See https://docs.aws.amazon.com/singlesignon/latest/userguide/idp-microsoft-entra.html and https://learn.microsoft.com/en-us/entra/identity/saas-apps/aws-single-sign-on-tutorial.
+    ```
+    (:EntraUser)-[:CAN_SIGN_ON_TO]->(:AWSSSOUser)
     ```
 
 ### EntraOU
@@ -177,6 +182,12 @@ Representation of an Entra [Application](https://learn.microsoft.com/en-us/graph
     (:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(:EntraApplication)
     ```
 
+- An Entra service principal is an instance of an Entra application deployed in an Entra tenant
+
+    ```cypher
+    (:EntraServicePrincipal)<-[:SERVICE_PRINCIPAL]-(:EntraApplication)
+    ```
+
 ### EntraAppRoleAssignment
 
 Representation of an Entra [App Role Assignment](https://learn.microsoft.com/en-us/graph/api/resources/approleassignment).
@@ -218,6 +229,50 @@ Representation of an Entra [App Role Assignment](https://learn.microsoft.com/en-
 
     ```cypher
     (:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(:EntraApplication)
+    ```
+
+### EntraServicePrincipal
+
+Representation of an Entra [Service Principal](https://learn.microsoft.com/en-us/graph/api/serviceprincipal-get?view=graph-rest-1.0&tabs=http).
+
+|Field | Description|
+|-------|-------------|
+|id | Entra Service Principal ID (GUID)|
+|app_id | Application (client) ID - the unique identifier for the application|
+|display_name | Display name of the service principal|
+|reply_urls | List of reply URLs for the service principal|
+|aws_identity_center_instance_id | AWS Identity Center instance ID extracted from reply URLs|
+|account_enabled | Whether the service principal account is enabled|
+|service_principal_type | Type of service principal (Application, ManagedIdentity, etc.)|
+|app_owner_organization_id | Organization ID that owns the application|
+|deleted_date_time | Date and time when the service principal was deleted (if applicable)|
+|homepage | Homepage URL of the application|
+|logout_url | Logout URL for the application|
+|preferred_single_sign_on_mode | Preferred single sign-on mode|
+|preferred_token_signing_key_thumbprint | Thumbprint of the preferred token signing key|
+|sign_in_audience | Audience that can sign in to the application|
+|tags | Tags associated with the service principal|
+|token_encryption_key_id | Key ID used for token encryption|
+|lastupdated | Timestamp of when this node was last updated in Cartography|
+
+#### Relationships
+
+- All Entra service principals are scoped to an Entra Tenant
+
+    ```cypher
+    (:EntraServicePrincipal)-[:RESOURCE]->(:EntraTenant)
+    ```
+
+- An Entra service principal is an instance of an Entra application deployed in an Entra tenant
+
+    ```cypher
+    (:EntraServicePrincipal)<-[:SERVICE_PRINCIPAL]-(:EntraApplication)
+    ```
+
+- Service principals can federate to AWS Identity Center via SAML
+
+    ```cypher
+    (:EntraServicePrincipal)-[:FEDERATES_TO]->(:AWSIdentityCenter)
     ```
 
 ## Example Queries

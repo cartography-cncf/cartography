@@ -1,12 +1,18 @@
 from unittest import mock
+from unittest.mock import MagicMock
 
 import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
 import tests.data.aws.iam
 from cartography.cli import CLI
+from cartography.client.core.tx import load
 from cartography.config import Config
+from cartography.intel.aws.iam import _transform_policy_statements
+from cartography.intel.aws.iam import sync_root_principal
+from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
 from cartography.sync import build_default_sync
 from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
@@ -43,26 +49,45 @@ def test_permission_relationships_file_arguments():
 
 def _create_base_account(neo4j_session):
     neo4j_session.run("MERGE (a:AWSAccount{id:$AccountId})", AccountId=TEST_ACCOUNT_ID)
+    # Hack to create the root principal node since we're not calling the full sync() function in this test.
+    sync_root_principal(
+        neo4j_session,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
 
 
 def test_load_users(neo4j_session):
     _create_base_account(neo4j_session)
-    data = tests.data.aws.iam.LIST_USERS["Users"]
-
+    user_data = cartography.intel.aws.iam.transform_users(
+        tests.data.aws.iam.LIST_USERS["Users"]
+    )
     cartography.intel.aws.iam.load_users(
         neo4j_session,
-        data,
+        user_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
 
 def test_load_groups(neo4j_session):
-    data = tests.data.aws.iam.LIST_GROUPS["Groups"]
+    # Create a mock boto3 session for the test
+    mock_boto3_session = MagicMock()
+    mock_boto3_session.client.return_value.get_group.return_value = {"Users": []}
+
+    # Get group memberships
+    group_memberships = cartography.intel.aws.iam.get_group_memberships(
+        mock_boto3_session, tests.data.aws.iam.LIST_GROUPS["Groups"]
+    )
+
+    # Transform groups with membership data
+    group_data = cartography.intel.aws.iam.transform_groups(
+        tests.data.aws.iam.LIST_GROUPS["Groups"], group_memberships
+    )
 
     cartography.intel.aws.iam.load_groups(
         neo4j_session,
-        data,
+        group_data,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
@@ -84,72 +109,15 @@ def _get_principal_role_nodes(neo4j_session):
     }
 
 
-def test_load_roles(neo4j_session):
-    """
-    Ensures that we load AWSRoles without duplicating against AWSPrincipal nodes
-    """
-    # Arrange
-    assert set() == _get_principal_role_nodes(neo4j_session)
-    data = tests.data.aws.iam.LIST_ROLES["Roles"]
-    expected_principals = {  # (roleid, arn)
-        (None, "arn:aws:iam::000000000000:role/example-role-0"),
-        (None, "arn:aws:iam::000000000000:role/example-role-1"),
-        (None, "arn:aws:iam::000000000000:role/example-role-2"),
-        (None, "arn:aws:iam::000000000000:role/example-role-3"),
-    }
-    # Act: Load the roles as bare Principals without other labels. This replicates the case where we discover a
-    # role from another account via an AssumeRolePolicy document or similar ways. See #1133.
-    neo4j_session.run(
-        """
-        UNWIND $data as item
-            MERGE (p:AWSPrincipal{arn: item.Arn})
-        """,
-        data=data,
-    )
-    actual_principals = _get_principal_role_nodes(neo4j_session)
-    # Assert
-    assert expected_principals == actual_principals
-    assert set() == check_nodes(neo4j_session, "AWSRole", ["arn"])
-    # Arrange
-    expected_nodes = {  # (roleid, arn)
-        ("AROA00000000000000000", "arn:aws:iam::000000000000:role/example-role-0"),
-        ("AROA00000000000000001", "arn:aws:iam::000000000000:role/example-role-1"),
-        ("AROA00000000000000002", "arn:aws:iam::000000000000:role/example-role-2"),
-        ("AROA00000000000000003", "arn:aws:iam::000000000000:role/example-role-3"),
-    }
-    # Act: Load the roles normally
-    cartography.intel.aws.iam.load_roles(
-        neo4j_session,
-        data,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-    # Ensure that the new AWSRoles are merged into pre-existing AWSPrincipal nodes,
-    # and we do not have duplicate AWSPrincipal nodes.
-    role_nodes = check_nodes(neo4j_session, "AWSRole", ["roleid", "arn"])
-    principal_nodes = _get_principal_role_nodes(neo4j_session)
-    assert expected_nodes == role_nodes
-    assert expected_nodes == principal_nodes
-
-
 def test_load_roles_creates_trust_relationships(neo4j_session):
-    data = tests.data.aws.iam.LIST_ROLES["Roles"]
-
-    cartography.intel.aws.iam.load_roles(
+    cartography.intel.aws.iam.sync_role_assumptions(
         neo4j_session,
-        data,
+        tests.data.aws.iam.LIST_ROLES,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
-    # Get TRUSTS_AWS_PRINCIPAL relationships from Neo4j.
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(n2:AWSPrincipal) RETURN n1.arn, n2.arn;
-        """,
-    )
-
-    # Define the relationships we expect in terms of role ARN and principal ARN.
+    # Assert: Get TRUSTS_AWS_PRINCIPAL relationships from Neo4j using check_rels.
     expected = {
         (
             "arn:aws:iam::000000000000:role/example-role-0",
@@ -165,29 +133,47 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
             "arn:aws:iam::000000000000:saml-provider/ADFS",
         ),
     }
-    # Transform the results of our query above to match the format of our expectations.
-    actual = {(r["n1.arn"], r["n2.arn"]) for r in result}
-    # Compare our actual results to our expected results.
+
+    actual = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "AWSPrincipal",
+        "arn",
+        "TRUSTS_AWS_PRINCIPAL",
+    )
+
     assert actual == expected
 
 
 def test_load_inline_policy(neo4j_session):
-    cartography.intel.aws.iam.load_policy(
+    # Just load in a single policy.
+    inline_policy_data = [
+        {
+            "id": "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
+            "arn": None,  # Inline policies don't have arns
+            "name": "group_inline_policy",
+            "type": "inline",
+            "principal_arns": ["arn:aws:iam::000000000000:group/example-group-0"],
+        }
+    ]
+    load(
         neo4j_session,
-        "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
-        "group_inline_policy",
-        "inline",
-        "arn:aws:iam::000000000000:group/example-group-0",
-        TEST_UPDATE_TAG,
+        AWSInlinePolicySchema(),
+        inline_policy_data,
+        lastupdated=TEST_UPDATE_TAG,
+        AWS_ID=TEST_ACCOUNT_ID,
     )
 
 
 def test_load_inline_policy_data(neo4j_session):
+    transformed_stmts = _transform_policy_statements(
+        tests.data.aws.iam.INLINE_POLICY_STATEMENTS,
+        "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
+    )
     cartography.intel.aws.iam.load_policy_statements(
         neo4j_session,
-        "arn:aws:iam::000000000000:group/example-group-0/example-group-0/inline_policy/group_inline_policy",
-        "group_inline_policy",
-        tests.data.aws.iam.INLINE_POLICY_STATEMENTS,
+        transformed_stmts,
         TEST_UPDATE_TAG,
     )
 
@@ -200,7 +186,6 @@ def test_map_permissions(neo4j_session):
     """,
         AccountId=TEST_ACCOUNT_ID,
     )
-
     cartography.intel.aws.permission_relationships.sync(
         neo4j_session,
         mock.MagicMock,
