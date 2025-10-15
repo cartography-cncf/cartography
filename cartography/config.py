@@ -76,6 +76,8 @@ class Config:
     :param digitalocean_token: DigitalOcean access token. Optional.
     :type permission_relationships_file: str
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
+    :type azure_permission_relationships_file: str
+    :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
     :type jamf_base_uri: string
     :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.com/JSSResource. Optional.
     :type jamf_user: string
@@ -215,6 +217,7 @@ class Config:
         github_commit_lookback_days=30,
         digitalocean_token=None,
         permission_relationships_file=None,
+        azure_permission_relationships_file=None,
         jamf_base_uri=None,
         jamf_user=None,
         jamf_password=None,
@@ -307,6 +310,7 @@ class Config:
         self.github_commit_lookback_days = github_commit_lookback_days
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
+        self.azure_permission_relationships_file = azure_permission_relationships_file
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password

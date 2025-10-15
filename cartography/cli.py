@@ -355,6 +355,15 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--azure-permission-relationships-file",
+            type=str,
+            default="cartography/data/azure_permission_relationships.yaml",
+            help=(
+                "The path to the Azure permission relationships mapping file."
+                "If omitted the default Azure permission relationships will be created"
+            ),
+        )
+        parser.add_argument(
             "--jamf-base-uri",
             type=str,
             default=None,
