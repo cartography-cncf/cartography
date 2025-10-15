@@ -327,7 +327,9 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                 error_message = e.response.get("Error", {}).get("Message")
                 if is_service_control_policy_explicit_deny(e):
                     logger.warning(
-                        "Service control policy denied access while calling %s: %s", func.__name__, error_message
+                        "Service control policy denied access while calling %s: %s",
+                        func.__name__,
+                        error_message,
                     )
                 else:
                     logger.warning(
