@@ -21,6 +21,7 @@ from cartography.util import batch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
 # As of 7/1/25, Inspector is only available in the below regions. We will need to update this hardcoded list here over
 # time. :\ https://docs.aws.amazon.com/general/latest/gr/inspector2.html
 AWS_INSPECTOR_REGIONS = {
