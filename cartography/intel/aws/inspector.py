@@ -21,6 +21,7 @@ from cartography.util import batch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
 # As of 7/1/25, Inspector is only available in the below regions. We will need to update this hardcoded list here over
 # time. :\ https://docs.aws.amazon.com/general/latest/gr/inspector2.html
 AWS_INSPECTOR_REGIONS = {
@@ -101,12 +102,10 @@ def get_inspector_findings(
             ],
         }
     }
-
-    for findings_batch in batch(
-        aws_paginate(client, "list_findings", "findings", None, **aws_args),
-        BATCH_SIZE,
-    ):
-        yield findings_batch
+    findings_batches = batch(
+        aws_paginate(client, "list_findings", "findings", None, **aws_args), BATCH_SIZE
+    )
+    yield from findings_batches
 
 
 def transform_inspector_findings(
