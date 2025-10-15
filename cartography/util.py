@@ -35,6 +35,22 @@ from cartography.stats import ScopedStatsClient
 logger = logging.getLogger(__name__)
 
 
+def is_service_control_policy_explicit_deny(
+    error: botocore.exceptions.ClientError,
+) -> bool:
+    """Return True if the ClientError was caused by an explicit service control policy deny."""
+    error_code = error.response.get("Error", {}).get("Code")
+    if error_code not in {"AccessDenied", "AccessDeniedException"}:
+        return False
+
+    message = error.response.get("Error", {}).get("Message")
+    if not message:
+        return False
+
+    lowered = message.lower()
+    return "explicit deny" in lowered and "service control policy" in lowered
+
+
 STATUS_SUCCESS = 0
 STATUS_FAILURE = 1
 STATUS_KEYBOARD_INTERRUPT = 130
@@ -308,11 +324,17 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             # The account is not authorized to use this service in this region
             # so we can continue without raising an exception
             if error_code in ERROR_CODES:
-                logger.warning(
-                    "{} in this region. Skipping...".format(
-                        e.response["Error"]["Message"],
-                    ),
-                )
+                error_message = e.response.get("Error", {}).get("Message")
+                if is_service_control_policy_explicit_deny(e):
+                    logger.warning(
+                        "Service control policy denied access while calling %s: %s", func.__name__, error_message
+                    )
+                else:
+                    logger.warning(
+                        "{} in this region. Skipping...".format(
+                            error_message,
+                        ),
+                    )
                 return []
             else:
                 raise
