@@ -284,7 +284,7 @@ class CLI:
             type=int,
             default=1000,
             help=(
-                "Batch size for AWS Inspector findings sync. Controls how many findings are fetched and processed at a time. "
+                "Batch size for AWS Inspector findings sync. Controls how many findings are fetched, processed and cleaned up at a time. "
                 "Default is 1000. Increase this value if you have a large number of findings and want to reduce API calls, "
                 "or decrease it if you're experiencing memory issues."
             ),

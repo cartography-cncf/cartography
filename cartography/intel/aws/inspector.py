@@ -272,19 +272,25 @@ def load_inspector_finding_to_package_match_links(
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
+    batch_size: int = BATCH_SIZE,
 ) -> None:
     logger.info("Running AWS Inspector cleanup")
-    GraphJob.from_node_schema(AWSInspectorFindingSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(AWSInspectorPackageSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
     GraphJob.from_matchlink(
         InspectorFindingToPackageMatchLink(),
         "AWSAccount",
         common_job_parameters["ACCOUNT_ID"],
         common_job_parameters["UPDATE_TAG"],
+        iterationsize=batch_size,
+    ).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(
+        AWSInspectorPackageSchema(), common_job_parameters, iterationsize=batch_size
+    ).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(
+        AWSInspectorFindingSchema(), common_job_parameters, iterationsize=batch_size
     ).run(
         neo4j_session,
     )
@@ -369,6 +375,6 @@ def sync(
                 current_aws_account_id,
                 batch_size,
             )
-        common_job_parameters["ACCOUNT_ID"] = current_aws_account_id
-        common_job_parameters["UPDATE_TAG"] = update_tag
-        cleanup(neo4j_session, common_job_parameters)
+    common_job_parameters["ACCOUNT_ID"] = current_aws_account_id
+    common_job_parameters["UPDATE_TAG"] = update_tag
+    cleanup(neo4j_session, common_job_parameters, batch_size)
