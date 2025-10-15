@@ -246,15 +246,19 @@ def test_shared_layers_preserve_multiple_next_edges():
     # Image A: layer1 → layer2 → layer3
     # Image B: layer1 → layer2 → layer4
 
+    # After the fix, image_layers_data is keyed by digest, not URI
+    digest_a = "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+    digest_b = "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
+
     image_layers_data = {
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-a:v1": {
+        digest_a: {
             "linux/amd64": [
                 "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # shared
                 "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # shared
                 "sha256:3333333333333333333333333333333333333333333333333333333333333333",  # unique to A
             ]
         },
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-b:v1": {
+        digest_b: {
             "linux/amd64": [
                 "sha256:1111111111111111111111111111111111111111111111111111111111111111",  # shared
                 "sha256:2222222222222222222222222222222222222222222222222222222222222222",  # shared
@@ -264,8 +268,8 @@ def test_shared_layers_preserve_multiple_next_edges():
     }
 
     image_digest_map = {
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-a:v1": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001",
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-b:v1": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-a:v1": digest_a,
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/service-b:v1": digest_b,
     }
 
     layers, memberships = ecr_layers.transform_ecr_image_layers(
@@ -298,7 +302,7 @@ def test_shared_layers_preserve_multiple_next_edges():
         (m["imageDigest"], tuple(m["layer_diff_ids"])) for m in memberships
     }
     assert (
-        "sha256:aaaa000000000000000000000000000000000000000000000000000000000001",
+        digest_a,
         (
             "sha256:1111111111111111111111111111111111111111111111111111111111111111",
             "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -306,7 +310,7 @@ def test_shared_layers_preserve_multiple_next_edges():
         ),
     ) in membership_pairs
     assert (
-        "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
+        digest_b,
         (
             "sha256:1111111111111111111111111111111111111111111111111111111111111111",
             "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -316,16 +320,17 @@ def test_shared_layers_preserve_multiple_next_edges():
 
 
 def test_transform_marks_empty_layer():
+    test_digest = "sha256:image"
     layers, _ = ecr_layers.transform_ecr_image_layers(
         {
-            "repo/image:tag": {
+            test_digest: {
                 "linux/amd64": [
                     ecr_layers.EMPTY_LAYER_DIFF_ID,
                     "sha256:abcdef0123456789",
                 ],
             },
         },
-        {"repo/image:tag": "sha256:image"},
+        {"repo/image:tag": test_digest},
     )
 
     empty_layer = next(
@@ -397,10 +402,10 @@ def test_sync_built_from_relationship(
 
     mock_fetch_layers.return_value = (
         {
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": {
+            parent_digest: {
                 "linux/amd64": test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
             },
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": {
+            child_digest: {
                 "linux/amd64": test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
             },
         },
@@ -409,11 +414,12 @@ def test_sync_built_from_relationship(
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": child_digest,
         },
         {
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": {
+            child_digest: {
                 "parent_image_uri": "pkg:docker/000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository@1",
                 "parent_image_digest": parent_digest,
             }
         },
+        set(),  # No manifest lists in this test
     )
 
     sync_ecr_layers(
@@ -556,7 +562,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, attestation_map = (
+    image_layers_data, digest_map, attestation_map, manifest_list_digests = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -564,12 +570,29 @@ async def test_fetch_image_layers_async_handles_manifest_list(
         )
     )
 
-    assert image_layers_data == {
-        repo_image["uri"]: {
-            "linux/amd64": test_data.MULTI_ARCH_AMD64_CONFIG["rootfs"]["diff_ids"],
-            "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"]["diff_ids"],
-        }
+    # With the fix, image_layers_data should be keyed by platform-specific digests, not the manifest list URI
+    assert len(image_layers_data) == 2  # Two platform images (amd64, arm64)
+    assert (
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        in image_layers_data
+    )
+    assert (
+        "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        in image_layers_data
+    )
+    assert image_layers_data[
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    ] == {
+        "linux/amd64": test_data.MULTI_ARCH_AMD64_CONFIG["rootfs"]["diff_ids"],
     }
+    assert image_layers_data[
+        "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    ] == {
+        "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"]["diff_ids"],
+    }
+
+    # The manifest list digest should be tracked
+    assert repo_image["imageDigest"] in manifest_list_digests
     assert digest_map == {repo_image["uri"]: repo_image["imageDigest"]}
 
 
@@ -594,7 +617,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
         ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map, attestation_map = (
+    image_layers_data, digest_map, attestation_map, manifest_list_digests = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -604,6 +627,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
 
     assert image_layers_data == {}
     assert digest_map == {}
+    assert manifest_list_digests == set()
 
 
 @patch("cartography.client.aws.ecr.get_ecr_images")

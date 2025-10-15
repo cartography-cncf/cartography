@@ -190,6 +190,52 @@ def test_transform_layers_creates_graph_structure():
     assert observed_memberships == expected_memberships
 
 
+def test_transform_skips_manifest_list_relationships():
+    """Manifest lists should not create memberships or HEAD/TAIL links."""
+    manifest_list_uri = (
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch@sha256:manifest"
+    )
+    manifest_list_digest = "sha256:manifest"
+    child_digest = "sha256:child"
+    diff_ids = [
+        "sha256:layer1",
+        "sha256:layer2",
+    ]
+
+    # Manifest list digest should have no entry, only the child platform image
+    image_layers_data = {
+        child_digest: {
+            "linux/amd64": diff_ids,
+        },
+    }
+
+    image_digest_map = {
+        manifest_list_uri: manifest_list_digest,
+    }
+
+    layers, memberships = transform_ecr_image_layers(
+        image_layers_data,
+        image_digest_map,
+        manifest_list_digests={manifest_list_digest},
+    )
+
+    # Only the child digest should produce a membership record
+    assert len(memberships) == 1
+    assert memberships[0]["imageDigest"] == child_digest
+
+    # Ensure HEAD/TAIL links only reference the child digest
+    head_layer = next(layer for layer in layers if layer["diff_id"] == diff_ids[0])
+    assert set(head_layer["head_image_ids"]) == {child_digest}
+
+    tail_layer = next(layer for layer in layers if layer["diff_id"] == diff_ids[-1])
+    assert set(tail_layer["tail_image_ids"]) == {child_digest}
+
+    # Verify manifest list digest doesn't appear in any layer relationships
+    for layer in layers:
+        assert manifest_list_digest not in layer.get("head_image_ids", [])
+        assert manifest_list_digest not in layer.get("tail_image_ids", [])
+
+
 def test_transform_ecr_image_layers_with_attestation_data():
     """Test that attestation data is correctly added to memberships."""
     image_layers_data = {
