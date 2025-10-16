@@ -698,7 +698,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
@@ -768,15 +768,14 @@ def sync(
                 dict[str, str],
                 dict[str, dict[str, str]],
             ]:
-                # Use credentials from the existing boto3 session
-                credentials = boto3_session.get_credentials()
-                session = aioboto3.Session(
-                    aws_access_key_id=credentials.access_key,
-                    aws_secret_access_key=credentials.secret_key,
-                    aws_session_token=credentials.token,
-                    region_name=region,
+                # Attempt to reuse underlying botocore session, otherwise create a new one
+                botocore_session = getattr(boto3_session, "_session", None)
+                session = (
+                    aioboto3.Session(botocore_session=botocore_session)
+                    if botocore_session is not None
+                    else aioboto3.Session()
                 )
-                async with session.client("ecr") as ecr_client:
+                async with session.client("ecr", region_name=region) as ecr_client:
                     return await fetch_image_layers_async(ecr_client, repo_images_list)
 
             # Use get_event_loop() + run_until_complete() to avoid tearing down loop
