@@ -280,10 +280,11 @@ class CLI:
             ),
         )
         parser.add_argument(
-            "--aws-inspector-batch-size",
+            "--experimental-aws-inspector-batch",
             type=int,
             default=1000,
             help=(
+                "EXPERIMENTAL: This feature is experimental and may be removed in the future. "
                 "Batch size for AWS Inspector findings sync. Controls how many findings are fetched, processed and cleaned up at a time. "
                 "Default is 1000. Increase this value if you have a large number of findings and want to reduce API calls, "
                 "or decrease it if you're experiencing memory issues."
