@@ -351,7 +351,9 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    batch_size = common_job_parameters.get("experimental_aws_inspector_batch", BATCH_SIZE)
+    batch_size = common_job_parameters.get(
+        "experimental_aws_inspector_batch", BATCH_SIZE
+    )
 
     inspector_regions = [
         region for region in regions if region in AWS_INSPECTOR_REGIONS
