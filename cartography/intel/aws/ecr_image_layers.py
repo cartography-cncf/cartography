@@ -12,7 +12,6 @@ from typing import Any
 from typing import Optional
 
 import aioboto3
-import boto3
 import httpx
 import neo4j
 from botocore.exceptions import ClientError
@@ -698,7 +697,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.Session,
+    aioboto3_session: aioboto3.Session,
     regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
@@ -768,14 +767,9 @@ def sync(
                 dict[str, str],
                 dict[str, dict[str, str]],
             ]:
-                # Attempt to reuse underlying botocore session, otherwise create a new one
-                botocore_session = getattr(boto3_session, "_session", None)
-                session = (
-                    aioboto3.Session(botocore_session=botocore_session)
-                    if botocore_session is not None
-                    else aioboto3.Session()
-                )
-                async with session.client("ecr", region_name=region) as ecr_client:
+                async with aioboto3_session.client(
+                    "ecr", region_name=region
+                ) as ecr_client:
                     return await fetch_image_layers_async(ecr_client, repo_images_list)
 
             # Use get_event_loop() + run_until_complete() to avoid tearing down loop
