@@ -650,7 +650,9 @@ def test_sync_multi_region_event_loop_preserved(
             "registryId": "000000000000",
             "repositoryName": "multi-arch-repository",
             "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository",
-            "createdAt": test_data.DESCRIBE_REPOSITORIES["repositories"][0]["createdAt"],
+            "createdAt": test_data.DESCRIBE_REPOSITORIES["repositories"][0][
+                "createdAt"
+            ],
         }
     ],
 )
@@ -731,7 +733,9 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # Verify manifest list has correct properties
     manifest_list_before = next(
-        img for img in ecr_images_before if img["digest"] == test_data.MANIFEST_LIST_DIGEST
+        img
+        for img in ecr_images_before
+        if img["digest"] == test_data.MANIFEST_LIST_DIGEST
     )
     assert manifest_list_before["type"] == "manifest_list"
     assert manifest_list_before["architecture"] is None
@@ -739,7 +743,9 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # Verify AMD64 image has correct properties
     amd64_before = next(
-        img for img in ecr_images_before if img["digest"] == test_data.MANIFEST_LIST_AMD64_DIGEST
+        img
+        for img in ecr_images_before
+        if img["digest"] == test_data.MANIFEST_LIST_AMD64_DIGEST
     )
     assert amd64_before["type"] == "image"
     assert amd64_before["architecture"] == "amd64"
@@ -748,7 +754,9 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # Verify ARM64 image has correct properties
     arm64_before = next(
-        img for img in ecr_images_before if img["digest"] == test_data.MANIFEST_LIST_ARM64_DIGEST
+        img
+        for img in ecr_images_before
+        if img["digest"] == test_data.MANIFEST_LIST_ARM64_DIGEST
     )
     assert arm64_before["type"] == "image"
     assert arm64_before["architecture"] == "arm64"
@@ -766,18 +774,24 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     assert attestation_before["os"] == "unknown"
 
     # Act 2: Run ECR layers sync
-    # Mock fetch_image_layers_async to return layer data for the manifest list
+    # Mock fetch_image_layers_async to return layer data for platform-specific images only
+    # (NOT manifest list or attestations - they're filtered out before fetching)
     mock_fetch_layers.return_value = (
-        # image_layers_data
+        # image_layers_data - keyed by the platform-specific image URIs
         {
-            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_DIGEST}": {
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_AMD64_DIGEST}": {
                 "linux/amd64": test_data.MULTI_ARCH_AMD64_CONFIG["rootfs"]["diff_ids"],
-                "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"]["diff_ids"],
-            }
+            },
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_ARM64_DIGEST}": {
+                "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"][
+                    "diff_ids"
+                ],
+            },
         },
         # image_digest_map
         {
-            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_DIGEST}": test_data.MANIFEST_LIST_DIGEST,
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_AMD64_DIGEST}": test_data.MANIFEST_LIST_AMD64_DIGEST,
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_ARM64_DIGEST}": test_data.MANIFEST_LIST_ARM64_DIGEST,
         },
         # image_attestation_map (empty)
         {},
@@ -806,15 +820,21 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # Verify manifest list STILL has correct properties
     manifest_list_after = next(
-        img for img in ecr_images_after if img["digest"] == test_data.MANIFEST_LIST_DIGEST
+        img
+        for img in ecr_images_after
+        if img["digest"] == test_data.MANIFEST_LIST_DIGEST
     )
-    assert manifest_list_after["type"] == "manifest_list", "Manifest list type was overwritten!"
+    assert (
+        manifest_list_after["type"] == "manifest_list"
+    ), "Manifest list type was overwritten!"
     assert manifest_list_after["architecture"] is None
     assert manifest_list_after["os"] is None
 
     # Verify AMD64 image STILL has correct properties
     amd64_after = next(
-        img for img in ecr_images_after if img["digest"] == test_data.MANIFEST_LIST_AMD64_DIGEST
+        img
+        for img in ecr_images_after
+        if img["digest"] == test_data.MANIFEST_LIST_AMD64_DIGEST
     )
     assert amd64_after["type"] == "image", "AMD64 image type was overwritten!"
     assert amd64_after["architecture"] == "amd64", "AMD64 architecture was overwritten!"
@@ -823,7 +843,9 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # Verify ARM64 image STILL has correct properties
     arm64_after = next(
-        img for img in ecr_images_after if img["digest"] == test_data.MANIFEST_LIST_ARM64_DIGEST
+        img
+        for img in ecr_images_after
+        if img["digest"] == test_data.MANIFEST_LIST_ARM64_DIGEST
     )
     assert arm64_after["type"] == "image", "ARM64 image type was overwritten!"
     assert arm64_after["architecture"] == "arm64", "ARM64 architecture was overwritten!"
@@ -832,20 +854,69 @@ def test_sync_layers_preserves_multi_arch_image_properties(
 
     # Verify attestation STILL has correct properties
     attestation_after = next(
-        img for img in ecr_images_after if img["digest"] == test_data.MANIFEST_LIST_ATTESTATION_DIGEST
+        img
+        for img in ecr_images_after
+        if img["digest"] == test_data.MANIFEST_LIST_ATTESTATION_DIGEST
     )
-    assert attestation_after["type"] == "attestation", "Attestation type was overwritten!"
-    assert attestation_after["architecture"] == "unknown", "Attestation architecture was overwritten!"
+    assert (
+        attestation_after["type"] == "attestation"
+    ), "Attestation type was overwritten!"
+    assert (
+        attestation_after["architecture"] == "unknown"
+    ), "Attestation architecture was overwritten!"
     assert attestation_after["os"] == "unknown", "Attestation os was overwritten!"
 
-    # Also verify that layer_diff_ids was added by the layer sync
-    manifest_list_with_layers = neo4j_session.run(
+    # Verify that manifest list does NOT have layer_diff_ids (should be skipped)
+    manifest_list_layers = neo4j_session.run(
         """
         MATCH (img:ECRImage {digest: $digest})
         RETURN img.layer_diff_ids AS layer_diff_ids
         """,
         digest=test_data.MANIFEST_LIST_DIGEST,
     ).single()
-    assert manifest_list_with_layers is not None
-    assert manifest_list_with_layers["layer_diff_ids"] is not None
-    assert len(manifest_list_with_layers["layer_diff_ids"]) > 0
+    assert manifest_list_layers is not None
+    # Manifest lists should NOT have layers
+    assert (
+        manifest_list_layers["layer_diff_ids"] is None
+    ), "Manifest list should not have layers!"
+
+    # Verify that attestations do NOT have layer_diff_ids either
+    attestation_layers = neo4j_session.run(
+        """
+        MATCH (img:ECRImage {digest: $digest})
+        RETURN img.layer_diff_ids AS layer_diff_ids
+        """,
+        digest=test_data.MANIFEST_LIST_ATTESTATION_DIGEST,
+    ).single()
+    assert attestation_layers is not None
+    # Attestations should NOT have layers
+    assert (
+        attestation_layers["layer_diff_ids"] is None
+    ), "Attestations should not have layers!"
+
+    # But platform-specific images (type="image") SHOULD have layers
+    amd64_layers = neo4j_session.run(
+        """
+        MATCH (img:ECRImage {digest: $digest})
+        RETURN img.layer_diff_ids AS layer_diff_ids
+        """,
+        digest=test_data.MANIFEST_LIST_AMD64_DIGEST,
+    ).single()
+    assert amd64_layers is not None
+    assert (
+        amd64_layers["layer_diff_ids"] is not None
+    ), "AMD64 platform image should have layers!"
+    assert len(amd64_layers["layer_diff_ids"]) == 2  # From MULTI_ARCH_AMD64_CONFIG
+
+    arm64_layers = neo4j_session.run(
+        """
+        MATCH (img:ECRImage {digest: $digest})
+        RETURN img.layer_diff_ids AS layer_diff_ids
+        """,
+        digest=test_data.MANIFEST_LIST_ARM64_DIGEST,
+    ).single()
+    assert arm64_layers is not None
+    assert (
+        arm64_layers["layer_diff_ids"] is not None
+    ), "ARM64 platform image should have layers!"
+    assert len(arm64_layers["layer_diff_ids"]) == 1  # From MULTI_ARCH_ARM64_CONFIG
