@@ -720,58 +720,14 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     )
 
     # Assert 1: Verify ECRImage nodes have type, architecture, os, variant set
-    ecr_images_before = neo4j_session.run(
-        """
-        MATCH (img:ECRImage)
-        RETURN img.digest AS digest, img.type AS type, img.architecture AS architecture,
-               img.os AS os, img.variant AS variant
-        ORDER BY img.digest
-        """
-    ).data()
-
-    assert len(ecr_images_before) == 4
-
-    # Verify manifest list has correct properties
-    manifest_list_before = next(
-        img
-        for img in ecr_images_before
-        if img["digest"] == test_data.MANIFEST_LIST_DIGEST
-    )
-    assert manifest_list_before["type"] == "manifest_list"
-    assert manifest_list_before["architecture"] is None
-    assert manifest_list_before["os"] is None
-
-    # Verify AMD64 image has correct properties
-    amd64_before = next(
-        img
-        for img in ecr_images_before
-        if img["digest"] == test_data.MANIFEST_LIST_AMD64_DIGEST
-    )
-    assert amd64_before["type"] == "image"
-    assert amd64_before["architecture"] == "amd64"
-    assert amd64_before["os"] == "linux"
-    assert amd64_before["variant"] is None
-
-    # Verify ARM64 image has correct properties
-    arm64_before = next(
-        img
-        for img in ecr_images_before
-        if img["digest"] == test_data.MANIFEST_LIST_ARM64_DIGEST
-    )
-    assert arm64_before["type"] == "image"
-    assert arm64_before["architecture"] == "arm64"
-    assert arm64_before["os"] == "linux"
-    assert arm64_before["variant"] == "v8"
-
-    # Verify attestation has correct properties
-    attestation_before = next(
-        img
-        for img in ecr_images_before
-        if img["digest"] == test_data.MANIFEST_LIST_ATTESTATION_DIGEST
-    )
-    assert attestation_before["type"] == "attestation"
-    assert attestation_before["architecture"] == "unknown"
-    assert attestation_before["os"] == "unknown"
+    assert check_nodes(
+        neo4j_session, "ECRImage", ["digest", "type", "architecture"]
+    ) == {
+        (test_data.MANIFEST_LIST_DIGEST, "manifest_list", None),
+        (test_data.MANIFEST_LIST_AMD64_DIGEST, "image", "amd64"),
+        (test_data.MANIFEST_LIST_ARM64_DIGEST, "image", "arm64"),
+        (test_data.MANIFEST_LIST_ATTESTATION_DIGEST, "attestation", "unknown"),
+    }
 
     # Act 2: Run ECR layers sync
     # Mock fetch_image_layers_async to return layer data for platform-specific images only
@@ -807,64 +763,14 @@ def test_sync_layers_preserves_multi_arch_image_properties(
     )
 
     # Assert 2: Verify ECRImage properties are PRESERVED after layer sync (not overwritten to NULL)
-    ecr_images_after = neo4j_session.run(
-        """
-        MATCH (img:ECRImage)
-        RETURN img.digest AS digest, img.type AS type, img.architecture AS architecture,
-               img.os AS os, img.variant AS variant
-        ORDER BY img.digest
-        """
-    ).data()
-
-    assert len(ecr_images_after) == 4
-
-    # Verify manifest list STILL has correct properties
-    manifest_list_after = next(
-        img
-        for img in ecr_images_after
-        if img["digest"] == test_data.MANIFEST_LIST_DIGEST
-    )
-    assert (
-        manifest_list_after["type"] == "manifest_list"
-    ), "Manifest list type was overwritten!"
-    assert manifest_list_after["architecture"] is None
-    assert manifest_list_after["os"] is None
-
-    # Verify AMD64 image STILL has correct properties
-    amd64_after = next(
-        img
-        for img in ecr_images_after
-        if img["digest"] == test_data.MANIFEST_LIST_AMD64_DIGEST
-    )
-    assert amd64_after["type"] == "image", "AMD64 image type was overwritten!"
-    assert amd64_after["architecture"] == "amd64", "AMD64 architecture was overwritten!"
-    assert amd64_after["os"] == "linux", "AMD64 os was overwritten!"
-    assert amd64_after["variant"] is None
-
-    # Verify ARM64 image STILL has correct properties
-    arm64_after = next(
-        img
-        for img in ecr_images_after
-        if img["digest"] == test_data.MANIFEST_LIST_ARM64_DIGEST
-    )
-    assert arm64_after["type"] == "image", "ARM64 image type was overwritten!"
-    assert arm64_after["architecture"] == "arm64", "ARM64 architecture was overwritten!"
-    assert arm64_after["os"] == "linux", "ARM64 os was overwritten!"
-    assert arm64_after["variant"] == "v8", "ARM64 variant was overwritten!"
-
-    # Verify attestation STILL has correct properties
-    attestation_after = next(
-        img
-        for img in ecr_images_after
-        if img["digest"] == test_data.MANIFEST_LIST_ATTESTATION_DIGEST
-    )
-    assert (
-        attestation_after["type"] == "attestation"
-    ), "Attestation type was overwritten!"
-    assert (
-        attestation_after["architecture"] == "unknown"
-    ), "Attestation architecture was overwritten!"
-    assert attestation_after["os"] == "unknown", "Attestation os was overwritten!"
+    assert check_nodes(
+        neo4j_session, "ECRImage", ["digest", "type", "architecture"]
+    ) == {
+        (test_data.MANIFEST_LIST_DIGEST, "manifest_list", None),
+        (test_data.MANIFEST_LIST_AMD64_DIGEST, "image", "amd64"),
+        (test_data.MANIFEST_LIST_ARM64_DIGEST, "image", "arm64"),
+        (test_data.MANIFEST_LIST_ATTESTATION_DIGEST, "attestation", "unknown"),
+    }, "ECRImage properties were overwritten after layer sync!"
 
     # Verify that manifest list does NOT have layer_diff_ids (should be skipped)
     manifest_list_layers = neo4j_session.run(
@@ -920,3 +826,33 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         arm64_layers["layer_diff_ids"] is not None
     ), "ARM64 platform image should have layers!"
     assert len(arm64_layers["layer_diff_ids"]) == 1  # From MULTI_ARCH_ARM64_CONFIG
+
+    # Verify CONTAINS_IMAGE relationships from manifest list to platform images
+    assert check_rels(
+        neo4j_session,
+        "ECRImage",
+        "digest",
+        "ECRImage",
+        "digest",
+        "CONTAINS_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (test_data.MANIFEST_LIST_DIGEST, test_data.MANIFEST_LIST_AMD64_DIGEST),
+        (test_data.MANIFEST_LIST_DIGEST, test_data.MANIFEST_LIST_ARM64_DIGEST),
+    }
+
+    # Verify ATTESTS relationships from attestations to images they validate
+    attests_rels = check_rels(
+        neo4j_session,
+        "ECRImage",
+        "digest",
+        "ECRImage",
+        "digest",
+        "ATTESTS",
+        rel_direction_right=True,
+    )
+    # Attestation should point to the AMD64 image (as defined in test data)
+    assert (
+        test_data.MANIFEST_LIST_ATTESTATION_DIGEST,
+        test_data.MANIFEST_LIST_AMD64_DIGEST,
+    ) in attests_rels
