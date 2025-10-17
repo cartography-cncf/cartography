@@ -75,16 +75,17 @@ def get_inspector_findings(
     session: boto3.session.Session,
     region: str,
     account_id: str,
+    batch_size: int,
 ) -> Iterator[List[Dict[str, Any]]]:
     """
     Query inspector2.list_findings by filtering the request, otherwise the request could timeout.
     First, we filter by account_id. And since there may be millions of CLOSED findings that may never go away,
     only fetch those in ACTIVE or SUPPRESSED statuses.
-    Run the query in batches of 1000 findings and return an iterator to fetch the results.
+    Run the query in batches and return an iterator to fetch the results.
     """
     client = session.client("inspector2", region_name=region)
     logger.info(
-        f"Getting findings in batches of {BATCH_SIZE} for account {account_id} in region {region}"
+        f"Getting findings in batches of {batch_size} for account {account_id} in region {region}"
     )
     aws_args: Dict[str, Any] = {
         "filterCriteria": {
@@ -103,7 +104,7 @@ def get_inspector_findings(
         }
     }
     findings_batches = batch(
-        aws_paginate(client, "list_findings", "findings", None, **aws_args), BATCH_SIZE
+        aws_paginate(client, "list_findings", "findings", None, **aws_args), batch_size
     )
     yield from findings_batches
 
@@ -271,19 +272,25 @@ def load_inspector_finding_to_package_match_links(
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
+    batch_size: int = BATCH_SIZE,
 ) -> None:
     logger.info("Running AWS Inspector cleanup")
-    GraphJob.from_node_schema(AWSInspectorFindingSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(AWSInspectorPackageSchema(), common_job_parameters).run(
-        neo4j_session,
-    )
     GraphJob.from_matchlink(
         InspectorFindingToPackageMatchLink(),
         "AWSAccount",
         common_job_parameters["ACCOUNT_ID"],
         common_job_parameters["UPDATE_TAG"],
+        iterationsize=batch_size,
+    ).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(
+        AWSInspectorPackageSchema(), common_job_parameters, iterationsize=batch_size
+    ).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(
+        AWSInspectorFindingSchema(), common_job_parameters, iterationsize=batch_size
     ).run(
         neo4j_session,
     )
@@ -296,11 +303,12 @@ def _sync_findings_for_account(
     account_id: str,
     update_tag: int,
     current_aws_account_id: str,
+    batch_size: int = BATCH_SIZE,
 ) -> None:
     """
     Syncs the findings for a given account in a given region.
     """
-    findings = get_inspector_findings(boto3_session, region, account_id)
+    findings = get_inspector_findings(boto3_session, region, account_id, batch_size)
     if not findings:
         logger.info(f"No findings to sync for account {account_id} in region {region}")
         return
@@ -343,6 +351,10 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    batch_size = common_job_parameters.get(
+        "experimental_aws_inspector_batch", BATCH_SIZE
+    )
+
     inspector_regions = [
         region for region in regions if region in AWS_INSPECTOR_REGIONS
     ]
@@ -363,8 +375,8 @@ def sync(
                 account_id,
                 update_tag,
                 current_aws_account_id,
+                batch_size,
             )
-        common_job_parameters["ACCOUNT_ID"] = current_aws_account_id
-        common_job_parameters["UPDATE_TAG"] = update_tag
-
-    cleanup(neo4j_session, common_job_parameters)
+    common_job_parameters["ACCOUNT_ID"] = current_aws_account_id
+    common_job_parameters["UPDATE_TAG"] = update_tag
+    cleanup(neo4j_session, common_job_parameters, batch_size)
