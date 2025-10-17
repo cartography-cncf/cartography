@@ -760,24 +760,14 @@ def sync(
 
         for img_data in ecr_images:
             digest = img_data["digest"]
+            image_type = img_data.get("type")
+
             if digest not in seen_digests:
                 seen_digests.add(digest)
-                repo_uri = img_data["repo_uri"]
 
-                # Create digest-based URI for manifest fetching
-                digest_uri = f"{repo_uri}@{digest}"
-
-                repo_images_list.append(
-                    {
-                        "imageDigest": digest,
-                        "uri": digest_uri,
-                        "repo_uri": repo_uri,
-                    }
-                )
-
-                # Store existing properties to preserve during layer load
+                # Store existing properties for ALL images to preserve during updates
                 existing_properties[digest] = {
-                    "type": img_data.get("type"),
+                    "type": image_type,
                     "architecture": img_data.get("architecture"),
                     "os": img_data.get("os"),
                     "variant": img_data.get("variant"),
@@ -786,6 +776,24 @@ def sync(
                     "media_type": img_data.get("media_type"),
                     "artifact_media_type": img_data.get("artifact_media_type"),
                 }
+
+                # Only fetch layers for platform-specific container images
+                # Skip manifest_list and attestation types
+                if image_type == "image":
+                    repo_uri = img_data["repo_uri"]
+                    digest_uri = f"{repo_uri}@{digest}"
+
+                    repo_images_list.append(
+                        {
+                            "imageDigest": digest,
+                            "uri": digest_uri,
+                            "repo_uri": repo_uri,
+                        }
+                    )
+                else:
+                    logger.debug(
+                        f"Skipping layer fetch for {image_type} image with digest {digest}"
+                    )
 
         logger.info(
             f"Found {len(repo_images_list)} distinct ECR image digests in graph for region {region}"
