@@ -334,6 +334,7 @@ def transform_ecr_image_layers(
     image_layers_data: dict[str, dict[str, list[str]]],
     image_digest_map: dict[str, str],
     image_attestation_map: Optional[dict[str, dict[str, str]]] = None,
+    existing_properties_map: Optional[dict[str, dict[str, Any]]] = None,
 ) -> tuple[list[dict], list[dict]]:
     """
     Transform image layer data into format suitable for Neo4j ingestion.
@@ -342,10 +343,13 @@ def transform_ecr_image_layers(
     :param image_layers_data: Map of image URI to platform to diff_ids
     :param image_digest_map: Map of image URI to image digest
     :param image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
+    :param existing_properties_map: Map of image digest to existing ECRImage properties (type, architecture, etc.)
     :return: List of layer objects ready for ingestion
     """
     if image_attestation_map is None:
         image_attestation_map = {}
+    if existing_properties_map is None:
+        existing_properties_map = {}
     layers_by_diff_id: dict[str, dict[str, Any]] = {}
     memberships_by_digest: dict[str, dict[str, Any]] = {}
 
@@ -390,6 +394,10 @@ def transform_ecr_image_layers(
             membership: dict[str, Any] = {
                 "layer_diff_ids": ordered_layers_for_image,
             }
+
+            # Preserve existing ECRImage properties (type, architecture, os, variant, etc.)
+            if image_digest in existing_properties_map:
+                membership.update(existing_properties_map[image_digest])
 
             # Add attestation data if available for this image
             if image_uri in image_attestation_map:
@@ -721,19 +729,40 @@ def sync(
             current_aws_account_id,
         )
 
-        # Get ECR images from graph using standard client function
-        from cartography.client.aws.ecr import get_ecr_images
+        # Query for ECR images with all their existing properties to preserve during layer sync
+        query = """
+        MATCH (img:ECRImage)<-[:IMAGE]-(repo_img:ECRRepositoryImage)<-[:REPO_IMAGE]-(repo:ECRRepository)
+        MATCH (repo)<-[:RESOURCE]-(:AWSAccount {id: $AWS_ID})
+        WHERE repo.region = $Region
+        RETURN DISTINCT
+            img.digest AS digest,
+            repo_img.id AS uri,
+            repo.uri AS repo_uri,
+            img.type AS type,
+            img.architecture AS architecture,
+            img.os AS os,
+            img.variant AS variant,
+            img.attestation_type AS attestation_type,
+            img.attests_digest AS attests_digest,
+            img.media_type AS media_type,
+            img.artifact_media_type AS artifact_media_type
+        """
+        from cartography.client.core.tx import read_list_of_dicts_tx
 
-        ecr_images = get_ecr_images(neo4j_session, current_aws_account_id)
+        ecr_images = neo4j_session.read_transaction(
+            read_list_of_dicts_tx, query, AWS_ID=current_aws_account_id, Region=region
+        )
 
-        # Filter by region and deduplicate by digest
+        # Build repo_images_list and existing_properties map
         repo_images_list = []
+        existing_properties = {}
         seen_digests = set()
 
-        for region_name, _, uri, _, digest in ecr_images:
-            if region_name == region and digest not in seen_digests:
+        for img_data in ecr_images:
+            digest = img_data["digest"]
+            if digest not in seen_digests:
                 seen_digests.add(digest)
-                repo_uri = extract_repo_uri_from_image_uri(uri)
+                repo_uri = img_data["repo_uri"]
 
                 # Create digest-based URI for manifest fetching
                 digest_uri = f"{repo_uri}@{digest}"
@@ -745,6 +774,18 @@ def sync(
                         "repo_uri": repo_uri,
                     }
                 )
+
+                # Store existing properties to preserve during layer load
+                existing_properties[digest] = {
+                    "type": img_data.get("type"),
+                    "architecture": img_data.get("architecture"),
+                    "os": img_data.get("os"),
+                    "variant": img_data.get("variant"),
+                    "attestation_type": img_data.get("attestation_type"),
+                    "attests_digest": img_data.get("attests_digest"),
+                    "media_type": img_data.get("media_type"),
+                    "artifact_media_type": img_data.get("artifact_media_type"),
+                }
 
         logger.info(
             f"Found {len(repo_images_list)} distinct ECR image digests in graph for region {region}"
@@ -798,6 +839,7 @@ def sync(
                 image_layers_data,
                 image_digest_map,
                 image_attestation_map,
+                existing_properties,
             )
             load_ecr_image_layers(
                 neo4j_session,

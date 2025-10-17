@@ -639,3 +639,213 @@ def test_sync_multi_region_event_loop_preserved(
             pytest.fail("Event loop was torn down between regions - fix needed")
         else:
             raise
+
+
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=[
+        {
+            "repositoryArn": "arn:aws:ecr:us-east-1:000000000000:repository/multi-arch-repository",
+            "registryId": "000000000000",
+            "repositoryName": "multi-arch-repository",
+            "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository",
+            "createdAt": test_data.DESCRIBE_REPOSITORIES["repositories"][0]["createdAt"],
+        }
+    ],
+)
+@patch("cartography.intel.aws.ecr_image_layers.fetch_image_layers_async")
+def test_sync_layers_preserves_multi_arch_image_properties(
+    mock_fetch_layers,
+    mock_get_repos,
+    neo4j_session,
+):
+    """
+    Regression test for bug where ecr_image_layers sync would overwrite ECRImage properties to NULL.
+
+    This test ensures that when layer sync runs after ECR sync, it preserves the type, architecture,
+    os, variant, and other fields that were set during the initial ECR sync for multi-arch images.
+    """
+    # Clean up from previous tests
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    mock_client = MagicMock()
+
+    # Mock list_images paginator
+    mock_list_paginator = MagicMock()
+    mock_list_paginator.paginate.return_value = [
+        {
+            "imageIds": [
+                {
+                    "imageDigest": test_data.MANIFEST_LIST_DIGEST,
+                    "imageTag": "v1.0",
+                }
+            ]
+        }
+    ]
+
+    # Mock describe_images paginator
+    mock_describe_paginator = MagicMock()
+    mock_describe_paginator.paginate.return_value = [
+        {"imageDetails": [test_data.MULTI_ARCH_IMAGE_DETAILS]}
+    ]
+
+    # Configure get_paginator
+    def get_paginator(name):
+        if name == "list_images":
+            return mock_list_paginator
+        elif name == "describe_images":
+            return mock_describe_paginator
+        raise ValueError(f"Unexpected paginator: {name}")
+
+    mock_client.get_paginator = get_paginator
+    mock_client.batch_get_image.return_value = (
+        test_data.BATCH_GET_MANIFEST_LIST_RESPONSE
+    )
+    boto3_session.client.return_value = mock_client
+
+    # Act 1: Run ECR sync to populate ECRImage nodes with multi-arch properties
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert 1: Verify ECRImage nodes have type, architecture, os, variant set
+    ecr_images_before = neo4j_session.run(
+        """
+        MATCH (img:ECRImage)
+        RETURN img.digest AS digest, img.type AS type, img.architecture AS architecture,
+               img.os AS os, img.variant AS variant
+        ORDER BY img.digest
+        """
+    ).data()
+
+    assert len(ecr_images_before) == 4
+
+    # Verify manifest list has correct properties
+    manifest_list_before = next(
+        img for img in ecr_images_before if img["digest"] == test_data.MANIFEST_LIST_DIGEST
+    )
+    assert manifest_list_before["type"] == "manifest_list"
+    assert manifest_list_before["architecture"] is None
+    assert manifest_list_before["os"] is None
+
+    # Verify AMD64 image has correct properties
+    amd64_before = next(
+        img for img in ecr_images_before if img["digest"] == test_data.MANIFEST_LIST_AMD64_DIGEST
+    )
+    assert amd64_before["type"] == "image"
+    assert amd64_before["architecture"] == "amd64"
+    assert amd64_before["os"] == "linux"
+    assert amd64_before["variant"] is None
+
+    # Verify ARM64 image has correct properties
+    arm64_before = next(
+        img for img in ecr_images_before if img["digest"] == test_data.MANIFEST_LIST_ARM64_DIGEST
+    )
+    assert arm64_before["type"] == "image"
+    assert arm64_before["architecture"] == "arm64"
+    assert arm64_before["os"] == "linux"
+    assert arm64_before["variant"] == "v8"
+
+    # Verify attestation has correct properties
+    attestation_before = next(
+        img
+        for img in ecr_images_before
+        if img["digest"] == test_data.MANIFEST_LIST_ATTESTATION_DIGEST
+    )
+    assert attestation_before["type"] == "attestation"
+    assert attestation_before["architecture"] == "unknown"
+    assert attestation_before["os"] == "unknown"
+
+    # Act 2: Run ECR layers sync
+    # Mock fetch_image_layers_async to return layer data for the manifest list
+    mock_fetch_layers.return_value = (
+        # image_layers_data
+        {
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_DIGEST}": {
+                "linux/amd64": test_data.MULTI_ARCH_AMD64_CONFIG["rootfs"]["diff_ids"],
+                "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"]["diff_ids"],
+            }
+        },
+        # image_digest_map
+        {
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_DIGEST}": test_data.MANIFEST_LIST_DIGEST,
+        },
+        # image_attestation_map (empty)
+        {},
+    )
+
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert 2: Verify ECRImage properties are PRESERVED after layer sync (not overwritten to NULL)
+    ecr_images_after = neo4j_session.run(
+        """
+        MATCH (img:ECRImage)
+        RETURN img.digest AS digest, img.type AS type, img.architecture AS architecture,
+               img.os AS os, img.variant AS variant
+        ORDER BY img.digest
+        """
+    ).data()
+
+    assert len(ecr_images_after) == 4
+
+    # Verify manifest list STILL has correct properties
+    manifest_list_after = next(
+        img for img in ecr_images_after if img["digest"] == test_data.MANIFEST_LIST_DIGEST
+    )
+    assert manifest_list_after["type"] == "manifest_list", "Manifest list type was overwritten!"
+    assert manifest_list_after["architecture"] is None
+    assert manifest_list_after["os"] is None
+
+    # Verify AMD64 image STILL has correct properties
+    amd64_after = next(
+        img for img in ecr_images_after if img["digest"] == test_data.MANIFEST_LIST_AMD64_DIGEST
+    )
+    assert amd64_after["type"] == "image", "AMD64 image type was overwritten!"
+    assert amd64_after["architecture"] == "amd64", "AMD64 architecture was overwritten!"
+    assert amd64_after["os"] == "linux", "AMD64 os was overwritten!"
+    assert amd64_after["variant"] is None
+
+    # Verify ARM64 image STILL has correct properties
+    arm64_after = next(
+        img for img in ecr_images_after if img["digest"] == test_data.MANIFEST_LIST_ARM64_DIGEST
+    )
+    assert arm64_after["type"] == "image", "ARM64 image type was overwritten!"
+    assert arm64_after["architecture"] == "arm64", "ARM64 architecture was overwritten!"
+    assert arm64_after["os"] == "linux", "ARM64 os was overwritten!"
+    assert arm64_after["variant"] == "v8", "ARM64 variant was overwritten!"
+
+    # Verify attestation STILL has correct properties
+    attestation_after = next(
+        img for img in ecr_images_after if img["digest"] == test_data.MANIFEST_LIST_ATTESTATION_DIGEST
+    )
+    assert attestation_after["type"] == "attestation", "Attestation type was overwritten!"
+    assert attestation_after["architecture"] == "unknown", "Attestation architecture was overwritten!"
+    assert attestation_after["os"] == "unknown", "Attestation os was overwritten!"
+
+    # Also verify that layer_diff_ids was added by the layer sync
+    manifest_list_with_layers = neo4j_session.run(
+        """
+        MATCH (img:ECRImage {digest: $digest})
+        RETURN img.layer_diff_ids AS layer_diff_ids
+        """,
+        digest=test_data.MANIFEST_LIST_DIGEST,
+    ).single()
+    assert manifest_list_with_layers is not None
+    assert manifest_list_with_layers["layer_diff_ids"] is not None
+    assert len(manifest_list_with_layers["layer_diff_ids"]) > 0
