@@ -433,7 +433,12 @@ def load_ecr_image_layers(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    """Load image layers into Neo4j."""
+    """
+    Load image layers into Neo4j.
+
+    Uses a smaller batch size (1000) to avoid Neo4j transaction memory limits,
+    since layer objects can contain large arrays of relationships.
+    """
     logger.info(
         f"Loading {len(image_layers)} image layers for region {region} into graph.",
     )
@@ -442,6 +447,7 @@ def load_ecr_image_layers(
         neo4j_session,
         ECRImageLayerSchema(),
         image_layers,
+        batch_size=1000,
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
     )
@@ -455,10 +461,17 @@ def load_ecr_image_layer_memberships(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
+    """
+    Load image layer memberships into Neo4j.
+
+    Uses a smaller batch size (1000) to avoid Neo4j transaction memory limits,
+    since membership objects can contain large arrays of layer diff_ids.
+    """
     load(
         neo4j_session,
         ECRImageSchema(),
         memberships,
+        batch_size=1000,
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
