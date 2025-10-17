@@ -2,7 +2,6 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.security import SecurityCenter
 
@@ -23,14 +22,13 @@ def get_assessments(client: SecurityCenter, subscription_id: str) -> list[dict]:
     """
     try:
         scope = f"subscriptions/{subscription_id}"
-        # NOTE: The client object is named SecurityCenter, but the property to access
-        # assessments remains the same.
         return [a.as_dict() for a in client.assessments.list(scope)]
-    except (ClientAuthenticationError, HttpResponseError) as e:
+    except HttpResponseError:
         logger.warning(
-            f"Failed to get Security Assessments for subscription {subscription_id}: {str(e)}"
+            f"Failed to get Security Assessments for subscription {subscription_id} due to a transient error.",
+            exc_info=True,
         )
-        raise
+        return []
 
 
 def transform_assessments(assessments: list[dict]) -> list[dict]:

@@ -2,7 +2,6 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.monitor import MonitorManagementClient
 
@@ -25,9 +24,12 @@ def get_metric_alerts(client: MonitorManagementClient) -> list[dict]:
         return [
             alert.as_dict() for alert in client.metric_alerts.list_by_subscription()
         ]
-    except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(f"Failed to get Azure Monitor Metric Alerts: {str(e)}")
-        raise
+    except HttpResponseError:
+        logger.warning(
+            "Failed to get Azure Monitor Metric Alerts due to a transient error.",
+            exc_info=True,
+        )
+        return []
 
 
 def transform_metric_alerts(metric_alerts: list[dict]) -> list[dict]:
