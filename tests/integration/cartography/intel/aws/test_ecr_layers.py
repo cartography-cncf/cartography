@@ -772,60 +772,30 @@ def test_sync_layers_preserves_multi_arch_image_properties(
         (test_data.MANIFEST_LIST_ATTESTATION_DIGEST, "attestation", "unknown"),
     }, "ECRImage properties were overwritten after layer sync!"
 
-    # Verify that manifest list does NOT have layer_diff_ids (should be skipped)
-    manifest_list_layers = neo4j_session.run(
-        """
-        MATCH (img:ECRImage {digest: $digest})
-        RETURN img.layer_diff_ids AS layer_diff_ids
-        """,
-        digest=test_data.MANIFEST_LIST_DIGEST,
-    ).single()
-    assert manifest_list_layers is not None
-    # Manifest lists should NOT have layers
-    assert (
-        manifest_list_layers["layer_diff_ids"] is None
-    ), "Manifest list should not have layers!"
+    # Verify layer relationships: only platform images (type="image") should have HAS_LAYER relationships
+    # Manifest lists and attestations should NOT have any layer relationships
+    has_layer_rels = check_rels(
+        neo4j_session,
+        "ECRImage",
+        "digest",
+        "ECRImageLayer",
+        "diff_id",
+        "HAS_LAYER",
+        rel_direction_right=True,
+    )
 
-    # Verify that attestations do NOT have layer_diff_ids either
-    attestation_layers = neo4j_session.run(
-        """
-        MATCH (img:ECRImage {digest: $digest})
-        RETURN img.layer_diff_ids AS layer_diff_ids
-        """,
-        digest=test_data.MANIFEST_LIST_ATTESTATION_DIGEST,
-    ).single()
-    assert attestation_layers is not None
-    # Attestations should NOT have layers
-    assert (
-        attestation_layers["layer_diff_ids"] is None
-    ), "Attestations should not have layers!"
+    # Get all ECRImage digests that have HAS_LAYER relationships
+    images_with_layers = {img_digest for (img_digest, _) in has_layer_rels}
 
-    # But platform-specific images (type="image") SHOULD have layers
-    amd64_layers = neo4j_session.run(
-        """
-        MATCH (img:ECRImage {digest: $digest})
-        RETURN img.layer_diff_ids AS layer_diff_ids
-        """,
-        digest=test_data.MANIFEST_LIST_AMD64_DIGEST,
-    ).single()
-    assert amd64_layers is not None
-    assert (
-        amd64_layers["layer_diff_ids"] is not None
-    ), "AMD64 platform image should have layers!"
-    assert len(amd64_layers["layer_diff_ids"]) == 2  # From MULTI_ARCH_AMD64_CONFIG
+    # Only AMD64 and ARM64 platform images should have layers
+    assert images_with_layers == {
+        test_data.MANIFEST_LIST_AMD64_DIGEST,
+        test_data.MANIFEST_LIST_ARM64_DIGEST,
+    }, "Only platform-specific images should have layer relationships!"
 
-    arm64_layers = neo4j_session.run(
-        """
-        MATCH (img:ECRImage {digest: $digest})
-        RETURN img.layer_diff_ids AS layer_diff_ids
-        """,
-        digest=test_data.MANIFEST_LIST_ARM64_DIGEST,
-    ).single()
-    assert arm64_layers is not None
-    assert (
-        arm64_layers["layer_diff_ids"] is not None
-    ), "ARM64 platform image should have layers!"
-    assert len(arm64_layers["layer_diff_ids"]) == 1  # From MULTI_ARCH_ARM64_CONFIG
+    # Manifest list and attestations should NOT be in this set
+    assert test_data.MANIFEST_LIST_DIGEST not in images_with_layers
+    assert test_data.MANIFEST_LIST_ATTESTATION_DIGEST not in images_with_layers
 
     # Verify CONTAINS_IMAGE relationships from manifest list to platform images
     assert check_rels(
