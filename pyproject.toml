@@ -71,7 +71,7 @@ dependencies = [
     "xmltodict",
     "duo-client",
     "cloudflare (>=4.1.0,<5.0.0)",
-    "scaleway>=2.9.0",
+    "scaleway>=2.10.0",
     "google-cloud-resource-manager>=1.14.2",
     "types-aiobotocore-ecr",
     "typer>=0.9.0"

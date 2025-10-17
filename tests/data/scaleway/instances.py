@@ -116,5 +116,7 @@ SCALEWAY_INSTANCES = [
         placement_group=None,
         admin_password_encryption_ssh_key_id=None,
         admin_password_encrypted_value=None,
+        filesystems=[],
+        end_of_service=None,
     )
 ]

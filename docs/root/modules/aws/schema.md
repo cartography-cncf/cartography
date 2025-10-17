@@ -2525,7 +2525,25 @@ Representation of a generic Network Interface.  Currently however, we only creat
 | requester_managed  |  Indicates whether the interface is managed by the requester |
 | source_dest_check   | Indicates whether to validate network traffic to or from this network interface.  |
 | public_ip   | Public IPv4 address attached to the interface  |
+| attach_time | The timestamp when the network interface was attached to an EC2 instance. For primary interfaces (device_index=0), this reveals the first launch time of the instance [according to AWS](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html). |
+| device_index | The index of the device on the instance for the network interface attachment. A value of `0` indicates the primary (eth0) network interface, which is created when the instance is launched. |
 
+#### Usage Notes
+
+**Finding the True First Launch Time:**
+
+The `LaunchTime` field on EC2Instance nodes shows the *last* launch time (e.g., if an instance was stopped and restarted). To find when an instance was *originally* created, use the `attach_time` of the primary network interface (`device_index: 0`):
+
+```cypher
+// Get the true first launch time for EC2 instances
+MATCH (i:EC2Instance)-[:NETWORK_INTERFACE]->(ni:NetworkInterface {device_index: 0})
+WHERE ni.attach_time IS NOT NULL
+RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
+```
+
+**Primary vs Secondary Interfaces:**
+- **Primary interfaces** (`device_index: 0`): Created when the instance is launched, cannot be detached. The `attach_time` represents the instance's original creation time.
+- **Secondary interfaces** (`device_index: 1+`): Can be attached and detached at any time. The `attach_time` represents when the secondary interface was attached, not when the instance was created.
 
 #### Relationships
 

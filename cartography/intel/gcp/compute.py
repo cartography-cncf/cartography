@@ -15,6 +15,7 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.compute.vpc import GCPVpcSchema
 from cartography.util import run_cleanup_job
@@ -619,7 +620,8 @@ def load_gcp_instances(
     SET r.lastupdated = $gcp_update_tag
     """
     for instance in data:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             query,
             ProjectId=instance["project_id"],
             PartialUri=instance["partial_uri"],
@@ -714,7 +716,8 @@ def load_gcp_forwarding_rules(
         network = fwd.get("network", None)
         subnetwork = fwd.get("subnetwork", None)
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             query,
             PartialUri=fwd["partial_uri"],
             IPAddress=fwd["ip_address"],
@@ -760,7 +763,8 @@ def _attach_fwd_rule_to_subnet(
         SET p.lastupdated = $gcp_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         query,
         PartialUri=fwd["partial_uri"],
         SubNetworkPartialUri=fwd.get("subnetwork_partial_uri", None),
@@ -787,7 +791,8 @@ def _attach_fwd_rule_to_vpc(
         SET r.lastupdated = $gcp_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         query,
         PartialUri=fwd["partial_uri"],
         NetworkPartialUri=fwd.get("network_partial_uri", None),
@@ -831,7 +836,8 @@ def _attach_instance_tags(
     for tag in instance.get("tags", {}).get("items", []):
         for nic in instance.get("networkInterfaces", []):
             tag_id = _create_gcp_network_tag_id(nic["vpc_partial_uri"], tag)
-            neo4j_session.run(
+            run_write_query(
+                neo4j_session,
                 query,
                 InstanceId=instance["partial_uri"],
                 TagId=tag_id,
@@ -880,7 +886,8 @@ def _attach_gcp_nics(
     for nic in instance.get("networkInterfaces", []):
         # Make an ID for GCPNetworkInterface nodes because GCP doesn't define one but we need to uniquely identify them
         nic_id = f"{instance['partial_uri']}/networkinterfaces/{nic['name']}"
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             query,
             InstanceId=instance["partial_uri"],
             NicId=nic_id,
@@ -926,7 +933,8 @@ def _attach_gcp_nic_access_configs(
     for ac in nic.get("accessConfigs", []):
         # Make an ID for GCPNicAccessConfig nodes because GCP doesn't define one but we need to uniquely identify them
         access_config_id = f"{nic_id}/accessconfigs/{ac['type']}"
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             query,
             NicId=nic_id,
             AccessConfigId=access_config_id,
@@ -960,7 +968,8 @@ def _attach_gcp_vpc(
     ON CREATE SET m.firstseen = timestamp()
     SET m.lastupdated = $gcp_update_tag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         query,
         InstanceId=instance_id,
         gcp_update_tag=gcp_update_tag,
@@ -974,10 +983,22 @@ def load_gcp_ingress_firewalls(
     gcp_update_tag: int,
 ) -> None:
     """
-    Load the firewall list to Neo4j
+    Load the firewall list to Neo4j.
     :param fw_list: The transformed list of firewalls
     :return: Nothing
     """
+    neo4j_session.execute_write(
+        _load_gcp_ingress_firewalls_tx,
+        fw_list,
+        gcp_update_tag,
+    )
+
+
+def _load_gcp_ingress_firewalls_tx(
+    tx: neo4j.Transaction,
+    fw_list: List[Resource],
+    gcp_update_tag: int,
+) -> None:
     query = """
     MERGE (fw:GCPFirewall{id:$FwPartialUri})
     ON CREATE SET fw.firstseen = timestamp(),
@@ -1000,7 +1021,7 @@ def load_gcp_ingress_firewalls(
     SET r.lastupdated = $gcp_update_tag
     """
     for fw in fw_list:
-        neo4j_session.run(
+        tx.run(
             query,
             FwPartialUri=fw["id"],
             Direction=fw["direction"],
@@ -1012,19 +1033,19 @@ def load_gcp_ingress_firewalls(
             HasTargetServiceAccounts=fw["has_target_service_accounts"],
             gcp_update_tag=gcp_update_tag,
         )
-        _attach_firewall_rules(neo4j_session, fw, gcp_update_tag)
-        _attach_target_tags(neo4j_session, fw, gcp_update_tag)
+        _attach_firewall_rules(tx, fw, gcp_update_tag)
+        _attach_target_tags(tx, fw, gcp_update_tag)
 
 
 @timeit
 def _attach_firewall_rules(
-    neo4j_session: neo4j.Session,
+    tx: neo4j.Transaction,
     fw: Resource,
     gcp_update_tag: int,
 ) -> None:
     """
     Attach the allow_rules to the Firewall object
-    :param neo4j_session: The Neo4j session
+    :param tx: The Neo4j transaction
     :param fw: The Firewall object
     :param gcp_update_tag: The timestamp
     :return: Nothing
@@ -1065,7 +1086,7 @@ def _attach_firewall_rules(
             # If sourceRanges is not specified then the rule must specify sourceTags.
             # Since an IP range cannot have a tag applied to it, it is ok if we don't ingest this rule.
             for ip_range in fw.get("sourceRanges", []):
-                neo4j_session.run(
+                tx.run(
                     template.safe_substitute(fw_rule_relationship_label=label),
                     FwPartialUri=fw["id"],
                     RuleId=rule["ruleid"],
@@ -1079,13 +1100,13 @@ def _attach_firewall_rules(
 
 @timeit
 def _attach_target_tags(
-    neo4j_session: neo4j.Session,
+    tx: neo4j.Transaction,
     fw: Resource,
     gcp_update_tag: int,
 ) -> None:
     """
     Attach target tags to the firewall object
-    :param neo4j_session: The neo4j session
+    :param tx: The neo4j transaction
     :param fw: The firewall object
     :param gcp_update_tag: The timestamp
     :return: Nothing
@@ -1105,7 +1126,7 @@ def _attach_target_tags(
     """
     for tag in fw.get("targetTags", []):
         tag_id = _create_gcp_network_tag_id(fw["vpc_partial_uri"], tag)
-        neo4j_session.run(
+        tx.run(
             query,
             FwPartialUri=fw["id"],
             TagId=tag_id,
