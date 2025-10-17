@@ -219,6 +219,20 @@ ATTESTATION_MANIFEST = {
     ],
 }
 
+# SLSA provenance blob (in-toto attestation payload)
+SLSA_PROVENANCE_BLOB = {
+    "predicate": {
+        "materials": [
+            {
+                "uri": "pkg:docker/000000000000.dkr.ecr.us-east-1.amazonaws.com/base-image@sha256:parent123",
+                "digest": {
+                    "sha256": "parent1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                },
+            }
+        ]
+    }
+}
+
 # Multi-layer container image manifest
 MULTI_LAYER_MANIFEST = {
     "schemaVersion": 2,

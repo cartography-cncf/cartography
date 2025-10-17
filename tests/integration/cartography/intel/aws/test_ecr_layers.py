@@ -551,6 +551,8 @@ async def test_fetch_image_layers_async_handles_manifest_list(
             test_data.MULTI_ARCH_ARM64_MANIFEST["config"][
                 "digest"
             ]: test_data.MULTI_ARCH_ARM64_CONFIG,
+            # Attestation blob lookup
+            "sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456": test_data.SLSA_PROVENANCE_BLOB,
         }
         return config_lookup.get(digest, {})
 
@@ -564,13 +566,30 @@ async def test_fetch_image_layers_async_handles_manifest_list(
         )
     )
 
+    # Verify platform layers are extracted
     assert image_layers_data == {
         repo_image["uri"]: {
             "linux/amd64": test_data.MULTI_ARCH_AMD64_CONFIG["rootfs"]["diff_ids"],
             "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"]["diff_ids"],
         }
     }
-    assert digest_map == {repo_image["uri"]: repo_image["imageDigest"]}
+
+    # Verify digest_map includes manifest list and child images
+    assert repo_image["uri"] in digest_map
+    assert digest_map[repo_image["uri"]] == repo_image["imageDigest"]
+
+    # Verify attestation data is extracted and mapped to child AMD64 image
+    # The attestation in MULTI_ARCH_INDEX attests to the AMD64 image (line 108 of test_data)
+    expected_child_uri = f"000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared@{test_data.MANIFEST_LIST_AMD64_DIGEST}"
+    assert (
+        expected_child_uri in attestation_map
+    ), "Attestation data should be mapped to child image!"
+    assert (
+        attestation_map[expected_child_uri]["parent_image_digest"]
+        == "sha256:parent1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+    )
+    # Verify child digest is in digest_map too
+    assert digest_map[expected_child_uri] == test_data.MANIFEST_LIST_AMD64_DIGEST
 
 
 @pytest.mark.asyncio
