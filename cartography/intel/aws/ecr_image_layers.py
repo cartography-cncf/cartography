@@ -745,7 +745,8 @@ def sync(
             img.attestation_type AS attestation_type,
             img.attests_digest AS attests_digest,
             img.media_type AS media_type,
-            img.artifact_media_type AS artifact_media_type
+            img.artifact_media_type AS artifact_media_type,
+            img.child_image_digests AS child_image_digests
         """
         from cartography.client.core.tx import read_list_of_dicts_tx
 
@@ -775,6 +776,7 @@ def sync(
                     "attests_digest": img_data.get("attests_digest"),
                     "media_type": img_data.get("media_type"),
                     "artifact_media_type": img_data.get("artifact_media_type"),
+                    "child_image_digests": img_data.get("child_image_digests"),
                 }
 
                 # Only fetch layers for platform-specific container images

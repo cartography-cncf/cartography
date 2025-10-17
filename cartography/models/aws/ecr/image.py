@@ -26,6 +26,7 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     attests_digest: PropertyRef = PropertyRef("attests_digest")
     media_type: PropertyRef = PropertyRef("media_type")
     artifact_media_type: PropertyRef = PropertyRef("artifact_media_type")
+    child_image_digests: PropertyRef = PropertyRef("child_image_digests")
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,50 @@ class ECRImageToParentImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECRImageContainsImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECRImageContainsImageRel(CartographyRelSchema):
+    """
+    Relationship from a manifest list ECRImage to platform-specific ECRImages it contains.
+    Only applies to ECRImage nodes with type="manifest_list".
+    """
+
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("child_image_digests", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONTAINS_IMAGE"
+    properties: ECRImageContainsImageRelProperties = (
+        ECRImageContainsImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ECRImageAttestsRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECRImageAttestsRel(CartographyRelSchema):
+    """
+    Relationship from an attestation ECRImage to the ECRImage it attests/validates.
+    Only applies to ECRImage nodes with type="attestation".
+    """
+
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("attests_digest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ATTESTS"
+    properties: ECRImageAttestsRelProperties = ECRImageAttestsRelProperties()
+
+
+@dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
     label: str = "ECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
@@ -95,5 +140,7 @@ class ECRImageSchema(CartographyNodeSchema):
         [
             ECRImageHasLayerRel(),
             ECRImageToParentImageRel(),
+            ECRImageContainsImageRel(),
+            ECRImageAttestsRel(),
         ],
     )
