@@ -1,8 +1,10 @@
 import logging
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud import resourcemanager_v3
 
 from cartography.client.core.tx import load
@@ -13,7 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_folders(org_resource_name: str) -> List[Dict]:
+def get_gcp_folders(
+    org_resource_name: str,
+    credentials: Optional[GoogleCredentials] = None,
+) -> List[Dict]:
     """
     Return a list of all descendant GCP folders under the specified organization by traversing the folder tree.
 
@@ -21,7 +26,7 @@ def get_gcp_folders(org_resource_name: str) -> List[Dict]:
     :return: List of folder dicts with 'name' field containing full resource names (e.g., "folders/123456")
     """
     results: List[Dict] = []
-    client = resourcemanager_v3.FoldersClient()
+    client = resourcemanager_v3.FoldersClient(credentials=credentials)
     # BFS over folders starting at the org root
     queue: List[str] = [org_resource_name]
     seen: set[str] = set()
@@ -96,6 +101,7 @@ def sync_gcp_folders(
     gcp_update_tag: int,
     common_job_parameters: Dict,
     org_resource_name: str,
+    credentials: Optional[GoogleCredentials] = None,
 ) -> List[Dict]:
     """
     Get GCP folder data using the CRM v2 resource object and load the data to Neo4j.
@@ -103,6 +109,6 @@ def sync_gcp_folders(
     :return: List of folders synced
     """
     logger.debug("Syncing GCP folders")
-    folders = get_gcp_folders(org_resource_name)
+    folders = get_gcp_folders(org_resource_name, credentials=credentials)
     load_gcp_folders(neo4j_session, folders, gcp_update_tag, org_resource_name)
     return folders

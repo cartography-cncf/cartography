@@ -153,6 +153,9 @@ def merge_module_sync_metadata(
     :param synced_type: The sub-module's type
     :param update_tag: Timestamp used to determine data freshness
     """
+    # Import here to avoid circular import with cartography.client.core.tx
+    from cartography.client.core.tx import run_write_query
+
     template = Template(
         """
         MERGE (n:ModuleSyncMetadata{id:'${group_type}_${group_id}_${synced_type}'})
@@ -164,7 +167,8 @@ def merge_module_sync_metadata(
             n.lastupdated=$UPDATE_TAG
     """,
     )
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         template.safe_substitute(
             group_type=group_type,
             group_id=group_id,
