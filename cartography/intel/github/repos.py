@@ -4,6 +4,7 @@ from collections import defaultdict
 from collections import namedtuple
 from string import Template
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -157,12 +158,13 @@ def _get_repo_collaborators_inner_func(
     org: str,
     api_url: str,
     token: str,
-    repo_raw_data: list[dict[str, Any]],
+    repo_raw_data: list[dict[str, Any] | None],
     affiliation: str,
 ) -> dict[str, list[UserAffiliationAndRepoPermission]]:
     result: dict[str, list[UserAffiliationAndRepoPermission]] = {}
 
     for repo in repo_raw_data:
+        # GitHub can return null repo entries. See issues #1334 and #1404.
         if repo is None:
             logger.debug(
                 "Skipping null repository entry while fetching %s collaborators.",
@@ -218,7 +220,7 @@ def _get_repo_collaborators_inner_func(
 
 
 def _get_repo_collaborators_for_multiple_repos(
-    repo_raw_data: list[dict[str, Any]],
+    repo_raw_data: list[dict[str, Any] | None],
     affiliation: str,
     org: str,
     api_url: str,
@@ -285,7 +287,7 @@ def _get_repo_collaborators(
 
 
 @timeit
-def get(token: str, api_url: str, organization: str) -> List[Dict]:
+def get(token: str, api_url: str, organization: str) -> List[Optional[Dict]]:
     """
     Retrieve a list of repos from a Github organization as described in
     https://docs.github.com/en/graphql/reference/objects#repository.
@@ -293,6 +295,8 @@ def get(token: str, api_url: str, organization: str) -> List[Dict]:
     :param api_url: The Github v4 API endpoint as string.
     :param organization: The name of the target Github organization as string.
     :return: A list of dicts representing repos. See tests.data.github.repos for data shape.
+        Note: The list may contain None entries per GraphQL spec when resolvers error
+        (permissions, rate limits, transient issues). See issues #1334 and #1404.
     """
     # TODO: link the Github organization to the repositories
     repos, _ = fetch_all(
@@ -303,11 +307,15 @@ def get(token: str, api_url: str, organization: str) -> List[Dict]:
         "repositories",
         count=50,
     )
-    return repos.nodes
+    # Cast is needed because GitHub's GraphQL RepositoryConnection.nodes is typed [Repository] (not [Repository!])
+    # per GraphQL spec, allowing null entries when resolvers error (permissions, rate limits, transient issues).
+    # See https://github.com/cartography-cncf/cartography/issues/1334
+    # and https://github.com/cartography-cncf/cartography/issues/1404
+    return cast(List[Optional[Dict]], repos.nodes)
 
 
 def transform(
-    repos_json: List[Dict],
+    repos_json: List[Optional[Dict]],
     direct_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
     outside_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
 ) -> Dict:
@@ -346,6 +354,7 @@ def transform(
     transformed_dependencies: List[Dict] = []
     transformed_manifests: List[Dict] = []
     for repo_object in repos_json:
+        # GitHub can return null repo entries. See issues #1334 and #1404.
         if repo_object is None:
             logger.debug("Skipping null repository entry during transformation.")
             continue
