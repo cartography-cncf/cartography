@@ -43,6 +43,24 @@ class AzureLoadBalancerRuleToLBRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AzureLoadBalancerRuleToSubscriptionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureLoadBalancerRuleToSubscriptionRel(CartographyRelSchema):
+    target_node_label: str = "AzureSubscription"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AzureLoadBalancerRuleToSubscriptionRelProperties = (
+        AzureLoadBalancerRuleToSubscriptionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class RuleToFrontendIPRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -78,11 +96,12 @@ class RuleToBackendPoolRel(CartographyRelSchema):
 class AzureLoadBalancerRuleSchema(CartographyNodeSchema):
     label: str = "AzureLoadBalancerRule"
     properties: AzureLoadBalancerRuleProperties = AzureLoadBalancerRuleProperties()
-    sub_resource_relationship: AzureLoadBalancerRuleToLBRel = (
-        AzureLoadBalancerRuleToLBRel()
+    sub_resource_relationship: AzureLoadBalancerRuleToSubscriptionRel = (
+        AzureLoadBalancerRuleToSubscriptionRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            AzureLoadBalancerRuleToLBRel(),
             RuleToFrontendIPRel(),
             RuleToBackendPoolRel(),
         ],

@@ -36,11 +36,23 @@ def _get_resource_group_from_id(resource_id: str) -> str:
 
 @timeit
 def get_load_balancers(client: NetworkManagementClient) -> list[dict]:
+    """
+    Get a list of all Load Balancers in a subscription.
+    """
     try:
         return [lb.as_dict() for lb in client.load_balancers.list_all()]
-    except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(f"Failed to get Load Balancers: {str(e)}")
+    except ClientAuthenticationError:
+        logger.warning(
+            "Failed to get Load Balancers due to a client authentication error.",
+            exc_info=True,
+        )
         raise
+    except HttpResponseError:
+        logger.warning(
+            "Failed to get Load Balancers due to a transient error.",
+            exc_info=True,
+        )
+        return []
 
 
 def transform_load_balancers(load_balancers: list[dict]) -> list[dict]:
@@ -140,6 +152,7 @@ def load_frontend_ips(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     lb_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -148,6 +161,7 @@ def load_frontend_ips(
         data,
         lastupdated=update_tag,
         LOAD_BALANCER_ID=lb_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -156,6 +170,7 @@ def load_backend_pools(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     lb_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -164,6 +179,7 @@ def load_backend_pools(
         data,
         lastupdated=update_tag,
         LOAD_BALANCER_ID=lb_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -172,6 +188,7 @@ def load_rules(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     lb_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -180,6 +197,7 @@ def load_rules(
         data,
         lastupdated=update_tag,
         LOAD_BALANCER_ID=lb_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -188,6 +206,7 @@ def load_inbound_nat_rules(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     lb_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -196,6 +215,7 @@ def load_inbound_nat_rules(
         data,
         lastupdated=update_tag,
         LOAD_BALANCER_ID=lb_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -218,16 +238,22 @@ def sync(
         lb_id = lb["id"]
 
         frontend_ips = transform_frontend_ips(lb)
-        load_frontend_ips(neo4j_session, frontend_ips, lb_id, update_tag)
+        load_frontend_ips(
+            neo4j_session, frontend_ips, lb_id, subscription_id, update_tag
+        )
 
         backend_pools = transform_backend_pools(lb)
-        load_backend_pools(neo4j_session, backend_pools, lb_id, update_tag)
+        load_backend_pools(
+            neo4j_session, backend_pools, lb_id, subscription_id, update_tag
+        )
 
         rules = transform_rules(lb)
-        load_rules(neo4j_session, rules, lb_id, update_tag)
+        load_rules(neo4j_session, rules, lb_id, subscription_id, update_tag)
 
         inbound_nat_rules = transform_inbound_nat_rules(lb)
-        load_inbound_nat_rules(neo4j_session, inbound_nat_rules, lb_id, update_tag)
+        load_inbound_nat_rules(
+            neo4j_session, inbound_nat_rules, lb_id, subscription_id, update_tag
+        )
 
         # TODO: Implement relationships from Backend Pools and Inbound NAT Rules to Network Interfaces (NICs).
 

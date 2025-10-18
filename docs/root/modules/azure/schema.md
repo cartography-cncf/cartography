@@ -1319,6 +1319,10 @@ Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/res
 - An Azure Load Balancer is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancer)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerFrontendIPConfiguration)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerBackendPool)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerRule)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerInboundNatRule)
     ```
 
 - An Azure Load Balancer contains its component parts.
