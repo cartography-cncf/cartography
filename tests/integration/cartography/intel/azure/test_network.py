@@ -67,6 +67,8 @@ def test_sync_network(mock_get_vnets, mock_get_subnets, mock_get_nsgs, neo4j_ses
         (TEST_SUBSCRIPTION_ID, nsg_id),
         (vnet_id, subnet_with_nsg_id),
         (vnet_id, subnet_without_nsg_id),
+        (TEST_SUBSCRIPTION_ID, subnet_with_nsg_id),
+        (TEST_SUBSCRIPTION_ID, subnet_without_nsg_id),
     }
     actual_parent_rels = check_rels(
         neo4j_session,
@@ -94,6 +96,16 @@ def test_sync_network(mock_get_vnets, mock_get_subnets, mock_get_nsgs, neo4j_ses
             "AzureSubnet",
             "id",
             "CONTAINS",
+        ),
+    )
+    actual_parent_rels.update(
+        check_rels(
+            neo4j_session,
+            "AzureSubscription",
+            "id",
+            "AzureSubnet",
+            "id",
+            "RESOURCE",
         ),
     )
     assert actual_parent_rels == expected_parent_rels

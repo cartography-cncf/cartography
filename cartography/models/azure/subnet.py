@@ -9,6 +9,7 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
@@ -69,7 +70,32 @@ class AzureSubnetToNSGRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AzureSubnetToSubscriptionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureSubnetToSubscriptionRel(CartographyRelSchema):
+    target_node_label: str = "AzureSubscription"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AzureSubnetToSubscriptionRelProperties = (
+        AzureSubnetToSubscriptionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureSubnetSchema(CartographyNodeSchema):
     label: str = "AzureSubnet"
     properties: AzureSubnetProperties = AzureSubnetProperties()
-    sub_resource_relationship: AzureSubnetToVNetRel = AzureSubnetToVNetRel()
+    sub_resource_relationship: AzureSubnetToSubscriptionRel = (
+        AzureSubnetToSubscriptionRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AzureSubnetToVNetRel(),
+        ],
+    )

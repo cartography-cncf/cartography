@@ -2,7 +2,6 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.network import NetworkManagementClient
 
@@ -38,10 +37,11 @@ def get_virtual_networks(client: NetworkManagementClient) -> list[dict]:
     """
     try:
         return [vnet.as_dict() for vnet in client.virtual_networks.list_all()]
-    except ClientAuthenticationError:
-        raise
-    except HttpResponseError as e:
-        logger.warning(f"Failed to get Virtual Networks: {str(e)}")
+    except HttpResponseError:
+        logger.warning(
+            "Failed to get Virtual Networks due to a transient error.",
+            exc_info=True,
+        )
         return []
 
 
@@ -54,10 +54,11 @@ def get_subnets(
     """
     try:
         return [subnet.as_dict() for subnet in client.subnets.list(rg_name, vnet_name)]
-    except ClientAuthenticationError:
-        raise
-    except HttpResponseError as e:
-        logger.warning(f"Failed to get subnets for VNet {vnet_name}: {str(e)}")
+    except HttpResponseError:
+        logger.warning(
+            f"Failed to get subnets for VNet {vnet_name} due to a transient error.",
+            exc_info=True,
+        )
         return []
 
 
@@ -68,8 +69,6 @@ def get_network_security_groups(client: NetworkManagementClient) -> list[dict]:
     """
     try:
         return [nsg.as_dict() for nsg in client.network_security_groups.list_all()]
-    except ClientAuthenticationError:
-        raise
     except HttpResponseError as e:
         logger.warning(f"Failed to get Network Security Groups: {str(e)}")
         return []
@@ -144,6 +143,7 @@ def load_subnets(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     vnet_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -152,6 +152,7 @@ def load_subnets(
         data,
         lastupdated=update_tag,
         VNET_ID=vnet_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -192,6 +193,87 @@ def load_subnet_nsg_relationships(
 
 
 @timeit
+def _sync_virtual_networks(
+    neo4j_session: neo4j.Session,
+    client: NetworkManagementClient,
+    subscription_id: str,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> list[dict]:
+    """
+    Syncs Virtual Networks and returns the raw vnet list for further processing.
+    """
+    vnets = get_virtual_networks(client)
+    transformed_vnets = transform_virtual_networks(vnets)
+    load_virtual_networks(neo4j_session, transformed_vnets, subscription_id, update_tag)
+    GraphJob.from_node_schema(AzureVirtualNetworkSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    return vnets
+
+
+@timeit
+def _sync_network_security_groups(
+    neo4j_session: neo4j.Session,
+    client: NetworkManagementClient,
+    subscription_id: str,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Syncs Network Security Groups.
+    """
+    nsgs = get_network_security_groups(client)
+    transformed_nsgs = transform_network_security_groups(nsgs)
+    load_network_security_groups(
+        neo4j_session, transformed_nsgs, subscription_id, update_tag
+    )
+    GraphJob.from_node_schema(
+        AzureNetworkSecurityGroupSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
+def _sync_subnets(
+    neo4j_session: neo4j.Session,
+    client: NetworkManagementClient,
+    vnets: list[dict],
+    subscription_id: str,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Syncs Subnets and their relationships for a given list of VNets.
+    """
+    for vnet in vnets:
+        vnet_id = vnet["id"]
+        rg_name = _get_resource_group_from_id(vnet_id)
+        subnets = get_subnets(client, rg_name, vnet["name"])
+        transformed_subnets = transform_subnets(subnets)
+        load_subnets(
+            neo4j_session, transformed_subnets, vnet_id, subscription_id, update_tag
+        )
+
+        subnet_nsg_rels = []
+        for subnet in transformed_subnets:
+            if subnet.get("nsg_id"):
+                subnet_nsg_rels.append(
+                    {"NODE_ID": subnet["id"], "NSG_ID": subnet["nsg_id"]}
+                )
+
+        if subnet_nsg_rels:
+            load_subnet_nsg_relationships(
+                neo4j_session, subnet_nsg_rels, vnet_id, update_tag
+            )
+
+        subnet_cleanup_params = common_job_parameters.copy()
+        subnet_cleanup_params["VNET_ID"] = vnet_id
+        GraphJob.from_node_schema(AzureSubnetSchema(), subnet_cleanup_params).run(
+            neo4j_session
+        )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -202,55 +284,19 @@ def sync(
     logger.info(f"Syncing Azure Networking for subscription {subscription_id}.")
     client = NetworkManagementClient(credentials.credential, subscription_id)
 
-    # Ingest all top-level resources first
-    vnets = get_virtual_networks(client)
-    transformed_vnets = transform_virtual_networks(vnets)
-    load_virtual_networks(neo4j_session, transformed_vnets, subscription_id, update_tag)
-
-    nsgs = get_network_security_groups(client)
-    transformed_nsgs = transform_network_security_groups(nsgs)
-    load_network_security_groups(
-        neo4j_session, transformed_nsgs, subscription_id, update_tag
+    vnets = _sync_virtual_networks(
+        neo4j_session, client, subscription_id, update_tag, common_job_parameters
+    )
+    _sync_network_security_groups(
+        neo4j_session, client, subscription_id, update_tag, common_job_parameters
     )
 
-    # Process subnets and their relationships on a per-VNet basis
-    for vnet in vnets:
-        vnet_id = vnet["id"]
-        rg_name = _get_resource_group_from_id(vnet_id)
-
-        # Ingest Subnet nodes for this VNet
-        subnets = get_subnets(client, rg_name, vnet["name"])
-        transformed_subnets = transform_subnets(subnets)
-        load_subnets(neo4j_session, transformed_subnets, vnet_id, update_tag)
-
-        # Prepare AND load relationship data for this VNet's subnets
-        subnet_nsg_rels = []
-        for subnet in transformed_subnets:
-            if subnet.get("nsg_id"):
-                subnet_nsg_rels.append(
-                    {
-                        "NODE_ID": subnet["id"],
-                        "NSG_ID": subnet["nsg_id"],
-                    }
-                )
-
-        # Load the relationships for this VNet, passing the vnet_id for scope
-        if subnet_nsg_rels:
-            load_subnet_nsg_relationships(
-                neo4j_session, subnet_nsg_rels, vnet_id, update_tag
-            )
-
-        # Run cleanup for the subnets within this VNet
-        subnet_cleanup_params = common_job_parameters.copy()
-        subnet_cleanup_params["VNET_ID"] = vnet_id
-        GraphJob.from_node_schema(AzureSubnetSchema(), subnet_cleanup_params).run(
-            neo4j_session
+    if vnets:
+        _sync_subnets(
+            neo4j_session,
+            client,
+            vnets,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
         )
-
-    # Run top-level cleanup jobs
-    GraphJob.from_node_schema(AzureVirtualNetworkSchema(), common_job_parameters).run(
-        neo4j_session
-    )
-    GraphJob.from_node_schema(
-        AzureNetworkSecurityGroupSchema(), common_job_parameters
-    ).run(neo4j_session)
