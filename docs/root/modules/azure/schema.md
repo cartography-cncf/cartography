@@ -1300,3 +1300,66 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```
+
+### AzureVirtualNetwork
+
+Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/virtual-networks/get).
+
+| Field                | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| firstseen            | Timestamp of when a sync job discovered this node                 |
+| lastupdated          | Timestamp of the last time the node was updated                   |
+| **id** | The full resource ID of the Virtual Network.                      |
+| name                 | The name of the Virtual Network.                                  |
+| location             | The Azure region where the Virtual Network is deployed.           |
+| provisioning_state   | The deployment status of the Virtual Network (e.g., Succeeded).   |
+
+#### Relationships
+
+- An Azure Virtual Network is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureVirtualNetwork)
+    ```
+
+- An Azure Virtual Network contains one or more Subnets.
+    ```cypher
+    (AzureVirtualNetwork)-[:CONTAINS]->(:AzureSubnet)
+    ```
+
+### AzureSubnet
+
+Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
+
+| Field          | Description                                         |
+| -------------- | --------------------------------------------------- |
+| firstseen      | Timestamp of when a sync job discovered this node   |
+| lastupdated    | Timestamp of the last time the node was updated     |
+| **id** | The full resource ID of the Subnet.                 |
+| name           | The name of the Subnet.                             |
+| address\_prefix | The address prefix of the Subnet in CIDR notation.  |
+
+#### Relationships
+
+  - A Subnet can be associated with a Network Security Group.
+    ```cypher
+    (AzureSubnet)-[:ASSOCIATED_WITH]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureNetworkSecurityGroup
+
+Representation of an [Azure Network Security Group (NSG)](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-security-groups/get).
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Network Security Group.   |
+| name        | The name of the Network Security Group.               |
+| location    | The Azure region where the NSG is deployed.           |
+
+#### Relationships
+
+  - An Azure Network Security Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
+    ```
