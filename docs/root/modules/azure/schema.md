@@ -1277,15 +1277,18 @@ Representation of an [Azure Data Lake File System](https://learn.microsoft.com/e
 |has_immutability_policy| A boolean indicating if the data is protected from being changed or deleted. |
 |has_legal_hold| A boolean indicating if the data is locked for legal reasons. |
 
+#### Relationships
+
+- An Azure Storage Account contains one or more File Systems.
+
+    ```cypher
+    (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
+    ```
+
 ### AzureContainerInstance
 
 Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
 
-#### Relationships
-
-- An Azure Storage Account contains one or more File Systems.
-    ```cypher
-    (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
 |**id**| The full resource ID of the Container Instance. |
 |name| The name of the Container Instance. |
 |location| The Azure region where the Container Instance is deployed. |
@@ -1299,4 +1302,138 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 - An Azure Container Instance is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    ```
+
+### AzureSynapseWorkspace
+
+Representation of an Azure Synapse [Workspace](https://learn.microsoft.com/en-us/rest/api/synapse/workspaces/get).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Synapse Workspace. |
+| name | The name of the Synapse Workspace. |
+| location | The Azure region where the Workspace is deployed. |
+| connectivity\_endpoints | A string representation of the connectivity endpoints for the workspace. |
+
+#### Relationships
+
+  - An Azure Synapse Workspace is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseWorkspace)
+    ```
+
+### AzureSynapseDedicatedSqlPool
+
+Representation of an Azure Synapse [Dedicated SQL Pool](https://learn.microsoft.com/en-us/rest/api/synapse/sql-pools/get).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Dedicated SQL Pool. |
+| name | The name of the Dedicated SQL Pool. |
+| location | The Azure region where the pool is deployed. |
+| state | The provisioning state of the pool (e.g., `Succeeded`). |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Dedicated SQL Pools.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseDedicatedSqlPool)
+    ```
+  - A Dedicated SQL Pool is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseDedicatedSqlPool)
+    ```
+
+### AzureSynapseSparkPool
+
+Representation of an Azure Synapse [Spark Pool](https://www.google.com/search?q=https://learn.microsoft.com/en-us/rest/api/synapse/big-data-pools/get).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Spark Pool. |
+| name | The name of the Spark Pool. |
+| location | The Azure region where the pool is deployed. |
+| state | The provisioning state of the pool (e.g., `Succeeded`). |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Spark Pools.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseSparkPool)
+    ```
+  - A Spark Pool is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseSparkPool)
+    ```
+
+### AzureSynapsePipeline
+
+Representation of an Azure Synapse [Pipeline](https://learn.microsoft.com/en-us/azure/data-factory/concepts-pipelines-activities?tabs=data-factory).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Pipeline. |
+| name | The name of the Pipeline. |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Pipelines.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapsePipeline)
+    ```
+  - A Pipeline is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapsePipeline)
+    ```
+
+### AzureSynapseLinkedService
+
+Representation of an Azure Synapse [Linked Service](https://learn.microsoft.com/en-us/azure/data-factory/concepts-linked-services).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Linked Service. |
+| name | The name of the Linked Service. |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Linked Services.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseLinkedService)
+    ```
+  - A Linked Service is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSynapseSubscription)-[:RESOURCE]->(AzureSynapseLinkedService)
+    ```
+
+### AzureSynapseManagedPrivateEndpoint
+
+Representation of an Azure Synapse [Managed Private Endpoint](https://learn.microsoft.com/en-us/azure/synapse-analytics/security/synapse-workspace-managed-private-endpoints).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Managed Private Endpoint. |
+| name | The name of the Managed Private Endpoint. |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Managed Private Endpoints.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseManagedPrivateEndpoint)
+    ```
+  - A Managed Private Endpoint is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseManagedPrivateEndpoint)
     ```
