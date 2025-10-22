@@ -72,27 +72,43 @@ _aws_trust_relationship_manipulation = Fact(
     ),
     cypher_query="""
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-        MATCH (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement{effect:"Allow"})
+        MATCH (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement {effect:"Allow"})
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
-          AND NOT principal.name CONTAINS 'QuickSetup'
-          AND principal.name <> 'OrganizationAccountAccessRole'
+        AND NOT principal.name CONTAINS 'QuickSetup'
+        AND principal.name <> 'OrganizationAccountAccessRole'
         WITH a, principal, policy, stmt,
             [label IN labels(principal) WHERE label <> 'AWSPrincipal'][0] AS principal_type,
-            ['iam:UpdateAssumeRolePolicy','iam:CreateRole'] AS patterns
+            ['iam:UpdateAssumeRolePolicy', 'iam:CreateRole'] AS patterns
+
+        // Filter for matching Allow actions
         WITH a, principal, principal_type, stmt, policy,
             [action IN stmt.action
                 WHERE ANY(p IN patterns WHERE action = p)
-                OR action = 'iam:*' OR action = '*'
-            ] AS matched_actions
-        WHERE size(matched_actions) > 0
-        UNWIND matched_actions AS action
-        RETURN DISTINCT a.name AS account,
-            principal.name AS principal_name,
-            principal.arn AS principal_arn,
-            policy.name as policy_name,
-            principal_type,
-            collect(distinct action) as action,
-            stmt.resource AS resource
+                OR action = 'iam:*'
+                OR action = '*'
+            ] AS matched_allow_actions
+        WHERE size(matched_allow_actions) > 0
+
+        // Look for any explicit Deny statement on same principal that matches those actions
+        OPTIONAL MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(deny_stmt:AWSPolicyStatement {effect:"Deny"})
+        WHERE ANY(action IN deny_stmt.action
+                WHERE action IN matched_allow_actions
+                    OR action = 'iam:*'
+                    OR action = '*')
+
+        // Exclude principals with an explicit Deny that overlaps
+        WITH a, principal, principal_type, policy, stmt, matched_allow_actions, deny_stmt
+        WHERE deny_stmt IS NULL
+
+        UNWIND matched_allow_actions AS action
+        RETURN DISTINCT
+        a.name AS account,
+        principal.name AS principal_name,
+        principal.arn AS principal_arn,
+        policy.name AS policy_name,
+        principal_type,
+        collect(DISTINCT action) AS action,
+        stmt.resource AS resource
         ORDER BY account, principal_name
     """,
     cypher_visual_query="""
