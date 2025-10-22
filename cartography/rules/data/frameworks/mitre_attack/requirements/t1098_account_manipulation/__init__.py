@@ -18,27 +18,37 @@ _aws_account_manipulation_permissions = Fact(
         AND principal.name <> 'OrganizationAccountAccessRole'
         AND stmt.effect = 'Allow'
         WITH a, principal, stmt, policy,
-            // Return labels that are not the general "AWSPrincipal" label
             [label IN labels(principal) WHERE label <> 'AWSPrincipal'][0] AS principal_type,
-            // Define the list of IAM actions to match on
-            [p IN ['iam:Create','iam:Attach','iam:Put','iam:Update','iam:Add'] |
-                p] AS patterns
+            [p IN ['iam:Create','iam:Attach','iam:Put','iam:Update','iam:Add'] | p] AS patterns
+
+        // Match only Allow statements whose actions fit the patterns
         WITH a, principal, principal_type, stmt, policy,
-            // Filter on the desired IAM actions
             [action IN stmt.action
                 WHERE ANY(prefix IN patterns WHERE action STARTS WITH prefix)
                 OR action = 'iam:*'
                 OR action = '*'
-            ] AS matched_actions
-        // Return only statement actions that we matched on
-        WHERE size(matched_actions) > 0
-        UNWIND matched_actions AS action
-        RETURN DISTINCT a.name AS account,
+            ] AS matched_allow_actions
+        WHERE size(matched_allow_actions) > 0
+
+        // Find explicit Deny statements for the same principal that overlap
+        OPTIONAL MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(deny_stmt:AWSPolicyStatement {effect:"Deny"})
+        WHERE ANY(deny_action IN deny_stmt.action
+                    WHERE deny_action IN matched_allow_actions
+                    OR deny_action = 'iam:*'
+                    OR deny_action = '*')
+
+        // If a deny exists, exclude those principals
+        WITH a, principal, principal_type, policy, stmt, matched_allow_actions, deny_stmt
+        WHERE deny_stmt IS NULL
+
+        UNWIND matched_allow_actions AS action
+        RETURN DISTINCT
+            a.name AS account,
             principal.name AS principal_name,
             principal.arn AS principal_arn,
             principal_type,
-            policy.name as policy_name,
-            collect(action) as action,
+            policy.name AS policy_name,
+            collect(DISTINCT action) AS action,
             stmt.resource AS resource
         ORDER BY account, principal_name
     """,
