@@ -305,38 +305,51 @@ _aws_policy_manipulation_capabilities = Fact(
     ),
     cypher_query="""
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-        MATCH (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
+        MATCH (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(allow_stmt:AWSPolicyStatement {effect:"Allow"})
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
         AND NOT principal.name CONTAINS 'QuickSetup'
         AND principal.name <> 'OrganizationAccountAccessRole'
-        AND stmt.effect = 'Allow'
-
-        WITH a, principal, stmt, policy,
-            // Return labels that are not the general "AWSPrincipal" label
+        WITH a, principal, policy, allow_stmt,
             [label IN labels(principal) WHERE label <> 'AWSPrincipal'][0] AS principal_type,
-            // Define the list of IAM actions to match on
-            [p IN
-            ['iam:CreatePolicy', 'iam:CreatePolicyVersion', 'iam:AttachUserPolicy', 'iam:AttachRolePolicy', 'iam:AttachGroupPolicy',
-            'iam:AttachRolePolicy', 'iam:AttachGroupPolicy', 'iam:DetachUserPolicy', 'iam:DetachRolePolicy', 'iam:DetachGroupPolicy',
-            'iam:PutUserPolicy', 'iam:PutRolePolicy', 'iam:PutGroupPolicy'] |
-                p] AS patterns
+            [
+            'iam:CreatePolicy','iam:CreatePolicyVersion',
+            'iam:AttachUserPolicy','iam:AttachRolePolicy','iam:AttachGroupPolicy',
+            'iam:DetachUserPolicy','iam:DetachRolePolicy','iam:DetachGroupPolicy',
+            'iam:PutUserPolicy','iam:PutRolePolicy','iam:PutGroupPolicy'
+            ] AS patterns
 
-        // Return only statement actions that we matched on
-        WITH a, principal, principal_type, stmt, policy,
-            [action IN stmt.action
-                WHERE ANY(p IN patterns WHERE action = p)
-                OR action = 'iam:*' OR action = '*'
-            ] AS matched_actions
-        WHERE size(matched_actions) > 0
-        UNWIND matched_actions AS action
-        RETURN DISTINCT a.name AS account,
+        // Step 1 – Collect (action, resource) pairs for allowed statements
+        UNWIND allow_stmt.action AS allow_action
+            WITH a, principal, principal_type, policy, allow_stmt, allow_action, patterns
+            WHERE ANY(p IN patterns WHERE allow_action = p)
+            OR allow_action = 'iam:*'
+            OR allow_action = '*'
+        WITH a, principal, principal_type, policy, allow_stmt, allow_action, allow_stmt.resource AS allow_resources
+
+        // Step 2 – Gather all Deny statements for the same principal
+        OPTIONAL MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(deny_stmt:AWSPolicyStatement {effect:"Deny"})
+        WITH a, principal, principal_type, policy, allow_action, allow_resources,
+            REDUCE(acc = [], ds IN collect(deny_stmt.action) | acc + ds) AS all_deny_actions
+
+        // Step 3 – Filter out denied actions (handles *, iam:*, exact, and prefix wildcards)
+        WHERE NOT (
+            '*' IN all_deny_actions OR
+            'iam:*' IN all_deny_actions OR
+            allow_action IN all_deny_actions OR
+            ANY(d IN all_deny_actions WHERE d ENDS WITH('*') AND allow_action STARTS WITH split(d,'*')[0])
+        )
+
+        // Step 4 – Preserve (action, resource) mapping
+        UNWIND allow_resources AS resource
+        RETURN DISTINCT
+            a.name AS account,
             principal.name AS principal_name,
-            principal.arn AS principal_arn,
+            principal.arn  AS principal_arn,
             principal_type,
-            policy.name as policy_name,
-            collect(action) as action,
-            stmt.resource AS resource
-        ORDER BY account, principal_name
+            policy.name    AS policy_name,
+            allow_action   AS action,
+            resource
+        ORDER BY account, principal_name, action, resource
     """,
     cypher_visual_query="""
     MATCH p1=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
