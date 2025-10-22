@@ -238,7 +238,7 @@ _aws_policy_manipulation_capabilities = Fact(
         AND principal.name <> 'OrganizationAccountAccessRole'
         AND stmt.effect = 'Allow'
 
-        WITH a, principal, stmt,
+        WITH a, principal, stmt, policy,
             // Return labels that are not the general "AWSPrincipal" label
             [label IN labels(principal) WHERE label <> 'AWSPrincipal'][0] AS principal_type,
             // Define the list of IAM actions to match on
@@ -249,7 +249,7 @@ _aws_policy_manipulation_capabilities = Fact(
                 p] AS patterns
 
         // Return only statement actions that we matched on
-        WITH a, principal, principal_type, stmt,
+        WITH a, principal, principal_type, stmt, policy,
             [action IN stmt.action
                 WHERE ANY(p IN patterns WHERE action = p)
                 OR action = 'iam:*' OR action = '*'
@@ -260,6 +260,7 @@ _aws_policy_manipulation_capabilities = Fact(
             principal.name AS principal_name,
             principal.arn AS principal_arn,
             principal_type,
+            policy.name as policy_name,
             collect(action) as action,
             stmt.resource AS resource
         ORDER BY account, principal_name
