@@ -1321,7 +1321,7 @@ Representation of an Azure Synapse [Workspace](https://learn.microsoft.com/en-us
 
   - An Azure Synapse Workspace is a resource within an Azure Subscription.
     ```cypher
-    (AzureSubscription)-[:RESOURCE]->(AzureSynapseWorkspace)
+    (AzureSubscription)-[:RESOURCE]->(:AzureSynapseWorkspace)
     ```
 
 ### AzureSynapseDedicatedSqlPool
