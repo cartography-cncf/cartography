@@ -144,33 +144,58 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
         MATCH (ec2)-[:INSTANCE_PROFILE]->(profile:AWSInstanceProfile)
         MATCH (profile)-[:ASSOCIATED_WITH]->(role:AWSRole)
-        MATCH (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        WHERE stmt.effect = 'Allow'
-        WITH a, ec2, role,
-            // Define the list of IAM actions to match on
-            ['iam:Create', 'iam:Attach', 'iam:Put', 'iam:Update'] AS patterns,
-            // Filter on the desired IAM actions
-            [action IN stmt.action
-                WHERE ANY(p IN ['iam:Create','iam:Attach','iam:Put','iam:Update', 'iam:Add'] WHERE action STARTS WITH p)
+        MATCH (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(allow_stmt:AWSPolicyStatement {effect:"Allow"})
+        WITH a, ec2, role, allow_stmt,
+            ['iam:Create','iam:Attach','iam:Put','iam:Update','iam:Add'] AS patterns
+
+        // Step 1: Collect allowed actions that match IAM modification patterns
+        WITH a, ec2, role, patterns,
+            [action IN allow_stmt.action
+                WHERE ANY(p IN patterns WHERE action STARTS WITH p)
                 OR action = 'iam:*'
                 OR action = '*'
-            ] AS actions
-        // For the instances that are internet open, include the SG and rules
-        OPTIONAL MATCH (ec2{exposed_internet:True})-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:IpPermissionInbound)
-        // Return only statement actions that we matched on
-        WHERE size(actions) > 0
-        UNWIND actions AS flat_action
-        WITH a, ec2, role, sg, ip,
-            collect(DISTINCT flat_action) AS actions
-        RETURN DISTINCT a.name AS account,
-            a.id as account_id,
+            ] AS matched_allow_actions
+        WHERE size(matched_allow_actions) > 0
+
+        // Step 2: Collect deny statements for the same role
+        OPTIONAL MATCH (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(deny_stmt:AWSPolicyStatement {effect:"Deny"})
+        WITH a, ec2, role, patterns, matched_allow_actions,
+            // Flatten the deny action lists manually
+            REDUCE(acc = [], ds IN collect(deny_stmt.action) | acc + ds) AS all_deny_actions
+
+        // Step 3: Compute effective = allows minus denies
+        WITH a, ec2, role, matched_allow_actions, all_deny_actions,
+            [action IN matched_allow_actions
+                WHERE NOT (
+                    // Full wildcard Deny *
+                    '*' IN all_deny_actions OR
+                    // IAM category wildcard Deny iam:*
+                    'iam:*' IN all_deny_actions OR
+                    // Exact match deny
+                    action IN all_deny_actions OR
+                    // Prefix wildcards like Deny iam:Update*
+                    ANY(d IN all_deny_actions WHERE d ENDS WITH('*') AND action STARTS WITH split(d,'*')[0])
+                )
+            ] AS effective_actions
+        WHERE size(effective_actions) > 0
+
+        // Step 4: Optional internet exposure context
+        OPTIONAL MATCH (ec2 {exposed_internet: True})
+            -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+            <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:IpPermissionInbound)
+
+        UNWIND effective_actions AS action
+        WITH a, ec2, role, sg, ip, COLLECT(DISTINCT action) AS actions
+        RETURN DISTINCT
+            a.name AS account,
+            a.id AS account_id,
             ec2.instanceid AS instance_id,
             ec2.exposed_internet AS internet_accessible,
-            ec2.publicipaddress as public_ip_address,
+            ec2.publicipaddress AS public_ip_address,
             role.name AS role_name,
-            collect(actions) as action,
-            ip.fromport as from_port,
-            ip.toport as to_port
+            actions,
+            ip.fromport AS from_port,
+            ip.toport AS to_port
         ORDER BY account, instance_id, internet_accessible, from_port
     """,
     cypher_visual_query="""
