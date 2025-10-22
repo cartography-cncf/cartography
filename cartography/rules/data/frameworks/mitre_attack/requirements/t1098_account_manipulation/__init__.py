@@ -71,16 +71,14 @@ _aws_trust_relationship_manipulation = Fact(
     ),
     cypher_query="""
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-        MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        OPTIONAL MATCH (groupmember:AWSUser)
+        MATCH (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement{effect:"Allow"})
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
-        AND NOT principal.name CONTAINS 'QuickSetup'
-        AND principal.name <> 'OrganizationAccountAccessRole'
-        AND stmt.effect = 'Allow'
-        WITH a, principal, stmt,
+          AND NOT principal.name CONTAINS 'QuickSetup'
+          AND principal.name <> 'OrganizationAccountAccessRole'
+        WITH a, principal, policy, stmt,
             [label IN labels(principal) WHERE label <> 'AWSPrincipal'][0] AS principal_type,
             ['iam:UpdateAssumeRolePolicy','iam:CreateRole'] AS patterns
-        WITH a, principal, principal_type, stmt,
+        WITH a, principal, principal_type, stmt, policy,
             [action IN stmt.action
                 WHERE ANY(p IN patterns WHERE action = p)
                 OR action = 'iam:*' OR action = '*'
@@ -90,6 +88,7 @@ _aws_trust_relationship_manipulation = Fact(
         RETURN DISTINCT a.name AS account,
             principal.name AS principal_name,
             principal.arn AS principal_arn,
+            policy.name as policy_name,
             principal_type,
             collect(distinct action) as action,
             stmt.resource AS resource
