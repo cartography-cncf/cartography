@@ -12,18 +12,18 @@ _aws_account_manipulation_permissions = Fact(
     ),
     cypher_query="""
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-        MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
+        MATCH (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
         AND NOT principal.name CONTAINS 'QuickSetup'
         AND principal.name <> 'OrganizationAccountAccessRole'
         AND stmt.effect = 'Allow'
-        WITH a, principal, stmt,
+        WITH a, principal, stmt, policy,
             // Return labels that are not the general "AWSPrincipal" label
             [label IN labels(principal) WHERE label <> 'AWSPrincipal'][0] AS principal_type,
             // Define the list of IAM actions to match on
             [p IN ['iam:Create','iam:Attach','iam:Put','iam:Update','iam:Add'] |
                 p] AS patterns
-        WITH a, principal, principal_type, stmt,
+        WITH a, principal, principal_type, stmt, policy,
             // Filter on the desired IAM actions
             [action IN stmt.action
                 WHERE ANY(prefix IN patterns WHERE action STARTS WITH prefix)
@@ -37,6 +37,7 @@ _aws_account_manipulation_permissions = Fact(
             principal.name AS principal_name,
             principal.arn AS principal_arn,
             principal_type,
+            policy.name as policy_name,
             collect(action) as action,
             stmt.resource AS resource
         ORDER BY account, principal_name
