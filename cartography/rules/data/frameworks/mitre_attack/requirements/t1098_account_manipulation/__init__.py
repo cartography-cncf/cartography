@@ -112,13 +112,13 @@ _aws_trust_relationship_manipulation = Fact(
 
         UNWIND matched_allow_actions AS action
         RETURN DISTINCT
-        a.name AS account,
-        principal.name AS principal_name,
-        principal.arn AS principal_arn,
-        policy.name AS policy_name,
-        principal_type,
-        collect(DISTINCT action) AS action,
-        stmt.resource AS resource
+            a.name AS account,
+            principal.name AS principal_name,
+            principal.arn AS principal_arn,
+            policy.name AS policy_name,
+            principal_type,
+            collect(DISTINCT action) AS action,
+            stmt.resource AS resource
         ORDER BY account, principal_name
     """,
     cypher_visual_query="""
