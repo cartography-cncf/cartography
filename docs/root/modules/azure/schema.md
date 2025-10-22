@@ -1350,7 +1350,7 @@ Representation of an Azure Synapse [Dedicated SQL Pool](https://learn.microsoft.
 
 ### AzureSynapseSparkPool
 
-Representation of an Azure Synapse [Spark Pool](https://www.google.com/search?q=https://learn.microsoft.com/en-us/rest/api/synapse/big-data-pools/get).
+Representation of an Azure Synapse [Spark Pool](https://learn.microsoft.com/en-us/rest/api/synapse/big-data-pools/get).
 
 | Field | Description |
 |---|---|
