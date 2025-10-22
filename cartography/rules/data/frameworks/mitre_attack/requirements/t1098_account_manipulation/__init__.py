@@ -228,27 +228,49 @@ _aws_service_account_manipulation_via_lambda = Fact(
         "AWS Lambda functions with IAM roles that can manipulate other AWS accounts."
     ),
     cypher_query="""
-        // Find Lambda functions with account manipulation capabilities
+        // Find Lambda functions with IAM modification or account manipulation capabilities
         MATCH (a:AWSAccount)-[:RESOURCE]->(lambda:AWSLambda)
         MATCH (lambda)-[:STS_ASSUMEROLE_ALLOW]->(role:AWSRole)
-        MATCH (role)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        WHERE stmt.effect = 'Allow'
-        WITH a, lambda, role, stmt,
-            // Define the list of IAM actions to match on
-            ['iam:Create', 'iam:Attach', 'iam:Put', 'iam:Update'] AS patterns,
-            // Filter on the desired IAM actions
-            [action IN stmt.action
-                WHERE ANY(p IN ['iam:Create', 'iam:Attach', 'iam:Put', 'iam:Update', 'iam:Add'] WHERE action STARTS WITH p)
+        MATCH (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(allow_stmt:AWSPolicyStatement {effect:"Allow"})
+        WITH a, lambda, role, allow_stmt,
+            ['iam:Create','iam:Attach','iam:Put','iam:Update','iam:Add'] AS patterns
+
+        // Step 1: Gather allowed actions that match IAM modification patterns
+        WITH a, lambda, role, patterns,
+            [action IN allow_stmt.action
+                WHERE ANY(p IN patterns WHERE action STARTS WITH p)
                 OR action = 'iam:*'
                 OR action = '*'
-            ] AS actions
-        // Return only statement actions that we matched on
-        WHERE size(actions) > 0
-        UNWIND actions AS flat_action
-        WITH a, lambda, role, stmt,
-            collect(DISTINCT flat_action) AS actions
-        RETURN DISTINCT a.name AS account,
-            a.id as account_id,
+            ] AS matched_allow_actions
+        WHERE size(matched_allow_actions) > 0
+
+        // Step 2: Gather all deny actions from the same role
+        OPTIONAL MATCH (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(deny_stmt:AWSPolicyStatement {effect:"Deny"})
+        WITH a, lambda, role, patterns, matched_allow_actions,
+            REDUCE(acc = [], ds IN collect(deny_stmt.action) | acc + ds) AS all_deny_actions
+
+        // Step 3: Subtract Deny actions from Allow actions
+        WITH a, lambda, role, matched_allow_actions, all_deny_actions,
+            [action IN matched_allow_actions
+                WHERE NOT (
+                    // Global wildcard deny
+                    '*' IN all_deny_actions OR
+                    // IAM wildcard deny
+                    'iam:*' IN all_deny_actions OR
+                    // Exact match deny
+                    action IN all_deny_actions OR
+                    // Prefix wildcards like Deny iam:Update*
+                    ANY(d IN all_deny_actions WHERE d ENDS WITH('*') AND action STARTS WITH split(d,'*')[0])
+                )
+            ] AS effective_actions
+        WHERE size(effective_actions) > 0
+
+        // Step 4: Return only Lambdas with effective IAM modification capabilities
+        UNWIND effective_actions AS action
+        WITH a, lambda, role, COLLECT(DISTINCT action) AS actions
+        RETURN DISTINCT
+            a.name AS account,
+            a.id AS account_id,
             lambda.arn AS arn,
             lambda.description AS description,
             lambda.anonymous_access AS internet_accessible,
