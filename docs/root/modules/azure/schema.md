@@ -1413,7 +1413,7 @@ Representation of an Azure Synapse [Linked Service](https://learn.microsoft.com/
     ```
   - A Linked Service is a resource within an Azure Subscription.
     ```cypher
-    (AzureSynapseSubscription)-[:RESOURCE]->(AzureSynapseLinkedService)
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseLinkedService)
     ```
 
 ### AzureSynapseManagedPrivateEndpoint
