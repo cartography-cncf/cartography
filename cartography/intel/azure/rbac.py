@@ -2,7 +2,6 @@ import json
 import logging
 
 import neo4j
-from azure.core.exceptions import HttpResponseError
 from azure.mgmt.authorization import AuthorizationManagementClient
 
 from cartography.client.core.tx import load
@@ -36,23 +35,16 @@ def get_role_assignments(
     """
     Fetch all role assignments for a subscription
     """
-    try:
-        client = get_client(credentials, subscription_id)
-        role_assignments = list(client.role_assignments.list_for_subscription())
+    client = get_client(credentials, subscription_id)
+    role_assignments = list(client.role_assignments.list_for_subscription())
 
-        result = []
-        for assignment in role_assignments:
-            assignment_dict = assignment.as_dict()
-            assignment_dict["subscription_id"] = subscription_id
-            result.append(assignment_dict)
+    result = []
+    for assignment in role_assignments:
+        assignment_dict = assignment.as_dict()
+        assignment_dict["subscription_id"] = subscription_id
+        result.append(assignment_dict)
 
-        return result
-
-    except HttpResponseError as e:
-        logger.warning(
-            f"Error while retrieving role assignments for subscription {subscription_id}: {e}"
-        )
-        return []
+    return result
 
 
 @timeit
@@ -64,36 +56,24 @@ def get_role_definitions_by_ids(
     """
     Fetch specific role definitions by their IDs (more efficient than fetching all)
     """
-    try:
-        client = get_client(credentials, subscription_id)
-        result = []
+    client = get_client(credentials, subscription_id)
+    result = []
 
-        # Extract unique role definition IDs
-        unique_role_ids = list(set(role_definition_ids))
-        logger.info(
-            f"Fetching {len(unique_role_ids)} unique role definitions out of {len(role_definition_ids)} total role assignments"
-        )
+    # Extract unique role definition IDs
+    unique_role_ids = list(set(role_definition_ids))
+    logger.info(
+        f"Fetching {len(unique_role_ids)} unique role definitions out of {len(role_definition_ids)} total role assignments"
+    )
 
-        for role_id in unique_role_ids:
-            try:
-                # Use get_by_id with the full role definition ID
-                # Format: /subscriptions/{guid}/providers/Microsoft.Authorization/roleDefinitions/{roleDefinitionId}
-                role_definition = client.role_definitions.get_by_id(role_id)
-                definition_dict = role_definition.as_dict()
-                definition_dict["subscription_id"] = subscription_id
-                result.append(definition_dict)
+    for role_id in unique_role_ids:
+        # Use get_by_id with the full role definition ID
+        # Format: /subscriptions/{guid}/providers/Microsoft.Authorization/roleDefinitions/{roleDefinitionId}
+        role_definition = client.role_definitions.get_by_id(role_id)
+        definition_dict = role_definition.as_dict()
+        definition_dict["subscription_id"] = subscription_id
+        result.append(definition_dict)
 
-            except HttpResponseError as e:
-                logger.warning(f"Error fetching role definition {role_id}: {e}")
-                continue
-
-        return result
-
-    except HttpResponseError as e:
-        logger.warning(
-            f"Error while retrieving role definitions for subscription {subscription_id}: {e}"
-        )
-        return []
+    return result
 
 
 def extract_role_definition_ids(role_assignments: list[dict]) -> list[str]:

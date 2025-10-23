@@ -1,10 +1,10 @@
-import tempfile
 from typing import Any
 from typing import AsyncGenerator
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 import cartography.intel.azure.compute
 import cartography.intel.azure.cosmosdb
@@ -285,6 +285,11 @@ async def async_return_empty_tuple():
     "get_role_definitions_by_ids",
     return_value=AZURE_ROLE_DEFINITIONS,
 )
+@patch.object(
+    permission_relationships,
+    "parse_permission_relationships_file",
+    return_value=yaml.load(PERMISSION_RELATIONSHIPS_YAML, Loader=yaml.FullLoader),
+)
 @pytest.mark.asyncio
 async def test_sync_azure_permission_relationships(
     mock_get_users,
@@ -333,24 +338,18 @@ async def test_sync_azure_permission_relationships(
     mock_get_file_services_details,
     mock_get_blob_services_details,
     mock_get_entra_service_principals,
+    mock_parse_permission_relationships_file,
     neo4j_session,
 ):
 
     # Arrange
-
-    # Create temporary YAML file from embedded content
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yaml", delete=False
-    ) as temp_file:
-        temp_file.write(PERMISSION_RELATIONSHIPS_YAML)
-        temp_yaml_path = temp_file.name
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "TENANT_ID": TEST_TENANT_ID,
         "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
         "AZURE_ID": TEST_SUBSCRIPTION_ID,
-        "azure_permission_relationships_file": temp_yaml_path,
+        "azure_permission_relationships_file": "dummy_path",  # Will be mocked
     }
 
     create_test_azure_subscription(neo4j_session, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG)
@@ -625,11 +624,3 @@ async def test_sync_azure_permission_relationships(
             "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/TestRG/providers/Microsoft.DocumentDB/databaseAccounts/testcosmos1",
         ),
     }
-
-    # Cleanup temporary file
-    import os
-
-    try:
-        os.unlink(temp_yaml_path)
-    except OSError:
-        pass
