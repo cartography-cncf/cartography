@@ -127,6 +127,7 @@ def test_start_aws_ingestion(
         neo4j_uri="bolt://localhost:7687",
         update_tag=TEST_UPDATE_TAG,
         aws_sync_all_profiles=True,
+        experimental_aws_inspector_batch=100,
     )
 
     # Act
@@ -142,6 +143,7 @@ def test_start_aws_ingestion(
             "permission_relationships_file": test_config.permission_relationships_file,
             "aws_guardduty_severity_threshold": None,
             "aws_cloudtrail_management_events_lookback_hours": test_config.aws_cloudtrail_management_events_lookback_hours,
+            "experimental_aws_inspector_batch": test_config.experimental_aws_inspector_batch,
         },
     )
 

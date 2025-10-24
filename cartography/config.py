@@ -58,6 +58,9 @@ class Config:
     :type aws_guardduty_severity_threshold: str
     :param aws_guardduty_severity_threshold: GuardDuty severity threshold filter. Only findings at or above this
         severity level will be synced. Valid values: LOW, MEDIUM, HIGH, CRITICAL. Optional.
+    :type experimental_aws_inspector_batch: int
+    :param experimental_aws_inspector_batch: EXPERIMENTAL: Batch size for AWS Inspector findings sync. Controls how
+        many findings are fetched, processed and cleaned up at a time. Default is 1000. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -195,6 +198,7 @@ class Config:
         aws_regions=None,
         aws_best_effort_mode=False,
         aws_cloudtrail_management_events_lookback_hours=None,
+        experimental_aws_inspector_batch=1000,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
@@ -287,6 +291,7 @@ class Config:
         self.aws_cloudtrail_management_events_lookback_hours = (
             aws_cloudtrail_management_events_lookback_hours
         )
+        self.experimental_aws_inspector_batch = experimental_aws_inspector_batch
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id
