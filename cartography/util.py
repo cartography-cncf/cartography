@@ -275,6 +275,20 @@ def backoff_handler(details: Dict) -> None:
     )
 
 
+# Error codes that indicate a service is unavailable in a region or blocked by policies
+AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
+    "AccessDenied",
+    "AccessDeniedException",
+    "AuthFailure",
+    "AuthorizationError",
+    "AuthorizationErrorException",
+    "InvalidClientTokenId",
+    "UnauthorizedOperation",
+    "UnrecognizedClientException",
+    "InternalServerErrorException",
+]
+
+
 # TODO Move this to cartography.intel.aws.util.common
 def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
     """
@@ -286,17 +300,6 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
 
     This should be used on `get_` functions that normally return a list of items.
     """
-    ERROR_CODES = [
-        "AccessDenied",
-        "AccessDeniedException",
-        "AuthFailure",
-        "AuthorizationError",
-        "AuthorizationErrorException",
-        "InvalidClientTokenId",
-        "UnauthorizedOperation",
-        "UnrecognizedClientException",
-        "InternalServerErrorException",
-    ]
 
     @wraps(func)
     # fix for AWS TooManyRequestsException
@@ -323,7 +326,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                 ) from e
             # The account is not authorized to use this service in this region
             # so we can continue without raising an exception
-            if error_code in ERROR_CODES:
+            if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
                 error_message = e.response.get("Error", {}).get("Message")
                 if is_service_control_policy_explicit_deny(e):
                     logger.warning(

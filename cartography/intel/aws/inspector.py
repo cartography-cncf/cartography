@@ -18,6 +18,7 @@ from cartography.models.aws.inspector.findings import InspectorFindingToPackageM
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
+from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
 from cartography.util import batch
 from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import timeit
@@ -316,13 +317,17 @@ def _sync_findings_for_account(
     try:
         findings = get_inspector_findings(boto3_session, region, account_id, batch_size)
         if not findings:
-            logger.info(f"No findings to sync for account {account_id} in region {region}")
+            logger.info(
+                f"No findings to sync for account {account_id} in region {region}"
+            )
             return
         for f_batch in findings:
             finding_data, package_data, finding_to_package_map = (
                 transform_inspector_findings(f_batch)
             )
-            logger.info(f"Loading {len(finding_data)} findings from account {account_id}")
+            logger.info(
+                f"Loading {len(finding_data)} findings from account {account_id}"
+            )
             load_inspector_findings(
                 neo4j_session,
                 finding_data,
@@ -349,17 +354,7 @@ def _sync_findings_for_account(
     except botocore.exceptions.ClientError as e:
         error_code = e.response.get("Error", {}).get("Code")
         # Handle the same error codes as aws_handle_regions decorator
-        if error_code in {
-            "AccessDenied",
-            "AccessDeniedException",
-            "AuthFailure",
-            "AuthorizationError",
-            "AuthorizationErrorException",
-            "InvalidClientTokenId",
-            "UnrecognizedClientException",
-            "UnauthorizedOperation",
-            "InternalServerErrorException",
-        }:
+        if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
             error_message = e.response.get("Error", {}).get("Message")
             if is_service_control_policy_explicit_deny(e):
                 logger.warning(
