@@ -191,6 +191,14 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--aws-eks-sync-cluster-resources",
+            action="store_true",
+            help=(
+                "[EXPERIMENTAL!] Sync EKS cluster resources using the Kubernetes intel module. "
+                "Requires an EKS access entry that grants the IAM role read access to the cluster."
+            ),
+        )
+        parser.add_argument(
             "--oci-sync-all-profiles",
             action="store_true",
             help=(
