@@ -1,0 +1,353 @@
+:root {
+--syntax-light-background: #ffffff;
+--syntax-light-highlight: #4ac26b40;
+--syntax-light-text: #1F2328;
+--syntax-light-escape: #0A3069;
+--syntax-light-error: #82071E;
+--syntax-light-keyword: #CF222E;
+--syntax-light-keyword-constant: #0550AE;
+--syntax-light-keyword-type: #953800;
+--syntax-light-name-attribute: #0550AE;
+--syntax-light-name-builtin: #0550AE;
+--syntax-light-name-class: #953800;
+--syntax-light-name-constant: #0550AE;
+--syntax-light-name-decorator: #0550AE;
+--syntax-light-name-entity: #0550AE;
+--syntax-light-name-exception: #0550AE;
+--syntax-light-name-function: #8250DF;
+--syntax-light-name-function-magic: #0550AE;
+--syntax-light-name-property: #0550AE;
+--syntax-light-name-label: #0A3069;
+--syntax-light-name-tag: #116329;
+--syntax-light-name-variable-class: #953800;
+--syntax-light-literal: #0A3069;
+--syntax-light-literal-string: #0A3069;
+--syntax-light-literal-string-affix: #CF222E;
+--syntax-light-literal-string-backtick: #0550AE;
+--syntax-light-literal-string-interpol: #CF222E;
+--syntax-light-literal-string-regex: #0A3069;
+--syntax-light-literal-string-symbol: #0550AE;
+--syntax-light-literal-number: #0550AE;
+--syntax-light-operator: #CF222E;
+--syntax-light-operator-word: #0550AE;
+--syntax-light-comment: #6E7781;
+--syntax-light-comment-preproc: #CF222E;
+--syntax-light-comment-preprocfile: #0A3069;
+--syntax-light-generic-deleted: #82071E;
+--syntax-light-generic-emph: #1F2328;
+--syntax-light-generic-error: #82071E;
+--syntax-light-generic-heading: #0550AE;
+--syntax-light-generic-inserted: #116329;
+--syntax-light-generic-output: #0A3069;
+--syntax-light-generic-prompt: #CF222E;
+--syntax-light-generic-strong: #1F2328;
+--syntax-light-generic-subheading: #0550AE;
+--syntax-light-generic-emphstrong: #1F2328;
+--syntax-light-generic-traceback: #82071E;
+--syntax-light-text-whitespace: #1F2328;
+--syntax-light-keyword-declaration: #CF222E;
+--syntax-light-keyword-namespace: #CF222E;
+--syntax-light-keyword-pseudo: #CF222E;
+--syntax-light-keyword-reserved: #CF222E;
+--syntax-light-name-builtin-pseudo: #0550AE;
+--syntax-light-literal-date: #0A3069;
+--syntax-light-literal-string-char: #0A3069;
+--syntax-light-literal-string-delimiter: #0A3069;
+--syntax-light-literal-string-doc: #0A3069;
+--syntax-light-literal-string-double: #0A3069;
+--syntax-light-literal-string-escape: #0A3069;
+--syntax-light-literal-string-heredoc: #0A3069;
+--syntax-light-literal-string-other: #0A3069;
+--syntax-light-literal-string-single: #0A3069;
+--syntax-light-literal-number-bin: #0550AE;
+--syntax-light-literal-number-float: #0550AE;
+--syntax-light-literal-number-hex: #0550AE;
+--syntax-light-literal-number-integer: #0550AE;
+--syntax-light-literal-number-integer-long: #0550AE;
+--syntax-light-literal-number-oct: #0550AE;
+--syntax-light-comment-hashbang: #6E7781;
+--syntax-light-comment-multiline: #6E7781;
+--syntax-light-comment-single: #6E7781;
+--syntax-light-comment-special: #6E7781;
+--syntax-dark-background: #0d1117;
+--syntax-dark-highlight: #3fb95040;
+--syntax-dark-text: #E6EDF3;
+--syntax-dark-escape: #A5D6FF;
+--syntax-dark-error: #FFA198;
+--syntax-dark-keyword: #FF7B72;
+--syntax-dark-keyword-constant: #79C0FF;
+--syntax-dark-keyword-type: #FFA657;
+--syntax-dark-name-attribute: #79C0FF;
+--syntax-dark-name-builtin: #79C0FF;
+--syntax-dark-name-class: #FFA657;
+--syntax-dark-name-constant: #79C0FF;
+--syntax-dark-name-decorator: #79C0FF;
+--syntax-dark-name-entity: #79C0FF;
+--syntax-dark-name-exception: #79C0FF;
+--syntax-dark-name-function: #D2A8FF;
+--syntax-dark-name-function-magic: #79C0FF;
+--syntax-dark-name-property: #79C0FF;
+--syntax-dark-name-label: #A5D6FF;
+--syntax-dark-name-tag: #7EE787;
+--syntax-dark-name-variable-class: #FFA657;
+--syntax-dark-literal: #A5D6FF;
+--syntax-dark-literal-string: #A5D6FF;
+--syntax-dark-literal-string-affix: #FF7B72;
+--syntax-dark-literal-string-backtick: #79C0FF;
+--syntax-dark-literal-string-interpol: #FF7B72;
+--syntax-dark-literal-string-regex: #A5D6FF;
+--syntax-dark-literal-string-symbol: #79C0FF;
+--syntax-dark-literal-number: #79C0FF;
+--syntax-dark-operator: #FF7B72;
+--syntax-dark-operator-word: #79C0FF;
+--syntax-dark-comment: #8B949E;
+--syntax-dark-comment-preproc: #FF7B72;
+--syntax-dark-comment-preprocfile: #A5D6FF;
+--syntax-dark-generic-deleted: #FFA198;
+--syntax-dark-generic-emph: #E6EDF3;
+--syntax-dark-generic-error: #FFA198;
+--syntax-dark-generic-heading: #79C0FF;
+--syntax-dark-generic-inserted: #7EE787;
+--syntax-dark-generic-output: #A5D6FF;
+--syntax-dark-generic-prompt: #FF7B72;
+--syntax-dark-generic-strong: #E6EDF3;
+--syntax-dark-generic-subheading: #79C0FF;
+--syntax-dark-generic-emphstrong: #E6EDF3;
+--syntax-dark-generic-traceback: #FFA198;
+--syntax-dark-text-whitespace: #E6EDF3;
+--syntax-dark-keyword-declaration: #FF7B72;
+--syntax-dark-keyword-namespace: #FF7B72;
+--syntax-dark-keyword-pseudo: #FF7B72;
+--syntax-dark-keyword-reserved: #FF7B72;
+--syntax-dark-name-builtin-pseudo: #79C0FF;
+--syntax-dark-literal-date: #A5D6FF;
+--syntax-dark-literal-string-char: #A5D6FF;
+--syntax-dark-literal-string-delimiter: #A5D6FF;
+--syntax-dark-literal-string-doc: #A5D6FF;
+--syntax-dark-literal-string-double: #A5D6FF;
+--syntax-dark-literal-string-escape: #A5D6FF;
+--syntax-dark-literal-string-heredoc: #A5D6FF;
+--syntax-dark-literal-string-other: #A5D6FF;
+--syntax-dark-literal-string-single: #A5D6FF;
+--syntax-dark-literal-number-bin: #79C0FF;
+--syntax-dark-literal-number-float: #79C0FF;
+--syntax-dark-literal-number-hex: #79C0FF;
+--syntax-dark-literal-number-integer: #79C0FF;
+--syntax-dark-literal-number-integer-long: #79C0FF;
+--syntax-dark-literal-number-oct: #79C0FF;
+--syntax-dark-comment-hashbang: #8B949E;
+--syntax-dark-comment-multiline: #8B949E;
+--syntax-dark-comment-single: #8B949E;
+--syntax-dark-comment-special: #8B949E;
+}
+:root,html.light{
+--syntax-background: var(--syntax-light-background);
+--syntax-highlight: var(--syntax-light-highlight);
+--syntax-text: var(--syntax-light-text);
+--syntax-escape: var(--syntax-light-escape);
+--syntax-error: var(--syntax-light-error);
+--syntax-keyword: var(--syntax-light-keyword);
+--syntax-keyword-constant: var(--syntax-light-keyword-constant);
+--syntax-keyword-type: var(--syntax-light-keyword-type);
+--syntax-name-attribute: var(--syntax-light-name-attribute);
+--syntax-name-builtin: var(--syntax-light-name-builtin);
+--syntax-name-class: var(--syntax-light-name-class);
+--syntax-name-constant: var(--syntax-light-name-constant);
+--syntax-name-decorator: var(--syntax-light-name-decorator);
+--syntax-name-entity: var(--syntax-light-name-entity);
+--syntax-name-exception: var(--syntax-light-name-exception);
+--syntax-name-function: var(--syntax-light-name-function);
+--syntax-name-function-magic: var(--syntax-light-name-function-magic);
+--syntax-name-property: var(--syntax-light-name-property);
+--syntax-name-label: var(--syntax-light-name-label);
+--syntax-name-tag: var(--syntax-light-name-tag);
+--syntax-name-variable-class: var(--syntax-light-name-variable-class);
+--syntax-literal: var(--syntax-light-literal);
+--syntax-literal-string: var(--syntax-light-literal-string);
+--syntax-literal-string-affix: var(--syntax-light-literal-string-affix);
+--syntax-literal-string-backtick: var(--syntax-light-literal-string-backtick);
+--syntax-literal-string-interpol: var(--syntax-light-literal-string-interpol);
+--syntax-literal-string-regex: var(--syntax-light-literal-string-regex);
+--syntax-literal-string-symbol: var(--syntax-light-literal-string-symbol);
+--syntax-literal-number: var(--syntax-light-literal-number);
+--syntax-operator: var(--syntax-light-operator);
+--syntax-operator-word: var(--syntax-light-operator-word);
+--syntax-comment: var(--syntax-light-comment);
+--syntax-comment-preproc: var(--syntax-light-comment-preproc);
+--syntax-comment-preprocfile: var(--syntax-light-comment-preprocfile);
+--syntax-generic-deleted: var(--syntax-light-generic-deleted);
+--syntax-generic-emph: var(--syntax-light-generic-emph);
+--syntax-generic-error: var(--syntax-light-generic-error);
+--syntax-generic-heading: var(--syntax-light-generic-heading);
+--syntax-generic-inserted: var(--syntax-light-generic-inserted);
+--syntax-generic-output: var(--syntax-light-generic-output);
+--syntax-generic-prompt: var(--syntax-light-generic-prompt);
+--syntax-generic-strong: var(--syntax-light-generic-strong);
+--syntax-generic-subheading: var(--syntax-light-generic-subheading);
+--syntax-generic-emphstrong: var(--syntax-light-generic-emphstrong);
+--syntax-generic-traceback: var(--syntax-light-generic-traceback);
+--syntax-text-whitespace: var(--syntax-light-text-whitespace);
+--syntax-keyword-declaration: var(--syntax-light-keyword-declaration);
+--syntax-keyword-namespace: var(--syntax-light-keyword-namespace);
+--syntax-keyword-pseudo: var(--syntax-light-keyword-pseudo);
+--syntax-keyword-reserved: var(--syntax-light-keyword-reserved);
+--syntax-name-builtin-pseudo: var(--syntax-light-name-builtin-pseudo);
+--syntax-literal-date: var(--syntax-light-literal-date);
+--syntax-literal-string-char: var(--syntax-light-literal-string-char);
+--syntax-literal-string-delimiter: var(--syntax-light-literal-string-delimiter);
+--syntax-literal-string-doc: var(--syntax-light-literal-string-doc);
+--syntax-literal-string-double: var(--syntax-light-literal-string-double);
+--syntax-literal-string-escape: var(--syntax-light-literal-string-escape);
+--syntax-literal-string-heredoc: var(--syntax-light-literal-string-heredoc);
+--syntax-literal-string-other: var(--syntax-light-literal-string-other);
+--syntax-literal-string-single: var(--syntax-light-literal-string-single);
+--syntax-literal-number-bin: var(--syntax-light-literal-number-bin);
+--syntax-literal-number-float: var(--syntax-light-literal-number-float);
+--syntax-literal-number-hex: var(--syntax-light-literal-number-hex);
+--syntax-literal-number-integer: var(--syntax-light-literal-number-integer);
+--syntax-literal-number-integer-long: var(--syntax-light-literal-number-integer-long);
+--syntax-literal-number-oct: var(--syntax-light-literal-number-oct);
+--syntax-comment-hashbang: var(--syntax-light-comment-hashbang);
+--syntax-comment-multiline: var(--syntax-light-comment-multiline);
+--syntax-comment-single: var(--syntax-light-comment-single);
+--syntax-comment-special: var(--syntax-light-comment-special);
+}
+html.dark, html.light .dark-code{
+--syntax-background: var(--syntax-dark-background);
+--syntax-highlight: var(--syntax-dark-highlight);
+--syntax-text: var(--syntax-dark-text);
+--syntax-escape: var(--syntax-dark-escape);
+--syntax-error: var(--syntax-dark-error);
+--syntax-keyword: var(--syntax-dark-keyword);
+--syntax-keyword-constant: var(--syntax-dark-keyword-constant);
+--syntax-keyword-type: var(--syntax-dark-keyword-type);
+--syntax-name-attribute: var(--syntax-dark-name-attribute);
+--syntax-name-builtin: var(--syntax-dark-name-builtin);
+--syntax-name-class: var(--syntax-dark-name-class);
+--syntax-name-constant: var(--syntax-dark-name-constant);
+--syntax-name-decorator: var(--syntax-dark-name-decorator);
+--syntax-name-entity: var(--syntax-dark-name-entity);
+--syntax-name-exception: var(--syntax-dark-name-exception);
+--syntax-name-function: var(--syntax-dark-name-function);
+--syntax-name-function-magic: var(--syntax-dark-name-function-magic);
+--syntax-name-property: var(--syntax-dark-name-property);
+--syntax-name-label: var(--syntax-dark-name-label);
+--syntax-name-tag: var(--syntax-dark-name-tag);
+--syntax-name-variable-class: var(--syntax-dark-name-variable-class);
+--syntax-literal: var(--syntax-dark-literal);
+--syntax-literal-string: var(--syntax-dark-literal-string);
+--syntax-literal-string-affix: var(--syntax-dark-literal-string-affix);
+--syntax-literal-string-backtick: var(--syntax-dark-literal-string-backtick);
+--syntax-literal-string-interpol: var(--syntax-dark-literal-string-interpol);
+--syntax-literal-string-regex: var(--syntax-dark-literal-string-regex);
+--syntax-literal-string-symbol: var(--syntax-dark-literal-string-symbol);
+--syntax-literal-number: var(--syntax-dark-literal-number);
+--syntax-operator: var(--syntax-dark-operator);
+--syntax-operator-word: var(--syntax-dark-operator-word);
+--syntax-comment: var(--syntax-dark-comment);
+--syntax-comment-preproc: var(--syntax-dark-comment-preproc);
+--syntax-comment-preprocfile: var(--syntax-dark-comment-preprocfile);
+--syntax-generic-deleted: var(--syntax-dark-generic-deleted);
+--syntax-generic-emph: var(--syntax-dark-generic-emph);
+--syntax-generic-error: var(--syntax-dark-generic-error);
+--syntax-generic-heading: var(--syntax-dark-generic-heading);
+--syntax-generic-inserted: var(--syntax-dark-generic-inserted);
+--syntax-generic-output: var(--syntax-dark-generic-output);
+--syntax-generic-prompt: var(--syntax-dark-generic-prompt);
+--syntax-generic-strong: var(--syntax-dark-generic-strong);
+--syntax-generic-subheading: var(--syntax-dark-generic-subheading);
+--syntax-generic-emphstrong: var(--syntax-dark-generic-emphstrong);
+--syntax-generic-traceback: var(--syntax-dark-generic-traceback);
+--syntax-text-whitespace: var(--syntax-dark-text-whitespace);
+--syntax-keyword-declaration: var(--syntax-dark-keyword-declaration);
+--syntax-keyword-namespace: var(--syntax-dark-keyword-namespace);
+--syntax-keyword-pseudo: var(--syntax-dark-keyword-pseudo);
+--syntax-keyword-reserved: var(--syntax-dark-keyword-reserved);
+--syntax-name-builtin-pseudo: var(--syntax-dark-name-builtin-pseudo);
+--syntax-literal-date: var(--syntax-dark-literal-date);
+--syntax-literal-string-char: var(--syntax-dark-literal-string-char);
+--syntax-literal-string-delimiter: var(--syntax-dark-literal-string-delimiter);
+--syntax-literal-string-doc: var(--syntax-dark-literal-string-doc);
+--syntax-literal-string-double: var(--syntax-dark-literal-string-double);
+--syntax-literal-string-escape: var(--syntax-dark-literal-string-escape);
+--syntax-literal-string-heredoc: var(--syntax-dark-literal-string-heredoc);
+--syntax-literal-string-other: var(--syntax-dark-literal-string-other);
+--syntax-literal-string-single: var(--syntax-dark-literal-string-single);
+--syntax-literal-number-bin: var(--syntax-dark-literal-number-bin);
+--syntax-literal-number-float: var(--syntax-dark-literal-number-float);
+--syntax-literal-number-hex: var(--syntax-dark-literal-number-hex);
+--syntax-literal-number-integer: var(--syntax-dark-literal-number-integer);
+--syntax-literal-number-integer-long: var(--syntax-dark-literal-number-integer-long);
+--syntax-literal-number-oct: var(--syntax-dark-literal-number-oct);
+--syntax-comment-hashbang: var(--syntax-dark-comment-hashbang);
+--syntax-comment-multiline: var(--syntax-dark-comment-multiline);
+--syntax-comment-single: var(--syntax-dark-comment-single);
+--syntax-comment-special: var(--syntax-dark-comment-special);
+}
+.highlight .c { color: var(--syntax-comment) }
+.highlight .err { color: var(--syntax-error) }
+.highlight .esc { color: var(--syntax-escape) }
+.highlight .k { color: var(--syntax-keyword) }
+.highlight .l { color: var(--syntax-literal) }
+.highlight .o { color: var(--syntax-operator) }
+.highlight .ch { color: var(--syntax-comment-hashbang) }
+.highlight .cm { color: var(--syntax-comment-multiline) }
+.highlight .cp { color: var(--syntax-comment-preproc) }
+.highlight .cpf { color: var(--syntax-comment-preprocfile) }
+.highlight .c1 { color: var(--syntax-comment-single) }
+.highlight .cs { color: var(--syntax-comment-special) }
+.highlight .gd { color: var(--syntax-generic-deleted) }
+.highlight .ge { color: var(--syntax-generic-emph); font-style: italic }
+.highlight .ges { color: var(--syntax-generic-emphstrong); font-weight: bold; font-style: italic }
+.highlight .gr { color: var(--syntax-generic-error) }
+.highlight .gh { color: var(--syntax-generic-heading); font-weight: bold }
+.highlight .gi { color: var(--syntax-generic-inserted) }
+.highlight .go { color: var(--syntax-generic-output) }
+.highlight .gp { color: var(--syntax-generic-prompt) }
+.highlight .gs { color: var(--syntax-generic-strong); font-weight: bold }
+.highlight .gu { color: var(--syntax-generic-subheading) }
+.highlight .gt { color: var(--syntax-generic-traceback) }
+.highlight .kc { color: var(--syntax-keyword-constant) }
+.highlight .kd { color: var(--syntax-keyword-declaration) }
+.highlight .kn { color: var(--syntax-keyword-namespace) }
+.highlight .kp { color: var(--syntax-keyword-pseudo) }
+.highlight .kr { color: var(--syntax-keyword-reserved) }
+.highlight .kt { color: var(--syntax-keyword-type) }
+.highlight .ld { color: var(--syntax-literal-date) }
+.highlight .m { color: var(--syntax-literal-number) }
+.highlight .s { color: var(--syntax-literal-string) }
+.highlight .na { color: var(--syntax-name-attribute) }
+.highlight .nb { color: var(--syntax-name-builtin) }
+.highlight .nc { color: var(--syntax-name-class) }
+.highlight .no { color: var(--syntax-name-constant) }
+.highlight .nd { color: var(--syntax-name-decorator) }
+.highlight .ni { color: var(--syntax-name-entity) }
+.highlight .ne { color: var(--syntax-name-exception) }
+.highlight .nf { color: var(--syntax-name-function) }
+.highlight .nl { color: var(--syntax-name-label) }
+.highlight .py { color: var(--syntax-name-property) }
+.highlight .nt { color: var(--syntax-name-tag) }
+.highlight .ow { color: var(--syntax-operator-word) }
+.highlight .w { color: var(--syntax-text-whitespace) }
+.highlight .mb { color: var(--syntax-literal-number-bin) }
+.highlight .mf { color: var(--syntax-literal-number-float) }
+.highlight .mh { color: var(--syntax-literal-number-hex) }
+.highlight .mi { color: var(--syntax-literal-number-integer) }
+.highlight .mo { color: var(--syntax-literal-number-oct) }
+.highlight .sa { color: var(--syntax-literal-string-affix) }
+.highlight .sb { color: var(--syntax-literal-string-backtick) }
+.highlight .sc { color: var(--syntax-literal-string-char) }
+.highlight .dl { color: var(--syntax-literal-string-delimiter) }
+.highlight .sd { color: var(--syntax-literal-string-doc) }
+.highlight .s2 { color: var(--syntax-literal-string-double) }
+.highlight .se { color: var(--syntax-literal-string-escape) }
+.highlight .sh { color: var(--syntax-literal-string-heredoc) }
+.highlight .si { color: var(--syntax-literal-string-interpol) }
+.highlight .sx { color: var(--syntax-literal-string-other) }
+.highlight .sr { color: var(--syntax-literal-string-regex) }
+.highlight .s1 { color: var(--syntax-literal-string-single) }
+.highlight .ss { color: var(--syntax-literal-string-symbol) }
+.highlight .bp { color: var(--syntax-name-builtin-pseudo) }
+.highlight .fm { color: var(--syntax-name-function-magic) }
+.highlight .vc { color: var(--syntax-name-variable-class) }
+.highlight .il { color: var(--syntax-literal-number-integer-long) }
