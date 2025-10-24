@@ -166,7 +166,7 @@ def _get_repo_collaborators_inner_func(
     for repo in repo_raw_data:
         # GitHub can return null repo entries. See issues #1334 and #1404.
         if repo is None:
-            logger.debug(
+            logger.info(
                 "Skipping null repository entry while fetching %s collaborators.",
                 affiliation,
             )
