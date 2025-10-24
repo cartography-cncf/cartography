@@ -348,7 +348,18 @@ def _sync_findings_for_account(
             )
     except botocore.exceptions.ClientError as e:
         error_code = e.response.get("Error", {}).get("Code")
-        if error_code in {"AccessDenied", "AccessDeniedException"}:
+        # Handle the same error codes as aws_handle_regions decorator
+        if error_code in {
+            "AccessDenied",
+            "AccessDeniedException",
+            "AuthFailure",
+            "AuthorizationError",
+            "AuthorizationErrorException",
+            "InvalidClientTokenId",
+            "UnrecognizedClientException",
+            "UnauthorizedOperation",
+            "InternalServerErrorException",
+        }:
             error_message = e.response.get("Error", {}).get("Message")
             if is_service_control_policy_explicit_deny(e):
                 logger.warning(
