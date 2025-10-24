@@ -65,7 +65,7 @@ def transform_groups(response_objects: List[Dict]) -> List[Dict]:
     """
     groups: List[Dict] = []
     for response_object in response_objects:
-        for group in response_object["groups"]:
+        for group in response_object.get("groups", []):
             groups.append(group)
     return groups
 

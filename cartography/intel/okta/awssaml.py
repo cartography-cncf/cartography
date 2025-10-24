@@ -248,7 +248,7 @@ def _load_awssso_tx(
         ingest_statement,
         GROUP_TO_ROLE=[g._asdict() for g in group_to_role],
         okta_update_tag=okta_update_tag,
-    )
+    ).consume()
 
 
 def _load_okta_group_to_awssso_roles(
