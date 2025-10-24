@@ -262,6 +262,8 @@ def load_graph_data(
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
+    if batch_size <= 0:
+        raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
     for data_batch in batch(dict_list, size=batch_size):
         neo4j_session.write_transaction(
             write_list_of_dicts_tx,
@@ -331,6 +333,8 @@ def load(
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
+    if batch_size <= 0:
+        raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
     if len(dict_list) == 0:
         # If there is no data to load, save some time.
         return
@@ -358,6 +362,8 @@ def load_matchlinks(
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
+    if batch_size <= 0:
+        raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
     if len(dict_list) == 0:
         # If there is no data to load, save some time.
         return
