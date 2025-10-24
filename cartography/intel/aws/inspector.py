@@ -7,6 +7,7 @@ from typing import Set
 from typing import Tuple
 
 import boto3
+import botocore
 import neo4j
 
 from cartography.client.core.tx import load
@@ -17,7 +18,9 @@ from cartography.models.aws.inspector.findings import InspectorFindingToPackageM
 from cartography.models.aws.inspector.packages import AWSInspectorPackageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import aws_paginate
+from cartography.util import AWS_REGION_ACCESS_DENIED_ERROR_CODES
 from cartography.util import batch
+from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -70,7 +73,6 @@ def get_member_accounts(
 
 
 @timeit
-@aws_handle_regions
 def get_inspector_findings(
     session: boto3.session.Session,
     region: str,
@@ -83,6 +85,10 @@ def get_inspector_findings(
     only fetch those in ACTIVE or SUPPRESSED statuses.
     Run the query in batches and return an iterator to fetch the results.
     """
+    # Note: We can't use @aws_handle_regions decorator here because this function returns a generator.
+    # The decorator would only catch exceptions during function call, not during iteration.
+    # Instead, we rely on aws_handle_regions being applied at get_member_accounts level,
+    # and the paginate operation itself will raise errors that bubble up naturally.
     client = session.client("inspector2", region_name=region)
     logger.info(
         f"Getting findings in batches of {batch_size} for account {account_id} in region {region}"
@@ -308,38 +314,64 @@ def _sync_findings_for_account(
     """
     Syncs the findings for a given account in a given region.
     """
-    findings = get_inspector_findings(boto3_session, region, account_id, batch_size)
-    if not findings:
-        logger.info(f"No findings to sync for account {account_id} in region {region}")
-        return
-    for f_batch in findings:
-        finding_data, package_data, finding_to_package_map = (
-            transform_inspector_findings(f_batch)
-        )
-        logger.info(f"Loading {len(finding_data)} findings from account {account_id}")
-        load_inspector_findings(
-            neo4j_session,
-            finding_data,
-            region,
-            update_tag,
-            current_aws_account_id,
-        )
-        logger.info(f"Loading {len(package_data)} packages")
-        load_inspector_packages(
-            neo4j_session,
-            package_data,
-            update_tag,
-            current_aws_account_id,
-        )
-        logger.info(
-            f"Loading {len(finding_to_package_map)} finding to package relationships"
-        )
-        load_inspector_finding_to_package_match_links(
-            neo4j_session,
-            finding_to_package_map,
-            update_tag,
-            current_aws_account_id,
-        )
+    try:
+        findings = get_inspector_findings(boto3_session, region, account_id, batch_size)
+        if not findings:
+            logger.info(
+                f"No findings to sync for account {account_id} in region {region}"
+            )
+            return
+        for f_batch in findings:
+            finding_data, package_data, finding_to_package_map = (
+                transform_inspector_findings(f_batch)
+            )
+            logger.info(
+                f"Loading {len(finding_data)} findings from account {account_id}"
+            )
+            load_inspector_findings(
+                neo4j_session,
+                finding_data,
+                region,
+                update_tag,
+                current_aws_account_id,
+            )
+            logger.info(f"Loading {len(package_data)} packages")
+            load_inspector_packages(
+                neo4j_session,
+                package_data,
+                update_tag,
+                current_aws_account_id,
+            )
+            logger.info(
+                f"Loading {len(finding_to_package_map)} finding to package relationships"
+            )
+            load_inspector_finding_to_package_match_links(
+                neo4j_session,
+                finding_to_package_map,
+                update_tag,
+                current_aws_account_id,
+            )
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code")
+        # Handle the same error codes as aws_handle_regions decorator
+        if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
+            error_message = e.response.get("Error", {}).get("Message")
+            if is_service_control_policy_explicit_deny(e):
+                logger.warning(
+                    "Service control policy denied access to Inspector findings for account %s in region %s: %s",
+                    account_id,
+                    region,
+                    error_message,
+                )
+            else:
+                logger.warning(
+                    "Access denied to Inspector findings for account %s in region %s. Skipping...",
+                    account_id,
+                    region,
+                )
+            return
+        else:
+            raise
 
 
 @timeit
