@@ -1032,7 +1032,7 @@ def _load_gcp_ingress_firewalls_tx(
             VpcPartialUri=fw["vpc_partial_uri"],
             HasTargetServiceAccounts=fw["has_target_service_accounts"],
             gcp_update_tag=gcp_update_tag,
-        )
+        ).consume()
         _attach_firewall_rules(tx, fw, gcp_update_tag)
         _attach_target_tags(tx, fw, gcp_update_tag)
 
@@ -1095,7 +1095,7 @@ def _attach_firewall_rules(
                     ToPort=rule.get("toport"),
                     Range=ip_range,
                     gcp_update_tag=gcp_update_tag,
-                )
+                ).consume()
 
 
 @timeit
@@ -1132,7 +1132,7 @@ def _attach_target_tags(
             TagId=tag_id,
             TagValue=tag,
             gcp_update_tag=gcp_update_tag,
-        )
+        ).consume()
 
 
 @timeit
