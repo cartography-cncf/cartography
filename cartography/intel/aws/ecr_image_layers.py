@@ -551,8 +551,8 @@ async def fetch_image_layers_async(
         """
         Fetch layers for a single image and extract attestation if present.
 
-        Returns tuple of (uri, digest, platform_layers, attestations_by_child_digest) where:
-        - attestations_by_child_digest maps child image digest to parent image info
+        Returns tuple of (uri, digest, platform_layers, attestations_by_child_digest) where
+        attestations_by_child_digest maps child image digest to parent image info
         """
         async with semaphore:
             # Caller guarantees these fields exist in every repo_image
