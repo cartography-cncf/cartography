@@ -364,13 +364,7 @@ def transform_ecr_image_layers(
             is_manifest_list = image_type == "manifest_list"
 
         # Skip creating layer relationships for manifest lists
-        # But still check for attestation data below
         if is_manifest_list:
-            # Check if manifest list has attestation data for child images
-            if image_uri in image_attestation_map:
-                # Don't create layers/memberships for the manifest list itself
-                # The attestation data will be handled when processing the actual child platform images
-                pass
             continue
 
         ordered_layers_for_image: Optional[list[str]] = None
