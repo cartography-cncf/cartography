@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from google.api_core.exceptions import PermissionDenied
@@ -18,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_kms_locations(client: Resource, project_id: str) -> List[Dict]:
+def get_kms_locations(client: Resource, project_id: str) -> list[dict] | None:
     try:
         parent = f"projects/{project_id}"
         request = client.projects().locations().list(name=parent)
@@ -40,13 +38,13 @@ def get_kms_locations(client: Resource, project_id: str) -> List[Dict]:
         logger.warning(
             f"Failed to get KMS locations for project {project_id}: {e}",
         )
-        return []
+        return None
 
 
 @timeit
 def get_key_rings(
-    client: Resource, project_id: str, locations: List[Dict]
-) -> List[Dict]:
+    client: Resource, project_id: str, locations: list[dict]
+) -> list[dict]:
     rings = []
     for loc in locations:
         location_id = loc.get("locationId")
@@ -77,7 +75,7 @@ def get_key_rings(
 
 
 @timeit
-def get_crypto_keys(client: Resource, keyring_name: str) -> List[Dict]:
+def get_crypto_keys(client: Resource, keyring_name: str) -> list[dict]:
     try:
         request = (
             client.projects()
@@ -109,11 +107,12 @@ def get_crypto_keys(client: Resource, keyring_name: str) -> List[Dict]:
         return []
 
 
-def transform_key_rings(key_rings: List[Dict], project_id: str) -> List[Dict]:
+def transform_key_rings(key_rings: list[dict], project_id: str) -> list[dict]:
     transformed = []
     for ring in key_rings:
         ring_id = ring.get("name")
         if not ring_id:
+            logger.warning("Skipping key ring with missing 'name' field.")
             continue
 
         location = ring_id.split("/")[3]
@@ -128,11 +127,12 @@ def transform_key_rings(key_rings: List[Dict], project_id: str) -> List[Dict]:
     return transformed
 
 
-def transform_crypto_keys(crypto_keys: List[Dict], keyring_id: str) -> List[Dict]:
+def transform_crypto_keys(crypto_keys: list[dict], keyring_id: str) -> list[dict]:
     transformed = []
     for key in crypto_keys:
         key_id = key.get("name")
         if not key_id:
+            logger.warning("Skipping crypto key with missing 'name' field.")
             continue
 
         transformed.append(
@@ -197,14 +197,18 @@ def sync(
     kms_client: Resource,
     project_id: str,
     gcp_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info(f"Syncing GCP KMS for project {project_id}.")
 
     locations = get_kms_locations(kms_client, project_id)
+    if locations is None:
+        logger.warning(
+            f"KMS sync for project {project_id} failed to get locations. Skipping cleanup."
+        )
+        return
     if not locations:
         logger.info(f"No KMS locations found for project {project_id}.")
-        return
 
     key_rings_raw = get_key_rings(kms_client, project_id, locations)
     if not key_rings_raw:
@@ -220,6 +224,7 @@ def sync(
                 crypto_keys = transform_crypto_keys(crypto_keys_raw, keyring_id)
                 load_crypto_keys(neo4j_session, crypto_keys, project_id, gcp_update_tag)
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["PROJECT_ID"] = project_id
-    cleanup_kms(neo4j_session, cleanup_job_params)
+    if locations is not None:
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["PROJECT_ID"] = project_id
+        cleanup_kms(neo4j_session, cleanup_job_params)

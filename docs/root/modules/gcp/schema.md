@@ -732,7 +732,7 @@ Representation of a GCP [Key Ring](https://cloud.google.com/kms/docs/reference/r
 
   - GCPKeyRings are resources of GCPProjects.
     ```
-    (GCPKeyRing)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[:RESOURCE]->(GCPKeyRing)
     ```
 
 ### GCPCryptoKey
@@ -754,7 +754,7 @@ Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference
 
   - GCPCryptoKeys are resources of GCPProjects.
     ```
-    (GCPCryptoKey)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[:RESOURCE]->(GCPCryptoKey)
     ```
   - GCPKeyRings contain GCPCryptoKeys.
     ```
