@@ -758,5 +758,5 @@ Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference
     ```
   - GCPKeyRings contain GCPCryptoKeys.
     ```
-    (GCPKeyRing)-[CONTAINS_KEY]->(GCPCryptoKey)
+    (GCPKeyRing)-[CONTAINS]->(GCPCryptoKey)
     ```
