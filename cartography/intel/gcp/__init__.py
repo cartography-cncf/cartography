@@ -15,6 +15,7 @@ from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
+from cartography.intel.gcp import kms
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
@@ -30,13 +31,14 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam")
+Services = namedtuple("Services", "compute storage gke dns iam kms")
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
     gke="container.googleapis.com",
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
+    kms="cloudkms.googleapis.com",
 )
 
 
@@ -150,6 +152,16 @@ def _sync_project_resources(
             iam.sync(
                 neo4j_session,
                 iam_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+        if service_names.kms in enabled_services:
+            logger.info("Syncing GCP project %s for KMS.", project_id)
+            kms_cred = build_client("cloudkms", "v1")
+            kms.sync(
+                neo4j_session,
+                kms_cred,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
