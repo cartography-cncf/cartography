@@ -3,6 +3,8 @@ from typing import Any
 
 import neo4j
 from google.api_core.exceptions import PermissionDenied
+from google.auth.exceptions import DefaultCredentialsError
+from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
@@ -34,11 +36,18 @@ def get_kms_locations(client: Resource, project_id: str) -> list[dict] | None:
                 )
             )
         return locations
-    except (PermissionDenied, HttpError) as e:
+    except (PermissionDenied, DefaultCredentialsError, RefreshError):
         logger.warning(
-            f"Failed to get KMS locations for project {project_id}: {e}",
+            "Failed to get KMS locations for project due to permissions or auth error.",
+            exc_info=True,
         )
-        return None
+        raise
+    except HttpError:
+        logger.warning(
+            "Failed to get KMS locations for project due to a transient HTTP error.",
+            exc_info=True,
+        )
+        return []
 
 
 @timeit
@@ -67,10 +76,18 @@ def get_key_rings(
                         previous_response=response,
                     )
                 )
-        except (PermissionDenied, HttpError) as e:
+        except (PermissionDenied, DefaultCredentialsError, RefreshError):
             logger.warning(
-                f"Failed to get Key Rings for project {project_id} in location {location_id}: {e}",
+                f"Failed to get Key Rings in location {location_id} due to permissions or auth error.",
+                exc_info=True,
             )
+            raise
+        except HttpError:
+            logger.warning(
+                f"Failed to get Key Rings in location {location_id} due to a transient HTTP error.",
+                exc_info=True,
+            )
+            continue
     return rings
 
 
@@ -100,9 +117,16 @@ def get_crypto_keys(client: Resource, keyring_name: str) -> list[dict]:
                 )
             )
         return keys
-    except (PermissionDenied, HttpError) as e:
+    except (PermissionDenied, DefaultCredentialsError, RefreshError):
         logger.warning(
-            f"Failed to get Crypto Keys for keyring {keyring_name}: {e}",
+            "Failed to get Crypto Keys for keyring due to permissions or auth error.",
+            exc_info=True,
+        )
+        raise
+    except HttpError:
+        logger.warning(
+            "Failed to get Crypto Keys for keyring due to a transient HTTP error.",
+            exc_info=True,
         )
         return []
 
