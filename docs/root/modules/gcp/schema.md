@@ -715,3 +715,143 @@ Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/
     ```
     (GCPRole)-[RESOURCE]->(GCPProject)
     ```
+
+### GCPCloudRunService
+
+Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource name of the Cloud Run Service. |
+| name | The short name of the Cloud Run Service. |
+| description | The user-provided description of the service. |
+| location | The GCP location of the service (e.g., `us-central1`). |
+| uri | The primary URL endpoint for the service. |
+| latest\_ready\_revision | The full resource name of the latest revision that is ready to serve traffic. |
+| project\_id | The ID of the GCP project to which the role belongs. |
+
+#### Relationships
+
+  - GCPCloudRunServices are resources of GCPProjects.
+    ```
+    (GCPCloudRunService)<-[:RESOURCE]-(GCPProject)
+    ```
+
+### GCPCloudRunRevision
+
+Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource name of the Revision. |
+| name | The short name of the Revision. |
+| service | The full resource name of the parent Service. |
+| container\_image | The container image URL (e.g., `gcr.io/project/image@digest`). |
+| service\_account\_email | The email of the IAM service account the revision runs as. |
+| log\_uri | A URL to view the logs for this revision. |
+| project\_id | The ID of the GCP project to which the role belongs. |
+
+#### Relationships
+
+  - GCPCloudRunRevisions are resources of GCPProjects.
+    ```
+    (GCPCloudRunRevision)<-[:RESOURCE]-(GCPProject)
+    ```
+  - GCPCloudRunServices have one or more Revisions.
+    ```
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunRevisions use a container image.
+    ```
+    (GCPCloudRunRevision)-[:USES_IMAGE]->(GCPGCRImage)
+    ```
+  - GCPCloudRunRevisions use an IAM service account for their runtime identity.
+    ```
+    (GCPCloudRunRevision)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunJob
+
+Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource name of the Job. |
+| name | The short name of the Job. |
+| location | The GCP location of the Job. |
+| container\_image | The container image URL (e.g., `gcr.io/project/image@digest`). |
+| service\_account\_email | The email of the IAM service account the job runs as. |
+| project\_id | The ID of the GCP project to which the role belongs. |
+
+#### Relationships
+
+  - GCPCloudRunJobs are resources of GCPProjects.
+    ```
+    (GCPCloudRunJob)<-[:RESOURCE]-(GCPProject)
+    ```
+  - GCPCloudRunJobs use a container image.
+    ```
+    (GCPCloudRunJob)-[:USES_IMAGE]->(GCPGCRImage)
+    ```
+  - GCPCloudRunJobs use an IAM service account for their runtime identity.
+    ```
+    (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunExecution
+
+Representation of a GCP [Cloud Run Execution](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource name of the Execution. |
+| name | The short name of the Execution. |
+| job | The full resource name of the parent Job. |
+| status | The completion status of the execution (e.g., `RUNNING`, `SUCCEEDED`). |
+| cancelled\_count | The number of tasks that were cancelled. |
+| failed\_count | The number of tasks that failed. |
+| succeeded\_count | The number of tasks that succeeded. |
+| project\_id | The ID of the GCP project to which the role belongs. |
+
+#### Relationships
+
+  - GCPCloudRunExecutions are resources of GCPProjects.
+    ```
+    (GCPCloudRunExecution)<-[:RESOURCE]-(GCPProject)
+    ```
+  - GCPCloudRunJobs have one or more Executions.
+    ```
+    (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
+    ```
+
+### GCPCloudRunDomainMapping
+
+Representation of a GCP [Cloud Run Domain Mapping](https://cloud.google.com/run/docs/reference/rest/v1/namespaces.domainmappings/list).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The fully qualified ID of the domain mapping resource. |
+| name | The custom domain name (e.g., `app.example.com`). |
+| route\_name | The name of the Cloud Run Service this domain maps to. |
+| project\_id | The ID of the GCP project to which the role belongs. |
+
+#### Relationships
+
+  - GCPCloudRunDomainMappings are resources of GCPProjects.
+    ```
+    (GCPCloudRunDomainMapping)<-[:RESOURCE]-(GCPProject)
+    ```
+  - GCPCloudRunDomainMappings point to a specific Cloud Run Service.
+    ```
+    (GCPCloudRunDomainMapping)-[:POINTS_TO_SERVICE]->(GCPCloudRunService)
+    ```
