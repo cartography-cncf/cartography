@@ -64,6 +64,17 @@
             }
         }
     },
+    "gsuite": {
+        "nodes": {
+            "GSuiteUser": {
+
+                    "email": "email",
+                    "firstname": "given_name",
+                    "lastname": "family_name",
+                    "fullname": "name"
+            }
+        }
+    },
     "lastpass": {
         "nodes": {
             "LastPassUser": {
