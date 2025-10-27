@@ -78,7 +78,7 @@ def _entity_not_found_backoff_handler(details: Dict) -> None:
     :param details: Backoff details dict containing 'exception', 'wait', 'tries', 'target'
     """
     exc = details.get("exception")
-    if _is_retryable_client_error(exc):
+    if isinstance(exc, Exception) and _is_retryable_client_error(exc):
         logger.warning(
             "Retrying EntityNotFound error after {tries} tries. This is expected during "
             "concurrent write operations. Backing off {wait:0.1f} seconds before retry. "
