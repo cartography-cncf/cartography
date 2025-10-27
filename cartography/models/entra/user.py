@@ -75,7 +75,6 @@ class EntraUserToTenantRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EntraUserSchema(CartographyNodeSchema):
     label: str = "EntraUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
     properties: EntraUserNodeProperties = EntraUserNodeProperties()
     sub_resource_relationship: EntraUserToTenantRel = EntraUserToTenantRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -86,5 +85,6 @@ class EntraUserSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "EntraIdentity",
+            "UserAccount"
         ]
     )
