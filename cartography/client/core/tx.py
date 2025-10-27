@@ -108,10 +108,89 @@ def _run_index_query_with_retry(neo4j_session: neo4j.Session, query: str) -> Non
     neo4j_session.run(query)
 
 
+def execute_write_with_retry(
+    neo4j_session: neo4j.Session,
+    tx_func: Any,
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
+    """
+    Execute a custom transaction function with retry logic for transient errors.
+
+    This is a generic wrapper for any custom transaction function that needs retry logic
+    for EntityNotFound and other transient errors. Use this when you have complex
+    transaction logic that doesn't fit the standard load_graph_data pattern.
+
+    Example usage:
+        def my_custom_tx(tx, data_list, update_tag):
+            for item in data_list:
+                tx.run(query, **item).consume()
+
+        execute_write_with_retry(
+            neo4j_session,
+            my_custom_tx,
+            data_list,
+            update_tag
+        )
+
+    :param neo4j_session: The Neo4j session
+    :param tx_func: The transaction function to execute (takes neo4j.Transaction as first arg)
+    :param args: Positional arguments to pass to tx_func
+    :param kwargs: Keyword arguments to pass to tx_func
+    :return: The return value of tx_func
+    """
+
+    @backoff.on_exception(  # type: ignore
+        backoff.expo,
+        (
+            ConnectionResetError,
+            neo4j.exceptions.ServiceUnavailable,
+            neo4j.exceptions.SessionExpired,
+            neo4j.exceptions.TransientError,
+            neo4j.exceptions.ClientError,  # We filter specific ClientErrors in giveup
+        ),
+        max_tries=5,
+        on_backoff=_entity_not_found_backoff_handler,
+        giveup=_should_giveup_on_client_error,
+    )
+    def _execute_with_retry() -> Any:
+        return neo4j_session.execute_write(tx_func, *args, **kwargs)
+
+    return _execute_with_retry()
+
+
+@backoff.on_exception(  # type: ignore
+    backoff.expo,
+    (
+        ConnectionResetError,
+        neo4j.exceptions.ServiceUnavailable,
+        neo4j.exceptions.SessionExpired,
+        neo4j.exceptions.TransientError,
+        neo4j.exceptions.ClientError,  # We filter specific ClientErrors in giveup
+    ),
+    max_tries=5,
+    on_backoff=_entity_not_found_backoff_handler,
+    giveup=_should_giveup_on_client_error,
+)
 def run_write_query(
     neo4j_session: neo4j.Session, query: str, **parameters: Any
 ) -> None:
-    """Execute a write query inside a managed transaction."""
+    """
+    Execute a write query inside a managed transaction with retry logic.
+
+    This function now includes retry logic for:
+    - Network errors (ConnectionResetError)
+    - Service unavailability (ServiceUnavailable, SessionExpired)
+    - Transient database errors (TransientError)
+    - EntityNotFound errors during concurrent operations (specific ClientError)
+
+    Used by intel modules that run manual transactions (e.g., GCP firewalls, AWS resources).
+
+    :param neo4j_session: The Neo4j session
+    :param query: The Cypher query to execute
+    :param parameters: Parameters to pass to the query
+    :return: None
+    """
 
     def _run_query_tx(tx: neo4j.Transaction) -> None:
         tx.run(query, **parameters).consume()
