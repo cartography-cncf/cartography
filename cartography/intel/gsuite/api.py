@@ -193,6 +193,7 @@ def load_gsuite_users(
         u.user_id = user.id,
         u.firstseen = $UpdateTag
         SET
+        u:UserAccount,
         u.agreed_to_terms = user.agreedToTerms,
         u.archived = user.archived,
         u.change_password_at_next_login = user.changePasswordAtNextLogin,
