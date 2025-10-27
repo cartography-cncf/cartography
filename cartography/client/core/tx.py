@@ -6,6 +6,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import backoff
 import neo4j
 
 from cartography.graph.querybuilder import build_create_index_queries
@@ -14,9 +15,40 @@ from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.querybuilder import build_matchlink_query
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
+from cartography.util import backoff_handler
 from cartography.util import batch
 
 logger = logging.getLogger(__name__)
+
+
+@backoff.on_exception(  # type: ignore
+    backoff.expo,
+    (
+        ConnectionResetError,
+        neo4j.exceptions.ServiceUnavailable,
+        neo4j.exceptions.SessionExpired,
+        neo4j.exceptions.TransientError,
+    ),
+    max_tries=5,
+    on_backoff=backoff_handler,
+)
+def _run_index_query_with_retry(neo4j_session: neo4j.Session, query: str) -> None:
+    """
+    Execute an index creation query with retry logic.
+    Index creation requires autocommit transactions and can experience transient errors.
+    """
+    neo4j_session.run(query)
+
+
+def run_write_query(
+    neo4j_session: neo4j.Session, query: str, **parameters: Any
+) -> None:
+    """Execute a write query inside a managed transaction."""
+
+    def _run_query_tx(tx: neo4j.Transaction) -> None:
+        tx.run(query, **parameters).consume()
+
+    neo4j_session.execute_write(_run_query_tx)
 
 
 def read_list_of_values_tx(
@@ -31,7 +63,7 @@ def read_list_of_values_tx(
     Example usage:
         query = "MATCH (a:TestNode) RETURN a.name ORDER BY a.name"
 
-        values = neo4j_session.read_transaction(read_list_of_values_tx, query)
+        values = neo4j_session.execute_read(read_list_of_values_tx, query)
 
     :param tx: A neo4j read transaction object
     :param query: A neo4j query string that returns a list of single values. For example,
@@ -217,6 +249,7 @@ def load_graph_data(
     neo4j_session: neo4j.Session,
     query: str,
     dict_list: List[Dict[str, Any]],
+    batch_size: int = 10000,
     **kwargs,
 ) -> None:
     """
@@ -225,10 +258,13 @@ def load_graph_data(
     :param query: The Neo4j write query to run. This query is not meant to be handwritten, rather it should be generated
     with cartography.graph.querybuilder.build_ingestion_query().
     :param dict_list: The data to load to the graph represented as a list of dicts.
+    :param batch_size: The number of items to process per transaction. Defaults to 10000.
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
-    for data_batch in batch(dict_list, size=10000):
+    if batch_size <= 0:
+        raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
+    for data_batch in batch(dict_list, size=batch_size):
         neo4j_session.write_transaction(
             write_list_of_dicts_tx,
             query,
@@ -258,7 +294,7 @@ def ensure_indexes(
             raise ValueError(
                 'Query provided to `ensure_indexes()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        neo4j_session.run(query)
+        _run_index_query_with_retry(neo4j_session, query)
 
 
 def ensure_indexes_for_matchlinks(
@@ -277,13 +313,14 @@ def ensure_indexes_for_matchlinks(
             raise ValueError(
                 'Query provided to `ensure_indexes_for_matchlinks()` does not start with "CREATE INDEX IF NOT EXISTS".',
             )
-        neo4j_session.run(query)
+        _run_index_query_with_retry(neo4j_session, query)
 
 
 def load(
     neo4j_session: neo4j.Session,
     node_schema: CartographyNodeSchema,
     dict_list: List[Dict[str, Any]],
+    batch_size: int = 10000,
     **kwargs,
 ) -> None:
     """
@@ -292,21 +329,27 @@ def load(
     :param neo4j_session: The Neo4j session
     :param node_schema: The CartographyNodeSchema object to create indexes for and generate a query.
     :param dict_list: The data to load to the graph represented as a list of dicts.
+    :param batch_size: The number of items to process per transaction. Defaults to 10000.
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
+    if batch_size <= 0:
+        raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
     if len(dict_list) == 0:
         # If there is no data to load, save some time.
         return
     ensure_indexes(neo4j_session, node_schema)
     ingestion_query = build_ingestion_query(node_schema)
-    load_graph_data(neo4j_session, ingestion_query, dict_list, **kwargs)
+    load_graph_data(
+        neo4j_session, ingestion_query, dict_list, batch_size=batch_size, **kwargs
+    )
 
 
 def load_matchlinks(
     neo4j_session: neo4j.Session,
     rel_schema: CartographyRelSchema,
     dict_list: list[dict[str, Any]],
+    batch_size: int = 10000,
     **kwargs,
 ) -> None:
     """
@@ -315,9 +358,12 @@ def load_matchlinks(
     :param rel_schema: The CartographyRelSchema object to generate a query.
     :param dict_list: The data to load to the graph represented as a list of dicts. The dicts must contain the source and
     target node ids.
+    :param batch_size: The number of items to process per transaction. Defaults to 10000.
     :param kwargs: Allows additional keyword args to be supplied to the Neo4j query.
     :return: None
     """
+    if batch_size <= 0:
+        raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
     if len(dict_list) == 0:
         # If there is no data to load, save some time.
         return
@@ -337,4 +383,6 @@ def load_matchlinks(
     ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
     matchlink_query = build_matchlink_query(rel_schema)
     logger.debug(f"Matchlink query: {matchlink_query}")
-    load_graph_data(neo4j_session, matchlink_query, dict_list, **kwargs)
+    load_graph_data(
+        neo4j_session, matchlink_query, dict_list, batch_size=batch_size, **kwargs
+    )

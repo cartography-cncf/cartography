@@ -7,6 +7,7 @@ import pkgutil
 
 import neo4j
 
+import cartography.intel.analysis
 from cartography.config import Config
 from cartography.intel import create_indexes
 from cartography.intel import ontology
@@ -22,7 +23,7 @@ UPDATE_TAG = 0
 logger = logging.getLogger(__name__)
 
 
-def main(force_flag: bool) -> None:
+def main(force_flag: bool, analysis_job_directory: str) -> None:
     # Set up Neo4j connection
     if NEO4J_USER and NEO4J_PASSWORD:
         neo4j_driver = neo4j.GraphDatabase.driver(
@@ -40,6 +41,7 @@ def main(force_flag: bool) -> None:
         neo4j_password=NEO4J_PASSWORD,
         ontology_users_source="duo",
         ontology_devices_source="snipeit",
+        analysis_job_directory=analysis_job_directory,
     )
 
     # Check if the database is empty
@@ -110,6 +112,8 @@ def main(force_flag: bool) -> None:
     ontology.run(neo4j_session, config)
 
     # TODO: Analysis: blocked due to https://github.com/cartography-cncf/cartography/issues/1591
+    logger.info("Running analysis...")
+    cartography.intel.analysis.run(neo4j_session, config)
 
     # Close the session
     neo4j_session.close()
@@ -117,17 +121,21 @@ def main(force_flag: bool) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description=(
-            "Cartography Demo: Load demo data into a Neo4j database for testing and development purposes."
-            " This script will clear the existing database and load a predefined set of demo data."
-            " Ensure you have a Neo4j instance running and accessible at the specified NEO4J_URL."
-            " The default URL is 'bolt://localhost:7687'."
-            " You can change this by setting the NEO4J_URL environment variable."
-            " Use the -v or --verbose flag for detailed logging, or -q or --quiet to suppress most logs."
-            " The script will prompt for confirmation if the database is not empty."
-            " Use with caution as it will delete all existing data in the Neo4j database."
-            " You can bypass the confirmation prompt by using the --force flag."
-        )
+        description="""\
+Cartography Demo: Load demo data into a Neo4j database for testing and development purposes.
+
+This script will clear the existing database and load a predefined set of demo data.
+
+Ensure you have a Neo4j instance running and accessible at the specified NEO4J_URL.
+The default URL is 'bolt://localhost:7687'. You can change this by setting the NEO4J_URL
+environment variable.
+
+Use the -v or --verbose flag for detailed logging, or -q or --quiet to suppress most logs.
+The script will prompt for confirmation if the database is not empty. Use with caution
+as it will delete all existing data in the Neo4j database.
+
+You can bypass the confirmation prompt by using the --force flag.
+"""
     )
     parser.add_argument(
         "-v",
@@ -146,6 +154,18 @@ if __name__ == "__main__":
         action="store_true",
         help="Force the script to run without confirmation, even if the database is not empty.",
     )
+    parser.add_argument(
+        "--analysis-job-directory",
+        type=str,
+        default="cartography/data/jobs/analysis",
+        help=(
+            "A path to a directory containing analysis jobs to run at the conclusion of the sync. cartography will "
+            "discover all JSON files in the given directory (and its subdirectories) and pass them to the GraphJob "
+            "API to execute against the graph. This allows you to apply data transformation and augmentation at "
+            "the end of a sync run without writing code. cartography does not guarantee the order in which the "
+            "jobs are executed."
+        ),
+    )
     args = parser.parse_args()
 
     logging.basicConfig()
@@ -156,4 +176,4 @@ if __name__ == "__main__":
     else:
         logger.setLevel(logging.INFO)
 
-    main(args.force)
+    main(args.force, args.analysis_job_directory)

@@ -75,7 +75,7 @@ def test_load_snipeit_assets_relationship(neo4j_session):
         check_nodes(
             neo4j_session,
             "SnipeitAsset",
-            ["id", "serial"],
+            ["id", "serial", "status"],
         )
         == expected_nodes
     )

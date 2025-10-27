@@ -171,9 +171,15 @@ def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, An
 
 def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
-    Extract network interface ID from task attachments.
+    Extract network interface ID from task attachments and service name from group.
     """
     for task in tasks:
+        # Extract serviceName from group field
+        group = task.get("group")
+        if group and group.startswith("service:"):
+            task["serviceName"] = group.split("service:", 1)[1]
+
+        # Extract network interface ID from task attachments
         for attachment in task.get("attachments", []):
             if attachment.get("type") == "ElasticNetworkInterface":
                 details = attachment.get("details", [])

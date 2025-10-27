@@ -34,6 +34,7 @@ Representation of a SnipeIT asset.
 |model | Model of the device|
 |name | Name of the device|
 |serial | Serial number of the asset|
+|status | Status label of the asset |
 
 #### Relationships
 

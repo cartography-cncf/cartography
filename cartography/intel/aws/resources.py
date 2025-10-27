@@ -5,19 +5,24 @@ from cartography.intel.aws.ec2.route_tables import sync_route_tables
 
 from . import acm
 from . import apigateway
+from . import apigatewayv2
 from . import cloudtrail
 from . import cloudtrail_management_events
 from . import cloudwatch
 from . import codebuild
+from . import cognito
 from . import config
 from . import dynamodb
 from . import ecr
+from . import ecr_image_layers
 from . import ecs
 from . import efs
 from . import eks
 from . import elasticache
 from . import elasticsearch
 from . import emr
+from . import eventbridge
+from . import glue
 from . import guardduty
 from . import iam
 from . import identitycenter
@@ -84,6 +89,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "ec2:volumes": sync_ebs_volumes,
     "ec2:snapshots": sync_ebs_snapshots,
     "ecr": ecr.sync,
+    "ecr:image_layers": ecr_image_layers.sync,
     "ecs": ecs.sync,
     "eks": eks.sync,
     "elasticache": elasticache.sync,
@@ -98,6 +104,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "permission_relationships": permission_relationships.sync,
     "resourcegroupstaggingapi": resourcegroupstaggingapi.sync,
     "apigateway": apigateway.sync,
+    "apigatewayv2": apigatewayv2.sync,
     "secretsmanager": secretsmanager.sync,
     "securityhub": securityhub.sync,
     "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
@@ -114,4 +121,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "efs": efs.sync,
     "guardduty": guardduty.sync,
     "codebuild": codebuild.sync,
+    "cognito": cognito.sync,
+    "eventbridge": eventbridge.sync,
+    "glue": glue.sync,
 }

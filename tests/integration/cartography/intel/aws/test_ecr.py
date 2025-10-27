@@ -35,13 +35,13 @@ def _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session):
     "get_ecr_repository_images",
     side_effect=[
         tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1/example-repository"
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
         ],
         tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1/sample-repository"
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository"
         ],
         tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1/test-repository"
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository"
         ],
     ],
 )
@@ -110,43 +110,49 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
         ["id", "tag", "image_size_bytes", "image_pushed_at"],
     ) == {
         (
-            "000000000000.dkr.ecr.us-east-1/example-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
             "1",
             1024,
             "2025-01-01T00:00:00.000000-00:00",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/example-repository:2",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
+            "latest",
+            1024,
+            "2025-01-01T00:00:00.000000-00:00",
+        ),
+        (
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:2",
             "2",
             1024,
             "2025-01-01T00:00:00.000000-00:00",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/sample-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository:1",
             "1",
             1024,
             "2025-01-01T00:00:00.000000-00:00",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/sample-repository:2",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository:2",
             "2",
             1024,
             "2025-01-01T00:00:00.000000-00:00",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository:1234567890",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890",
             "1234567890",
             1024,
             "2025-01-01T00:00:00.000000-00:00",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1",
             "1",
             1024,
             "2025-01-01T00:00:00.000000-00:00",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
             None,
             1024,
             "2025-01-01T00:00:00.000000-00:00",
@@ -188,32 +194,36 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
         rel_direction_right=True,
     ) == {
         (
-            "000000000000.dkr.ecr.us-east-1/example-repository",
-            "000000000000.dkr.ecr.us-east-1/example-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/example-repository",
-            "000000000000.dkr.ecr.us-east-1/example-repository:2",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/sample-repository",
-            "000000000000.dkr.ecr.us-east-1/sample-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:2",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/sample-repository",
-            "000000000000.dkr.ecr.us-east-1/sample-repository:2",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository:1",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository",
-            "000000000000.dkr.ecr.us-east-1/test-repository:1234567890",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository:2",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository",
-            "000000000000.dkr.ecr.us-east-1/test-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository",
-            "000000000000.dkr.ecr.us-east-1/test-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1",
+        ),
+        (
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
         ),
     }
 
@@ -228,31 +238,35 @@ def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
         rel_direction_right=True,
     ) == {
         (
-            "000000000000.dkr.ecr.us-east-1/example-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/example-repository:2",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:2",
             "sha256:0000000000000000000000000000000000000000000000000000000000000001",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/sample-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository:1",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/sample-repository:2",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository:2",
             "sha256:0000000000000000000000000000000000000000000000000000000000000011",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository:1234567890",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1",
             "sha256:0000000000000000000000000000000000000000000000000000000000000021",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
             "sha256:0000000000000000000000000000000000000000000000000000000000000031",
         ),
     }
@@ -301,7 +315,7 @@ def test_cleanup_repositories(neo4j_session):
                 "repositoryArn": f"arn:aws:ecr:us-east-1:000000000000:repository/test-repository{i}",
                 "registryId": "000000000000",
                 "repositoryName": f"test-repository{i}",
-                "repositoryUri": "000000000000.dkr.ecr.us-east-1/test-repository",
+                "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
                 "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
             }
             for i in range(iter_size)
@@ -341,7 +355,7 @@ def test_cleanup_repositories(neo4j_session):
                 "repositoryArn": "arn:aws:ecr:us-east-1:000000000000:repository/test-repositoryX",
                 "registryId": "000000000000",
                 "repositoryName": "test-repositoryX",
-                "repositoryUri": "000000000000.dkr.ecr.us-east-1/test-repository",
+                "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository",
                 "createdAt": datetime.datetime(2019, 1, 1, 0, 0, 1),
             },
         ],
@@ -385,10 +399,13 @@ def test_load_ecr_repository_images(neo4j_session):
     _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
 
     data = tests.data.aws.ecr.LIST_REPOSITORY_IMAGES
-    repo_images_list = cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    repo_images_list, ecr_images_list = (
+        cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    )
     cartography.intel.aws.ecr.load_ecr_repository_images(
         neo4j_session,
         repo_images_list,
+        ecr_images_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -399,6 +416,10 @@ def test_load_ecr_repository_images(neo4j_session):
         (
             "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
             "1",
+        ),
+        (
+            "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
+            "latest",
         ),
         (
             "arn:aws:ecr:us-east-1:000000000000:repository/example-repository",
@@ -425,10 +446,13 @@ def test_load_ecr_images(neo4j_session):
     _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session)
 
     data = tests.data.aws.ecr.LIST_REPOSITORY_IMAGES
-    repo_images_list = cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    repo_images_list, ecr_images_list = (
+        cartography.intel.aws.ecr.transform_ecr_repository_images(data)
+    )
     cartography.intel.aws.ecr.load_ecr_repository_images(
         neo4j_session,
         repo_images_list,
+        ecr_images_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -437,15 +461,19 @@ def test_load_ecr_images(neo4j_session):
     # Tuples of form (repo image ARN, image SHA)
     expected_nodes = {
         (
-            "000000000000.dkr.ecr.us-east-1/test-repository:1234567890",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository:1234567890",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/sample-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository:1",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
         (
-            "000000000000.dkr.ecr.us-east-1/example-repository:1",
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
     }
@@ -459,3 +487,175 @@ def test_load_ecr_images(neo4j_session):
     )
     actual_nodes = {(n["repo_image.id"], n["image.digest"]) for n in nodes}
     assert actual_nodes == expected_nodes
+
+
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=[
+        {
+            "repositoryArn": "arn:aws:ecr:us-east-1:000000000000:repository/multi-arch-repository",
+            "registryId": "000000000000",
+            "repositoryName": "multi-arch-repository",
+            "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository",
+            "createdAt": datetime.datetime(2025, 1, 1, 0, 0, 1),
+        }
+    ],
+)
+def test_sync_manifest_list(mock_get_repos, neo4j_session):
+    """
+    Ensure that manifest lists are properly handled:
+    - ECRRepositoryImage points to manifest list, platform-specific, and attestation ECRImages
+    - ECRImage nodes have correct type, architecture, os, variant fields
+    - Attestations are included as type="attestation"
+    """
+
+    # Remove everything previously put in the test graph since the fixture scope is set to module and not function.
+    neo4j_session.run(
+        """
+        MATCH (n) DETACH DELETE n;
+        """,
+    )
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    mock_client = MagicMock()
+
+    # Mock list_images paginator
+    mock_list_paginator = MagicMock()
+    mock_list_paginator.paginate.return_value = [
+        {
+            "imageIds": [
+                {
+                    "imageDigest": tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
+                    "imageTag": "v1.0",
+                }
+            ]
+        }
+    ]
+
+    # Mock describe_images paginator
+    mock_describe_paginator = MagicMock()
+    mock_describe_paginator.paginate.return_value = [
+        {"imageDetails": [tests.data.aws.ecr.MULTI_ARCH_IMAGE_DETAILS]}
+    ]
+
+    # Configure get_paginator to return the appropriate paginator
+    def get_paginator(name):
+        if name == "list_images":
+            return mock_list_paginator
+        elif name == "describe_images":
+            return mock_describe_paginator
+        raise ValueError(f"Unexpected paginator: {name}")
+
+    mock_client.get_paginator = get_paginator
+
+    # Mock batch_get_image to return the manifest list
+    mock_client.batch_get_image.return_value = (
+        tests.data.aws.ecr.BATCH_GET_MANIFEST_LIST_RESPONSE
+    )
+
+    boto3_session.client.return_value = mock_client
+
+    # Act
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert - Check that 4 ECRImage nodes were created (manifest list + 2 platform-specific + 1 attestation for the AMD64 image)
+    ecr_images = neo4j_session.run(
+        """
+        MATCH (img:ECRImage)
+        RETURN img.digest AS digest, img.type AS type, img.architecture AS architecture,
+               img.os AS os, img.variant AS variant, img.attestation_type AS attestation_type,
+               img.attests_digest AS attests_digest, img.media_type AS media_type,
+               img.artifact_media_type AS artifact_media_type
+        ORDER BY img.digest
+        """
+    ).data()
+
+    assert len(ecr_images) == 4
+
+    # Manifest list image
+    manifest_list_img = next(
+        img
+        for img in ecr_images
+        if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_DIGEST
+    )
+    assert manifest_list_img["type"] == "manifest_list"
+    assert manifest_list_img["architecture"] is None
+    assert manifest_list_img["os"] is None
+    assert manifest_list_img["variant"] is None
+
+    # AMD64 platform image
+    amd64_img = next(
+        img
+        for img in ecr_images
+        if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST
+    )
+    assert amd64_img["type"] == "image"
+    assert amd64_img["architecture"] == "amd64"
+    assert amd64_img["os"] == "linux"
+    assert amd64_img["variant"] is None
+    assert amd64_img["media_type"] == "application/vnd.oci.image.manifest.v1+json"
+
+    # ARM64 platform image
+    arm64_img = next(
+        img
+        for img in ecr_images
+        if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST
+    )
+    assert arm64_img["type"] == "image"
+    assert arm64_img["architecture"] == "arm64"
+    assert arm64_img["os"] == "linux"
+    assert arm64_img["variant"] == "v8"
+    assert arm64_img["media_type"] == "application/vnd.oci.image.manifest.v1+json"
+
+    # Attestation image
+    attestation_img = next(
+        img
+        for img in ecr_images
+        if img["digest"] == tests.data.aws.ecr.MANIFEST_LIST_ATTESTATION_DIGEST
+    )
+    assert attestation_img["type"] == "attestation"
+    assert attestation_img["architecture"] == "unknown"
+    assert attestation_img["os"] == "unknown"
+    assert attestation_img["variant"] is None
+    assert attestation_img["attestation_type"] == "attestation-manifest"
+    assert (
+        attestation_img["attests_digest"]
+        == tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST
+    )
+    assert attestation_img["media_type"] == "application/vnd.oci.image.manifest.v1+json"
+
+    # Assert - Check that ECRRepositoryImage has relationships to all 4 images
+    all_rels = check_rels(
+        neo4j_session,
+        "ECRRepositoryImage",
+        "id",
+        "ECRImage",
+        "digest",
+        "IMAGE",
+        rel_direction_right=True,
+    )
+
+    # Filter to only relationships from our specific repository image
+    repo_image_id = (
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0"
+    )
+    image_digests = {
+        img_digest for (repo_id, img_digest) in all_rels if repo_id == repo_image_id
+    }
+
+    assert len(image_digests) == 4
+    assert image_digests == {
+        tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
+        tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST,
+        tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST,
+        tests.data.aws.ecr.MANIFEST_LIST_ATTESTATION_DIGEST,
+    }

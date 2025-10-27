@@ -27,6 +27,7 @@ class ECSTaskNodeProperties(CartographyNodeProperties):
     enable_execute_command: PropertyRef = PropertyRef("enableExecuteCommand")
     execution_stopped_at: PropertyRef = PropertyRef("executionStoppedAt")
     group: PropertyRef = PropertyRef("group")
+    service_name: PropertyRef = PropertyRef("serviceName")
     health_status: PropertyRef = PropertyRef("healthStatus")
     last_status: PropertyRef = PropertyRef("lastStatus")
     launch_type: PropertyRef = PropertyRef("launchType")

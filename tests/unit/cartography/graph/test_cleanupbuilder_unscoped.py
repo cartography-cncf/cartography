@@ -1,4 +1,6 @@
 from cartography.graph.cleanupbuilder import build_cleanup_queries
+from cartography.graph.querybuilder import _get_cartography_version
+from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
 from tests.data.graph.querybuilder.sample_models.allow_unscoped import (
     UnscopedNodeSchema,
@@ -26,19 +28,24 @@ def test_build_ingestion_query_unscoped():
     """
     Test creating a query for an unscoped node schema.
     """
+    module_version = _get_cartography_version()
+    module_name = _get_module_from_schema(UnscopedNodeSchema())
+
     # Act
     query = build_ingestion_query(UnscopedNodeSchema())
 
-    expected = """
+    expected = f"""
         UNWIND $DictList AS item
-            MERGE (i:UnscopedNode{id: item.id})
+            MERGE (i:UnscopedNode{{id: item.id}})
             ON CREATE SET i.firstseen = timestamp()
             SET
+                i._module_name = "{module_name}",
+                i._module_version = "{module_version}",
                 i.lastupdated = $lastupdated,
                 i.name = item.name
 
             WITH i, item
-            CALL {
+            CALL {{
                 WITH i, item
                 OPTIONAL MATCH (n0:SimpleNode)
                 WHERE
@@ -47,8 +54,10 @@ def test_build_ingestion_query_unscoped():
                 MERGE (i)-[r0:RELATES_TO]->(n0)
                 ON CREATE SET r0.firstseen = timestamp()
                 SET
+                    r0._module_name = "{module_name}",
+                    r0._module_version = "{module_version}",
                     r0.lastupdated = $lastupdated
-            }
+            }}
     """
 
     # Assert: compare query outputs while ignoring leading whitespace.

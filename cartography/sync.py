@@ -31,6 +31,7 @@ import cartography.intel.github
 import cartography.intel.gsuite
 import cartography.intel.jamf
 import cartography.intel.kandji
+import cartography.intel.keycloak
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
@@ -52,7 +53,7 @@ from cartography.util import STATUS_SUCCESS
 logger = logging.getLogger(__name__)
 
 
-TOP_LEVEL_MODULES = OrderedDict(
+TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
         "create-indexes": cartography.intel.create_indexes.run,
         "airbyte": cartography.intel.airbyte.start_airbyte_ingestion,
@@ -71,6 +72,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "github": cartography.intel.github.start_github_ingestion,
         "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
+        "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
