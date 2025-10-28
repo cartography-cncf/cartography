@@ -14,6 +14,7 @@ from tests.utils import load_models
 
 logger = logging.getLogger(__name__)
 
+
 def test_model_objects_naming_convention():
     """Test that all model objects follow the naming convention."""
     for module_name, element in load_models(cartography.models):

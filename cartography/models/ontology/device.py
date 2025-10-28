@@ -29,80 +29,80 @@ class DeviceToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:Device)-[:HAS_OBSERVATION]->(:DuoEndpoint)
+# (:Device)-[:OBSERVED_AS]->(:DuoEndpoint)
 class DeviceToDuoEndpointRel(CartographyRelSchema):
     target_node_label: str = "DuoEndpoint"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"device_name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_OBSERVATION"
+    rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:Device)-[:HAS_OBSERVATION]->(:DuoPhone)
+# (:Device)-[:OBSERVED_AS]->(:DuoPhone)
 class DeviceToDuoPhoneRel(CartographyRelSchema):
     target_node_label: str = "DuoPhone"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_OBSERVATION"
+    rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:Device)-[:HAS_OBSERVATION]->(:KandjiDevice)
+# (:Device)-[:OBSERVED_AS]->(:KandjiDevice)
 class DeviceToKandjiDeviceRel(CartographyRelSchema):
     target_node_label: str = "KandjiDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"device_name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_OBSERVATION"
+    rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:Device)-[:HAS_OBSERVATION]->(:SnipeitAsset)
+# (:Device)-[:OBSERVED_AS]->(:SnipeitAsset)
 class DeviceToSnipeitAssetRel(CartographyRelSchema):
     target_node_label: str = "SnipeitAsset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_OBSERVATION"
+    rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:Device)-[:HAS_OBSERVATION]->(:TailscaleDevice)
+# (:Device)-[:OBSERVED_AS]->(:TailscaleDevice)
 class DeviceToTailscaleDeviceRel(CartographyRelSchema):
     target_node_label: str = "TailscaleDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"hostname": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_OBSERVATION"
+    rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:Device)-[:HAS_OBSERVATION]->(:CrowdstrikeHost)
+# (:Device)-[:OBSERVED_AS]->(:CrowdstrikeHost)
 class DeviceToCrowdstrikeHostRel(CartographyRelSchema):
     target_node_label: str = "CrowdstrikeHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"hostname": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_OBSERVATION"
+    rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:Device)-[:HAS_OBSERVATION]->(:BigfixComputer)
+# (:Device)-[:OBSERVED_AS]->(:BigfixComputer)
 class DeviceToBigfixComputerRel(CartographyRelSchema):
     target_node_label: str = "BigfixComputer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"computername": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_OBSERVATION"
+    rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 

@@ -123,7 +123,7 @@ def test_load_ontology_devices_integration(_mock_get_source_nodes, neo4j_session
         "hostname",
         "SnipeitAsset",
         "name",
-        "HAS_OBSERVATION",
+        "OBSERVED_AS",
         rel_direction_right=True,
     )
     assert actual_rels == expected_rels
@@ -141,7 +141,7 @@ def test_load_ontology_devices_integration(_mock_get_source_nodes, neo4j_session
         "hostname",
         "TailscaleDevice",
         "hostname",
-        "HAS_OBSERVATION",
+        "OBSERVED_AS",
         rel_direction_right=True,
     )
     assert actual_rels == expected_rels

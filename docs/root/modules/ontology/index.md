@@ -48,7 +48,7 @@ Ontology files are located in `cartography/data/ontology/`. They use a structure
         "rels": [
             {
                 "__comment__": "These relationships are used to build links between ontology nodes to reflect observed nodes in the modules.",
-                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:HAS_OBSERVATION]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
                 "iterative": false
             }
         ]

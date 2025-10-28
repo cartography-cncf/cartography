@@ -13,7 +13,6 @@ from cartography.models.core.relationships import CartographyRelSchema
 logger = logging.getLogger(__name__)
 
 
-
 def unwrapper(func):
     """
     Unwraps a function to get past decorators to the original function.
