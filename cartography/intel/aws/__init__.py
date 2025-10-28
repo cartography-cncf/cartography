@@ -6,6 +6,7 @@ from typing import Dict
 from typing import Iterable
 from typing import List
 
+import aioboto3
 import boto3
 import botocore.exceptions
 import neo4j
@@ -49,12 +50,13 @@ def _build_aws_sync_kwargs(
 
 def _sync_one_account(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
     regions: list[str] | None = None,
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
+    aioboto3_session: aioboto3.Session = aioboto3.Session(),
 ) -> None:
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
@@ -72,13 +74,20 @@ def _sync_one_account(
     for func_name in aws_requested_syncs:
         if func_name in RESOURCE_FUNCTIONS:
             # Skip permission relationships and tags for now because they rely on data already being in the graph
-            if func_name not in [
-                "permission_relationships",
-                "resourcegroupstaggingapi",
-            ]:
-                RESOURCE_FUNCTIONS[func_name](**sync_args)
-            else:
+            if func_name == "ecr:image_layers":
+                # has a different signature than the other functions (aioboto3_session replaces boto3_session)
+                RESOURCE_FUNCTIONS[func_name](
+                    neo4j_session,
+                    aioboto3_session,
+                    regions,
+                    current_aws_account_id,
+                    update_tag,
+                    common_job_parameters,
+                )
+            elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
                 continue
+            else:
+                RESOURCE_FUNCTIONS[func_name](**sync_args)
         else:
             raise ValueError(
                 f'AWS sync function "{func_name}" was specified but does not exist. Did you misspell it?',
@@ -115,7 +124,7 @@ def _sync_one_account(
 
 
 def _autodiscover_account_regions(
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     account_id: str,
 ) -> List[str]:
     regions: List[str] = []
@@ -136,7 +145,7 @@ def _autodiscover_account_regions(
 
 def _autodiscover_accounts(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    boto3_session: boto3.Session,
     account_id: str,
     sync_tag: int,
     common_job_parameters: Dict,
@@ -197,8 +206,10 @@ def _sync_multiple_accounts(
         if num_accounts == 1:
             # Use the default boto3 session because boto3 gets confused if you give it a profile name with 1 account
             boto3_session = boto3.Session()
+            aioboto3_session = aioboto3.Session()
         else:
             boto3_session = boto3.Session(profile_name=profile_name)
+            aioboto3_session = aioboto3.Session(profile_name=profile_name)
 
         _autodiscover_accounts(
             neo4j_session,
@@ -217,6 +228,7 @@ def _sync_multiple_accounts(
                 common_job_parameters,
                 regions=regions,
                 aws_requested_syncs=aws_requested_syncs,  # Could be replaced later with per-account requested syncs
+                aioboto3_session=aioboto3_session,
             )
         except Exception as e:
             if aws_best_effort_mode:
