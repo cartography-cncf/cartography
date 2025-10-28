@@ -95,7 +95,9 @@ class AWSSSOUserToPermissionSetRel(CartographyRelSchema):
 class AWSSSOUserSchema(CartographyNodeSchema):
     label: str = "AWSSSOUser"
     properties: SSOUserProperties = SSOUserProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     sub_resource_relationship: AWSSSOUserToAWSAccountRel = AWSSSOUserToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

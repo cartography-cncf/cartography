@@ -50,6 +50,8 @@ class TailscaleUserToTailnetRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class TailscaleUserSchema(CartographyNodeSchema):
     label: str = "TailscaleUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: TailscaleUserNodeProperties = TailscaleUserNodeProperties()
     sub_resource_relationship: TailscaleUserToTailnetRel = TailscaleUserToTailnetRel()

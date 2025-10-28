@@ -43,7 +43,9 @@ class AnthropicUserToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AnthropicUserSchema(CartographyNodeSchema):
     label: str = "AnthropicUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: AnthropicUserNodeProperties = AnthropicUserNodeProperties()
     sub_resource_relationship: AnthropicUserToOrganizationRel = (
         AnthropicUserToOrganizationRel()

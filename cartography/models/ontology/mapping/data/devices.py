@@ -1,7 +1,7 @@
-from cartography.intel.ontology.mapping.base import OntologyFieldMapping
-from cartography.intel.ontology.mapping.base import OntologyMapping
-from cartography.intel.ontology.mapping.base import OntologyNodeMapping
-from cartography.intel.ontology.mapping.base import OntologyRelMapping
+from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+from cartography.models.ontology.mapping.specs import OntologyMapping
+from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+from cartography.models.ontology.mapping.specs import OntologyRelMapping
 
 bigfix_mapping = OntologyMapping(
     module_name="bigfix",

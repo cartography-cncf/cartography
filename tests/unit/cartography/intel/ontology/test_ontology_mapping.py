@@ -2,8 +2,8 @@ import warnings
 from typing import Type
 
 import cartography.models
-from cartography.intel.ontology.mapping import ONTOLOGY_MAPPING
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.ontology.mapping import ONTOLOGY_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
 from tests.utils import load_models
 

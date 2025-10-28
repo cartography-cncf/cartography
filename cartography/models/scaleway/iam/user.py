@@ -55,7 +55,9 @@ class ScalewayUserToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayUserSchema(CartographyNodeSchema):
     label: str = "ScalewayUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: ScalewayUserNodeProperties = ScalewayUserNodeProperties()
     sub_resource_relationship: ScalewayUserToOrganizationRel = (
         ScalewayUserToOrganizationRel()

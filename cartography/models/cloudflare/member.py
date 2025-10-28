@@ -72,7 +72,9 @@ class CloudflareMemberToCloudflareRoleRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudflareMemberSchema(CartographyNodeSchema):
     label: str = "CloudflareMember"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: CloudflareMemberNodeProperties = CloudflareMemberNodeProperties()
     sub_resource_relationship: CloudflareMemberToAccountRel = (
         CloudflareMemberToAccountRel()

@@ -6,7 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
-from cartography.intel.ontology.mapping import ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping import ONTOLOGY_MAPPING
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)

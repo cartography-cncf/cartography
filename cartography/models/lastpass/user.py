@@ -74,7 +74,9 @@ class LastpassTenantToUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LastpassUserSchema(CartographyNodeSchema):
     label: str = "LastpassUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: LastpassUserNodeProperties = LastpassUserNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[LastpassHumanToUserRel()],

@@ -150,7 +150,9 @@ class DuoUserToHumanRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DuoUserSchema(CartographyNodeSchema):
     label: str = "DuoUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: DuoUserNodeProperties = DuoUserNodeProperties()
     sub_resource_relationship: DuoUserToDuoApiHostRel = DuoUserToDuoApiHostRel()
     other_relationships: OtherRelationships = OtherRelationships(

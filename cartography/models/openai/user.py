@@ -44,7 +44,9 @@ class OpenAIUserToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class OpenAIUserSchema(CartographyNodeSchema):
     label: str = "OpenAIUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: OpenAIUserNodeProperties = OpenAIUserNodeProperties()
     sub_resource_relationship: OpenAIUserToOrganizationRel = (
         OpenAIUserToOrganizationRel()

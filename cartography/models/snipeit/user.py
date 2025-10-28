@@ -49,7 +49,9 @@ class SnipeitTenantToSnipeitUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SnipeitUserSchema(CartographyNodeSchema):
     label: str = "SnipeitUser"  # The label of the node
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: SnipeitUserNodeProperties = (
         SnipeitUserNodeProperties()
     )  # An object representing all properties
