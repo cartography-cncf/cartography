@@ -88,13 +88,34 @@ MOCK_GSUITE_GROUPS_RESPONSE = [
     },
 ]
 
+# See: https://developers.google.com/workspace/admin/directory/v1/guides/manage-group-members#json-response_3
 MOCK_GSUITE_MEMBERS_BY_GROUP_EMAIL = {
     "engineering@example.com": [
-        {"id": "user-1", "type": "USER", "role": "MEMBER"},
-        {"id": "user-2", "type": "USER", "role": "MEMBER"},
-        {"id": "group-operations", "type": "GROUP", "role": "MEMBER"},
+        {
+            "id": "group-engineering",
+            "email": "user-1@example.com",
+            "type": "USER",
+            "role": "MEMBER",
+        },
+        {
+            "id": "group-engineering",
+            "email": "user-2@example.com",
+            "type": "USER",
+            "role": "MEMBER",
+        },
+        {
+            "id": "group-engineering",
+            "email": "operations@example.com",
+            "type": "GROUP",
+            "role": "MEMBER",
+        },
     ],
     "operations@example.com": [
-        {"id": "user-2", "type": "USER", "role": "MEMBER"},
+        {
+            "id": "group-operations",
+            "email": "user-2@example.com",
+            "type": "USER",
+            "role": "MEMBER",
+        },
     ],
 }

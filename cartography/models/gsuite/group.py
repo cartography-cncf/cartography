@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -65,6 +66,58 @@ class GSuiteGroupToTenantRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GSuiteGroupToMemberRelProperties(CartographyRelProperties):
+    """
+    Properties for GSuite group to member relationship
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GSuiteGroupToMemberRel(CartographyRelSchema):
+    """
+    Relationship from GSuite group to its members (users or groups)
+    """
+
+    target_node_label: str = "GSuiteUser"  # or GSuiteGroup for subgroup relationships
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "email": PropertyRef("member_emails", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_GSUITE_GROUP"
+    properties: GSuiteGroupToMemberRelProperties = GSuiteGroupToMemberRelProperties()
+
+
+@dataclass(frozen=True)
+class GSuiteGroupToOwnerRelProperties(CartographyRelProperties):
+    """
+    Properties for GSuite group to owner relationship
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GSuiteGroupToOwnerRel(CartographyRelSchema):
+    """
+    Relationship from GSuite group to its owners (users)
+    """
+
+    target_node_label: str = "GSuiteUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "email": PropertyRef("owner_emails", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OWNER_GSUITE_GROUP"
+    properties: GSuiteGroupToOwnerRelProperties = GSuiteGroupToOwnerRelProperties()
+
+
+@dataclass(frozen=True)
 class GSuiteGroupSchema(CartographyNodeSchema):
     """
     GSuite group node schema
@@ -73,6 +126,10 @@ class GSuiteGroupSchema(CartographyNodeSchema):
     label: str = "GSuiteGroup"
     properties: GSuiteGroupNodeProperties = GSuiteGroupNodeProperties()
     sub_resource_relationship: GSuiteGroupToTenantRel = GSuiteGroupToTenantRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["GCPPrincipal"]
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
+    other_relationships = OtherRelationships(
+        [
+            GSuiteGroupToMemberRel(),
+            GSuiteGroupToOwnerRel(),
+        ]
     )

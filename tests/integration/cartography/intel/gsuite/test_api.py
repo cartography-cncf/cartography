@@ -15,11 +15,9 @@ COMMON_JOB_PARAMETERS = {
 }
 
 
-def _members_for_email(_: MagicMock, group_email: str):
-    return MOCK_GSUITE_MEMBERS_BY_GROUP_EMAIL.get(group_email, [])
-
-
-@patch.object(groups, "get_members_for_group", side_effect=_members_for_email)
+@patch.object(
+    groups, "get_members_for_groups", return_value=MOCK_GSUITE_MEMBERS_BY_GROUP_EMAIL
+)
 @patch.object(groups, "get_all_groups", return_value=MOCK_GSUITE_GROUPS_RESPONSE)
 @patch.object(users, "get_all_users", return_value=MOCK_GSUITE_USERS_RESPONSE)
 def test_sync_gsuite_users_creates_user_group_memberships(
@@ -64,7 +62,9 @@ def test_sync_gsuite_users_creates_user_group_memberships(
     )
 
 
-@patch.object(groups, "get_members_for_group", side_effect=_members_for_email)
+@patch.object(
+    groups, "get_members_for_groups", return_value=MOCK_GSUITE_MEMBERS_BY_GROUP_EMAIL
+)
 @patch.object(groups, "get_all_groups", return_value=MOCK_GSUITE_GROUPS_RESPONSE)
 @patch.object(users, "get_all_users", return_value=MOCK_GSUITE_USERS_RESPONSE)
 def test_sync_gsuite_groups_creates_group_hierarchy(

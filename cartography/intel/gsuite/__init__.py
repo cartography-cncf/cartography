@@ -149,15 +149,18 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             return
 
     resources = _initialize_resources(creds)
-    users.sync_gsuite_users(
+    customer_ids = users.sync_gsuite_users(
         neo4j_session,
         resources.admin,
         config.update_tag,
         common_job_parameters,
     )
-    groups.sync_gsuite_groups(
-        neo4j_session,
-        resources.admin,
-        config.update_tag,
-        common_job_parameters,
-    )
+    for customer_id in customer_ids:
+        scoped_job_parameters = common_job_parameters.copy()
+        scoped_job_parameters["CUSTOMER_ID"] = customer_id
+        groups.sync_gsuite_groups(
+            neo4j_session,
+            resources.admin,
+            config.update_tag,
+            scoped_job_parameters,
+        )
