@@ -111,7 +111,7 @@ def main(force_flag: bool, analysis_job_directory: str) -> None:
     logger.info("Building ontology ...")
     ontology.run(neo4j_session, config)
 
-    # TODO: Analysis: blocked due to https://github.com/cartography-cncf/cartography/issues/1591
+    # Analysis
     logger.info("Running analysis...")
     cartography.intel.analysis.run(neo4j_session, config)
 

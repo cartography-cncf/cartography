@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 
@@ -18,9 +16,9 @@ logger = logging.getLogger(__name__)
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    source_of_truth: List[str],
+    source_of_truth: list[str],
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     data = get_source_nodes_from_graph(neo4j_session, source_of_truth, "devices")
     load_devices(
@@ -35,7 +33,7 @@ def sync(
 @timeit
 def load_devices(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
     load(
@@ -49,7 +47,7 @@ def load_devices(
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(DeviceSchema(), common_job_parameters).run(
         neo4j_session,

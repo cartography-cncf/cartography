@@ -18,11 +18,15 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
 
     # Get source of truth from config
     if config.ontology_users_source:
-        users_source_of_truth = config.ontology_users_source.split(",")
+        users_source_of_truth = [
+            source.strip() for source in config.ontology_users_source.split(",")
+        ]
     else:
         users_source_of_truth = []
     if config.ontology_devices_source:
-        computers_source_of_truth = config.ontology_devices_source.split(",")
+        computers_source_of_truth = [
+            source.strip() for source in config.ontology_devices_source.split(",")
+        ]
     else:
         computers_source_of_truth = []
 

@@ -95,14 +95,14 @@ class DeviceToCrowdstrikeHostRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
-# (:Device)-[:RESOURCE]->(:BigfixComputer)
+# (:Device)-[:HAS_OBSERVATION]->(:BigfixComputer)
 class DeviceToBigfixComputerRel(CartographyRelSchema):
     target_node_label: str = "BigfixComputer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"computername": PropertyRef("hostname")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "HAS_OBSERVATION"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 

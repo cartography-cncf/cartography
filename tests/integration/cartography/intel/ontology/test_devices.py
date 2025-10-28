@@ -5,13 +5,7 @@ Integration tests for ontology devices module
 from unittest.mock import patch
 
 import cartography.intel.ontology.devices
-import cartography.intel.snipeit.asset
-import cartography.intel.snipeit.user
-import cartography.intel.tailscale.devices
-import tests.data.snipeit.assets
 import tests.data.snipeit.tenants
-import tests.data.snipeit.users
-import tests.data.tailscale.devices
 from tests.integration.cartography.intel.snipeit.test_snipeit_assets import (
     _ensure_local_neo4j_has_test_snipeit_assets,
 )
