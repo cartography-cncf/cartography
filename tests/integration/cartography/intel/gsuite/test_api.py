@@ -1,7 +1,8 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from cartography.intel.gsuite import users, groups
+from cartography.intel.gsuite import groups
+from cartography.intel.gsuite import users
 from tests.data.gsuite.api import MOCK_GSUITE_GROUPS_RESPONSE
 from tests.data.gsuite.api import MOCK_GSUITE_MEMBERS_BY_GROUP_EMAIL
 from tests.data.gsuite.api import MOCK_GSUITE_USERS_RESPONSE

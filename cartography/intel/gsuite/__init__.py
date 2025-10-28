@@ -16,7 +16,8 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 from googleapiclient.discovery import Resource
 
 from cartography.config import Config
-from cartography.intel.gsuite import users, groups
+from cartography.intel.gsuite import groups
+from cartography.intel.gsuite import users
 from cartography.util import timeit
 
 OAUTH_SCOPES = [

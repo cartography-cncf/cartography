@@ -1,11 +1,14 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 import neo4j
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
-from cartography.client.core.tx import load, run_write_query
+from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.models.gsuite.group import GSuiteGroupSchema
 from cartography.models.gsuite.tenant import GSuiteTenantSchema
