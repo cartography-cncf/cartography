@@ -12,7 +12,6 @@ from typing import Any
 from typing import Optional
 
 import aioboto3
-import boto3
 import httpx
 import neo4j
 from botocore.exceptions import ClientError
@@ -451,7 +450,12 @@ def load_ecr_image_layers(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    """Load image layers into Neo4j."""
+    """
+    Load image layers into Neo4j.
+
+    Uses a smaller batch size (1000) to avoid Neo4j transaction memory limits,
+    since layer objects can contain large arrays of relationships.
+    """
     logger.info(
         f"Loading {len(image_layers)} image layers for region {region} into graph.",
     )
@@ -460,6 +464,7 @@ def load_ecr_image_layers(
         neo4j_session,
         ECRImageLayerSchema(),
         image_layers,
+        batch_size=1000,
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
     )
@@ -473,10 +478,17 @@ def load_ecr_image_layer_memberships(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
+    """
+    Load image layer memberships into Neo4j.
+
+    Uses a smaller batch size (1000) to avoid Neo4j transaction memory limits,
+    since membership objects can contain large arrays of layer diff_ids.
+    """
     load(
         neo4j_session,
         ECRImageSchema(),
         memberships,
+        batch_size=1000,
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
@@ -751,7 +763,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    boto3_session: boto3.session.Session,
+    aioboto3_session: aioboto3.Session,
     regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
@@ -862,15 +874,9 @@ def sync(
                 dict[str, str],
                 dict[str, dict[str, str]],
             ]:
-                # Use credentials from the existing boto3 session
-                credentials = boto3_session.get_credentials()
-                session = aioboto3.Session(
-                    aws_access_key_id=credentials.access_key,
-                    aws_secret_access_key=credentials.secret_key,
-                    aws_session_token=credentials.token,
-                    region_name=region,
-                )
-                async with session.client("ecr") as ecr_client:
+                async with aioboto3_session.client(
+                    "ecr", region_name=region
+                ) as ecr_client:
                     return await fetch_image_layers_async(ecr_client, repo_images_list)
 
             # Use get_event_loop() + run_until_complete() to avoid tearing down loop
