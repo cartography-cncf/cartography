@@ -7,7 +7,7 @@ bigfix_mapping = OntologyMapping(
     module_name="bigfix",
     nodes=[
         OntologyNodeMapping(
-            node_label="BigFixComputer",
+            node_label="BigfixComputer",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="hostname", node_field="computername"

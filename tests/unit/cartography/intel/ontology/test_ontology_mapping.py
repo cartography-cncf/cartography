@@ -1,4 +1,3 @@
-import warnings
 from typing import Type
 
 import cartography.models
@@ -35,23 +34,15 @@ def _get_model_by_node_label(node_label: str) -> Type[CartographyNodeSchema] | N
 def test_ontology_mapping_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
-    for category, mappings in ONTOLOGY_MAPPING.items():
+    for _, mappings in ONTOLOGY_MAPPING.items():
         for module_name, mapping in mappings.items():
             for node in mapping.nodes:
                 # Load the model class for the module
                 model_class = _get_model_by_node_label(node.node_label)
-
-                # TODO: Migrate to assertion when gsuite is migrated to the new ontology models
-                # assert model_class is not None, (
-                #     f"Model class for node label '{node.node_label}' "
-                #     f"in module '{module_name}' not found."
-                # )
-                if model_class is None:
-                    warnings.warn(
-                        f"Model class for node label '{node.node_label}' in module '{module_name}' not found.",
-                        UserWarning,
-                    )
-                    continue
+                assert model_class is not None, (
+                    f"Model class for node label '{node.node_label}' "
+                    f"in module '{module_name}' not found."
+                )
 
                 # Check all ontology fields are in extra indexed fields
                 for mapping_field in node.fields:

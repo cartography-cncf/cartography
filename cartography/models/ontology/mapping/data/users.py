@@ -131,7 +131,7 @@ lastpass_mapping = OntologyMapping(
     module_name="lastpass",
     nodes=[
         OntologyNodeMapping(
-            node_label="LastPassUser",
+            node_label="LastpassUser",
             fields=[
                 OntologyFieldMapping(ontology_field="email", node_field="email"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
