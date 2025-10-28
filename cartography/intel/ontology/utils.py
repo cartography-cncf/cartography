@@ -1,37 +1,15 @@
-import json
 import logging
-import pkgutil
+from dataclasses import asdict
 from typing import Any
 
 import neo4j
 
+from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.ontology.mapping import ONTOLOGY_MAPPING
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-def load_ontology_mapping(module_name: str) -> dict:
-    """Load the ontology mapping for a given module.
-
-    This function loads the ontology mapping from a JSON file located in the
-    `cartography.data.ontology` package. The mapping file should be named
-    `<module_name>.json`, where `<module_name>` is the name of the module for
-    which the mapping is being loaded.
-
-    Args:
-        module_name (str): The name of the module for which to load the ontology mapping.
-
-    Raises:
-        ValueError: If the mapping file for the specified module is not found.
-
-    Returns:
-        dict: A dictionary containing the ontology mapping for the specified module.
-    """
-    data = pkgutil.get_data("cartography.data.ontology", f"{module_name}.json")
-    if data is None:
-        raise ValueError(f"Mapping file for {module_name} not found.")
-    return json.loads(data.decode("utf-8"))
 
 
 @timeit
@@ -57,7 +35,10 @@ def get_source_nodes_from_graph(
         list[dict[str, Any]]: A list of dictionaries, each containing a node details formatted according to the ontology mapping.
     """
     results: list[dict[str, Any]] = []
-    modules_mapping = load_ontology_mapping(module_name)
+    modules_mapping = ONTOLOGY_MAPPING.get(module_name)
+    if modules_mapping is None:
+        logger.warning("No ontology mapping found for module '%s'.", module_name)
+        return results
     if len(source_of_truth) == 0:
         source_of_truth = list(modules_mapping.keys())
     for source in source_of_truth:
@@ -66,20 +47,13 @@ def get_source_nodes_from_graph(
                 "Source of truth '%s' is not supported for '%s'.", source, module_name
             )
             continue
-        for node_label, fields in modules_mapping[source].get("nodes", {}).items():
-            if not isinstance(fields, dict):
-                logger.warning(
-                    "Node fields for '%s' in '%s' are not a dictionary.",
-                    node_label,
-                    source,
-                )
-                continue
-            query = f"MATCH (n:{node_label}) RETURN n"
-            for node in neo4j_session.run(query):
-                node_data = node["n"]
+        for node in modules_mapping[source].nodes:
+            query = f"MATCH (n:{node.node_label}) RETURN n"
+            for row in neo4j_session.execute_read(read_list_of_dicts_tx, query):
+                node_data = row["n"]
                 result = {
-                    o_field: node_data.get(node_field)
-                    for o_field, node_field in fields.items()
+                    field.ontology_field: node_data.get(field.node_field)
+                    for field in node.fields
                 }
                 results.append(result)
     return results
@@ -102,13 +76,16 @@ def link_ontology_nodes(
         module_name (str): The name of the ontology module for which to link nodes (eg. users, devices, etc.).
         update_tag (int): The update tag of the current run, used to tag the changes in the graph.
     """
-    modules_mapping = load_ontology_mapping(module_name)
+    modules_mapping = ONTOLOGY_MAPPING.get(module_name)
+    if modules_mapping is None:
+        logger.warning("No ontology mapping found for module '%s'.", module_name)
+        return
     for source, mapping in modules_mapping.items():
-        if "rels" not in mapping:
+        if len(mapping.rels) == 0:
             continue
         formated_json = {
             "name": f"Linking ontology nodes for {module_name} for source {source}",
-            "statements": mapping["rels"],
+            "statements": [asdict(rel) for rel in mapping.rels],
         }
         GraphJob.run_from_json(
             neo4j_session,
