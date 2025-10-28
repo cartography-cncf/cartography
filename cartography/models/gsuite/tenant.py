@@ -15,7 +15,7 @@ class GSuiteTenantNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Customer/domain identifier - use id as the primary identifier
-    customer_id: PropertyRef = PropertyRef("id")  # Map to id field
+    customer_id: PropertyRef = PropertyRef("id")
 
 
 @dataclass(frozen=True)

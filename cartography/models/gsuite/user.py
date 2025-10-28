@@ -101,4 +101,4 @@ class GSuiteUserSchema(CartographyNodeSchema):
     sub_resource_relationship: GSuiteUserToTenantRel = GSuiteUserToTenantRel()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["GCPPrincipal"]
-    )  # Keep existing label
+    )
