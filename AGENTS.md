@@ -975,7 +975,7 @@ Test that your ontology integration works correctly:
 def test_ontology_integration(neo4j_session):
     # Run your module sync
     your_service.users.sync(neo4j_session, ...)
-    
+
     # Run ontology sync to create User nodes
     import cartography.intel.ontology.users
     cartography.intel.ontology.users.sync(
@@ -984,7 +984,7 @@ def test_ontology_integration(neo4j_session):
         update_tag=TEST_UPDATE_TAG,
         common_job_parameters={"UPDATE_TAG": TEST_UPDATE_TAG},
     )
-    
+
     # Verify User ontology nodes were created
     result = neo4j_session.run("""
         MATCH (u:User:Ontology)-[:HAS_ACCOUNT]->(ua:YourServiceUser)
@@ -1052,7 +1052,7 @@ your_service_mapping = OntologyMapping(
             ],
         ),
         OntologyNodeMapping(
-            node_label="YourServiceMobileDevice", 
+            node_label="YourServiceMobileDevice",
             fields=[
                 OntologyFieldMapping(ontology_field="hostname", node_field="device_name"),
                 OntologyFieldMapping(ontology_field="model", node_field="model"),

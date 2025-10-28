@@ -111,6 +111,22 @@ gsuite_mapping = OntologyMapping(
         ),
     ],
 )
+keycloak_mapping = OntologyMapping(
+    module_name="keycloak",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="KeycloakUser",
+            fields=[
+                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+            ],
+        ),
+    ],
+)
 lastpass_mapping = OntologyMapping(
     module_name="lastpass",
     nodes=[
@@ -189,6 +205,7 @@ USERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "entra": entra_mapping,
     "github": github_mapping,
     "gsuite": gsuite_mapping,
+    "keycloak": keycloak_mapping,
     "lastpass": lastpass_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
