@@ -7,8 +7,10 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -83,10 +85,10 @@ class GSuiteGroupToMemberRel(CartographyRelSchema):
     target_node_label: str = "GSuiteUser"  # or GSuiteGroup for subgroup relationships
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "email": PropertyRef("member_emails", one_to_many=True),
+            "id": PropertyRef("member_ids", one_to_many=True),
         }
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_GSUITE_GROUP"
     properties: GSuiteGroupToMemberRelProperties = GSuiteGroupToMemberRelProperties()
 
@@ -109,10 +111,10 @@ class GSuiteGroupToOwnerRel(CartographyRelSchema):
     target_node_label: str = "GSuiteUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "email": PropertyRef("owner_emails", one_to_many=True),
+            "id": PropertyRef("owner_ids", one_to_many=True),
         }
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNER_GSUITE_GROUP"
     properties: GSuiteGroupToOwnerRelProperties = GSuiteGroupToOwnerRelProperties()
 
@@ -132,4 +134,85 @@ class GSuiteGroupSchema(CartographyNodeSchema):
             GSuiteGroupToMemberRel(),
             GSuiteGroupToOwnerRel(),
         ]
+    )
+
+
+# MatchLinks for Group => Group relationships
+
+
+@dataclass(frozen=True)
+class GSuiteGroupToGroupMemberRelProperties(CartographyRelProperties):
+    """
+    Properties for GSuite group to group member relationship (MatchLink)
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    role: PropertyRef = PropertyRef("role")
+
+
+@dataclass(frozen=True)
+class GSuiteGroupToGroupMemberRel(CartographyRelSchema):
+    """
+    MatchLink relationship from GSuite parent group to member group
+    """
+
+    target_node_label: str = "GSuiteGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("subgroup_id"),
+        }
+    )
+    source_node_label: str = "GSuiteGroup"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "id": PropertyRef("parent_group_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_GSUITE_GROUP"
+    properties: GSuiteGroupToGroupMemberRelProperties = (
+        GSuiteGroupToGroupMemberRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GSuiteGroupToGroupOwnerRelProperties(CartographyRelProperties):
+    """
+    Properties for GSuite group to group owner relationship (MatchLink)
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    role: PropertyRef = PropertyRef("role")
+
+
+@dataclass(frozen=True)
+class GSuiteGroupToGroupOwnerRel(CartographyRelSchema):
+    """
+    MatchLink relationship from GSuite parent group to owner group
+    """
+
+    target_node_label: str = "GSuiteGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("subgroup_id"),
+        }
+    )
+    source_node_label: str = "GSuiteGroup"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "id": PropertyRef("parent_group_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "OWNER_GSUITE_GROUP"
+    properties: GSuiteGroupToGroupOwnerRelProperties = (
+        GSuiteGroupToGroupOwnerRelProperties()
     )
