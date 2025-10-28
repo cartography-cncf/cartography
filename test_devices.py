@@ -15,8 +15,9 @@ What it does:
 import argparse
 import json
 import sys
-from google.oauth2 import service_account
+
 from google.auth.transport.requests import AuthorizedSession
+from google.oauth2 import service_account
 
 # Scopes: readonly is usually enough. Use broader scopes if you need to modify devices.
 SCOPES = [
@@ -29,16 +30,20 @@ SCOPES = [
 DEVICES_ENDPOINT = "https://cloudidentity.googleapis.com/v1/devices"
 DEVICES_OWNED_ENDPOINT = "https://cloudidentity.googleapis.com/v1/devices/-/deviceUsers"
 
+
 def make_delegated_session(sa_keyfile: str, admin_email: str, scopes=SCOPES):
     """
     Create an AuthorizedSession that will act as admin_email (domain-wide delegation).
     """
     # Load service account credentials from JSON key file and attach scopes
-    creds = service_account.Credentials.from_service_account_file(sa_keyfile, scopes=scopes)
+    creds = service_account.Credentials.from_service_account_file(
+        sa_keyfile, scopes=scopes
+    )
     # Create credentials that impersonate the admin user (domain-wide delegation)
 
     delegated = creds.with_subject(admin_email)
     return AuthorizedSession(delegated)
+
 
 def list_devices(session: AuthorizedSession, customer: str, page_size: int = 100):
     """
@@ -64,6 +69,7 @@ def list_devices(session: AuthorizedSession, customer: str, page_size: int = 100
         if not next_token:
             break
 
+
 def list_owned_devices(session: AuthorizedSession, customer: str, page_size: int = 100):
     """
     Generator that yields pages of owned devices as Python dicts.
@@ -88,12 +94,28 @@ def list_owned_devices(session: AuthorizedSession, customer: str, page_size: int
         if not next_token:
             break
 
+
 def main():
-    parser = argparse.ArgumentParser(description="List Cloud Identity devices via service account impersonation.")
-    parser.add_argument("--key", required=True, help="Path to service account JSON key file.")
-    parser.add_argument("--admin", required=True, help="Admin email to impersonate (must be a Workspace admin).")
-    parser.add_argument("--customer", required=True, help="Customer ID (format: C01234567).")
-    parser.add_argument("--page-size", type=int, default=200, help="Page size (max 1000-ish depending on API).")
+    parser = argparse.ArgumentParser(
+        description="List Cloud Identity devices via service account impersonation."
+    )
+    parser.add_argument(
+        "--key", required=True, help="Path to service account JSON key file."
+    )
+    parser.add_argument(
+        "--admin",
+        required=True,
+        help="Admin email to impersonate (must be a Workspace admin).",
+    )
+    parser.add_argument(
+        "--customer", required=True, help="Customer ID (format: C01234567)."
+    )
+    parser.add_argument(
+        "--page-size",
+        type=int,
+        default=200,
+        help="Page size (max 1000-ish depending on API).",
+    )
     args = parser.parse_args()
 
     sess = make_delegated_session(args.key, args.admin)
@@ -102,7 +124,10 @@ def main():
         devices = page.get("devices", [])
         all_devices.extend(devices)
         # optional: print progress
-        print(f"Fetched {len(devices)} devices (total so far: {len(all_devices)})", file=sys.stderr)
+        print(
+            f"Fetched {len(devices)} devices (total so far: {len(all_devices)})",
+            file=sys.stderr,
+        )
 
     # Output final JSON
     print(json.dumps({"devices": all_devices}, indent=2))
@@ -112,10 +137,14 @@ def main():
         devices = page.get("deviceUsers", [])
         all_owned_devices.extend(devices)
         # optional: print progress
-        print(f"Fetched {len(devices)} owned devices (total so far: {len(all_owned_devices)})", file=sys.stderr)
-    
+        print(
+            f"Fetched {len(devices)} owned devices (total so far: {len(all_owned_devices)})",
+            file=sys.stderr,
+        )
+
     # Output final JSON of owned devices
     print(json.dumps({"ownedDevices": all_owned_devices}, indent=2))
+
 
 if __name__ == "__main__":
     main()
