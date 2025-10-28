@@ -20,16 +20,10 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     if config.ontology_users_source:
         users_source_of_truth = config.ontology_users_source.split(",")
     else:
-        logger.warning(
-            "No source of truth for users defined in config. No `User` nodes will be created."
-        )
         users_source_of_truth = []
     if config.ontology_devices_source:
         computers_source_of_truth = config.ontology_devices_source.split(",")
     else:
-        logger.warning(
-            "No source of truth for client computers defined in config. No `Device` nodes will be created."
-        )
         computers_source_of_truth = []
 
     cartography.intel.ontology.users.sync(

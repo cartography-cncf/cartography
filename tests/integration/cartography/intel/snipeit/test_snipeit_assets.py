@@ -65,11 +65,11 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
     # Make sure the expected assets are created
     expected_nodes = {
-        (1373, "SIMP-MAC-HOMER-01"),
-        (1375, "SIMP-IOS-HOMER-01"),
-        (1372, "SIMP-WIN-MARGE-01"),
-        (1376, "SIMP-ANDROID-MARGE-01"),
-        (1371, "SIMP-LINUX-MARGE-017"),
+        (1373, "SIMP-MAC-HOMER-01", "Ready to Deploy"),
+        (1375, "SIMP-IOS-HOMER-01", "Ready to Deploy"),
+        (1372, "SIMP-WIN-MARGE-01", "Ready to Deploy"),
+        (1376, "SIMP-ANDROID-MARGE-01", "Ready to Deploy"),
+        (1371, "SIMP-LINUX-MARGE-017", "Ready to Deploy"),
     }
     assert (
         check_nodes(

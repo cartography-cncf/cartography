@@ -46,6 +46,8 @@ def get_source_nodes_from_graph(
     defined in the ontology mapping for the specified module and source of truth.
     It returns a list of dictionaries containing the relevant fields for each node.
 
+    If no source of truth is provided, default to all sources defined in the mapping.
+
     Args:
         neo4j_session (neo4j.Session): The Neo4j session to use for querying the database.
         source_of_truth (list[str]): A list of source of truth identifiers to filter the modules.
@@ -56,6 +58,8 @@ def get_source_nodes_from_graph(
     """
     results: list[dict[str, Any]] = []
     modules_mapping = load_ontology_mapping(module_name)
+    if len(source_of_truth) == 0:
+        source_of_truth = list(modules_mapping.keys())
     for source in source_of_truth:
         if source not in modules_mapping:
             logger.warning(

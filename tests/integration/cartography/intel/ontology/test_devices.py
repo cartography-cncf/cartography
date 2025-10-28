@@ -46,7 +46,7 @@ def test_sync_with_empty_source_list(neo4j_session):
     device_count = neo4j_session.run(
         "MATCH (d:Device) RETURN count(d) as count"
     ).single()["count"]
-    assert device_count == 0
+    assert device_count == 6
 
 
 @patch.object(
@@ -92,6 +92,16 @@ def test_load_ontology_devices_integration(_mock_get_source_nodes, neo4j_session
         ("itchy-windows", "SIMP-WIN-MARGE-01", "Dell XPS 15"),
         ("bluemarge-linux", "SIMP-LINUX-MARGE-017", "ThinkPad X1 Carbon Gen 11"),
         ("anonymous-pixel", None, None),
+        (
+            "homer-iphone",
+            "SIMP-IOS-HOMER-01",
+            "Iphone 15 Pro",
+        ),
+        (
+            "slingshot-galaxy",
+            "SIMP-ANDROID-MARGE-01",
+            "Samsung Galaxy S23",
+        ),
     }
 
     actual_devices = check_nodes(
@@ -103,13 +113,15 @@ def test_load_ontology_devices_integration(_mock_get_source_nodes, neo4j_session
     devices_with_ontology_label = neo4j_session.run(
         "MATCH (d:Device:Ontology) RETURN count(d) as count"
     ).single()["count"]
-    assert devices_with_ontology_label == 4
+    assert devices_with_ontology_label == 6
 
     # Assert - Check that relationships to SnipeitAsset nodes were created
     expected_rels = {
         ("donut-mac", "donut-mac"),
         ("itchy-windows", "itchy-windows"),
         ("bluemarge-linux", "bluemarge-linux"),
+        ("homer-iphone", "homer-iphone"),
+        ("slingshot-galaxy", "slingshot-galaxy"),
     }
     actual_rels = check_rels(
         neo4j_session,

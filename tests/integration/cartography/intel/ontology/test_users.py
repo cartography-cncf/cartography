@@ -30,7 +30,7 @@ def test_sync_with_empty_source_list(neo4j_session):
     user_count = neo4j_session.run("MATCH (u:User) RETURN count(u) as count").single()[
         "count"
     ]
-    assert user_count == 0
+    assert user_count == 4
 
 
 @patch.object(
