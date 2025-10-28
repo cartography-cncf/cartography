@@ -102,7 +102,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:GCPVpc) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GCPVpc) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:GitHubRepository) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:GitHubRepository) ON (n.lastupdated);
-
 CREATE INDEX IF NOT EXISTS FOR (n:Ip) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:Ip) ON (n.ip);
 CREATE INDEX IF NOT EXISTS FOR (n:Ip) ON (n.lastupdated);
