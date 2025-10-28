@@ -1,9 +1,12 @@
 import logging
+import time
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import TypeVar
 from typing import Union
 
 import backoff
@@ -19,6 +22,17 @@ from cartography.util import backoff_handler
 from cartography.util import batch
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+_MAX_NETWORK_RETRIES = 5
+_MAX_ENTITY_NOT_FOUND_RETRIES = 5
+_NETWORK_EXCEPTIONS: tuple[type[BaseException], ...] = (
+    ConnectionResetError,
+    neo4j.exceptions.ServiceUnavailable,
+    neo4j.exceptions.SessionExpired,
+    neo4j.exceptions.TransientError,
+)
 
 
 def _is_retryable_client_error(exc: Exception) -> bool:
@@ -50,24 +64,6 @@ def _is_retryable_client_error(exc: Exception) -> bool:
     return exc.code == "Neo.ClientError.Statement.EntityNotFound"
 
 
-def _should_giveup_on_client_error(exc: Exception) -> bool:
-    """
-    Determine if we should give up retrying based on the exception type.
-
-    For ClientErrors, we only retry EntityNotFound. All other ClientErrors
-    (syntax errors, auth errors, invalid parameters, etc.) are permanent
-    failures and should fail immediately.
-
-    :param exc: The exception to check
-    :return: True if we should stop retrying, False if we should continue
-    """
-    if isinstance(exc, neo4j.exceptions.ClientError):
-        # Give up (stop retrying) if this is NOT an EntityNotFound error
-        return not _is_retryable_client_error(exc)
-    # For all other exception types, let backoff handle it normally
-    return False
-
-
 def _entity_not_found_backoff_handler(details: Dict) -> None:
     """
     Custom backoff handler that provides enhanced logging for EntityNotFound retries.
@@ -87,6 +83,54 @@ def _entity_not_found_backoff_handler(details: Dict) -> None:
     else:
         # Fall back to standard backoff handler for other errors
         backoff_handler(details)
+
+
+def _run_with_retry(operation: Callable[[], T], target: str) -> T:
+    """
+    Execute the supplied callable with retry logic for transient network errors and
+    EntityNotFound ClientErrors.
+    """
+    network_attempts = 0
+    entity_attempts = 0
+    network_wait = backoff.expo()
+    entity_wait = backoff.expo()
+
+    while True:
+        try:
+            return operation()
+        except _NETWORK_EXCEPTIONS as exc:
+            if network_attempts >= _MAX_NETWORK_RETRIES - 1:
+                raise
+            network_attempts += 1
+            wait = next(network_wait)
+            backoff_handler(
+                {
+                    "exception": exc,
+                    "target": target,
+                    "tries": network_attempts,
+                    "wait": wait,
+                }
+            )
+            time.sleep(wait)
+            del exc
+            continue
+        except neo4j.exceptions.ClientError as exc:
+            if not _is_retryable_client_error(exc):
+                raise
+            if entity_attempts >= _MAX_ENTITY_NOT_FOUND_RETRIES - 1:
+                raise
+            entity_attempts += 1
+            wait = next(entity_wait)
+            _entity_not_found_backoff_handler(
+                {
+                    "exception": exc,
+                    "target": target,
+                    "tries": entity_attempts,
+                    "wait": wait,
+                }
+            )
+            time.sleep(wait)
+            del exc
 
 
 @backoff.on_exception(  # type: ignore
@@ -140,38 +184,14 @@ def execute_write_with_retry(
     :return: The return value of tx_func
     """
 
-    @backoff.on_exception(  # type: ignore
-        backoff.expo,
-        (
-            ConnectionResetError,
-            neo4j.exceptions.ServiceUnavailable,
-            neo4j.exceptions.SessionExpired,
-            neo4j.exceptions.TransientError,
-            neo4j.exceptions.ClientError,  # We filter specific ClientErrors in giveup
-        ),
-        max_tries=5,
-        on_backoff=_entity_not_found_backoff_handler,
-        giveup=_should_giveup_on_client_error,
-    )
-    def _execute_with_retry() -> Any:
+    target = getattr(tx_func, "__qualname__", repr(tx_func))
+
+    def _operation() -> Any:
         return neo4j_session.execute_write(tx_func, *args, **kwargs)
 
-    return _execute_with_retry()
+    return _run_with_retry(_operation, target)
 
 
-@backoff.on_exception(  # type: ignore
-    backoff.expo,
-    (
-        ConnectionResetError,
-        neo4j.exceptions.ServiceUnavailable,
-        neo4j.exceptions.SessionExpired,
-        neo4j.exceptions.TransientError,
-        neo4j.exceptions.ClientError,  # We filter specific ClientErrors in giveup
-    ),
-    max_tries=5,
-    on_backoff=_entity_not_found_backoff_handler,
-    giveup=_should_giveup_on_client_error,
-)
 def run_write_query(
     neo4j_session: neo4j.Session, query: str, **parameters: Any
 ) -> None:
@@ -195,7 +215,10 @@ def run_write_query(
     def _run_query_tx(tx: neo4j.Transaction) -> None:
         tx.run(query, **parameters).consume()
 
-    neo4j_session.execute_write(_run_query_tx)
+    def _operation() -> None:
+        neo4j_session.execute_write(_run_query_tx)
+
+    _run_with_retry(_operation, _run_query_tx.__name__)
 
 
 def read_list_of_values_tx(
@@ -389,22 +412,9 @@ def write_list_of_dicts_tx(
     :param kwargs: Keyword args to be supplied to the Neo4j query.
     :return: None
     """
-    tx.run(query, kwargs)
+    tx.run(query, kwargs).consume()
 
 
-@backoff.on_exception(  # type: ignore
-    backoff.expo,
-    (
-        ConnectionResetError,
-        neo4j.exceptions.ServiceUnavailable,
-        neo4j.exceptions.SessionExpired,
-        neo4j.exceptions.TransientError,
-        neo4j.exceptions.ClientError,  # We filter specific ClientErrors in giveup
-    ),
-    max_tries=5,
-    on_backoff=_entity_not_found_backoff_handler,
-    giveup=_should_giveup_on_client_error,
-)
 def _write_batch_with_retry(
     neo4j_session: neo4j.Session,
     query: str,
@@ -424,12 +434,16 @@ def _write_batch_with_retry(
     :param kwargs: Additional keyword args for the query
     :return: None
     """
-    neo4j_session.write_transaction(
-        write_list_of_dicts_tx,
-        query,
-        DictList=data_batch,
-        **kwargs,
-    )
+
+    def _operation() -> None:
+        neo4j_session.write_transaction(
+            write_list_of_dicts_tx,
+            query,
+            DictList=data_batch,
+            **kwargs,
+        )
+
+    _run_with_retry(_operation, write_list_of_dicts_tx.__name__)
 
 
 def load_graph_data(
