@@ -1,7 +1,8 @@
 import logging
+from typing import Any
+
 import neo4j
 import requests
-from typing import Any
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -25,8 +26,10 @@ query {
 
 
 @timeit
-def get_worker_pools(session: requests.Session, api_endpoint: str) -> list[dict[str, Any]]:
-  
+def get_worker_pools(
+    session: requests.Session, api_endpoint: str
+) -> list[dict[str, Any]]:
+
     logger.info("Fetching Spacelift worker pools")
 
     response = call_spacelift_api(session, api_endpoint, GET_WORKER_POOLS_QUERY)
@@ -36,7 +39,9 @@ def get_worker_pools(session: requests.Session, api_endpoint: str) -> list[dict[
     return worker_pools_data
 
 
-def transform_worker_pools(worker_pools_data: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
+def transform_worker_pools(
+    worker_pools_data: list[dict[str, Any]], account_id: str
+) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
 
     for pool in worker_pools_data:
@@ -88,7 +93,9 @@ def cleanup_worker_pools(
     Remove stale Spacelift worker pool data from Neo4j.
     """
     logger.debug("Running SpaceliftWorkerPool cleanup job")
-    GraphJob.from_node_schema(SpaceliftWorkerPoolSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(SpaceliftWorkerPoolSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -115,7 +122,12 @@ def sync_worker_pools(
     transformed_worker_pools = transform_worker_pools(worker_pools_raw_data, account_id)
 
     # 3. LOAD - Ingest to Neo4j using data model
-    load_worker_pools(neo4j_session, transformed_worker_pools, common_job_parameters["UPDATE_TAG"], account_id)
+    load_worker_pools(
+        neo4j_session,
+        transformed_worker_pools,
+        common_job_parameters["UPDATE_TAG"],
+        account_id,
+    )
 
     # 4. CLEANUP - Remove stale data
     cleanup_worker_pools(neo4j_session, common_job_parameters)

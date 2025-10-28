@@ -1,7 +1,8 @@
 import logging
+from typing import Any
+
 import neo4j
 import requests
-from typing import Any
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -35,7 +36,9 @@ def get_spaces(session: requests.Session, api_endpoint: str) -> list[dict[str, A
     return spaces_data
 
 
-def transform_spaces(spaces_data: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
+def transform_spaces(
+    spaces_data: list[dict[str, Any]], account_id: str
+) -> list[dict[str, Any]]:
 
     result: list[dict[str, Any]] = []
 
@@ -83,7 +86,9 @@ def cleanup_spaces(
     common_job_parameters: dict[str, Any],
 ) -> None:
     logger.debug("Running SpaceliftSpace cleanup job")
-    GraphJob.from_node_schema(SpaceliftSpaceSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(SpaceliftSpaceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -96,7 +101,12 @@ def sync_spaces(
 ) -> None:
     spaces_raw_data = get_spaces(spacelift_session, api_endpoint)
     transformed_spaces = transform_spaces(spaces_raw_data, account_id)
-    load_spaces(neo4j_session, transformed_spaces, common_job_parameters["UPDATE_TAG"], account_id)
+    load_spaces(
+        neo4j_session,
+        transformed_spaces,
+        common_job_parameters["UPDATE_TAG"],
+        account_id,
+    )
     cleanup_spaces(neo4j_session, common_job_parameters)
 
     logger.info(f"Synced {len(transformed_spaces)} Spacelift spaces")

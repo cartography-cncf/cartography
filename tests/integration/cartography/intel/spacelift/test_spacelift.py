@@ -5,7 +5,6 @@ from cartography.intel.spacelift.account import sync_account
 from cartography.intel.spacelift.runs import sync_runs
 from cartography.intel.spacelift.spaces import sync_spaces
 from cartography.intel.spacelift.stacks import sync_stacks
-from cartography.intel.spacelift.users import sync_users
 from cartography.intel.spacelift.workerpools import sync_worker_pools
 from cartography.intel.spacelift.workers import sync_workers
 from tests.data.spacelift.spacelift_data import ACCOUNT_DATA
@@ -14,7 +13,6 @@ from tests.data.spacelift.spacelift_data import ENTITIES_DATA
 from tests.data.spacelift.spacelift_data import RUNS_DATA
 from tests.data.spacelift.spacelift_data import SPACES_DATA
 from tests.data.spacelift.spacelift_data import STACKS_DATA
-from tests.data.spacelift.spacelift_data import USERS_DATA
 from tests.data.spacelift.spacelift_data import WORKER_POOLS_DATA
 from tests.data.spacelift.spacelift_data import WORKERS_DATA
 from tests.integration.util import check_nodes
@@ -25,45 +23,59 @@ TEST_API_ENDPOINT = "https://fake.spacelift.io/graphql"
 TEST_ACCOUNT_ID = "test-account-123"
 
 
-@patch('cartography.intel.spacelift.runs.call_spacelift_api')
-@patch('cartography.intel.spacelift.runs.fetch_all_paginated')
-@patch('cartography.intel.spacelift.workers.fetch_all_paginated')
-@patch('cartography.intel.spacelift.workerpools.fetch_all_paginated')
-@patch('cartography.intel.spacelift.stacks.fetch_all_paginated')
-@patch('cartography.intel.spacelift.users.fetch_all_paginated')
-@patch('cartography.intel.spacelift.spaces.fetch_all_paginated')
-@patch('cartography.intel.spacelift.account.fetch_single_query')
-def test_sync_spacelift_runs_with_ec2_relationships_end_to_end(
-    mock_account_fetch_single_query,
-    mock_spaces_fetch_all_paginated,
-    mock_users_fetch_all_paginated,
-    mock_stacks_fetch_all_paginated,
-    mock_workerpools_fetch_all_paginated,
-    mock_workers_fetch_all_paginated,
-    mock_runs_fetch_all_paginated,
-    mock_runs_call_spacelift_api,
+@patch("cartography.intel.spacelift.runs.get_entities")
+@patch("cartography.intel.spacelift.runs.get_runs")
+@patch("cartography.intel.spacelift.workers.get_workers")
+@patch("cartography.intel.spacelift.workerpools.get_worker_pools")
+@patch("cartography.intel.spacelift.stacks.get_stacks")
+@patch("cartography.intel.spacelift.spaces.get_spaces")
+@patch("cartography.intel.spacelift.account.get_account")
+def test_spacelift_end_to_end(
+    mock_get_account,
+    mock_get_spaces,
+    mock_get_stacks,
+    mock_get_worker_pools,
+    mock_get_workers,
+    mock_get_runs,
+    mock_get_entities,
     neo4j_session,
 ):
     """
-    Test that Spacelift runs are correctly synced and connected to EC2 instances.
-    This tests the complete end-to-end flow including the Run-[:AFFECTS]->EC2Instance relationship.
+    End-to-end integration test for Spacelift module.
+    Tests syncing of all Spacelift resources and their relationships,
+    including Run-[:AFFECTS]->EC2Instance relationships.
     """
-    # Arrange - Mock all API calls
-    # Account uses fetch_single_query - returns the extracted account object
-    mock_account_fetch_single_query.return_value = ACCOUNT_DATA["data"]["account"]
+    # Mock all API calls using the mock data file
+    mock_get_account.return_value = ACCOUNT_DATA["data"]["account"]
+    mock_get_spaces.return_value = SPACES_DATA["data"]["spaces"]
+    mock_get_stacks.return_value = STACKS_DATA["data"]["stacks"]
+    mock_get_worker_pools.return_value = WORKER_POOLS_DATA["data"]["workerPools"]
 
-    # Each module uses fetch_all_paginated - returns already-extracted lists
-    mock_spaces_fetch_all_paginated.return_value = SPACES_DATA
-    mock_users_fetch_all_paginated.return_value = USERS_DATA
-    mock_stacks_fetch_all_paginated.return_value = STACKS_DATA
-    mock_workerpools_fetch_all_paginated.return_value = WORKER_POOLS_DATA
-    mock_workers_fetch_all_paginated.return_value = WORKERS_DATA
-    mock_runs_fetch_all_paginated.return_value = RUNS_DATA
+    # get_workers returns flattened workers with workerPool field added
+    mock_workers_flattened = []
+    for pool in WORKERS_DATA["data"]["workerPools"]:
+        for worker in pool.get("workers", []):
+            worker_copy = worker.copy()
+            worker_copy["workerPool"] = pool["id"]
+            mock_workers_flattened.append(worker_copy)
+    mock_get_workers.return_value = mock_workers_flattened
 
-    
-    mock_runs_call_spacelift_api.return_value = ENTITIES_DATA
+    # get_runs returns flattened runs with stack field added
+    mock_runs_flattened = []
+    for stack in RUNS_DATA["data"]["stacks"]:
+        for run in stack.get("runs", []):
+            run_copy = run.copy()
+            run_copy["stack"] = stack["id"]
+            mock_runs_flattened.append(run_copy)
+    mock_get_runs.return_value = mock_runs_flattened
 
-    # Create mock spacelift session
+    # get_entities returns flattened entities from all stacks
+    mock_entities_flattened = []
+    for stack in ENTITIES_DATA["data"]["stacks"]:
+        mock_entities_flattened.extend(stack.get("entities", []))
+    mock_get_entities.return_value = mock_entities_flattened
+
+    # Create mock Spacelift session using MagicMock
     spacelift_session = MagicMock()
 
     # Create mock EC2 instances (simulating AWS EC2 sync running before Spacelift sync)
@@ -82,23 +94,51 @@ def test_sync_spacelift_runs_with_ec2_relationships_end_to_end(
             state=instance["State"],
         )
 
-    
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "SPACELIFT_ACCOUNT_ID": TEST_ACCOUNT_ID,
         "account_id": TEST_ACCOUNT_ID,
     }
 
-    # Act - Sync all Spacelift resources in the correct order
-    sync_account(neo4j_session, spacelift_session, TEST_API_ENDPOINT, common_job_parameters)
-    sync_spaces(neo4j_session, spacelift_session, TEST_API_ENDPOINT, TEST_ACCOUNT_ID, common_job_parameters)
-    sync_users(neo4j_session, spacelift_session, TEST_API_ENDPOINT, TEST_ACCOUNT_ID, common_job_parameters)
-    sync_stacks(neo4j_session, spacelift_session, TEST_API_ENDPOINT, TEST_ACCOUNT_ID, common_job_parameters)
-    sync_worker_pools(neo4j_session, spacelift_session, TEST_API_ENDPOINT, TEST_ACCOUNT_ID, common_job_parameters)
-    sync_workers(neo4j_session, spacelift_session, TEST_API_ENDPOINT, TEST_ACCOUNT_ID, common_job_parameters)
-    sync_runs(neo4j_session, spacelift_session, TEST_API_ENDPOINT, TEST_ACCOUNT_ID, common_job_parameters)
+    # Sync all Spacelift resources in the correct order
+    sync_account(neo4j_session, TEST_API_ENDPOINT, common_job_parameters)
+    sync_spaces(
+        neo4j_session,
+        spacelift_session,
+        TEST_API_ENDPOINT,
+        TEST_ACCOUNT_ID,
+        common_job_parameters,
+    )
+    sync_stacks(
+        neo4j_session,
+        spacelift_session,
+        TEST_API_ENDPOINT,
+        TEST_ACCOUNT_ID,
+        common_job_parameters,
+    )
+    sync_worker_pools(
+        neo4j_session,
+        spacelift_session,
+        TEST_API_ENDPOINT,
+        TEST_ACCOUNT_ID,
+        common_job_parameters,
+    )
+    sync_workers(
+        neo4j_session,
+        spacelift_session,
+        TEST_API_ENDPOINT,
+        TEST_ACCOUNT_ID,
+        common_job_parameters,
+    )
+    sync_runs(
+        neo4j_session,
+        spacelift_session,
+        TEST_API_ENDPOINT,
+        TEST_ACCOUNT_ID,
+        common_job_parameters,
+    )
 
-    # Assert - Test that SpaceliftAccount was created
+    # Check that SpaceliftAccount nodes were created
     expected_account_nodes = {
         (TEST_ACCOUNT_ID, "Test Organization"),
     }
@@ -110,7 +150,59 @@ def test_sync_spacelift_runs_with_ec2_relationships_end_to_end(
     assert actual_account_nodes is not None
     assert expected_account_nodes == actual_account_nodes
 
-    # Assert - Test that SpaceliftRun nodes were created
+    # Check that SpaceliftSpace nodes were created
+    expected_space_nodes = {
+        ("root-space", "Root Space"),
+        ("child-space-1", "Child Space 1"),
+    }
+    actual_space_nodes = check_nodes(
+        neo4j_session,
+        "SpaceliftSpace",
+        ["id", "name"],
+    )
+    assert actual_space_nodes is not None
+    assert expected_space_nodes == actual_space_nodes
+
+    # Check that SpaceliftStack nodes were created
+    expected_stack_nodes = {
+        ("stack-1", "Production Stack", "ACTIVE"),
+        ("stack-2", "Staging Stack", "ACTIVE"),
+    }
+    actual_stack_nodes = check_nodes(
+        neo4j_session,
+        "SpaceliftStack",
+        ["id", "name", "state"],
+    )
+    assert actual_stack_nodes is not None
+    assert expected_stack_nodes == actual_stack_nodes
+
+    # Check that SpaceliftWorkerPool nodes were created
+    expected_pool_nodes = {
+        ("pool-1", "Default Pool"),
+        ("pool-2", "Private Pool"),
+    }
+    actual_pool_nodes = check_nodes(
+        neo4j_session,
+        "SpaceliftWorkerPool",
+        ["id", "name"],
+    )
+    assert actual_pool_nodes is not None
+    assert expected_pool_nodes == actual_pool_nodes
+
+    # Check that SpaceliftWorker nodes were created
+    expected_worker_nodes = {
+        ("worker-1", "ACTIVE"),
+        ("worker-2", "ACTIVE"),
+    }
+    actual_worker_nodes = check_nodes(
+        neo4j_session,
+        "SpaceliftWorker",
+        ["id", "status"],
+    )
+    assert actual_worker_nodes is not None
+    assert expected_worker_nodes == actual_worker_nodes
+
+    # Check that SpaceliftRun nodes were created
     expected_run_nodes = {
         ("run-1", "PROPOSED", "FINISHED"),
         ("run-2", "TRACKED", "FINISHED"),
@@ -123,7 +215,7 @@ def test_sync_spacelift_runs_with_ec2_relationships_end_to_end(
     assert actual_run_nodes is not None
     assert expected_run_nodes == actual_run_nodes
 
-    # Assert - Test that Run-[:AFFECTS]->EC2Instance relationships were created
+    # Check that Run-[:AFFECTS]->EC2Instance relationships were created
     expected_run_ec2_relationships = {
         ("run-1", "i-1234567890abcdef0"),
         ("run-1", "i-0987654321fedcba0"),
@@ -140,7 +232,7 @@ def test_sync_spacelift_runs_with_ec2_relationships_end_to_end(
     assert actual_run_ec2_relationships is not None
     assert expected_run_ec2_relationships == actual_run_ec2_relationships
 
-    # Assert - Test that Stack-[:GENERATES]->Run relationships were created
+    # Check that Stack-[:GENERATES]->Run relationships were created
     expected_stack_run_relationships = {
         ("stack-1", "run-1"),
         ("stack-2", "run-2"),
@@ -156,23 +248,7 @@ def test_sync_spacelift_runs_with_ec2_relationships_end_to_end(
     assert actual_stack_run_relationships is not None
     assert expected_stack_run_relationships == actual_stack_run_relationships
 
-    # Assert - Test that Worker-[:EXECUTES]->Run relationships were created
-    expected_worker_run_relationships = {
-        ("worker-1", "run-1"),
-        ("worker-2", "run-2"),
-    }
-    actual_worker_run_relationships = check_rels(
-        neo4j_session,
-        "SpaceliftWorker",
-        "id",
-        "SpaceliftRun",
-        "id",
-        "EXECUTES",
-    )
-    assert actual_worker_run_relationships is not None
-    assert expected_worker_run_relationships == actual_worker_run_relationships
-
-    # Assert - Test that Space-[:CONTAINS]->Stack relationships were created
+    # Check that Space-[:CONTAINS]->Stack relationships were created
     expected_space_stack_relationships = {
         ("root-space", "stack-1"),
         ("child-space-1", "stack-2"),
@@ -188,7 +264,7 @@ def test_sync_spacelift_runs_with_ec2_relationships_end_to_end(
     assert actual_space_stack_relationships is not None
     assert expected_space_stack_relationships == actual_space_stack_relationships
 
-    # Assert - Test that WorkerPool-[:CONTAINS]->Worker relationships were created
+    # Check that WorkerPool-[:CONTAINS]->Worker relationships were created
     expected_pool_worker_relationships = {
         ("pool-1", "worker-1"),
         ("pool-2", "worker-2"),

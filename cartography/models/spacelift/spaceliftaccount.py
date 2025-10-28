@@ -17,6 +17,7 @@ class SpaceliftAccountNodeProperties(CartographyNodeProperties):
     """
     Properties for a Spacelift Account node.
     """
+
     id: PropertyRef = PropertyRef("id")
     account_id: PropertyRef = PropertyRef("account_id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
@@ -28,6 +29,7 @@ class SpaceliftAccountSchema(CartographyNodeSchema):
     """
     Schema for a Spacelift Account node.
     """
+
     label: str = "SpaceliftAccount"
     properties: SpaceliftAccountNodeProperties = SpaceliftAccountNodeProperties()
     sub_resource_relationship = None

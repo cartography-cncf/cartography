@@ -1,7 +1,8 @@
 import logging
+from typing import Any
+
 import neo4j
 import requests
-from typing import Any
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -47,11 +48,15 @@ def get_workers(session: requests.Session, api_endpoint: str) -> list[dict[str, 
             worker["workerPool"] = pool_id
             all_workers.append(worker)
 
-    logger.info(f"Retrieved {len(all_workers)} Spacelift workers from {len(worker_pools)} worker pools")
+    logger.info(
+        f"Retrieved {len(all_workers)} Spacelift workers from {len(worker_pools)} worker pools"
+    )
     return all_workers
 
 
-def transform_workers(workers_data: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
+def transform_workers(
+    workers_data: list[dict[str, Any]], account_id: str
+) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
 
     for worker in workers_data:
@@ -96,7 +101,9 @@ def cleanup_workers(
 ) -> None:
 
     logger.debug("Running SpaceliftWorker cleanup job")
-    GraphJob.from_node_schema(SpaceliftWorkerSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(SpaceliftWorkerSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -110,7 +117,12 @@ def sync_workers(
 
     workers_raw_data = get_workers(spacelift_session, api_endpoint)
     transformed_workers = transform_workers(workers_raw_data, account_id)
-    load_workers(neo4j_session, transformed_workers, common_job_parameters["UPDATE_TAG"], account_id)
+    load_workers(
+        neo4j_session,
+        transformed_workers,
+        common_job_parameters["UPDATE_TAG"],
+        account_id,
+    )
     cleanup_workers(neo4j_session, common_job_parameters)
 
     logger.info(f"Synced {len(transformed_workers)} Spacelift workers")

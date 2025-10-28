@@ -24,12 +24,13 @@ class SpaceliftWorkerPoolNodeProperties(CartographyNodeProperties):
     """
     Properties for a Spacelift Worker Pool node.
     """
+
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name", extra_index=True)
     description: PropertyRef = PropertyRef("description")
-    pool_type: PropertyRef = PropertyRef("pool_type")  
-    space_id: PropertyRef = PropertyRef("space_id")  
-    account_id: PropertyRef = PropertyRef("account_id")  
+    pool_type: PropertyRef = PropertyRef("pool_type")
+    space_id: PropertyRef = PropertyRef("space_id")
+    account_id: PropertyRef = PropertyRef("account_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -38,6 +39,7 @@ class SpaceliftWorkerPoolToAccountRelProperties(CartographyRelProperties):
     """
     Properties for the RESOURCE relationship between a Worker Pool and its Account.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -47,13 +49,16 @@ class SpaceliftWorkerPoolToAccountRel(CartographyRelSchema):
     RESOURCE relationship from a Worker Pool to its Account.
     (:SpaceliftWorkerPool)<-[:RESOURCE]-(:SpaceliftAccount)
     """
+
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SpaceliftWorkerPoolToAccountRelProperties = SpaceliftWorkerPoolToAccountRelProperties()
+    properties: SpaceliftWorkerPoolToAccountRelProperties = (
+        SpaceliftWorkerPoolToAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -67,20 +72,25 @@ class SpaceliftWorkerPoolToSpaceRel(CartographyRelSchema):
     CONTAINS relationship from a Worker Pool to its parent Space.
     (:SpaceliftWorkerPool)<-[:CONTAINS]-(:SpaceliftSpace)
     """
+
     target_node_label: str = "SpaceliftSpace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("space_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: SpaceliftWorkerPoolToSpaceRelProperties = SpaceliftWorkerPoolToSpaceRelProperties()
+    properties: SpaceliftWorkerPoolToSpaceRelProperties = (
+        SpaceliftWorkerPoolToSpaceRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class SpaceliftWorkerPoolSchema(CartographyNodeSchema):
     label: str = "SpaceliftWorkerPool"
     properties: SpaceliftWorkerPoolNodeProperties = SpaceliftWorkerPoolNodeProperties()
-    sub_resource_relationship: SpaceliftWorkerPoolToAccountRel = SpaceliftWorkerPoolToAccountRel()
+    sub_resource_relationship: SpaceliftWorkerPoolToAccountRel = (
+        SpaceliftWorkerPoolToAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SpaceliftWorkerPoolToSpaceRel(),

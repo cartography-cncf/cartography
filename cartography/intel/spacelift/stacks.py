@@ -1,7 +1,8 @@
 import logging
+from typing import Any
+
 import neo4j
 import requests
-from typing import Any
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -40,7 +41,9 @@ def get_stacks(session: requests.Session, api_endpoint: str) -> list[dict[str, A
     return stacks_data
 
 
-def transform_stacks(stacks_data: list[dict[str, Any]], account_id: str) -> list[dict[str, Any]]:
+def transform_stacks(
+    stacks_data: list[dict[str, Any]], account_id: str
+) -> list[dict[str, Any]]:
 
     result: list[dict[str, Any]] = []
 
@@ -89,7 +92,9 @@ def cleanup_stacks(
 ) -> None:
 
     logger.debug("Running SpaceliftStack cleanup job")
-    GraphJob.from_node_schema(SpaceliftStackSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(SpaceliftStackSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -103,7 +108,12 @@ def sync_stacks(
 
     stacks_raw_data = get_stacks(spacelift_session, api_endpoint)
     transformed_stacks = transform_stacks(stacks_raw_data, account_id)
-    load_stacks(neo4j_session, transformed_stacks, common_job_parameters["UPDATE_TAG"], account_id)
+    load_stacks(
+        neo4j_session,
+        transformed_stacks,
+        common_job_parameters["UPDATE_TAG"],
+        account_id,
+    )
     cleanup_stacks(neo4j_session, common_job_parameters)
 
     logger.info(f"Synced {len(transformed_stacks)} Spacelift stacks")

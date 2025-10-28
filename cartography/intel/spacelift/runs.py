@@ -1,13 +1,16 @@
 import json
 import logging
+from typing import Any
+
 import neo4j
 import requests
-from typing import Any
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.spacelift.util import call_spacelift_api
+from cartography.models.spacelift.commit import GitCommitSchema
 from cartography.models.spacelift.run import SpaceliftRunSchema
+from cartography.models.spacelift.user import SpaceliftUserSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -52,6 +55,11 @@ query {
             state
             commit {
                 hash
+                authorLogin
+                authorName
+                message
+                timestamp
+                url
             }
             branch
             createdAt
@@ -75,11 +83,15 @@ def get_entities(session: requests.Session, api_endpoint: str) -> list[dict[str,
     for stack in stacks:
         all_entities.extend(stack.get("entities", []))
 
-    logger.info(f"Retrieved {len(all_entities)} Spacelift entities from {len(stacks)} stacks")
+    logger.info(
+        f"Retrieved {len(all_entities)} Spacelift entities from {len(stacks)} stacks"
+    )
     return all_entities
 
 
-def transform_entities_to_run_map(entities_data: list[dict[str, Any]]) -> dict[str, list[dict[str, str]]]:
+def transform_entities_to_run_map(
+    entities_data: list[dict[str, Any]],
+) -> dict[str, list[dict[str, str]]]:
     """
     This function processes entities to extract EC2 instance IDs and maps them to
     the runs that created or updated them.
@@ -89,7 +101,7 @@ def transform_entities_to_run_map(entities_data: list[dict[str, Any]]) -> dict[s
     run_to_instances: dict[str, list[dict[str, str]]] = {}
 
     for entity in entities_data:
-        # Right now we just cover ec2 
+        # Right now we just cover ec2
         entity_type = entity.get("type")
         if entity_type != "aws_instance":
             continue
@@ -115,13 +127,37 @@ def transform_entities_to_run_map(entities_data: list[dict[str, Any]]) -> dict[s
             creator_run_id = creator["id"]
             if creator_run_id not in run_to_instances:
                 run_to_instances[creator_run_id] = []
-            run_to_instances[creator_run_id].append({
-                "instance_id": instance_id,
-                "action": "create",
-            })
-            logger.info(f"Mapped instance {instance_id} to run {creator_run_id}")
+            run_to_instances[creator_run_id].append(
+                {
+                    "instance_id": instance_id,
+                    "action": "create",
+                }
+            )
+            logger.info(
+                f"Mapped instance {instance_id} to creator run {creator_run_id}"
+            )
 
-    logger.info(f"Built run-to-instances map with {len(run_to_instances)} runs affecting EC2 instances")
+        # Map to updater run
+        updater = entity.get("updater")
+        if updater and updater.get("id"):
+            updater_run_id = updater["id"]
+            # Don't duplicate if updater is same as creator
+            if updater_run_id != creator.get("id") if creator else True:
+                if updater_run_id not in run_to_instances:
+                    run_to_instances[updater_run_id] = []
+                run_to_instances[updater_run_id].append(
+                    {
+                        "instance_id": instance_id,
+                        "action": "update",
+                    }
+                )
+                logger.info(
+                    f"Mapped instance {instance_id} to updater run {updater_run_id}"
+                )
+
+    logger.info(
+        f"Built run-to-instances map with {len(run_to_instances)} runs affecting EC2 instances"
+    )
     logger.info(f"Run-to-instances map: {run_to_instances}")
     return run_to_instances
 
@@ -151,7 +187,7 @@ def transform_runs(
     run_to_instances_map: dict[str, list[dict[str, str]]],
     account_id: str,
 ) -> list[dict[str, Any]]:
-   
+
     logger.info(f"Transforming {len(runs_data)} runs")
 
     result: list[dict[str, Any]] = []
@@ -185,17 +221,15 @@ def transform_runs(
 
         result.append(transformed_run)
 
-    logger.info(f"Transformed {len(result)} runs ({sum(1 for r in result if r['affected_instance_ids'])} affecting EC2 instances)")
+    logger.info(
+        f"Transformed {len(result)} runs ({sum(1 for r in result if r['affected_instance_ids'])} affecting EC2 instances)"
+    )
     return result
 
 
 def extract_users_from_runs(runs_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Extract unique user information from runs' triggeredBy field.
-    Filters out system triggers like 'vcs/commit'.
-
-    :param runs_data: Raw run data from API
-    :return: List of user dictionaries with id, username, email, name, and user_type
     """
     logger.info("Extracting users from runs")
 
@@ -203,7 +237,7 @@ def extract_users_from_runs(runs_data: list[dict[str, Any]]) -> list[dict[str, A
 
     for run in runs_data:
         triggered_by = run.get("triggeredBy")
-    
+
         if triggered_by:
             user_emails.add(triggered_by)
 
@@ -211,17 +245,64 @@ def extract_users_from_runs(runs_data: list[dict[str, Any]]) -> list[dict[str, A
     users = []
     for user_id in sorted(user_emails):
         is_email = "@" in user_id
-        users.append({
-            "id": user_id,
-            "username": user_id,
-            "email": user_id if is_email else None,
-            "name": user_id.split("@")[0] if is_email else user_id,
-            "user_type": "human" if is_email else "system",
-        })
-
+        users.append(
+            {
+                "id": user_id,
+                "username": user_id,
+                "email": user_id if is_email else None,
+                "name": user_id.split("@")[0] if is_email else user_id,
+                "user_type": "human" if is_email else "system",
+            }
+        )
 
     logger.info(f"Extracted {len(users)} unique users from {len(runs_data)} runs")
     return users
+
+
+def extract_commits_from_runs(
+    runs_data: list[dict[str, Any]], account_id: str
+) -> list[dict[str, Any]]:
+    """
+    Extract unique commit information from runs.
+    Links commits to the users/systems that triggered runs using those commits.
+    """
+    logger.info("Extracting commits from runs")
+
+    # Use dict to deduplicate by SHA
+    commits_by_sha: dict[str, dict[str, Any]] = {}
+
+    for run in runs_data:
+        commit = run.get("commit")
+
+        # Skip runs without commit data
+        if not commit or not commit.get("hash"):
+            continue
+
+        sha = commit["hash"]
+        triggered_by = run.get("triggeredBy")
+
+        # Skip if we've already seen this commit (first triggeredBy wins)
+        if sha in commits_by_sha:
+            continue
+
+        commits_by_sha[sha] = {
+            "sha": sha,
+            "message": commit.get("message"),
+            "timestamp": commit.get("timestamp"),
+            "url": commit.get("url"),
+            "author_login": commit.get("authorLogin"),
+            "author_name": commit.get("authorName"),
+            "author_user_id": triggered_by,
+            "account_id": account_id,
+        }
+
+        logger.debug(
+            f"Extracted commit {sha} (by {commit.get('authorLogin')}) confirmed by {triggered_by}"
+        )
+
+    commits = list(commits_by_sha.values())
+    logger.info(f"Extracted {len(commits)} unique commits from {len(runs_data)} runs")
+    return commits
 
 
 def load_users(
@@ -233,11 +314,6 @@ def load_users(
     """
     Load Spacelift users data into Neo4j using the data model.
     """
-    from cartography.models.spacelift.user import SpaceliftUserSchema
-
-    if not users_data:
-        logger.info("No users to load")
-        return
 
     # Add account_id to each user for the relationship
     for user in users_data:
@@ -274,6 +350,27 @@ def load_runs(
     logger.info(f"Loaded {len(runs_data)} Spacelift runs")
 
 
+def load_commits(
+    neo4j_session: neo4j.Session,
+    commits_data: list[dict[str, Any]],
+    update_tag: int,
+    account_id: str,
+) -> None:
+    """
+    Load Git commit data into Neo4j using the data model.
+    """
+
+    load(
+        neo4j_session,
+        GitCommitSchema(),
+        commits_data,
+        lastupdated=update_tag,
+        account_id=account_id,
+    )
+
+    logger.info(f"Loaded {len(commits_data)} Git commits")
+
+
 @timeit
 def cleanup_users(
     neo4j_session: neo4j.Session,
@@ -285,7 +382,9 @@ def cleanup_users(
     from cartography.models.spacelift.user import SpaceliftUserSchema
 
     logger.debug("Running SpaceliftUser cleanup job")
-    GraphJob.from_node_schema(SpaceliftUserSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(SpaceliftUserSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -293,11 +392,23 @@ def cleanup_runs(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    """
-    Remove stale Spacelift run data from Neo4j.
-    """
+
     logger.debug("Running SpaceliftRun cleanup job")
-    GraphJob.from_node_schema(SpaceliftRunSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(SpaceliftRunSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def cleanup_commits(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+
+    logger.debug("Running GitCommit cleanup job")
+    GraphJob.from_node_schema(GitCommitSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -309,27 +420,41 @@ def sync_runs(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Sync Spacelift runs and users to Neo4j.
+    Sync Spacelift runs, commits, and users to Neo4j.
     Users are extracted from runs' triggeredBy field.
+    Commits are linked to the users who triggered deployments using those commits.
     """
-    # 1. GET - Fetch entities and runs data from Spacelift API
+
     entities_raw_data = get_entities(spacelift_session, api_endpoint)
     runs_raw_data = get_runs(spacelift_session, api_endpoint)
 
-    # 2. TRANSFORM - Shape data for ingestion
     run_to_instances_map = transform_entities_to_run_map(entities_raw_data)
     transformed_runs = transform_runs(runs_raw_data, run_to_instances_map, account_id)
 
-    # Extract users from runs (before loading runs so TRIGGERED_BY relationship can be created)
     extracted_users = extract_users_from_runs(runs_raw_data)
 
-    # 3. LOAD - Ingest to Neo4j
-    # Load users first so the TRIGGERED_BY relationship can be created when runs are loaded
-    load_users(neo4j_session, extracted_users, common_job_parameters["UPDATE_TAG"], account_id)
-    load_runs(neo4j_session, transformed_runs, common_job_parameters["UPDATE_TAG"], account_id)
+    extracted_commits = extract_commits_from_runs(runs_raw_data, account_id)
 
-    # 4. CLEANUP - Remove stale data
+    load_users(
+        neo4j_session, extracted_users, common_job_parameters["UPDATE_TAG"], account_id
+    )
+
+    load_commits(
+        neo4j_session,
+        extracted_commits,
+        common_job_parameters["UPDATE_TAG"],
+        account_id,
+    )
+
+    load_runs(
+        neo4j_session, transformed_runs, common_job_parameters["UPDATE_TAG"], account_id
+    )
+
     cleanup_users(neo4j_session, common_job_parameters)
+    cleanup_commits(neo4j_session, common_job_parameters)
     cleanup_runs(neo4j_session, common_job_parameters)
 
-    logger.info(f"Synced {len(extracted_users)} users and {len(transformed_runs)} Spacelift runs")
+    logger.info(
+        f"Synced {len(extracted_users)} users, {len(extracted_commits)} commits, "
+        f"and {len(transformed_runs)} Spacelift runs"
+    )

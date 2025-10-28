@@ -10,127 +10,155 @@ ACCOUNT_DATA = {
     },
 }
 
-# Spaces data
-SPACES_DATA = [
-    {
-        "id": "root-space",
-        "name": "Root Space",
-        "description": "Root space for testing",
-        "parentSpace": None,
+# Spaces data - returned from GET_SPACES_QUERY
+SPACES_DATA = {
+    "data": {
+        "spaces": [
+            {
+                "id": "root-space",
+                "name": "Root Space",
+                "description": "Root space for testing",
+                "parentSpace": None,
+            },
+            {
+                "id": "child-space-1",
+                "name": "Child Space 1",
+                "description": "Child space for testing",
+                "parentSpace": "root-space",
+            },
+        ],
     },
-    {
-        "id": "child-space-1",
-        "name": "Child Space 1",
-        "description": "Child space for testing",
-        "parentSpace": "root-space",
-    },
-]
+}
 
-# Users data
-USERS_DATA = [
-    {
-        "id": "user-1",
-        "username": "john.doe",
-        "type": "HUMAN",
-        "email": "john.doe@example.com",
+# Stacks data - returned from GET_STACKS_QUERY
+STACKS_DATA = {
+    "data": {
+        "stacks": [
+            {
+                "id": "stack-1",
+                "name": "Production Stack",
+                "description": "Main production infrastructure",
+                "state": "ACTIVE",
+                "administrative": True,
+                "repository": "github.com/example/infra",
+                "branch": "main",
+                "projectRoot": "/terraform/prod",
+                "space": "root-space",
+            },
+            {
+                "id": "stack-2",
+                "name": "Staging Stack",
+                "description": "Staging environment",
+                "state": "ACTIVE",
+                "administrative": False,
+                "repository": "github.com/example/infra",
+                "branch": "staging",
+                "projectRoot": "/terraform/staging",
+                "space": "child-space-1",
+            },
+        ],
     },
-    {
-        "id": "user-2",
-        "username": "api-key-user",
-        "type": "API_KEY",
-        "email": None,
-    },
-]
+}
 
-# Stacks data
-STACKS_DATA = [
-    {
-        "id": "stack-1",
-        "name": "Production Stack",
-        "description": "Main production infrastructure",
-        "state": "ACTIVE",
-        "administrative": True,
-        "repository": "github.com/example/infra",
-        "branch": "main",
-        "projectRoot": "/terraform/prod",
-        "space": "root-space",
+# Worker pools data - returned from GET_WORKER_POOLS_QUERY
+WORKER_POOLS_DATA = {
+    "data": {
+        "workerPools": [
+            {
+                "id": "pool-1",
+                "name": "Default Pool",
+                "description": "Default worker pool",
+                "type": "PUBLIC",
+                "space": "root-space",
+            },
+            {
+                "id": "pool-2",
+                "name": "Private Pool",
+                "description": "Private worker pool",
+                "type": "PRIVATE",
+                "space": "root-space",
+            },
+        ],
     },
-    {
-        "id": "stack-2",
-        "name": "Staging Stack",
-        "description": "Staging environment",
-        "state": "ACTIVE",
-        "administrative": False,
-        "repository": "github.com/example/infra",
-        "branch": "staging",
-        "projectRoot": "/terraform/staging",
-        "space": "child-space-1",
-    },
-]
+}
 
-# Worker pools data
-WORKER_POOLS_DATA = [
-    {
-        "id": "pool-1",
-        "name": "Default Pool",
-        "description": "Default worker pool",
-        "type": "PUBLIC",
-        "space": "root-space",
+# Workers data - returned from GET_WORKERS_QUERY (nested under workerPools)
+WORKERS_DATA = {
+    "data": {
+        "workerPools": [
+            {
+                "id": "pool-1",
+                "workers": [
+                    {
+                        "id": "worker-1",
+                        "status": "ACTIVE",
+                    },
+                ],
+            },
+            {
+                "id": "pool-2",
+                "workers": [
+                    {
+                        "id": "worker-2",
+                        "status": "ACTIVE",
+                    },
+                ],
+            },
+        ],
     },
-    {
-        "id": "pool-2",
-        "name": "Private Pool",
-        "description": "Private worker pool",
-        "type": "PRIVATE",
-        "space": "root-space",
-    },
-]
+}
 
-# Workers data
-WORKERS_DATA = [
-    {
-        "id": "worker-1",
-        "name": "worker-01",
-        "status": "ACTIVE",
-        "workerPool": "pool-1",
+# Runs data - returned from GET_RUNS_QUERY nested under stacks
+RUNS_DATA = {
+    "data": {
+        "stacks": [
+            {
+                "id": "stack-1",
+                "runs": [
+                    {
+                        "id": "run-1",
+                        "type": "PROPOSED",
+                        "state": "FINISHED",
+                        "commit": {
+                            "hash": "abc123def456",
+                            "authorLogin": "johndoe",
+                            "authorName": "John Doe",
+                            "message": "Add production infrastructure",
+                            "timestamp": "2024-10-01T09:00:00Z",
+                            "url": "https://github.com/example/infra/commit/abc123def456",
+                        },
+                        "branch": "main",
+                        "createdAt": "2024-10-01T10:00:00Z",
+                        "finished": "2024-10-01T10:05:00Z",
+                        "triggeredBy": "john.doe@example.com",
+                    },
+                ],
+            },
+            {
+                "id": "stack-2",
+                "runs": [
+                    {
+                        "id": "run-2",
+                        "type": "TRACKED",
+                        "state": "FINISHED",
+                        "commit": {
+                            "hash": "def456ghi789",
+                            "authorLogin": "janedoe",
+                            "authorName": "Jane Doe",
+                            "message": "Update staging environment",
+                            "timestamp": "2024-10-02T10:00:00Z",
+                            "url": "https://github.com/example/infra/commit/def456ghi789",
+                        },
+                        "branch": "staging",
+                        "createdAt": "2024-10-02T11:00:00Z",
+                        "finished": "2024-10-02T11:10:00Z",
+                        "triggeredBy": "vcs/commit",
+                    },
+                ],
+            },
+        ],
     },
-    {
-        "id": "worker-2",
-        "name": "worker-02",
-        "status": "ACTIVE",
-        "workerPool": "pool-2",
-    },
-]
-
-# Runs data
-RUNS_DATA = [
-    {
-        "id": "run-1",
-        "type": "PROPOSED",
-        "state": "FINISHED",
-        "commitSha": "abc123def456",
-        "branch": "main",
-        "createdAt": "2024-10-01T10:00:00Z",
-        "startedAt": "2024-10-01T10:01:00Z",
-        "finishedAt": "2024-10-01T10:05:00Z",
-        "stack": "stack-1",
-        "triggeredBy": "user-1",
-        "worker": "worker-1",
-    },
-    {
-        "id": "run-2",
-        "type": "TRACKED",
-        "state": "FINISHED",
-        "commitSha": "def456ghi789",
-        "branch": "staging",
-        "createdAt": "2024-10-02T11:00:00Z",
-        "startedAt": "2024-10-02T11:01:00Z",
-        "finishedAt": "2024-10-02T11:10:00Z",
-        "stack": "stack-2",
-        "triggeredBy": "user-2",
-        "worker": "worker-2",
-    },
-]
+}
 
 # Entities data - includes EC2 instances created by runs
 ENTITIES_DATA = {

@@ -24,16 +24,17 @@ class SpaceliftStackNodeProperties(CartographyNodeProperties):
     """
     Properties for a Spacelift Stack node.
     """
+
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name", extra_index=True)
     description: PropertyRef = PropertyRef("description")
-    state: PropertyRef = PropertyRef("state")  
-    administrative: PropertyRef = PropertyRef("administrative") 
-    repository: PropertyRef = PropertyRef("repository")  
-    branch: PropertyRef = PropertyRef("branch")  
+    state: PropertyRef = PropertyRef("state")
+    administrative: PropertyRef = PropertyRef("administrative")
+    repository: PropertyRef = PropertyRef("repository")
+    branch: PropertyRef = PropertyRef("branch")
     project_root: PropertyRef = PropertyRef("project_root")  # Directory in repo
-    space_id: PropertyRef = PropertyRef("space_id")  
-    account_id: PropertyRef = PropertyRef("account_id")  
+    space_id: PropertyRef = PropertyRef("space_id")
+    account_id: PropertyRef = PropertyRef("account_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -42,6 +43,7 @@ class SpaceliftStackToAccountRelProperties(CartographyRelProperties):
     """
     Properties for the RESOURCE relationship between a Stack and its Account.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -51,13 +53,16 @@ class SpaceliftStackToAccountRel(CartographyRelSchema):
     RESOURCE relationship from a Stack to its Account.
     (:SpaceliftStack)<-[:RESOURCE]-(:SpaceliftAccount)
     """
+
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SpaceliftStackToAccountRelProperties = SpaceliftStackToAccountRelProperties()
+    properties: SpaceliftStackToAccountRelProperties = (
+        SpaceliftStackToAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -71,13 +76,16 @@ class SpaceliftStackToSpaceRel(CartographyRelSchema):
     CONTAINS relationship from a Stack to its parent Space.
     (:SpaceliftStack)<-[:CONTAINS]-(:SpaceliftSpace)
     """
+
     target_node_label: str = "SpaceliftSpace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("space_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: SpaceliftStackToSpaceRelProperties = SpaceliftStackToSpaceRelProperties()
+    properties: SpaceliftStackToSpaceRelProperties = (
+        SpaceliftStackToSpaceRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -85,6 +93,7 @@ class SpaceliftStackSchema(CartographyNodeSchema):
     """
     Schema for a Spacelift Stack node.
     """
+
     label: str = "SpaceliftStack"
     properties: SpaceliftStackNodeProperties = SpaceliftStackNodeProperties()
     sub_resource_relationship: SpaceliftStackToAccountRel = SpaceliftStackToAccountRel()

@@ -22,6 +22,7 @@ class SpaceliftUserNodeProperties(CartographyNodeProperties):
     """
     Properties for a Spacelift User node.
     """
+
     id: PropertyRef = PropertyRef("id")
     username: PropertyRef = PropertyRef("username", extra_index=True)
     email: PropertyRef = PropertyRef("email", extra_index=True)
@@ -35,6 +36,7 @@ class SpaceliftUserToAccountRelProperties(CartographyRelProperties):
     """
     Properties for the RESOURCE relationship between a User and its Account.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -44,13 +46,16 @@ class SpaceliftUserToAccountRel(CartographyRelSchema):
     RESOURCE relationship from a User to its Account.
     (:SpaceliftUser)<-[:RESOURCE]-(:SpaceliftAccount)
     """
+
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SpaceliftUserToAccountRelProperties = SpaceliftUserToAccountRelProperties()
+    properties: SpaceliftUserToAccountRelProperties = (
+        SpaceliftUserToAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -58,6 +63,7 @@ class SpaceliftUserSchema(CartographyNodeSchema):
     """
     Schema for a Spacelift User node.
     """
+
     label: str = "SpaceliftUser"
     properties: SpaceliftUserNodeProperties = SpaceliftUserNodeProperties()
     sub_resource_relationship: SpaceliftUserToAccountRel = SpaceliftUserToAccountRel()
