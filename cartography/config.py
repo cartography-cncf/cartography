@@ -161,6 +161,11 @@ class Config:
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
     :type trivy_s3_prefix: str
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
+    :type ontology_users_source: str
+    :param ontology_users_source: Comma-separated list of sources of truth for user data in the ontology. Optional.
+    :type ontology_devices_source: str
+    :param ontology_devices_source: Comma-separated list of sources of truth for client computers data in the ontology.
+        Optional.
     :type trivy_results_dir: str
     :param trivy_results_dir: Local directory containing Trivy scan results. Optional.
     :type scaleway_access_key: str
@@ -266,6 +271,8 @@ class Config:
         airbyte_api_url=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
+        ontology_users_source=None,
+        ontology_devices_source=None,
         trivy_results_dir=None,
         scaleway_access_key=None,
         scaleway_secret_key=None,
@@ -359,6 +366,8 @@ class Config:
         self.airbyte_api_url = airbyte_api_url
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
+        self.ontology_users_source = ontology_users_source
+        self.ontology_devices_source = ontology_devices_source
         self.trivy_results_dir = trivy_results_dir
         self.scaleway_access_key = scaleway_access_key
         self.scaleway_secret_key = scaleway_secret_key
