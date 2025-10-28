@@ -735,7 +735,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "[EXPERIMENTAL!] Comma-separated list of sources of truth for user data in the ontology. "
+                "Comma-separated list of sources of truth for user data in the ontology. "
                 "'User' nodes will only be created for users that exist in one of the sources. "
                 "Required if you are using the ontology module. Ignored otherwise."
             ),
@@ -745,7 +745,7 @@ class CLI:
             type=str,
             default=None,
             help=(
-                "[EXPERIMENTAL!] Comma-separated list of sources of truth for client computer data in the ontology. "
+                "Comma-separated list of sources of truth for client computer data in the ontology. "
                 "'Device' nodes will only be created for groups that exist in one of the sources. "
                 "Required if you are using the ontology module. Ignored otherwise."
             ),
