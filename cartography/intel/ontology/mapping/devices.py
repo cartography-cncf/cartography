@@ -30,7 +30,6 @@ crowdstrike_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="platform", node_field="platform_name"
                 ),
-                OntologyFieldMapping(ontology_field="model", node_field="model"),
                 OntologyFieldMapping(
                     ontology_field="serial_number", node_field="serial_number"
                 ),
@@ -61,9 +60,6 @@ duo_mapping = OntologyMapping(
             node_label="DuoPhone",
             fields=[
                 OntologyFieldMapping(ontology_field="hostname", node_field="name"),
-                OntologyFieldMapping(
-                    ontology_field="os_version", node_field="os_version"
-                ),
                 OntologyFieldMapping(ontology_field="model", node_field="model"),
                 OntologyFieldMapping(ontology_field="platform", node_field="platform"),
             ],
