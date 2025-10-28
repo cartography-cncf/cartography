@@ -551,6 +551,8 @@ async def test_fetch_image_layers_async_handles_manifest_list(
             test_data.MULTI_ARCH_ARM64_MANIFEST["config"][
                 "digest"
             ]: test_data.MULTI_ARCH_ARM64_CONFIG,
+            # Attestation blob lookup
+            "sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456": test_data.SLSA_PROVENANCE_BLOB,
         }
         return config_lookup.get(digest, {})
 
@@ -564,13 +566,30 @@ async def test_fetch_image_layers_async_handles_manifest_list(
         )
     )
 
+    # Verify platform layers are extracted
     assert image_layers_data == {
         repo_image["uri"]: {
             "linux/amd64": test_data.MULTI_ARCH_AMD64_CONFIG["rootfs"]["diff_ids"],
             "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"]["diff_ids"],
         }
     }
-    assert digest_map == {repo_image["uri"]: repo_image["imageDigest"]}
+
+    # Verify digest_map includes manifest list and child images
+    assert repo_image["uri"] in digest_map
+    assert digest_map[repo_image["uri"]] == repo_image["imageDigest"]
+
+    # Verify attestation data is extracted and mapped to child AMD64 image
+    # The attestation in MULTI_ARCH_INDEX attests to the AMD64 image (line 108 of test_data)
+    expected_child_uri = f"000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared@{test_data.MANIFEST_LIST_AMD64_DIGEST}"
+    assert (
+        expected_child_uri in attestation_map
+    ), "Attestation data should be mapped to child image!"
+    assert (
+        attestation_map[expected_child_uri]["parent_image_digest"]
+        == "sha256:parent1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+    )
+    # Verify child digest is in digest_map too
+    assert digest_map[expected_child_uri] == test_data.MANIFEST_LIST_AMD64_DIGEST
 
 
 @pytest.mark.asyncio
@@ -639,3 +658,190 @@ def test_sync_multi_region_event_loop_preserved(
             pytest.fail("Event loop was torn down between regions - fix needed")
         else:
             raise
+
+
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=[
+        {
+            "repositoryArn": "arn:aws:ecr:us-east-1:000000000000:repository/multi-arch-repository",
+            "registryId": "000000000000",
+            "repositoryName": "multi-arch-repository",
+            "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository",
+            "createdAt": test_data.DESCRIBE_REPOSITORIES["repositories"][0][
+                "createdAt"
+            ],
+        }
+    ],
+)
+@patch("cartography.intel.aws.ecr_image_layers.fetch_image_layers_async")
+def test_sync_layers_preserves_multi_arch_image_properties(
+    mock_fetch_layers,
+    mock_get_repos,
+    neo4j_session,
+):
+    """
+    Regression test for bug where ecr_image_layers sync would overwrite ECRImage properties to NULL.
+
+    This test ensures that when layer sync runs after ECR sync, it preserves the type, architecture,
+    os, variant, and other fields that were set during the initial ECR sync for multi-arch images.
+    """
+    # Clean up from previous tests
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    mock_client = MagicMock()
+
+    # Mock list_images paginator
+    mock_list_paginator = MagicMock()
+    mock_list_paginator.paginate.return_value = [
+        {
+            "imageIds": [
+                {
+                    "imageDigest": test_data.MANIFEST_LIST_DIGEST,
+                    "imageTag": "v1.0",
+                }
+            ]
+        }
+    ]
+
+    # Mock describe_images paginator
+    mock_describe_paginator = MagicMock()
+    mock_describe_paginator.paginate.return_value = [
+        {"imageDetails": [test_data.MULTI_ARCH_IMAGE_DETAILS]}
+    ]
+
+    # Configure get_paginator
+    def get_paginator(name):
+        if name == "list_images":
+            return mock_list_paginator
+        elif name == "describe_images":
+            return mock_describe_paginator
+        raise ValueError(f"Unexpected paginator: {name}")
+
+    mock_client.get_paginator = get_paginator
+    mock_client.batch_get_image.return_value = (
+        test_data.BATCH_GET_MANIFEST_LIST_RESPONSE
+    )
+    boto3_session.client.return_value = mock_client
+
+    # Act 1: Run ECR sync to populate ECRImage nodes with multi-arch properties
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert 1: Verify ECRImage nodes have type, architecture, os, variant set
+    assert check_nodes(
+        neo4j_session, "ECRImage", ["digest", "type", "architecture"]
+    ) == {
+        (test_data.MANIFEST_LIST_DIGEST, "manifest_list", None),
+        (test_data.MANIFEST_LIST_AMD64_DIGEST, "image", "amd64"),
+        (test_data.MANIFEST_LIST_ARM64_DIGEST, "image", "arm64"),
+        (test_data.MANIFEST_LIST_ATTESTATION_DIGEST, "attestation", "unknown"),
+    }
+
+    # Act 2: Run ECR layers sync
+    # Mock fetch_image_layers_async to return layer data for platform-specific images only
+    # (NOT manifest list or attestations - they're filtered out before fetching)
+    mock_fetch_layers.return_value = (
+        # image_layers_data - keyed by the platform-specific image URIs
+        {
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_AMD64_DIGEST}": {
+                "linux/amd64": test_data.MULTI_ARCH_AMD64_CONFIG["rootfs"]["diff_ids"],
+            },
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_ARM64_DIGEST}": {
+                "linux/arm64/v8": test_data.MULTI_ARCH_ARM64_CONFIG["rootfs"][
+                    "diff_ids"
+                ],
+            },
+        },
+        # image_digest_map
+        {
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_AMD64_DIGEST}": test_data.MANIFEST_LIST_AMD64_DIGEST,
+            f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_ARM64_DIGEST}": test_data.MANIFEST_LIST_ARM64_DIGEST,
+        },
+        # image_attestation_map (empty)
+        {},
+    )
+
+    sync_ecr_layers(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert 2: Verify ECRImage properties are PRESERVED after layer sync (not overwritten to NULL)
+    assert check_nodes(
+        neo4j_session, "ECRImage", ["digest", "type", "architecture"]
+    ) == {
+        (test_data.MANIFEST_LIST_DIGEST, "manifest_list", None),
+        (test_data.MANIFEST_LIST_AMD64_DIGEST, "image", "amd64"),
+        (test_data.MANIFEST_LIST_ARM64_DIGEST, "image", "arm64"),
+        (test_data.MANIFEST_LIST_ATTESTATION_DIGEST, "attestation", "unknown"),
+    }, "ECRImage properties were overwritten after layer sync!"
+
+    # Verify layer relationships: only platform images (type="image") should have HAS_LAYER relationships
+    # Manifest lists and attestations should NOT have any layer relationships
+    has_layer_rels = check_rels(
+        neo4j_session,
+        "ECRImage",
+        "digest",
+        "ECRImageLayer",
+        "diff_id",
+        "HAS_LAYER",
+        rel_direction_right=True,
+    )
+
+    # Get all ECRImage digests that have HAS_LAYER relationships
+    images_with_layers = {img_digest for (img_digest, _) in has_layer_rels}
+
+    # Only AMD64 and ARM64 platform images should have layers
+    assert images_with_layers == {
+        test_data.MANIFEST_LIST_AMD64_DIGEST,
+        test_data.MANIFEST_LIST_ARM64_DIGEST,
+    }, "Only platform-specific images should have layer relationships!"
+
+    # Manifest list and attestations should NOT be in this set
+    assert test_data.MANIFEST_LIST_DIGEST not in images_with_layers
+    assert test_data.MANIFEST_LIST_ATTESTATION_DIGEST not in images_with_layers
+
+    # Verify CONTAINS_IMAGE relationships from manifest list to platform images
+    assert check_rels(
+        neo4j_session,
+        "ECRImage",
+        "digest",
+        "ECRImage",
+        "digest",
+        "CONTAINS_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (test_data.MANIFEST_LIST_DIGEST, test_data.MANIFEST_LIST_AMD64_DIGEST),
+        (test_data.MANIFEST_LIST_DIGEST, test_data.MANIFEST_LIST_ARM64_DIGEST),
+    }
+
+    # Verify ATTESTS relationships from attestations to images they validate
+    attests_rels = check_rels(
+        neo4j_session,
+        "ECRImage",
+        "digest",
+        "ECRImage",
+        "digest",
+        "ATTESTS",
+        rel_direction_right=True,
+    )
+    # Attestation should point to the AMD64 image (as defined in test data)
+    assert (
+        test_data.MANIFEST_LIST_ATTESTATION_DIGEST,
+        test_data.MANIFEST_LIST_AMD64_DIGEST,
+    ) in attests_rels
