@@ -248,12 +248,19 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
 
                 # Create ECRImage for the manifest list itself
                 if digest not in ecr_images_dict:
+                    # Extract child image digests (excluding attestations for CONTAINS_IMAGE relationship)
+                    child_digests = [
+                        m["digest"]
+                        for m in manifest_images
+                        if m.get("type") != "attestation"
+                    ]
                     ecr_images_dict[digest] = {
                         "imageDigest": digest,
                         "type": "manifest_list",
                         "architecture": None,
                         "os": None,
                         "variant": None,
+                        "child_image_digests": child_digests if child_digests else None,
                     }
 
                 # Create ECRImage nodes for each image in the manifest list

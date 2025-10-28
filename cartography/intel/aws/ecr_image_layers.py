@@ -333,6 +333,7 @@ def transform_ecr_image_layers(
     image_layers_data: dict[str, dict[str, list[str]]],
     image_digest_map: dict[str, str],
     image_attestation_map: Optional[dict[str, dict[str, str]]] = None,
+    existing_properties_map: Optional[dict[str, dict[str, Any]]] = None,
 ) -> tuple[list[dict], list[dict]]:
     """
     Transform image layer data into format suitable for Neo4j ingestion.
@@ -341,16 +342,29 @@ def transform_ecr_image_layers(
     :param image_layers_data: Map of image URI to platform to diff_ids
     :param image_digest_map: Map of image URI to image digest
     :param image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
+    :param existing_properties_map: Map of image digest to existing ECRImage properties (type, architecture, etc.)
     :return: List of layer objects ready for ingestion
     """
     if image_attestation_map is None:
         image_attestation_map = {}
+    if existing_properties_map is None:
+        existing_properties_map = {}
     layers_by_diff_id: dict[str, dict[str, Any]] = {}
     memberships_by_digest: dict[str, dict[str, Any]] = {}
 
     for image_uri, platforms in image_layers_data.items():
         # fetch_image_layers_async guarantees every uri in image_layers_data has a digest
         image_digest = image_digest_map[image_uri]
+
+        # Check if this is a manifest list
+        is_manifest_list = False
+        if image_digest in existing_properties_map:
+            image_type = existing_properties_map[image_digest].get("type")
+            is_manifest_list = image_type == "manifest_list"
+
+        # Skip creating layer relationships for manifest lists
+        if is_manifest_list:
+            continue
 
         ordered_layers_for_image: Optional[list[str]] = None
 
@@ -389,6 +403,10 @@ def transform_ecr_image_layers(
             membership: dict[str, Any] = {
                 "layer_diff_ids": ordered_layers_for_image,
             }
+
+            # Preserve existing ECRImage properties (type, architecture, os, variant, etc.)
+            if image_digest in existing_properties_map:
+                membership.update(existing_properties_map[image_digest])
 
             # Add attestation data if available for this image
             if image_uri in image_attestation_map:
@@ -539,8 +557,15 @@ async def fetch_image_layers_async(
     async def fetch_single_image_layers(
         repo_image: dict,
         http_client: httpx.AsyncClient,
-    ) -> Optional[tuple[str, str, dict[str, list[str]], Optional[dict[str, str]]]]:
-        """Fetch layers for a single image and extract attestation if present."""
+    ) -> Optional[
+        tuple[str, str, dict[str, list[str]], Optional[dict[str, dict[str, str]]]]
+    ]:
+        """
+        Fetch layers for a single image and extract attestation if present.
+
+        Returns tuple of (uri, digest, platform_layers, attestations_by_child_digest) where
+        attestations_by_child_digest maps child image digest to parent image info
+        """
         async with semaphore:
             # Caller guarantees these fields exist in every repo_image
             uri = repo_image["uri"]
@@ -563,13 +588,13 @@ async def fetch_image_layers_async(
 
             manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
             platform_layers: dict[str, list[str]] = {}
-            attestation_data: Optional[dict[str, str]] = None
+            attestation_data: Optional[dict[str, dict[str, str]]] = None
 
             if doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER:
 
                 async def _process_child_manifest(
                     manifest_ref: dict,
-                ) -> tuple[dict[str, list[str]], Optional[dict[str, str]]]:
+                ) -> tuple[dict[str, list[str]], Optional[tuple[str, dict[str, str]]]]:
                     # Check if this is an attestation manifest
                     if (
                         manifest_ref.get("annotations", {}).get(
@@ -577,18 +602,27 @@ async def fetch_image_layers_async(
                         )
                         == "attestation-manifest"
                     ):
+                        # Extract which child image this attestation is for
+                        attests_child_digest = manifest_ref.get("annotations", {}).get(
+                            "vnd.docker.reference.digest"
+                        )
+                        if not attests_child_digest:
+                            return {}, None
+
                         # Extract base image from attestation
-                        child_digest = manifest_ref.get("digest")
-                        if child_digest:
+                        attestation_digest = manifest_ref.get("digest")
+                        if attestation_digest:
                             attestation_info = (
                                 await _extract_parent_image_from_attestation(
                                     ecr_client,
                                     repo_name,
-                                    child_digest,
+                                    attestation_digest,
                                     http_client,
                                 )
                             )
-                            return {}, attestation_info
+                            if attestation_info:
+                                # Return (attests_child_digest, parent_info) tuple
+                                return {}, (attests_child_digest, attestation_info)
                         return {}, None
 
                     child_digest = manifest_ref.get("digest")
@@ -624,14 +658,22 @@ async def fetch_image_layers_async(
                 )
 
                 # Merge results from successful child manifest processing
+                # Track attestation data by child digest for proper mapping
+                attestations_by_child_digest: dict[str, dict[str, str]] = {}
+
                 for result in child_results:
                     if isinstance(result, tuple) and len(result) == 2:
                         layer_data, attest_data = result
                         if layer_data:
                             platform_layers.update(layer_data)
-                        if attest_data and not attestation_data:
-                            # Use first attestation found
-                            attestation_data = attest_data
+                        if attest_data:
+                            # attest_data is (child_digest, parent_info) tuple
+                            child_digest, parent_info = attest_data
+                            attestations_by_child_digest[child_digest] = parent_info
+
+                # Build attestation_data with child digest mapping
+                if attestations_by_child_digest:
+                    attestation_data = attestations_by_child_digest
             else:
                 diff_map = await _diff_ids_for_manifest(
                     ecr_client,
@@ -642,7 +684,9 @@ async def fetch_image_layers_async(
                 )
                 platform_layers.update(diff_map)
 
-            if platform_layers:
+            # Return if we found layers or attestation data
+            # Manifest lists may have attestation_data without platform_layers
+            if platform_layers or attestation_data:
                 return uri, digest, platform_layers, attestation_data
 
             return None
@@ -682,13 +726,22 @@ async def fetch_image_layers_async(
                 )
 
             if result:
-                uri, digest, layer_data, attestation_data = result
+                uri, digest, layer_data, attestations_by_child_digest = result
                 if not digest:
                     raise ValueError(f"Empty digest returned for image {uri}")
                 image_layers_data[uri] = layer_data
                 image_digest_map[uri] = digest
-                if attestation_data:
-                    image_attestation_map[uri] = attestation_data
+                if attestations_by_child_digest:
+                    # Map attestation data by child digest URIs
+                    repo_uri = extract_repo_uri_from_image_uri(uri)
+                    for (
+                        child_digest,
+                        parent_info,
+                    ) in attestations_by_child_digest.items():
+                        child_uri = f"{repo_uri}@{child_digest}"
+                        image_attestation_map[child_uri] = parent_info
+                        # Also add to digest map so transform can look up the child digest
+                        image_digest_map[child_uri] = child_digest
 
     logger.info(
         f"Successfully fetched layers for {len(image_layers_data)}/{len(repo_images_list)} images"
@@ -733,30 +786,71 @@ def sync(
             current_aws_account_id,
         )
 
-        # Get ECR images from graph using standard client function
-        from cartography.client.aws.ecr import get_ecr_images
+        # Query for ECR images with all their existing properties to preserve during layer sync
+        query = """
+        MATCH (img:ECRImage)<-[:IMAGE]-(repo_img:ECRRepositoryImage)<-[:REPO_IMAGE]-(repo:ECRRepository)
+        MATCH (repo)<-[:RESOURCE]-(:AWSAccount {id: $AWS_ID})
+        WHERE repo.region = $Region
+        RETURN DISTINCT
+            img.digest AS digest,
+            repo_img.id AS uri,
+            repo.uri AS repo_uri,
+            img.type AS type,
+            img.architecture AS architecture,
+            img.os AS os,
+            img.variant AS variant,
+            img.attestation_type AS attestation_type,
+            img.attests_digest AS attests_digest,
+            img.media_type AS media_type,
+            img.artifact_media_type AS artifact_media_type,
+            img.child_image_digests AS child_image_digests
+        """
+        from cartography.client.core.tx import read_list_of_dicts_tx
 
-        ecr_images = get_ecr_images(neo4j_session, current_aws_account_id)
+        ecr_images = neo4j_session.read_transaction(
+            read_list_of_dicts_tx, query, AWS_ID=current_aws_account_id, Region=region
+        )
 
-        # Filter by region and deduplicate by digest
+        # Build repo_images_list and existing_properties map
         repo_images_list = []
+        existing_properties = {}
         seen_digests = set()
 
-        for region_name, _, uri, _, digest in ecr_images:
-            if region_name == region and digest not in seen_digests:
-                seen_digests.add(digest)
-                repo_uri = extract_repo_uri_from_image_uri(uri)
+        for img_data in ecr_images:
+            digest = img_data["digest"]
+            image_type = img_data.get("type")
 
-                # Create digest-based URI for manifest fetching
+            if digest not in seen_digests:
+                seen_digests.add(digest)
+
+                # Store existing properties for ALL images to preserve during updates
+                existing_properties[digest] = {
+                    "type": image_type,
+                    "architecture": img_data.get("architecture"),
+                    "os": img_data.get("os"),
+                    "variant": img_data.get("variant"),
+                    "attestation_type": img_data.get("attestation_type"),
+                    "attests_digest": img_data.get("attests_digest"),
+                    "media_type": img_data.get("media_type"),
+                    "artifact_media_type": img_data.get("artifact_media_type"),
+                    "child_image_digests": img_data.get("child_image_digests"),
+                }
+
+                repo_uri = img_data["repo_uri"]
                 digest_uri = f"{repo_uri}@{digest}"
 
-                repo_images_list.append(
-                    {
-                        "imageDigest": digest,
-                        "uri": digest_uri,
-                        "repo_uri": repo_uri,
-                    }
-                )
+                # Fetch manifests for:
+                # - Platform-specific images (type="image") - to get their layers
+                # - Manifest lists (type="manifest_list") - to extract attestation parent image data
+                # Skip only attestations since they don't have useful layer or parent data
+                if image_type != "attestation":
+                    repo_images_list.append(
+                        {
+                            "imageDigest": digest,
+                            "uri": digest_uri,
+                            "repo_uri": repo_uri,
+                        }
+                    )
 
         logger.info(
             f"Found {len(repo_images_list)} distinct ECR image digests in graph for region {region}"
@@ -804,6 +898,7 @@ def sync(
                 image_layers_data,
                 image_digest_map,
                 image_attestation_map,
+                existing_properties,
             )
             load_ecr_image_layers(
                 neo4j_session,
