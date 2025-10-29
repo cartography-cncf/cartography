@@ -33,32 +33,67 @@ By default, nodes are created in the ontology based on data observed in various 
 
 If you set the `--ontology-users-source` parameter to `duo`, then a `User` node will be created for every account found in Duo. In contrast, for other integrations like Tailscale, only existing `User` nodes (those created by the source of truth) will be linked to Tailscale accounts. No new `User` nodes will be created from Tailscale data alone.
 
-## Structure of Ontology JSON Files
+## Ontology Field Mappings
 
-Ontology files are located in `cartography/data/ontology/`. They use a structure like the following:
+Ontology mappings are defined in Python using the `OntologyFieldMapping` class, which maps fields from source nodes to ontology nodes. Each mapping specifies:
 
-```json
-{
-    "module": {
-        "nodes": {
-            "NodeName": {
-                "ontology_field": "corresponding_field_in_module_node"
-            }
-        },
-        "rels": [
-            {
-                "__comment__": "These relationships are used to build links between ontology nodes to reflect observed nodes in the modules.",
-                "query": "MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-                "iterative": false
-            }
-        ]
-    }
-}
+- `ontology_field`: The field name in the ontology node (e.g., "email", "hostname")
+- `node_field`: The corresponding field name in the source node (e.g., "email_address", "device_name")
+- `required`: Whether this field is required for ontology node creation (defaults to `False`)
+
+**Example:**
+```python
+OntologyFieldMapping(
+    ontology_field="email",
+    node_field="email_address",
+    required=True
+)
 ```
 
-- The top-level key (e.g., `tailscale`) groups integration-specific logic.
-- The `nodes` section defines node types and their property mappings (this mapping is only used for ingestion).
-- The `rels` section lists Cypher queries to connect nodes based on observed data.
+### Required Fields
+
+The `required` flag serves two critical purposes:
+
+1. **Data Quality Control**: If a source node lacks a required field (i.e., the field is `None` or missing), the entire ontology node creation is skipped for that record. This ensures only complete, usable data creates ontology nodes.
+
+2. **Primary Identifier Validation**: Fields that serve as primary identifiers must be marked as required. For example:
+   - `email` should be required for User ontology nodes
+   - `hostname` should be required for Device ontology nodes
+
+This prevents creating ontology nodes that cannot be properly identified or matched across different data sources.
+
+**Example with Required Field:**
+```python
+# If a source DuoUser has no email, no User ontology node is created
+OntologyFieldMapping(ontology_field="email", node_field="email", required=True)
+```
+
+## Ontology Mapping Structure
+
+Ontology mappings are defined in `cartography/models/ontology/mapping/data/` using Python dataclasses:
+
+```python
+your_service_mapping = OntologyMapping(
+    module_name="your_service",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="YourServiceUser",
+            fields=[
+                OntologyFieldMapping(ontology_field="email", node_field="email", required=True),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="display_name"),
+            ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link User to Device based on observed relationships",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
+        ),
+    ],
+)
+```
 
 This structure allows Cartography to flexibly describe how to map and relate entities from specific integrations into the unified ontology graph.
 

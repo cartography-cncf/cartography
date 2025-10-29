@@ -811,7 +811,7 @@ your_service_mapping = OntologyMapping(
             node_label="YourServiceUser",  # Your node label
             fields=[
                 # Map your node fields to ontology fields
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(ontology_field="email", node_field="email", required=True),  # Required field
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="display_name"),
                 OntologyFieldMapping(ontology_field="firstname", node_field="first_name"),
@@ -839,7 +839,7 @@ your_service_mapping = OntologyMapping(
             node_label="YourServiceDevice",  # Your node label
             fields=[
                 # Map your node fields to ontology fields
-                OntologyFieldMapping(ontology_field="hostname", node_field="device_name"),
+                OntologyFieldMapping(ontology_field="hostname", node_field="device_name", required=True),  # Required field
                 OntologyFieldMapping(ontology_field="os", node_field="operating_system"),
                 OntologyFieldMapping(ontology_field="os_version", node_field="os_version"),
                 OntologyFieldMapping(ontology_field="model", node_field="device_model"),
@@ -919,30 +919,49 @@ class YourServiceDeviceSchema(CartographyNodeSchema):
 
 ### Step 3: Understanding Ontology Field Mappings
 
+#### Required Fields
+
+The `required` parameter in `OntologyFieldMapping` serves two critical purposes:
+
+**1. Data Quality Control**: When `required=True`, source nodes that lack this field (i.e., the field is `None` or missing) will be completely excluded from ontology node creation. This ensures only complete, usable data creates ontology nodes.
+
+**2. Primary Identifier Validation**: Fields used as primary identifiers **must** be marked as required to ensure ontology nodes can always be properly identified and matched across data sources.
+
+```python
+# ✅ DO: Mark primary identifiers as required
+OntologyFieldMapping(ontology_field="email", node_field="email", required=True),        # Users
+OntologyFieldMapping(ontology_field="hostname", node_field="device_name", required=True), # Devices
+
+# ✅ DO: Mark optional fields as not required (default)
+OntologyFieldMapping(ontology_field="firstname", node_field="first_name"),  # Optional field
+```
+
+**Example**: If a `DuoUser` node has no email address and email is marked as `required=True`, no corresponding `User` ontology node will be created for that record.
+
 #### Common User Fields
 
 The ontology `User` node supports these fields:
 
-| Ontology Field | Purpose | Example Source Fields |
-|---------------|---------|---------------------|
-| `email` | Primary identifier | `email`, `mail`, `email_address` |
-| `username` | Login name | `username`, `login`, `user_name` |
-| `fullname` | Complete name | `name`, `display_name`, `full_name` |
-| `firstname` | First name | `first_name`, `given_name`, `fname` |
-| `lastname` | Last name | `last_name`, `family_name`, `surname` |
+| Ontology Field | Purpose | Required? | Example Source Fields |
+|---------------|---------|-----------|---------------------|
+| `email` | Primary identifier | **Yes** | `email`, `mail`, `email_address` |
+| `username` | Login name | No | `username`, `login`, `user_name` |
+| `fullname` | Complete name | No | `name`, `display_name`, `full_name` |
+| `firstname` | First name | No | `first_name`, `given_name`, `fname` |
+| `lastname` | Last name | No | `last_name`, `family_name`, `surname` |
 
 #### Common Device Fields
 
 The ontology `Device` node supports these fields:
 
-| Ontology Field | Purpose | Example Source Fields |
-|---------------|---------|---------------------|
-| `hostname` | Primary identifier | `hostname`, `device_name`, `name` |
-| `os` | Operating system | `os`, `operating_system`, `os_family` |
-| `os_version` | OS version | `os_version`, `version`, `build` |
-| `model` | Device model | `model`, `device_model`, `hardware_model` |
-| `platform` | Platform type | `platform`, `platform_name`, `arch` |
-| `serial_number` | Serial number | `serial_number`, `serial`, `device_serial` |
+| Ontology Field | Purpose | Required? | Example Source Fields |
+|---------------|---------|-----------|---------------------|
+| `hostname` | Primary identifier | **Yes** | `hostname`, `device_name`, `name` |
+| `os` | Operating system | No | `os`, `operating_system`, `os_family` |
+| `os_version` | OS version | No | `os_version`, `version`, `build` |
+| `model` | Device model | No | `model`, `device_model`, `hardware_model` |
+| `platform` | Platform type | No | `platform`, `platform_name`, `arch` |
+| `serial_number` | Serial number | No | `serial_number`, `serial`, `device_serial` |
 
 ### Step 4: Update Module Registration
 
@@ -1017,17 +1036,37 @@ rels=[
 
 ### Best Practices for Ontology Integration
 
-#### 1. Choose the Right Primary Identifier
-- **Users**: Use `email` as the primary identifier when available (most reliable across systems)
-- **Devices**: Use `hostname` as the primary identifier when available
+#### 1. Choose the Right Primary Identifier and Mark as Required
+- **Users**: Use `email` as the primary identifier when available (most reliable across systems) and mark as `required=True`
+- **Devices**: Use `hostname` as the primary identifier when available and mark as `required=True`
 
-#### 2. Handle Missing Data Gracefully
+```python
+# ✅ DO: Primary identifiers must be required
+OntologyFieldMapping(ontology_field="email", node_field="email", required=True),
+OntologyFieldMapping(ontology_field="hostname", node_field="device_name", required=True),
+```
+
+#### 2. Use Required Fields Strategically
+- **Mark as required**: Only fields that are absolutely essential for the ontology node to be useful
+- **Leave optional**: Fields that provide additional context but aren't essential
+- **Consider impact**: Required fields filter out entire records if missing
+
+```python
+# ✅ DO: Strategic use of required flag
+fields=[
+    OntologyFieldMapping(ontology_field="email", node_field="email", required=True),        # Must have
+    OntologyFieldMapping(ontology_field="username", node_field="username"),                 # Nice to have
+    OntologyFieldMapping(ontology_field="fullname", node_field="display_name"),            # Nice to have
+]
+```
+
+#### 3. Handle Missing Data Gracefully
 ```python
 # In your transform function, handle optional ontology fields
 def transform_users(api_data):
     return [
         {
-            "email": user["email"],  # Required
+            "email": user["email"],  # Required - let it fail if missing
             "username": user.get("username"),  # Optional - use .get()
             "display_name": user.get("full_name") or user.get("name"),  # Fallback logic
             "first_name": user.get("firstName"),  # Optional
@@ -1071,6 +1110,13 @@ your_service_mapping = OntologyMapping(
 - Your mapping is registered in `ALL_USER_MAPPINGS` or `ALL_DEVICE_MAPPINGS`
 - Your source nodes have the correct labels (`UserAccount` for users)
 - Field mappings match your actual node properties
+- **Check required fields**: Ensure source nodes have all required fields populated (not `None`)
+
+**Issue**: Fewer ontology nodes created than expected
+**Solution**: Check if:
+- **Required fields are missing**: Source nodes lacking required fields are filtered out completely
+- Required fields are marked appropriately (primary identifiers should be required)
+- Your source data has the expected completeness
 
 **Issue**: Relationships not created between ontology and source nodes
 **Solution**: Check that:
@@ -1083,6 +1129,11 @@ your_service_mapping = OntologyMapping(
 - Both user and device ontology integrations are working
 - Your relationship query correctly traverses the path between source nodes
 - The relationship query includes proper `UPDATE_TAG` handling
+
+**Issue**: Unit tests failing on required field validation
+**Solution**: Ensure that:
+- Primary identifier fields (`email` for users, `hostname` for devices) are marked as `required=True`
+- The field names match exactly between your ontology mapping and node properties
 
 ## ⚙️ Configuration and Credentials {#configuration}
 

@@ -20,6 +20,15 @@ In this schema, `squares` represent `Abstract Nodes` and `hexagons` represent `S
 | -------- | --------------- | ------- |
 | UserAccount | Represents a user account on a system or service. This label is used to unify accounts from different sources (e.g., Duo, Okta, Tailscale). | [d3f:UserAccount](https://d3fend.mitre.org/dao/artifact/d3f:UserAccount/) |
 
+### Field Requirements
+
+When defining ontology mappings, certain fields can be marked as **required**. This serves two important purposes:
+
+1. **Data Quality Control**: If a source node lacks a required field, it will be excluded from ontology node creation entirely
+2. **Primary Identifier Validation**: Fields used as primary identifiers (like `email` for Users or `hostname` for Devices) must be marked as required to ensure ontology nodes are always identifiable
+
+For example, if `email` is marked as required in a user mapping and a source user node has no email address, no corresponding `User` ontology node will be created for that record.
+
 ### User
 
 _Reference: [d3f:User](https://d3fend.mitre.org/dao/artifact/d3f:User/)_
