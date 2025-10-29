@@ -72,13 +72,13 @@ def get_source_nodes_from_graph(
                 id_field = ONTOLOGY_MODELS[module_name]().properties.id.name
                 existing = results.get(result[id_field])
                 if existing:
-                    logger.debug("Merging node: %s to %s", result, existing)
+                    logger.debug("Merging node: %s to %s", result[id_field], existing[id_field])
                     # Merge existing data with new data, prioritizing non-None values
                     for key, value in result.items():
                         if existing.get(key) is None and value is not None:
                             existing[key] = value
                 else:
-                    logger.debug("Adding new node: %s", result)
+                    logger.debug("Adding new node: %s", result[id_field])
                     results[result[id_field]] = result
     return list(results.values())
 
