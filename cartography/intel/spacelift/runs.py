@@ -65,6 +65,9 @@ query {
             createdAt
             finished
             triggeredBy
+            worker {
+                id
+            }
         }
     }
 }
@@ -209,6 +212,10 @@ def transform_runs(
         commit = run.get("commit", {})
         commit_hash = commit.get("hash") if commit else None
 
+        # Extract worker ID from nested worker object
+        worker = run.get("worker", {})
+        worker_id = worker.get("id") if worker else None
+
         transformed_run = {
             "id": run_id,
             "run_type": run.get("type"),
@@ -218,6 +225,7 @@ def transform_runs(
             "created_at": run.get("createdAt"),
             "stack_id": run.get("stack"),
             "triggered_by_user_id": run.get("triggeredBy"),
+            "worker_id": worker_id,
             "affected_instance_ids": affected_instance_ids,
             "account_id": account_id,
         }

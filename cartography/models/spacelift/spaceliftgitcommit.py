@@ -49,7 +49,9 @@ class SpaceliftGitCommitToAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: SpaceliftGitCommitToAccountRelProperties = SpaceliftGitCommitToAccountRelProperties()
+    properties: SpaceliftGitCommitToAccountRelProperties = (
+        SpaceliftGitCommitToAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -77,7 +79,9 @@ class SpaceliftGitCommitToAuthorRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CONFIRMED"
-    properties: SpaceliftGitCommitToAuthorRelProperties = SpaceliftGitCommitToAuthorRelProperties()
+    properties: SpaceliftGitCommitToAuthorRelProperties = (
+        SpaceliftGitCommitToAuthorRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -102,7 +106,9 @@ class SpaceliftGitCommitToRunRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "COMMITTED"
-    properties: SpaceliftGitCommitToRunRelProperties = SpaceliftGitCommitToRunRelProperties()
+    properties: SpaceliftGitCommitToRunRelProperties = (
+        SpaceliftGitCommitToRunRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -113,7 +119,9 @@ class SpaceliftGitCommitSchema(CartographyNodeSchema):
 
     label: str = "SpaceliftGitCommit"
     properties: SpaceliftGitCommitNodeProperties = SpaceliftGitCommitNodeProperties()
-    sub_resource_relationship: SpaceliftGitCommitToAccountRel = SpaceliftGitCommitToAccountRel()
+    sub_resource_relationship: SpaceliftGitCommitToAccountRel = (
+        SpaceliftGitCommitToAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SpaceliftGitCommitToAuthorRel(),

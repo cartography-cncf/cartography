@@ -25,6 +25,7 @@ class SpaceliftRunNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef("created_at")
     stack_id: PropertyRef = PropertyRef("stack_id")
     triggered_by_user_id: PropertyRef = PropertyRef("triggered_by_user_id")
+    worker_id: PropertyRef = PropertyRef("worker_id")
     account_id: PropertyRef = PropertyRef("account_id")
     affected_instance_ids: PropertyRef = PropertyRef("affected_instance_ids")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -173,6 +174,7 @@ class SpaceliftRunSchema(CartographyNodeSchema):
         [
             SpaceliftRunToStackRel(),
             SpaceliftRunToUserRel(),
+            SpaceliftRunToWorkerRel(),
             SpaceliftRunToEC2InstanceRel(),
         ],
     )

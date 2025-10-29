@@ -160,7 +160,7 @@ Representation of the fundamental building block of Spacelift infrastructure man
 - SpaceliftStacks generate runs:
 
     ```
-    (SpaceliftStack)-[GENERATES]->(SpaceliftRun)
+    (SpaceliftStack)-[GENERATED]->(SpaceliftRun)
     ```
 
 ### SpaceliftWorkerPool
@@ -229,7 +229,7 @@ Representation of a logical execution unit that processes runs. Workers are comp
 - SpaceliftWorkers execute runs:
 
     ```
-    (SpaceliftWorker)-[EXECUTES]->(SpaceliftRun)
+    (SpaceliftWorker)-[EXECUTED]->(SpaceliftRun)
     ```
 
 ### SpaceliftRun
