@@ -28,13 +28,14 @@ This guide teaches you how to write intel modules for Cartography using the mode
 5. @Advanced Node Schema Properties
 6. @One-to-Many Relationships
 7. @MatchLinks: Connecting Existing Nodes
-8. @Configuration and Credentials
-9. @Error Handling
-10. @Testing Your Module
-11. @Refactoring Legacy Code to Data Model
-12. @Common Patterns and Examples
-13. @Troubleshooting Guide
-14. @Quick Reference
+8. @Ontology Integration: Mapping Users and Devices
+9. @Configuration and Credentials
+10. @Error Handling
+11. @Testing Your Module
+12. @Refactoring Legacy Code to Data Model
+13. @Common Patterns and Examples
+14. @Troubleshooting Guide
+15. @Quick Reference
 
 ## 🚀 Quick Start: Copy an Existing Module {#quick-start}
 
@@ -766,6 +767,322 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any])
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
 ```
+
+## 🌐 Ontology Integration: Mapping Users and Devices {#ontology-integration}
+
+Cartography includes an **Ontology system** that creates normalized `User` and `Device` nodes that aggregate data from multiple sources. This provides a unified view of identity and device management across your infrastructure.
+
+### Overview of Ontology System
+
+The Ontology system works by:
+1. **Creating canonical nodes**: `(:User:Ontology)` and `(:Device:Ontology)` nodes that represent unified entities
+2. **Mapping source data**: Your module's user/device nodes get connected to these canonical nodes
+3. **Enabling unified queries**: Users can query across all systems through common ontology nodes
+
+### When to Use Ontology Integration
+
+Add ontology integration to your module when it manages:
+- **Users/Identities**: Service accounts, human users, admin accounts
+- **Devices/Assets**: Computers, phones, tablets, IoT devices, virtual machines
+
+**Examples of modules that should integrate:**
+- Identity providers (Okta, Azure AD, Duo)
+- Device management (Kandji, Jamf, CrowdStrike)
+- Infrastructure (AWS EC2, Azure VMs, GCP instances)
+- Security tools (endpoint protection, mobile device management)
+
+### Step 1: Add Ontology Mapping Configuration
+
+Create mapping configurations in `cartography/models/ontology/mapping/data/`:
+
+#### For User Entities
+
+```python
+# cartography/models/ontology/mapping/data/users.py
+from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+from cartography.models.ontology.mapping.specs import OntologyMapping
+from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+
+# Add your mapping to the file
+your_service_mapping = OntologyMapping(
+    module_name="your_service",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="YourServiceUser",  # Your node label
+            fields=[
+                # Map your node fields to ontology fields
+                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="display_name"),
+                OntologyFieldMapping(ontology_field="firstname", node_field="first_name"),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+            ],
+        ),
+    ],
+)
+```
+
+#### For Device Entities
+
+```python
+# cartography/models/ontology/mapping/data/devices.py
+from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+from cartography.models.ontology.mapping.specs import OntologyMapping
+from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+from cartography.models.ontology.mapping.specs import OntologyRelMapping
+
+# Add your mapping to the file
+your_service_mapping = OntologyMapping(
+    module_name="your_service",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="YourServiceDevice",  # Your node label
+            fields=[
+                # Map your node fields to ontology fields
+                OntologyFieldMapping(ontology_field="hostname", node_field="device_name"),
+                OntologyFieldMapping(ontology_field="os", node_field="operating_system"),
+                OntologyFieldMapping(ontology_field="os_version", node_field="os_version"),
+                OntologyFieldMapping(ontology_field="model", node_field="device_model"),
+                OntologyFieldMapping(ontology_field="platform", node_field="platform"),
+                OntologyFieldMapping(ontology_field="serial_number", node_field="serial"),
+            ],
+        ),
+    ],
+    # Optional: Add relationship mappings to connect Users to Devices
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link Device to User based on YourServiceUser-YourServiceDevice ownership",
+            query="""
+                MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device)
+                MERGE (u)-[r:OWNS]->(d)
+                ON CREATE SET r.firstseen = timestamp()
+                SET r.lastupdated = $UPDATE_TAG
+            """,
+            interative=False,
+        ),
+    ],
+)
+```
+
+### Step 2: Add Ontology Relationship to Your Node Schema
+
+Update your node schema to include the relationship to ontology nodes.
+
+#### For User Nodes
+
+Add `UserAccount` label and relationship to the canonical `User` node:
+
+```python
+from cartography.models.core.nodes import ExtraNodeLabels
+
+@dataclass(frozen=True)
+class YourServiceUserSchema(CartographyNodeSchema):
+    label: str = "YourServiceUser"
+    # Add UserAccount label so ontology can find and link to this node
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    properties: YourServiceUserNodeProperties = YourServiceUserNodeProperties()
+    sub_resource_relationship: YourServiceTenantToUserRel = YourServiceTenantToUserRel()
+```
+
+#### For Device Nodes
+
+Add the relationship to the canonical `Device` ontology node:
+
+```python
+from cartography.models.core.relationships import OtherRelationships
+
+# Define relationship to ontology Device node
+@dataclass(frozen=True)
+class YourServiceDeviceToDeviceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+@dataclass(frozen=True)
+class YourServiceDeviceToDeviceRel(CartographyRelSchema):
+    target_node_label: str = "Device"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+        "hostname": PropertyRef("device_name"),  # Match on hostname field
+    })
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: YourServiceDeviceToDeviceRelProperties = YourServiceDeviceToDeviceRelProperties()
+
+@dataclass(frozen=True)
+class YourServiceDeviceSchema(CartographyNodeSchema):
+    label: str = "YourServiceDevice"
+    properties: YourServiceDeviceNodeProperties = YourServiceDeviceNodeProperties()
+    sub_resource_relationship: YourServiceTenantToDeviceRel = YourServiceTenantToDeviceRel()
+    # Add the relationship to ontology Device nodes
+    other_relationships: OtherRelationships = OtherRelationships([
+        YourServiceDeviceToDeviceRel(),
+    ])
+```
+
+### Step 3: Understanding Ontology Field Mappings
+
+#### Common User Fields
+
+The ontology `User` node supports these fields:
+
+| Ontology Field | Purpose | Example Source Fields |
+|---------------|---------|---------------------|
+| `email` | Primary identifier | `email`, `mail`, `email_address` |
+| `username` | Login name | `username`, `login`, `user_name` |
+| `fullname` | Complete name | `name`, `display_name`, `full_name` |
+| `firstname` | First name | `first_name`, `given_name`, `fname` |
+| `lastname` | Last name | `last_name`, `family_name`, `surname` |
+
+#### Common Device Fields
+
+The ontology `Device` node supports these fields:
+
+| Ontology Field | Purpose | Example Source Fields |
+|---------------|---------|---------------------|
+| `hostname` | Primary identifier | `hostname`, `device_name`, `name` |
+| `os` | Operating system | `os`, `operating_system`, `os_family` |
+| `os_version` | OS version | `os_version`, `version`, `build` |
+| `model` | Device model | `model`, `device_model`, `hardware_model` |
+| `platform` | Platform type | `platform`, `platform_name`, `arch` |
+| `serial_number` | Serial number | `serial_number`, `serial`, `device_serial` |
+
+### Step 4: Update Module Registration
+
+Ensure your mappings are imported and available to the ontology system:
+
+```python
+# cartography/models/ontology/mapping/data/users.py
+# Add to the end of the file after all mappings:
+ALL_USER_MAPPINGS = [
+    # ... existing mappings ...
+    your_service_mapping,  # Add your mapping here
+]
+```
+
+```python
+# cartography/models/ontology/mapping/data/devices.py
+# Add to the end of the file after all mappings:
+ALL_DEVICE_MAPPINGS = [
+    # ... existing mappings ...
+    your_service_mapping,  # Add your mapping here
+]
+```
+
+### Step 5: Testing Ontology Integration
+
+Test that your ontology integration works correctly:
+
+```python
+# tests/integration/cartography/intel/your_service/test_users.py
+def test_ontology_integration(neo4j_session):
+    # Run your module sync
+    your_service.users.sync(neo4j_session, ...)
+
+    # Run ontology sync to create User nodes
+    import cartography.intel.ontology.users
+    cartography.intel.ontology.users.sync(
+        neo4j_session,
+        source_of_truth=["your_service"],
+        update_tag=TEST_UPDATE_TAG,
+        common_job_parameters={"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    # Verify User ontology nodes were created
+    result = neo4j_session.run("""
+        MATCH (u:User:Ontology)-[:HAS_ACCOUNT]->(ua:YourServiceUser)
+        RETURN u.email, ua.email
+    """)
+    users = result.data()
+    assert len(users) > 0
+    assert users[0]["u.email"] == users[0]["ua.email"]
+```
+
+### Step 6: Handle Complex Relationships
+
+For services that have user-device relationships, add relationship mappings:
+
+```python
+# In your device mapping
+rels=[
+    OntologyRelMapping(
+        __comment__="Connect users to their devices",
+        query="""
+            MATCH (u:User)-[:HAS_ACCOUNT]->(:YourServiceUser)-[:OWNS]->(:YourServiceDevice)<-[:OBSERVED_AS]-(d:Device)
+            MERGE (u)-[r:OWNS]->(d)
+            ON CREATE SET r.firstseen = timestamp()
+            SET r.lastupdated = $UPDATE_TAG
+        """,
+        interative=False,
+    ),
+]
+```
+
+### Best Practices for Ontology Integration
+
+#### 1. Choose the Right Primary Identifier
+- **Users**: Use `email` as the primary identifier when available (most reliable across systems)
+- **Devices**: Use `hostname` as the primary identifier when available
+
+#### 2. Handle Missing Data Gracefully
+```python
+# In your transform function, handle optional ontology fields
+def transform_users(api_data):
+    return [
+        {
+            "email": user["email"],  # Required
+            "username": user.get("username"),  # Optional - use .get()
+            "display_name": user.get("full_name") or user.get("name"),  # Fallback logic
+            "first_name": user.get("firstName"),  # Optional
+            "last_name": user.get("lastName"),   # Optional
+        }
+        for user in api_data["users"]
+    ]
+```
+
+#### 3. Consider Multiple Device Types
+Some services have multiple device types. Map each type separately:
+
+```python
+your_service_mapping = OntologyMapping(
+    module_name="your_service",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="YourServiceComputer",
+            fields=[
+                OntologyFieldMapping(ontology_field="hostname", node_field="computer_name"),
+                OntologyFieldMapping(ontology_field="os", node_field="operating_system"),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="YourServiceMobileDevice",
+            fields=[
+                OntologyFieldMapping(ontology_field="hostname", node_field="device_name"),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+            ],
+        ),
+    ],
+)
+```
+
+### Troubleshooting Ontology Integration
+
+#### Common Issues
+
+**Issue**: Ontology nodes not created
+**Solution**: Verify that:
+- Your mapping is registered in `ALL_USER_MAPPINGS` or `ALL_DEVICE_MAPPINGS`
+- Your source nodes have the correct labels (`UserAccount` for users)
+- Field mappings match your actual node properties
+
+**Issue**: Relationships not created between ontology and source nodes
+**Solution**: Check that:
+- The ontology field used for matching has data
+- Your source nodes are loaded before running ontology sync
+- The target node matcher uses the correct field names
+
+**Issue**: User-Device relationships not working
+**Solution**: Ensure that:
+- Both user and device ontology integrations are working
+- Your relationship query correctly traverses the path between source nodes
+- The relationship query includes proper `UPDATE_TAG` handling
 
 ## ⚙️ Configuration and Credentials {#configuration}
 
