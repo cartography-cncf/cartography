@@ -60,6 +60,17 @@ LIST_GROUPS_SAMPLE = {
     ],
 }
 
+# Group membership data - maps group ARN to list of user ARNs
+GET_GROUP_MEMBERSHIPS_DATA = {
+    "arn:aws:iam::1234:group/example-group-0": [
+        "arn:aws:iam::1234:user/user1",
+        "arn:aws:iam::1234:user/user2",
+    ],
+    "arn:aws:iam::1234:group/example-group-1": [
+        "arn:aws:iam::1234:user/user3",
+    ],
+}
+
 INLINE_POLICY_STATEMENTS = [
     {
         "id": "allow_all_policy",
