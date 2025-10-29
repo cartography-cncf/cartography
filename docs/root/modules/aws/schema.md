@@ -1706,7 +1706,6 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
     ```
 
 - EC2RouteTableAssociation links a subnet to a route table. The subnet uses this route table for egress routing decisions.
-- EC2RouteTableAssociation links a subnet to a route table. The subnet uses this route table for egress routing decisions.
     ```
     (EC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(EC2Subnet)
     ```
