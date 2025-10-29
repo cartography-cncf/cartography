@@ -83,6 +83,20 @@ def test_sync_iam(
     """Test IAM sync end-to-end"""
     # Arrange
     boto3_session = MagicMock()
+    iam_client = boto3_session.client.return_value
+    iam_client.get_group.side_effect = [
+        {
+            "Users": [
+                {"Arn": "arn:aws:iam::1234:user/user1"},
+                {"Arn": "arn:aws:iam::1234:user/user2"},
+            ],
+        },
+        {
+            "Users": [
+                {"Arn": "arn:aws:iam::1234:user/user3"},
+            ],
+        },
+    ]
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
     # Act
@@ -195,6 +209,21 @@ def test_sync_iam(
             "arn:aws:iam::1234:group/example-group-1",
             "arn:aws:iam::aws:policy/AdministratorAccess",
         ),
+    }
+
+    # AWSUser <- MEMBER_AWS_GROUP - AWSGroup
+    assert check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "AWSGroup",
+        "arn",
+        "MEMBER_AWS_GROUP",
+        rel_direction_right=False,
+    ) == {
+        ("arn:aws:iam::1234:user/user1", "arn:aws:iam::1234:group/example-group-0"),
+        ("arn:aws:iam::1234:user/user2", "arn:aws:iam::1234:group/example-group-0"),
+        ("arn:aws:iam::1234:user/user3", "arn:aws:iam::1234:group/example-group-1"),
     }
 
     # AWSPolicy -> AWSPolicyStatement
