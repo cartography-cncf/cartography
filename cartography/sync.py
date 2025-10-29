@@ -36,6 +36,7 @@ import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
+import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.pagerduty
 import cartography.intel.scaleway
@@ -86,6 +87,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
+        "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
     }
@@ -214,6 +216,7 @@ class Sync:
                         intel_module_info.name,
                     )
                 available_modules[intel_module_info.name] = v
+        available_modules["ontology"] = cartography.intel.ontology.run
         available_modules["analysis"] = cartography.intel.analysis.run
         return available_modules
 

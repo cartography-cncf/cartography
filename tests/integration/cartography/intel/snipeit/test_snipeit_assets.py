@@ -8,15 +8,28 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 logger = logging.getLogger(__name__)
+TEST_UPDATE_TAG = 1234
+TEST_SNIPEIT_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
+
+
+def _ensure_local_neo4j_has_test_snipeit_assets(neo4j_session):
+    """Helper function to populate Neo4j with test SnipeIt assets."""
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
+    }
+    cartography.intel.snipeit.asset.load_assets(
+        neo4j_session,
+        common_job_parameters,
+        tests.data.snipeit.assets.ASSETS["simpson_corp"],
+    )
 
 
 def test_load_snipeit_assets_relationship(neo4j_session):
     # Arrange
-    TEST_UPDATE_TAG = 1234
-    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
 
     # Load test users for the relationship
@@ -52,8 +65,11 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
     # Make sure the expected assets are created
     expected_nodes = {
-        (1373, "C02ZJ48XXXXX", "Ready to Deploy"),
-        (1372, "72ec94a8-b6dc-37f1-b2a9-0907806e8db7", "Ready to Deploy"),
+        (1373, "SIMP-MAC-HOMER-01", "Ready to Deploy"),
+        (1375, "SIMP-IOS-HOMER-01", "Ready to Deploy"),
+        (1372, "SIMP-WIN-MARGE-01", "Ready to Deploy"),
+        (1376, "SIMP-ANDROID-MARGE-01", "Ready to Deploy"),
+        (1371, "SIMP-LINUX-MARGE-017", "Ready to Deploy"),
     }
     assert (
         check_nodes(
@@ -66,8 +82,11 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
     # Make sure the expected relationships are created
     expected_nodes_relationships = {
-        ("SimpsonCorp", "C02ZJ48XXXXX"),
-        ("SimpsonCorp", "72ec94a8-b6dc-37f1-b2a9-0907806e8db7"),
+        ("SimpsonCorp", "SIMP-ANDROID-MARGE-01"),
+        ("SimpsonCorp", "SIMP-MAC-HOMER-01"),
+        ("SimpsonCorp", "SIMP-WIN-MARGE-01"),
+        ("SimpsonCorp", "SIMP-LINUX-MARGE-017"),
+        ("SimpsonCorp", "SIMP-IOS-HOMER-01"),
     }
     assert (
         check_rels(
@@ -83,7 +102,11 @@ def test_load_snipeit_assets_relationship(neo4j_session):
     )
 
     expected_nodes_relationships = {
-        ("mbsimpson@simpson.corp", "C02ZJ48XXXXX"),
+        ("mbsimpson@simpson.corp", "SIMP-LINUX-MARGE-017"),
+        ("mbsimpson@simpson.corp", "SIMP-WIN-MARGE-01"),
+        ("mbsimpson@simpson.corp", "SIMP-ANDROID-MARGE-01"),
+        ("hjsimpson@simpson.corp", "SIMP-MAC-HOMER-01"),
+        ("hjsimpson@simpson.corp", "SIMP-IOS-HOMER-01"),
     }
     assert (
         check_rels(
@@ -101,7 +124,7 @@ def test_load_snipeit_assets_relationship(neo4j_session):
     # Cleanup test data
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG + 1234,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
     cartography.intel.snipeit.asset.cleanup(
         neo4j_session,
@@ -111,11 +134,9 @@ def test_load_snipeit_assets_relationship(neo4j_session):
 
 def test_cleanup_snipeit_assets(neo4j_session):
     # Arrange
-    TEST_UPDATE_TAG = 1234
-    TEST_snipeit_TENANT_ID = tests.data.snipeit.tenants.TENANTS["simpson_corp"]["id"]
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
     data = tests.data.snipeit.assets.ASSETS["simpson_corp"]
 
@@ -147,8 +168,10 @@ def test_cleanup_snipeit_assets(neo4j_session):
     expected_nodes_relationships = {
         ("SimpsonCorp", 1373),
         ("SimpsonCorp", 1372),
+        ("SimpsonCorp", 1375),
+        ("SimpsonCorp", 1376),
+        ("SimpsonCorp", 1371),
         ("SouthPark", 2598),
-        ("SouthPark", 2597),
     }
     assert (
         check_rels(
@@ -166,7 +189,7 @@ def test_cleanup_snipeit_assets(neo4j_session):
     # Act: run the cleanup job to remove all nodes except the unrelated data
     common_job_parameters = {
         "UPDATE_TAG": UNRELATED_UPDATE_TAG,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
     cartography.intel.snipeit.asset.cleanup(
         neo4j_session,
@@ -175,7 +198,6 @@ def test_cleanup_snipeit_assets(neo4j_session):
 
     # Assert: Expect unrelated data nodes remains
     expected_nodes_unrelated = {
-        (2597,),
         (2598,),
     }
 
@@ -191,7 +213,7 @@ def test_cleanup_snipeit_assets(neo4j_session):
     # Cleanup all test data
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG + 9999,
-        "TENANT_ID": TEST_snipeit_TENANT_ID,
+        "TENANT_ID": TEST_SNIPEIT_TENANT_ID,
     }
     cartography.intel.snipeit.asset.cleanup(
         neo4j_session,
