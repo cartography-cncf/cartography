@@ -48,6 +48,8 @@ class KeycloakUserToRealmRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KeycloakUserSchema(CartographyNodeSchema):
     label: str = "KeycloakUser"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: KeycloakUserNodeProperties = KeycloakUserNodeProperties()
     sub_resource_relationship: KeycloakUserToRealmRel = KeycloakUserToRealmRel()
