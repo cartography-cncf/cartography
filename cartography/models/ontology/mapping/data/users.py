@@ -8,7 +8,9 @@ anthropic_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AnthropicUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
             ],
         ),
@@ -21,7 +23,9 @@ airbyte_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="AirbyteUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
             ],
         ),
@@ -34,7 +38,9 @@ cloudflare_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="CloudflareMember",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="firstname"
                 ),
@@ -50,7 +56,9 @@ duo_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="DuoUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="firstname"
                 ),
@@ -61,14 +69,15 @@ duo_mapping = OntologyMapping(
         ),
     ],
 )
-
 entra_mapping = OntologyMapping(
     module_name="entra",
     nodes=[
         OntologyNodeMapping(
             node_label="EntraUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="given_name"
                 ),
@@ -86,7 +95,9 @@ github_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GitHubUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="fullname"),
             ],
@@ -99,7 +110,9 @@ gsuite_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GSuiteUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="given_name"
                 ),
@@ -117,7 +130,9 @@ keycloak_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="KeycloakUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="first_name"
@@ -133,7 +148,9 @@ lastpass_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="LastpassUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
             ],
         ),
@@ -145,7 +162,9 @@ openai_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="OpenAIUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(ontology_field="fullname", node_field="name"),
             ],
         ),
@@ -157,7 +176,9 @@ scaleway_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="ScalewayUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(
                     ontology_field="first_name", node_field="first_name"
                 ),
@@ -175,7 +196,9 @@ snipeit_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="SnipeitUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
             ],
         ),
@@ -187,7 +210,9 @@ tailscale_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="TailscaleUser",
             fields=[
-                OntologyFieldMapping(ontology_field="email", node_field="email"),
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
                 OntologyFieldMapping(
                     ontology_field="fullname", node_field="display_name"
                 ),

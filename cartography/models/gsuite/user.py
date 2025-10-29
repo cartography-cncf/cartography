@@ -99,4 +99,9 @@ class GSuiteUserSchema(CartographyNodeSchema):
     label: str = "GSuiteUser"
     properties: GSuiteUserNodeProperties = GSuiteUserNodeProperties()
     sub_resource_relationship: GSuiteUserToTenantRel = GSuiteUserToTenantRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            "GCPPrincipal",
+            "UserAccount",
+        ]  # UserAccount label is used for ontology mapping
+    )

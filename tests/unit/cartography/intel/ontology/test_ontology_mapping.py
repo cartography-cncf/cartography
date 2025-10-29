@@ -3,6 +3,7 @@ from typing import Type
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.mapping import ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.sync import TOP_LEVEL_MODULES
 from tests.utils import load_models
 
@@ -49,10 +50,32 @@ def test_ontology_mapping_fields():
                     model_property = getattr(
                         model_class.properties, mapping_field.node_field, None
                     )
-                    print(
-                        model_class.properties, mapping_field.node_field, model_property
-                    )  # DEBUG
                     assert model_property is not None, (
                         f"Model property '{mapping_field.node_field}' for node label "
                         f"'{node.node_label}' in module '{module_name}' not found."
                     )
+
+
+def test_ontology_mapping_required_fields():
+    # Verify that field used as id by the ontology model are marked as required in the mapping.
+    for category, category_mappings in ONTOLOGY_MAPPING.items():
+        assert (
+            category in ONTOLOGY_MODELS
+        ), f"Module '{category}' not found in ONTOLOGY_MODELS, please update the unit test."
+        model_class = ONTOLOGY_MODELS[category]
+        data_dict_id_field = model_class().properties.id.name
+        for module, mapping in category_mappings.items():
+            for node in mapping.nodes:
+                found_id_field = False
+                for field in node.fields:
+                    if field.ontology_field != data_dict_id_field:
+                        continue
+                    found_id_field = True
+                    assert field.required, (
+                        f"Field '{field.ontology_field}' in mapping for node '{node.node_label}' in '{category}.{module}' "
+                        f"is used as id in the model but is not marked as `required` in the ontology mapping."
+                    )
+                assert found_id_field, (
+                    f"Node '{node.node_label}' in module '{category}.{module}' does not have the id field "
+                    f"'{data_dict_id_field}' mapped in the ontology mapping."
+                )
