@@ -1,10 +1,3 @@
-"""
-Spacelift Git Commit data model.
-
-A GitCommit represents a Git commit that triggered a Spacelift run.
-It contains metadata about the commit including the author, message, and timestamp.
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
@@ -19,9 +12,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class GitCommitNodeProperties(CartographyNodeProperties):
+class SpaceliftGitCommitNodeProperties(CartographyNodeProperties):
     """
-    Properties for a Git Commit node.
+    Properties for a Spacelift Git Commit node.
     """
 
     id: PropertyRef = PropertyRef("sha")  # Use SHA as the unique identifier
@@ -35,19 +28,19 @@ class GitCommitNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GitCommitToAccountRelProperties(CartographyRelProperties):
+class SpaceliftGitCommitToAccountRelProperties(CartographyRelProperties):
     """
-    Properties for the RESOURCE relationship between a Commit and its Account.
+    Properties for the RESOURCE relationship between a Spacelift Git Commit and its Account.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class GitCommitToAccountRel(CartographyRelSchema):
+class SpaceliftGitCommitToAccountRel(CartographyRelSchema):
     """
-    RESOURCE relationship from a Commit to its Account.
-    (:GitCommit)<-[:RESOURCE]-(:SpaceliftAccount)
+    RESOURCE relationship from a Spacelift Git Commit to its Account.
+    (:SpaceliftGitCommit)<-[:RESOURCE]-(:SpaceliftAccount)
     """
 
     target_node_label: str = "SpaceliftAccount"
@@ -56,23 +49,23 @@ class GitCommitToAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GitCommitToAccountRelProperties = GitCommitToAccountRelProperties()
+    properties: SpaceliftGitCommitToAccountRelProperties = SpaceliftGitCommitToAccountRelProperties()
 
 
 @dataclass(frozen=True)
-class GitCommitToAuthorRelProperties(CartographyRelProperties):
+class SpaceliftGitCommitToAuthorRelProperties(CartographyRelProperties):
     """
-    Properties for the CONFIRMED relationship between a Commit and the User who confirmed it.
+    Properties for the CONFIRMED relationship between a Spacelift Git Commit and the User who confirmed it.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class GitCommitToAuthorRel(CartographyRelSchema):
+class SpaceliftGitCommitToAuthorRel(CartographyRelSchema):
     """
-    CONFIRMED relationship from a Commit to the User who authored/confirmed it.
-    (:GitCommit)-[:CONFIRMED]->(:SpaceliftUser)
+    CONFIRMED relationship from a Spacelift Git Commit to the User who authored/confirmed it.
+    (:SpaceliftGitCommit)-[:CONFIRMED]->(:SpaceliftUser)
 
     This links commits to the human developers who wrote and confirmed the code,
     even when the deployment was triggered by an automated system (vcs/commit).
@@ -84,20 +77,46 @@ class GitCommitToAuthorRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "CONFIRMED"
-    properties: GitCommitToAuthorRelProperties = GitCommitToAuthorRelProperties()
+    properties: SpaceliftGitCommitToAuthorRelProperties = SpaceliftGitCommitToAuthorRelProperties()
 
 
 @dataclass(frozen=True)
-class GitCommitSchema(CartographyNodeSchema):
+class SpaceliftGitCommitToRunRelProperties(CartographyRelProperties):
     """
-    Schema for a Git Commit node.
+    Properties for the COMMITTED relationship between a Spacelift Git Commit and a Run.
     """
 
-    label: str = "GitCommit"
-    properties: GitCommitNodeProperties = GitCommitNodeProperties()
-    sub_resource_relationship: GitCommitToAccountRel = GitCommitToAccountRel()
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SpaceliftGitCommitToRunRel(CartographyRelSchema):
+    """
+    COMMITTED relationship from a Spacelift Git Commit to the Run that uses it.
+    (:SpaceliftGitCommit)-[:COMMITTED]->(:SpaceliftRun)
+    """
+
+    target_node_label: str = "SpaceliftRun"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"commit_sha": PropertyRef("sha")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "COMMITTED"
+    properties: SpaceliftGitCommitToRunRelProperties = SpaceliftGitCommitToRunRelProperties()
+
+
+@dataclass(frozen=True)
+class SpaceliftGitCommitSchema(CartographyNodeSchema):
+    """
+    Schema for a Spacelift Git Commit node.
+    """
+
+    label: str = "SpaceliftGitCommit"
+    properties: SpaceliftGitCommitNodeProperties = SpaceliftGitCommitNodeProperties()
+    sub_resource_relationship: SpaceliftGitCommitToAccountRel = SpaceliftGitCommitToAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            GitCommitToAuthorRel(),
+            SpaceliftGitCommitToAuthorRel(),
+            SpaceliftGitCommitToRunRel(),
         ],
     )

@@ -178,7 +178,7 @@ ENTITIES_DATA = {
                             "__typename": "EntityVendorTerraform",
                             "terraform": {
                                 "__typename": "TerraformResource",
-                                "values": '{"id": "i-1234567890abcdef0", "ami": "ami-12345678", "instance_type": "t2.micro"}',
+                                "values": '{"id": "i-01", "ami": "ami-12345678", "instance_type": "c4.large"}',
                             },
                         },
                     },
@@ -194,7 +194,7 @@ ENTITIES_DATA = {
                             "__typename": "EntityVendorTerraform",
                             "terraform": {
                                 "__typename": "TerraformResource",
-                                "values": '{"id": "i-0987654321fedcba0", "ami": "ami-87654321", "instance_type": "t2.small"}',
+                                "values": '{"id": "i-02", "ami": "ami-87654321", "instance_type": "c4.large"}',
                             },
                         },
                     },
@@ -210,7 +210,7 @@ ENTITIES_DATA = {
                             "__typename": "EntityVendorTerraform",
                             "terraform": {
                                 "__typename": "TerraformResource",
-                                "values": '{"id": "i-abcdef1234567890a", "ami": "ami-11111111", "instance_type": "t3.medium"}',
+                                "values": '{"id": "i-03", "ami": "ami-11111111", "instance_type": "r4.large"}',
                             },
                         },
                     },
@@ -241,21 +241,21 @@ ENTITIES_DATA = {
 # These would typically be created by the AWS EC2 sync module
 EC2_INSTANCES_DATA = [
     {
-        "InstanceId": "i-1234567890abcdef0",
+        "InstanceId": "i-01",
         "Region": "us-east-1",
-        "InstanceType": "t2.micro",
+        "InstanceType": "c4.large",
         "State": "running",
     },
     {
-        "InstanceId": "i-0987654321fedcba0",
+        "InstanceId": "i-02",
         "Region": "us-east-1",
-        "InstanceType": "t2.small",
+        "InstanceType": "c4.large",
         "State": "running",
     },
     {
-        "InstanceId": "i-abcdef1234567890a",
-        "Region": "us-west-2",
-        "InstanceType": "t3.medium",
+        "InstanceId": "i-03",
+        "Region": "us-east-1",
+        "InstanceType": "r4.large",
         "State": "running",
     },
 ]

@@ -8,8 +8,8 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.spacelift.util import call_spacelift_api
-from cartography.models.spacelift.commit import GitCommitSchema
 from cartography.models.spacelift.run import SpaceliftRunSchema
+from cartography.models.spacelift.spaceliftgitcommit import SpaceliftGitCommitSchema
 from cartography.models.spacelift.user import SpaceliftUserSchema
 from cartography.util import timeit
 
@@ -116,8 +116,12 @@ def transform_entities_to_run_map(
             continue
 
         values_json = terraform_data.get("values")
-        values = json.loads(values_json)
-        instance_id = values["id"]
+        try:
+            values = json.loads(values_json)
+            instance_id = values["id"]
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"Failed to parse entity values:{e}")
+            continue
 
         logger.info(f"Found EC2 instance from entity: {instance_id}")
 
@@ -158,7 +162,6 @@ def transform_entities_to_run_map(
     logger.info(
         f"Built run-to-instances map with {len(run_to_instances)} runs affecting EC2 instances"
     )
-    logger.info(f"Run-to-instances map: {run_to_instances}")
     return run_to_instances
 
 
@@ -362,7 +365,7 @@ def load_commits(
 
     load(
         neo4j_session,
-        GitCommitSchema(),
+        SpaceliftGitCommitSchema(),
         commits_data,
         lastupdated=update_tag,
         account_id=account_id,
@@ -406,7 +409,7 @@ def cleanup_commits(
 ) -> None:
 
     logger.debug("Running GitCommit cleanup job")
-    GraphJob.from_node_schema(GitCommitSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(SpaceliftGitCommitSchema(), common_job_parameters).run(
         neo4j_session
     )
 

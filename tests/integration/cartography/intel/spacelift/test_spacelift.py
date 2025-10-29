@@ -1,28 +1,37 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import cartography.intel.aws.ec2.instances
+from cartography.intel.aws.ec2.instances import sync_ec2_instances
 from cartography.intel.spacelift.account import sync_account
 from cartography.intel.spacelift.runs import sync_runs
 from cartography.intel.spacelift.spaces import sync_spaces
 from cartography.intel.spacelift.stacks import sync_stacks
 from cartography.intel.spacelift.workerpools import sync_worker_pools
 from cartography.intel.spacelift.workers import sync_workers
-from tests.data.spacelift.spacelift_data import ACCOUNT_DATA
-from tests.data.spacelift.spacelift_data import EC2_INSTANCES_DATA
+from tests.data.aws.ec2.instances import DESCRIBE_INSTANCES
 from tests.data.spacelift.spacelift_data import ENTITIES_DATA
 from tests.data.spacelift.spacelift_data import RUNS_DATA
 from tests.data.spacelift.spacelift_data import SPACES_DATA
 from tests.data.spacelift.spacelift_data import STACKS_DATA
 from tests.data.spacelift.spacelift_data import WORKER_POOLS_DATA
 from tests.data.spacelift.spacelift_data import WORKERS_DATA
+from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_API_ENDPOINT = "https://fake.spacelift.io/graphql"
 TEST_ACCOUNT_ID = "test-account-123"
+TEST_AWS_ACCOUNT_ID = "000000000000"
+TEST_AWS_REGION = "us-east-1"
 
 
+@patch.object(
+    cartography.intel.aws.ec2.instances,
+    "get_ec2_instances",
+    return_value=DESCRIBE_INSTANCES["Reservations"],
+)
 @patch("cartography.intel.spacelift.runs.get_entities")
 @patch("cartography.intel.spacelift.runs.get_runs")
 @patch("cartography.intel.spacelift.workers.get_workers")
@@ -38,15 +47,21 @@ def test_spacelift_end_to_end(
     mock_get_workers,
     mock_get_runs,
     mock_get_entities,
+    mock_get_ec2_instances,
     neo4j_session,
 ):
     """
     End-to-end integration test for Spacelift module.
     Tests syncing of all Spacelift resources and their relationships,
-    including Run-[:AFFECTS]->EC2Instance relationships.
+    including Run-[:AFFECTED]->EC2Instance relationships.
+
+    This test uses the real AWS EC2 sync to populate EC2 instances,
+    making it more robust than manually creating EC2 nodes.
     """
     # Mock all API calls using the mock data file
-    mock_get_account.return_value = ACCOUNT_DATA["data"]["account"]
+    mock_get_account.return_value = (
+        TEST_ACCOUNT_ID  # get_account now returns just the account_id string
+    )
     mock_get_spaces.return_value = SPACES_DATA["data"]["spaces"]
     mock_get_stacks.return_value = STACKS_DATA["data"]["stacks"]
     mock_get_worker_pools.return_value = WORKER_POOLS_DATA["data"]["workerPools"]
@@ -78,21 +93,29 @@ def test_spacelift_end_to_end(
     # Create mock Spacelift session using MagicMock
     spacelift_session = MagicMock()
 
-    # Create mock EC2 instances (simulating AWS EC2 sync running before Spacelift sync)
-    for instance in EC2_INSTANCES_DATA:
-        neo4j_session.run(
-            """
-            MERGE (i:EC2Instance{instanceid: $instance_id})
-            SET i.id = $instance_id,
-                i.region = $region,
-                i.instancetype = $instance_type,
-                i.state = $state
-            """,
-            instance_id=instance["InstanceId"],
-            region=instance["Region"],
-            instance_type=instance["InstanceType"],
-            state=instance["State"],
-        )
+    # This simulates running AWS sync before Spacelift sync (real-world scenario)
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_AWS_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    sync_ec2_instances(
+        neo4j_session,
+        boto3_session,
+        [TEST_AWS_REGION],
+        TEST_AWS_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_AWS_ACCOUNT_ID},
+    )
+
+    # Verify EC2 instances were created
+    expected_ec2_nodes = {
+        ("i-01", "i-01"),
+        ("i-02", "i-02"),
+        ("i-03", "i-03"),
+        ("i-04", "i-04"),
+    }
+    actual_ec2_nodes = check_nodes(neo4j_session, "EC2Instance", ["id", "instanceid"])
+    assert actual_ec2_nodes is not None
+    assert expected_ec2_nodes == actual_ec2_nodes
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -140,7 +163,7 @@ def test_spacelift_end_to_end(
 
     # Check that SpaceliftAccount nodes were created
     expected_account_nodes = {
-        (TEST_ACCOUNT_ID, "Test Organization"),
+        (TEST_ACCOUNT_ID, TEST_ACCOUNT_ID),  # name is set to account_id in sync_account
     }
     actual_account_nodes = check_nodes(
         neo4j_session,
@@ -215,11 +238,11 @@ def test_spacelift_end_to_end(
     assert actual_run_nodes is not None
     assert expected_run_nodes == actual_run_nodes
 
-    # Check that Run-[:AFFECTS]->EC2Instance relationships were created
+    # Check that Run-[:AFFECTED]->EC2Instance relationships were created
     expected_run_ec2_relationships = {
-        ("run-1", "i-1234567890abcdef0"),
-        ("run-1", "i-0987654321fedcba0"),
-        ("run-2", "i-abcdef1234567890a"),
+        ("run-1", "i-01"),
+        ("run-1", "i-02"),
+        ("run-2", "i-03"),
     }
     actual_run_ec2_relationships = check_rels(
         neo4j_session,
@@ -227,12 +250,12 @@ def test_spacelift_end_to_end(
         "id",
         "EC2Instance",
         "instanceid",
-        "AFFECTS",
+        "AFFECTED",
     )
     assert actual_run_ec2_relationships is not None
     assert expected_run_ec2_relationships == actual_run_ec2_relationships
 
-    # Check that Stack-[:GENERATES]->Run relationships were created
+    # Check that Stack-[:GENERATED]->Run relationships were created
     expected_stack_run_relationships = {
         ("stack-1", "run-1"),
         ("stack-2", "run-2"),
@@ -243,7 +266,7 @@ def test_spacelift_end_to_end(
         "id",
         "SpaceliftRun",
         "id",
-        "GENERATES",
+        "GENERATED",
     )
     assert actual_stack_run_relationships is not None
     assert expected_stack_run_relationships == actual_stack_run_relationships

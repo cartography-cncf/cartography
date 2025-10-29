@@ -1,11 +1,3 @@
-"""
-Spacelift Stack data model.
-
-A SpaceliftStack represents the fundamental building block of Spacelift infrastructure management.
-A stack combines source code (from VCS), current state (e.g., Terraform state), and configuration
-(environment variables, mounted files) into an isolated, independent entity.
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef

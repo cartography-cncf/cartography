@@ -1,11 +1,3 @@
-"""
-Spacelift Worker data model.
-
-A SpaceliftWorker represents a logical execution unit that processes runs.
-Workers are compute resources that execute infrastructure operations inside Docker containers.
-Each worker processes one run at a time, where the number of workers equals maximum concurrency.
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef

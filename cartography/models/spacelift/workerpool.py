@@ -1,11 +1,3 @@
-"""
-Spacelift Worker Pool data model.
-
-A SpaceliftWorkerPool represents a collection of workers that execute Spacelift runs.
-Worker pools can be public (managed by Spacelift) or private (managed by the customer).
-They provide isolation, security, and control over where infrastructure operations execute.
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef

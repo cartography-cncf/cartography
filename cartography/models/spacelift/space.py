@@ -1,14 +1,3 @@
-"""
-Spacelift Space data model.
-
-A SpaceliftSpace represents an organizational container within Spacelift.
-Spaces can contain stacks, policies, contexts, modules, and worker pools.
-They form a hierarchy where:
-- Root spaces belong directly to a SpaceliftAccount (parent_account_id is set)
-- Child spaces belong to a parent SpaceliftSpace (parent_space_id is set)
-- ALL spaces have account_id set for easy cleanup via RESOURCE relationship
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef

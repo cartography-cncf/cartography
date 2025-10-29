@@ -1,11 +1,3 @@
-"""
-Spacelift Run data model.
-
-A SpaceliftRun represents a job that can touch infrastructure. It is the execution instance
-of a stack's configuration. Runs track the entire lifecycle from creation through execution
-to completion, including state changes, outputs, and resource modifications.
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
@@ -34,6 +26,7 @@ class SpaceliftRunNodeProperties(CartographyNodeProperties):
     stack_id: PropertyRef = PropertyRef("stack_id")
     triggered_by_user_id: PropertyRef = PropertyRef("triggered_by_user_id")
     account_id: PropertyRef = PropertyRef("account_id")
+    affected_instance_ids: PropertyRef = PropertyRef("affected_instance_ids")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -67,7 +60,7 @@ class SpaceliftRunToAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SpaceliftRunToStackRelProperties(CartographyRelProperties):
     """
-    Properties for the GENERATES relationship between a Stack and its Run.
+    Properties for the GENERATED relationship between a Stack and its Run.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -76,8 +69,8 @@ class SpaceliftRunToStackRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class SpaceliftRunToStackRel(CartographyRelSchema):
     """
-    GENERATES relationship from a Run to its parent Stack.
-    (:SpaceliftRun)<-[:GENERATES]-(:SpaceliftStack)
+    GENERATED relationship from a Run to its parent Stack.
+    (:SpaceliftRun)<-[:GENERATED]-(:SpaceliftStack)
     """
 
     target_node_label: str = "SpaceliftStack"
@@ -85,7 +78,7 @@ class SpaceliftRunToStackRel(CartographyRelSchema):
         {"id": PropertyRef("stack_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "GENERATES"
+    rel_label: str = "GENERATED"
     properties: SpaceliftRunToStackRelProperties = SpaceliftRunToStackRelProperties()
 
 
@@ -117,7 +110,7 @@ class SpaceliftRunToUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SpaceliftRunToWorkerRelProperties(CartographyRelProperties):
     """
-    Properties for the EXECUTES relationship between a Worker and a Run.
+    Properties for the EXECUTED relationship between a Worker and a Run.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -126,8 +119,8 @@ class SpaceliftRunToWorkerRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class SpaceliftRunToWorkerRel(CartographyRelSchema):
     """
-    EXECUTES relationship from a Run to the Worker executing it.
-    (:SpaceliftRun)<-[:EXECUTES]-(:SpaceliftWorker)
+    EXECUTED relationship from a Run to the Worker executing it.
+    (:SpaceliftRun)<-[:EXECUTED]-(:SpaceliftWorker)
     """
 
     target_node_label: str = "SpaceliftWorker"
@@ -135,14 +128,14 @@ class SpaceliftRunToWorkerRel(CartographyRelSchema):
         {"id": PropertyRef("worker_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "EXECUTES"
+    rel_label: str = "EXECUTED"
     properties: SpaceliftRunToWorkerRelProperties = SpaceliftRunToWorkerRelProperties()
 
 
 @dataclass(frozen=True)
 class SpaceliftRunToEC2InstanceRelProperties(CartographyRelProperties):
     """
-    Properties for the AFFECTS relationship between a Run and EC2 Instances.
+    Properties for the AFFECTED relationship between a Run and EC2 Instances.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -152,8 +145,8 @@ class SpaceliftRunToEC2InstanceRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class SpaceliftRunToEC2InstanceRel(CartographyRelSchema):
     """
-    AFFECTS relationship from a Run to EC2 Instances it manages.
-    (:SpaceliftRun)-[:AFFECTS]->(:EC2Instance)
+    AFFECTED relationship from a Run to EC2 Instances it manages.
+    (:SpaceliftRun)-[:AFFECTED]->(:EC2Instance)
     """
 
     target_node_label: str = "EC2Instance"
@@ -161,7 +154,7 @@ class SpaceliftRunToEC2InstanceRel(CartographyRelSchema):
         {"id": PropertyRef("affected_instance_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "AFFECTS"
+    rel_label: str = "AFFECTED"
     properties: SpaceliftRunToEC2InstanceRelProperties = (
         SpaceliftRunToEC2InstanceRelProperties()
     )

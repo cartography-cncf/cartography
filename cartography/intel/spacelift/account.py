@@ -13,16 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_account(api_endpoint: str) -> dict:
+def get_account(api_endpoint: str) -> str:
 
     logger.info("Extracting Spacelift account information from API endpoint")
-
     # Parse URL to extract subdomain (account ID)
     parsed = urlparse(api_endpoint)
     hostname = parsed.hostname or ""
-
     # Extract subdomain (everything before .app.spacelift.io)
-    # Example: subimage.app.spacelift.io -> subimage
     account_id = hostname.split(".")[0] if hostname else ""
 
     if not account_id:
@@ -32,18 +29,7 @@ def get_account(api_endpoint: str) -> dict:
 
     logger.info(f"Extracted account ID: {account_id}")
 
-    return {
-        "id": account_id,
-        "name": account_id,
-    }
-
-
-def transform_account(account_data: dict) -> dict:
-    return {
-        "id": account_data["id"],
-        "account_id": account_data["id"],
-        "name": account_data.get("name"),
-    }
+    return account_id
 
 
 def load_account(
@@ -59,7 +45,7 @@ def load_account(
         lastupdated=update_tag,
     )
 
-    logger.info(f"Loaded Spacelift account: {account_data.get('name')}")
+    logger.info(f"Loaded Spacelift account: {account_data['id']}")
 
 
 @timeit
@@ -81,16 +67,16 @@ def sync_account(
     common_job_parameters: dict[str, Any],
 ) -> str:
 
-    account_raw_data = get_account(api_endpoint)
+    account_id = get_account(api_endpoint)
 
-    transformed_account = transform_account(account_raw_data)
+    # Transform account data (all fields are just account_id)
+    account_data = {
+        "id": account_id,
+        "account_id": account_id,
+        "name": account_id,
+    }
 
-    load_account(
-        neo4j_session, transformed_account, common_job_parameters["UPDATE_TAG"]
-    )
-
+    load_account(neo4j_session, account_data, common_job_parameters["UPDATE_TAG"])
     cleanup_account(neo4j_session, common_job_parameters)
-
-    account_id = transformed_account["account_id"]
     logger.info(f"Synced Spacelift account: {account_id}")
     return account_id

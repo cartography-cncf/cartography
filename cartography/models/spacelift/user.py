@@ -1,10 +1,3 @@
-"""
-Spacelift User data model.
-
-A SpaceliftUser represents a human or machine identity that interacts with Spacelift.
-Users can have roles in different spaces and can trigger runs, approve changes, and manage resources.
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef

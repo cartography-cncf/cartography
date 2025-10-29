@@ -1,10 +1,3 @@
-"""
-Spacelift Account data model.
-
-A SpaceliftAccount represents the root node for a Spacelift organization.
-It is the top-level resource that contains all other Spacelift entities (Spaces, Stacks, Users, etc.).
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
