@@ -183,9 +183,7 @@ scaleway_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="first_name"
                 ),
-                OntologyFieldMapping(
-                    ontology_field="lastname", node_field="last_name"
-                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
             ],
         ),
@@ -233,10 +231,7 @@ okta_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="first_name"
                 ),
-                OntologyFieldMapping(
-                    ontology_field="lastname", node_field="last_name"
-                ),
-                OntologyFieldMapping(ontology_field="username", node_field="login"),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
             ],
         ),
     ],
