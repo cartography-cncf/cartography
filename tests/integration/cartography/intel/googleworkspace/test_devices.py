@@ -1,5 +1,3 @@
-import datetime
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.googleworkspace.devices
@@ -17,10 +15,6 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_CUSTOMER_ID = "ABC123CD"
-
-# Fixed date for testing - set to November 1st, 2025
-# This is after all the lastSyncTime dates in test data (Oct 27-29, 2025)
-FIXED_TEST_DATE = datetime.datetime(2025, 11, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
 
 
 @patch("cartography.intel.googleworkspace.devices.datetime")
@@ -50,11 +44,6 @@ def test_sync_googleworkspace_devices(
     }
     _ensure_local_neo4j_has_test_tenant(neo4j_session)
     _ensure_local_neo4j_has_test_users(neo4j_session)
-    # Mock datetime module to use real datetime but with fixed now()
-    mock_datetime_module.datetime = MagicMock()
-    mock_datetime_module.datetime.now.return_value = FIXED_TEST_DATE
-    mock_datetime_module.timedelta = datetime.timedelta
-    mock_datetime_module.timezone = datetime.timezone
 
     # Then sync devices
     sync_googleworkspace_devices(
@@ -132,7 +121,7 @@ def test_sync_googleworkspace_devices(
             "GoogleWorkspaceTenant",
             "id",
             "RESOURCE",
-            rel_direction_right=True,
+            rel_direction_right=False,
         )
         == expected_device_tenant_rels
     )

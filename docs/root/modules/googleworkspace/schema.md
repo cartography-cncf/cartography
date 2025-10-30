@@ -28,7 +28,7 @@ Represents a Google Workspace tenant (customer account).
 | domain | The primary domain name for the Google Workspace customer account.
 | name | The name of the organization associated with the Google Workspace customer account.
 | lastupdated | Timestamp of when a sync job last updated this node
-| firstseen | PropertyRef = PropertyRef("firstseen")
+| firstseen | Timestamp of when a sync job first discovered this node
 
 #### Node Labels
 - `GoogleWorkspaceTenant`
@@ -242,7 +242,7 @@ Represents a device managed by Google Workspace.
 - Device belongs to tenant:
 
     ```
-    (:GoogleWorkspaceDevice)-[:RESOURCE]->(:GoogleWorkspaceTenant)
+    (:GoogleWorkspaceDevice)<-[:RESOURCE]-(:GoogleWorkspaceTenant)
     ```
 
 - User owns device:

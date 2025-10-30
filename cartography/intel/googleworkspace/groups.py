@@ -122,7 +122,7 @@ def get_user_inherited_member_relationships(
     ]
     """
     query = """
-        MATCH (u:GoogleWorkspaceUser)-[:RESOURCE]->(t:GoogleWorkspaceTenant {id: $CUSTOMER_ID}),
+        MATCH (t:GoogleWorkspaceTenant {id: $CUSTOMER_ID})-[:RESOURCE]->(u:GoogleWorkspaceUser),
               (u)-[:MEMBER_OF]->(g1:GoogleWorkspaceGroup)-[:MEMBER_OF*1..]->(g2:GoogleWorkspaceGroup)
         RETURN DISTINCT u.id AS user_id, g2.id AS group_id
     """
@@ -153,7 +153,7 @@ def get_user_inherited_owner_relationships(
     ]
     """
     query = """
-        MATCH (u:GoogleWorkspaceUser)-[:RESOURCE]->(t:GoogleWorkspaceTenant {id: $CUSTOMER_ID}),
+        MATCH (t:GoogleWorkspaceTenant {id: $CUSTOMER_ID})-[:RESOURCE]->(u:GoogleWorkspaceUser),
               (u)-[:OWNER_OF]->(g1:GoogleWorkspaceGroup)-[:MEMBER_OF*1..]->(g2:GoogleWorkspaceGroup)
         RETURN DISTINCT u.id AS user_id, g2.id AS group_id
     """
@@ -184,7 +184,7 @@ def get_group_inherited_member_relationships(
     ]
     """
     query = """
-        MATCH (g1:GoogleWorkspaceGroup)-[:RESOURCE]->(t:GoogleWorkspaceTenant {id: $CUSTOMER_ID}),
+        MATCH (t:GoogleWorkspaceTenant {id: $CUSTOMER_ID})-[:RESOURCE]->(g1:GoogleWorkspaceGroup),
               (g1)-[:MEMBER_OF]->(g2:GoogleWorkspaceGroup)-[:MEMBER_OF*1..]->(g3:GoogleWorkspaceGroup)
         RETURN DISTINCT g1.id AS source_group_id, g3.id AS target_group_id
     """
@@ -215,7 +215,7 @@ def get_group_inherited_owner_relationships(
     ]
     """
     query = """
-        MATCH (g1:GoogleWorkspaceGroup)-[:RESOURCE]->(t:GoogleWorkspaceTenant {id: $CUSTOMER_ID}),
+        MATCH (t:GoogleWorkspaceTenant {id: $CUSTOMER_ID})-[:RESOURCE]->(g1:GoogleWorkspaceGroup),
               (g1)-[:OWNER_OF]->(g2:GoogleWorkspaceGroup)-[:MEMBER_OF*1..]->(g3:GoogleWorkspaceGroup)
         RETURN DISTINCT g1.id AS source_group_id, g3.id AS target_group_id
     """

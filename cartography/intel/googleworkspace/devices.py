@@ -1,7 +1,7 @@
+import datetime
 import json
 import logging
 from typing import Any
-import datetime
 
 import neo4j
 from googleapiclient.discovery import Resource
@@ -25,12 +25,14 @@ def get_devices(
     Fetch all devices from Google Cloud Identity API.
     """
     # Only fetch user synced in the last 90 days
-    from_date = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=90)
+    from_date = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
+        days=90
+    )
     request = cloudidentity.devices().list(
         customer="customers/my_customer",
         pageSize=100,
         orderBy="last_sync_time desc",
-        filter=f"sync:{from_date.isoformat().split('.')[0]}.."
+        filter=f"sync:{from_date.isoformat(timespec='seconds')}..",
     )
     response_objects = []
     while request is not None:
@@ -64,6 +66,10 @@ def get_device_users(
     """
     Fetch all device users from Google Cloud Identity API.
     """
+    # Only fetch user synced in the last 90 days
+    from_date = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
+        days=90
+    )
     request = (
         cloudidentity.devices()
         .deviceUsers()
@@ -72,6 +78,7 @@ def get_device_users(
             parent="devices/-",
             pageSize=100,
             orderBy="last_sync_time desc",
+            filter=f"sync:{from_date.isoformat(timespec='seconds')}..",
         )
     )
     response_objects = []

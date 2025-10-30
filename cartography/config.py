@@ -112,7 +112,7 @@ class Config:
     :type gsuite_config: str
     :param gsuite_config: Base64 encoded config object or config file path for Google Workspace. Optional.
     :type googleworkspace_auth_method: str
-    :param googleworkspace_auth_method: Auth method (delegated, oauth) used for Google Workspace. Optional.
+    :param googleworkspace_auth_method: Auth method (delegated, oauth, default) used for Google Workspace. Optional.
     :type googleworkspace_config: str
     :param googleworkspace_config: Base64 encoded config object or config file path for Google Workspace. Optional.
     :type lastpass_cid: str
