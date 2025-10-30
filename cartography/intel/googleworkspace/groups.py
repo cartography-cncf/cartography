@@ -21,7 +21,7 @@ GOOGLE_API_NUM_RETRIES = 5
 
 @timeit
 def get_all_groups(
-    admin: Resource, customer_id: str = "my_customer"
+    admin: Resource
 ) -> list[dict[str, Any]]:
     """
     Return list of Google Groups in your organization
@@ -34,7 +34,7 @@ def get_all_groups(
     :return: list of Google groups in domain
     """
     request = admin.groups().list(
-        customer=customer_id,
+        customer="my_customer",
         maxResults=20,
         orderBy="email",
     )
@@ -55,6 +55,7 @@ def get_all_groups(
                     '"https://www.googleapis.com/auth/admin.directory.user.readonly,'
                     "https://www.googleapis.com/auth/admin.directory.group.readonly,"
                     "https://www.googleapis.com/auth/admin.directory.group.member.readonly,"
+                    "https://www.googleapis.com/auth/cloud-identity.devices.readonly,"
                     'https://www.googleapis.com/auth/cloud-platform"'
                 )
             raise
@@ -146,16 +147,7 @@ def load_googleworkspace_groups(
     """
     Load Google Workspace groups using the modern data model
     """
-    logger.info("Ingesting %d Google Workspace groups", len(groups))
-
-    # Load tenant first if it doesn't exist
-    tenant_data = [{"id": customer_id}]
-    load(
-        neo4j_session,
-        GoogleWorkspaceTenantSchema(),
-        tenant_data,
-        lastupdated=googleworkspace_update_tag,
-    )
+    logger.info("Ingesting %d Google Workspace groups for customer %s", len(groups), customer_id)
 
     # Load groups with relationship to tenant
     load(
@@ -260,13 +252,10 @@ def sync_googleworkspace_groups(
     :return: Nothing
     """
     logger.debug("Syncing Google Workspace Groups")
-
-    customer_id = common_job_parameters.get(
-        "CUSTOMER_ID", "my_customer"
-    )  # Default to "my_customer" for backward compatibility
+    customer_id = common_job_parameters["CUSTOMER_ID"]
 
     # 1. GET - Fetch data from API
-    resp_objs = get_all_groups(admin, customer_id)
+    resp_objs = get_all_groups(admin)
     group_members = get_members_for_groups(admin, [resp["email"] for resp in resp_objs])
 
     # 2. TRANSFORM - Shape data for ingestion

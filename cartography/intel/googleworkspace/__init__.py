@@ -16,37 +16,23 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 from googleapiclient.discovery import Resource
 
 from cartography.config import Config
+from cartography.intel.googleworkspace import devices
 from cartography.intel.googleworkspace import groups
 from cartography.intel.googleworkspace import users
+from cartography.intel.googleworkspace import tenant
 from cartography.util import timeit
 
 OAUTH_SCOPES = [
+    "https://www.googleapis.com/auth/admin.directory.customer.readonly",
     "https://www.googleapis.com/auth/admin.directory.user.readonly",
     "https://www.googleapis.com/auth/admin.directory.group.readonly",
     "https://www.googleapis.com/auth/admin.directory.group.member",
+    "https://www.googleapis.com/auth/cloud-identity.devices.readonly",
 ]
 
 logger = logging.getLogger(__name__)
 
-Resources = namedtuple("Resources", "admin")
-
-
-def _get_admin_resource(
-    creds: OAuth2Credentials | ServiceAccountCredentials,
-) -> Resource:
-    """
-    Instantiates a Google API resource object to call the Google API.
-    Used to pull users and groups.  See https://developers.google.com/admin-sdk/directory/v1/guides/manage-users
-
-    :param credentials: The credentials object
-    :return: An admin api resource object
-    """
-    return googleapiclient.discovery.build(
-        "admin",
-        "directory_v1",
-        credentials=creds,
-        cache_discovery=False,
-    )
+Resources = namedtuple("Resources", ["admin", "cloudidentity"])
 
 
 def _initialize_resources(
@@ -57,10 +43,21 @@ def _initialize_resources(
     :param credentials: The credentials object
     :return: namedtuple of all resource objects
     """
-    return Resources(
-        admin=_get_admin_resource(creds),
-    )
 
+    return Resources(
+        googleapiclient.discovery.build(
+            "admin",
+            "directory_v1",
+            credentials=creds,
+            cache_discovery=False,
+        ),
+        googleapiclient.discovery.build(
+            "cloudidentity",
+            "v1",
+            credentials=creds,
+            cache_discovery=False,
+        ),
+    )
 
 @timeit
 def start_googleworkspace_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
@@ -93,7 +90,7 @@ def start_googleworkspace_ingestion(neo4j_session: neo4j.Session, config: Config
                 config.googleworkspace_config,
                 scopes=OAUTH_SCOPES,
             )
-            creds = creds.with_subject(os.environ.get("GOOGLEWORKSPACE_DELEGATED_ADMIN"))
+            creds = creds.with_subject(os.environ.get("GOOGLE_DELEGATED_ADMIN"))
 
         except DefaultCredentialsError as e:
             logger.error(
@@ -148,18 +145,29 @@ def start_googleworkspace_ingestion(neo4j_session: neo4j.Session, config: Config
             return
 
     resources = _initialize_resources(creds)
-    customer_ids = users.sync_googleworkspace_users(
+    customer_id = tenant.sync_googleworkspace_tenant(
         neo4j_session,
         resources.admin,
         config.update_tag,
         common_job_parameters,
     )
-    for customer_id in customer_ids:
-        scoped_job_parameters = common_job_parameters.copy()
-        scoped_job_parameters["CUSTOMER_ID"] = customer_id
-        groups.sync_googleworkspace_groups(
-            neo4j_session,
-            resources.admin,
-            config.update_tag,
-            scoped_job_parameters,
-        )
+    common_job_parameters["CUSTOMER_ID"] = customer_id
+
+    users.sync_googleworkspace_users(
+        neo4j_session,
+        resources.admin,
+        config.update_tag,
+        common_job_parameters,
+    )
+    groups.sync_googleworkspace_groups(
+        neo4j_session,
+        resources.admin,
+        config.update_tag,
+        common_job_parameters,
+    )
+    devices.sync_googleworkspace_devices(
+        neo4j_session,
+        resources.cloudidentity,
+        config.update_tag,
+        common_job_parameters,
+    )

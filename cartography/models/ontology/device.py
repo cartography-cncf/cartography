@@ -105,6 +105,15 @@ class DeviceToBigfixComputerRel(CartographyRelSchema):
     rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
+# (:Device)-[:OBSERVED_AS]->(:GoogleWorkspaceDevice)
+class DeviceToGoogleWorkspaceDeviceRel(CartographyRelSchema):
+    target_node_label: str = "GoogleWorkspaceDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
@@ -121,5 +130,6 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToTailscaleDeviceRel(),
             DeviceToCrowdstrikeHostRel(),
             DeviceToBigfixComputerRel(),
+            DeviceToGoogleWorkspaceDeviceRel(),
         ],
     )

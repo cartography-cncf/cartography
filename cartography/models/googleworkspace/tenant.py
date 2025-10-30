@@ -13,9 +13,8 @@ class GoogleWorkspaceTenantNodeProperties(CartographyNodeProperties):
 
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-    # Customer/domain identifier - use id as the primary identifier
-    customer_id: PropertyRef = PropertyRef("id")
+    domain: PropertyRef = PropertyRef("customerDomain")
+    name: PropertyRef = PropertyRef("postalAddress.organizationName")
 
 
 @dataclass(frozen=True)

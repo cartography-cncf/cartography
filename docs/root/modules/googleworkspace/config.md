@@ -12,7 +12,7 @@ Ingesting Google Workspace Users and Groups utilizes the [Google Admin SDK](http
 1.  Download the service account's credentials
 1.  Export the environmental variables:
     1. `GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS` - location of the credentials file.
-    1. `GOOGLEWORKSPACE_DELEGATED_ADMIN` - email address that you created in step 2
+    1. `GOOGLE_DELEGATED_ADMIN` - email address that you created in step 2
 
 ## Method 2: Using OAuth
 

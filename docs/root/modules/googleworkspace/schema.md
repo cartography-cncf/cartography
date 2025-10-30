@@ -76,3 +76,39 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
     ```
     (GoogleWorkspaceUser)-[MEMBER_OF]->(GoogleWorkspaceGroup)
     ```
+
+
+## GoogleWorkspaceDevice
+
+Represents a device managed by Google Workspace.
+
+| Field | Description |
+|-------|-------------|
+| id | Unique device identifier (full device name) |
+| name | Full device name (same as id) |
+| deviceId | Device hardware identifier |
+| model | Device model |
+| manufacturer | Device manufacturer |
+| deviceType | Type of device (ANDROID, MAC_OS, etc.) |
+| osVersion | Operating system version |
+| ownerType | Device ownership type (BYOD, etc.) |
+| encryptionState | Device encryption status |
+| compromisedState | Device security compromise status |
+| managementState | Device management status |
+| createTime | Device creation timestamp |
+| lastSyncTime | Last synchronization timestamp |
+| androidSpecificAttributes | Android-specific device attributes |
+
+### Relationships
+
+- Device belongs to tenant: 
+    
+    ```
+    (:GoogleWorkspaceDevice)-[:RESOURCE]->(:GoogleWorkspaceTenant)
+    ```
+
+- User owns device: 
+
+    ```
+    (:GoogleWorkspaceUser)-[:OWNS]->(:GoogleWorkspaceDevice)
+    ```
