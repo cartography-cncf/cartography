@@ -83,7 +83,7 @@ class GoogleWorkspaceDeviceToTenantRel(CartographyRelSchema):
             "id": PropertyRef("CUSTOMER_ID", set_in_kwargs=True),
         }
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
     properties: GoogleWorkspaceDeviceToTenantRelProperties = (
         GoogleWorkspaceDeviceToTenantRelProperties()
