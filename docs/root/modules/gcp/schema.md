@@ -730,7 +730,7 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 | location | The GCP location of the service (e.g., `us-central1`). |
 | uri | The primary URL endpoint for the service. |
 | latest\_ready\_revision | The full resource name of the latest revision that is ready to serve traffic. |
-| project\_id | The ID of the GCP project to which the role belongs. |
+| project\_id | The ID of the GCP project to which the service belongs. |
 
 #### Relationships
 
@@ -753,7 +753,7 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
 | container\_image | The container image URL (e.g., `gcr.io/project/image@digest`). |
 | service\_account\_email | The email of the IAM service account the revision runs as. |
 | log\_uri | A URL to view the logs for this revision. |
-| project\_id | The ID of the GCP project to which the role belongs. |
+| project\_id | The ID of the GCP project to which the revision belongs. |
 
 #### Relationships
 
@@ -787,7 +787,7 @@ Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/refere
 | location | The GCP location of the Job. |
 | container\_image | The container image URL (e.g., `gcr.io/project/image@digest`). |
 | service\_account\_email | The email of the IAM service account the job runs as. |
-| project\_id | The ID of the GCP project to which the role belongs. |
+| project\_id | The ID of the GCP project to which the job belongs. |
 
 #### Relationships
 
@@ -819,7 +819,7 @@ Representation of a GCP [Cloud Run Execution](https://cloud.google.com/run/docs/
 | cancelled\_count | The number of tasks that were cancelled. |
 | failed\_count | The number of tasks that failed. |
 | succeeded\_count | The number of tasks that succeeded. |
-| project\_id | The ID of the GCP project to which the role belongs. |
+| project\_id | The ID of the GCP project to which execution belongs. |
 
 #### Relationships
 
@@ -843,7 +843,7 @@ Representation of a GCP [Cloud Run Domain Mapping](https://cloud.google.com/run/
 | **id** | The fully qualified ID of the domain mapping resource. |
 | name | The custom domain name (e.g., `app.example.com`). |
 | route\_name | The name of the Cloud Run Service this domain maps to. |
-| project\_id | The ID of the GCP project to which the role belongs. |
+| project\_id | The ID of the GCP project to which the domain mapping belongs. |
 
 #### Relationships
 

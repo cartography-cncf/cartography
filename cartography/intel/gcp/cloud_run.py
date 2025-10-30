@@ -292,13 +292,14 @@ def transform_executions(executions_data: list[dict], project_id: str) -> list[d
         ex_id = ex.get("name")
         if not ex_id:
             continue
+        status_data = ex.get("status", {})
 
         transformed.append(
             {
                 "id": ex_id,
                 "name": ex.get("name", "").split("/")[-1],
                 "job": ex.get("name", "").rsplit("/executions/", 1)[0],
-                "status": str(ex.get("completionTime", "RUNNING")),
+                "status": str(status_data.get("completionTime", "RUNNING")),
                 "cancelled_count": ex.get("cancelledCount"),
                 "failed_count": ex.get("failedCount"),
                 "succeeded_count": ex.get("succeededCount"),

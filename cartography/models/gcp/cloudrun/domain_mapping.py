@@ -50,7 +50,7 @@ class DomainMappingToServiceRelProperties(CartographyRelProperties):
 class DomainMappingToServiceRel(CartographyRelSchema):
     target_node_label: str = "GCPCloudRunService"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("route_name")},
+        {"name": PropertyRef("route_name"), "project_id": PropertyRef("project_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "POINTS_TO_SERVICE"
