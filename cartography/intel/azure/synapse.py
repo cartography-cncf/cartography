@@ -96,7 +96,7 @@ def get_pipelines(credential: Any, endpoint: str) -> list[dict]:
     try:
         client = ArtifactsClient(endpoint=endpoint, credential=credential)
         return [p.as_dict() for p in client.pipeline.get_pipelines_by_workspace()]
-    except (ClientAuthenticationError, HttpResponseError):
+    except HttpResponseError:
         logger.warning(
             f"Failed to get pipelines for workspace endpoint {endpoint}.", exc_info=True
         )
@@ -112,7 +112,7 @@ def get_linked_services(credential: Any, endpoint: str) -> list[dict]:
             ls.as_dict()
             for ls in client.linked_service.get_linked_services_by_workspace()
         ]
-    except (ClientAuthenticationError, HttpResponseError):
+    except HttpResponseError:
         logger.warning(
             f"Failed to get linked services for workspace endpoint {endpoint}.",
             exc_info=True,
