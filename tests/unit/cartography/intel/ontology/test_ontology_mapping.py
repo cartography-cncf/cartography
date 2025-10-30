@@ -9,6 +9,11 @@ from tests.utils import load_models
 
 MODELS = list(load_models(cartography.models))
 
+# Unfortunately, some nodes are not yet migrated to the new data model system.
+# We need to ignore them in this test for now as we are not able to load their model class.
+# This is a temporary workaround until all models are migrated.
+OLD_FORMAT_NODES = ['OktaUser', ]
+
 
 def test_ontology_mapping_modules():
     # Verify that all modules defined in the ontology mapping exist in TOP_LEVEL_MODULES
@@ -39,7 +44,7 @@ def test_ontology_mapping_fields():
         for module_name, mapping in mappings.items():
             for node in mapping.nodes:
                 # TODO: Remove that uggly exception once all models are migrated to the new data model system
-                if node.node_label in ("OktaUser",):
+                if node.node_label in OLD_FORMAT_NODES:
                     continue
                 # Load the model class for the module
                 model_class = _get_model_by_node_label(node.node_label)

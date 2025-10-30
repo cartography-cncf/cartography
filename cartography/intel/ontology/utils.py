@@ -63,7 +63,7 @@ def get_source_nodes_from_graph(
                 for field in node.fields:
                     value = node_data.get(field.node_field)
                     # Skip nodes missing required fields
-                    if field.required and value in (None, ""):
+                    if field.required and not value:
                         logger.debug(
                             "Skipping node with label '%s' due to missing required field '%s'.",
                             node.node_label,
