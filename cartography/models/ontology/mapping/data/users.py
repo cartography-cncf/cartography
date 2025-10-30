@@ -1,6 +1,7 @@
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+from cartography.models.ontology.mapping.specs import OntologyRelMapping
 
 anthropic_mapping = OntologyMapping(
     module_name="anthropic",
@@ -180,11 +181,9 @@ scaleway_mapping = OntologyMapping(
                     ontology_field="email", node_field="email", required=True
                 ),
                 OntologyFieldMapping(
-                    ontology_field="first_name", node_field="first_name"
+                    ontology_field="firstname", node_field="first_name"
                 ),
-                OntologyFieldMapping(
-                    ontology_field="last_name", node_field="last_name"
-                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
             ],
         ),
@@ -220,6 +219,47 @@ tailscale_mapping = OntologyMapping(
         ),
     ],
 )
+okta_mapping = OntologyMapping(
+    module_name="okta",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OktaUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+            ],
+        ),
+    ],
+)
+aws_mapping = OntologyMapping(
+    module_name="aws",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AWSUser",
+            eligible_for_source=False,
+            fields=[OntologyFieldMapping(ontology_field="username", node_field="name")],
+        ),
+        OntologyNodeMapping(
+            node_label="AWSSSOUser",
+            eligible_for_source=False,
+            fields=[
+                OntologyFieldMapping(ontology_field="username", node_field="user_name")
+            ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link AWSSSOUser to User based on external_id mapping to arbitrary UserAccount node",
+            query="MATCH (sso:AWSSSOUser) MATCH (u:User)-[:HAS_ACCOUNT]->(:UserAccount {id: sso.external_id}) MERGE (u)-[r:HAS_ACCOUNT]->(sso) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
+        ),
+    ],
+)
 
 
 USERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
@@ -236,4 +276,6 @@ USERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,
+    "okta": okta_mapping,
+    "aws": aws_mapping,
 }

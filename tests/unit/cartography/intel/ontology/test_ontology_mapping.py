@@ -9,6 +9,13 @@ from tests.utils import load_models
 
 MODELS = list(load_models(cartography.models))
 
+# Unfortunately, some nodes are not yet migrated to the new data model system.
+# We need to ignore them in this test for now as we are not able to load their model class.
+# This is a temporary workaround until all models are migrated.
+OLD_FORMAT_NODES = [
+    "OktaUser",
+]
+
 
 def test_ontology_mapping_modules():
     # Verify that all modules defined in the ontology mapping exist in TOP_LEVEL_MODULES
@@ -24,7 +31,7 @@ def test_ontology_mapping_modules():
 
 
 def _get_model_by_node_label(node_label: str) -> Type[CartographyNodeSchema] | None:
-    for _, node_class in MODELS:
+    for _, node_class in list(load_models(cartography.models)):
         if not issubclass(node_class, CartographyNodeSchema):
             continue
         if node_class.label == node_label:
@@ -38,6 +45,9 @@ def test_ontology_mapping_fields():
     for _, mappings in ONTOLOGY_MAPPING.items():
         for module_name, mapping in mappings.items():
             for node in mapping.nodes:
+                # TODO: Remove that uggly exception once all models are migrated to the new data model system
+                if node.node_label in OLD_FORMAT_NODES:
+                    continue
                 # Load the model class for the module
                 model_class = _get_model_by_node_label(node.node_label)
                 assert model_class is not None, (
@@ -75,7 +85,9 @@ def test_ontology_mapping_required_fields():
                         f"Field '{field.ontology_field}' in mapping for node '{node.node_label}' in '{category}.{module}' "
                         f"is used as id in the model but is not marked as `required` in the ontology mapping."
                     )
-                assert found_id_field, (
-                    f"Node '{node.node_label}' in module '{category}.{module}' does not have the id field "
-                    f"'{data_dict_id_field}' mapped in the ontology mapping."
-                )
+                if node.eligible_for_source:
+                    assert found_id_field, (
+                        f"Node '{node.node_label}' in module '{category}.{module}' does not have the id field "
+                        f"'{data_dict_id_field}' mapped in the ontology mapping. "
+                        "You should add it or set `eligible_for_source` to False."
+                    )

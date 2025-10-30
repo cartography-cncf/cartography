@@ -1,1 +1,0 @@
-# Ontology mapping data files
