@@ -3,6 +3,7 @@ from typing import Any
 
 import neo4j
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.models.googleworkspace.tenant import GoogleWorkspaceTenantSchema
@@ -22,11 +23,28 @@ def get_tenant(admin: Resource) -> dict[str, Any]:
     :param admin: apiclient discovery resource object
     :return: Google Workspace tenant information
     """
-    req = admin.customers().get(
-        customerKey="my_customer",
-    )
-    resp = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
-    return resp
+    try:
+        req = admin.customers().get(
+            customerKey="my_customer",
+        )
+        resp = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        return resp
+    except HttpError as e:
+        if (
+            e.resp.status == 403
+            and "Request had insufficient authentication scopes" in str(e)
+        ):
+            logger.error(
+                "Missing required Google Workspace scopes. If using the gcloud CLI, "
+                "run: gcloud auth application-default login --scopes="
+                "https://www.googleapis.com/auth/admin.directory.customer.readonly,"
+                "https://www.googleapis.com/auth/admin.directory.user.readonly,"
+                "https://www.googleapis.com/auth/admin.directory.group.readonly,"
+                "https://www.googleapis.com/auth/admin.directory.group.member.readonly,"
+                "https://www.googleapis.com/auth/cloud-identity.devices.readonly,"
+                "https://www.googleapis.com/auth/cloud-platform"
+            )
+        raise
 
 
 @timeit

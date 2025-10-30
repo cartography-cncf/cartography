@@ -102,7 +102,7 @@ def start_googleworkspace_ingestion(
                     "Unable to initialize Google Workspace creds. If you don't have Google Workspace data or don't want to load "
                     "Google Workspace data then you can ignore this message. Otherwise, the error code is: %s "
                     "Make sure your Google Workspace credentials file (if any) is valid. "
-                    "For more details see README"
+                    "For more details see documentation."
                 ),
                 e,
             )
@@ -129,7 +129,7 @@ def start_googleworkspace_ingestion(
                     "Unable to initialize Google Workspace creds. If you don't have Google Workspace data or don't want to load "
                     "Google Workspace data then you can ignore this message. Otherwise, the error code is: %s "
                     "Make sure your Google Workspace credentials are configured correctly, your credentials are valid. "
-                    "For more details see README"
+                    "For more details see documentation."
                 ),
                 e,
             )
@@ -146,7 +146,7 @@ def start_googleworkspace_ingestion(
                     "Unable to initialize Google Workspace creds using default credentials. If you don't have Google Workspace data or "
                     "don't want to load Google Workspace data then you can ignore this message. Otherwise, the error code is: %s "
                     "Make sure you have valid application default credentials configured. "
-                    "For more details see README"
+                    "For more details see documentation."
                 ),
                 e,
             )

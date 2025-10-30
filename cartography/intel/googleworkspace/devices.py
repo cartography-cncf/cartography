@@ -43,11 +43,12 @@ def get_devices(
                 logger.error(
                     "Missing required Google Workspace scopes. If using the gcloud CLI, "
                     "run: gcloud auth application-default login --scopes="
-                    '"https://www.googleapis.com/auth/admin.directory.user.readonly,'
+                    "https://www.googleapis.com/auth/admin.directory.customer.readonly,s"
+                    "https://www.googleapis.com/auth/admin.directory.user.readonly,"
                     "https://www.googleapis.com/auth/admin.directory.group.readonly,"
                     "https://www.googleapis.com/auth/admin.directory.group.member.readonly,"
                     "https://www.googleapis.com/auth/cloud-identity.devices.readonly,"
-                    'https://www.googleapis.com/auth/cloud-platform"'
+                    "https://www.googleapis.com/auth/cloud-platform"
                 )
             raise
     return response_objects
@@ -84,11 +85,12 @@ def get_device_users(
                 logger.error(
                     "Missing required Google Workspace scopes. If using the gcloud CLI, "
                     "run: gcloud auth application-default login --scopes="
-                    '"https://www.googleapis.com/auth/admin.directory.user.readonly,'
+                    "https://www.googleapis.com/auth/admin.directory.customer.readonly,"
+                    "https://www.googleapis.com/auth/admin.directory.user.readonly,"
                     "https://www.googleapis.com/auth/admin.directory.group.readonly,"
                     "https://www.googleapis.com/auth/admin.directory.group.member.readonly,"
                     "https://www.googleapis.com/auth/cloud-identity.devices.readonly,"
-                    'https://www.googleapis.com/auth/cloud-platform"'
+                    "https://www.googleapis.com/auth/cloud-platform"
                 )
             raise
 
