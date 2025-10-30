@@ -64,7 +64,9 @@ class GoogleWorkspaceGroupToTenantRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: GoogleWorkspaceGroupToTenantRelProperties = GoogleWorkspaceGroupToTenantRelProperties()
+    properties: GoogleWorkspaceGroupToTenantRelProperties = (
+        GoogleWorkspaceGroupToTenantRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -82,7 +84,9 @@ class GoogleWorkspaceGroupToMemberRel(CartographyRelSchema):
     Relationship from Google Workspace group to its members (users or groups)
     """
 
-    target_node_label: str = "GoogleWorkspaceUser"  # or GoogleWorkspaceGroup for subgroup relationships
+    target_node_label: str = (
+        "GoogleWorkspaceUser"  # or GoogleWorkspaceGroup for subgroup relationships
+    )
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "id": PropertyRef("member_ids", one_to_many=True),
@@ -90,7 +94,9 @@ class GoogleWorkspaceGroupToMemberRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_GOOGLEWORKSPACE_GROUP"
-    properties: GoogleWorkspaceGroupToMemberRelProperties = GoogleWorkspaceGroupToMemberRelProperties()
+    properties: GoogleWorkspaceGroupToMemberRelProperties = (
+        GoogleWorkspaceGroupToMemberRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -116,7 +122,9 @@ class GoogleWorkspaceGroupToOwnerRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNER_GOOGLEWORKSPACE_GROUP"
-    properties: GoogleWorkspaceGroupToOwnerRelProperties = GoogleWorkspaceGroupToOwnerRelProperties()
+    properties: GoogleWorkspaceGroupToOwnerRelProperties = (
+        GoogleWorkspaceGroupToOwnerRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -126,8 +134,12 @@ class GoogleWorkspaceGroupSchema(CartographyNodeSchema):
     """
 
     label: str = "GoogleWorkspaceGroup"
-    properties: GoogleWorkspaceGroupNodeProperties = GoogleWorkspaceGroupNodeProperties()
-    sub_resource_relationship: GoogleWorkspaceGroupToTenantRel = GoogleWorkspaceGroupToTenantRel()
+    properties: GoogleWorkspaceGroupNodeProperties = (
+        GoogleWorkspaceGroupNodeProperties()
+    )
+    sub_resource_relationship: GoogleWorkspaceGroupToTenantRel = (
+        GoogleWorkspaceGroupToTenantRel()
+    )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
     other_relationships = OtherRelationships(
         [

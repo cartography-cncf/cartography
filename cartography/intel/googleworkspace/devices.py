@@ -60,11 +60,15 @@ def get_device_users(
     """
     Fetch all device users from Google Cloud Identity API.
     """
-    request = cloudidentity.devices().deviceUsers().list(
-        customer="customers/my_customer",
-        parent="devices/-",
-        pageSize=100,
-        orderBy="last_sync_time desc",
+    request = (
+        cloudidentity.devices()
+        .deviceUsers()
+        .list(
+            customer="customers/my_customer",
+            parent="devices/-",
+            pageSize=100,
+            orderBy="last_sync_time desc",
+        )
     )
     response_objects = []
     while request is not None:
@@ -91,7 +95,9 @@ def get_device_users(
     return response_objects
 
 
-def transform_devices(devices: list[dict[str, Any]], device_users: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def transform_devices(
+    devices: list[dict[str, Any]], device_users: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """
     Transform device data for Neo4j ingestion.
     """
@@ -110,7 +116,10 @@ def transform_devices(devices: list[dict[str, Any]], device_users: list[dict[str
         if device_name not in device_user_map:
             device_user_map[device_name] = device_user["userEmail"]
         else:
-            logger.debug("Multiple users found for device %s, the most recent was kept", device_name)
+            logger.debug(
+                "Multiple users found for device %s, the most recent was kept",
+                device_name,
+            )
 
     print("MAPPING:", device_user_map)
 
@@ -121,15 +130,13 @@ def transform_devices(devices: list[dict[str, Any]], device_users: list[dict[str
         # Extract device ID from name path (devices/EiRlNzYzZjYyNC1...)
         device_name = device["name"]
         print(device_name)
-        
+
         transformed = {
             # Required fields
             "deviceId": device.get("deviceId"),
             "hostname": device.get("hostname"),
-
             # Owner
             "owner_email": device_user_map.get(device_name),
-            
             # Device information
             "model": device.get("model"),
             "manufacturer": device.get("manufacturer"),
@@ -141,7 +148,6 @@ def transform_devices(devices: list[dict[str, Any]], device_users: list[dict[str
             "deviceType": device.get("deviceType"),
             "osVersion": device.get("osVersion"),
             "ownerType": device.get("ownerType"),
-            
             # Hardware identifiers
             "serialNumber": device.get("serialNumber"),
             "assetTag": device.get("assetTag"),
@@ -149,31 +155,35 @@ def transform_devices(devices: list[dict[str, Any]], device_users: list[dict[str
             "meid": device.get("meid"),
             "wifiMacAddresses": device.get("wifiMacAddresses"),
             "networkOperator": device.get("networkOperator"),
-            
             # Security and state
             "encryptionState": device.get("encryptionState"),
             "compromisedState": device.get("compromisedState"),
             "managementState": device.get("managementState"),
-            
             # Timestamps
             "createTime": device.get("createTime"),
             "lastSyncTime": device.get("lastSyncTime"),
             "securityPatchTime": device.get("securityPatchTime"),
-            
             # Android specific attributes (stored as JSON string if present)
-            "androidSpecificAttributes": json.dumps(device.get("androidSpecificAttributes")) if device.get("androidSpecificAttributes") else None,
+            "androidSpecificAttributes": (
+                json.dumps(device.get("androidSpecificAttributes"))
+                if device.get("androidSpecificAttributes")
+                else None
+            ),
             "enabledDeveloperOptions": device.get("enabledDeveloperOptions"),
             "enabledUsbDebugging": device.get("enabledUsbDebugging"),
             "bootloaderVersion": device.get("bootloaderVersion"),
             "otherAccounts": device.get("otherAccounts"),
-            
             # Additional identifiers
             "unifiedDeviceId": device.get("unifiedDeviceId"),
-            "endpointVerificationSpecificAttributes": json.dumps(device.get("endpointVerificationSpecificAttributes")) if device.get("endpointVerificationSpecificAttributes") else None,
+            "endpointVerificationSpecificAttributes": (
+                json.dumps(device.get("endpointVerificationSpecificAttributes"))
+                if device.get("endpointVerificationSpecificAttributes")
+                else None
+            ),
         }
         print("OWNER:", transformed["owner_email"])
         result.append(transformed)
-    
+
     return result
 
 
@@ -196,12 +206,16 @@ def load_devices(
     )
 
 
-def cleanup_devices(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+def cleanup_devices(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
     """
     Remove devices that weren't updated in this sync run.
     """
     logger.debug("Running Google Workspace devices cleanup job")
-    GraphJob.from_node_schema(GoogleWorkspaceDeviceSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(GoogleWorkspaceDeviceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -215,7 +229,7 @@ def sync_googleworkspace_devices(
     Sync Google Workspace devices and device users.
     """
     logger.info("Starting Google Workspace devices sync")
-    
+
     customer_id = common_job_parameters["CUSTOMER_ID"]
 
     # 1. GET - Fetch devices data
@@ -225,11 +239,11 @@ def sync_googleworkspace_devices(
 
     # 2. TRANSFORM - Shape data for ingestion
     transformed_devices = transform_devices(raw_devices, raw_device_users)
-    
+
     # 3. LOAD - Ingest to Neo4j
     load_devices(neo4j_session, transformed_devices, customer_id, update_tag)
-    
+
     # 4. CLEANUP - Remove stale data
     cleanup_devices(neo4j_session, common_job_parameters)
-    
+
     logger.info("Completed Google Workspace devices sync")

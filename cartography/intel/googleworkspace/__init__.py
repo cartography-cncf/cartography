@@ -13,13 +13,12 @@ from google.oauth2 import credentials
 from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials as OAuth2Credentials
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.intel.googleworkspace import devices
 from cartography.intel.googleworkspace import groups
-from cartography.intel.googleworkspace import users
 from cartography.intel.googleworkspace import tenant
+from cartography.intel.googleworkspace import users
 from cartography.util import timeit
 
 OAUTH_SCOPES = [
@@ -59,8 +58,11 @@ def _initialize_resources(
         ),
     )
 
+
 @timeit
-def start_googleworkspace_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_googleworkspace_ingestion(
+    neo4j_session: neo4j.Session, config: Config
+) -> None:
     """
     Starts the Google Workspace ingestion process by initializing
 
@@ -74,7 +76,9 @@ def start_googleworkspace_ingestion(neo4j_session: neo4j.Session, config: Config
 
     creds: OAuth2Credentials | ServiceAccountCredentials
     if config.googleworkspace_auth_method == "delegated":  # Legacy delegated method
-        if config.googleworkspace_config is None or not os.path.isfile(config.googleworkspace_config):
+        if config.googleworkspace_config is None or not os.path.isfile(
+            config.googleworkspace_config
+        ):
             logger.warning(
                 (
                     "The Google Workspace config file is not set or is not a valid file."
@@ -104,7 +108,9 @@ def start_googleworkspace_ingestion(neo4j_session: neo4j.Session, config: Config
             )
             return
     elif config.googleworkspace_auth_method == "oauth":
-        auth_tokens = json.loads(str(base64.b64decode(config.googleworkspace_config).decode()))
+        auth_tokens = json.loads(
+            str(base64.b64decode(config.googleworkspace_config).decode())
+        )
         logger.info("Attempting to authenticate to Google Workspace using OAuth")
         try:
             creds = credentials.Credentials(
@@ -129,7 +135,9 @@ def start_googleworkspace_ingestion(neo4j_session: neo4j.Session, config: Config
             )
             return
     elif config.googleworkspace_auth_method == "default":
-        logger.info("Attempting to authenticate to Google Workspace using default credentials")
+        logger.info(
+            "Attempting to authenticate to Google Workspace using default credentials"
+        )
         try:
             creds, _ = default(scopes=OAUTH_SCOPES)
         except DefaultCredentialsError as e:

@@ -1069,7 +1069,9 @@ class CLI:
             logger.debug(
                 f"Reading config string for Google Workspace from environment variable {config.googleworkspace_tokens_env_var}",
             )
-            config.googleworkspace_config = os.environ.get(config.googleworkspace_tokens_env_var)
+            config.googleworkspace_config = os.environ.get(
+                config.googleworkspace_tokens_env_var
+            )
         else:
             config.googleworkspace_tokens_env_var = None
 

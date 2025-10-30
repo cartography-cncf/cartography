@@ -54,7 +54,7 @@ def sync_googleworkspace_tenant(
     googleworkspace_update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> list[str]:
-    """ Sync Google Workspace tenant data. """
+    """Sync Google Workspace tenant data."""
     logger.debug("Syncing Google Workspace Tenant data")
 
     # GET - Fetch data from API

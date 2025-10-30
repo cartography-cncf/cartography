@@ -105,6 +105,7 @@ class DeviceToBigfixComputerRel(CartographyRelSchema):
     rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
+
 # (:Device)-[:OBSERVED_AS]->(:GoogleWorkspaceDevice)
 class DeviceToGoogleWorkspaceDeviceRel(CartographyRelSchema):
     target_node_label: str = "GoogleWorkspaceDevice"
@@ -114,6 +115,7 @@ class DeviceToGoogleWorkspaceDeviceRel(CartographyRelSchema):
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "OBSERVED_AS"
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
 
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):

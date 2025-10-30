@@ -31,21 +31,21 @@ MOCK_DEVICES_RESPONSE = [
 
 MOCK_DEVICE_USERS_RESPONSE = [
     {
-        "name": "devices/EiRlNzYzZjYyNC1lNWMyLTQ3NmItODI4Yi03ZThiMGIyNjVjZjM%3D/deviceUsers/e763f624-e5c2-476b-828b-7e8b0b265cf3",
-        "userEmail": "dana.dinesh@goodenoughlabs.ai",
+        "name": "devices/EiQ4Mzk2Y2YxMS1lODhjLTRhM2ItYmQ1Zi1kZWYwMjQ2NTdhNGU%3D/deviceUsers/8396cf11-e88c-4a3b-bd5f-def024657a4e",
+        "userEmail": "alice@example.com",
         "managementState": "APPROVED",
-        "firstSyncTime": DEVICE_1_CREATE_TIME,
-        "lastSyncTime": DEVICE_1_CREATE_TIME,
+        "firstSyncTime": "2025-10-23T18:37:43.331Z",
+        "lastSyncTime": "2025-10-29T19:17:23.952Z",
         "passwordState": "PASSWORD_SET",
-        "createTime": DEVICE_1_CREATE_TIME,
+        "createTime": "2025-10-23T18:37:43.331Z",
     },
     {
-        "name": "devices/EiQ4Mzk2Y2YxMS1lODhjLTRhM2ItYmQ1Zi1kZWYwMjQ2NTdhNGU%3D/deviceUsers/8396cf11-e88c-4a3b-bd5f-def024657a4e",
-        "userEmail": "gil.fowler@goodenoughlabs.ai",
+        "name": "devices/EiRlNzYzZjYyNC1lNWMyLTQ3NmItODI4Yi03ZThiMGIyNjVjZjM%3D/deviceUsers/e763f624-e5c2-476b-828b-7e8b0b265cf3",
+        "userEmail": "bob@example.com",
         "managementState": "APPROVED",
-        "firstSyncTime": DEVICE_2_CREATE_TIME,
-        "lastSyncTime": DEVICE_2_LAST_SYNC_TIME,
+        "firstSyncTime": "2025-10-28T00:31:28.806Z",
+        "lastSyncTime": "2025-10-29T08:02:55.674Z",
         "passwordState": "PASSWORD_SET",
-        "createTime": DEVICE_2_CREATE_TIME,
+        "createTime": "2025-10-28T00:31:28.806Z",
     },
 ]

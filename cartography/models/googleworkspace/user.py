@@ -87,7 +87,9 @@ class GoogleWorkspaceUserToTenantRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: GoogleWorkspaceUserToTenantRelProperties = GoogleWorkspaceUserToTenantRelProperties()
+    properties: GoogleWorkspaceUserToTenantRelProperties = (
+        GoogleWorkspaceUserToTenantRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -98,5 +100,7 @@ class GoogleWorkspaceUserSchema(CartographyNodeSchema):
 
     label: str = "GoogleWorkspaceUser"
     properties: GoogleWorkspaceUserNodeProperties = GoogleWorkspaceUserNodeProperties()
-    sub_resource_relationship: GoogleWorkspaceUserToTenantRel = GoogleWorkspaceUserToTenantRel()
+    sub_resource_relationship: GoogleWorkspaceUserToTenantRel = (
+        GoogleWorkspaceUserToTenantRel()
+    )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])

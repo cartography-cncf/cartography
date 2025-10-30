@@ -9,9 +9,10 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.models.googleworkspace.group import GoogleWorkspaceGroupSchema
-from cartography.models.googleworkspace.group import GoogleWorkspaceGroupToGroupMemberRel
+from cartography.models.googleworkspace.group import (
+    GoogleWorkspaceGroupToGroupMemberRel,
+)
 from cartography.models.googleworkspace.group import GoogleWorkspaceGroupToGroupOwnerRel
-from cartography.models.googleworkspace.tenant import GoogleWorkspaceTenantSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -20,9 +21,7 @@ GOOGLE_API_NUM_RETRIES = 5
 
 
 @timeit
-def get_all_groups(
-    admin: Resource
-) -> list[dict[str, Any]]:
+def get_all_groups(admin: Resource) -> list[dict[str, Any]]:
     """
     Return list of Google Groups in your organization
     Returns empty list if we are unable to enumerate the groups for any reasons
@@ -147,7 +146,9 @@ def load_googleworkspace_groups(
     """
     Load Google Workspace groups using the modern data model
     """
-    logger.info("Ingesting %d Google Workspace groups for customer %s", len(groups), customer_id)
+    logger.info(
+        "Ingesting %d Google Workspace groups for customer %s", len(groups), customer_id
+    )
 
     # Load groups with relationship to tenant
     load(
@@ -264,7 +265,9 @@ def sync_googleworkspace_groups(
     )
 
     # 3. LOAD - Ingest to Neo4j using data model
-    load_googleworkspace_groups(neo4j_session, groups, customer_id, googleworkspace_update_tag)
+    load_googleworkspace_groups(
+        neo4j_session, groups, customer_id, googleworkspace_update_tag
+    )
 
     # Load group-to-group relationships after groups are loaded
     load_googleworkspace_group_to_group_relationships(
@@ -277,4 +280,6 @@ def sync_googleworkspace_groups(
 
     # 4. CLEANUP - Remove stale data
     cleanup_params = {**common_job_parameters, "CUSTOMER_ID": customer_id}
-    cleanup_googleworkspace_groups(neo4j_session, cleanup_params, customer_id, googleworkspace_update_tag)
+    cleanup_googleworkspace_groups(
+        neo4j_session, cleanup_params, customer_id, googleworkspace_update_tag
+    )

@@ -58,7 +58,9 @@ class GoogleWorkspaceDeviceNodeProperties(CartographyNodeProperties):
 
     # Additional identifiers
     unified_device_id: PropertyRef = PropertyRef("unifiedDeviceId")
-    endpoint_verification_specific_attributes: PropertyRef = PropertyRef("endpointVerificationSpecificAttributes")
+    endpoint_verification_specific_attributes: PropertyRef = PropertyRef(
+        "endpointVerificationSpecificAttributes"
+    )
 
     # Tenant relationship
     customer_id: PropertyRef = PropertyRef("CUSTOMER_ID", set_in_kwargs=True)
@@ -83,7 +85,9 @@ class GoogleWorkspaceDeviceToTenantRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: GoogleWorkspaceDeviceToTenantRelProperties = GoogleWorkspaceDeviceToTenantRelProperties()
+    properties: GoogleWorkspaceDeviceToTenantRelProperties = (
+        GoogleWorkspaceDeviceToTenantRelProperties()
+    )
 
 
 # Direct relationship from GoogleWorkspaceUser to GoogleWorkspaceDevice
@@ -103,7 +107,9 @@ class GoogleWorkspaceUserToDeviceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNS"
-    properties: GoogleWorkspaceUserToDeviceRelProperties = GoogleWorkspaceUserToDeviceRelProperties()
+    properties: GoogleWorkspaceUserToDeviceRelProperties = (
+        GoogleWorkspaceUserToDeviceRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -113,8 +119,14 @@ class GoogleWorkspaceDeviceSchema(CartographyNodeSchema):
     """
 
     label: str = "GoogleWorkspaceDevice"
-    properties: GoogleWorkspaceDeviceNodeProperties = GoogleWorkspaceDeviceNodeProperties()
-    sub_resource_relationship: GoogleWorkspaceDeviceToTenantRel = GoogleWorkspaceDeviceToTenantRel()
-    other_relationships: OtherRelationships = OtherRelationships([
-        GoogleWorkspaceUserToDeviceRel(),
-    ])
+    properties: GoogleWorkspaceDeviceNodeProperties = (
+        GoogleWorkspaceDeviceNodeProperties()
+    )
+    sub_resource_relationship: GoogleWorkspaceDeviceToTenantRel = (
+        GoogleWorkspaceDeviceToTenantRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            GoogleWorkspaceUserToDeviceRel(),
+        ]
+    )

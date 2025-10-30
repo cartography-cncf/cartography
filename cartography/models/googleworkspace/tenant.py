@@ -24,5 +24,7 @@ class GoogleWorkspaceTenantSchema(CartographyNodeSchema):
     """
 
     label: str = "GoogleWorkspaceTenant"
-    properties: GoogleWorkspaceTenantNodeProperties = GoogleWorkspaceTenantNodeProperties()
+    properties: GoogleWorkspaceTenantNodeProperties = (
+        GoogleWorkspaceTenantNodeProperties()
+    )
     sub_resource_relationship: None = None  # Tenant is the root level

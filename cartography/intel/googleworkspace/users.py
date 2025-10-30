@@ -120,7 +120,12 @@ def sync_googleworkspace_users(
     raw_users = transform_users(resp_objs)
 
     # 3. LOAD - Ingest to Neo4j using data model
-    load_googleworkspace_users(neo4j_session, raw_users, googleworkspace_update_tag, common_job_parameters["CUSTOMER_ID"])
+    load_googleworkspace_users(
+        neo4j_session,
+        raw_users,
+        googleworkspace_update_tag,
+        common_job_parameters["CUSTOMER_ID"],
+    )
 
     # 4. CLEANUP - Remove stale data
     cleanup_googleworkspace_users(neo4j_session, common_job_parameters)

@@ -101,13 +101,13 @@ Represents a device managed by Google Workspace.
 
 ### Relationships
 
-- Device belongs to tenant: 
-    
+- Device belongs to tenant:
+
     ```
     (:GoogleWorkspaceDevice)-[:RESOURCE]->(:GoogleWorkspaceTenant)
     ```
 
-- User owns device: 
+- User owns device:
 
     ```
     (:GoogleWorkspaceUser)-[:OWNS]->(:GoogleWorkspaceDevice)
