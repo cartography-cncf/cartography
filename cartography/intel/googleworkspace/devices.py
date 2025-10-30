@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import Any
+import datetime
 
 import neo4j
 from googleapiclient.discovery import Resource
@@ -23,11 +24,13 @@ def get_devices(
     """
     Fetch all devices from Google Cloud Identity API.
     """
+    # Only fetch user synced in the last 90 days
+    from_date = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=90)
     request = cloudidentity.devices().list(
         customer="customers/my_customer",
         pageSize=100,
         orderBy="last_sync_time desc",
-        # WIP: filter="2016-04-26T14:23:05.."
+        filter=f"sync:{from_date.isoformat().split('.')[0]}.."
     )
     response_objects = []
     while request is not None:
@@ -123,15 +126,10 @@ def transform_devices(
                 device_name,
             )
 
-    print("MAPPING:", device_user_map)
-
     # Now transform each device, adding its users
     for device in devices:
-        # WIP: Filter on Last Sync Time ?
-
         # Extract device ID from name path (devices/EiRlNzYzZjYyNC1...)
         device_name = device["name"]
-        print(device_name)
 
         transformed = {
             # Required fields
@@ -183,7 +181,6 @@ def transform_devices(
                 else None
             ),
         }
-        print("OWNER:", transformed["owner_email"])
         result.append(transformed)
 
     return result
@@ -237,7 +234,6 @@ def sync_googleworkspace_devices(
     # 1. GET - Fetch devices data
     raw_devices = get_devices(cloudidentity)
     raw_device_users = get_device_users(cloudidentity)
-    print(raw_device_users)
 
     # 2. TRANSFORM - Shape data for ingestion
     transformed_devices = transform_devices(raw_devices, raw_device_users)

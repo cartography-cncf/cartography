@@ -40,8 +40,6 @@ def test_sync_googleworkspace_users(_mock_get_all_users, neo4j_session):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "CUSTOMER_ID": TEST_CUSTOMER_ID,
     }
-
-    # Ensure tenant exists
     _ensure_local_neo4j_has_test_tenant(neo4j_session)
 
     # Act

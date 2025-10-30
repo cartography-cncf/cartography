@@ -1,3 +1,5 @@
+import datetime
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.googleworkspace.devices
@@ -16,19 +18,27 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 TEST_CUSTOMER_ID = "ABC123CD"
 
+# Fixed date for testing - set to November 1st, 2025
+# This is after all the lastSyncTime dates in test data (Oct 27-29, 2025)
+FIXED_TEST_DATE = datetime.datetime(2025, 11, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
 
-@patch.object(
-    cartography.intel.googleworkspace.devices,
-    "get_device_users",
-    return_value=MOCK_DEVICE_USERS_RESPONSE,
-)
+
+@patch("cartography.intel.googleworkspace.devices.datetime")
 @patch.object(
     cartography.intel.googleworkspace.devices,
     "get_devices",
     return_value=MOCK_DEVICES_RESPONSE,
 )
+@patch.object(
+    cartography.intel.googleworkspace.devices,
+    "get_device_users",
+    return_value=MOCK_DEVICE_USERS_RESPONSE,
+)
 def test_sync_googleworkspace_devices(
-    _mock_get_devices, _mock_get_device_users, neo4j_session
+    _mock_get_device_users,
+    _mock_get_devices,
+    mock_datetime_module,
+    neo4j_session,
 ):
     """
     Test that Google Workspace devices sync correctly and create proper nodes and relationships
@@ -38,10 +48,13 @@ def test_sync_googleworkspace_devices(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "CUSTOMER_ID": TEST_CUSTOMER_ID,
     }
-
-    # Ensure tenant and users exist for device relationships
     _ensure_local_neo4j_has_test_tenant(neo4j_session)
     _ensure_local_neo4j_has_test_users(neo4j_session)
+    # Mock datetime module to use real datetime but with fixed now()
+    mock_datetime_module.datetime = MagicMock()
+    mock_datetime_module.datetime.now.return_value = FIXED_TEST_DATE
+    mock_datetime_module.timedelta = datetime.timedelta
+    mock_datetime_module.timezone = datetime.timezone
 
     # Then sync devices
     sync_googleworkspace_devices(
