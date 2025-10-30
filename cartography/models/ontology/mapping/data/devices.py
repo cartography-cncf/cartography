@@ -10,7 +10,7 @@ bigfix_mapping = OntologyMapping(
             node_label="BigfixComputer",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="computername"
+                    ontology_field="hostname", node_field="computername", required=True
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
             ],
@@ -23,7 +23,9 @@ crowdstrike_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="CrowdstrikeHost",
             fields=[
-                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
+                OntologyFieldMapping(
+                    ontology_field="hostname", node_field="hostname", required=True
+                ),
                 OntologyFieldMapping(
                     ontology_field="os_version", node_field="os_version"
                 ),
@@ -47,7 +49,7 @@ duo_mapping = OntologyMapping(
             node_label="DuoEndpoint",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="device_name"
+                    ontology_field="hostname", node_field="device_name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os_family"),
                 OntologyFieldMapping(
@@ -59,7 +61,9 @@ duo_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="DuoPhone",
             fields=[
-                OntologyFieldMapping(ontology_field="hostname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="hostname", node_field="name", required=True
+                ),
                 OntologyFieldMapping(ontology_field="model", node_field="model"),
                 OntologyFieldMapping(ontology_field="platform", node_field="platform"),
             ],
@@ -69,12 +73,12 @@ duo_mapping = OntologyMapping(
         OntologyRelMapping(
             __comment__="Link Device to User based on DuoUser-DuoPhone relationship",
             query="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_PHONE]-(:DuoPhone)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            interative=False,
+            iterative=False,
         ),
         OntologyRelMapping(
             __comment__="Link Device to User based on DuoUser-DuoEndpoint relationship",
             query="MATCH (u:User)-[:HAS_ACCOUNT]->(:DuoUser)-[:HAS_DUO_ENDPOINT]-(:DuoEndpoint)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            interative=False,
+            iterative=False,
         ),
     ],
 )
@@ -85,7 +89,7 @@ kandji_mapping = OntologyMapping(
             node_label="KandjiDevice",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="device_name"
+                    ontology_field="hostname", node_field="device_name", required=True
                 ),
                 OntologyFieldMapping(
                     ontology_field="serial_number", node_field="serial_number"
@@ -105,7 +109,9 @@ snipeit_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="SnipeitAsset",
             fields=[
-                OntologyFieldMapping(ontology_field="hostname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="hostname", node_field="name", required=True
+                ),
                 OntologyFieldMapping(
                     ontology_field="serial_number", node_field="serial"
                 ),
@@ -117,7 +123,7 @@ snipeit_mapping = OntologyMapping(
         OntologyRelMapping(
             __comment__="Link Device to User based on SnipeitUser-SnipeitAsset relationship",
             query="MATCH (u:User)-[:HAS_ACCOUNT]->(:SnipeitUser)-[:HAS_CHECKED_OUT]-(:SnipeitAsset)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            interative=False,
+            iterative=False,
         )
     ],
 )
@@ -127,7 +133,9 @@ tailscale_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="TailscaleDevice",
             fields=[
-                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
+                OntologyFieldMapping(
+                    ontology_field="hostname", node_field="hostname", required=True
+                ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
             ],
         ),
@@ -136,7 +144,7 @@ tailscale_mapping = OntologyMapping(
         OntologyRelMapping(
             __comment__="Link Device to User based on TailscaleUser-TailscaleDevice relationship",
             query="MATCH (u:User)-[:HAS_ACCOUNT]->(:TailscaleUser)-[:OWNS]-(:TailscaleDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            interative=False,
+            iterative=False,
         )
     ],
 )
