@@ -93,7 +93,7 @@ class GoogleWorkspaceGroupToMemberRel(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "MEMBER_GOOGLEWORKSPACE_GROUP"
+    rel_label: str = "MEMBER_OF"
     properties: GoogleWorkspaceGroupToMemberRelProperties = (
         GoogleWorkspaceGroupToMemberRelProperties()
     )
@@ -121,7 +121,7 @@ class GoogleWorkspaceGroupToOwnerRel(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "OWNER_GOOGLEWORKSPACE_GROUP"
+    rel_label: str = "OWNER_OF"
     properties: GoogleWorkspaceGroupToOwnerRelProperties = (
         GoogleWorkspaceGroupToOwnerRelProperties()
     )
@@ -185,7 +185,7 @@ class GoogleWorkspaceGroupToGroupMemberRel(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "MEMBER_GOOGLEWORKSPACE_GROUP"
+    rel_label: str = "MEMBER_OF"
     properties: GoogleWorkspaceGroupToGroupMemberRelProperties = (
         GoogleWorkspaceGroupToGroupMemberRelProperties()
     )
@@ -224,7 +224,7 @@ class GoogleWorkspaceGroupToGroupOwnerRel(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "OWNER_GOOGLEWORKSPACE_GROUP"
+    rel_label: str = "OWNER_OF"
     properties: GoogleWorkspaceGroupToGroupOwnerRelProperties = (
         GoogleWorkspaceGroupToGroupOwnerRelProperties()
     )

@@ -1,5 +1,35 @@
 ## Google Workspace Schema
 
+
+### GoogleWorkspaceTenant
+Represents a Google Workspace tenant (customer account).
+
+| Field | Description |
+|-------|-------------|
+| id | The unique ID for the Google Workspace customer account. A customer id can be used
+| domain | The primary domain name for the Google Workspace customer account.
+| name | The name of the organization associated with the Google Workspace customer account.
+| lastupdated | Timestamp of when a sync job last updated this node
+| firstseen | PropertyRef = PropertyRef("firstseen")
+
+#### Node Labels
+- `GoogleWorkspaceTenant`
+
+#### Relationships
+- Tenant has users:
+    ```
+    (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceUser)
+    ```
+- Tenant has groups:
+    ```
+    (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceGroup)
+    ```
+- Tenant has devices:
+    ```
+    (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceDevice)
+    ```
+
+
 ### GoogleWorkspaceUser
 
 Reference:
@@ -29,6 +59,7 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
 | org_unit_path | The full path of the parent organization associated with the user. If the parent organization is the top-level, it is represented as a forward slash (/).
 | primary_email | The user's primary email address. This property is required in a request to create a user account. The primaryEmail must be unique and cannot be an alias of another user.
 | suspended | Indicates if user is suspended
+| archived | Indicates if user is archived
 | thumbnail_photo_etag | ETag of the user's photo
 | thumbnail_photo_url | Photo Url of the user
 | lastupdated | Timestamp of when a sync job last updated this node
@@ -37,12 +68,32 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
 #### Node Labels
 
 - `GoogleWorkspaceUser`
+- `UserAccount`
 - `GCPPrincipal`
 
 #### Relationships
-- GoogleWorkspaceUser is an identity for a Human
+- GoogleTenant has users:
+
     ```
-    (Human)-[IDENTITY_GOOGLEWORKSPACE]->(GoogleWorkspaceUser)
+    (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceUser)
+    ```
+
+- User belongs to groups:
+
+    ```
+    (GoogleWorkspaceUser)-[MEMBER_OF]->(GoogleWorkspaceGroup)
+    ```
+
+- User owns group:
+    
+    ```
+    (GoogleWorkspaceUser)-[OWNER_OF]->(GoogleWorkspaceGroup)
+    ```
+
+- User owns device:
+    
+    ```
+    (GoogleWorkspaceUser)-[OWNS]->(GoogleWorkspaceDevice)
     ```
 
 ### GoogleWorkspaceGroup
@@ -54,6 +105,7 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
 | Field | Description |
 |-------|--------------|
 | id | The unique ID of a group. A group id can be used as a group request URI's groupKey.
+| group_id | duplicate of id.
 | admin_created | Value is true if this group was created by an administrator rather than a user.
 | description |  An extended description to help users determine the purpose of a group. For example, you can include information about who should join the group, the types of messages to send to the group, links to FAQs about the group, or related groups. Maximum length is 4,096 characters.
 | direct_members_count | The number of users that are direct members of the group. If a group is a member (child) of this group (the parent), members of the child group are not counted in the directMembersCount property of the parent group
@@ -70,11 +122,34 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
 - `GCPPrincipal`
 
 #### Relationships
+- GoogleTenant has groups:
+
+    ```
+    (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceGroup)
+    ```
 
 - GoogleWorkspaceGroup can have members that are GoogleWorkspaceUsers.
 
     ```
     (GoogleWorkspaceUser)-[MEMBER_OF]->(GoogleWorkspaceGroup)
+    ```
+
+- GoogleWorkspaceGroup can have owners that are GoogleWorkspaceUsers.
+
+    ```
+    (GoogleWorkspaceUser)-[OWNER_OF]->(GoogleWorkspaceGroup)
+    ```
+
+- Group can be member of another group:
+
+    ```
+    (GoogleWorkspaceGroup)-[MEMBER_OF]->(GoogleWorkspaceGroup)
+    ```
+
+- Group can own another group:
+
+    ```
+    (GoogleWorkspaceGroup)-[OWNER_OF]->(GoogleWorkspaceGroup)
     ```
 
 
@@ -84,20 +159,39 @@ Represents a device managed by Google Workspace.
 
 | Field | Description |
 |-------|-------------|
-| id | Unique device identifier (full device name) |
-| name | Full device name (same as id) |
-| deviceId | Device hardware identifier |
+| id | Unique device identifier (deviceId) |
+| lastupdated | Timestamp of when a sync job last updated this node |
+| hostname | Device hostname (indexed) |
 | model | Device model |
 | manufacturer | Device manufacturer |
-| deviceType | Type of device (ANDROID, MAC_OS, etc.) |
-| osVersion | Operating system version |
-| ownerType | Device ownership type (BYOD, etc.) |
-| encryptionState | Device encryption status |
-| compromisedState | Device security compromise status |
-| managementState | Device management status |
-| createTime | Device creation timestamp |
-| lastSyncTime | Last synchronization timestamp |
-| androidSpecificAttributes | Android-specific device attributes |
+| release_version | Device release version |
+| brand | Device brand |
+| build_number | Device build number |
+| kernel_version | Device kernel version |
+| baseband_version | Device baseband version |
+| device_type | Type of device (ANDROID, MAC_OS, etc.) |
+| os_version | Operating system version |
+| owner_type | Device ownership type (BYOD, etc.) |
+| serial_number | Device serial number |
+| asset_tag | Asset tag assigned to device |
+| imei | International Mobile Equipment Identity |
+| meid | Mobile Equipment Identifier |
+| wifi_mac_addresses | WiFi MAC addresses |
+| network_operator | Network operator |
+| encryption_state | Device encryption status |
+| compromised_state | Device security compromise status |
+| management_state | Device management status |
+| create_time | Device creation timestamp |
+| last_sync_time | Last synchronization timestamp |
+| security_patch_time | Security patch timestamp |
+| android_specific_attributes | Android-specific device attributes |
+| enabled_developer_options | Whether developer options are enabled |
+| enabled_usb_debugging | Whether USB debugging is enabled |
+| bootloader_version | Bootloader version |
+| other_accounts | Other accounts on the device |
+| unified_device_id | Unified device identifier |
+| endpoint_verification_specific_attributes | Endpoint verification attributes |
+| customer_id | The Google Workspace customer ID |
 
 ### Relationships
 
