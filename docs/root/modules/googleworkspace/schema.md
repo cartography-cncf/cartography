@@ -1,5 +1,23 @@
 ## Google Workspace Schema
 
+```mermaid
+graph LR
+    T(GoogleWorkspaceTenant) -- RESOURCE --> U(GoogleWorkspaceUser)
+    T -- RESOURCE --> G(GoogleWorkspaceGroup)
+    T -- RESOURCE --> D(GoogleWorkspaceDevice)
+    U -- MEMBER_OF --> G
+    U -- OWNER_OF --> G
+    U -- OWNS --> D
+    U -. INHERITED_MEMBER_OF .-> G
+    U -. INHERITED_OWNER_OF .-> G
+    G -- MEMBER_OF --> G
+    G -- OWNER_OF --> G
+    G -. INHERITED_MEMBER_OF .-> G
+    G -. INHERITED_OWNER_OF .-> G
+```
+
+**Note:** Dashed lines represent inherited relationships that are computed automatically based on group hierarchy.
+
 
 ### GoogleWorkspaceTenant
 Represents a Google Workspace tenant (customer account).
@@ -96,6 +114,19 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
     (GoogleWorkspaceUser)-[OWNS]->(GoogleWorkspaceDevice)
     ```
 
+- User has inherited membership in group (through group hierarchy):
+
+    ```
+    (GoogleWorkspaceUser)-[INHERITED_MEMBER_OF]->(GoogleWorkspaceGroup)
+    ```
+
+- User has inherited ownership of group (through group hierarchy):
+
+    ```
+    (GoogleWorkspaceUser)-[INHERITED_OWNER_OF]->(GoogleWorkspaceGroup)
+    ```
+
+
 ### GoogleWorkspaceGroup
 
 Reference:
@@ -150,6 +181,19 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
 
     ```
     (GoogleWorkspaceGroup)-[OWNER_OF]->(GoogleWorkspaceGroup)
+    ```
+
+- Group has inherited membership in another group (through group hierarchy):
+
+    ```
+    (GoogleWorkspaceGroup)-[INHERITED_MEMBER_OF]->(GoogleWorkspaceGroup)
+    ```
+
+
+- Group has inherited ownership of another group (through group hierarchy):
+
+    ```
+    (GoogleWorkspaceGroup)-[INHERITED_OWNER_OF]->(GoogleWorkspaceGroup)
     ```
 
 

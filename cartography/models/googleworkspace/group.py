@@ -228,3 +228,156 @@ class GoogleWorkspaceGroupToGroupOwnerRel(CartographyRelSchema):
     properties: GoogleWorkspaceGroupToGroupOwnerRelProperties = (
         GoogleWorkspaceGroupToGroupOwnerRelProperties()
     )
+
+
+# Inherited relationship MatchLinks
+@dataclass(frozen=True)
+class GoogleWorkspaceUserToGroupInheritedMemberRelProperties(CartographyRelProperties):
+    """
+    Properties for inherited member relationship from user to group
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GoogleWorkspaceUserToGroupInheritedMemberRel(CartographyRelSchema):
+    """
+    MatchLink that creates INHERITED_MEMBER_OF relationships from users to groups
+    they are indirectly members of through group hierarchy.
+
+    Example: User -> MEMBER_OF -> SubGroup -> MEMBER_OF -> ParentGroup
+    This creates: User -> INHERITED_MEMBER_OF -> ParentGroup
+    """
+
+    target_node_label: str = "GoogleWorkspaceGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("group_id")}
+    )
+    source_node_label: str = "GoogleWorkspaceUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("user_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "INHERITED_MEMBER_OF"
+    properties: GoogleWorkspaceUserToGroupInheritedMemberRelProperties = (
+        GoogleWorkspaceUserToGroupInheritedMemberRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GoogleWorkspaceUserToGroupInheritedOwnerRelProperties(CartographyRelProperties):
+    """
+    Properties for inherited owner relationship from user to group
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GoogleWorkspaceUserToGroupInheritedOwnerRel(CartographyRelSchema):
+    """
+    MatchLink that creates INHERITED_OWNER_OF relationships from users to groups
+    they are indirectly owners of through group hierarchy.
+
+    Example: User -> OWNER_OF -> SubGroup -> MEMBER_OF -> ParentGroup
+    This creates: User -> INHERITED_OWNER_OF -> ParentGroup
+    """
+
+    target_node_label: str = "GoogleWorkspaceGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("group_id")}
+    )
+    source_node_label: str = "GoogleWorkspaceUser"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("user_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "INHERITED_OWNER_OF"
+    properties: GoogleWorkspaceUserToGroupInheritedOwnerRelProperties = (
+        GoogleWorkspaceUserToGroupInheritedOwnerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GoogleWorkspaceGroupToGroupInheritedMemberRelProperties(CartographyRelProperties):
+    """
+    Properties for inherited member relationship from group to group
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GoogleWorkspaceGroupToGroupInheritedMemberRel(CartographyRelSchema):
+    """
+    MatchLink that creates INHERITED_MEMBER_OF relationships from groups to groups
+    they are indirectly members of through group hierarchy.
+
+    Example: SubGroup1 -> MEMBER_OF -> SubGroup2 -> MEMBER_OF -> ParentGroup
+    This creates: SubGroup1 -> INHERITED_MEMBER_OF -> ParentGroup
+    """
+
+    target_node_label: str = "GoogleWorkspaceGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("target_group_id")}
+    )
+    source_node_label: str = "GoogleWorkspaceGroup"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("source_group_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "INHERITED_MEMBER_OF"
+    properties: GoogleWorkspaceGroupToGroupInheritedMemberRelProperties = (
+        GoogleWorkspaceGroupToGroupInheritedMemberRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GoogleWorkspaceGroupToGroupInheritedOwnerRelProperties(CartographyRelProperties):
+    """
+    Properties for inherited owner relationship from group to group
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GoogleWorkspaceGroupToGroupInheritedOwnerRel(CartographyRelSchema):
+    """
+    MatchLink that creates INHERITED_OWNER_OF relationships from groups to groups
+    they are indirectly owners of through group hierarchy.
+
+    Example: SubGroup1 -> OWNER_OF -> SubGroup2 -> MEMBER_OF -> ParentGroup
+    This creates: SubGroup1 -> INHERITED_OWNER_OF -> ParentGroup
+    """
+
+    target_node_label: str = "GoogleWorkspaceGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("target_group_id")}
+    )
+    source_node_label: str = "GoogleWorkspaceGroup"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("source_group_id")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "INHERITED_OWNER_OF"
+    properties: GoogleWorkspaceGroupToGroupInheritedOwnerRelProperties = (
+        GoogleWorkspaceGroupToGroupInheritedOwnerRelProperties()
+    )

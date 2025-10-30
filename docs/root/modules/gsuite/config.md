@@ -1,5 +1,9 @@
 ## GSuite Configuration
 
+:::{important} Deprecated Module
+This module has been deprecated and replaced by the [Google Workspace](../googleworkspace/) module. Please refer to the Google Workspace module for the latest features and updates.
+:::
+
 This module allows authentication from a service account or via OAuth tokens.
 
 Method 1: Using service account (legacy)

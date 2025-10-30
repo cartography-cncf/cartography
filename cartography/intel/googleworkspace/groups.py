@@ -10,9 +10,21 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.models.googleworkspace.group import GoogleWorkspaceGroupSchema
 from cartography.models.googleworkspace.group import (
+    GoogleWorkspaceGroupToGroupInheritedMemberRel,
+)
+from cartography.models.googleworkspace.group import (
+    GoogleWorkspaceGroupToGroupInheritedOwnerRel,
+)
+from cartography.models.googleworkspace.group import (
     GoogleWorkspaceGroupToGroupMemberRel,
 )
 from cartography.models.googleworkspace.group import GoogleWorkspaceGroupToGroupOwnerRel
+from cartography.models.googleworkspace.group import (
+    GoogleWorkspaceUserToGroupInheritedMemberRel,
+)
+from cartography.models.googleworkspace.group import (
+    GoogleWorkspaceUserToGroupInheritedOwnerRel,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -89,6 +101,130 @@ def get_members_for_groups(
         results[group_email] = members
 
     return results
+
+
+@timeit
+def get_user_inherited_member_relationships(
+    neo4j_session: neo4j.Session,
+    customer_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Query Neo4j to find User -> INHERITED_MEMBER_OF -> Group relationships.
+
+    Finds users who are indirectly members of groups through the group hierarchy:
+    User -[:MEMBER_OF]-> SubGroup -[:MEMBER_OF*1..]-> ParentGroup
+
+    Returns list of relationship data for load_matchlinks():
+    [
+        {"user_id": "user-1", "group_id": "group-parent"},
+        ...
+    ]
+    """
+    query = """
+        MATCH (u:GoogleWorkspaceUser)-[:RESOURCE]->(t:GoogleWorkspaceTenant {id: $CUSTOMER_ID}),
+              (u)-[:MEMBER_OF]->(g1:GoogleWorkspaceGroup)-[:MEMBER_OF*1..]->(g2:GoogleWorkspaceGroup)
+        RETURN DISTINCT u.id AS user_id, g2.id AS group_id
+    """
+    result = neo4j_session.run(query, CUSTOMER_ID=customer_id)
+    relationships = [dict(record) for record in result]
+    logger.debug(
+        "Found %d User INHERITED_MEMBER_OF Group relationships",
+        len(relationships),
+    )
+    return relationships
+
+
+@timeit
+def get_user_inherited_owner_relationships(
+    neo4j_session: neo4j.Session,
+    customer_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Query Neo4j to find User -> INHERITED_OWNER_OF -> Group relationships.
+
+    Finds users who are indirectly owners of groups through the group hierarchy:
+    User -[:OWNER_OF]-> SubGroup -[:MEMBER_OF*1..]-> ParentGroup
+
+    Returns list of relationship data for load_matchlinks():
+    [
+        {"user_id": "user-1", "group_id": "group-parent"},
+        ...
+    ]
+    """
+    query = """
+        MATCH (u:GoogleWorkspaceUser)-[:RESOURCE]->(t:GoogleWorkspaceTenant {id: $CUSTOMER_ID}),
+              (u)-[:OWNER_OF]->(g1:GoogleWorkspaceGroup)-[:MEMBER_OF*1..]->(g2:GoogleWorkspaceGroup)
+        RETURN DISTINCT u.id AS user_id, g2.id AS group_id
+    """
+    result = neo4j_session.run(query, CUSTOMER_ID=customer_id)
+    relationships = [dict(record) for record in result]
+    logger.debug(
+        "Found %d User INHERITED_OWNER_OF Group relationships",
+        len(relationships),
+    )
+    return relationships
+
+
+@timeit
+def get_group_inherited_member_relationships(
+    neo4j_session: neo4j.Session,
+    customer_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Query Neo4j to find Group -> INHERITED_MEMBER_OF -> Group relationships.
+
+    Finds groups that are indirectly members of other groups through hierarchy:
+    SubGroup1 -[:MEMBER_OF]-> SubGroup2 -[:MEMBER_OF*1..]-> ParentGroup
+
+    Returns list of relationship data for load_matchlinks():
+    [
+        {"source_group_id": "group-sub1", "target_group_id": "group-parent"},
+        ...
+    ]
+    """
+    query = """
+        MATCH (g1:GoogleWorkspaceGroup)-[:RESOURCE]->(t:GoogleWorkspaceTenant {id: $CUSTOMER_ID}),
+              (g1)-[:MEMBER_OF]->(g2:GoogleWorkspaceGroup)-[:MEMBER_OF*1..]->(g3:GoogleWorkspaceGroup)
+        RETURN DISTINCT g1.id AS source_group_id, g3.id AS target_group_id
+    """
+    result = neo4j_session.run(query, CUSTOMER_ID=customer_id)
+    relationships = [dict(record) for record in result]
+    logger.debug(
+        "Found %d Group INHERITED_MEMBER_OF Group relationships",
+        len(relationships),
+    )
+    return relationships
+
+
+@timeit
+def get_group_inherited_owner_relationships(
+    neo4j_session: neo4j.Session,
+    customer_id: str,
+) -> list[dict[str, Any]]:
+    """
+    Query Neo4j to find Group -> INHERITED_OWNER_OF -> Group relationships.
+
+    Finds groups that are indirectly owners of other groups through hierarchy:
+    SubGroup1 -[:OWNER_OF]-> SubGroup2 -[:MEMBER_OF*1..]-> ParentGroup
+
+    Returns list of relationship data for load_matchlinks():
+    [
+        {"source_group_id": "group-sub1", "target_group_id": "group-parent"},
+        ...
+    ]
+    """
+    query = """
+        MATCH (g1:GoogleWorkspaceGroup)-[:RESOURCE]->(t:GoogleWorkspaceTenant {id: $CUSTOMER_ID}),
+              (g1)-[:OWNER_OF]->(g2:GoogleWorkspaceGroup)-[:MEMBER_OF*1..]->(g3:GoogleWorkspaceGroup)
+        RETURN DISTINCT g1.id AS source_group_id, g3.id AS target_group_id
+    """
+    result = neo4j_session.run(query, CUSTOMER_ID=customer_id)
+    relationships = [dict(record) for record in result]
+    logger.debug(
+        "Found %d Group INHERITED_OWNER_OF Group relationships",
+        len(relationships),
+    )
+    return relationships
 
 
 @timeit
@@ -202,6 +338,67 @@ def load_googleworkspace_group_to_group_relationships(
 
 
 @timeit
+def load_googleworkspace_inherited_relationships(
+    neo4j_session: neo4j.Session,
+    user_member_rels: list[dict],
+    user_owner_rels: list[dict],
+    group_member_rels: list[dict],
+    group_owner_rels: list[dict],
+    customer_id: str,
+    googleworkspace_update_tag: int,
+) -> None:
+    """
+    Load inherited Google Workspace group relationships.
+
+    These relationships represent indirect memberships and ownerships
+    through the group hierarchy, computed via graph traversal.
+    """
+    logger.info("Computing inherited group relationships for customer %s", customer_id)
+
+    if user_member_rels:
+        load_matchlinks(
+            neo4j_session,
+            GoogleWorkspaceUserToGroupInheritedMemberRel(),
+            user_member_rels,
+            lastupdated=googleworkspace_update_tag,
+            _sub_resource_label="GoogleWorkspaceTenant",
+            _sub_resource_id=customer_id,
+        )
+
+    if user_owner_rels:
+        load_matchlinks(
+            neo4j_session,
+            GoogleWorkspaceUserToGroupInheritedOwnerRel(),
+            user_owner_rels,
+            lastupdated=googleworkspace_update_tag,
+            _sub_resource_label="GoogleWorkspaceTenant",
+            _sub_resource_id=customer_id,
+        )
+
+    if group_member_rels:
+        load_matchlinks(
+            neo4j_session,
+            GoogleWorkspaceGroupToGroupInheritedMemberRel(),
+            group_member_rels,
+            lastupdated=googleworkspace_update_tag,
+            _sub_resource_label="GoogleWorkspaceTenant",
+            _sub_resource_id=customer_id,
+        )
+
+    if group_owner_rels:
+        load_matchlinks(
+            neo4j_session,
+            GoogleWorkspaceGroupToGroupInheritedOwnerRel(),
+            group_owner_rels,
+            lastupdated=googleworkspace_update_tag,
+            _sub_resource_label="GoogleWorkspaceTenant",
+            _sub_resource_id=customer_id,
+        )
+
+    logger.info("Finished computing inherited group relationships")
+
+
+@timeit
 def cleanup_googleworkspace_groups(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
@@ -229,6 +426,39 @@ def cleanup_googleworkspace_groups(
     # Cleanup group-to-group owner relationships
     GraphJob.from_matchlink(
         GoogleWorkspaceGroupToGroupOwnerRel(),
+        "GoogleWorkspaceTenant",
+        customer_id,
+        googleworkspace_update_tag,
+    ).run(neo4j_session)
+
+    # Cleanup inherited relationships
+    logger.debug("Cleaning up inherited group relationships")
+
+    # Cleanup User -> Group inherited relationships
+    GraphJob.from_matchlink(
+        GoogleWorkspaceUserToGroupInheritedMemberRel(),
+        "GoogleWorkspaceTenant",
+        customer_id,
+        googleworkspace_update_tag,
+    ).run(neo4j_session)
+
+    GraphJob.from_matchlink(
+        GoogleWorkspaceUserToGroupInheritedOwnerRel(),
+        "GoogleWorkspaceTenant",
+        customer_id,
+        googleworkspace_update_tag,
+    ).run(neo4j_session)
+
+    # Cleanup Group -> Group inherited relationships
+    GraphJob.from_matchlink(
+        GoogleWorkspaceGroupToGroupInheritedMemberRel(),
+        "GoogleWorkspaceTenant",
+        customer_id,
+        googleworkspace_update_tag,
+    ).run(neo4j_session)
+
+    GraphJob.from_matchlink(
+        GoogleWorkspaceGroupToGroupInheritedOwnerRel(),
         "GoogleWorkspaceTenant",
         customer_id,
         googleworkspace_update_tag,
@@ -274,6 +504,27 @@ def sync_googleworkspace_groups(
         neo4j_session,
         group_member_relationships,
         group_owner_relationships,
+        customer_id,
+        googleworkspace_update_tag,
+    )
+
+    # Load inherited relationships (computed via graph traversal)
+    user_member_rels = get_user_inherited_member_relationships(
+        neo4j_session, customer_id
+    )
+    user_owner_rels = get_user_inherited_owner_relationships(neo4j_session, customer_id)
+    group_member_rels = get_group_inherited_member_relationships(
+        neo4j_session, customer_id
+    )
+    group_owner_rels = get_group_inherited_owner_relationships(
+        neo4j_session, customer_id
+    )
+    load_googleworkspace_inherited_relationships(
+        neo4j_session,
+        user_member_rels,
+        user_owner_rels,
+        group_member_rels,
+        group_owner_rels,
         customer_id,
         googleworkspace_update_tag,
     )

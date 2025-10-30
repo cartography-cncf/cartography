@@ -168,3 +168,70 @@ def test_sync_googleworkspace_groups_creates_group_hierarchy(
         )
         == expected_group_rels
     )
+
+
+@patch.object(
+    cartography.intel.googleworkspace.groups,
+    "get_members_for_groups",
+    return_value=MOCK_GOOGLEWORKSPACE_MEMBERS_BY_GROUP_EMAIL,
+)
+@patch.object(
+    cartography.intel.googleworkspace.groups,
+    "get_all_groups",
+    return_value=MOCK_GOOGLEWORKSPACE_GROUPS_RESPONSE,
+)
+@patch.object(
+    cartography.intel.googleworkspace.users,
+    "get_all_users",
+    return_value=MOCK_GOOGLEWORKSPACE_USERS_RESPONSE,
+)
+def test_sync_googleworkspace_groups_creates_inherited_relationships(
+    _mock_get_all_users,
+    _mock_get_all_groups,
+    _mock_get_members_for_groups,
+    neo4j_session,
+):
+    """
+    Test that syncing groups creates proper inherited relationships.
+
+    Inherited relationships represent indirect memberships through group hierarchy:
+    - User -> MEMBER_OF -> SubGroup -> MEMBER_OF -> ParentGroup
+      should create: User -> INHERITED_MEMBER_OF -> ParentGroup
+    """
+    # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _ensure_local_neo4j_has_test_tenant(neo4j_session)
+
+    # Act
+    sync_googleworkspace_users(
+        neo4j_session,
+        admin=None,  # Mocked
+        googleworkspace_update_tag=TEST_UPDATE_TAG,
+        common_job_parameters=COMMON_JOB_PARAMETERS,
+    )
+    sync_googleworkspace_groups(
+        neo4j_session,
+        admin=None,  # Mocked
+        googleworkspace_update_tag=TEST_UPDATE_TAG,
+        common_job_parameters=COMMON_JOB_PARAMETERS,
+    )
+
+    # Assert - Verify inherited user -> group relationships
+    # Based on the mock data:
+    # - user-2 (Homer) is MEMBER_OF operations group
+    # - operations group is MEMBER_OF engineering group
+    # Therefore: user-2 should have INHERITED_MEMBER_OF to engineering
+    expected_inherited_user_member_rels = {
+        ("user-2", "group-engineering"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GoogleWorkspaceUser",
+            "id",
+            "GoogleWorkspaceGroup",
+            "id",
+            "INHERITED_MEMBER_OF",
+        )
+        == expected_inherited_user_member_rels
+    )
