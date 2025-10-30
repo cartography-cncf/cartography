@@ -40,7 +40,7 @@ def test_sync_googleworkspace_tenant(_mock_get_tenant, neo4j_session):
 
     # Assert - Verify tenant was created
     expected_tenant_nodes = {
-        ("ABC123CD", "goodenoughlabs.ai"),
+        ("ABC123CD", "simpson.corp"),
     }
     assert (
         check_nodes(neo4j_session, "GoogleWorkspaceTenant", ["id", "domain"])

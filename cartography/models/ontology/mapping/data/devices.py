@@ -156,8 +156,7 @@ googleworkspace_mapping = OntologyMapping(
             node_label="GoogleWorkspaceDevice",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname",
-                    node_field="hostname",  # WIP: required=True
+                    ontology_field="hostname", node_field="hostname", required=True
                 ),
                 OntologyFieldMapping(
                     ontology_field="os_version", node_field="os_version"

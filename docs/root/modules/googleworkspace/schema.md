@@ -85,13 +85,13 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
     ```
 
 - User owns group:
-    
+
     ```
     (GoogleWorkspaceUser)-[OWNER_OF]->(GoogleWorkspaceGroup)
     ```
 
 - User owns device:
-    
+
     ```
     (GoogleWorkspaceUser)-[OWNS]->(GoogleWorkspaceDevice)
     ```

@@ -19,15 +19,15 @@ MOCK_GOOGLEWORKSPACE_USERS_RESPONSE = [
                 "kind": "admin#directory#user",
                 "lastLoginTime": "2024-01-01T12:34:56.000Z",
                 "name": {
-                    "fullName": "Alice Admin",
-                    "familyName": "Admin",
-                    "givenName": "Alice",
+                    "fullName": "Marge Simpson",
+                    "familyName": "Simpson",
+                    "givenName": "Marge",
                 },
                 "orgUnitPath": "/",
-                "primaryEmail": "alice@example.com",
+                "primaryEmail": "mbsimpson@simpson.corp",
                 "suspended": False,
                 "thumbnailPhotoEtag": "photo-etag-1",
-                "thumbnailPhotoUrl": "https://example.com/photo1.jpg",
+                "thumbnailPhotoUrl": "https://simpson.corp/photos/mbsimpson.jpg",
             },
             {
                 "id": "user-2",
@@ -47,15 +47,15 @@ MOCK_GOOGLEWORKSPACE_USERS_RESPONSE = [
                 "kind": "admin#directory#user",
                 "lastLoginTime": "2024-02-01T06:00:00.000Z",
                 "name": {
-                    "fullName": "Bob Builder",
-                    "familyName": "Builder",
-                    "givenName": "Bob",
+                    "fullName": "Homer Simpson",
+                    "familyName": "Simpson",
+                    "givenName": "Homer",
                 },
                 "orgUnitPath": "/Engineering",
-                "primaryEmail": "bob@example.com",
+                "primaryEmail": "hjsimpson@simpson.corp",
                 "suspended": False,
                 "thumbnailPhotoEtag": "photo-etag-2",
-                "thumbnailPhotoUrl": "https://example.com/photo2.jpg",
+                "thumbnailPhotoUrl": "https://simpson.corp/photos/hjsimpson.jpg",
             },
         ],
     },
@@ -67,7 +67,7 @@ MOCK_GOOGLEWORKSPACE_GROUPS_RESPONSE = [
         "adminCreated": True,
         "description": "Engineering team",
         "directMembersCount": 3,
-        "email": "engineering@example.com",
+        "email": "engineering@simpson.corp",
         "etag": "etag-group-1",
         "kind": "admin#directory#group",
         "name": "Engineering",
@@ -77,7 +77,7 @@ MOCK_GOOGLEWORKSPACE_GROUPS_RESPONSE = [
         "adminCreated": False,
         "description": "Operations sub-team",
         "directMembersCount": 1,
-        "email": "operations@example.com",
+        "email": "operations@simpson.corp",
         "etag": "etag-group-2",
         "kind": "admin#directory#group",
         "name": "Operations",
@@ -87,30 +87,30 @@ MOCK_GOOGLEWORKSPACE_GROUPS_RESPONSE = [
 
 # See: https://developers.google.com/workspace/admin/directory/v1/guides/manage-group-members#json-response_3
 MOCK_GOOGLEWORKSPACE_MEMBERS_BY_GROUP_EMAIL = {
-    "engineering@example.com": [
+    "engineering@simpson.corp": [
         {
             "id": "user-1",
-            "email": "user-1@example.com",
+            "email": "mbsimpson@simpson.corp",
             "type": "USER",
             "role": "MEMBER",
         },
         {
             "id": "user-2",
-            "email": "user-2@example.com",
+            "email": "hjsimpson@simpson.corp",
             "type": "USER",
             "role": "MEMBER",
         },
         {
             "id": "group-operations",
-            "email": "operations@example.com",
+            "email": "operations@simpson.corp",
             "type": "GROUP",
             "role": "MEMBER",
         },
     ],
-    "operations@example.com": [
+    "operations@simpson.corp": [
         {
             "id": "user-2",
-            "email": "user-2@example.com",
+            "email": "hjsimpson@simpson.corp",
             "type": "USER",
             "role": "MEMBER",
         },

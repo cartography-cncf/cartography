@@ -9,10 +9,12 @@ MOCK_DEVICES_RESPONSE = [
         "createTime": DEVICE_1_CREATE_TIME,
         "lastSyncTime": DEVICE_1_CREATE_TIME,
         "ownerType": "BYOD",
-        "model": "KB2005",
+        "model": "Samsung Galaxy S23",
         "deviceType": "ANDROID",
         "androidSpecificAttributes": {},
         "deviceId": "3aac7e1206db9d26",
+        "hostname": "slingshot-galaxy",
+        "serialNumber": "SIMP-ANDROID-MARGE-01",
     },
     {
         "name": "devices/EiQ4Mzk2Y2YxMS1lODhjLTRhM2ItYmQ1Zi1kZWYwMjQ2NTdhNGU%3D",
@@ -26,13 +28,15 @@ MOCK_DEVICES_RESPONSE = [
         "androidSpecificAttributes": {},
         "deviceId": "8396cf11-e88c-4a3b-bd5f-def024657a4e",
         "encryptionState": "ENCRYPTED",
+        "hostname": "donut-mac",
+        "serialNumber": "SIMP-MAC-HOMER-01",
     },
 ]
 
 MOCK_DEVICE_USERS_RESPONSE = [
     {
         "name": "devices/EiQ4Mzk2Y2YxMS1lODhjLTRhM2ItYmQ1Zi1kZWYwMjQ2NTdhNGU%3D/deviceUsers/8396cf11-e88c-4a3b-bd5f-def024657a4e",
-        "userEmail": "alice@example.com",
+        "userEmail": "hjsimpson@simpson.corp",
         "managementState": "APPROVED",
         "firstSyncTime": "2025-10-23T18:37:43.331Z",
         "lastSyncTime": "2025-10-29T19:17:23.952Z",
@@ -41,7 +45,7 @@ MOCK_DEVICE_USERS_RESPONSE = [
     },
     {
         "name": "devices/EiRlNzYzZjYyNC1lNWMyLTQ3NmItODI4Yi03ZThiMGIyNjVjZjM%3D/deviceUsers/e763f624-e5c2-476b-828b-7e8b0b265cf3",
-        "userEmail": "bob@example.com",
+        "userEmail": "mbsimpson@simpson.corp",
         "managementState": "APPROVED",
         "firstSyncTime": "2025-10-28T00:31:28.806Z",
         "lastSyncTime": "2025-10-29T08:02:55.674Z",

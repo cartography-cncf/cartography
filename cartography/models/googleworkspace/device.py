@@ -102,7 +102,7 @@ class GoogleWorkspaceUserToDeviceRel(CartographyRelSchema):
     target_node_label: str = "GoogleWorkspaceUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "email": PropertyRef("owner_email"),
+            "primary_email": PropertyRef("owner_email"),
         }
     )
     direction: LinkDirection = LinkDirection.INWARD

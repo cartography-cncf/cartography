@@ -83,8 +83,8 @@ def test_sync_googleworkspace_groups(
 
     # Assert - Verify groups are created
     expected_groups = {
-        ("group-engineering", "engineering@example.com", "Engineering"),
-        ("group-operations", "operations@example.com", "Operations"),
+        ("group-engineering", "engineering@simpson.corp", "Engineering"),
+        ("group-operations", "operations@simpson.corp", "Operations"),
     }
     assert (
         check_nodes(neo4j_session, "GoogleWorkspaceGroup", ["id", "email", "name"])
@@ -106,7 +106,7 @@ def test_sync_googleworkspace_groups(
             "id",
             "GoogleWorkspaceGroup",
             "id",
-            "MEMBER_GOOGLEWORKSPACE_GROUP",
+            "MEMBER_OF",
         )
         == expected_user_group_rels
     )
@@ -164,7 +164,7 @@ def test_sync_googleworkspace_groups_creates_group_hierarchy(
             "id",
             "GoogleWorkspaceGroup",
             "id",
-            "MEMBER_GOOGLEWORKSPACE_GROUP",
+            "MEMBER_OF",
         )
         == expected_group_rels
     )

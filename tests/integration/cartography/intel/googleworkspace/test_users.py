@@ -54,8 +54,8 @@ def test_sync_googleworkspace_users(_mock_get_all_users, neo4j_session):
 
     # Assert - Verify users are created
     expected_users = {
-        ("user-1", "alice@example.com", "Alice Admin"),
-        ("user-2", "bob@example.com", "Bob Builder"),
+        ("user-1", "mbsimpson@simpson.corp", "Marge Simpson"),
+        ("user-2", "hjsimpson@simpson.corp", "Homer Simpson"),
     }
     assert (
         check_nodes(

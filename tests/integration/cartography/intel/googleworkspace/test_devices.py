@@ -70,11 +70,11 @@ def test_sync_googleworkspace_devices(
     # Assert - Verify user-device relationships are created
     expected_user_device_rels = {
         (
-            "bob@example.com",
+            "mbsimpson@simpson.corp",
             "3aac7e1206db9d26",
         ),
         (
-            "alice@example.com",
+            "hjsimpson@simpson.corp",
             "8396cf11-e88c-4a3b-bd5f-def024657a4e",
         ),
     }
@@ -82,7 +82,7 @@ def test_sync_googleworkspace_devices(
         check_rels(
             neo4j_session,
             "GoogleWorkspaceUser",
-            "email",
+            "primary_email",
             "GoogleWorkspaceDevice",
             "id",
             "OWNS",
