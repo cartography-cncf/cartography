@@ -12,7 +12,9 @@ MODELS = list(load_models(cartography.models))
 # Unfortunately, some nodes are not yet migrated to the new data model system.
 # We need to ignore them in this test for now as we are not able to load their model class.
 # This is a temporary workaround until all models are migrated.
-OLD_FORMAT_NODES = ['OktaUser', ]
+OLD_FORMAT_NODES = [
+    "OktaUser",
+]
 
 
 def test_ontology_mapping_modules():
