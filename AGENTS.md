@@ -938,6 +938,28 @@ OntologyFieldMapping(ontology_field="firstname", node_field="first_name"),  # Op
 
 **Example**: If a `DuoUser` node has no email address and email is marked as `required=True`, no corresponding `User` ontology node will be created for that record.
 
+#### Node Eligibility
+
+The `eligible_for_source` parameter in `OntologyNodeMapping` controls whether this node mapping can create new ontology nodes (default: `True`).
+
+**When to set `eligible_for_source=False`:**
+- Node type lacks sufficient data to create meaningful ontology nodes (e.g., no email for Users)
+- Node serves only as a connection point to existing ontology nodes
+- Required fields are not available or reliable enough for primary node creation
+
+```python
+# Example: AWS IAM users don't have email addresses (required for User ontology nodes)
+OntologyNodeMapping(
+    node_label="AWSUser",
+    eligible_for_source=False,  # Cannot create new User ontology nodes
+    fields=[
+        OntologyFieldMapping(ontology_field="username", node_field="name")
+    ],
+),
+```
+
+In this example, AWS IAM users can be linked to existing User ontology nodes through relationships, but they cannot create new User nodes since they lack email addresses.
+
 #### Common User Fields
 
 The ontology `User` node supports these fields:
@@ -1111,11 +1133,13 @@ your_service_mapping = OntologyMapping(
 - Your source nodes have the correct labels (`UserAccount` for users)
 - Field mappings match your actual node properties
 - **Check required fields**: Ensure source nodes have all required fields populated (not `None`)
+- **Check eligible_for_source**: Ensure the node mapping has `eligible_for_source=True` (default) if it should create new ontology nodes
 
 **Issue**: Fewer ontology nodes created than expected
 **Solution**: Check if:
 - **Required fields are missing**: Source nodes lacking required fields are filtered out completely
 - Required fields are marked appropriately (primary identifiers should be required)
+- **Node eligibility**: Verify `eligible_for_source=True` for mappings that should create new ontology nodes
 - Your source data has the expected completeness
 
 **Issue**: Relationships not created between ontology and source nodes

@@ -68,6 +68,28 @@ This prevents creating ontology nodes that cannot be properly identified or matc
 OntologyFieldMapping(ontology_field="email", node_field="email", required=True)
 ```
 
+### Node Eligibility
+
+The `eligible_for_source` parameter in `OntologyNodeMapping` controls whether a node mapping can create new ontology nodes (default: `True`).
+
+Set `eligible_for_source=False` when:
+- A node type lacks sufficient data to create meaningful ontology nodes
+- The node serves only as a connection point to existing ontology nodes
+- Required fields are not available or reliable enough for primary node creation
+
+**Example:**
+```python
+OntologyNodeMapping(
+    node_label="AWSUser",
+    eligible_for_source=False,  # Cannot create User ontology nodes
+    fields=[
+        OntologyFieldMapping(ontology_field="username", node_field="name")
+    ],
+)
+```
+
+In this example, AWS IAM users don't have email addresses (required for User ontology nodes), so they're marked as ineligible for creating new User nodes. They can still be linked to existing User nodes through relationships.
+
 ## Ontology Mapping Structure
 
 Ontology mappings are defined in `cartography/models/ontology/mapping/data/` using Python dataclasses:
