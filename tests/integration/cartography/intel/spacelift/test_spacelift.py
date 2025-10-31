@@ -58,7 +58,7 @@ def test_spacelift_end_to_end(
     This test uses the real AWS EC2 sync to populate EC2 instances,
     making it more robust than manually creating EC2 nodes.
     """
-    # Mock all API calls using the mock data file
+    # Arrange: Mock all API calls using the mock data file
     mock_get_account.return_value = (
         TEST_ACCOUNT_ID  # get_account now returns just the account_id string
     )
@@ -123,7 +123,7 @@ def test_spacelift_end_to_end(
         "account_id": TEST_ACCOUNT_ID,
     }
 
-    # Sync all Spacelift resources in the correct order
+    # Act: Sync all Spacelift resources in the correct order
     sync_account(neo4j_session, TEST_API_ENDPOINT, common_job_parameters)
     sync_spaces(
         neo4j_session,
@@ -161,6 +161,7 @@ def test_spacelift_end_to_end(
         common_job_parameters,
     )
 
+    # Assert
     # Check that SpaceliftAccount nodes were created
     expected_account_nodes = {
         (TEST_ACCOUNT_ID, TEST_ACCOUNT_ID),  # name is set to account_id in sync_account

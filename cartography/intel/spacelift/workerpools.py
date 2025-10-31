@@ -69,10 +69,6 @@ def load_worker_pools(
     """
     Load Spacelift worker pools data into Neo4j using the data model.
     """
-    if not worker_pools_data:
-        logger.warning("No worker pools data provided to load_worker_pools")
-        return
-
     load(
         neo4j_session,
         SpaceliftWorkerPoolSchema(),

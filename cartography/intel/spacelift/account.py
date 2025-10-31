@@ -14,20 +14,11 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_account(api_endpoint: str) -> str:
-
-    logger.info("Extracting Spacelift account information from API endpoint")
     # Parse URL to extract subdomain (account ID)
     parsed = urlparse(api_endpoint)
     hostname = parsed.hostname or ""
     # Extract subdomain (everything before .app.spacelift.io)
     account_id = hostname.split(".")[0] if hostname else ""
-
-    if not account_id:
-        raise ValueError(
-            f"Could not extract account ID from API endpoint: {api_endpoint}"
-        )
-
-    logger.info(f"Extracted account ID: {account_id}")
 
     return account_id
 
