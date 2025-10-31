@@ -11,6 +11,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp import cloud_sql
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
@@ -30,13 +31,14 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam")
+Services = namedtuple("Services", "compute storage gke dns iam cloud_sql")
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
     gke="container.googleapis.com",
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
+    cloud_sql="sqladmin.googleapis.com",
 )
 
 
@@ -150,6 +152,17 @@ def _sync_project_resources(
             iam.sync(
                 neo4j_session,
                 iam_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.cloud_sql in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
+            cloud_sql_cred = build_client("sqladmin", "v1beta4")
+            cloud_sql.sync(
+                neo4j_session,
+                cloud_sql_cred,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
