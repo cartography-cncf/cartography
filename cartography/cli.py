@@ -848,6 +848,24 @@ class CLI:
                 "Required if you are using the Keycloak intel module. Ignored otherwise. "
             ),
         )
+        parser.add_argument(
+            "--spacelift-api-endpoint",
+            type=str,
+            default=None,
+            help=(
+                "Spacelift GraphQL API endpoint (e.g., https://yourorg.app.spacelift.io/graphql). "
+                "Required if you are using the Spacelift intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-token-env-var",
+            type=str,
+            default="SPACELIFT_API_TOKEN",
+            help=(
+                "The name of an environment variable containing the Spacelift API token. "
+                "Required if you are using the Spacelift intel module. Ignored otherwise."
+            ),
+        )
 
         return parser
 
@@ -1228,6 +1246,21 @@ class CLI:
             )
         else:
             config.keycloak_client_secret = None
+
+        # Spacelift config
+        # Read endpoint from CLI arg or env var
+        if not config.spacelift_api_endpoint:
+            config.spacelift_api_endpoint = os.environ.get("SPACELIFT_API_ENDPOINT")
+
+        if config.spacelift_api_endpoint and config.spacelift_api_token_env_var:
+            logger.debug(
+                f"Reading API token for Spacelift from environment variable {config.spacelift_api_token_env_var}",
+            )
+            config.spacelift_api_token = os.environ.get(
+                config.spacelift_api_token_env_var
+            )
+        else:
+            config.spacelift_api_token = None
 
         # Run cartography
         try:
