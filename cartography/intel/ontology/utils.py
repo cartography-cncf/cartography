@@ -46,6 +46,13 @@ def get_source_nodes_from_graph(
             )
             continue
         for node in modules_mapping[source].nodes:
+            if not node.eligible_for_source:
+                logger.debug(
+                    "Skipping node with label '%s' as it is not eligible for source of truth '%s'.",
+                    node.node_label,
+                    source,
+                )
+                continue
             query = f"MATCH (n:{node.node_label}) RETURN n"
             for row in neo4j_session.execute_read(read_list_of_dicts_tx, query):
                 node_data = row["n"]
@@ -56,7 +63,7 @@ def get_source_nodes_from_graph(
                 for field in node.fields:
                     value = node_data.get(field.node_field)
                     # Skip nodes missing required fields
-                    if field.required and value is None:
+                    if field.required and not value:
                         logger.debug(
                             "Skipping node with label '%s' due to missing required field '%s'.",
                             node.node_label,

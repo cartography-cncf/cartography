@@ -29,10 +29,17 @@ class OntologyNodeMapping:
     Attributes:
         node_label: The label of the ontology node.
         fields: A list of OntologyFieldMapping defining the field mappings for this node.
+        eligible_for_source: Whether this node mapping is eligible to create a new node.
+
+    Note:
+        By default, all node mappings are eligible to create new nodes unless specified otherwise.
+        Eligibility should be set to False if required fields are not sufficient to create a valid ontology node.
+        For instance if a AccountUser node does not have an email field mapped, it cannot be created as an ontology User node.
     """
 
     node_label: str
     fields: list[OntologyFieldMapping]
+    eligible_for_source: bool = True
 
 
 @dataclass(frozen=True)
