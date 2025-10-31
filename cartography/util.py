@@ -347,7 +347,6 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             logger.warning(
                 "Encountered an EndpointConnectionError. This means that the AWS "
                 "resource is not available in this region. Skipping.",
-                exc_info=True,
             )
             return []
 
