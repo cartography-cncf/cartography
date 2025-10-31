@@ -280,6 +280,17 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--experimental-aws-inspector-batch",
+            type=int,
+            default=1000,
+            help=(
+                "EXPERIMENTAL: This feature is experimental and may be removed in the future. "
+                "Batch size for AWS Inspector findings sync. Controls how many findings are fetched, processed and cleaned up at a time. "
+                "Default is 1000. Increase this value if you have a large number of findings and want to reduce API calls, "
+                "or decrease it if you're experiencing memory issues."
+            ),
+        )
+        parser.add_argument(
             "--analysis-job-directory",
             type=str,
             default=None,
@@ -717,6 +728,26 @@ class CLI:
             help=(
                 "The S3 prefix path containing Trivy scan results. "
                 "Required if you are using the Trivy module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--ontology-users-source",
+            type=str,
+            default=None,
+            help=(
+                "Comma-separated list of sources of truth for user data in the ontology. "
+                "'User' nodes will only be created for users that exist in one of the sources. "
+                "Required if you are using the ontology module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--ontology-devices-source",
+            type=str,
+            default=None,
+            help=(
+                "Comma-separated list of sources of truth for client computer data in the ontology. "
+                "'Device' nodes will only be created for groups that exist in one of the sources. "
+                "Required if you are using the ontology module. Ignored otherwise."
             ),
         )
         parser.add_argument(

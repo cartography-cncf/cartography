@@ -36,6 +36,7 @@ import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
+import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.pagerduty
 import cartography.intel.scaleway
@@ -52,7 +53,7 @@ from cartography.util import STATUS_SUCCESS
 logger = logging.getLogger(__name__)
 
 
-TOP_LEVEL_MODULES = OrderedDict(
+TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
         "create-indexes": cartography.intel.create_indexes.run,
         "airbyte": cartography.intel.airbyte.start_airbyte_ingestion,
@@ -84,6 +85,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
+        "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
     }
@@ -212,6 +214,7 @@ class Sync:
                         intel_module_info.name,
                     )
                 available_modules[intel_module_info.name] = v
+        available_modules["ontology"] = cartography.intel.ontology.run
         available_modules["analysis"] = cartography.intel.analysis.run
         return available_modules
 

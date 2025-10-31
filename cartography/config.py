@@ -58,6 +58,9 @@ class Config:
     :type aws_guardduty_severity_threshold: str
     :param aws_guardduty_severity_threshold: GuardDuty severity threshold filter. Only findings at or above this
         severity level will be synced. Valid values: LOW, MEDIUM, HIGH, CRITICAL. Optional.
+    :type experimental_aws_inspector_batch: int
+    :param experimental_aws_inspector_batch: EXPERIMENTAL: Batch size for AWS Inspector findings sync. Controls how
+        many findings are fetched, processed and cleaned up at a time. Default is 1000. Optional.
     :type analysis_job_directory: str
     :param analysis_job_directory: Path to a directory tree containing analysis jobs to run. Optional.
     :type oci_sync_all_profiles: bool
@@ -158,6 +161,11 @@ class Config:
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
     :type trivy_s3_prefix: str
     :param trivy_s3_prefix: The S3 prefix path containing Trivy scan results. Optional.
+    :type ontology_users_source: str
+    :param ontology_users_source: Comma-separated list of sources of truth for user data in the ontology. Optional.
+    :type ontology_devices_source: str
+    :param ontology_devices_source: Comma-separated list of sources of truth for client computers data in the ontology.
+        Optional.
     :type trivy_results_dir: str
     :param trivy_results_dir: Local directory containing Trivy scan results. Optional.
     :type scaleway_access_key: str
@@ -195,6 +203,7 @@ class Config:
         aws_regions=None,
         aws_best_effort_mode=False,
         aws_cloudtrail_management_events_lookback_hours=None,
+        experimental_aws_inspector_batch=1000,
         azure_sync_all_subscriptions=False,
         azure_sp_auth=None,
         azure_tenant_id=None,
@@ -262,6 +271,8 @@ class Config:
         airbyte_api_url=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
+        ontology_users_source=None,
+        ontology_devices_source=None,
         trivy_results_dir=None,
         scaleway_access_key=None,
         scaleway_secret_key=None,
@@ -287,6 +298,7 @@ class Config:
         self.aws_cloudtrail_management_events_lookback_hours = (
             aws_cloudtrail_management_events_lookback_hours
         )
+        self.experimental_aws_inspector_batch = experimental_aws_inspector_batch
         self.azure_sync_all_subscriptions = azure_sync_all_subscriptions
         self.azure_sp_auth = azure_sp_auth
         self.azure_tenant_id = azure_tenant_id
@@ -354,6 +366,8 @@ class Config:
         self.airbyte_api_url = airbyte_api_url
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
+        self.ontology_users_source = ontology_users_source
+        self.ontology_devices_source = ontology_devices_source
         self.trivy_results_dir = trivy_results_dir
         self.scaleway_access_key = scaleway_access_key
         self.scaleway_secret_key = scaleway_secret_key
