@@ -866,6 +866,63 @@ class CLI:
                 "Required if you are using the Spacelift intel module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--proxmox-host",
+            type=str,
+            default=None,
+            help=(
+                "Proxmox host to sync (e.g., proxmox.example.com). "
+                "Required if you are using the Proxmox intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--proxmox-port",
+            type=int,
+            default=8006,
+            help="Proxmox API port (default: 8006).",
+        )
+        parser.add_argument(
+            "--proxmox-user",
+            type=str,
+            default='root@pam',
+            help="Proxmox user (default: root@pam).",
+        )
+        parser.add_argument(
+            "--proxmox-token-name-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing the Proxmox API token name. "
+                "Example: --proxmox-token-name-env-var PROXMOX_TOKEN_NAME. "
+                "Use with --proxmox-token-value-env-var for token-based authentication."
+            ),
+        )
+        parser.add_argument(
+            "--proxmox-token-value-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing the Proxmox API token value. "
+                "Example: --proxmox-token-value-env-var PROXMOX_TOKEN_VALUE. "
+                "Use with --proxmox-token-name-env-var for token-based authentication."
+            ),
+        )
+        parser.add_argument(
+            "--proxmox-password-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing the Proxmox password. "
+                "Alternative to token-based authentication. "
+                "Example: --proxmox-password-env-var PROXMOX_PASSWORD"
+            ),
+        )
+        parser.add_argument(
+            "--proxmox-verify-ssl",
+            action="store_true",
+            default=True,
+            help="Verify SSL certificates when connecting to Proxmox (default: True).",
+        )
 
         return parser
 

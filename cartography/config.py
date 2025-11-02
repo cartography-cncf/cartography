@@ -192,6 +192,20 @@ class Config:
     :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
     :type keycloak_url: str
     :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
+    :type proxmox_host: str
+    :param proxmox_host: Proxmox host to sync. Optional.
+    :type proxmox_port: int
+    :param proxmox_port: Proxmox API port (default: 8006). Optional.
+    :type proxmox_user: str
+    :param proxmox_user: Proxmox user (default: root@pam). Optional.
+    :type proxmox_token_name_env_var: str
+    :param proxmox_token_name_env_var: Environment variable containing Proxmox API token name. Optional.
+    :type proxmox_token_value_env_var: str
+    :param proxmox_token_value_env_var: Environment variable containing Proxmox API token value. Optional.
+    :type proxmox_password_env_var: str
+    :param proxmox_password_env_var: Environment variable containing Proxmox password. Optional.
+    :type proxmox_verify_ssl: bool
+    :param proxmox_verify_ssl: Verify SSL certificates when connecting to Proxmox (default: True). Optional.
     """
 
     def __init__(
@@ -290,6 +304,13 @@ class Config:
         keycloak_client_secret=None,
         keycloak_realm=None,
         keycloak_url=None,
+        proxmox_host=None,
+        proxmox_port=8006,
+        proxmox_user='root@pam',
+        proxmox_token_name_env_var=None,
+        proxmox_token_value_env_var=None,
+        proxmox_password_env_var=None,
+        proxmox_verify_ssl=True,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -387,3 +408,10 @@ class Config:
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
         self.keycloak_url = keycloak_url
+        self.proxmox_host = proxmox_host
+        self.proxmox_port = proxmox_port
+        self.proxmox_user = proxmox_user
+        self.proxmox_token_name_env_var = proxmox_token_name_env_var
+        self.proxmox_token_value_env_var = proxmox_token_value_env_var
+        self.proxmox_password_env_var = proxmox_password_env_var
+        self.proxmox_verify_ssl = proxmox_verify_ssl
