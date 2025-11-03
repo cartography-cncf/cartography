@@ -7,7 +7,9 @@ Follows Cartography's Get → Transform → Load pattern.
 import logging
 from typing import Any, Dict, List
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
+from cartography.models.proxmox.cluster import ProxmoxClusterSchema
+from cartography.models.proxmox.cluster import ProxmoxNodeSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -53,6 +55,23 @@ def get_node_status(proxmox_client, node_name: str) -> Dict[str, Any]:
     :raises: Exception if API call fails
     """
     return proxmox_client.nodes(node_name).status.get()
+
+
+@timeit
+def get_node_network(proxmox_client, node_name: str) -> List[Dict[str, Any]]:
+    """
+    Get network interface configuration for a specific node.
+
+    :param proxmox_client: Proxmox API client
+    :param node_name: Name of the node
+    :return: List of network interface dicts
+    :raises: Exception if API call fails
+    """
+    try:
+        return proxmox_client.nodes(node_name).network.get()
+    except Exception as e:
+        logger.warning(f"Could not get network config for node {node_name}: {e}")
+        return []
 
 
 # ============================================================================
@@ -119,6 +138,7 @@ def transform_node_data(nodes: List[Dict[str, Any]], cluster_id: str) -> List[Di
             'id': node['node'],  # Required - API-provided ID
             'name': node['node'],  # Required
             'cluster_id': cluster_id,  # Required
+            'hostname': node['node'],  # Use node name as hostname
             'ip': node.get('ip'),  # Optional
             'status': node.get('status', 'unknown'),  # Optional with default
             'uptime': node.get('uptime', 0),  # Optional with default
@@ -134,89 +154,111 @@ def transform_node_data(nodes: List[Dict[str, Any]], cluster_id: str) -> List[Di
     return transformed_nodes
 
 
+def transform_node_network_data(
+    network_interfaces: List[Dict[str, Any]],
+    node_name: str,
+    cluster_id: str,
+) -> List[Dict[str, Any]]:
+    """
+    Transform node network interface data into standard format.
+
+    :param network_interfaces: Raw network interface data from API
+    :param node_name: Node name
+    :param cluster_id: Parent cluster ID
+    :return: List of transformed network interface dicts
+    """
+    transformed_interfaces = []
+
+    for iface in network_interfaces:
+        # Required field
+        iface_name = iface['iface']
+        iface_id = f"{node_name}:{iface_name}"
+
+        transformed_interfaces.append({
+            'id': iface_id,
+            'name': iface_name,
+            'node_name': node_name,
+            'type': iface.get('type'),  # bridge, bond, eth, vlan, etc.
+            'address': iface.get('address'),
+            'netmask': iface.get('netmask'),
+            'gateway': iface.get('gateway'),
+            'address6': iface.get('address6'),
+            'netmask6': iface.get('netmask6'),
+            'gateway6': iface.get('gateway6'),
+            'bridge_ports': iface.get('bridge_ports'),
+            'bond_slaves': iface.get('slaves'),  # API uses 'slaves' key
+            'active': iface.get('active', False),
+            'autostart': iface.get('autostart', False),
+            'mtu': iface.get('mtu'),
+        })
+
+    return transformed_interfaces
+
+
 # ============================================================================
-# LOAD functions - ingest data to Neo4j
-# Per docs: Use MERGE, set lastupdated/firstseen, run queries on indexed fields
+# LOAD functions - ingest data to Neo4j using modern data model
+# Per AGENTS.md: Use load() function with data model schemas
 # ============================================================================
 
 def load_cluster(neo4j_session, cluster_data: Dict[str, Any], update_tag: int) -> None:
     """
-    Load cluster data into Neo4j.
-
-    Per Cartography guidelines:
-    - Use MERGE to avoid duplicates
-    - Set firstseen on CREATE, lastupdated always
-    - Run queries on indexed fields (id is indexed)
+    Load cluster data into Neo4j using modern data model.
 
     :param neo4j_session: Neo4j session
     :param cluster_data: Transformed cluster data
     :param update_tag: Sync timestamp
     """
-    query = """
-    MERGE (c:ProxmoxCluster{id: $ClusterId})
-    ON CREATE SET c.firstseen = timestamp()
-    SET c.name = $Name,
-        c.version = $Version,
-        c.quorate = $Quorate,
-        c.nodes_online = $NodesOnline,
-        c.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        query,
-        ClusterId=cluster_data['id'],
-        Name=cluster_data['name'],
-        Version=cluster_data['version'],
-        Quorate=cluster_data['quorate'],
-        NodesOnline=cluster_data['nodes_online'],
-        UpdateTag=update_tag,
+        ProxmoxClusterSchema(),
+        [cluster_data],
+        lastupdated=update_tag,
     )
 
 
 def load_nodes(neo4j_session, nodes: List[Dict[str, Any]], cluster_id: str, update_tag: int) -> None:
     """
-    Load node data into Neo4j and create relationships to cluster.
-
-    Per Cartography guidelines:
-    - Use MERGE for both nodes and relationships
-    - Set firstseen/lastupdated on both nodes and relationships
-    - Query on indexed fields (id)
+    Load node data into Neo4j using modern data model.
 
     :param neo4j_session: Neo4j session
     :param nodes: List of transformed node dicts
     :param cluster_id: Parent cluster ID
     :param update_tag: Sync timestamp
     """
-    query = """
-    UNWIND $Nodes as node_data
-    MERGE (n:ProxmoxNode{id: node_data.id})
-    ON CREATE SET n.firstseen = timestamp()
-    SET n.name = node_data.name,
-        n.cluster_id = node_data.cluster_id,
-        n.ip = node_data.ip,
-        n.status = node_data.status,
-        n.uptime = node_data.uptime,
-        n.cpu_count = node_data.cpu_count,
-        n.cpu_usage = node_data.cpu_usage,
-        n.memory_total = node_data.memory_total,
-        n.memory_used = node_data.memory_used,
-        n.disk_total = node_data.disk_total,
-        n.disk_used = node_data.disk_used,
-        n.lastupdated = $UpdateTag
-    WITH n
-    MATCH (c:ProxmoxCluster{id: $ClusterId})
-    MERGE (c)-[r:CONTAINS_NODE]->(n)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        query,
-        Nodes=nodes,
-        ClusterId=cluster_id,
-        UpdateTag=update_tag,
+        ProxmoxNodeSchema(),
+        nodes,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
+    )
+
+
+def load_node_networks(
+    neo4j_session,
+    network_interfaces: List[Dict[str, Any]],
+    cluster_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Load node network interface data into Neo4j using modern data model.
+
+    :param neo4j_session: Neo4j session
+    :param network_interfaces: List of transformed network interface dicts
+    :param cluster_id: Parent cluster ID
+    :param update_tag: Sync timestamp
+    """
+    if not network_interfaces:
+        return
+
+    from cartography.models.proxmox.cluster import ProxmoxNodeNetworkInterfaceSchema
+
+    load(
+        neo4j_session,
+        ProxmoxNodeNetworkInterfaceSchema(),
+        network_interfaces,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
     )
 
 
@@ -259,6 +301,25 @@ def sync(
     # LOAD - ingest to Neo4j
     load_cluster(neo4j_session, cluster_data, update_tag)
     load_nodes(neo4j_session, transformed_nodes, cluster_data['id'], update_tag)
+
+    # Sync node network interfaces
+    all_node_networks = []
+    for node in nodes:
+        node_name = node['node']
+        # GET network config for this node
+        network_interfaces = get_node_network(proxmox_client, node_name)
+        # TRANSFORM network data
+        transformed_networks = transform_node_network_data(
+            network_interfaces,
+            node_name,
+            cluster_data['id'],
+        )
+        all_node_networks.extend(transformed_networks)
+
+    # LOAD node network interfaces
+    if all_node_networks:
+        load_node_networks(neo4j_session, all_node_networks, cluster_data['id'], update_tag)
+        logger.info(f"Synced {len(all_node_networks)} network interfaces across {len(nodes)} nodes")
 
     # CLEANUP is handled in separate cleanup job
 

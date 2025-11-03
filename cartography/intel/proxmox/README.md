@@ -183,12 +183,22 @@ cartography --proxmox-host proxmox.example.com \
 
 ## Architecture
 
-The Proxmox integration follows Cartography's standard **Get → Transform → Load** pattern:
+The Proxmox integration follows Cartography's **modern data model approach** with the standard **Get → Transform → Load → Cleanup** pattern:
 
 1. **Get**: Retrieve data from Proxmox API using proxmoxer library
 2. **Transform**: Convert API responses to standardized format
-3. **Load**: Store data in Neo4j using MERGE operations
-4. **Cleanup**: Remove stale data from previous syncs
+3. **Load**: Store data in Neo4j using modern `load()` function with schema definitions
+4. **Cleanup**: Remove stale data using `GraphJob.from_node_schema()`
+
+### Modern Data Model Benefits
+
+The Proxmox module uses Cartography's **declarative data model schemas** instead of handwritten Cypher queries:
+
+- **Type Safety**: Python dataclasses provide compile-time validation
+- **Maintainability**: Schema definitions are centralized in `cartography/models/proxmox/`
+- **Automatic Cleanup**: GraphJob handles stale data removal automatically
+- **Relationship Management**: Declarative relationship schemas simplify connections
+- **Indexing**: Extra indexes created automatically on frequently queried fields
 
 Each module (`cluster.py`, `compute.py`, `storage.py`) follows this pattern independently.
 
@@ -198,18 +208,33 @@ Each module (`cluster.py`, `compute.py`, `storage.py`) follows this pattern inde
 
 ```bash
 pytest tests/unit/cartography/intel/proxmox/
+pytest tests/integration/cartography/intel/proxmox/
 ```
 
 ### Adding New Resources
 
-To add new Proxmox resources:
+To add new Proxmox resources following modern patterns:
 
-1. Create a new module (e.g., `backup.py`)
-2. Implement Get → Transform → Load functions
-3. Add sync function to orchestrate the flow
-4. Call from `__init__.py` main entry point
-5. Update cleanup job JSON
-6. Add unit tests
+1. **Define Data Model** in `cartography/models/proxmox/`:
+   - Create node properties class extending `CartographyNodeProperties`
+   - Define relationship schemas extending `CartographyRelSchema`
+   - Create node schema extending `CartographyNodeSchema`
+
+2. **Implement Intel Module** in `cartography/intel/proxmox/`:
+   - Create `get()` functions for API calls
+   - Create `transform()` functions for data shaping
+   - Create `load()` functions using modern `load()` with schemas
+   - Create `sync()` orchestration function
+
+3. **Update Main Entry Point** in `__init__.py`:
+   - Call your sync function
+   - Add cleanup using `GraphJob.from_node_schema()`
+
+4. **Add Tests**:
+   - Unit tests for transform functions
+   - Integration tests using `check_nodes()` and `check_rels()`
+
+See `AGENTS.md` in the repository root for comprehensive development guidance.
 
 ## Troubleshooting
 

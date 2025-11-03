@@ -1304,6 +1304,33 @@ class CLI:
         else:
             config.keycloak_client_secret = None
 
+        # Proxmox config
+        if config.proxmox_host:
+            # Token-based authentication (preferred)
+            if config.proxmox_token_name_env_var and config.proxmox_token_value_env_var:
+                logger.debug(
+                    f"Reading Proxmox API token from environment variables "
+                    f"{config.proxmox_token_name_env_var} and {config.proxmox_token_value_env_var}",
+                )
+                config.proxmox_token_name = os.environ.get(config.proxmox_token_name_env_var)
+                config.proxmox_token_value = os.environ.get(config.proxmox_token_value_env_var)
+            else:
+                config.proxmox_token_name = None
+                config.proxmox_token_value = None
+
+            # Password-based authentication (alternative)
+            if config.proxmox_password_env_var:
+                logger.debug(
+                    f"Reading Proxmox password from environment variable {config.proxmox_password_env_var}",
+                )
+                config.proxmox_password = os.environ.get(config.proxmox_password_env_var)
+            else:
+                config.proxmox_password = None
+        else:
+            config.proxmox_token_name = None
+            config.proxmox_token_value = None
+            config.proxmox_password = None
+
         # Spacelift config
         # Read endpoint from CLI arg or env var
         if not config.spacelift_api_endpoint:

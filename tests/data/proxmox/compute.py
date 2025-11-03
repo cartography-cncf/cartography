@@ -1,0 +1,122 @@
+"""
+Mock data for Proxmox compute (VM/container) tests.
+"""
+
+MOCK_VM_DATA = {
+    "node1": [
+        {
+            "vmid": 100,
+            "name": "test-vm-1",
+            "status": "running",
+            "maxmem": 4294967296,
+            "maxdisk": 107374182400,
+            "cpu": 0.15,
+            "mem": 2147483648,
+            "disk": 32212254720,
+            "diskread": 1234567890,
+            "diskwrite": 987654321,
+            "netin": 123456789,
+            "netout": 987654321,
+            "uptime": 123456,
+            "type": "qemu",
+        },
+        {
+            "vmid": 101,
+            "name": "test-vm-2",
+            "status": "stopped",
+            "maxmem": 2147483648,
+            "maxdisk": 53687091200,
+            "cpu": 0,
+            "mem": 0,
+            "disk": 21474836480,
+            "type": "qemu",
+        },
+    ],
+    "node2": [
+        {
+            "vmid": 200,
+            "name": "test-container-1",
+            "status": "running",
+            "maxmem": 1073741824,
+            "maxdisk": 10737418240,
+            "cpu": 0.05,
+            "mem": 536870912,
+            "disk": 2147483648,
+            "uptime": 654321,
+            "type": "lxc",
+        },
+    ],
+}
+
+MOCK_VM_CONFIG = {
+    100: {
+        "cores": 2,
+        "sockets": 1,
+        "memory": 4096,
+        "boot": "order=scsi0;ide2;net0",
+        "scsihw": "virtio-scsi-single",
+        "vmgenid": "12345678-1234-5678-1234-567812345678",
+        "scsi0": "local-lvm:vm-100-disk-0,iothread=1,size=100G",
+        "ide2": "local:iso/ubuntu-22.04.iso,media=cdrom",
+        "net0": "virtio=BC:24:11:11:11:11,bridge=vmbr0,firewall=1,ip=192.168.1.100/24,gw=192.168.1.1",
+        "net1": "virtio=BC:24:11:11:11:12,bridge=vmbr1",
+    },
+    101: {
+        "cores": 1,
+        "sockets": 2,
+        "memory": 2048,
+        "boot": "order=scsi0",
+        "scsi0": "local-lvm:vm-101-disk-0,size=50G",
+        "net0": "virtio=BC:24:11:22:22:22,bridge=vmbr0",
+    },
+    200: {
+        "cores": 1,
+        "memory": 1024,
+        "rootfs": "local-lvm:vm-200-disk-0,size=10G",
+        "net0": "name=eth0,bridge=vmbr0,hwaddr=BC:24:11:33:33:33,ip=192.168.1.200/24,gw=192.168.1.1,ip6=2001:db8::200/64,gw6=2001:db8::1",
+    },
+}
+
+MOCK_STORAGE_DATA = [
+    {
+        "storage": "local",
+        "type": "dir",
+        "content": "vztmpl,iso,backup",
+        "path": "/var/lib/vz",
+        "shared": 0,
+        "active": 1,
+        "avail": 536870912000,
+        "total": 1073741824000,
+        "used": 536870912000,
+        "enabled": 1,
+        "nodes": "node1,node2",
+    },
+    {
+        "storage": "local-lvm",
+        "type": "lvmthin",
+        "content": "rootdir,images",
+        "thinpool": "data",
+        "vgname": "pve",
+        "shared": 0,
+        "active": 1,
+        "avail": 429496729600,
+        "total": 536870912000,
+        "used": 107374182400,
+        "enabled": 1,
+        "nodes": "node1,node2",
+    },
+    {
+        "storage": "nfs-backup",
+        "type": "nfs",
+        "content": "backup",
+        "server": "192.168.1.50",
+        "export": "/mnt/backup",
+        "shared": 1,
+        "active": 1,
+        "avail": 2147483648000,
+        "total": 4294967296000,
+        "used": 2147483648000,
+        "enabled": 1,
+        "nodes": "node1,node2",
+    },
+]

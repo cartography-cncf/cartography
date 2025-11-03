@@ -7,7 +7,8 @@ Follows Cartography's Get → Transform → Load pattern.
 import logging
 from typing import Any, Dict, List
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
+from cartography.models.proxmox.storage import ProxmoxStorageSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -113,38 +114,24 @@ def transform_storage_data(
 
 
 # ============================================================================
-# LOAD functions
+# LOAD functions - using modern data model
 # ============================================================================
 
-def load_storage(neo4j_session, storage_list: List[Dict[str, Any]], update_tag: int) -> None:
+def load_storage(neo4j_session, storage_list: List[Dict[str, Any]], cluster_id: str, update_tag: int) -> None:
     """
-    Load storage data into Neo4j and create relationships.
+    Load storage data into Neo4j using modern data model.
 
     :param neo4j_session: Neo4j session
     :param storage_list: List of transformed storage dicts
+    :param cluster_id: Parent cluster ID
     :param update_tag: Sync timestamp
     """
-    query = """
-    UNWIND $Storage as storage_data
-    MERGE (s:ProxmoxStorage{id: storage_data.id})
-    ON CREATE SET s.firstseen = timestamp()
-    SET s.name = storage_data.name,
-        s.cluster_id = storage_data.cluster_id,
-        s.type = storage_data.type,
-        s.content_types = storage_data.content_types,
-        s.shared = storage_data.shared,
-        s.enabled = storage_data.enabled,
-        s.total = storage_data.total,
-        s.used = storage_data.used,
-        s.available = storage_data.available,
-        s.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        query,
-        Storage=storage_list,
-        UpdateTag=update_tag,
+        ProxmoxStorageSchema(),
+        storage_list,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
     )
 
 
@@ -155,11 +142,16 @@ def load_storage_node_relationships(
 ) -> None:
     """
     Create relationships between storage and nodes.
+    
+    This creates many-to-many relationships between storage and nodes.
+    We handle this separately after storage load since it's a many-to-many mapping.
 
     :param neo4j_session: Neo4j session
     :param storage_list: List of transformed storage dicts
     :param update_tag: Sync timestamp
     """
+    from cartography.client.core.tx import run_write_query
+    
     # Flatten storage -> nodes into individual relationships
     relationships = []
     for storage in storage_list:
@@ -228,7 +220,7 @@ def sync(
     transformed_storage = transform_storage_data(storage_list, storage_status_map, cluster_id)
 
     # LOAD - ingest to Neo4j
-    load_storage(neo4j_session, transformed_storage, update_tag)
+    load_storage(neo4j_session, transformed_storage, cluster_id, update_tag)
     load_storage_node_relationships(neo4j_session, transformed_storage, update_tag)
 
     logger.info(f"Synced {len(transformed_storage)} storage resources")

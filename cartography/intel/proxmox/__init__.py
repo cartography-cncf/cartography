@@ -10,14 +10,23 @@ import os
 from typing import Any, Dict
 
 from cartography.config import Config
+from cartography.graph.job import GraphJob
 from cartography.intel.proxmox import cluster
 from cartography.intel.proxmox import compute
 from cartography.intel.proxmox import storage
+from cartography.models.proxmox.cluster import ProxmoxClusterSchema
+from cartography.models.proxmox.cluster import ProxmoxNodeNetworkInterfaceSchema
+from cartography.models.proxmox.cluster import ProxmoxNodeSchema
+from cartography.models.proxmox.compute import ProxmoxDiskSchema
+from cartography.models.proxmox.compute import ProxmoxNetworkInterfaceSchema
+from cartography.models.proxmox.compute import ProxmoxVMSchema
+from cartography.models.proxmox.storage import ProxmoxStorageSchema
+from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+stat_handler = get_stats_client(__name__)
 
 
 def _get_proxmox_client(config: Config):
@@ -124,6 +133,9 @@ def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
         )
 
         cluster_id = cluster_data['cluster_id']
+        
+        # Add cluster_id to common_job_parameters for cleanup jobs
+        common_job_parameters["CLUSTER_ID"] = cluster_id
 
         # Sync VMs and containers
         compute.sync(
@@ -143,12 +155,20 @@ def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
             common_job_parameters,
         )
 
-        # Run cleanup to remove stale data
-        run_cleanup_job(
-            'proxmox_import_cleanup.json',
-            neo4j_session,
-            common_job_parameters,
-        )
+        # Run cleanup using modern GraphJob approach
+        # Per AGENTS.md: Use GraphJob.from_node_schema() instead of JSON cleanup files
+        logger.info("Running Proxmox cleanup jobs")
+        
+        # Cleanup all resource types scoped to this cluster
+        GraphJob.from_node_schema(ProxmoxNodeSchema(), common_job_parameters).run(neo4j_session)
+        GraphJob.from_node_schema(ProxmoxNodeNetworkInterfaceSchema(), common_job_parameters).run(neo4j_session)
+        GraphJob.from_node_schema(ProxmoxVMSchema(), common_job_parameters).run(neo4j_session)
+        GraphJob.from_node_schema(ProxmoxDiskSchema(), common_job_parameters).run(neo4j_session)
+        GraphJob.from_node_schema(ProxmoxNetworkInterfaceSchema(), common_job_parameters).run(neo4j_session)
+        GraphJob.from_node_schema(ProxmoxStorageSchema(), common_job_parameters).run(neo4j_session)
+        
+        # Note: ProxmoxCluster doesn't need cleanup since it's the tenant root
+        # and has no sub_resource_relationship
 
         merge_module_sync_metadata(
             neo4j_session,
@@ -156,7 +176,7 @@ def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
             group_id=cluster_id,
             synced_type='ProxmoxCluster',
             update_tag=config.update_tag,
-            stat_handler=None,
+            stat_handler=stat_handler,
         )
 
         logger.info("Completed Proxmox infrastructure sync")

@@ -415,3 +415,7 @@ class Config:
         self.proxmox_token_value_env_var = proxmox_token_value_env_var
         self.proxmox_password_env_var = proxmox_password_env_var
         self.proxmox_verify_ssl = proxmox_verify_ssl
+        # Resolved credential values (set by CLI after reading env vars)
+        self.proxmox_token_name = None
+        self.proxmox_token_value = None
+        self.proxmox_password = None

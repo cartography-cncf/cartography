@@ -7,7 +7,10 @@ Follows Cartography's Get → Transform → Load pattern.
 import logging
 from typing import Any, Dict, List
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
+from cartography.models.proxmox.compute import ProxmoxDiskSchema
+from cartography.models.proxmox.compute import ProxmoxNetworkInterfaceSchema
+from cartography.models.proxmox.compute import ProxmoxVMSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -186,7 +189,7 @@ def extract_network_data(vm_config: Dict[str, Any], vmid: int) -> List[Dict[str,
     for key, value in vm_config.items():
         if key.startswith('net') and len(key) > 3 and key[3:].isdigit():
             if isinstance(value, str):
-                # Parse network string: "virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr0,firewall=1"
+                # Parse network string: "virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr0,firewall=1,ip=192.168.1.10/24,gw=192.168.1.1"
                 nic_data = {
                     'id': f"{vmid}:{key}",
                     'net_id': key,
@@ -197,7 +200,7 @@ def extract_network_data(vm_config: Dict[str, Any], vmid: int) -> List[Dict[str,
                 for part in parts:
                     if '=' in part:
                         param_key, param_value = part.split('=', 1)
-                        if param_key in ('virtio', 'e1000', 'rtl8139', 'vmxnet3'):
+                        if param_key in ('virtio', 'e1000', 'rtl8139', 'vmxnet3', 'veth'):
                             nic_data['model'] = param_key
                             nic_data['mac_address'] = param_value
                         elif param_key == 'bridge':
@@ -209,6 +212,26 @@ def extract_network_data(vm_config: Dict[str, Any], vmid: int) -> List[Dict[str,
                                 nic_data['vlan_tag'] = int(param_value)
                             except ValueError:
                                 pass
+                        elif param_key == 'ip':
+                            nic_data['ip'] = param_value
+                        elif param_key == 'ip6':
+                            nic_data['ip6'] = param_value
+                        elif param_key == 'gw':
+                            nic_data['gw'] = param_value
+                        elif param_key == 'gw6':
+                            nic_data['gw6'] = param_value
+                        elif param_key == 'mtu':
+                            try:
+                                nic_data['mtu'] = int(param_value)
+                            except ValueError:
+                                pass
+                        elif param_key == 'rate':
+                            try:
+                                nic_data['rate'] = float(param_value)
+                            except ValueError:
+                                pass
+                        elif param_key == 'link_down':
+                            nic_data['link_up'] = param_value != '1'  # Invert link_down to link_up
 
                 interfaces.append(nic_data)
 
@@ -216,129 +239,66 @@ def extract_network_data(vm_config: Dict[str, Any], vmid: int) -> List[Dict[str,
 
 
 # ============================================================================
-# LOAD functions
+# LOAD functions - using modern data model
 # ============================================================================
 
-def load_vms(neo4j_session, vms: List[Dict[str, Any]], update_tag: int) -> None:
+def load_vms(neo4j_session, vms: List[Dict[str, Any]], cluster_id: str, update_tag: int) -> None:
     """
-    Load VM data into Neo4j and create relationships.
+    Load VM data into Neo4j using modern data model.
 
     :param neo4j_session: Neo4j session
     :param vms: List of transformed VM dicts
+    :param cluster_id: Parent cluster ID
     :param update_tag: Sync timestamp
     """
-    query = """
-    UNWIND $VMs as vm_data
-    MERGE (v:ProxmoxVM{id: vm_data.id})
-    ON CREATE SET v.firstseen = timestamp()
-    SET v.vmid = vm_data.vmid,
-        v.name = vm_data.name,
-        v.node = vm_data.node,
-        v.cluster_id = vm_data.cluster_id,
-        v.type = vm_data.type,
-        v.status = vm_data.status,
-        v.template = vm_data.template,
-        v.cpu_cores = vm_data.cpu_cores,
-        v.cpu_sockets = vm_data.cpu_sockets,
-        v.memory = vm_data.memory,
-        v.disk_size = vm_data.disk_size,
-        v.uptime = vm_data.uptime,
-        v.tags = vm_data.tags,
-        v.lastupdated = $UpdateTag
-    WITH v, vm_data
-    MATCH (n:ProxmoxNode{id: vm_data.node})
-    MERGE (n)-[r:HOSTS_VM]->(v)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        query,
-        VMs=vms,
-        UpdateTag=update_tag,
+        ProxmoxVMSchema(),
+        vms,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
     )
 
 
-def load_disks(neo4j_session, disks: List[Dict[str, Any]], update_tag: int) -> None:
+def load_disks(neo4j_session, disks: List[Dict[str, Any]], cluster_id: str, update_tag: int) -> None:
     """
-    Load disk data into Neo4j and create relationships.
+    Load disk data into Neo4j using modern data model.
 
     :param neo4j_session: Neo4j session
     :param disks: List of disk dicts
+    :param cluster_id: Parent cluster ID
     :param update_tag: Sync timestamp
     """
     if not disks:
         return
 
-    query = """
-    UNWIND $Disks as disk_data
-    MERGE (d:ProxmoxDisk{id: disk_data.id})
-    ON CREATE SET d.firstseen = timestamp()
-    SET d.disk_id = disk_data.disk_id,
-        d.vmid = disk_data.vmid,
-        d.storage = disk_data.storage,
-        d.size = disk_data.size,
-        d.backup = disk_data.backup,
-        d.cache = disk_data.cache,
-        d.lastupdated = $UpdateTag
-    WITH d, disk_data
-    MATCH (v:ProxmoxVM) WHERE v.vmid = disk_data.vmid
-    MERGE (v)-[r:HAS_DISK]->(d)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    WITH d, disk_data
-    OPTIONAL MATCH (s:ProxmoxStorage{id: disk_data.storage})
-    FOREACH (storage IN CASE WHEN s IS NOT NULL THEN [s] ELSE [] END |
-        MERGE (d)-[r2:STORED_ON]->(storage)
-        ON CREATE SET r2.firstseen = timestamp()
-        SET r2.lastupdated = $UpdateTag
-    )
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        query,
-        Disks=disks,
-        UpdateTag=update_tag,
+        ProxmoxDiskSchema(),
+        disks,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
     )
 
 
-def load_network_interfaces(neo4j_session, interfaces: List[Dict[str, Any]], update_tag: int) -> None:
+def load_network_interfaces(neo4j_session, interfaces: List[Dict[str, Any]], cluster_id: str, update_tag: int) -> None:
     """
-    Load network interface data into Neo4j and create relationships.
+    Load network interface data into Neo4j using modern data model.
 
     :param neo4j_session: Neo4j session
     :param interfaces: List of network interface dicts
+    :param cluster_id: Parent cluster ID
     :param update_tag: Sync timestamp
     """
     if not interfaces:
         return
 
-    query = """
-    UNWIND $Interfaces as if_data
-    MERGE (i:ProxmoxNetworkInterface{id: if_data.id})
-    ON CREATE SET i.firstseen = timestamp()
-    SET i.net_id = if_data.net_id,
-        i.vmid = if_data.vmid,
-        i.bridge = if_data.bridge,
-        i.mac_address = if_data.mac_address,
-        i.model = if_data.model,
-        i.firewall = if_data.firewall,
-        i.vlan_tag = if_data.vlan_tag,
-        i.lastupdated = $UpdateTag
-    WITH i, if_data
-    MATCH (v:ProxmoxVM) WHERE v.vmid = if_data.vmid
-    MERGE (v)-[r:HAS_NETWORK_INTERFACE]->(i)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        query,
-        Interfaces=interfaces,
-        UpdateTag=update_tag,
+        ProxmoxNetworkInterfaceSchema(),
+        interfaces,
+        lastupdated=update_tag,
+        CLUSTER_ID=cluster_id,
     )
 
 
@@ -395,13 +355,13 @@ def sync(
 
     # Transform and load
     transformed_vms = transform_vm_data(all_vms, cluster_id)
-    load_vms(neo4j_session, transformed_vms, update_tag)
+    load_vms(neo4j_session, transformed_vms, cluster_id, update_tag)
 
     if all_disks:
-        load_disks(neo4j_session, all_disks, update_tag)
+        load_disks(neo4j_session, all_disks, cluster_id, update_tag)
 
     if all_interfaces:
-        load_network_interfaces(neo4j_session, all_interfaces, update_tag)
+        load_network_interfaces(neo4j_session, all_interfaces, cluster_id, update_tag)
 
     logger.info(
         f"Synced {len(transformed_vms)} VMs/containers with "
