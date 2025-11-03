@@ -18,10 +18,11 @@ WP -- CONTAINS --> W2(SpaceliftWorker)
 St -- GENERATES --> R
 U -- TRIGGERED --> R
 W -- EXECUTES --> R
+C -- COMMITTED --> R
 R -- AFFECTS --> EC2(EC2Instance)
 
 U -- HAS_ROLE_IN --> S
-U -- CONFIRMED --> C
+C -- CONFIRMED --> U
 ```
 
 ### SpaceliftAccount
@@ -276,14 +277,25 @@ Representation of a job that can touch infrastructure. It is the execution insta
     (SpaceliftRun)<-[EXECUTED]-(SpaceliftWorker)
     ```
 
-- SpaceliftRuns can affect EC2 Instances:
+- SpaceliftRuns are linked to the Git commit that triggered them:
 
     ```
-    (SpaceliftRun)-[AFFECTED{action}]->(EC2Instance)
+    (SpaceliftRun)<-[COMMITTED]-(SpaceliftGitCommit)
     ```
 
-    The `action` property indicates the action taken on the instance (e.g., "create", "update", "delete").
-    This relationship uses the `one_to_many` pattern to connect a single run to multiple EC2 instances it manages.
+- SpaceliftRuns can affect EC2 Instances (optional, requires EC2 ownership configuration):
+
+    ```
+    (SpaceliftRun)-[AFFECTED{event_time, event_name, aws_account, aws_region}]->(EC2Instance)
+    ```
+
+    This relationship is created via MatchLink using CloudTrail data and connects Spacelift runs to the EC2 instances they manage. The relationship properties include:
+    - `event_time`: Timestamp of the CloudTrail event
+    - `event_name`: Name of the AWS API call (e.g., "RunInstances", "TerminateInstances")
+    - `aws_account`: AWS account ID where the event occurred
+    - `aws_region`: AWS region where the event occurred
+
+    This relationship is created separately by the `ec2_ownership` module when CloudTrail data is available (requires additional configuration with `--spacelift-ec2-ownership-*` CLI flags).
 
 ### SpaceliftGitCommit
 
@@ -316,3 +328,9 @@ Representation of a Git commit that triggered a Spacelift run. It contains metad
     ```
 
     This links commits to the human developers who wrote and confirmed the code, even when the deployment was triggered by an automated system (vcs/commit).
+
+- SpaceliftGitCommits are linked to the runs that use them:
+
+    ```
+    (SpaceliftGitCommit)-[COMMITTED]->(SpaceliftRun)
+    ```

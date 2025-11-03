@@ -866,6 +866,34 @@ class CLI:
                 "Required if you are using the Spacelift intel module. Ignored otherwise."
             ),
         )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-aws-profile",
+            type=str,
+            default=None,
+            help=(
+                "AWS profile name to use for fetching EC2 ownership data from S3. "
+                "Optional. If provided, enables EC2 ownership relationship sync from CloudTrail data. "
+                "Requires --spacelift-ec2-ownership-s3-bucket and --spacelift-ec2-ownership-s3-key."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-s3-bucket",
+            type=str,
+            default=None,
+            help=(
+                "S3 bucket name containing CloudTrail data for EC2 ownership relationships. "
+                "Optional. Required if --spacelift-ec2-ownership-aws-profile is provided."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-s3-key",
+            type=str,
+            default=None,
+            help=(
+                "S3 object key for CloudTrail data for EC2 ownership relationships. "
+                "Optional. Required if --spacelift-ec2-ownership-aws-profile is provided."
+            ),
+        )
 
         return parser
 
