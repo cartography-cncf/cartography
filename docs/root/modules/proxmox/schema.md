@@ -194,6 +194,124 @@ Representation of a storage backend in Proxmox.
     (ProxmoxDisk)-[STORED_ON]->(ProxmoxStorage)
     ```
 
+### ProxmoxPool
+
+Representation of a resource pool for organizing VMs, containers, and storage.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Unique pool identifier |
+| poolid | Pool name |
+| cluster_id | ID of the parent ProxmoxCluster |
+| comment | Description or notes about the pool |
+
+#### Relationships
+
+- ProxmoxPool contains ProxmoxVMs.
+
+    ```
+    (ProxmoxPool)-[CONTAINS_VM]->(ProxmoxVM)
+    ```
+
+- ProxmoxPool contains ProxmoxStorage.
+
+    ```
+    (ProxmoxPool)-[CONTAINS_STORAGE]->(ProxmoxStorage)
+    ```
+
+### ProxmoxBackupJob
+
+Representation of a scheduled backup job configuration.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Unique job identifier |
+| job_id | Backup job name/ID |
+| cluster_id | ID of the parent ProxmoxCluster |
+| schedule | Cron-style schedule string (e.g., "0 2 * * *") |
+| storage | Target storage backend ID for backups |
+| enabled | Boolean indicating if the job is enabled |
+| mode | Backup mode (snapshot, suspend, stop) |
+| compression | Compression algorithm (zstd, gzip, lzo, none) |
+| mailnotification | Email notification setting (always, failure, never) |
+| mailto | Email address for notifications |
+| notes | Job description or notes |
+| prune_backups | Retention policy configuration |
+| repeat_missed | Boolean indicating if missed backups should be repeated |
+
+#### Relationships
+
+- ProxmoxBackupJob backs up ProxmoxVMs.
+
+    ```
+    (ProxmoxBackupJob)-[BACKS_UP]->(ProxmoxVM)
+    ```
+
+- ProxmoxBackupJob targets ProxmoxStorage.
+
+    ```
+    (ProxmoxBackupJob)-[BACKS_UP_TO]->(ProxmoxStorage)
+    ```
+
+### ProxmoxHAGroup
+
+Representation of a High Availability group defining node preferences.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Unique group identifier |
+| group | HA group name |
+| cluster_id | ID of the parent ProxmoxCluster |
+| nodes | Comma-separated list of preferred nodes |
+| restricted | Boolean indicating if VMs are restricted to listed nodes |
+| nofailback | Boolean indicating if automatic failback is disabled |
+| comment | Description or notes about the HA group |
+
+#### Relationships
+
+- ProxmoxHAResource is a member of ProxmoxHAGroup.
+
+    ```
+    (ProxmoxHAResource)-[MEMBER_OF_HA_GROUP]->(ProxmoxHAGroup)
+    ```
+
+### ProxmoxHAResource
+
+Representation of a VM or container configured for High Availability.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Unique resource identifier (format: "vm:100" or "ct:200") |
+| sid | Service ID (same as id) |
+| cluster_id | ID of the parent ProxmoxCluster |
+| state | Current HA state (started, stopped, disabled, etc.) |
+| group | Associated HA group name |
+| max_restart | Maximum number of restart attempts |
+| max_relocate | Maximum number of relocation attempts |
+| comment | Description or notes about the HA resource |
+
+#### Relationships
+
+- ProxmoxHAResource protects ProxmoxVMs.
+
+    ```
+    (ProxmoxHAResource)-[PROTECTS]->(ProxmoxVM)
+    ```
+
+- ProxmoxHAResource is a member of ProxmoxHAGroup.
+
+    ```
+    (ProxmoxHAResource)-[MEMBER_OF_HA_GROUP]->(ProxmoxHAGroup)
+    ```
+
 ## Common Queries
 
 ### Find all running VMs
@@ -274,4 +392,84 @@ RETURN c.name as cluster,
        count(v) as vm_count,
        n.status
 ORDER BY c.name, n.name
+```
+
+### Find VMs in a specific pool
+
+```cypher
+MATCH (pool:ProxmoxPool {poolid: 'production'})-[:CONTAINS_VM]->(vm:ProxmoxVM)
+RETURN vm.name, vm.status, vm.node, vm.memory
+ORDER BY vm.memory DESC
+```
+
+### Find all backup jobs for a VM
+
+```cypher
+MATCH (vm:ProxmoxVM {name: 'my-critical-vm'})<-[:BACKS_UP]-(job:ProxmoxBackupJob)
+WHERE job.enabled = true
+RETURN job.id, job.schedule, job.mode, job.storage
+ORDER BY job.schedule
+```
+
+### Find VMs not covered by any backup job
+
+```cypher
+MATCH (vm:ProxmoxVM)
+WHERE vm.template = false
+  AND vm.status = 'running'
+  AND NOT EXISTS {
+    MATCH (vm)<-[:BACKS_UP]-(:ProxmoxBackupJob {enabled: true})
+  }
+RETURN vm.name, vm.node, vm.memory, vm.tags
+ORDER BY vm.memory DESC
+```
+
+### Find VMs protected by HA
+
+```cypher
+MATCH (vm:ProxmoxVM)<-[:PROTECTS]-(ha:ProxmoxHAResource)-[:MEMBER_OF_HA_GROUP]->(group:ProxmoxHAGroup)
+RETURN vm.name, vm.status, ha.state, group.group, group.nodes
+ORDER BY vm.name
+```
+
+### Find production VMs without HA protection
+
+```cypher
+MATCH (vm:ProxmoxVM)
+WHERE vm.template = false
+  AND vm.status = 'running'
+  AND 'production' IN vm.tags
+  AND NOT EXISTS {
+    MATCH (vm)<-[:PROTECTS]-(:ProxmoxHAResource)
+  }
+RETURN vm.name, vm.node, vm.memory, vm.cpu_cores
+ORDER BY vm.memory DESC
+```
+
+### Backup coverage report by pool
+
+```cypher
+MATCH (pool:ProxmoxPool)-[:CONTAINS_VM]->(vm:ProxmoxVM)
+WHERE vm.template = false
+OPTIONAL MATCH (vm)<-[:BACKS_UP]-(job:ProxmoxBackupJob)
+WHERE job.enabled = true
+RETURN pool.poolid,
+       count(vm) as total_vms,
+       count(job) as backed_up_vms,
+       collect(DISTINCT vm.name) as vms_without_backup
+ORDER BY pool.poolid
+```
+
+### HA failover risk assessment
+
+```cypher
+MATCH (group:ProxmoxHAGroup)
+MATCH (ha:ProxmoxHAResource)-[:MEMBER_OF_HA_GROUP]->(group)
+MATCH (ha)-[:PROTECTS]->(vm:ProxmoxVM)
+RETURN group.group,
+       group.nodes,
+       group.restricted,
+       count(vm) as protected_vms,
+       collect(vm.name) as vm_names
+ORDER BY protected_vms DESC
 ```
