@@ -239,7 +239,7 @@ def test_spacelift_end_to_end(
     assert actual_run_nodes is not None
     assert expected_run_nodes == actual_run_nodes
 
-    # Check that Run-[:AFFECTED]->EC2Instance relationships were created
+    # Check that Run-[:AFFECTED]->EC2Instance relationships were created (from Spacelift entities API)
     expected_run_ec2_relationships = {
         ("run-1", "i-01"),
         ("run-1", "i-02"),
