@@ -15,6 +15,9 @@ The Proxmox integration syncs the following resources:
 - **Resource Pools**: Pool-based organization of VMs, containers, and storage
 - **Backup Jobs**: Scheduled backup configurations with retention policies
 - **High Availability**: HA groups and resource configurations for failover
+- **Access Control**: Users, groups, roles, and ACL permissions
+- **Firewall Rules**: Cluster, node, and VM-level firewall configurations
+- **SSL Certificates**: TLS certificate tracking and expiration monitoring
 
 ## Configuration
 
@@ -145,6 +148,57 @@ The Proxmox integration syncs the following resources:
 - `max_restart`: Maximum restart attempts
 - `max_relocate`: Maximum relocation attempts
 
+#### ProxmoxUser
+- `id`: User identifier (format: user@realm)
+- `userid`: Full user ID
+- `enable`: Account enabled flag
+- `email`: Email address
+- `firstname`, `lastname`: User names
+- `groups`: Array of group memberships
+- `tokens`: Array of API tokens
+
+#### ProxmoxGroup
+- `id`: Group identifier
+- `groupid`: Group name
+- `comment`: Description
+
+#### ProxmoxRole
+- `id`: Role identifier
+- `roleid`: Role name
+- `privs`: Array of privileges
+- `special`: Built-in role flag
+
+#### ProxmoxACL
+- `id`: ACL entry identifier
+- `path`: Resource path (e.g., /, /vms/100)
+- `roleid`: Role granted
+- `ugid`: User or group ID
+- `propagate`: Propagate to children flag
+
+#### ProxmoxFirewallRule
+- `id`: Rule identifier
+- `scope`: Rule scope (cluster, node, vm)
+- `pos`: Position in rule list
+- `type`: Rule type (in, out, group)
+- `action`: Action (ACCEPT, DROP, REJECT)
+- `source`, `dest`: Source/destination addresses
+- `proto`: Protocol (tcp, udp, icmp)
+- `dport`, `sport`: Destination/source ports
+
+#### ProxmoxFirewallIPSet
+- `id`: IP set identifier
+- `name`: IP set name
+- `scope`: Scope (cluster, node, vm)
+- `cidrs`: Array of CIDR entries
+
+#### ProxmoxCertificate
+- `id`: Certificate identifier
+- `node_name`: Node using this certificate
+- `fingerprint`: Certificate fingerprint
+- `issuer`, `subject`: Certificate fields
+- `notbefore`, `notafter`: Validity period
+- `san`: Subject Alternative Names array
+
 ### Relationships
 
 ```
@@ -160,6 +214,13 @@ The Proxmox integration syncs the following resources:
 (:ProxmoxBackupJob)-[:BACKS_UP_TO]->(:ProxmoxStorage)
 (:ProxmoxHAResource)-[:MEMBER_OF_HA_GROUP]->(:ProxmoxHAGroup)
 (:ProxmoxHAResource)-[:PROTECTS]->(:ProxmoxVM)
+(:ProxmoxUser)-[:MEMBER_OF_GROUP]->(:ProxmoxGroup)
+(:ProxmoxACL)-[:GRANTS_ROLE]->(:ProxmoxRole)
+(:ProxmoxACL)-[:APPLIES_TO_USER]->(:ProxmoxUser)
+(:ProxmoxACL)-[:APPLIES_TO_GROUP]->(:ProxmoxGroup)
+(:ProxmoxFirewallRule)-[:APPLIES_TO_NODE]->(:ProxmoxNode)
+(:ProxmoxFirewallRule)-[:APPLIES_TO_VM]->(:ProxmoxVM)
+(:ProxmoxNode)-[:HAS_CERTIFICATE]->(:ProxmoxCertificate)
 ```
 
 ## Example Queries
@@ -252,6 +313,76 @@ AND vm.status = 'running'
 AND NOT (vm)<-[:PROTECTS]-(:ProxmoxHAResource)
 RETURN vm.name, vm.node, vm.memory
 ORDER BY vm.memory DESC
+```
+
+### Find all users and their group memberships
+```cypher
+MATCH (u:ProxmoxUser)
+OPTIONAL MATCH (u)-[:MEMBER_OF_GROUP]->(g:ProxmoxGroup)
+RETURN u.userid, u.email, collect(g.groupid) as groups
+ORDER BY u.userid
+```
+
+### Find users with administrative privileges
+```cypher
+MATCH (acl:ProxmoxACL)-[:APPLIES_TO_USER]->(u:ProxmoxUser)
+MATCH (acl)-[:GRANTS_ROLE]->(r:ProxmoxRole)
+WHERE r.roleid = 'Administrator' OR 'Sys.Modify' IN r.privs
+RETURN DISTINCT u.userid, u.email, acl.path, r.roleid
+ORDER BY u.userid
+```
+
+### Find overly permissive ACL entries
+```cypher
+MATCH (acl:ProxmoxACL)-[:GRANTS_ROLE]->(r:ProxmoxRole)
+WHERE acl.path = '/' AND r.roleid = 'Administrator'
+MATCH (acl)-[:APPLIES_TO_USER]->(u:ProxmoxUser)
+RETURN u.userid, u.email, r.roleid, acl.path
+```
+
+### Find firewall rules allowing all traffic
+```cypher
+MATCH (rule:ProxmoxFirewallRule)
+WHERE rule.action = 'ACCEPT' 
+AND rule.source IS NULL 
+AND rule.dest IS NULL
+RETURN rule.scope, rule.scope_id, rule.pos, rule.comment
+ORDER BY rule.scope, rule.pos
+```
+
+### Find open ports in firewall rules
+```cypher
+MATCH (rule:ProxmoxFirewallRule)
+WHERE rule.action = 'ACCEPT' AND rule.enable = true
+AND rule.dport IS NOT NULL
+RETURN DISTINCT rule.dport, count(rule) as rule_count, 
+       collect(DISTINCT rule.scope) as scopes
+ORDER BY rule_count DESC
+```
+
+### Find SSL certificates expiring soon
+```cypher
+MATCH (cert:ProxmoxCertificate)
+WHERE cert.notafter < (timestamp() + 30 * 24 * 60 * 60 * 1000)  // 30 days
+RETURN cert.node_name, cert.subject, cert.notafter, cert.fingerprint
+ORDER BY cert.notafter
+```
+
+### Find nodes with expired certificates
+```cypher
+MATCH (n:ProxmoxNode)-[:HAS_CERTIFICATE]->(cert:ProxmoxCertificate)
+WHERE cert.notafter < timestamp()
+RETURN n.name, n.ip, cert.subject, cert.notafter
+ORDER BY n.name
+```
+
+### Access control audit: Find users without recent activity
+```cypher
+MATCH (u:ProxmoxUser)
+WHERE u.enable = true
+OPTIONAL MATCH (acl:ProxmoxACL)-[:APPLIES_TO_USER]->(u)
+RETURN u.userid, u.email, u.expire, count(acl) as permission_count
+ORDER BY permission_count DESC
 ```
 
 ## Permissions Required

@@ -473,3 +473,260 @@ RETURN group.group,
        collect(vm.name) as vm_names
 ORDER BY protected_vms DESC
 ```
+
+### ProxmoxUser
+
+Representation of a user account in Proxmox VE.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | User identifier (format: user@realm) |
+| userid | Full user ID |
+| cluster_id | ID of the parent ProxmoxCluster |
+| enable | Boolean indicating if account is enabled |
+| expire | Account expiration timestamp (0 = never expires) |
+| firstname | User's first name |
+| lastname | User's last name |
+| email | User's email address |
+| comment | User description or notes |
+| groups | Array of group memberships |
+| tokens | Array of API tokens |
+
+#### Relationships
+
+- ProxmoxUser is a member of ProxmoxGroups.
+
+    ```
+    (ProxmoxUser)-[MEMBER_OF_GROUP]->(ProxmoxGroup)
+    ```
+
+- ProxmoxACL grants permissions to ProxmoxUsers.
+
+    ```
+    (ProxmoxACL)-[APPLIES_TO_USER]->(ProxmoxUser)
+    ```
+
+### ProxmoxGroup
+
+Representation of a user group in Proxmox VE.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Group identifier |
+| groupid | Group name |
+| cluster_id | ID of the parent ProxmoxCluster |
+| comment | Group description or notes |
+
+#### Relationships
+
+- ProxmoxACL grants permissions to ProxmoxGroups.
+
+    ```
+    (ProxmoxACL)-[APPLIES_TO_GROUP]->(ProxmoxGroup)
+    ```
+
+### ProxmoxRole
+
+Representation of a permission role in Proxmox VE.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Role identifier |
+| roleid | Role name |
+| cluster_id | ID of the parent ProxmoxCluster |
+| privs | Array of privileges (e.g., VM.Audit, Sys.Modify) |
+| special | Boolean indicating if this is a built-in role |
+
+#### Relationships
+
+- ProxmoxACL grants ProxmoxRoles.
+
+    ```
+    (ProxmoxACL)-[GRANTS_ROLE]->(ProxmoxRole)
+    ```
+
+### ProxmoxACL
+
+Representation of an Access Control List entry in Proxmox VE.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | ACL entry identifier |
+| path | Resource path (e.g., /, /vms/100, /storage/local) |
+| cluster_id | ID of the parent ProxmoxCluster |
+| roleid | Role granted by this ACL |
+| ugid | User or group ID this ACL applies to |
+| propagate | Boolean indicating if permissions propagate to children |
+
+#### Relationships
+
+- ProxmoxACL grants ProxmoxRoles.
+
+    ```
+    (ProxmoxACL)-[GRANTS_ROLE]->(ProxmoxRole)
+    ```
+
+- ProxmoxACL applies to ProxmoxUsers.
+
+    ```
+    (ProxmoxACL)-[APPLIES_TO_USER]->(ProxmoxUser)
+    ```
+
+- ProxmoxACL applies to ProxmoxGroups.
+
+    ```
+    (ProxmoxACL)-[APPLIES_TO_GROUP]->(ProxmoxGroup)
+    ```
+
+### ProxmoxFirewallRule
+
+Representation of a firewall rule at cluster, node, or VM level.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Firewall rule identifier |
+| cluster_id | ID of the parent ProxmoxCluster |
+| scope | Rule scope (cluster, node, vm) |
+| scope_id | Scope identifier (node name or vmid) |
+| pos | Position in the rule list |
+| type | Rule type (in, out, group) |
+| action | Action to take (ACCEPT, DROP, REJECT) |
+| enable | Boolean indicating if rule is enabled |
+| iface | Network interface the rule applies to |
+| source | Source address or network (CIDR) |
+| dest | Destination address or network (CIDR) |
+| proto | Protocol (tcp, udp, icmp, etc.) |
+| sport | Source port(s) |
+| dport | Destination port(s) |
+| comment | Rule description or notes |
+| macro | Predefined macro name |
+| log | Log level for matched traffic |
+
+#### Relationships
+
+- ProxmoxFirewallRule applies to ProxmoxNodes.
+
+    ```
+    (ProxmoxFirewallRule)-[APPLIES_TO_NODE]->(ProxmoxNode)
+    ```
+
+- ProxmoxFirewallRule applies to ProxmoxVMs.
+
+    ```
+    (ProxmoxFirewallRule)-[APPLIES_TO_VM]->(ProxmoxVM)
+    ```
+
+### ProxmoxFirewallIPSet
+
+Representation of an IP set (address group) for firewall rules.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | IP set identifier |
+| name | IP set name |
+| cluster_id | ID of the parent ProxmoxCluster |
+| scope | IP set scope (cluster, node, vm) |
+| scope_id | Scope identifier (node name or vmid) |
+| comment | IP set description or notes |
+| cidrs | Array of CIDR entries in this IP set |
+
+### ProxmoxCertificate
+
+Representation of an SSL/TLS certificate used by a Proxmox node.
+
+| Field | Description |
+| ----- | ----------- |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | Certificate identifier |
+| cluster_id | ID of the parent ProxmoxCluster |
+| node_name | Node using this certificate |
+| filename | Certificate filename |
+| fingerprint | Certificate fingerprint (hash) |
+| issuer | Certificate issuer DN |
+| subject | Certificate subject DN |
+| san | Array of Subject Alternative Names |
+| notbefore | Certificate valid from timestamp |
+| notafter | Certificate valid until timestamp |
+| public_key_type | Public key algorithm (RSA, EC, etc.) |
+| public_key_bits | Public key size in bits |
+| pem | PEM-encoded certificate |
+
+#### Relationships
+
+- ProxmoxNode uses ProxmoxCertificates.
+
+    ```
+    (ProxmoxNode)-[HAS_CERTIFICATE]->(ProxmoxCertificate)
+    ```
+
+## Security and Compliance Queries
+
+### Find users with root-level access
+
+```cypher
+MATCH (acl:ProxmoxACL)-[:APPLIES_TO_USER]->(u:ProxmoxUser)
+MATCH (acl)-[:GRANTS_ROLE]->(r:ProxmoxRole)
+WHERE acl.path = '/' AND r.roleid = 'Administrator'
+RETURN u.userid, u.email, u.enable, r.roleid
+ORDER BY u.userid
+```
+
+### Find disabled users with active permissions
+
+```cypher
+MATCH (acl:ProxmoxACL)-[:APPLIES_TO_USER]->(u:ProxmoxUser)
+WHERE u.enable = false
+RETURN u.userid, u.email, count(acl) as permission_count
+ORDER BY permission_count DESC
+```
+
+### Find firewall rules with unrestricted access
+
+```cypher
+MATCH (rule:ProxmoxFirewallRule)
+WHERE rule.action = 'ACCEPT' 
+AND rule.enable = true
+AND (rule.source IS NULL OR rule.source = '0.0.0.0/0')
+RETURN rule.scope, rule.scope_id, rule.pos, rule.proto, rule.dport, rule.comment
+ORDER BY rule.scope, rule.pos
+```
+
+### Certificate expiration audit
+
+```cypher
+MATCH (n:ProxmoxNode)-[:HAS_CERTIFICATE]->(cert:ProxmoxCertificate)
+WITH n, cert, 
+     (cert.notafter - timestamp()) / (24 * 60 * 60 * 1000) as days_until_expiry
+RETURN n.name, cert.subject, 
+       CASE 
+         WHEN days_until_expiry < 0 THEN 'EXPIRED'
+         WHEN days_until_expiry < 30 THEN 'CRITICAL'
+         WHEN days_until_expiry < 90 THEN 'WARNING'
+         ELSE 'OK'
+       END as status,
+       days_until_expiry
+ORDER BY days_until_expiry
+```
+
+### Privilege escalation risk: Users with VM modification rights
+
+```cypher
+MATCH (acl:ProxmoxACL)-[:APPLIES_TO_USER]->(u:ProxmoxUser)
+MATCH (acl)-[:GRANTS_ROLE]->(r:ProxmoxRole)
+WHERE 'VM.Config' IN r.privs OR 'VM.Allocate' IN r.privs
+RETURN u.userid, u.email, r.roleid, acl.path, r.privs
+ORDER BY u.userid
+```
