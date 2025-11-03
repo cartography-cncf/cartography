@@ -27,7 +27,7 @@ MOCK_NODES = [
 ]
 
 
-@patch.object(cartography.intel.proxmox.cluster, "get_cluster_resources", return_value=MOCK_CLUSTER_DATA)
+@patch.object(cartography.intel.proxmox.cluster, "get_cluster_status", return_value=MOCK_CLUSTER_DATA)
 @patch.object(cartography.intel.proxmox.cluster, "get_nodes", return_value=MOCK_NODE_DATA)
 @patch.object(cartography.intel.proxmox.cluster, "get_node_network")
 @patch.object(cartography.intel.proxmox.compute, "get_vms_for_node")
@@ -113,8 +113,8 @@ def test_full_proxmox_sync(
 
     # 2. Nodes exist and connect to cluster
     expected_nodes = {
-        ("node/node1", "node1"),
-        ("node/node2", "node2"),
+        ("node1", "node1"),
+        ("node2", "node2"),
     }
     assert check_nodes(neo4j_session, "ProxmoxNode", ["id", "name"]) == expected_nodes
 
@@ -130,9 +130,9 @@ def test_full_proxmox_sync(
 
     # 4. VMs and containers exist
     expected_vms = {
-        ("node1/qemu/100", "test-vm-1"),
-        ("node1/qemu/101", "test-vm-2"),
-        ("node2/lxc/200", "test-container-1"),
+        ("node1:100", "test-vm-1"),
+        ("node1:101", "test-vm-2"),
+        ("node2:200", "test-container-1"),
     }
     assert check_nodes(neo4j_session, "ProxmoxVM", ["id", "name"]) == expected_vms
 
@@ -158,9 +158,9 @@ def test_full_proxmox_sync(
 
     # 7. Storage exists and connects to cluster
     expected_storage = {
-        (f"{TEST_CLUSTER_ID}/local", "local"),
-        (f"{TEST_CLUSTER_ID}/local-lvm", "local-lvm"),
-        (f"{TEST_CLUSTER_ID}/nfs-backup", "nfs-backup"),
+        ("local", "local"),
+        ("local-lvm", "local-lvm"),
+        ("nfs-backup", "nfs-backup"),
     }
     assert check_nodes(neo4j_session, "ProxmoxStorage", ["id", "name"]) == expected_storage
 
@@ -168,7 +168,7 @@ def test_full_proxmox_sync(
     # Cluster -> Node -> VM structure
     result = neo4j_session.run(
         """
-        MATCH (c:ProxmoxCluster {id: $cluster_id})<-[:RESOURCE]-(n:ProxmoxNode)<-[:RUNS_ON]-(v:ProxmoxVM)
+        MATCH (c:ProxmoxCluster {id: $cluster_id})<-[:RESOURCE]-(n:ProxmoxNode)<-[:HOSTS_VM]-(v:ProxmoxVM)
         RETURN count(DISTINCT v) as vm_count
         """,
         cluster_id=TEST_CLUSTER_ID,
@@ -177,7 +177,7 @@ def test_full_proxmox_sync(
     assert vm_count == 3
 
 
-@patch.object(cartography.intel.proxmox.cluster, "get_cluster_resources", return_value=MOCK_CLUSTER_DATA)
+@patch.object(cartography.intel.proxmox.cluster, "get_cluster_status", return_value=MOCK_CLUSTER_DATA)
 @patch.object(cartography.intel.proxmox.cluster, "get_nodes", return_value=MOCK_NODE_DATA)
 @patch.object(cartography.intel.proxmox.cluster, "get_node_network")
 def test_cleanup_removes_stale_data(mock_get_node_network, mock_get_nodes, mock_get_cluster, neo4j_session):
@@ -208,7 +208,7 @@ def test_cleanup_removes_stale_data(mock_get_node_network, mock_get_nodes, mock_
     # Verify data exists
     result = neo4j_session.run(
         """
-        MATCH (n:ProxmoxNode {id: 'node/node1'})
+        MATCH (n:ProxmoxNode {id: 'node1'})
         RETURN n.lastupdated as lastupdated
         """
     )
@@ -217,7 +217,7 @@ def test_cleanup_removes_stale_data(mock_get_node_network, mock_get_nodes, mock_
     # Manually add a stale node that won't be in the second sync
     neo4j_session.run(
         """
-        MERGE (n:ProxmoxNode {id: 'node/stale-node'})
+        MERGE (n:ProxmoxNode {id: 'stale-node'})
         SET n.name = 'stale-node',
             n.status = 'offline',
             n.lastupdated = 1
@@ -232,7 +232,7 @@ def test_cleanup_removes_stale_data(mock_get_node_network, mock_get_nodes, mock_
     # Verify stale node exists
     result = neo4j_session.run(
         """
-        MATCH (n:ProxmoxNode {id: 'node/stale-node'})
+        MATCH (n:ProxmoxNode {id: 'stale-node'})
         RETURN count(n) as count
         """
     )
@@ -255,7 +255,7 @@ def test_cleanup_removes_stale_data(mock_get_node_network, mock_get_nodes, mock_
     # Verify stale node was removed
     result = neo4j_session.run(
         """
-        MATCH (n:ProxmoxNode {id: 'node/stale-node'})
+        MATCH (n:ProxmoxNode {id: 'stale-node'})
         RETURN count(n) as count
         """
     )
@@ -264,7 +264,7 @@ def test_cleanup_removes_stale_data(mock_get_node_network, mock_get_nodes, mock_
     # Verify current nodes still exist with updated timestamp
     result = neo4j_session.run(
         """
-        MATCH (n:ProxmoxNode {id: 'node/node1'})
+        MATCH (n:ProxmoxNode {id: 'node1'})
         RETURN n.lastupdated as lastupdated
         """
     )

@@ -4,11 +4,25 @@ Mock data for Proxmox cluster tests.
 
 MOCK_CLUSTER_DATA = [
     {
-        "cluster": "test-cluster",
+        "type": "cluster",
+        "name": "test-cluster",
         "version": "8.1.3",
         "quorate": 1,
         "nodes": 3,
-    }
+        "id": "cluster/test-cluster",
+    },
+    {
+        "type": "node",
+        "name": "node1",
+        "online": 1,
+        "id": "node/node1",
+    },
+    {
+        "type": "node",
+        "name": "node2",
+        "online": 1,
+        "id": "node/node2",
+    },
 ]
 
 MOCK_NODE_DATA = [
