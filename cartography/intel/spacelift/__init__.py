@@ -1,10 +1,12 @@
 import logging
 
+import boto3
 import neo4j
 import requests
 
 from cartography.config import Config
 from cartography.intel.spacelift.account import sync_account
+from cartography.intel.spacelift.ec2_ownership import sync_ec2_ownership
 from cartography.intel.spacelift.runs import sync_runs
 from cartography.intel.spacelift.spaces import sync_spaces
 from cartography.intel.spacelift.stacks import sync_stacks
@@ -94,6 +96,29 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         account_id,
         common_job_parameters,
     )
+
+    # Sync EC2 ownership relationships from CloudTrail data (optional)
+    if all(
+        hasattr(config, attr)
+        for attr in [
+            "spacelift_ec2_ownership_s3_bucket",
+            "spacelift_ec2_ownership_s3_key",
+        ]
+    ):
+        if hasattr(config, "spacelift_ec2_ownership_aws_profile"):
+            aws_session = boto3.Session(
+                profile_name=config.spacelift_ec2_ownership_aws_profile
+            )
+        else:
+            aws_session = boto3.Session()
+        sync_ec2_ownership(
+            neo4j_session,
+            aws_session,
+            config.spacelift_ec2_ownership_s3_bucket,
+            config.spacelift_ec2_ownership_s3_key,
+            config.update_tag,
+            account_id,
+        )
 
     merge_module_sync_metadata(
         neo4j_session,
