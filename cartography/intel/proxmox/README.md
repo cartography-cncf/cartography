@@ -14,6 +14,7 @@ The Proxmox integration syncs the following resources:
 - **Storage**: Storage backends (local, NFS, Ceph, LVM, etc.)
 - **Resource Pools**: Pool-based organization of VMs, containers, and storage
 - **Backup Jobs**: Scheduled backup configurations with retention policies
+- **High Availability**: HA groups and resource configurations for failover
 
 ## Configuration
 
@@ -129,6 +130,21 @@ The Proxmox integration syncs the following resources:
 - `compression`: Compression type (zstd, gzip, lzo)
 - `prune_backups`: Retention policy settings
 
+#### ProxmoxHAGroup
+- `id`: Group identifier
+- `group`: Group name
+- `nodes`: Comma-separated list of preferred nodes
+- `restricted`: Whether to restrict to listed nodes
+- `nofailback`: Prevent automatic failback
+
+#### ProxmoxHAResource
+- `id`: Resource identifier (e.g., vm:100)
+- `sid`: Service ID
+- `state`: Current state (started, stopped, disabled)
+- `group`: Associated HA group
+- `max_restart`: Maximum restart attempts
+- `max_relocate`: Maximum relocation attempts
+
 ### Relationships
 
 ```
@@ -142,6 +158,8 @@ The Proxmox integration syncs the following resources:
 (:ProxmoxPool)-[:CONTAINS_STORAGE]->(:ProxmoxStorage)
 (:ProxmoxBackupJob)-[:BACKS_UP]->(:ProxmoxVM)
 (:ProxmoxBackupJob)-[:BACKS_UP_TO]->(:ProxmoxStorage)
+(:ProxmoxHAResource)-[:MEMBER_OF_HA_GROUP]->(:ProxmoxHAGroup)
+(:ProxmoxHAResource)-[:PROTECTS]->(:ProxmoxVM)
 ```
 
 ## Example Queries
@@ -210,6 +228,30 @@ ORDER BY vm.name
 MATCH (job:ProxmoxBackupJob)
 WHERE job.enabled = false
 RETURN job.id, job.schedule, job.notes
+```
+
+### Find VMs protected by HA
+```cypher
+MATCH (vm:ProxmoxVM)<-[:PROTECTS]-(ha:ProxmoxHAResource)
+RETURN vm.name, vm.status, ha.state, ha.group
+ORDER BY vm.name
+```
+
+### Find HA group configuration
+```cypher
+MATCH (group:ProxmoxHAGroup)
+RETURN group.group, group.nodes, group.restricted, group.nofailback
+ORDER BY group.group
+```
+
+### Find VMs not protected by HA but should be
+```cypher
+MATCH (vm:ProxmoxVM)
+WHERE vm.template = false 
+AND vm.status = 'running'
+AND NOT (vm)<-[:PROTECTS]-(:ProxmoxHAResource)
+RETURN vm.name, vm.node, vm.memory
+ORDER BY vm.memory DESC
 ```
 
 ## Permissions Required
