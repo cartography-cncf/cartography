@@ -239,9 +239,6 @@ def test_spacelift_end_to_end(
     assert actual_run_nodes is not None
     assert expected_run_nodes == actual_run_nodes
 
-    # Note: Run-[:AFFECTED]->EC2Instance relationships are created separately
-    # by the ec2_ownership module using MatchLink with CloudTrail data
-
     # Check that Stack-[:GENERATED]->Run relationships were created
     expected_stack_run_relationships = {
         ("stack-1", "run-1"),

@@ -8,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load_matchlinks
 from cartography.models.spacelift.run import SpaceliftRunToEC2InstanceRel
+from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -15,22 +16,13 @@ logger = logging.getLogger(__name__)
 # Regex pattern to match EC2 instance IDs
 INSTANCE_ID_PATTERN = re.compile(r"\b(i-[0-9a-f]{8,17})\b")
 
-
+@aws_handle_regions
 @timeit
 def get_ec2_ownership(
     aws_session: boto3.Session, bucket_name: str, object_key: str
 ) -> list[dict[str, Any]]:
     """
     Fetch EC2 ownership data from S3 bucket containing Athena query results.
-    This data connects Spacelift runs with EC2 instances based on CloudTrail logs.
-
-    Args:
-        aws_session: Boto3 session with AWS credentials
-        bucket_name: S3 bucket name (e.g., 'subimage-spotnana-prod')
-        object_key: S3 object key (e.g., 'spotnana-athena')
-
-    Returns:
-        Parsed JSON data from the S3 object
     """
     logger.info(f"Fetching EC2 ownership data from s3://{bucket_name}/{object_key}")
 
@@ -54,16 +46,6 @@ def get_ec2_ownership(
 def extract_spacelift_run_id(useridentity_str: str) -> str | None:
     """
     Extract Spacelift run ID from the useridentity field.
-
-    The useridentity field is a JSON-like string containing an ARN.
-    Example ARN: arn:aws:sts::437049405698:assumed-role/SpaceLift-Administrator-Access/01K8RRECDWMCECWYXJ5NK30F62@cloudflared-prod@Spotnana-Tech
-    Run ID is the first part before the @ symbol: 01K8RRECDWMCECWYXJ5NK30F62
-
-    Args:
-        useridentity_str: The useridentity field value (JSON-like string)
-
-    Returns:
-        The run ID if found and it contains 'spacelift', None otherwise
     """
     # Only process if 'spacelift' is in the useridentity
     if "spacelift" not in useridentity_str.lower():
@@ -89,17 +71,6 @@ def extract_spacelift_run_id(useridentity_str: str) -> str | None:
 def extract_instance_ids(record: dict[str, Any]) -> list[str]:
     """
     Extract EC2 instance IDs from a CloudTrail record.
-
-    Instance IDs can appear in multiple fields:
-    - resources: Array with ARNs like arn:aws:ec2:region:account:instance/i-xxxxx
-    - requestparameters: JSON string with instanceId or instancesSet
-    - responseelements: JSON string with instance data from RunInstances
-
-    Args:
-        record: CloudTrail event record
-
-    Returns:
-        List of unique instance IDs found in the record
     """
     instance_ids = set()
 
@@ -132,12 +103,6 @@ def transform_ec2_ownership(
     This function filters CloudTrail records to find those that have BOTH:
     1. A Spacelift run ID (from the useridentity field)
     2. An EC2 instance ID (from resources, requestparameters, or responseelements)
-
-    Args:
-        cloudtrail_data: List of CloudTrail event records from Athena
-
-    Returns:
-        List of mappings with run_id and instance_id for creating AFFECTS relationships
     """
     logger.info(
         f"Transforming {len(cloudtrail_data)} CloudTrail records to map Spacelift runs to EC2 instances"
