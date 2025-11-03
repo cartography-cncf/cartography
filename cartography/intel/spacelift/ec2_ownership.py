@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 # Regex pattern to match EC2 instance IDs
 INSTANCE_ID_PATTERN = re.compile(r"\b(i-[0-9a-f]{8,17})\b")
 
+
 @aws_handle_regions
 @timeit
 def get_ec2_ownership(
