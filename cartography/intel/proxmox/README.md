@@ -12,6 +12,8 @@ The Proxmox integration syncs the following resources:
 - **Disks**: Virtual disk configurations and storage relationships
 - **Network Interfaces**: VM network interfaces with VLAN and bridge information
 - **Storage**: Storage backends (local, NFS, Ceph, LVM, etc.)
+- **Resource Pools**: Pool-based organization of VMs, containers, and storage
+- **Backup Jobs**: Scheduled backup configurations with retention policies
 
 ## Configuration
 
@@ -113,6 +115,20 @@ The Proxmox integration syncs the following resources:
 - `shared`: Shared storage flag
 - `total`, `used`, `available`: Space information
 
+#### ProxmoxPool
+- `id`: Pool identifier
+- `poolid`: Pool name
+- `comment`: Description/notes
+
+#### ProxmoxBackupJob
+- `id`: Job identifier
+- `schedule`: Cron-style schedule
+- `storage`: Target storage backend
+- `enabled`: Job enabled/disabled
+- `mode`: Backup mode (snapshot, suspend, stop)
+- `compression`: Compression type (zstd, gzip, lzo)
+- `prune_backups`: Retention policy settings
+
 ### Relationships
 
 ```
@@ -122,6 +138,10 @@ The Proxmox integration syncs the following resources:
 (:ProxmoxVM)-[:HAS_NETWORK_INTERFACE]->(:ProxmoxNetworkInterface)
 (:ProxmoxDisk)-[:STORED_ON]->(:ProxmoxStorage)
 (:ProxmoxStorage)-[:AVAILABLE_ON]->(:ProxmoxNode)
+(:ProxmoxPool)-[:CONTAINS_VM]->(:ProxmoxVM)
+(:ProxmoxPool)-[:CONTAINS_STORAGE]->(:ProxmoxStorage)
+(:ProxmoxBackupJob)-[:BACKS_UP]->(:ProxmoxVM)
+(:ProxmoxBackupJob)-[:BACKS_UP_TO]->(:ProxmoxStorage)
 ```
 
 ## Example Queries
@@ -160,6 +180,36 @@ RETURN v.name, v.node, v.tags
 MATCH (s:ProxmoxStorage)
 RETURN s.name, s.type, s.total, s.used, s.available
 ORDER BY s.used DESC
+```
+
+### Find VMs in a specific pool
+```cypher
+MATCH (pool:ProxmoxPool {poolid: 'production'})-[:CONTAINS_VM]->(vm:ProxmoxVM)
+RETURN vm.name, vm.status, vm.node
+ORDER BY vm.name
+```
+
+### Find all backup jobs for a VM
+```cypher
+MATCH (vm:ProxmoxVM {name: 'my-vm'})<-[:BACKS_UP]-(job:ProxmoxBackupJob)
+RETURN job.id, job.schedule, job.enabled, job.storage
+ORDER BY job.schedule
+```
+
+### Find VMs not covered by any backup job
+```cypher
+MATCH (vm:ProxmoxVM)
+WHERE NOT (vm)<-[:BACKS_UP]-(:ProxmoxBackupJob)
+AND vm.template = false
+RETURN vm.name, vm.node, vm.status
+ORDER BY vm.name
+```
+
+### Find disabled backup jobs
+```cypher
+MATCH (job:ProxmoxBackupJob)
+WHERE job.enabled = false
+RETURN job.id, job.schedule, job.notes
 ```
 
 ## Permissions Required

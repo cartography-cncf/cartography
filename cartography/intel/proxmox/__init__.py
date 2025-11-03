@@ -11,15 +11,19 @@ from typing import Any, Dict
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.proxmox import backup
 from cartography.intel.proxmox import cluster
 from cartography.intel.proxmox import compute
+from cartography.intel.proxmox import pool
 from cartography.intel.proxmox import storage
+from cartography.models.proxmox.backup import ProxmoxBackupJobSchema
 from cartography.models.proxmox.cluster import ProxmoxClusterSchema
 from cartography.models.proxmox.cluster import ProxmoxNodeNetworkInterfaceSchema
 from cartography.models.proxmox.cluster import ProxmoxNodeSchema
 from cartography.models.proxmox.compute import ProxmoxDiskSchema
 from cartography.models.proxmox.compute import ProxmoxNetworkInterfaceSchema
 from cartography.models.proxmox.compute import ProxmoxVMSchema
+from cartography.models.proxmox.pool import ProxmoxPoolSchema
 from cartography.models.proxmox.storage import ProxmoxStorageSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -155,6 +159,24 @@ def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
             common_job_parameters,
         )
 
+        # Sync resource pools
+        pool.sync(
+            neo4j_session,
+            proxmox_client,
+            cluster_id,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+        # Sync backup jobs
+        backup.sync(
+            neo4j_session,
+            proxmox_client,
+            cluster_id,
+            config.update_tag,
+            common_job_parameters,
+        )
+
         # Run cleanup using modern GraphJob approach
         # Per AGENTS.md: Use GraphJob.from_node_schema() instead of JSON cleanup files
         logger.info("Running Proxmox cleanup jobs")
@@ -166,6 +188,8 @@ def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
         GraphJob.from_node_schema(ProxmoxDiskSchema(), common_job_parameters).run(neo4j_session)
         GraphJob.from_node_schema(ProxmoxNetworkInterfaceSchema(), common_job_parameters).run(neo4j_session)
         GraphJob.from_node_schema(ProxmoxStorageSchema(), common_job_parameters).run(neo4j_session)
+        GraphJob.from_node_schema(ProxmoxPoolSchema(), common_job_parameters).run(neo4j_session)
+        GraphJob.from_node_schema(ProxmoxBackupJobSchema(), common_job_parameters).run(neo4j_session)
         
         # Note: ProxmoxCluster doesn't need cleanup since it's the tenant root
         # and has no sub_resource_relationship
