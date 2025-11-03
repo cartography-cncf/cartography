@@ -7,7 +7,7 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load_matchlinks
-from cartography.models.spacelift.run import SpaceliftRunToEC2InstanceRel
+from cartography.models.spacelift.run import SpaceliftRunToEC2InstanceMatchLinkRel
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -30,10 +30,8 @@ def get_ec2_ownership(
     # Create S3 client from the boto3 session
     s3_client = aws_session.client("s3")
 
-    # Get the object from S3
     response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
 
-    # Read the object body (returns a StreamingBody)
     object_body = response["Body"].read()
 
     # Decode bytes to string and parse JSON
@@ -158,7 +156,7 @@ def load_ec2_ownership_relationships(
 
     load_matchlinks(
         neo4j_session,
-        SpaceliftRunToEC2InstanceRel(),
+        SpaceliftRunToEC2InstanceMatchLinkRel(),
         mappings,
         lastupdated=update_tag,
         _sub_resource_label="SpaceliftAccount",

@@ -98,14 +98,19 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     )
 
     # Sync EC2 ownership relationships from CloudTrail data (optional)
-    if (
-        hasattr(config, "spacelift_ec2_ownership_aws_profile")
-        and hasattr(config, "spacelift_ec2_ownership_s3_bucket")
-        and hasattr(config, "spacelift_ec2_ownership_s3_key")
+    if all(
+        hasattr(config, attr)
+        for attr in [
+            "spacelift_ec2_ownership_s3_bucket",
+            "spacelift_ec2_ownership_s3_key",
+        ]
     ):
-        aws_session = boto3.Session(
-            profile_name=config.spacelift_ec2_ownership_aws_profile
-        )
+        if hasattr(config, "spacelift_ec2_ownership_aws_profile"):
+            aws_session = boto3.Session(
+                profile_name=config.spacelift_ec2_ownership_aws_profile
+            )
+        else:
+            aws_session = boto3.Session()
         sync_ec2_ownership(
             neo4j_session,
             aws_session,

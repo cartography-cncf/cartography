@@ -239,6 +239,23 @@ def test_spacelift_end_to_end(
     assert actual_run_nodes is not None
     assert expected_run_nodes == actual_run_nodes
 
+    # Check that Run-[:AFFECTED]->EC2Instance relationships were created (from Spacelift entities API)
+    expected_run_ec2_relationships = {
+        ("run-1", "i-01"),
+        ("run-1", "i-02"),
+        ("run-2", "i-03"),
+    }
+    actual_run_ec2_relationships = check_rels(
+        neo4j_session,
+        "SpaceliftRun",
+        "id",
+        "EC2Instance",
+        "instanceid",
+        "AFFECTED",
+    )
+    assert actual_run_ec2_relationships is not None
+    assert expected_run_ec2_relationships == actual_run_ec2_relationships
+
     # Check that Stack-[:GENERATED]->Run relationships were created
     expected_stack_run_relationships = {
         ("stack-1", "run-1"),

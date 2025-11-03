@@ -283,19 +283,31 @@ Representation of a job that can touch infrastructure. It is the execution insta
     (SpaceliftRun)<-[COMMITTED]-(SpaceliftGitCommit)
     ```
 
-- SpaceliftRuns can affect EC2 Instances (optional, requires EC2 ownership configuration):
+- SpaceliftRuns can affect EC2 Instances:
 
     ```
-    (SpaceliftRun)-[AFFECTED{event_time, event_name, aws_account, aws_region}]->(EC2Instance)
+    (SpaceliftRun)-[AFFECTED]->(EC2Instance)
     ```
 
-    This relationship is created via MatchLink using CloudTrail data and connects Spacelift runs to the EC2 instances they manage. The relationship properties include:
-    - `event_time`: Timestamp of the CloudTrail event
-    - `event_name`: Name of the AWS API call (e.g., "RunInstances", "TerminateInstances")
-    - `aws_account`: AWS account ID where the event occurred
-    - `aws_region`: AWS region where the event occurred
+    This relationship is created from **two sources**, and a single EC2 instance may have multiple `AFFECTED` relationships to different runs:
 
-    This relationship is created separately by the `ec2_ownership` module when CloudTrail data is available (requires additional configuration with `--spacelift-ec2-ownership-*` CLI flags).
+    **Source 1: Spacelift Entities API (always created during runs sync)**
+    - Created automatically when Spacelift reports managed resources via its entities API
+    - Properties: `lastupdated` only
+    - Represents the current Terraform state view of managed instances
+    - The Instance Id from spacelift is often seen in hex format (seen when using workerpools), causing a mistmatch with the InstanceID on an EC2 Node. (Hence the need for Source 2)
+
+    **Source 2: CloudTrail Data (optional, requires EC2 ownership configuration)**
+    - Created via MatchLink using CloudTrail data from S3
+    - Additional properties with CloudTrail metadata:
+      - `event_time`: Timestamp of the CloudTrail event
+      - `event_name`: Name of the AWS API call (e.g., "RunInstances", "TerminateInstances")
+      - `aws_account`: AWS account ID where the event occurred
+      - `aws_region`: AWS region where the event occurred
+    - Loaded separately by the `ec2_ownership` module
+    - Requires CLI configuration: `--spacelift-ec2-ownership-s3-bucket`, `--spacelift-ec2-ownership-s3-key`, and optionally `--spacelift-ec2-ownership-aws-profile`
+
+    Both relationships provide complementary views: the entities API shows current Terraform state, while CloudTrail shows historical AWS API interactions.
 
 ### SpaceliftGitCommit
 
