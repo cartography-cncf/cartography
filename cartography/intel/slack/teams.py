@@ -26,13 +26,10 @@ def sync(
         team_ids = [common_job_parameters["TEAM_ID"]]
     
     teams_details = get_teams_details(slack_client, team_ids)
-    # WIP:
-    print(teams_details)
     load_team(neo4j_session, teams_details, update_tag)
 
     return team_ids
 
-# WIP: {'ok': True, 'teams': [{'id': 'T08650VE99T', 'name': 'SubImage'}]}
 @ timeit
 def get_teams(slack_client: WebClient) -> dict[str, Any]:
     response = slack_client.auth_teams_list()
@@ -58,6 +55,6 @@ def load_team(
     load(
         neo4j_session,
         SlackTeamSchema(),
-        [data],
+        data,
         lastupdated=update_tag,
     )

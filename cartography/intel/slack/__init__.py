@@ -32,8 +32,12 @@ def start_slack_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "CHANNELS_MEMBERSHIPS": config.slack_channels_memberships,
-        "SYNC_TEAMS": config.slack_sync_teams,
     }
+
+    restricting_teams = []
+    if config.slack_teams:
+        for team in config.slack_teams.split(','):
+            restricting_teams.append(team.strip())
 
     rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=1)
     slack_client = WebClient(token=config.slack_token)
@@ -46,6 +50,9 @@ def start_slack_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         common_job_parameters,
     )
     for team_id in teams_id:
+        if restricting_teams and team_id not in restricting_teams:
+            logger.debug("Skipping team %s", team_id)
+            continue
         logger.info("Syncing team %s", team_id)
         common_job_parameters['TEAM_ID'] = team_id
         cartography.intel.slack.users.sync(

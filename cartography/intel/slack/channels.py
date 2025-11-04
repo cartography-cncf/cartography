@@ -73,6 +73,7 @@ def load_channels(
     team_id: str,
     update_tag: int,
 ) -> None:
+    logger.info("Loading %s Slack channels into Neo4j", len(data))
     load(
         neo4j_session,
         SlackChannelSchema(),

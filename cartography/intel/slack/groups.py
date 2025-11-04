@@ -63,6 +63,7 @@ def load_groups(
     team_id: str,
     update_tag: int,
 ) -> None:
+    logger.info("Loading %s Slack groups into Neo4j", len(data))
     load(
         neo4j_session,
         SlackGroupSchema(),

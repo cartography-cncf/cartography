@@ -40,6 +40,7 @@ import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.pagerduty
 import cartography.intel.scaleway
+import cartography.intel.slack
 import cartography.intel.semgrep
 import cartography.intel.sentinelone
 import cartography.intel.snipeit
@@ -85,6 +86,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
+        "slack": cartography.intel.slack.start_slack_ingestion,
         "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
