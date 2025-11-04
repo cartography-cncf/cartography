@@ -24,9 +24,7 @@ def sync(
         team_ids = [t["id"] for t in teams.get("teams", [])]
     else:
         team_ids = [common_job_parameters["TEAM_ID"]]
-    print(team_ids)
     teams_details = get_teams_details(slack_client, team_ids)
-    print(teams_details)
     load_team(neo4j_session, teams_details, update_tag)
 
     return team_ids
