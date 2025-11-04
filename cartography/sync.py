@@ -44,6 +44,7 @@ import cartography.intel.semgrep
 import cartography.intel.sentinelone
 import cartography.intel.slack
 import cartography.intel.snipeit
+import cartography.intel.spacelift
 import cartography.intel.tailscale
 import cartography.intel.trivy
 from cartography.config import Config
@@ -87,6 +88,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
+        "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
         "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,

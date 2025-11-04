@@ -1,0 +1,231 @@
+from dataclasses import dataclass
+
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
+from cartography.models.core.relationships import TargetNodeMatcher
+
+
+@dataclass(frozen=True)
+class SpaceliftRunNodeProperties(CartographyNodeProperties):
+    """
+    Properties for a Spacelift Run node.
+    """
+
+    id: PropertyRef = PropertyRef("id")
+    run_type: PropertyRef = PropertyRef("run_type")
+    state: PropertyRef = PropertyRef("state")
+    commit_sha: PropertyRef = PropertyRef("commit_sha")
+    branch: PropertyRef = PropertyRef("branch")
+    created_at: PropertyRef = PropertyRef("created_at")
+    stack_id: PropertyRef = PropertyRef("stack_id")
+    triggered_by_user_id: PropertyRef = PropertyRef("triggered_by_user_id")
+    worker_id: PropertyRef = PropertyRef("worker_id")
+    account_id: PropertyRef = PropertyRef("account_id")
+    affected_instance_ids: PropertyRef = PropertyRef("affected_instance_ids")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToAccountRelProperties(CartographyRelProperties):
+    """
+    Properties for the RESOURCE relationship between a Run and its Account.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToAccountRel(CartographyRelSchema):
+    """
+    RESOURCE relationship from a Run to its Account.
+    (:SpaceliftRun)<-[:RESOURCE]-(:SpaceliftAccount)
+    """
+
+    target_node_label: str = "SpaceliftAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("account_id", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: SpaceliftRunToAccountRelProperties = (
+        SpaceliftRunToAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToStackRelProperties(CartographyRelProperties):
+    """
+    Properties for the GENERATED relationship between a Stack and its Run.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToStackRel(CartographyRelSchema):
+    """
+    GENERATED relationship from a Run to its parent Stack.
+    (:SpaceliftRun)<-[:GENERATED]-(:SpaceliftStack)
+    """
+
+    target_node_label: str = "SpaceliftStack"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("stack_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "GENERATED"
+    properties: SpaceliftRunToStackRelProperties = SpaceliftRunToStackRelProperties()
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToUserRelProperties(CartographyRelProperties):
+    """
+    Properties for the TRIGGERED relationship between a User and a Run.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToUserRel(CartographyRelSchema):
+    """
+    TRIGGERED relationship from a Run to the User who triggered it.
+    (:SpaceliftRun)<-[:TRIGGERED]-(:SpaceliftUser)
+    """
+
+    target_node_label: str = "SpaceliftUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("triggered_by_user_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "TRIGGERED"
+    properties: SpaceliftRunToUserRelProperties = SpaceliftRunToUserRelProperties()
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToWorkerRelProperties(CartographyRelProperties):
+    """
+    Properties for the EXECUTED relationship between a Worker and a Run.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToWorkerRel(CartographyRelSchema):
+    """
+    EXECUTED relationship from a Run to the Worker executing it.
+    (:SpaceliftRun)<-[:EXECUTED]-(:SpaceliftWorker)
+    """
+
+    target_node_label: str = "SpaceliftWorker"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("worker_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "EXECUTED"
+    properties: SpaceliftRunToWorkerRelProperties = SpaceliftRunToWorkerRelProperties()
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToEC2InstanceSimpleRelProperties(CartographyRelProperties):
+    """
+    Properties for the simple AFFECTED relationship between a Run and EC2 Instances.
+    This relationship is created from Spacelift entities API during runs sync.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToEC2InstanceSimpleRel(CartographyRelSchema):
+    """
+    AFFECTED relationship from a Run to EC2 Instances it manages (from Spacelift entities API).
+    (:SpaceliftRun)-[:AFFECTED]->(:EC2Instance)
+    """
+
+    target_node_label: str = "EC2Instance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"instanceid": PropertyRef("affected_instance_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTED"
+    properties: SpaceliftRunToEC2InstanceSimpleRelProperties = (
+        SpaceliftRunToEC2InstanceSimpleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToEC2InstanceMatchLinkRelProperties(CartographyRelProperties):
+    """
+    Properties for the AFFECTED relationship between a Run and EC2 Instances (MatchLink).
+    This relationship is created from CloudTrail data showing which EC2 instances
+    were accessed or modified during a Spacelift run.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+    # Additional metadata from CloudTrail
+    event_time: PropertyRef = PropertyRef("event_time")
+    event_name: PropertyRef = PropertyRef("event_name")
+    aws_account: PropertyRef = PropertyRef("aws_account")
+    aws_region: PropertyRef = PropertyRef("aws_region")
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToEC2InstanceMatchLinkRel(CartographyRelSchema):
+    """
+    AFFECTED relationship from a Run to EC2 Instances it manages (MatchLink with CloudTrail metadata).
+    (:SpaceliftRun)-[:AFFECTED]->(:EC2Instance)
+
+    This is loaded separately by the ec2_ownership module using CloudTrail data.
+    """
+
+    source_node_label: str = "SpaceliftRun"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "id": PropertyRef("run_id"),
+        }
+    )
+    target_node_label: str = "EC2Instance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "instanceid": PropertyRef("instance_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTED"
+    properties: SpaceliftRunToEC2InstanceMatchLinkRelProperties = (
+        SpaceliftRunToEC2InstanceMatchLinkRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class SpaceliftRunSchema(CartographyNodeSchema):
+    """
+    Schema for a Spacelift Run node.
+    """
+
+    label: str = "SpaceliftRun"
+    properties: SpaceliftRunNodeProperties = SpaceliftRunNodeProperties()
+    sub_resource_relationship: SpaceliftRunToAccountRel = SpaceliftRunToAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            SpaceliftRunToStackRel(),
+            SpaceliftRunToUserRel(),
+            SpaceliftRunToWorkerRel(),
+            SpaceliftRunToEC2InstanceSimpleRel(),
+        ],
+    )

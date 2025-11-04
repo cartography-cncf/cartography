@@ -870,6 +870,51 @@ class CLI:
             action="store_true",
             help=("Pull memberships for Slack Channels (can be time consuming)."),
         )
+        parser.add_argument(
+            "--spacelift-api-endpoint",
+            type=str,
+            default=None,
+            help=(
+                "Spacelift GraphQL API endpoint (e.g., https://yourorg.app.spacelift.io/graphql). "
+                "Required if you are using the Spacelift intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-token-env-var",
+            type=str,
+            default="SPACELIFT_API_TOKEN",
+            help=(
+                "The name of an environment variable containing the Spacelift API token. "
+                "Required if you are using the Spacelift intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-aws-profile",
+            type=str,
+            default=None,
+            help=(
+                "AWS profile name to use for fetching EC2 ownership data from S3. "
+                "Optional. If not provided, uses default AWS credentials. "
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-s3-bucket",
+            type=str,
+            default=None,
+            help=(
+                "S3 bucket name containing CloudTrail data for EC2 ownership relationships. "
+                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-key)."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-s3-key",
+            type=str,
+            default=None,
+            help=(
+                "S3 object key for CloudTrail data for EC2 ownership relationships. "
+                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-bucket)."
+            ),
+        )
 
         return parser
 
@@ -1258,6 +1303,21 @@ class CLI:
                 f"Reading Slack token from environment variables {config.slack_token_env_var}",
             )
             config.slack_token = os.environ.get(config.slack_token_env_var)
+
+        # Spacelift config
+        # Read endpoint from CLI arg or env var
+        if not config.spacelift_api_endpoint:
+            config.spacelift_api_endpoint = os.environ.get("SPACELIFT_API_ENDPOINT")
+
+        if config.spacelift_api_endpoint and config.spacelift_api_token_env_var:
+            logger.debug(
+                f"Reading API token for Spacelift from environment variable {config.spacelift_api_token_env_var}",
+            )
+            config.spacelift_api_token = os.environ.get(
+                config.spacelift_api_token_env_var
+            )
+        else:
+            config.spacelift_api_token = None
 
         # Run cartography
         try:
