@@ -35,8 +35,8 @@ def test_load_slack_users(neo4j_session):
 
     # Assert Users exists
     expected_nodes = {
-        ("SLACKUSER1", "john.doe@lyft.com"),
-        ("SLACKUSER2", "jane.smith@lyft.com"),
+        ("SLACKUSER1", "mbsimpson@simpson.corp"),
+        ("SLACKUSER2", "hjsimpson@simpson.corp"),
     }
     assert check_nodes(neo4j_session, "SlackUser", ["id", "email"]) == expected_nodes
 

@@ -1,12 +1,12 @@
-SLACK_TEAMS = {"ok": True, "teams": [{"id": "TTPQ4FBPT", "name": "Lyft OSS"}]}
+SLACK_TEAMS = {"ok": True, "teams": [{"id": "TTPQ4FBPT", "name": "Simpson Corp"}]}
 SLACK_TEAMS_DETAILS = {
     "ok": True,
     "team": {
         "id": "TTPQ4FBPT",
-        "name": "Lyft OSS",
-        "url": "https://lyftoss.slack.com/",
-        "domain": "lyftoss",
-        "email_domain": "lyft.com",
+        "name": "Simpson Corp",
+        "url": "https://simpsoncorp.slack.com/",
+        "domain": "simpsoncorp",
+        "email_domain": "simpson.corp",
         "icon": {
             "image_default": False,
             "image_34": "https://avatars.slack-edge.com/2023-01-23/fakeid_34.png",
