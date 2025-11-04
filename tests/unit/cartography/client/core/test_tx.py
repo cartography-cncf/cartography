@@ -58,8 +58,26 @@ def test_logs_entity_not_found_with_valid_wait(mock_logger):
 
     mock_logger.warning.assert_called_once()
     call_args = mock_logger.warning.call_args[0][0]
-    assert "Retrying EntityNotFound error after 2 tries" in call_args
-    assert "1.5 seconds" in call_args
+    assert "EntityNotFound retry 2/5" in call_args
+    assert "1.5" in call_args
+
+
+@patch("cartography.client.core.tx.logger")
+def test_logs_entity_not_found_first_encounter(mock_logger):
+    """Should log clear message on first EntityNotFound encounter."""
+    exc = _create_client_error("Neo.ClientError.Statement.EntityNotFound")
+    details = {
+        "exception": exc,
+        "tries": 1,
+        "wait": 1.0,
+        "target": "test_function",
+    }
+    _entity_not_found_backoff_handler(details)
+
+    mock_logger.warning.assert_called_once()
+    call_args = mock_logger.warning.call_args[0][0]
+    assert "Encountered EntityNotFound error (attempt 1/5)" in call_args
+    assert "This is expected during concurrent write operations" in call_args
 
 
 @patch("cartography.client.core.tx.logger")
@@ -76,7 +94,7 @@ def test_logs_entity_not_found_with_none_wait(mock_logger):
 
     mock_logger.warning.assert_called_once()
     call_args = mock_logger.warning.call_args[0][0]
-    assert "unknown seconds" in call_args
+    assert "unknown" in call_args
 
 
 @patch("cartography.client.core.tx.backoff_handler")
@@ -112,8 +130,9 @@ def test_succeeds_on_first_try():
     operation.assert_called_once()
 
 
+@patch("cartography.client.core.tx.logger")
 @patch("cartography.client.core.tx.time.sleep")
-def test_retries_entity_not_found_error(mock_sleep):
+def test_retries_entity_not_found_error(mock_sleep, mock_logger):
     """Should retry EntityNotFound errors up to MAX_RETRIES times."""
     operation = MagicMock()
     # Fail twice with EntityNotFound, then succeed
@@ -128,6 +147,14 @@ def test_retries_entity_not_found_error(mock_sleep):
     assert result == "success"
     assert operation.call_count == 3
     assert mock_sleep.call_count == 2
+
+    # Should log success after recovery
+    success_logs = [
+        call
+        for call in mock_logger.info.call_args_list
+        if "Successfully recovered from EntityNotFound" in str(call)
+    ]
+    assert len(success_logs) == 1
 
 
 def test_raises_non_retryable_client_error_immediately():

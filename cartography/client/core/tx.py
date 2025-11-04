@@ -77,11 +77,23 @@ def _entity_not_found_backoff_handler(details: Dict) -> None:
     if isinstance(exc, Exception) and _is_retryable_client_error(exc):
         wait = details.get("wait")
         wait_str = f"{wait:0.1f}" if wait is not None else "unknown"
-        logger.warning(
-            f"Retrying EntityNotFound error after {details.get('tries')} tries. This is expected during "
-            f"concurrent write operations. Backing off {wait_str} seconds before retry. "
-            f"Function: {details.get('target')}. Error: {details.get('exception')}"
-        )
+        tries = details.get("tries", 0)
+
+        if tries == 1:
+            log_msg = (
+                f"Encountered EntityNotFound error (attempt 1/{_MAX_ENTITY_NOT_FOUND_RETRIES}). "
+                f"This is expected during concurrent write operations. "
+                f"Retrying after {wait_str} second backoff. "
+                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            )
+        else:
+            log_msg = (
+                f"EntityNotFound retry {tries}/{_MAX_ENTITY_NOT_FOUND_RETRIES}. "
+                f"Backing off {wait_str} seconds before next attempt. "
+                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            )
+
+        logger.warning(log_msg)
     else:
         # Fall back to standard backoff handler for other errors
         backoff_handler(details)
@@ -99,7 +111,14 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
 
     while True:
         try:
-            return operation()
+            result = operation()
+            # Log success if we recovered from EntityNotFound errors
+            if entity_attempts > 0:
+                logger.info(
+                    f"Successfully recovered from EntityNotFound error after {entity_attempts} "
+                    f"{'retry' if entity_attempts == 1 else 'retries'}. Function: {target}"
+                )
+            return result
         except _NETWORK_EXCEPTIONS as exc:
             if network_attempts >= _MAX_NETWORK_RETRIES - 1:
                 raise
