@@ -352,3 +352,85 @@ def test_retries_with_exponential_backoff(mock_sleep):
     assert (
         sleep_calls[-1] > sleep_calls[0]
     ), f"Expected exponential backoff with last > first, but got {sleep_calls}"
+
+
+# Additional tests for newly fixed bugs
+
+
+@patch("cartography.client.core.tx.time.sleep")
+@patch("cartography.client.core.tx.logger")
+def test_network_errors_with_none_wait(mock_logger, mock_sleep):
+    """Should handle None wait time for network errors gracefully."""
+    operation = MagicMock()
+    operation.side_effect = [
+        neo4j.exceptions.ServiceUnavailable("Connection lost"),
+        "success",
+    ]
+
+    # Mock backoff.expo() to return None for network errors (edge case)
+    with patch("cartography.client.core.tx.backoff.expo") as mock_expo:
+        # First generator for network_wait, second for entity_wait
+        mock_expo.return_value = iter([None])
+        result = _run_with_retry(operation, "test_target")
+
+    assert result == "success"
+    # Should log error about None wait time
+    error_logs = [
+        call
+        for call in mock_logger.error.call_args_list
+        if "Unexpected: backoff generator returned None" in str(call)
+    ]
+    assert len(error_logs) == 1
+    # Should still sleep (with fallback 1.0 second)
+    mock_sleep.assert_called_once_with(1.0)
+
+
+def test_client_error_with_none_code():
+    """Should handle ClientError with None code gracefully."""
+    # Create a ClientError without setting the code (simulates locally-created error)
+    exc = neo4j.exceptions.ClientError("Test error")
+    # Don't set _neo4j_code, so it defaults to None
+
+    # Should return False (not retryable)
+    assert _is_retryable_client_error(exc) is False
+
+
+@patch("cartography.client.core.tx.time.sleep")
+def test_network_errors_max_retries(mock_sleep):
+    """Should raise network error after MAX_RETRIES attempts."""
+    operation = MagicMock()
+    # Fail all attempts with network error
+    operation.side_effect = neo4j.exceptions.ServiceUnavailable("Connection lost")
+
+    with pytest.raises(neo4j.exceptions.ServiceUnavailable):
+        _run_with_retry(operation, "test_target")
+
+    # Should try MAX_NETWORK_RETRIES (5) times
+    assert operation.call_count == 5
+
+
+@patch("cartography.client.core.tx.logger")
+@patch("cartography.client.core.tx.time.sleep")
+def test_network_error_recovery_logging(mock_sleep, mock_logger):
+    """Should log successful recovery from network errors."""
+    operation = MagicMock()
+    # Fail twice with network error, then succeed
+    operation.side_effect = [
+        neo4j.exceptions.ServiceUnavailable("Connection lost"),
+        neo4j.exceptions.ServiceUnavailable("Connection lost"),
+        "success",
+    ]
+
+    result = _run_with_retry(operation, "test_target")
+
+    assert result == "success"
+    assert operation.call_count == 3
+    assert mock_sleep.call_count == 2
+
+    # Should log success after recovery from network errors
+    success_logs = [
+        call
+        for call in mock_logger.info.call_args_list
+        if "Successfully recovered from network error" in str(call)
+    ]
+    assert len(success_logs) == 1

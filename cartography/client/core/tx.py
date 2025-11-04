@@ -61,7 +61,11 @@ def _is_retryable_client_error(exc: Exception) -> bool:
         return False
 
     # Only retry EntityNotFound errors - all other ClientErrors are permanent failures
-    return exc.code == "Neo.ClientError.Statement.EntityNotFound"
+    # Note: exc.code can be None for locally-created errors (per neo4j driver docs)
+    code = exc.code
+    if code is None:
+        return False
+    return code == "Neo.ClientError.Statement.EntityNotFound"
 
 
 def _entity_not_found_backoff_handler(details: Dict) -> None:
@@ -83,7 +87,7 @@ def _entity_not_found_backoff_handler(details: Dict) -> None:
             log_msg = (
                 f"Encountered EntityNotFound error (attempt 1/{_MAX_ENTITY_NOT_FOUND_RETRIES}). "
                 f"This is expected during concurrent write operations. "
-                f"Retrying after {wait_str} second backoff. "
+                f"Retrying after {wait_str} seconds backoff. "
                 f"Function: {details.get('target')}. Error: {details.get('exception')}"
             )
         else:
@@ -112,7 +116,12 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
     while True:
         try:
             result = operation()
-            # Log success if we recovered from EntityNotFound errors
+            # Log success if we recovered from errors
+            if network_attempts > 0:
+                logger.info(
+                    f"Successfully recovered from network error after {network_attempts} "
+                    f"{'retry' if network_attempts == 1 else 'retries'}. Function: {target}"
+                )
             if entity_attempts > 0:
                 logger.info(
                     f"Successfully recovered from EntityNotFound error after {entity_attempts} "
@@ -124,6 +133,12 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 raise
             network_attempts += 1
             wait = next(network_wait)
+            if wait is None:
+                logger.error(
+                    f"Unexpected: backoff generator returned None for wait time. "
+                    f"target={target}, attempts={network_attempts}, exc={exc}"
+                )
+                wait = 1.0  # Fallback to 1 second wait
             backoff_handler(
                 {
                     "exception": exc,
