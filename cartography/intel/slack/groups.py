@@ -32,8 +32,8 @@ def sync(
 def get(slack_client: WebClient, team_id: str) -> list[dict[str, Any]]:
     return slack_paginate(
         slack_client,
-        'usergroups_list',
-        'usergroups',
+        "usergroups_list",
+        "usergroups",
         team_id=team_id,
         include_count=True,
         include_users=True,
@@ -44,14 +44,14 @@ def get(slack_client: WebClient, team_id: str) -> list[dict[str, Any]]:
 def transform(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
     splitted_groups: list[dict[str, Any]] = []
     for group in groups:
-        if len(group['description']) == 0:
-            group['description'] = None
-        for ms in zip_longest(group['users'], group['prefs']['channels']):
+        if len(group["description"]) == 0:
+            group["description"] = None
+        for ms in zip_longest(group["users"], group["prefs"]["channels"]):
             formated_group = group.copy()
-            formated_group.pop('users')
-            formated_group.pop('prefs')
-            formated_group['member_id'] = ms[0]
-            formated_group['channel_id'] = ms[1]
+            formated_group.pop("users")
+            formated_group.pop("prefs")
+            formated_group["member_id"] = ms[0]
+            formated_group["channel_id"] = ms[1]
             splitted_groups.append(formated_group)
     return splitted_groups
 
@@ -72,6 +72,11 @@ def load_groups(
         TEAM_ID=team_id,
     )
 
+
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
-    GraphJob.from_node_schema(SlackGroupSchema(), common_job_parameters).run(neo4j_session)
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(SlackGroupSchema(), common_job_parameters).run(
+        neo4j_session
+    )

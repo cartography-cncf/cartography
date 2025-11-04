@@ -72,6 +72,7 @@ Representation of a single [User in Slack](https://api.slack.com/types/user).
 | is_bot | Flag for bot user accounts (boolean) |
 | is_app_user | Flag for application user accounts (boolean) |
 | is_email_confirmed | Flag for user with confirmed email (boolean) |
+| has_mfa | Flag for users with multi-factor authentication enabled (boolean) |
 | team | Slack team ID |
 
 #### Relationships

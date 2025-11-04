@@ -21,29 +21,36 @@ def sync(
     # If no team ID is provided, we fetch the team info for the authenticated team
     if not common_job_parameters.get("TEAM_ID"):
         teams = get_teams(slack_client)
-        team_ids = [t['id'] for t in teams.get('teams', [])]
+        team_ids = [t["id"] for t in teams.get("teams", [])]
     else:
         team_ids = [common_job_parameters["TEAM_ID"]]
-    
+    print(team_ids)
     teams_details = get_teams_details(slack_client, team_ids)
+    print(teams_details)
     load_team(neo4j_session, teams_details, update_tag)
 
     return team_ids
 
-@ timeit
+
+@timeit
 def get_teams(slack_client: WebClient) -> dict[str, Any]:
     response = slack_client.auth_teams_list()
     return response.data
 
+
 @timeit
-def get_teams_details(slack_client: WebClient, teams_ids: list[str]) -> list[dict[str, Any]]:
+def get_teams_details(
+    slack_client: WebClient, teams_ids: list[str]
+) -> list[dict[str, Any]]:
     # Get teams
     teams: list[dict[str, Any]] = []
     for team_id in teams_ids:
-        team = slack_client.team_info(team=team_id).data.get('team')
+        response = slack_client.team_info(team=team_id)
+        team = response.data.get("team")
         if team:
             teams.append(team)
     return teams
+
 
 @timeit
 def load_team(

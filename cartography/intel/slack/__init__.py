@@ -24,8 +24,8 @@ def start_slack_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
     if not config.slack_token:
         logger.info(
-            'Slack import is not configured - skipping this module. '
-            'See docs to configure.',
+            "Slack import is not configured - skipping this module. "
+            "See docs to configure.",
         )
         return
 
@@ -36,7 +36,7 @@ def start_slack_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
 
     restricting_teams = []
     if config.slack_teams:
-        for team in config.slack_teams.split(','):
+        for team in config.slack_teams.split(","):
             restricting_teams.append(team.strip())
 
     rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=1)
@@ -54,7 +54,7 @@ def start_slack_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             logger.debug("Skipping team %s", team_id)
             continue
         logger.info("Syncing team %s", team_id)
-        common_job_parameters['TEAM_ID'] = team_id
+        common_job_parameters["TEAM_ID"] = team_id
         cartography.intel.slack.users.sync(
             neo4j_session,
             slack_client,

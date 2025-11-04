@@ -849,30 +849,27 @@ class CLI:
             ),
         )
         parser.add_argument(
-            '--slack-token-env-var',
+            "--slack-token-env-var",
             type=str,
             default=None,
             help=(
-                'The name of environment variable containing the Slack Token. '
-                'Required if you are using the Slack intel module. Ignored otherwise.'
+                "The name of environment variable containing the Slack Token. "
+                "Required if you are using the Slack intel module. Ignored otherwise."
             ),
         )
         parser.add_argument(
-            '--slack-teams',
+            "--slack-teams",
             type=str,
             default=None,
             help=(
-                'The Slack Team ID to sync, comma separated. If not provided, all accessible teams will be synced. '
+                "The Slack Team ID to sync, comma separated. If not provided, all accessible teams will be synced. "
             ),
         )
         parser.add_argument(
-            '--slack-channels-memberships',
-            action='store_true',
-            help=(
-                'Pull memberships for Slack Channels (can be time consuming).'
-            ),
+            "--slack-channels-memberships",
+            action="store_true",
+            help=("Pull memberships for Slack Channels (can be time consuming)."),
         )
-
 
         return parser
 
@@ -1261,7 +1258,6 @@ class CLI:
                 f"Reading Slack token from environment variables {config.slack_token_env_var}",
             )
             config.slack_token = os.environ.get(config.slack_token_env_var)
-
 
         # Run cartography
         try:

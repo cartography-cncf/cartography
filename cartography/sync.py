@@ -40,9 +40,9 @@ import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.pagerduty
 import cartography.intel.scaleway
-import cartography.intel.slack
 import cartography.intel.semgrep
 import cartography.intel.sentinelone
+import cartography.intel.slack
 import cartography.intel.snipeit
 import cartography.intel.tailscale
 import cartography.intel.trivy

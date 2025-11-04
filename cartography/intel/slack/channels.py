@@ -24,44 +24,50 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    channels = get(slack_client, team_id, common_job_parameters['CHANNELS_MEMBERSHIPS'])
+    channels = get(slack_client, team_id, common_job_parameters["CHANNELS_MEMBERSHIPS"])
     load_channels(neo4j_session, channels, team_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
-def get(slack_client: WebClient, team_id: str, get_memberships: bool) -> List[Dict[str, Any]]:
+def get(
+    slack_client: WebClient, team_id: str, get_memberships: bool
+) -> List[Dict[str, Any]]:
     channels: List[Dict[str, Any]] = []
     for channel in slack_paginate(
         slack_client,
-        'conversations_list',
-        'channels',
+        "conversations_list",
+        "channels",
         team_id=team_id,
     ):
-        if channel['is_archived']:
+        if channel["is_archived"]:
             channels.append(channel)
         elif get_memberships:
             for member in slack_paginate(
                 slack_client,
-                'conversations_members',
-                'members',
-                channel=channel['id'],
+                "conversations_members",
+                "members",
+                channel=channel["id"],
             ):
                 channel_m = channel.copy()
-                channel_m['member_id'] = member
+                channel_m["member_id"] = member
                 channels.append(channel_m)
         else:
             channels.append(channel)
     return channels
 
 
-def _get_membership(slack_client: WebClient, slack_channel: str, cursor: Optional[str] = None) -> List[str]:
+def _get_membership(
+    slack_client: WebClient, slack_channel: str, cursor: Optional[str] = None
+) -> List[str]:
     result = []
-    memberships = slack_client.conversations_members(channel=slack_channel, cursor=cursor)
-    for m in memberships['members']:
+    memberships = slack_client.conversations_members(
+        channel=slack_channel, cursor=cursor
+    )
+    for m in memberships["members"]:
         result.append(m)
-    next_cursor = memberships.get('response_metadata', {}).get('next_cursor', '')
-    if next_cursor != '':
+    next_cursor = memberships.get("response_metadata", {}).get("next_cursor", "")
+    if next_cursor != "":
         result.extend(_get_membership(slack_client, slack_channel, cursor=next_cursor))
     return result
 
@@ -84,5 +90,9 @@ def load_channels(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    GraphJob.from_node_schema(SlackChannelSchema(), common_job_parameters).run(neo4j_session)
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(SlackChannelSchema(), common_job_parameters).run(
+        neo4j_session
+    )

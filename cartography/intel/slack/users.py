@@ -28,7 +28,8 @@ def sync(
 
 @timeit
 def get(slack_client: WebClient, team_id: str) -> list[dict[str, Any]]:
-    return slack_paginate(slack_client, 'users_list', 'members', team_id=team_id)
+    return slack_paginate(slack_client, "users_list", "members", team_id=team_id)
+
 
 @timeit
 def load_users(
@@ -46,6 +47,11 @@ def load_users(
         TEAM_ID=team_id,
     )
 
+
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
-    GraphJob.from_node_schema(SlackUserSchema(), common_job_parameters).run(neo4j_session)
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(SlackUserSchema(), common_job_parameters).run(
+        neo4j_session
+    )
