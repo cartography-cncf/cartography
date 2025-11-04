@@ -1,6 +1,8 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from slack_sdk import WebClient
+
 import cartography.intel.slack.channels
 import cartography.intel.slack.groups
 import cartography.intel.slack.teams
@@ -10,8 +12,6 @@ import tests.data.slack.teams
 import tests.data.slack.usergroups
 import tests.data.slack.users
 from demo.seeds.base import Seed
-from slack_sdk import WebClient
-
 
 SLACK_TOKEN = "fake-slack-token"
 
