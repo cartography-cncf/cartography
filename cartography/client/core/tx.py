@@ -75,10 +75,12 @@ def _entity_not_found_backoff_handler(details: Dict) -> None:
     """
     exc = details.get("exception")
     if isinstance(exc, Exception) and _is_retryable_client_error(exc):
+        wait = details.get("wait")
+        wait_str = f"{wait:0.1f}" if wait is not None else "unknown"
         logger.warning(
-            "Retrying EntityNotFound error after {tries} tries. This is expected during "
-            "concurrent write operations. Backing off {wait:0.1f} seconds before retry. "
-            "Function: {target}. Error: {exception}".format(**details)
+            f"Retrying EntityNotFound error after {details.get('tries')} tries. This is expected during "
+            f"concurrent write operations. Backing off {wait_str} seconds before retry. "
+            f"Function: {details.get('target')}. Error: {details.get('exception')}"
         )
     else:
         # Fall back to standard backoff handler for other errors
@@ -121,6 +123,12 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 raise
             entity_attempts += 1
             wait = next(entity_wait)
+            if wait is None:
+                logger.error(
+                    f"Unexpected: backoff generator returned None for wait time. "
+                    f"target={target}, attempts={entity_attempts}, exc={exc}"
+                )
+                wait = 1.0  # Fallback to 1 second wait
             _entity_not_found_backoff_handler(
                 {
                     "exception": exc,
@@ -131,6 +139,7 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
             )
             time.sleep(wait)
             del exc
+            continue
 
 
 @backoff.on_exception(  # type: ignore
