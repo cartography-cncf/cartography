@@ -261,52 +261,50 @@ EC2_INSTANCES_DATA = [
 ]
 
 # CloudTrail data for EC2 ownership tracking
-# This represents CloudTrail events from Athena showing Spacelift runs interacting with EC2 instances
-# Data format matches what get_ec2_ownership returns after parsing JSON from S3
-# Real Athena data has these fields as strings (Hive struct format), but our parsing handles both
+# Simplified test data covering key scenarios. Real CloudTrail events from Athena have
+# fields as Hive struct strings, but our code handles both string and dict formats.
 CLOUDTRAIL_EC2_OWNERSHIP_DATA = [
-    # Three events from run-1 affecting instance i-01234567 (tests bug fix - each event preserved)
+    # Event 1: run-1 checks instance (DescribeInstances with requestparameters)
     {
-        "eventid": "event-uuid-1",
-        "useridentity": "arn=arn:aws:sts::123456789012:assumed-role/spacelift-role/run-1@spacelift.io",
+        "eventid": "45f1164a-cba5-4169-8b09-8066a2634d9b",
+        "useridentity": "arn=arn:aws:sts::661250075859:assumed-role/SpaceLift-Administrator-Access/run-1@spacelift.io",
         "eventtime": "2024-01-01T10:00:00Z",
         "eventname": "DescribeInstances",
         "account": "000000000000",
         "awsregion": "us-east-1",
-        "resources": [
-            {"ARN": "arn:aws:ec2:us-east-1:000000000000:instance/i-01234567"}
-        ],
+        "requestparameters": '{"instancesSet":{"items":[{"instanceId":"i-01234567"}]}}',
     },
+    # Event 2: run-1 creates instance (RunInstances with responseelements)
+    # Tests that same run can have multiple events for same instance (bug fix validation)
     {
-        "eventid": "event-uuid-2",
-        "useridentity": "arn=arn:aws:sts::123456789012:assumed-role/spacelift-role/run-1@spacelift.io",
+        "eventid": "a1b2c3d4-e5f6-4a5b-9c8d-1234567890ab",
+        "useridentity": "arn=arn:aws:sts::661250075859:assumed-role/SpaceLift-Administrator-Access/run-1@spacelift.io",
         "eventtime": "2024-01-01T11:00:00Z",
         "eventname": "RunInstances",
         "account": "000000000000",
         "awsregion": "us-east-1",
-        "responseelements": {"instancesSet": {"items": [{"instanceId": "i-01234567"}]}},
+        "responseelements": '{"instancesSet":{"items":[{"instanceId":"i-01234567"}]}}',
     },
+    # Event 3: run-1 checks instance again (DescribeInstances with resources - Hive format)
+    # Tests third event for same instance from same run
     {
-        "eventid": "event-uuid-3",
-        "useridentity": "arn=arn:aws:sts::123456789012:assumed-role/spacelift-role/run-1@spacelift.io",
+        "eventid": "f7e8d9c0-b1a2-4d3e-8f9a-fedcba987654",
+        "useridentity": "arn=arn:aws:sts::661250075859:assumed-role/SpaceLift-Administrator-Access/run-1@spacelift.io",
         "eventtime": "2024-01-01T12:00:00Z",
         "eventname": "DescribeInstances",
         "account": "000000000000",
         "awsregion": "us-east-1",
-        "resources": [
-            {"ARN": "arn:aws:ec2:us-east-1:000000000000:instance/i-01234567"}
-        ],
+        "resources": "[{arn=arn:aws:ec2:us-east-1:000000000000:instance/i-01234567}]",
     },
-    # One event from run-2 affecting instance i-89abcdef
+    # Event 4: run-2 creates TWO instances in one call
+    # Tests one-to-many: single CloudTrail event affecting multiple EC2 instances
     {
-        "eventid": "event-uuid-4",
-        "useridentity": "arn=arn:aws:sts::123456789012:assumed-role/spacelift-role/run-2@spacelift.io",
+        "eventid": "9a8b7c6d-5e4f-4321-ba09-876543210fed",
+        "useridentity": "arn=arn:aws:sts::661250075859:assumed-role/SpaceLift-Administrator-Access/run-2@spacelift.io",
         "eventtime": "2024-01-01T13:00:00Z",
-        "eventname": "DescribeInstances",
+        "eventname": "RunInstances",
         "account": "000000000000",
         "awsregion": "us-east-1",
-        "resources": [
-            {"ARN": "arn:aws:ec2:us-east-1:000000000000:instance/i-89abcdef"}
-        ],
+        "responseelements": '{"instancesSet":{"items":[{"instanceId":"i-89abcdef"},{"instanceId":"i-02345678"}]}}',
     },
 ]

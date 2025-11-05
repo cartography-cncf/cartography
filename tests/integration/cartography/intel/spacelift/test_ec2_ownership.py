@@ -10,6 +10,8 @@ from cartography.intel.spacelift.runs import sync_runs
 from tests.data.spacelift.spacelift_data import CLOUDTRAIL_EC2_OWNERSHIP_DATA
 from tests.data.spacelift.spacelift_data import RUNS_DATA
 from tests.integration.cartography.intel.aws.common import create_test_account
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_SPACELIFT_ACCOUNT_ID = "test-spacelift-account"
@@ -25,7 +27,9 @@ def _setup_test_infrastructure(neo4j_session: neo4j.Session) -> None:
     """
     create_test_account(neo4j_session, TEST_AWS_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    # Create EC2 instances that match CloudTrail event instance IDs
+    # Note: CloudTrail test data references properly-formatted instance IDs
+    # that match the regex pattern for real EC2 instances. We create these minimal
+    # instances directly rather than using the full EC2 sync.
     neo4j_session.run(
         """
         MERGE (i1:EC2Instance{id: 'i-01234567', instanceid: 'i-01234567'})
@@ -36,10 +40,12 @@ def _setup_test_infrastructure(neo4j_session: neo4j.Session) -> None:
         ON CREATE SET i2.firstseen = timestamp()
         SET i2.lastupdated = $update_tag
 
-        MERGE (a:AWSAccount{id: $aws_id})
-        ON CREATE SET a.firstseen = timestamp()
-        SET a.lastupdated = $update_tag
+        MERGE (i3:EC2Instance{id: 'i-02345678', instanceid: 'i-02345678'})
+        ON CREATE SET i3.firstseen = timestamp()
+        SET i3.lastupdated = $update_tag
 
+        WITH i1, i2, i3
+        MATCH (a:AWSAccount{id: $aws_id})
         MERGE (a)-[r1:RESOURCE]->(i1)
         ON CREATE SET r1.firstseen = timestamp()
         SET r1.lastupdated = $update_tag
@@ -47,6 +53,10 @@ def _setup_test_infrastructure(neo4j_session: neo4j.Session) -> None:
         MERGE (a)-[r2:RESOURCE]->(i2)
         ON CREATE SET r2.firstseen = timestamp()
         SET r2.lastupdated = $update_tag
+
+        MERGE (a)-[r3:RESOURCE]->(i3)
+        ON CREATE SET r3.firstseen = timestamp()
+        SET r3.lastupdated = $update_tag
         """,
         update_tag=TEST_UPDATE_TAG,
         aws_id=TEST_AWS_ACCOUNT_ID,
@@ -127,77 +137,62 @@ def test_ec2_ownership_preserves_multiple_events(
         TEST_SPACELIFT_ACCOUNT_ID,
     )
 
-    # Assert: Verify that 4 CloudTrailEvent nodes were created (one per CloudTrail event)
-    result = neo4j_session.run(
-        """
-        MATCH (e:CloudTrailEvent)<-[:RESOURCE]-(a:SpaceliftAccount{id: $account_id})
-        WHERE e.lastupdated = $update_tag
-        RETURN e.id as id, e.run_id as run_id, e.instance_ids as instance_ids,
-               e.event_time as event_time, e.event_name as event_name
-        ORDER BY e.event_time
-        """,
-        account_id=TEST_SPACELIFT_ACCOUNT_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
-    events = result.data()
-    assert len(events) == 4, f"Expected 4 CloudTrailEvent nodes, got {len(events)}"
-
-    # Verify that all 3 events from run-1 are preserved (they all mention i-01234567)
-    run1_events = [e for e in events if e["run_id"] == "run-1"]
+    # Assert: Verify CloudTrailEvent nodes created with real CloudTrail eventids
+    expected_event_nodes = {
+        ("45f1164a-cba5-4169-8b09-8066a2634d9b", "run-1"),  # DescribeInstances
+        ("a1b2c3d4-e5f6-4a5b-9c8d-1234567890ab", "run-1"),  # RunInstances
+        ("f7e8d9c0-b1a2-4d3e-8f9a-fedcba987654", "run-1"),  # DescribeInstances again
+        ("9a8b7c6d-5e4f-4321-ba09-876543210fed", "run-2"),  # RunInstances (2 instances)
+    }
+    actual_event_nodes = check_nodes(neo4j_session, "CloudTrailEvent", ["id", "run_id"])
+    assert actual_event_nodes is not None
     assert (
-        len(run1_events) == 3
-    ), f"Expected 3 events from run-1, got {len(run1_events)}"
+        expected_event_nodes == actual_event_nodes
+    ), f"Expected {expected_event_nodes}, got {actual_event_nodes}"
 
-    # Verify event details
-    event_names = [e["event_name"] for e in run1_events]
-    assert "DescribeInstances" in event_names
-    assert "RunInstances" in event_names
-    assert event_names.count("DescribeInstances") == 2  # Two DescribeInstances events
-
-    # Verify that events use CloudTrail's native eventid as their ID
-    event_ids = [e["id"] for e in events]
-    assert "event-uuid-1" in event_ids
-    assert "event-uuid-2" in event_ids
-    assert "event-uuid-3" in event_ids
-    assert "event-uuid-4" in event_ids
-
-    # Assert: Verify relationships from CloudTrailEvent to SpaceliftRun
-    # Each CloudTrailEvent should connect to its SpaceliftRun
-    result = neo4j_session.run(
-        """
-        MATCH (e:CloudTrailEvent)<-[:RESOURCE]-(:SpaceliftAccount{id: $account_id})
-        WHERE e.lastupdated = $update_tag
-        MATCH (e)-[r:FROM_RUN]->(:SpaceliftRun)
-        RETURN count(r) as count
-        """,
-        account_id=TEST_SPACELIFT_ACCOUNT_ID,
-        update_tag=TEST_UPDATE_TAG,
+    # Assert: Verify FROM_RUN relationships (one per event)
+    expected_from_run_rels = {
+        ("45f1164a-cba5-4169-8b09-8066a2634d9b", "run-1"),
+        ("a1b2c3d4-e5f6-4a5b-9c8d-1234567890ab", "run-1"),
+        ("f7e8d9c0-b1a2-4d3e-8f9a-fedcba987654", "run-1"),
+        ("9a8b7c6d-5e4f-4321-ba09-876543210fed", "run-2"),
+    }
+    actual_from_run_rels = check_rels(
+        neo4j_session,
+        "CloudTrailEvent",
+        "id",
+        "SpaceliftRun",
+        "id",
+        "FROM_RUN",
+        rel_direction_right=True,
     )
-    from_run_count = result.single()["count"]
+    assert actual_from_run_rels is not None
     assert (
-        from_run_count == 4
-    ), f"Expected 4 FROM_RUN relationships, got {from_run_count}"
+        expected_from_run_rels == actual_from_run_rels
+    ), f"Expected {expected_from_run_rels} FROM_RUN rels, got {actual_from_run_rels}"
 
-    # Assert: Verify relationships from CloudTrailEvent to EC2Instance
-    # Each event creates relationships to all instances it mentions
-    result = neo4j_session.run(
-        """
-        MATCH (e:CloudTrailEvent)<-[:RESOURCE]-(:SpaceliftAccount{id: $account_id})
-        WHERE e.lastupdated = $update_tag
-        MATCH (e)-[r:AFFECTED]->(:EC2Instance)
-        RETURN count(r) as count
-        """,
-        account_id=TEST_SPACELIFT_ACCOUNT_ID,
-        update_tag=TEST_UPDATE_TAG,
+    # Assert: Verify AFFECTED relationships (tests one-to-many)
+    # Event 4 creates TWO relationships (one event -> multiple instances)
+    expected_affected_rels = {
+        ("45f1164a-cba5-4169-8b09-8066a2634d9b", "i-01234567"),
+        ("a1b2c3d4-e5f6-4a5b-9c8d-1234567890ab", "i-01234567"),
+        ("f7e8d9c0-b1a2-4d3e-8f9a-fedcba987654", "i-01234567"),
+        ("9a8b7c6d-5e4f-4321-ba09-876543210fed", "i-89abcdef"),  # Event 4 -> instance 1
+        ("9a8b7c6d-5e4f-4321-ba09-876543210fed", "i-02345678"),  # Event 4 -> instance 2
+    }
+    actual_affected_rels = check_rels(
+        neo4j_session,
+        "CloudTrailEvent",
+        "id",
+        "EC2Instance",
+        "instanceid",
+        "AFFECTED",
+        rel_direction_right=True,
     )
-    affected_count = result.single()["count"]
+    assert actual_affected_rels is not None
     assert (
-        affected_count == 4
-    ), f"Expected 4 AFFECTED relationships, got {affected_count}"
-
-    # Verify instance_ids are stored as lists on the events
-    run1_event1 = [e for e in events if e["id"] == "event-uuid-1"][0]
-    assert run1_event1["instance_ids"] == ["i-01234567"]
+        expected_affected_rels == actual_affected_rels
+    ), f"Expected {expected_affected_rels} AFFECTED rels, got {actual_affected_rels}"
 
 
 @patch("cartography.intel.spacelift.account.get_account")
@@ -275,17 +270,15 @@ def test_ec2_ownership_cleanup(
         final_count == 1
     ), f"Expected 1 CloudTrailEvent after cleanup, got {final_count}"
 
-    # Verify that the remaining event is the correct one (event-uuid-1)
+    # Verify that the remaining event is the correct one (first event)
     result = neo4j_session.run(
         """
-        MATCH (e:CloudTrailEvent)<-[:RESOURCE]-(a:SpaceliftAccount{id: $account_id})
+        MATCH (e:CloudTrailEvent)
         WHERE e.lastupdated = $new_update_tag
-        RETURN e.id as id, e.event_time as event_time, e.event_name as event_name
+        RETURN e.id as id
         """,
-        account_id=TEST_SPACELIFT_ACCOUNT_ID,
         new_update_tag=new_update_tag,
     )
-    remaining_event = result.single()
-    assert remaining_event["id"] == "event-uuid-1"
-    assert remaining_event["event_time"] == "2024-01-01T10:00:00Z"
-    assert remaining_event["event_name"] == "DescribeInstances"
+    remaining_events = result.data()
+    assert len(remaining_events) == 1
+    assert remaining_events[0]["id"] == "45f1164a-cba5-4169-8b09-8066a2634d9b"
