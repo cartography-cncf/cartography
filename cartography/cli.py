@@ -77,14 +77,6 @@ class CLI:
             ),
         )
         parser.add_argument(
-            "--export-format",
-            type=str,
-            default="ndjson",
-            help=(
-                "Export format. Currently only 'ndjson' is supported."
-            ),
-        )
-        parser.add_argument(
             "--no-neo4j-write",
             action="store_true",
             help=(

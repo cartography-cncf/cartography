@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 from dataclasses import dataclass
+import pytest
 
 from cartography.client.core.tx import load
 from cartography.models.core.common import PropertyRef
@@ -126,3 +127,42 @@ def test_file_export_basic_vertex_and_edges():
         assert in_subnet["from_uid"] == "i/i-abc"
         assert in_subnet["to_uid"] == "subnet-1"
 
+
+def test_file_export_writes_to_path_from_env():
+    """
+    Optional smoke test that writes an export file to a provided path for manual inspection.
+    Set CARTOGRAPHY_TEST_EXPORT_OUT to enable; otherwise the test is skipped.
+    """
+    out_path = os.environ.get("CARTOGRAPHY_TEST_EXPORT_OUT")
+    if not out_path:
+        pytest.skip("Set CARTOGRAPHY_TEST_EXPORT_OUT to run this file-producing test.")
+
+    # Ensure any previous file is removed
+    try:
+        os.remove(out_path)
+    except FileNotFoundError:
+        pass
+
+    file_export_sink.enable(out_path)
+    file_export_sink.set_no_neo4j_write(True)
+
+    data = [
+        {
+            "id": "i/i-xyz",
+            "vpcId": "vpc-demo",
+            "subnet_id": "subnet-demo",
+        },
+    ]
+
+    load(  # type: ignore[arg-type]
+        neo4j_session=None,
+        node_schema=_DummySchema(),
+        dict_list=data,
+        lastupdated=1700000001,
+        TENANT_ID="tenant-demo",
+    )
+
+    file_export_sink.disable()
+
+    assert os.path.exists(out_path), f"Export file not found at {out_path}"
+    assert os.path.getsize(out_path) > 0, f"Export file at {out_path} is empty"

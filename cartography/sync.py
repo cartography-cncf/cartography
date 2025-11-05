@@ -145,10 +145,9 @@ class Sync:
         """
         # Configure optional export sink
         export_file = getattr(config, "export_file", None)
-        export_format = getattr(config, "export_format", "ndjson")
         no_neo4j_write = bool(getattr(config, "no_neo4j_write", False))
         if export_file:
-            file_export_sink.enable(export_file, format=export_format)
+            file_export_sink.enable(export_file)
         file_export_sink.set_no_neo4j_write(no_neo4j_write)
 
         logger.info("Starting sync with update tag '%d'", config.update_tag)
