@@ -1,7 +1,11 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import cartography.intel.gcp.bigtable as bigtable
+import cartography.intel.gcp.bigtable_app_profile as bigtable_app_profile
+import cartography.intel.gcp.bigtable_backup as bigtable_backup
+import cartography.intel.gcp.bigtable_cluster as bigtable_cluster
+import cartography.intel.gcp.bigtable_instance as bigtable_instance
+import cartography.intel.gcp.bigtable_table as bigtable_table
 from tests.data.gcp.bigtable import MOCK_APP_PROFILES
 from tests.data.gcp.bigtable import MOCK_BACKUPS
 from tests.data.gcp.bigtable import MOCK_CLUSTERS
@@ -12,6 +16,17 @@ from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_PROJECT_ID = "test-project"
+TEST_INSTANCE_ID = "projects/test-project/instances/carto-bt-instance"
+TEST_CLUSTER_ID = (
+    "projects/test-project/instances/carto-bt-instance/clusters/carto-bt-cluster-c1"
+)
+TEST_TABLE_ID = (
+    "projects/test-project/instances/carto-bt-instance/tables/carto-test-table"
+)
+TEST_APP_PROFILE_ID = (
+    "projects/test-project/instances/carto-bt-instance/appProfiles/carto-app-profile"
+)
+TEST_BACKUP_ID = "projects/test-project/instances/carto-bt-instance/clusters/carto-bt-cluster-c1/backups/carto-table-backup"
 
 
 def _create_prerequisite_nodes(neo4j_session):
@@ -25,12 +40,12 @@ def _create_prerequisite_nodes(neo4j_session):
     )
 
 
-@patch("cartography.intel.gcp.bigtable.get_bigtable_backups")
-@patch("cartography.intel.gcp.bigtable.get_bigtable_app_profiles")
-@patch("cartography.intel.gcp.bigtable.get_bigtable_tables")
-@patch("cartography.intel.gcp.bigtable.get_bigtable_clusters")
-@patch("cartography.intel.gcp.bigtable.get_bigtable_instances")
-def test_sync_bigtable(
+@patch("cartography.intel.gcp.bigtable_backup.get_bigtable_backups")
+@patch("cartography.intel.gcp.bigtable_app_profile.get_bigtable_app_profiles")
+@patch("cartography.intel.gcp.bigtable_table.get_bigtable_tables")
+@patch("cartography.intel.gcp.bigtable_cluster.get_bigtable_clusters")
+@patch("cartography.intel.gcp.bigtable_instance.get_bigtable_instances")
+def test_sync_bigtable_modules(
     mock_get_instances,
     mock_get_clusters,
     mock_get_tables,
@@ -39,7 +54,8 @@ def test_sync_bigtable(
     neo4j_session,
 ):
     """
-    Test the full sync() function for GCP Bigtable.
+    Test the sync functions for the refactored Bigtable modules.
+    This test simulates the behavior of the main gcp/__init__.py file.
     """
     # Arrange: Mock all 5 API calls
     mock_get_instances.return_value = MOCK_INSTANCES["instances"]
@@ -55,52 +71,113 @@ def test_sync_bigtable(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
+    mock_bigtable_client = MagicMock()
 
-    # Act: Run the sync function
-    bigtable.sync(
+    # Act: Run the sync functions in the same order as gcp/__init__.py
+    instances_raw = bigtable_instance.sync_bigtable_instances(
         neo4j_session,
-        MagicMock(),  # Mock the bigtable_client
+        mock_bigtable_client,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
 
-    # Assert: Define expected IDs
-    instance_id = "projects/test-project/instances/carto-bt-instance"
-    cluster_id = (
-        "projects/test-project/instances/carto-bt-instance/clusters/carto-bt-cluster-c1"
+    clusters_raw = bigtable_cluster.sync_bigtable_clusters(
+        neo4j_session,
+        mock_bigtable_client,
+        instances_raw,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
     )
-    table_id = (
-        "projects/test-project/instances/carto-bt-instance/tables/carto-test-table"
+
+    bigtable_table.sync_bigtable_tables(
+        neo4j_session,
+        mock_bigtable_client,
+        instances_raw,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
     )
-    app_profile_id = "projects/test-project/instances/carto-bt-instance/appProfiles/carto-app-profile"
-    backup_id = "projects/test-project/instances/carto-bt-instance/clusters/carto-bt-cluster-c1/backups/carto-table-backup"
+
+    bigtable_app_profile.sync_bigtable_app_profiles(
+        neo4j_session,
+        mock_bigtable_client,
+        instances_raw,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    bigtable_backup.sync_bigtable_backups(
+        neo4j_session,
+        mock_bigtable_client,
+        clusters_raw,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
 
     # Assert: Check all 5 new node types
-    assert check_nodes(neo4j_session, "GCPBigtableInstance", ["id"]) == {(instance_id,)}
-    assert check_nodes(neo4j_session, "GCPBigtableCluster", ["id"]) == {(cluster_id,)}
-    assert check_nodes(neo4j_session, "GCPBigtableTable", ["id"]) == {(table_id,)}
-    assert check_nodes(neo4j_session, "GCPBigtableAppProfile", ["id"]) == {
-        (app_profile_id,)
+    assert check_nodes(neo4j_session, "GCPBigtableInstance", ["id"]) == {
+        (TEST_INSTANCE_ID,)
     }
-    assert check_nodes(neo4j_session, "GCPBigtableBackup", ["id"]) == {(backup_id,)}
+    assert check_nodes(neo4j_session, "GCPBigtableCluster", ["id"]) == {
+        (TEST_CLUSTER_ID,)
+    }
+    assert check_nodes(neo4j_session, "GCPBigtableTable", ["id"]) == {(TEST_TABLE_ID,)}
+    assert check_nodes(neo4j_session, "GCPBigtableAppProfile", ["id"]) == {
+        (TEST_APP_PROFILE_ID,)
+    }
+    assert check_nodes(neo4j_session, "GCPBigtableBackup", ["id"]) == {
+        (TEST_BACKUP_ID,)
+    }
 
     # Assert: Check all 11 relationships
     assert check_rels(
-        neo4j_session, "GCPProject", "id", "GCPBigtableInstance", "id", "RESOURCE"
-    ) == {(TEST_PROJECT_ID, instance_id)}
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPBigtableInstance",
+        "id",
+        "RESOURCE",
+    ) == {(TEST_PROJECT_ID, TEST_INSTANCE_ID)}
+
     assert check_rels(
-        neo4j_session, "GCPProject", "id", "GCPBigtableCluster", "id", "RESOURCE"
-    ) == {(TEST_PROJECT_ID, cluster_id)}
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPBigtableCluster",
+        "id",
+        "RESOURCE",
+    ) == {(TEST_PROJECT_ID, TEST_CLUSTER_ID)}
+
     assert check_rels(
-        neo4j_session, "GCPProject", "id", "GCPBigtableTable", "id", "RESOURCE"
-    ) == {(TEST_PROJECT_ID, table_id)}
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPBigtableTable",
+        "id",
+        "RESOURCE",
+    ) == {(TEST_PROJECT_ID, TEST_TABLE_ID)}
+
     assert check_rels(
-        neo4j_session, "GCPProject", "id", "GCPBigtableAppProfile", "id", "RESOURCE"
-    ) == {(TEST_PROJECT_ID, app_profile_id)}
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPBigtableAppProfile",
+        "id",
+        "RESOURCE",
+    ) == {(TEST_PROJECT_ID, TEST_APP_PROFILE_ID)}
+
     assert check_rels(
-        neo4j_session, "GCPProject", "id", "GCPBigtableBackup", "id", "RESOURCE"
-    ) == {(TEST_PROJECT_ID, backup_id)}
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPBigtableBackup",
+        "id",
+        "RESOURCE",
+    ) == {(TEST_PROJECT_ID, TEST_BACKUP_ID)}
 
     assert check_rels(
         neo4j_session,
@@ -109,7 +186,8 @@ def test_sync_bigtable(
         "GCPBigtableCluster",
         "id",
         "HAS_CLUSTER",
-    ) == {(instance_id, cluster_id)}
+    ) == {(TEST_INSTANCE_ID, TEST_CLUSTER_ID)}
+
     assert check_rels(
         neo4j_session,
         "GCPBigtableInstance",
@@ -117,7 +195,8 @@ def test_sync_bigtable(
         "GCPBigtableTable",
         "id",
         "HAS_TABLE",
-    ) == {(instance_id, table_id)}
+    ) == {(TEST_INSTANCE_ID, TEST_TABLE_ID)}
+
     assert check_rels(
         neo4j_session,
         "GCPBigtableInstance",
@@ -125,7 +204,7 @@ def test_sync_bigtable(
         "GCPBigtableAppProfile",
         "id",
         "HAS_APP_PROFILE",
-    ) == {(instance_id, app_profile_id)}
+    ) == {(TEST_INSTANCE_ID, TEST_APP_PROFILE_ID)}
 
     assert check_rels(
         neo4j_session,
@@ -134,7 +213,7 @@ def test_sync_bigtable(
         "GCPBigtableCluster",
         "id",
         "ROUTES_TO",
-    ) == {(app_profile_id, cluster_id)}
+    ) == {(TEST_APP_PROFILE_ID, TEST_CLUSTER_ID)}
 
     assert check_rels(
         neo4j_session,
@@ -143,7 +222,8 @@ def test_sync_bigtable(
         "GCPBigtableBackup",
         "id",
         "STORES_BACKUP",
-    ) == {(cluster_id, backup_id)}
+    ) == {(TEST_CLUSTER_ID, TEST_BACKUP_ID)}
+
     assert check_rels(
         neo4j_session,
         "GCPBigtableTable",
@@ -151,4 +231,4 @@ def test_sync_bigtable(
         "GCPBigtableBackup",
         "id",
         "BACKED_UP_AS",
-    ) == {(table_id, backup_id)}
+    ) == {(TEST_TABLE_ID, TEST_BACKUP_ID)}

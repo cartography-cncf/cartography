@@ -13,6 +13,7 @@ fallback_version = "0.0.0"
 
 [project]
 name = "cartography"
+version = "0.0.1"
 description = "Explore assets and their relationships across your technical infrastructure."
 readme = "README.md"
 license = "Apache-2.0"
@@ -31,7 +32,7 @@ classifiers = [
   'Topic :: Software Development :: Libraries',
   'Topic :: Software Development :: Libraries :: Python Modules',
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,<4.00"
 dependencies = [
     "backoff>=2.1.2",
     "boto3>=1.15.1",
