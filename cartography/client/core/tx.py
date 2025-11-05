@@ -11,6 +11,7 @@ from typing import Union
 
 import backoff
 import neo4j
+import neo4j.exceptions
 
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
@@ -261,7 +262,7 @@ def run_write_query(
     def _operation() -> None:
         neo4j_session.execute_write(_run_query_tx)
 
-    _run_with_retry(_operation, _run_query_tx.__name__)
+    _run_with_retry(_operation, _run_query_tx.__qualname__)
 
 
 def read_list_of_values_tx(
@@ -486,7 +487,7 @@ def _write_batch_with_retry(
             **kwargs,
         )
 
-    _run_with_retry(_operation, write_list_of_dicts_tx.__name__)
+    _run_with_retry(_operation, write_list_of_dicts_tx.__qualname__)
 
 
 def load_graph_data(
