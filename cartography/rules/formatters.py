@@ -1,9 +1,13 @@
 """
 Output formatting utilities for Cartography rules.
 """
-
+import json
+from dataclasses import asdict
 import re
 from urllib.parse import quote
+
+from cartography.rules.spec.result import FrameworkResult
+from cartography.rules.data.frameworks import FRAMEWORKS
 
 
 def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
@@ -44,3 +48,40 @@ def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
 
     # Construct the Neo4j Browser URL with pre-populated query
     return f"{browser_uri}browser/?cmd=edit&arg={encoded_query}"
+
+
+def _format_and_output_results(
+    all_results: list[FrameworkResult],
+    framework_names: list[str],
+    output_format: str,
+    total_requirements: int,
+    total_findings: int,
+    total_facts: int,
+    total_matches: int,
+):
+    """Format and output the results of framework execution."""
+    if output_format == "json":
+        combined_output = [asdict(result) for result in all_results]
+        print(json.dumps(combined_output, indent=2))
+    else:
+        # Text summary
+        print("\n" + "=" * 60)
+        if len(framework_names) == 1:
+            print(f"EXECUTION SUMMARY - {FRAMEWORKS[framework_names[0]].name}")
+        else:
+            print("OVERALL SUMMARY")
+        print("=" * 60)
+
+        if len(framework_names) > 1:
+            print(f"Frameworks executed: {len(framework_names)}")
+        print(f"Requirements: {total_requirements}")
+        print(f"Findings: {total_findings}")
+        print(f"Total facts: {total_facts}")
+        print(f"Total results: {total_matches}")
+
+        if total_matches > 0:
+            print(
+                f"\n\033[36mFramework execution completed with {total_matches} total results\033[0m"
+            )
+        else:
+            print("\n\033[90mFramework execution completed with no results\033[0m")

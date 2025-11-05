@@ -1,38 +1,33 @@
 """
 Framework and Fact execution logic for Cartography rules.
 """
-
-import json
-from dataclasses import asdict
-
 from neo4j import Driver
 from neo4j import GraphDatabase
 
 from cartography.client.core.tx import read_list_of_dicts_tx
-from cartography.rules.data.frameworks import FRAMEWORKS
-from cartography.rules.formatters import _generate_neo4j_browser_url
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
-from cartography.rules.spec.model import Requirement
-from cartography.rules.spec.result import FactResult
-from cartography.rules.spec.result import FrameworkResult
-from cartography.rules.spec.result import RequirementResult
+from cartography.rules.spec.model import Requirement, Finding
+from cartography.rules.spec.result import FindingResult, CounterResult, FactResult, RequirementResult, FrameworkResult
+from cartography.rules.data.frameworks import FRAMEWORKS
+from cartography.rules.formatters import _generate_neo4j_browser_url, _format_and_output_results
 
 
 def _run_fact(
     fact: Fact,
+    finding: Finding,
     requirement: Requirement,
     framework: Framework,
     driver: Driver,
     database: str,
-    fact_counter: int,
-    total_facts: int,
+    counter: CounterResult,
     output_format: str,
     neo4j_uri: str,
-):
+
+) -> FactResult:
     """Execute a single fact and return the result."""
     if output_format == "text":
-        print(f"\n\033[1mFact {fact_counter}/{total_facts}: {fact.name}\033[0m")
+        print(f"\n\033[1mFact {counter.current_fact}/{counter.total_facts}: {fact.name}\033[0m")
         print(f"  \033[36m{'Framework:':<12}\033[0m {framework.name}")
         # Display requirement with optional clickable link
         if requirement.requirement_url:
@@ -43,6 +38,9 @@ def _run_fact(
             print(
                 f"  \033[36m{'Requirement:':<12}\033[0m {requirement.id} - {requirement.name}"
             )
+        # Display finding
+        print(f"  \033[36m{'Finding:':<12}\033[0m {finding.id} - {finding.name}")
+        # Display fact details
         print(f"  \033[36m{'Fact ID:':<12}\033[0m {fact.id}")
         print(f"  \033[36m{'Description:':<12}\033[0m {fact.description}")
         print(f"  \033[36m{'Provider:':<12}\033[0m {fact.module.value}")
@@ -54,45 +52,100 @@ def _run_fact(
         )
 
     with driver.session(database=database) as session:
-        findings = session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
-        finding_count = len(findings)
+        raw_matches = session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
+        matches = finding.parse_results(raw_matches)
+        matches_count = len(matches)
 
     if output_format == "text":
-        if finding_count > 0:
-            print(f"  \033[36m{'Results:':<12}\033[0m {finding_count} item(s) found")
+        if matches_count > 0:
+            print(f"  \033[36m{'Results:':<12}\033[0m {matches_count} item(s) found")
 
             # Show sample findings
             print("    Sample results:")
-            for idx, finding in enumerate(findings[:3]):  # Show first 3
+            for idx, match in enumerate(matches[:3]):  # Show first 3
                 # Format finding nicely
                 formatted_items = []
-                for key, value in finding.items():
+                for key, value in match.__class__.model_fields.items():
                     if value is not None:
                         # Truncate long values
                         str_value = str(value)
                         if len(str_value) > 50:
                             str_value = str_value[:47] + "..."
-                        formatted_items.append(f"{key}={str_value}")
+                        formatted_items.append(f"{key}={getattr(match, key)}")
 
                 if formatted_items:
                     print(f"      {idx + 1}. {', '.join(formatted_items)}")
 
-            if finding_count > 3:
+            if matches_count > 3:
                 print(
-                    f"      ... and {finding_count - 3} more (use --output json to see all)"
+                    f"      ... and {matches_count - 3} more (use --output json to see all)"
                 )
         else:
             print(f"  \033[36m{'Results:':<12}\033[0m No items found")
 
     # Create and return fact result
+    counter.total_matches += matches_count
+
     return FactResult(
         fact_id=fact.id,
         fact_name=fact.name,
         fact_description=fact.description,
         fact_provider=fact.module.value,
-        finding_count=finding_count,
-        findings=findings if output_format == "json" else findings[:10],
+        matches=matches if output_format == "json" else matches[:10],
     )
+
+
+def _run_single_finding(
+    framework: Framework,
+    requirement: Requirement,
+    finding: Finding,
+    driver: Driver,
+    database: str,
+    output_format: str,
+    neo4j_uri: str,
+    counter: CounterResult,
+    fact_filter: str | None = None,
+
+) -> tuple[FindingResult, int]:
+    """
+    Execute a single finding and return its result.
+
+    Returns:
+        A tuple of (FindingResult, facts_executed_count)
+    """
+    # Filter facts if needed
+    facts_to_run = finding.facts
+    if fact_filter:
+        facts_to_run = tuple(
+            f for f in finding.facts if f.id.lower() == fact_filter.lower()
+        )
+
+    fact_results = []
+
+    for fact in facts_to_run:
+        counter.current_fact += 1
+        fact_result = _run_fact(
+            fact,
+            finding,
+            requirement,
+            framework,
+            driver,
+            database,
+            counter,
+            output_format,
+            neo4j_uri,
+        )
+        fact_results.append(fact_result)
+
+    # Create finding result
+    finding_result = FindingResult(
+        finding_id=finding.id,
+        finding_name=finding.name,
+        finding_description=finding.description,
+        facts=fact_results,
+    )
+
+    return finding_result, len(facts_to_run)
 
 
 def _run_single_requirement(
@@ -102,9 +155,9 @@ def _run_single_requirement(
     database: str,
     output_format: str,
     neo4j_uri: str,
-    fact_counter_start: int,
-    total_facts: int,
+    counter: CounterResult,
     fact_filter: str | None = None,
+    finding_filter: str | None = None,
 ) -> tuple[RequirementResult, int]:
     """
     Execute a single requirement and return its result.
@@ -112,44 +165,37 @@ def _run_single_requirement(
     Returns:
         A tuple of (RequirementResult, facts_executed_count)
     """
-    # Filter facts if needed
-    facts_to_run = requirement.facts
-    if fact_filter:
-        facts_to_run = tuple(
-            f for f in requirement.facts if f.id.lower() == fact_filter.lower()
+    # Filter findings if needed
+    findings_to_run = requirement.findings
+    if finding_filter:
+        findings_to_run = tuple(
+            f for f in requirement.findings if f.id.lower() == finding_filter.lower()
         )
-
-    fact_results = []
-    requirement_findings = 0
-    fact_counter = fact_counter_start
-
-    for fact in facts_to_run:
-        fact_counter += 1
-        fact_result = _run_fact(
-            fact,
-            requirement,
+    
+    findings_results = []
+    for finding in findings_to_run:
+        counter.current_finding += 1
+        finding_result, _ = _run_single_finding(
             framework,
+            requirement,
+            finding,
             driver,
             database,
-            fact_counter,
-            total_facts,
             output_format,
             neo4j_uri,
+            counter,
+            fact_filter,
         )
-        fact_results.append(fact_result)
-        requirement_findings += fact_result.finding_count
+        findings_results.append(finding_result)
 
-    # Create requirement result
     requirement_result = RequirementResult(
         requirement_id=requirement.id,
         requirement_name=requirement.name,
         requirement_url=requirement.requirement_url,
-        facts=fact_results,
-        total_facts=len(fact_results),
-        total_findings=requirement_findings,
+        findings=findings_results
     )
 
-    return requirement_result, len(facts_to_run)
+    return requirement_result, len(findings_to_run)
 
 
 def _run_single_framework(
@@ -159,6 +205,7 @@ def _run_single_framework(
     output_format: str,
     neo4j_uri: str,
     requirement_filter: str | None = None,
+    finding_filter: str | None = None,
     fact_filter: str | None = None,
 ) -> FrameworkResult:
     """Execute a single framework and return results."""
@@ -173,40 +220,56 @@ def _run_single_framework(
             if req.id.lower() == requirement_filter.lower()
         )
 
-    # Count total facts for display (before filtering)
-    total_facts_display = sum(len(req.facts) for req in requirements_to_run)
+    counter = CounterResult(
+        total_requirements=len(requirements_to_run)
+    )
+
+    for req in requirements_to_run:
+        if finding_filter:
+            filtered_findings = tuple(
+                f for f in req.findings if f.id.lower() == finding_filter.lower()
+            )
+        else:
+            filtered_findings = req.findings
+        counter.total_findings += len(filtered_findings)
+        for finding in filtered_findings:
+            if fact_filter:
+                filtered_facts = tuple(
+                    f for f in finding.facts if f.id.lower() == fact_filter.lower()
+                )
+            else:
+                filtered_facts = finding.facts
+            counter.total_facts += len(filtered_facts)
 
     if output_format == "text":
         print(f"Executing {framework.name} framework")
         if requirement_filter:
             print(f"Filtered to requirement: {requirement_filter}")
+            if finding_filter:
+                print(f"Filtered to finding: {finding_filter}")
             if fact_filter:
                 print(f"Filtered to fact: {fact_filter}")
         print(f"Requirements: {len(requirements_to_run)}")
-        print(f"Total facts: {total_facts_display}")
+        print(f"Total findings: {counter.total_findings}")
+        print(f"Total facts: {counter.total_facts}")
 
     # Execute requirements and collect results
-    total_findings = 0
-    total_facts_executed = 0
     requirement_results = []
-    fact_counter = 0
 
     for requirement in requirements_to_run:
-        requirement_result, facts_executed = _run_single_requirement(
+        counter.current_requirement += 1
+        requirement_result, _ = _run_single_requirement(
             requirement,
             framework,
             driver,
             database,
             output_format,
             neo4j_uri,
-            fact_counter,
-            total_facts_display,
+            counter,
             fact_filter,
+            finding_filter,
         )
         requirement_results.append(requirement_result)
-        total_findings += requirement_result.total_findings
-        total_facts_executed += facts_executed
-        fact_counter += facts_executed
 
     # Create and return framework result
     return FrameworkResult(
@@ -214,46 +277,8 @@ def _run_single_framework(
         framework_name=framework.name,
         framework_version=framework.version,
         requirements=requirement_results,
-        total_requirements=len(requirements_to_run),
-        total_facts=total_facts_executed,  # Use actual executed count
-        total_findings=total_findings,
+        counter=counter,
     )
-
-
-def _format_and_output_results(
-    all_results: list[FrameworkResult],
-    framework_names: list[str],
-    output_format: str,
-    total_requirements: int,
-    total_facts: int,
-    total_findings: int,
-):
-    """Format and output the results of framework execution."""
-    if output_format == "json":
-        combined_output = [asdict(result) for result in all_results]
-        print(json.dumps(combined_output, indent=2))
-    else:
-        # Text summary
-        print("\n" + "=" * 60)
-        if len(framework_names) == 1:
-            print(f"EXECUTION SUMMARY - {FRAMEWORKS[framework_names[0]].name}")
-        else:
-            print("OVERALL SUMMARY")
-        print("=" * 60)
-
-        if len(framework_names) > 1:
-            print(f"Frameworks executed: {len(framework_names)}")
-        print(f"Requirements: {total_requirements}")
-        print(f"Total facts: {total_facts}")
-        print(f"Total results: {total_findings}")
-
-        if total_findings > 0:
-            print(
-                f"\n\033[36mFramework execution completed with {total_findings} total results\033[0m"
-            )
-        else:
-            print("\n\033[90mFramework execution completed with no results\033[0m")
-
 
 def run_frameworks(
     framework_names: list[str],
@@ -263,6 +288,7 @@ def run_frameworks(
     neo4j_database: str,
     output_format: str = "text",
     requirement_filter: str | None = None,
+    finding_filter: str | None = None,
     fact_filter: str | None = None,
 ):
     """
@@ -275,6 +301,7 @@ def run_frameworks(
     :param neo4j_database: The name of the Neo4j database.
     :param output_format: Either "text" or "json". Defaults to "text".
     :param requirement_filter: Optional requirement ID to filter execution (case-insensitive).
+    :param finding_filter: Optional finding ID to filter execution (case-insensitive).
     :param fact_filter: Optional fact ID to filter execution (case-insensitive).
     :return: The exit code.
     """
@@ -297,8 +324,9 @@ def run_frameworks(
         # Execute frameworks
         all_results = []
         total_requirements = 0
-        total_facts = 0
         total_findings = 0
+        total_facts = 0
+        total_matches = 0
 
         for i, framework_name in enumerate(framework_names):
             if output_format == "text" and len(framework_names) > 1:
@@ -315,13 +343,15 @@ def run_frameworks(
                 output_format,
                 uri,
                 requirement_filter,
+                finding_filter,
                 fact_filter,
             )
             all_results.append(framework_result)
 
-            total_requirements += framework_result.total_requirements
-            total_facts += framework_result.total_facts
-            total_findings += framework_result.total_findings
+            total_requirements += framework_result.counter.total_requirements
+            total_facts += framework_result.counter.total_facts
+            total_findings += framework_result.counter.total_findings
+            total_matches += framework_result.counter.total_matches
 
         # Output results
         _format_and_output_results(
@@ -329,8 +359,9 @@ def run_frameworks(
             framework_names,
             output_format,
             total_requirements,
-            total_facts,
             total_findings,
+            total_facts,
+            total_matches,
         )
 
         return 0

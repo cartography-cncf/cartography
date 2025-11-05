@@ -18,3 +18,4 @@ mitre_attack_framework = Framework(
     ),
     source_url="https://attack.mitre.org/",
 )
+
