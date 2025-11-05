@@ -186,8 +186,8 @@ class Config:
     :param spacelift_api_token: Spacelift API token for authentication. Optional.
     :type spacelift_ec2_ownership_s3_bucket: string
     :param spacelift_ec2_ownership_s3_bucket: S3 bucket name containing EC2 ownership data from Athena. Optional.
-    :type spacelift_ec2_ownership_s3_key: string
-    :param spacelift_ec2_ownership_s3_key: S3 object key containing EC2 ownership data from Athena. Optional.
+    :type spacelift_ec2_ownership_s3_prefix: string
+    :param spacelift_ec2_ownership_s3_prefix: S3 prefix for EC2 ownership data from Athena. All JSON files under this prefix will be processed. Optional.
     :type keycloak_client_id: str
     :param keycloak_client_id: Keycloak client ID for API authentication. Optional.
     :type keycloak_client_secret: str
@@ -291,7 +291,7 @@ class Config:
         spacelift_api_endpoint=None,
         spacelift_api_token=None,
         spacelift_ec2_ownership_s3_bucket=None,
-        spacelift_ec2_ownership_s3_key=None,
+        spacelift_ec2_ownership_s3_prefix=None,
         keycloak_client_id=None,
         keycloak_client_secret=None,
         keycloak_realm=None,
@@ -390,7 +390,7 @@ class Config:
         self.spacelift_api_endpoint = spacelift_api_endpoint
         self.spacelift_api_token = spacelift_api_token
         self.spacelift_ec2_ownership_s3_bucket = spacelift_ec2_ownership_s3_bucket
-        self.spacelift_ec2_ownership_s3_key = spacelift_ec2_ownership_s3_key
+        self.spacelift_ec2_ownership_s3_prefix = spacelift_ec2_ownership_s3_prefix
         self.keycloak_client_id = keycloak_client_id
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
