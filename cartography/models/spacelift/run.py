@@ -27,7 +27,6 @@ class SpaceliftRunNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef("created_at")
     stack_id: PropertyRef = PropertyRef("stack_id")
     triggered_by_user_id: PropertyRef = PropertyRef("triggered_by_user_id")
-    worker_id: PropertyRef = PropertyRef("worker_id")
     account_id: PropertyRef = PropertyRef("account_id")
     affected_instance_ids: PropertyRef = PropertyRef("affected_instance_ids")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -120,22 +119,6 @@ class SpaceliftRunToWorkerRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class SpaceliftRunToWorkerRel(CartographyRelSchema):
-    """
-    EXECUTED relationship from a Run to the Worker executing it.
-    (:SpaceliftRun)<-[:EXECUTED]-(:SpaceliftWorker)
-    """
-
-    target_node_label: str = "SpaceliftWorker"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("worker_id")},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "EXECUTED"
-    properties: SpaceliftRunToWorkerRelProperties = SpaceliftRunToWorkerRelProperties()
-
-
-@dataclass(frozen=True)
 class SpaceliftRunToEC2InstanceSimpleRelProperties(CartographyRelProperties):
     """
     Properties for the simple AFFECTED relationship between a Run and EC2 Instances.
@@ -225,7 +208,6 @@ class SpaceliftRunSchema(CartographyNodeSchema):
         [
             SpaceliftRunToStackRel(),
             SpaceliftRunToUserRel(),
-            SpaceliftRunToWorkerRel(),
             SpaceliftRunToEC2InstanceSimpleRel(),
         ],
     )
