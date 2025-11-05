@@ -6,8 +6,9 @@ from typing import Any
 import boto3
 import neo4j
 
-from cartography.client.core.tx import load_matchlinks
-from cartography.models.spacelift.run import SpaceliftRunToEC2InstanceMatchLinkRel
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.spacelift.cloudtrailevent import CloudTrailEventSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -157,17 +158,19 @@ def transform_ec2_ownership(
     cloudtrail_data: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
-    Transform CloudTrail data to map Spacelift run IDs to EC2 instance IDs.
+    Transform CloudTrail data to create CloudTrailEvent nodes.
 
     This function filters CloudTrail records to find those that have BOTH:
     1. A Spacelift run ID (from the useridentity field)
-    2. An EC2 instance ID (from resources, requestparameters, or responseelements)
+    2. One or more EC2 instance IDs (from resources, requestparameters, or responseelements)
+
+    Each CloudTrail record becomes one CloudTrailEvent node that can connect to multiple instances.
     """
     logger.info(
-        f"Transforming {len(cloudtrail_data)} CloudTrail records to map Spacelift runs to EC2 instances"
+        f"Transforming {len(cloudtrail_data)} CloudTrail records to create CloudTrailEvent nodes"
     )
 
-    mappings = []
+    events = []
 
     for record in cloudtrail_data:
         # Extract run ID from useridentity
@@ -185,45 +188,75 @@ def transform_ec2_ownership(
             # Skip records without instance IDs
             continue
 
-        # Create a mapping for each run_id -> instance_id pair
-        for instance_id in instance_ids:
-            mapping = {
-                "run_id": run_id,
-                "instance_id": instance_id,
-                "event_time": record.get("eventtime"),
-                "event_name": record.get("eventname"),
-                "aws_account": record.get("account"),
-                "aws_region": record.get("awsregion"),
-            }
-            mappings.append(mapping)
+        # Create one event node per CloudTrail event (using CloudTrail's native eventid)
+        event_id = record.get("eventid")
+        if not event_id:
+            # Fallback: shouldn't happen with real CloudTrail data
+            logger.warning(
+                f"CloudTrail event missing eventid field for run {run_id}, skipping"
+            )
+            continue
 
-    logger.info(f"Found {len(mappings)} Spacelift run -> EC2 instance mappings")
+        event = {
+            "id": event_id,
+            "run_id": run_id,
+            "instance_ids": instance_ids,  # List of instances affected by this event
+            "event_time": record.get("eventtime"),
+            "event_name": record.get("eventname"),
+            "aws_account": record.get("account"),
+            "aws_region": record.get("awsregion"),
+        }
+        events.append(event)
 
-    return mappings
+    logger.info(
+        f"Created {len(events)} CloudTrailEvent records affecting EC2 instances"
+    )
+
+    return events
 
 
 @timeit
-def load_ec2_ownership_relationships(
+def load_cloudtrail_events(
     neo4j_session: neo4j.Session,
-    mappings: list[dict[str, Any]],
+    events: list[dict[str, Any]],
     update_tag: int,
     account_id: str,
 ) -> None:
     """
-    Load AFFECTED relationships between SpaceliftRun and EC2Instance nodes using MatchLink.
-    """
-    logger.info(f"Loading {len(mappings)} EC2 ownership relationships into Neo4j")
+    Load CloudTrailEvent nodes with relationships to SpaceliftRun and EC2Instance nodes.
 
-    load_matchlinks(
-        neo4j_session,
-        SpaceliftRunToEC2InstanceMatchLinkRel(),
-        mappings,
-        lastupdated=update_tag,
-        _sub_resource_label="SpaceliftAccount",
-        _sub_resource_id=account_id,
+    Uses standard node schema with other_relationships instead of MatchLinks for better performance.
+    """
+    logger.info(
+        f"Loading {len(events)} CloudTrailEvent nodes with relationships into Neo4j"
     )
 
-    logger.info(f"Successfully loaded {len(mappings)} EC2 ownership relationships")
+    load(
+        neo4j_session,
+        CloudTrailEventSchema(),
+        events,
+        lastupdated=update_tag,
+        account_id=account_id,
+    )
+
+    logger.info(f"Successfully loaded {len(events)} CloudTrailEvent nodes")
+
+
+@timeit
+def cleanup_cloudtrail_events(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Remove stale CloudTrailEvent nodes and their relationships from Neo4j.
+
+    Uses standard node schema cleanup - no MatchLink cleanup needed since we use other_relationships.
+    """
+    logger.debug("Running CloudTrailEvent cleanup job")
+
+    GraphJob.from_node_schema(CloudTrailEventSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -235,18 +268,26 @@ def sync_ec2_ownership(
     update_tag: int,
     account_id: str,
 ) -> None:
-
+    """
+    Sync EC2 ownership data from CloudTrail into Neo4j as CloudTrailEvent nodes.
+    """
     logger.info("Starting EC2 ownership sync")
 
     cloudtrail_data = get_ec2_ownership(aws_session, bucket_name, object_prefix)
 
-    mappings = transform_ec2_ownership(cloudtrail_data)
+    events = transform_ec2_ownership(cloudtrail_data)
 
-    if mappings:
-        load_ec2_ownership_relationships(
-            neo4j_session, mappings, update_tag, account_id
-        )
+    if events:
+        load_cloudtrail_events(neo4j_session, events, update_tag, account_id)
     else:
-        logger.warning("No EC2 ownership mappings found - no relationships created")
+        logger.warning("No CloudTrail events found - no nodes created")
+
+    # Cleanup stale data
+    common_job_parameters = {
+        "UPDATE_TAG": update_tag,
+        "SPACELIFT_ACCOUNT_ID": account_id,
+        "account_id": account_id,
+    }
+    cleanup_cloudtrail_events(neo4j_session, common_job_parameters)
 
     logger.info("EC2 ownership sync completed successfully")

@@ -259,3 +259,54 @@ EC2_INSTANCES_DATA = [
         "State": "running",
     },
 ]
+
+# CloudTrail data for EC2 ownership tracking
+# This represents CloudTrail events from Athena showing Spacelift runs interacting with EC2 instances
+# Data format matches what get_ec2_ownership returns after parsing JSON from S3
+# Real Athena data has these fields as strings (Hive struct format), but our parsing handles both
+CLOUDTRAIL_EC2_OWNERSHIP_DATA = [
+    # Three events from run-1 affecting instance i-01234567 (tests bug fix - each event preserved)
+    {
+        "eventid": "event-uuid-1",
+        "useridentity": "arn=arn:aws:sts::123456789012:assumed-role/spacelift-role/run-1@spacelift.io",
+        "eventtime": "2024-01-01T10:00:00Z",
+        "eventname": "DescribeInstances",
+        "account": "000000000000",
+        "awsregion": "us-east-1",
+        "resources": [
+            {"ARN": "arn:aws:ec2:us-east-1:000000000000:instance/i-01234567"}
+        ],
+    },
+    {
+        "eventid": "event-uuid-2",
+        "useridentity": "arn=arn:aws:sts::123456789012:assumed-role/spacelift-role/run-1@spacelift.io",
+        "eventtime": "2024-01-01T11:00:00Z",
+        "eventname": "RunInstances",
+        "account": "000000000000",
+        "awsregion": "us-east-1",
+        "responseelements": {"instancesSet": {"items": [{"instanceId": "i-01234567"}]}},
+    },
+    {
+        "eventid": "event-uuid-3",
+        "useridentity": "arn=arn:aws:sts::123456789012:assumed-role/spacelift-role/run-1@spacelift.io",
+        "eventtime": "2024-01-01T12:00:00Z",
+        "eventname": "DescribeInstances",
+        "account": "000000000000",
+        "awsregion": "us-east-1",
+        "resources": [
+            {"ARN": "arn:aws:ec2:us-east-1:000000000000:instance/i-01234567"}
+        ],
+    },
+    # One event from run-2 affecting instance i-89abcdef
+    {
+        "eventid": "event-uuid-4",
+        "useridentity": "arn=arn:aws:sts::123456789012:assumed-role/spacelift-role/run-2@spacelift.io",
+        "eventtime": "2024-01-01T13:00:00Z",
+        "eventname": "DescribeInstances",
+        "account": "000000000000",
+        "awsregion": "us-east-1",
+        "resources": [
+            {"ARN": "arn:aws:ec2:us-east-1:000000000000:instance/i-89abcdef"}
+        ],
+    },
+]
