@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 from pydantic import BaseModel, ConfigDict
@@ -63,7 +63,7 @@ class FindingOutput(BaseModel):
     # TODO: make this property mandatory one all modules have been updated to new datamodel
     source: str | None = None
     """The source of the Fact data, e.g. the specific Cartography module that ingested the data. This field is useful especially for CROSS_CLOUD facts."""
-    extra: dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = {}
     """A dictionary to hold any extra fields returned by the Fact query that are not explicitly defined in the output model."""
 
 
