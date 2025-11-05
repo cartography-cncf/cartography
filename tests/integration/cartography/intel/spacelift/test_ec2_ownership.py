@@ -115,8 +115,6 @@ def test_ec2_ownership_preserves_multiple_events(
     """
     Test that multiple CloudTrail events from the same run to the same instance
     are preserved as separate CloudTrailEvent nodes.
-
-    This is the fix for the bug where subsequent events would overwrite previous ones.
     """
     # Arrange
     mock_get_account.return_value = TEST_SPACELIFT_ACCOUNT_ID

@@ -188,19 +188,12 @@ def transform_ec2_ownership(
             # Skip records without instance IDs
             continue
 
-        # Create one event node per CloudTrail event (using CloudTrail's native eventid)
-        event_id = record.get("eventid")
-        if not event_id:
-            # Fallback: shouldn't happen with real CloudTrail data
-            logger.warning(
-                f"CloudTrail event missing eventid field for run {run_id}, skipping"
-            )
-            continue
+        event_id = record["eventid"]
 
         event = {
             "id": event_id,
             "run_id": run_id,
-            "instance_ids": instance_ids,  # List of instances affected by this event
+            "instance_ids": instance_ids,
             "event_time": record.get("eventtime"),
             "event_name": record.get("eventname"),
             "aws_account": record.get("account"),
@@ -224,8 +217,6 @@ def load_cloudtrail_events(
 ) -> None:
     """
     Load CloudTrailEvent nodes with relationships to SpaceliftRun and EC2Instance nodes.
-
-    Uses standard node schema with other_relationships instead of MatchLinks for better performance.
     """
     logger.info(
         f"Loading {len(events)} CloudTrailEvent nodes with relationships into Neo4j"
@@ -249,8 +240,6 @@ def cleanup_cloudtrail_events(
 ) -> None:
     """
     Remove stale CloudTrailEvent nodes and their relationships from Neo4j.
-
-    Uses standard node schema cleanup - no MatchLink cleanup needed since we use other_relationships.
     """
     logger.debug("Running CloudTrailEvent cleanup job")
 
@@ -282,7 +271,6 @@ def sync_ec2_ownership(
     else:
         logger.warning("No CloudTrail events found - no nodes created")
 
-    # Cleanup stale data
     common_job_parameters = {
         "UPDATE_TAG": update_tag,
         "SPACELIFT_ACCOUNT_ID": account_id,

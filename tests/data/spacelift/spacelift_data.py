@@ -260,9 +260,8 @@ EC2_INSTANCES_DATA = [
     },
 ]
 
-# CloudTrail data for EC2 ownership tracking
-# Simplified test data covering key scenarios. Real CloudTrail events from Athena have
-# fields as Hive struct strings, but our code handles both string and dict formats.
+# Real CloudTrail events from Athena have fields as Hive struct strings,
+# but our code handles both string and dict formats.
 CLOUDTRAIL_EC2_OWNERSHIP_DATA = [
     # Event 1: run-1 checks instance (DescribeInstances with requestparameters)
     {
@@ -275,7 +274,7 @@ CLOUDTRAIL_EC2_OWNERSHIP_DATA = [
         "requestparameters": '{"instancesSet":{"items":[{"instanceId":"i-01234567"}]}}',
     },
     # Event 2: run-1 creates instance (RunInstances with responseelements)
-    # Tests that same run can have multiple events for same instance (bug fix validation)
+    # Tests that same run can have multiple events for same instance
     {
         "eventid": "a1b2c3d4-e5f6-4a5b-9c8d-1234567890ab",
         "useridentity": "arn=arn:aws:sts::661250075859:assumed-role/SpaceLift-Administrator-Access/run-1@spacelift.io",

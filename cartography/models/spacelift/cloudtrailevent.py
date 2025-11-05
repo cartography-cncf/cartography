@@ -31,20 +31,11 @@ class CloudTrailEventNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class CloudTrailEventToAccountRelProperties(CartographyRelProperties):
-    """
-    Properties for the RESOURCE relationship between a CloudTrailEvent and its Account.
-    """
-
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
 class CloudTrailEventToAccountRel(CartographyRelSchema):
-    """
-    RESOURCE relationship from a CloudTrailEvent to its Account.
-    (:CloudTrailEvent)<-[:RESOURCE]-(:SpaceliftAccount)
-    """
-
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_id", set_in_kwargs=True)},
@@ -58,10 +49,6 @@ class CloudTrailEventToAccountRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudTrailEventToRunRelProperties(CartographyRelProperties):
-    """
-    Properties for the FROM_RUN relationship between a CloudTrailEvent and SpaceliftRun.
-    """
-
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -85,10 +72,6 @@ class CloudTrailEventToRunRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class CloudTrailEventToEC2InstanceRelProperties(CartographyRelProperties):
-    """
-    Properties for the AFFECTED relationship between a CloudTrailEvent and EC2Instance.
-    """
-
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -117,11 +100,7 @@ class CloudTrailEventToEC2InstanceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class CloudTrailEventSchema(CartographyNodeSchema):
     """
-    Schema for a CloudTrail Event node.
-
     Represents CloudTrail events from Spacelift runs interacting with EC2 instances.
-    Each event uses CloudTrail's native eventid as its identifier and can connect
-    to multiple EC2 instances via one-to-many relationships.
     """
 
     label: str = "CloudTrailEvent"
