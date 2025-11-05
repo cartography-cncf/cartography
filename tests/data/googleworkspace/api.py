@@ -28,6 +28,14 @@ MOCK_GOOGLEWORKSPACE_USERS_RESPONSE = [
                 "suspended": False,
                 "thumbnailPhotoEtag": "photo-etag-1",
                 "thumbnailPhotoUrl": "https://simpson.corp/photos/mbsimpson.jpg",
+                "organizations": [
+                    {
+                        "name": "Simpson Corp",
+                        "title": "Chief Executive Officer",
+                        "primary": True,
+                        "department": "Management",
+                    }
+                ],
             },
             {
                 "id": "user-2",

@@ -80,6 +80,9 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
 | archived | Indicates if user is archived
 | thumbnail_photo_etag | ETag of the user's photo
 | thumbnail_photo_url | Photo Url of the user
+| organization_name | Name of the user's primary organization
+| organization_title | Title of the user in their primary organization
+| organization_department | Department of the user in their primary organization
 | lastupdated | Timestamp of when a sync job last updated this node
 | firstseen | Timestamp of when a sync job first discovered this node
 

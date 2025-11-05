@@ -27,6 +27,11 @@ class GoogleWorkspaceUserNodeProperties(CartographyNodeProperties):
     family_name: PropertyRef = PropertyRef("family_name")
     given_name: PropertyRef = PropertyRef("given_name")
 
+    # Organization info
+    organization_name: PropertyRef = PropertyRef("organization_name")
+    organization_title: PropertyRef = PropertyRef("organization_title")
+    organization_department: PropertyRef = PropertyRef("organization_department")
+
     # Account settings
     agreed_to_terms: PropertyRef = PropertyRef("agreedToTerms")
     archived: PropertyRef = PropertyRef("archived")

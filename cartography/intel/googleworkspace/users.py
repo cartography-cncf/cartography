@@ -53,6 +53,11 @@ def transform_users(response_objects: list[dict]) -> list[dict[str, Any]]:
                 transformed_user["name"] = user["name"].get("fullName")
                 transformed_user["family_name"] = user["name"].get("familyName")
                 transformed_user["given_name"] = user["name"].get("givenName")
+            for org in user.get("organizations", []):
+                if org.get("primary"):
+                    transformed_user["organization_name"] = org.get("name")
+                    transformed_user["organization_title"] = org.get("title")
+                    transformed_user["organization_department"] = org.get("department")
             results.append(transformed_user)
     return results
 
