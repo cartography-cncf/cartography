@@ -44,11 +44,9 @@ def get_ec2_ownership(
     # Create S3 client from the boto3 session
     s3_client = aws_session.client("s3")
 
-    # Use boto3's built-in paginator for cleaner pagination handling
     paginator = s3_client.get_paginator("list_objects_v2")
     page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=normalized_prefix)
 
-    # List all objects under the prefix
     all_records = []
     total_files_processed = 0
 
@@ -76,10 +74,7 @@ def get_ec2_ownership(
             logger.info(f"Processing {object_key}")
 
             try:
-                # Fetch the object
                 response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
-
-                # Read and decode the content
                 object_body = response["Body"].read()
                 json_content = json.loads(object_body.decode("utf-8"))
 
@@ -98,7 +93,6 @@ def get_ec2_ownership(
 
             except Exception as e:
                 logger.error(f"Failed to process {object_key}: {e}")
-                # Continue processing other files even if one fails
                 continue
 
     logger.info(
