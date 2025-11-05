@@ -6,8 +6,10 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -25,7 +27,6 @@ class SpaceliftRunNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef("created_at")
     stack_id: PropertyRef = PropertyRef("stack_id")
     triggered_by_user_id: PropertyRef = PropertyRef("triggered_by_user_id")
-    worker_id: PropertyRef = PropertyRef("worker_id")
     account_id: PropertyRef = PropertyRef("account_id")
     affected_instance_ids: PropertyRef = PropertyRef("affected_instance_ids")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -118,46 +119,79 @@ class SpaceliftRunToWorkerRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class SpaceliftRunToWorkerRel(CartographyRelSchema):
+class SpaceliftRunToEC2InstanceSimpleRelProperties(CartographyRelProperties):
     """
-    EXECUTED relationship from a Run to the Worker executing it.
-    (:SpaceliftRun)<-[:EXECUTED]-(:SpaceliftWorker)
-    """
-
-    target_node_label: str = "SpaceliftWorker"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("worker_id")},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "EXECUTED"
-    properties: SpaceliftRunToWorkerRelProperties = SpaceliftRunToWorkerRelProperties()
-
-
-@dataclass(frozen=True)
-class SpaceliftRunToEC2InstanceRelProperties(CartographyRelProperties):
-    """
-    Properties for the AFFECTED relationship between a Run and EC2 Instances.
+    Properties for the simple AFFECTED relationship between a Run and EC2 Instances.
+    This relationship is created from Spacelift entities API during runs sync.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    action: PropertyRef = PropertyRef("action")  # e.g., "create", "update", "delete"
 
 
 @dataclass(frozen=True)
-class SpaceliftRunToEC2InstanceRel(CartographyRelSchema):
+class SpaceliftRunToEC2InstanceSimpleRel(CartographyRelSchema):
     """
-    AFFECTED relationship from a Run to EC2 Instances it manages.
+    AFFECTED relationship from a Run to EC2 Instances it manages (from Spacelift entities API).
     (:SpaceliftRun)-[:AFFECTED]->(:EC2Instance)
     """
 
     target_node_label: str = "EC2Instance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("affected_instance_ids", one_to_many=True)},
+        {"instanceid": PropertyRef("affected_instance_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTED"
-    properties: SpaceliftRunToEC2InstanceRelProperties = (
-        SpaceliftRunToEC2InstanceRelProperties()
+    properties: SpaceliftRunToEC2InstanceSimpleRelProperties = (
+        SpaceliftRunToEC2InstanceSimpleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToEC2InstanceMatchLinkRelProperties(CartographyRelProperties):
+    """
+    Properties for the AFFECTED relationship between a Run and EC2 Instances (MatchLink).
+    This relationship is created from CloudTrail data showing which EC2 instances
+    were accessed or modified during a Spacelift run.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+    # Additional metadata from CloudTrail
+    event_time: PropertyRef = PropertyRef("event_time")
+    event_name: PropertyRef = PropertyRef("event_name")
+    aws_account: PropertyRef = PropertyRef("aws_account")
+    aws_region: PropertyRef = PropertyRef("aws_region")
+
+
+@dataclass(frozen=True)
+class SpaceliftRunToEC2InstanceMatchLinkRel(CartographyRelSchema):
+    """
+    AFFECTED relationship from a Run to EC2 Instances it manages (MatchLink with CloudTrail metadata).
+    (:SpaceliftRun)-[:AFFECTED]->(:EC2Instance)
+
+    This is loaded separately by the ec2_ownership module using CloudTrail data.
+    """
+
+    source_node_label: str = "SpaceliftRun"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "id": PropertyRef("run_id"),
+        }
+    )
+    target_node_label: str = "EC2Instance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "instanceid": PropertyRef("instance_id"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTED"
+    properties: SpaceliftRunToEC2InstanceMatchLinkRelProperties = (
+        SpaceliftRunToEC2InstanceMatchLinkRelProperties()
     )
 
 
@@ -174,7 +208,6 @@ class SpaceliftRunSchema(CartographyNodeSchema):
         [
             SpaceliftRunToStackRel(),
             SpaceliftRunToUserRel(),
-            SpaceliftRunToWorkerRel(),
-            SpaceliftRunToEC2InstanceRel(),
+            SpaceliftRunToEC2InstanceSimpleRel(),
         ],
     )

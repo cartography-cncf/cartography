@@ -131,9 +131,6 @@ RUNS_DATA = {
                         "createdAt": "2024-10-01T10:00:00Z",
                         "finished": "2024-10-01T10:05:00Z",
                         "triggeredBy": "john.doe@example.com",
-                        "worker": {
-                            "id": "worker-1",
-                        },
                     },
                 ],
             },
@@ -156,9 +153,6 @@ RUNS_DATA = {
                         "createdAt": "2024-10-02T11:00:00Z",
                         "finished": "2024-10-02T11:10:00Z",
                         "triggeredBy": "vcs/commit",
-                        "worker": {
-                            "id": "worker-2",
-                        },
                     },
                 ],
             },
