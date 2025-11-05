@@ -881,15 +881,16 @@ class CLI:
             default=None,
             help=(
                 "S3 bucket name containing CloudTrail data for EC2 ownership relationships. "
-                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-key)."
+                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-prefix)."
             ),
         )
         parser.add_argument(
-            "--spacelift-ec2-ownership-s3-key",
+            "--spacelift-ec2-ownership-s3-prefix",
             type=str,
             default=None,
             help=(
-                "S3 object key for CloudTrail data for EC2 ownership relationships. "
+                "S3 prefix for CloudTrail data for EC2 ownership relationships. "
+                "All JSON files under this prefix will be processed. "
                 "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-bucket)."
             ),
         )
