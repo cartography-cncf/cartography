@@ -1,16 +1,23 @@
 """
 Framework and Fact execution logic for Cartography rules.
 """
+
 from neo4j import Driver
 from neo4j import GraphDatabase
 
 from cartography.client.core.tx import read_list_of_dicts_tx
-from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Framework
-from cartography.rules.spec.model import Requirement, Finding
-from cartography.rules.spec.result import FindingResult, CounterResult, FactResult, RequirementResult, FrameworkResult
 from cartography.rules.data.frameworks import FRAMEWORKS
-from cartography.rules.formatters import _generate_neo4j_browser_url, _format_and_output_results
+from cartography.rules.formatters import _format_and_output_results
+from cartography.rules.formatters import _generate_neo4j_browser_url
+from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
+from cartography.rules.spec.model import Requirement
+from cartography.rules.spec.result import CounterResult
+from cartography.rules.spec.result import FactResult
+from cartography.rules.spec.result import FindingResult
+from cartography.rules.spec.result import FrameworkResult
+from cartography.rules.spec.result import RequirementResult
 
 
 def _run_fact(
@@ -23,11 +30,12 @@ def _run_fact(
     counter: CounterResult,
     output_format: str,
     neo4j_uri: str,
-
 ) -> FactResult:
     """Execute a single fact and return the result."""
     if output_format == "text":
-        print(f"\n\033[1mFact {counter.current_fact}/{counter.total_facts}: {fact.name}\033[0m")
+        print(
+            f"\n\033[1mFact {counter.current_fact}/{counter.total_facts}: {fact.name}\033[0m"
+        )
         print(f"  \033[36m{'Framework:':<12}\033[0m {framework.name}")
         # Display requirement with optional clickable link
         if requirement.requirement_url:
@@ -105,7 +113,6 @@ def _run_single_finding(
     neo4j_uri: str,
     counter: CounterResult,
     fact_filter: str | None = None,
-
 ) -> tuple[FindingResult, int]:
     """
     Execute a single finding and return its result.
@@ -171,7 +178,7 @@ def _run_single_requirement(
         findings_to_run = tuple(
             f for f in requirement.findings if f.id.lower() == finding_filter.lower()
         )
-    
+
     findings_results = []
     for finding in findings_to_run:
         counter.current_finding += 1
@@ -192,7 +199,7 @@ def _run_single_requirement(
         requirement_id=requirement.id,
         requirement_name=requirement.name,
         requirement_url=requirement.requirement_url,
-        findings=findings_results
+        findings=findings_results,
     )
 
     return requirement_result, len(findings_to_run)
@@ -220,9 +227,7 @@ def _run_single_framework(
             if req.id.lower() == requirement_filter.lower()
         )
 
-    counter = CounterResult(
-        total_requirements=len(requirements_to_run)
-    )
+    counter = CounterResult(total_requirements=len(requirements_to_run))
 
     for req in requirements_to_run:
         if finding_filter:
@@ -279,6 +284,7 @@ def _run_single_framework(
         requirements=requirement_results,
         counter=counter,
     )
+
 
 def run_frameworks(
     framework_names: list[str],

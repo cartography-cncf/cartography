@@ -3,19 +3,21 @@ Cartography RunRules CLI
 
 Execute security frameworks and present facts about your environment.
 """
+
+import builtins
 import logging
+import os
 from enum import Enum
 from typing import Generator
-import builtins
-import os
 
 import typer
 from typing_extensions import Annotated
 
-from cartography.rules.spec.model import Requirement, Finding
 from cartography.rules.data.frameworks import FRAMEWORKS
 from cartography.rules.runners import run_frameworks
-
+from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Requirement
 
 app = typer.Typer(
     help="Execute Cartography security frameworks",
@@ -31,6 +33,7 @@ class OutputFormat(str, Enum):
 
 
 # Autocompletion functions
+
 
 def complete_frameworks(incomplete: str) -> Generator[str, None, None]:
     """Autocomplete framework names."""
@@ -58,7 +61,10 @@ def complete_requirements(
         if req.id.lower().startswith(incomplete.lower()):
             yield (req.id, req.name)
 
-def complete_findings(ctx: typer.Context, incomplete: str) -> Generator[str, None, None]:
+
+def complete_findings(
+    ctx: typer.Context, incomplete: str
+) -> Generator[tuple[str, str], None, None]:
     # TESTS
     """Autocomplete finding names."""
     framework = ctx.params.get("framework")
@@ -87,7 +93,7 @@ def complete_facts(
         return
     if not finding_id:
         return
-    
+
     # Find the finding
     for fact in FRAMEWORKS[framework].get_facts_by_finding(requirement_id, finding_id):
         if fact.id.lower().startswith(incomplete.lower()):
@@ -207,9 +213,9 @@ def list(
             typer.echo(f"  Total Facts: {len(f.facts)}")
             typer.echo()
         return
-    
+
     # Find and list facts in finding
-    finding_obj: Finding | None = fw.get_findings_by_id(req.id, finding)
+    finding_obj: Finding | None = fw.get_finding_by_id(req.id, finding)
 
     if not finding_obj:
         typer.secho(
@@ -233,8 +239,6 @@ def list(
         typer.echo(f"  Description: {fact.description}")
         typer.echo(f"  Provider:    {fact.module.value}")
         typer.echo()
-
-
 
 
 @app.command()  # type: ignore[misc]
@@ -355,7 +359,7 @@ def run(
 
         # Validate finding exists
         if finding:
-            finding_obj: Finding | None = fw.get_findings_by_requirement(requirement)
+            finding_obj: Finding | None = fw.get_finding_by_id(requirement, finding)
 
             if not finding_obj:
                 typer.secho(
@@ -368,20 +372,20 @@ def run(
                     typer.echo(f"  {f.id}", err=True)
                 raise typer.Exit(1)
 
-        # Validate fact exists
-        if fact:
-            fact_found = fw.get_facts_by_finding(requirement, finding)
+            # Validate fact exists
+            if fact:
+                fact_found: Fact | None = fw.get_fact_by_id(requirement, finding, fact)
 
-            if not fact_found:
-                typer.secho(
-                    f"Error: Fact '{fact}' not found in requirement '{requirement}'",
-                    fg=typer.colors.RED,
-                    err=True,
-                )
-                typer.echo("\nAvailable facts:", err=True)
-                for f in finding_obj.facts:
-                    typer.echo(f"  {f.id}", err=True)
-                raise typer.Exit(1)
+                if not fact_found:
+                    typer.secho(
+                        f"Error: Fact '{fact}' not found in requirement '{requirement}'",
+                        fg=typer.colors.RED,
+                        err=True,
+                    )
+                    typer.echo("\nAvailable facts:", err=True)
+                    for fa in finding_obj.facts:
+                        typer.echo(f"  {fa.id}", err=True)
+                    raise typer.Exit(1)
 
     # Get password
     password = None

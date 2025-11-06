@@ -1,4 +1,7 @@
-from cartography.rules.spec.model import Fact, Module, FindingOutput, Finding
+from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import FindingOutput
+from cartography.rules.spec.model import Module
 
 # Facts
 _missing_mfa_slack = Fact(
@@ -33,6 +36,7 @@ _missing_mfa_cloudflare = Fact(
     RETURN m
     """,
 )
+
 
 # Finding
 class MFAFindingOutput(FindingOutput):

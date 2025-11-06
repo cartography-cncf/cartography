@@ -1,13 +1,14 @@
 """
 Output formatting utilities for Cartography rules.
 """
+
 import json
-from dataclasses import asdict
 import re
+from dataclasses import asdict
 from urllib.parse import quote
 
-from cartography.rules.spec.result import FrameworkResult
 from cartography.rules.data.frameworks import FRAMEWORKS
+from cartography.rules.spec.result import FrameworkResult
 
 
 def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:

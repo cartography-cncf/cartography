@@ -1,6 +1,7 @@
 # Execution result classes
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from dataclasses import field
+
 from cartography.rules.spec.model import FindingOutput
 
 
@@ -14,6 +15,7 @@ class CounterResult:
     total_facts: int = 0
     total_matches: int = 0
 
+
 @dataclass
 class FactResult:
     """
@@ -24,7 +26,7 @@ class FactResult:
     fact_name: str
     fact_description: str
     fact_provider: str
-    matches: list[dict[str, Any]] | None = None # WIP: Use object
+    matches: list[FindingOutput] | None = None
 
 
 @dataclass
@@ -32,6 +34,7 @@ class FindingResult:
     """
     Results for a single Finding.
     """
+
     finding_id: str
     finding_name: str
     finding_description: str

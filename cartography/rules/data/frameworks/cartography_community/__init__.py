@@ -9,8 +9,6 @@ cartography_community_framework = Framework(
     name="Cartography Community",
     description="Comprehensive security assessment framework based on community-driven best practices",
     version="1.0",
-    requirements=(
-        cc_001, # Access Control
-    ),
+    requirements=(cc_001,),  # Access Control
     source_url="https://cartography.dev",
 )

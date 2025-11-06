@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-from pydantic import BaseModel, ConfigDict
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+
 
 class Module(str, Enum):
     """Services that can be monitored"""
@@ -30,7 +33,9 @@ class Module(str, Enum):
     CROSS_CLOUD = "CROSS_CLOUD"
     """Multi-cloud or provider-agnostic rules"""
 
+
 # Fact related classes
+
 
 @dataclass(frozen=True)
 class Fact:
@@ -53,9 +58,10 @@ class Fact:
     Often includes additional relationships to help give context.
     """
 
+
 # Finding output model base class
 class FindingOutput(BaseModel):
-    """ Base class for Finding output models. """
+    """Base class for Finding output models."""
 
     # Config to coerce numbers to strings during instantiation
     model_config = ConfigDict(coerce_numbers_to_str=True)
@@ -69,7 +75,8 @@ class FindingOutput(BaseModel):
 
 @dataclass(frozen=True)
 class Finding:
-    """ A Finding represents a security issue or misconfiguration detected in the environment."""
+    """A Finding represents a security issue or misconfiguration detected in the environment."""
+
     id: str
     """A unique identifier for the Finding. Should be globally unique within Cartography."""
     name: str
@@ -87,7 +94,7 @@ class Finding:
         # DOC
         result: list[FindingOutput] = []
         for result_item in fact_results:
-            parsed_output = {"extra": {}, "source": None}
+            parsed_output: dict[str, Any] = {"extra": {}, "source": None}
             for key, value in result_item.items():
                 if key == "_source":
                     parsed_output["source"] = value
@@ -101,7 +108,7 @@ class Finding:
 
     @property
     def modules(self) -> set[str]:
-        """ Returns the set of modules associated with this finding. """
+        """Returns the set of modules associated with this finding."""
         return {fact.module.value for fact in self.facts}
 
 
@@ -159,34 +166,38 @@ class Framework:
     source_url: str | None = None
 
     def get_requirement_by_id(self, requirement_id: str) -> Requirement | None:
-        """ Returns a requirement by its ID, or None if not found. """
+        """Returns a requirement by its ID, or None if not found."""
         for req in self.requirements:
             if req.id.lower() == requirement_id.lower():
                 return req
         return None
 
-    def get_findings_by_requirement(self, requirement_id: str | None) -> list[Finding]:
-        """ Returns all findings for a given requirement ID. If no requirement ID is provided, returns all findings in the framework. """
-        findings: list[Finding] = []
-        for req in self.requirements:
-            if requirement_id is None or req.id.lower() == requirement_id.lower():
-                findings.extend(req.findings)
-        return findings
+    def get_findings_by_requirement(self, requirement_id: str) -> list[Finding]:
+        """Returns all findings for a given requirement ID. If no requirement ID is provided, returns all findings in the framework."""
+        requirement = self.get_requirement_by_id(requirement_id)
+        if requirement:
+            return list(requirement.findings)
+        return []
 
-    def get_findings_by_id(self, requirement_id: str, finding_id: str) -> Finding | None:
-        """ Returns a finding by its ID within a requirement, or None if not found. """
-        for req in self.requirements:
-            if req.id.lower() == requirement_id.lower():
-                for finding in req.findings:
-                    if finding.id.lower() == finding_id.lower():
-                        return finding
+    def get_finding_by_id(self, requirement_id: str, finding_id: str) -> Finding | None:
+        """Returns a finding by its ID within a requirement, or None if not found."""
+        for finding in self.get_findings_by_requirement(requirement_id):
+            if finding.id.lower() == finding_id.lower():
+                return finding
         return None
 
     def get_facts_by_finding(self, requirement_id: str, finding_id: str) -> list[Fact]:
-        """ Returns all facts for a given finding ID within a requirement. """
-        for req in self.requirements:
-            if req.id.lower() == requirement_id.lower():
-                for finding in req.findings:
-                    if finding.id.lower() == finding_id.lower():
-                        return list(finding.facts)
+        """Returns all facts for a given finding ID within a requirement."""
+        finding = self.get_finding_by_id(requirement_id, finding_id)
+        if finding:
+            return list(finding.facts)
         return []
+
+    def get_fact_by_id(
+        self, requirement_id: str, finding_id: str, fact_id: str
+    ) -> Fact | None:
+        """Returns a fact by its ID within a finding and requirement, or None if not found."""
+        for fact in self.get_facts_by_finding(requirement_id, finding_id):
+            if fact.id.lower() == fact_id.lower():
+                return fact
+        return None

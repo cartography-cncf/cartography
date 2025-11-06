@@ -1,11 +1,12 @@
 from itertools import chain
-from cartography.rules.spec.model import Requirement
+
 from cartography.rules.data.frameworks.cartography_community.requirements.access_control.mfa_missing import (
     missing_mfa_finding,
 )
 from cartography.rules.data.frameworks.cartography_community.requirements.access_control.unmanaged_account import (
     unmanaged_account,
 )
+from cartography.rules.spec.model import Requirement
 
 all_findings = (
     missing_mfa_finding,
