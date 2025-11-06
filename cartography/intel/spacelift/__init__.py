@@ -102,7 +102,7 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         hasattr(config, attr)
         for attr in [
             "spacelift_ec2_ownership_s3_bucket",
-            "spacelift_ec2_ownership_s3_key",
+            "spacelift_ec2_ownership_s3_prefix",
         ]
     ):
         if hasattr(config, "spacelift_ec2_ownership_aws_profile"):
@@ -115,7 +115,7 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
             neo4j_session,
             aws_session,
             config.spacelift_ec2_ownership_s3_bucket,
-            config.spacelift_ec2_ownership_s3_key,
+            config.spacelift_ec2_ownership_s3_prefix,
             config.update_tag,
             account_id,
         )
