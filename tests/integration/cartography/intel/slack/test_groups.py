@@ -18,7 +18,7 @@ COMMON_JOB_PARAMETERS = {
 
 def test_load_slack_groups(neo4j_session):
     """
-    Ensure that users actually get loaded
+    Ensure that groups actually get loaded
     """
     # Act
     cartography.intel.slack.teams.sync(
@@ -53,6 +53,7 @@ def test_load_slack_groups(neo4j_session):
     expected_nodes = {
         ("SLACKGROUP1", "Mobile Dev team"),
         ("SLACKGROUP2", "Security Team"),
+        ("SLACKGROUP3", "Empty Group"),
     }
     assert check_nodes(neo4j_session, "SlackGroup", ["id", "name"]) == expected_nodes
 
@@ -60,6 +61,7 @@ def test_load_slack_groups(neo4j_session):
     expected_rels = {
         ("SLACKGROUP1", SLACK_TEAM_ID),
         ("SLACKGROUP2", SLACK_TEAM_ID),
+        ("SLACKGROUP3", SLACK_TEAM_ID),
     }
     assert (
         check_rels(
@@ -78,6 +80,7 @@ def test_load_slack_groups(neo4j_session):
     expected_rels = {
         ("SLACKGROUP1", "SLACKUSER1"),
         ("SLACKGROUP2", "SLACKUSER1"),
+        ("SLACKGROUP3", "SLACKUSER1"),
     }
     assert (
         check_rels(

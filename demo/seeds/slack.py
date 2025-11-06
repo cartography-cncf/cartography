@@ -67,7 +67,7 @@ class SlackSeed(Seed):
         common_job_parameters["TEAM_IDS"] = team_ids
 
     def _seed_users(self, slack_client: Mock, common_job_parameters: dict) -> None:
-        for team_id in common_job_parameters.get("TEAM_IDS", []):
+        for team_id in common_job_parameters["TEAM_IDS"]:
             common_job_parameters["TEAM_ID"] = team_id
             cartography.intel.slack.users.sync(
                 self.neo4j_session,
@@ -78,7 +78,7 @@ class SlackSeed(Seed):
             )
 
     def _seed_channels(self, slack_client: Mock, common_job_parameters: dict) -> None:
-        for team_id in common_job_parameters.get("TEAM_IDS", []):
+        for team_id in common_job_parameters["TEAM_IDS"]:
             common_job_parameters["TEAM_ID"] = team_id
             cartography.intel.slack.channels.sync(
                 self.neo4j_session,
@@ -89,7 +89,7 @@ class SlackSeed(Seed):
             )
 
     def _seed_groups(self, slack_client: Mock, common_job_parameters: dict) -> None:
-        for team_id in common_job_parameters.get("TEAM_IDS", []):
+        for team_id in common_job_parameters["TEAM_IDS"]:
             common_job_parameters["TEAM_ID"] = team_id
             cartography.intel.slack.groups.sync(
                 self.neo4j_session,

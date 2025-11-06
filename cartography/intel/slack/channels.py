@@ -1,8 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 
 import neo4j
 from slack_sdk import WebClient
@@ -22,7 +19,7 @@ def sync(
     slack_client: WebClient,
     team_id: str,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     channels = get(slack_client, team_id, common_job_parameters["CHANNELS_MEMBERSHIPS"])
     load_channels(neo4j_session, channels, team_id, update_tag)
@@ -32,8 +29,8 @@ def sync(
 @timeit
 def get(
     slack_client: WebClient, team_id: str, get_memberships: bool
-) -> List[Dict[str, Any]]:
-    channels: List[Dict[str, Any]] = []
+) -> list[dict[str, Any]]:
+    channels: list[dict[str, Any]] = []
     for channel in slack_paginate(
         slack_client,
         "conversations_list",
@@ -57,25 +54,10 @@ def get(
     return channels
 
 
-def _get_membership(
-    slack_client: WebClient, slack_channel: str, cursor: Optional[str] = None
-) -> List[str]:
-    result = []
-    memberships = slack_client.conversations_members(
-        channel=slack_channel, cursor=cursor
-    )
-    for m in memberships["members"]:
-        result.append(m)
-    next_cursor = memberships.get("response_metadata", {}).get("next_cursor", "")
-    if next_cursor != "":
-        result.extend(_get_membership(slack_client, slack_channel, cursor=next_cursor))
-    return result
-
-
 @timeit
 def load_channels(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     team_id: str,
     update_tag: int,
 ) -> None:
@@ -91,7 +73,7 @@ def load_channels(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     GraphJob.from_node_schema(SlackChannelSchema(), common_job_parameters).run(
         neo4j_session

@@ -14,7 +14,7 @@ SG -- MEMBER_OF --> SC
 
 ### SlackTeam
 
-Reprensation of a Slack Workspace.
+Representation of a Slack Workspace.
 
 | Field | Description |
 |-------|--------------|

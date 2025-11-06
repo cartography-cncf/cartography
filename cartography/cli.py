@@ -1300,9 +1300,11 @@ class CLI:
         # Slack config
         if config.slack_token_env_var:
             logger.debug(
-                f"Reading Slack token from environment variables {config.slack_token_env_var}",
+                f"Reading Slack token from environment variable {config.slack_token_env_var}",
             )
             config.slack_token = os.environ.get(config.slack_token_env_var)
+        else:
+            config.slack_token = None
 
         # Spacelift config
         # Read endpoint from CLI arg or env var

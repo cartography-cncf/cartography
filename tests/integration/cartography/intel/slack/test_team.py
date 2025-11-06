@@ -13,7 +13,7 @@ COMMON_JOB_PARAMETERS = {
 
 def test_load_slack_team(neo4j_session):
     """
-    Ensure that users actually get loaded
+    Ensure that teams actually get loaded
     """  # Act
     cartography.intel.slack.teams.sync(
         neo4j_session,

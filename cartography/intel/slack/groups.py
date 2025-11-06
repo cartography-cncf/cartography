@@ -44,9 +44,17 @@ def get(slack_client: WebClient, team_id: str) -> list[dict[str, Any]]:
 def transform(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
     splitted_groups: list[dict[str, Any]] = []
     for group in groups:
-        if len(group["description"]) == 0:
+        # Handle empty or None descriptions
+        if group["description"] is None or len(group["description"]) == 0:
             group["description"] = None
-        for ms in zip_longest(group["users"], group["prefs"]["channels"]):
+        # Ensure the loop runs at least once, even for groups with no members or channels
+        members_and_channels = list(
+            zip_longest(group["users"], group["prefs"]["channels"])
+        )
+        if not members_and_channels:
+            members_and_channels = [(None, None)]
+
+        for ms in members_and_channels:
             formated_group = group.copy()
             formated_group.pop("users")
             formated_group.pop("prefs")
