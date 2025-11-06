@@ -12,9 +12,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class CloudTrailEventNodeProperties(CartographyNodeProperties):
+class CloudTrailSpaceliftEventNodeProperties(CartographyNodeProperties):
     """
-    Properties for a CloudTrail Event node.
+    Properties for a CloudTrail Spacelift Event node.
     Represents a single CloudTrail event from a Spacelift run.
     One event can affect multiple EC2 instances (e.g., RunInstances creating multiple instances).
     """
@@ -30,33 +30,33 @@ class CloudTrailEventNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class CloudTrailEventToAccountRelProperties(CartographyRelProperties):
+class CloudTrailSpaceliftEventToAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class CloudTrailEventToAccountRel(CartographyRelSchema):
+class CloudTrailSpaceliftEventToAccountRel(CartographyRelSchema):
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: CloudTrailEventToAccountRelProperties = (
-        CloudTrailEventToAccountRelProperties()
+    properties: CloudTrailSpaceliftEventToAccountRelProperties = (
+        CloudTrailSpaceliftEventToAccountRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class CloudTrailEventToRunRelProperties(CartographyRelProperties):
+class CloudTrailSpaceliftEventToRunRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class CloudTrailEventToRunRel(CartographyRelSchema):
+class CloudTrailSpaceliftEventToRunRel(CartographyRelSchema):
     """
-    FROM_RUN relationship from a CloudTrailEvent to the SpaceliftRun that generated it.
-    (:CloudTrailEvent)-[:FROM_RUN]->(:SpaceliftRun)
+    FROM_RUN relationship from a CloudTrailSpaceliftEvent to the SpaceliftRun that generated it.
+    (:CloudTrailSpaceliftEvent)-[:FROM_RUN]->(:SpaceliftRun)
     """
 
     target_node_label: str = "SpaceliftRun"
@@ -67,19 +67,21 @@ class CloudTrailEventToRunRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "FROM_RUN"
-    properties: CloudTrailEventToRunRelProperties = CloudTrailEventToRunRelProperties()
+    properties: CloudTrailSpaceliftEventToRunRelProperties = (
+        CloudTrailSpaceliftEventToRunRelProperties()
+    )
 
 
 @dataclass(frozen=True)
-class CloudTrailEventToEC2InstanceRelProperties(CartographyRelProperties):
+class CloudTrailSpaceliftEventToEC2InstanceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class CloudTrailEventToEC2InstanceRel(CartographyRelSchema):
+class CloudTrailSpaceliftEventToEC2InstanceRel(CartographyRelSchema):
     """
-    AFFECTED relationship from a CloudTrailEvent to EC2Instances it affected.
-    (:CloudTrailEvent)-[:AFFECTED]->(:EC2Instance)
+    AFFECTED relationship from a CloudTrailSpaceliftEvent to EC2Instances it affected.
+    (:CloudTrailSpaceliftEvent)-[:AFFECTED]->(:EC2Instance)
 
     Uses one-to-many relationship since a single CloudTrail event can affect multiple instances.
     """
@@ -92,25 +94,27 @@ class CloudTrailEventToEC2InstanceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTED"
-    properties: CloudTrailEventToEC2InstanceRelProperties = (
-        CloudTrailEventToEC2InstanceRelProperties()
+    properties: CloudTrailSpaceliftEventToEC2InstanceRelProperties = (
+        CloudTrailSpaceliftEventToEC2InstanceRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class CloudTrailEventSchema(CartographyNodeSchema):
+class CloudTrailSpaceliftEventSchema(CartographyNodeSchema):
     """
     Represents CloudTrail events from Spacelift runs interacting with EC2 instances.
     """
 
-    label: str = "CloudTrailEvent"
-    properties: CloudTrailEventNodeProperties = CloudTrailEventNodeProperties()
-    sub_resource_relationship: CloudTrailEventToAccountRel = (
-        CloudTrailEventToAccountRel()
+    label: str = "CloudTrailSpaceliftEvent"
+    properties: CloudTrailSpaceliftEventNodeProperties = (
+        CloudTrailSpaceliftEventNodeProperties()
+    )
+    sub_resource_relationship: CloudTrailSpaceliftEventToAccountRel = (
+        CloudTrailSpaceliftEventToAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            CloudTrailEventToRunRel(),
-            CloudTrailEventToEC2InstanceRel(),
+            CloudTrailSpaceliftEventToRunRel(),
+            CloudTrailSpaceliftEventToEC2InstanceRel(),
         ]
     )

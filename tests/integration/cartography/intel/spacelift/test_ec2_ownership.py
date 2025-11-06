@@ -95,7 +95,6 @@ def _setup_spacelift_runs(
         TEST_SPACELIFT_ACCOUNT_ID,
         {
             "UPDATE_TAG": TEST_UPDATE_TAG,
-            "SPACELIFT_ACCOUNT_ID": TEST_SPACELIFT_ACCOUNT_ID,
             "account_id": TEST_SPACELIFT_ACCOUNT_ID,
         },
     )
@@ -114,7 +113,7 @@ def test_ec2_ownership_preserves_multiple_events(
 ):
     """
     Test that multiple CloudTrail events from the same run to the same instance
-    are preserved as separate CloudTrailEvent nodes.
+    are preserved as separate CloudTrailSpaceliftEvent nodes.
     """
     # Arrange
     mock_get_account.return_value = TEST_SPACELIFT_ACCOUNT_ID
@@ -135,14 +134,16 @@ def test_ec2_ownership_preserves_multiple_events(
         TEST_SPACELIFT_ACCOUNT_ID,
     )
 
-    # Assert: Verify CloudTrailEvent nodes created with real CloudTrail eventids
+    # Assert: Verify CloudTrailSpaceliftEvent nodes created with real CloudTrail eventids
     expected_event_nodes = {
         ("45f1164a-cba5-4169-8b09-8066a2634d9b", "run-1"),  # DescribeInstances
         ("a1b2c3d4-e5f6-4a5b-9c8d-1234567890ab", "run-1"),  # RunInstances
         ("f7e8d9c0-b1a2-4d3e-8f9a-fedcba987654", "run-1"),  # DescribeInstances again
         ("9a8b7c6d-5e4f-4321-ba09-876543210fed", "run-2"),  # RunInstances (2 instances)
     }
-    actual_event_nodes = check_nodes(neo4j_session, "CloudTrailEvent", ["id", "run_id"])
+    actual_event_nodes = check_nodes(
+        neo4j_session, "CloudTrailSpaceliftEvent", ["id", "run_id"]
+    )
     assert actual_event_nodes is not None
     assert (
         expected_event_nodes == actual_event_nodes
@@ -157,7 +158,7 @@ def test_ec2_ownership_preserves_multiple_events(
     }
     actual_from_run_rels = check_rels(
         neo4j_session,
-        "CloudTrailEvent",
+        "CloudTrailSpaceliftEvent",
         "id",
         "SpaceliftRun",
         "id",
@@ -180,7 +181,7 @@ def test_ec2_ownership_preserves_multiple_events(
     }
     actual_affected_rels = check_rels(
         neo4j_session,
-        "CloudTrailEvent",
+        "CloudTrailSpaceliftEvent",
         "id",
         "EC2Instance",
         "instanceid",
@@ -205,7 +206,7 @@ def test_ec2_ownership_cleanup(
     neo4j_session,
 ):
     """
-    Test that cleanup removes stale CloudTrailEvent nodes and relationships.
+    Test that cleanup removes stale CloudTrailSpaceliftEvent nodes and relationships.
     """
     # Arrange
     mock_get_account.return_value = TEST_SPACELIFT_ACCOUNT_ID
@@ -228,7 +229,7 @@ def test_ec2_ownership_cleanup(
     # Verify initial state
     result = neo4j_session.run(
         """
-        MATCH (e:CloudTrailEvent)<-[:RESOURCE]-(a:SpaceliftAccount{id: $account_id})
+        MATCH (e:CloudTrailSpaceliftEvent)<-[:RESOURCE]-(a:SpaceliftAccount{id: $account_id})
         WHERE e.lastupdated = $update_tag
         RETURN count(e) as count
         """,
@@ -256,7 +257,7 @@ def test_ec2_ownership_cleanup(
     # Assert: Verify that stale events were cleaned up
     result = neo4j_session.run(
         """
-        MATCH (e:CloudTrailEvent)<-[:RESOURCE]-(a:SpaceliftAccount{id: $account_id})
+        MATCH (e:CloudTrailSpaceliftEvent)<-[:RESOURCE]-(a:SpaceliftAccount{id: $account_id})
         WHERE e.lastupdated = $new_update_tag
         RETURN count(e) as count
         """,
@@ -266,12 +267,12 @@ def test_ec2_ownership_cleanup(
     final_count = result.single()["count"]
     assert (
         final_count == 1
-    ), f"Expected 1 CloudTrailEvent after cleanup, got {final_count}"
+    ), f"Expected 1 CloudTrailSpaceliftEvent after cleanup, got {final_count}"
 
     # Verify that the remaining event is the correct one (first event)
     result = neo4j_session.run(
         """
-        MATCH (e:CloudTrailEvent)
+        MATCH (e:CloudTrailSpaceliftEvent)
         WHERE e.lastupdated = $new_update_tag
         RETURN e.id as id
         """,

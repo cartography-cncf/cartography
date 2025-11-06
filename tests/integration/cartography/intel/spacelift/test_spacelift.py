@@ -119,7 +119,6 @@ def test_spacelift_end_to_end(
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "SPACELIFT_ACCOUNT_ID": TEST_ACCOUNT_ID,
         "account_id": TEST_ACCOUNT_ID,
     }
 
