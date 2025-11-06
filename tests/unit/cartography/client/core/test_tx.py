@@ -354,9 +354,6 @@ def test_retries_with_exponential_backoff(mock_sleep):
     ), f"Expected exponential backoff with last > first, but got {sleep_calls}"
 
 
-# Additional tests for newly fixed bugs
-
-
 @patch("cartography.client.core.tx.time.sleep")
 @patch("cartography.client.core.tx.logger")
 def test_network_errors_with_none_wait(mock_logger, mock_sleep):
