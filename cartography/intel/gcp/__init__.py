@@ -13,7 +13,9 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp import cloud_sql
+from cartography.intel.gcp import cloud_sql_database
+from cartography.intel.gcp import cloud_sql_instance
+from cartography.intel.gcp import cloud_sql_user
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
@@ -164,13 +166,33 @@ def _sync_project_resources(
         if service_names.cloud_sql in enabled_services:
             logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
             cloud_sql_cred = build_client("sqladmin", "v1beta4")
-            cloud_sql.sync(
+
+            instances_raw = cloud_sql_instance.sync_sql_instances(
                 neo4j_session,
                 cloud_sql_cred,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
             )
+
+            if instances_raw:
+                cloud_sql_database.sync_sql_databases(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                cloud_sql_user.sync_sql_users(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         del common_job_parameters["PROJECT_ID"]
 

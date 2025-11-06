@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import cartography.intel.gcp.cloud_sql as cloud_sql
+import cartography.intel.gcp.cloud_sql_database as cloud_sql_database
+import cartography.intel.gcp.cloud_sql_instance as cloud_sql_instance
+import cartography.intel.gcp.cloud_sql_user as cloud_sql_user
 from tests.data.gcp.cloud_sql import MOCK_DATABASES
 from tests.data.gcp.cloud_sql import MOCK_INSTANCES
 from tests.data.gcp.cloud_sql import MOCK_USERS
@@ -37,9 +39,9 @@ def _create_prerequisite_nodes(neo4j_session):
     )
 
 
-@patch("cartography.intel.gcp.cloud_sql.get_sql_users")
-@patch("cartography.intel.gcp.cloud_sql.get_sql_databases")
-@patch("cartography.intel.gcp.cloud_sql.get_sql_instances")
+@patch("cartography.intel.gcp.cloud_sql_user.get_sql_users")
+@patch("cartography.intel.gcp.cloud_sql_database.get_sql_databases")
+@patch("cartography.intel.gcp.cloud_sql_instance.get_sql_instances")
 def test_sync_sql(
     mock_get_instances,
     mock_get_databases,
@@ -47,7 +49,8 @@ def test_sync_sql(
     neo4j_session,
 ):
     """
-    Test the full sync() function for GCP Cloud SQL.
+    Test the full sync() functions for the refactored GCP Cloud SQL modules.
+    This test simulates the behavior of the main gcp/__init__.py file.
     """
     # Arrange: Mock all 3 API calls
     mock_get_instances.return_value = MOCK_INSTANCES["items"]
@@ -61,11 +64,29 @@ def test_sync_sql(
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
+    mock_sql_client = MagicMock()
 
-    # Act: Run the sync function
-    cloud_sql.sync(
+    instances_raw = cloud_sql_instance.sync_sql_instances(
         neo4j_session,
-        MagicMock(),
+        mock_sql_client,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    cloud_sql_database.sync_sql_databases(
+        neo4j_session,
+        mock_sql_client,
+        instances_raw,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    cloud_sql_user.sync_sql_users(
+        neo4j_session,
+        mock_sql_client,
+        instances_raw,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
