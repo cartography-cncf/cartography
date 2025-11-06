@@ -17,7 +17,6 @@ This module allows authentication from a service account or via OAuth tokens.
     - `https://www.googleapis.com/auth/admin.directory.customer.readonly`
     - `https://www.googleapis.com/auth/admin.directory.user.readonly`
     - `https://www.googleapis.com/auth/admin.directory.group.readonly`
-    - `https://www.googleapis.com/auth/admin.directory.group.member.readonly`
     - `https://www.googleapis.com/auth/cloud-identity.devices.readonly`
     - `https://www.googleapis.com/auth/cloud-platform`
 1. Download the service account's credentials (JSON file).
@@ -55,10 +54,9 @@ from googleapiclient.discovery import build
 
 scopes = [
     "https://www.googleapis.com/auth/admin.directory.customer.readonly",
-    "https://www.googleapis.com/auth/admin.directory.userreadonly",
-    "https://www.googleapis.com/auth/admin.directory.group.readonly",
-    "https://www.googleapis.com/auth/admin.directory.group.member.readonly",
-    "https://www.googleapis.com/auth/cloud-identity.devices.readonly"
+    "https://www.googleapis.com/auth/admin.directory.user.readonly",
+    "https://www.googleapis.com/auth/cloud-identity.devices.readonly",
+    "https://www.googleapis.com/auth/cloud-identity.groups.readonly"
 ]
 
 print('Go to https://console.cloud.google.com/ > API & Services > Credentials and download secrets')

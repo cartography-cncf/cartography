@@ -71,56 +71,96 @@ MOCK_GOOGLEWORKSPACE_USERS_RESPONSE = [
 
 MOCK_GOOGLEWORKSPACE_GROUPS_RESPONSE = [
     {
-        "id": "group-engineering",
-        "adminCreated": True,
+        "name": "groups/group-engineering",
+        "groupKey": {
+            "id": "engineering@simpson.corp",
+        },
+        "parent": "customers/ABC123CD",
+        "displayName": "Engineering",
         "description": "Engineering team",
-        "directMembersCount": 3,
-        "email": "engineering@simpson.corp",
-        "etag": "etag-group-1",
-        "kind": "admin#directory#group",
-        "name": "Engineering",
+        "createTime": "2023-01-01T00:00:00.000Z",
+        "updateTime": "2024-01-01T00:00:00.000Z",
+        "labels": {
+            "cloudidentity.googleapis.com/groups.discussion_forum": "",
+        },
     },
     {
-        "id": "group-operations",
-        "adminCreated": False,
+        "name": "groups/group-operations",
+        "groupKey": {
+            "id": "operations@simpson.corp",
+        },
+        "parent": "customers/ABC123CD",
+        "displayName": "Operations",
         "description": "Operations sub-team",
-        "directMembersCount": 1,
-        "email": "operations@simpson.corp",
-        "etag": "etag-group-2",
-        "kind": "admin#directory#group",
-        "name": "Operations",
+        "createTime": "2023-02-01T00:00:00.000Z",
+        "updateTime": "2024-02-01T00:00:00.000Z",
+        "labels": {
+            "cloudidentity.googleapis.com/groups.discussion_forum": "",
+        },
     },
 ]
 
 
-# See: https://developers.google.com/workspace/admin/directory/v1/guides/manage-group-members#json-response_3
+# See: https://cloud.google.com/identity/docs/reference/rest/v1/groups.memberships
 MOCK_GOOGLEWORKSPACE_MEMBERS_BY_GROUP_EMAIL = {
-    "engineering@simpson.corp": [
+    "groups/group-engineering": [
         {
-            "id": "user-1",
-            "email": "mbsimpson@simpson.corp",
+            "name": "groups/group-engineering/memberships/member-1",
+            "preferredMemberKey": {
+                "id": "mbsimpson@simpson.corp",
+            },
+            "roles": [
+                {
+                    "name": "MEMBER",
+                }
+            ],
             "type": "USER",
-            "role": "MEMBER",
+            "createTime": "2023-01-01T00:00:00.000Z",
+            "updateTime": "2024-01-01T00:00:00.000Z",
         },
         {
-            "id": "user-2",
-            "email": "hjsimpson@simpson.corp",
+            "name": "groups/group-engineering/memberships/member-2",
+            "preferredMemberKey": {
+                "id": "hjsimpson@simpson.corp",
+            },
+            "roles": [
+                {
+                    "name": "MEMBER",
+                }
+            ],
             "type": "USER",
-            "role": "MEMBER",
+            "createTime": "2023-01-01T00:00:00.000Z",
+            "updateTime": "2024-01-01T00:00:00.000Z",
         },
         {
-            "id": "group-operations",
-            "email": "operations@simpson.corp",
+            "name": "groups/group-engineering/memberships/member-3",
+            "preferredMemberKey": {
+                "id": "operations@simpson.corp",
+            },
+            "roles": [
+                {
+                    "name": "MEMBER",
+                }
+            ],
             "type": "GROUP",
-            "role": "MEMBER",
+            "createTime": "2023-01-01T00:00:00.000Z",
+            "updateTime": "2024-01-01T00:00:00.000Z",
         },
     ],
-    "operations@simpson.corp": [
+    "groups/group-operations": [
         {
-            "id": "user-2",
-            "email": "hjsimpson@simpson.corp",
+            "name": "groups/group-operations/memberships/member-1",
+            "preferredMemberKey": {
+                "id": "hjsimpson@simpson.corp",
+            },
+            "roles": [
+                {
+                    "name": "MEMBER",
+                }
+            ],
             "type": "USER",
-            "role": "MEMBER",
+            "createTime": "2023-02-01T00:00:00.000Z",
+            "updateTime": "2024-02-01T00:00:00.000Z",
         },
     ],
 }

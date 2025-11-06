@@ -69,35 +69,42 @@ def test_sync_googleworkspace_groups(
     """
     Test that Google Workspace groups sync correctly and create proper nodes
     """
-    # Arrange - Ensure tenant exists
+    # Arrange - Clean database and ensure tenant exists
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
     _ensure_local_neo4j_has_test_tenant(neo4j_session)
     _ensure_local_neo4j_has_test_users(neo4j_session)
 
     # Act
     sync_googleworkspace_groups(
         neo4j_session,
-        admin=None,  # Mocked
+        cloudidentity=None,  # Mocked
         googleworkspace_update_tag=TEST_UPDATE_TAG,
         common_job_parameters=COMMON_JOB_PARAMETERS,
     )
 
     # Assert - Verify groups are created
     expected_groups = {
-        ("group-engineering", "engineering@simpson.corp", "Engineering"),
-        ("group-operations", "operations@simpson.corp", "Operations"),
+        (
+            "groups/group-engineering",
+            "engineering@simpson.corp",
+            "groups/group-engineering",
+        ),
+        (
+            "groups/group-operations",
+            "operations@simpson.corp",
+            "groups/group-operations",
+        ),
     }
     assert (
         check_nodes(neo4j_session, "GoogleWorkspaceGroup", ["id", "email", "name"])
         == expected_groups
     )
 
-    # TODO: Add asserts for group-to-tenant relationships
-
     # Assert
     expected_user_group_rels = {
-        ("user-1", "group-engineering"),
-        ("user-2", "group-engineering"),
-        ("user-2", "group-operations"),
+        ("user-1", "groups/group-engineering"),
+        ("user-2", "groups/group-engineering"),
+        ("user-2", "groups/group-operations"),
     }
     assert (
         check_rels(
@@ -109,6 +116,22 @@ def test_sync_googleworkspace_groups(
             "MEMBER_OF",
         )
         == expected_user_group_rels
+    )
+
+    expected_groups_tenant_rels = {
+        (TEST_CUSTOMER_ID, "groups/group-engineering"),
+        (TEST_CUSTOMER_ID, "groups/group-operations"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GoogleWorkspaceTenant",
+            "id",
+            "GoogleWorkspaceGroup",
+            "id",
+            "RESOURCE",
+        )
+        == expected_groups_tenant_rels
     )
 
 
@@ -148,14 +171,14 @@ def test_sync_googleworkspace_groups_creates_group_hierarchy(
     )
     sync_googleworkspace_groups(
         neo4j_session,
-        admin=None,  # Mocked
+        cloudidentity=None,  # Mocked
         googleworkspace_update_tag=TEST_UPDATE_TAG,
         common_job_parameters=COMMON_JOB_PARAMETERS,
     )
 
     # Assert
     expected_group_rels = {
-        ("group-operations", "group-engineering"),
+        ("groups/group-operations", "groups/group-engineering"),
     }
     assert (
         check_rels(
@@ -211,7 +234,7 @@ def test_sync_googleworkspace_groups_creates_inherited_relationships(
     )
     sync_googleworkspace_groups(
         neo4j_session,
-        admin=None,  # Mocked
+        cloudidentity=None,  # Mocked
         googleworkspace_update_tag=TEST_UPDATE_TAG,
         common_job_parameters=COMMON_JOB_PARAMETERS,
     )
@@ -222,7 +245,7 @@ def test_sync_googleworkspace_groups_creates_inherited_relationships(
     # - operations group is MEMBER_OF engineering group
     # Therefore: user-2 should have INHERITED_MEMBER_OF to engineering
     expected_inherited_user_member_rels = {
-        ("user-2", "group-engineering"),
+        ("user-2", "groups/group-engineering"),
     }
     assert (
         check_rels(

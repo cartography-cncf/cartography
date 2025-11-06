@@ -32,7 +32,7 @@ def get_devices(
         customer="customers/my_customer",
         pageSize=100,
         orderBy="last_sync_time desc",
-        filter=f"sync:{from_date.isoformat(timespec='seconds')}..",
+        filter=f"sync:{from_date.strftime('%Y-%m-%dT%H:%M:%S')}..",
     )
     response_objects = []
     while request is not None:
@@ -48,11 +48,10 @@ def get_devices(
                 logger.error(
                     "Missing required Google Workspace scopes. If using the gcloud CLI, "
                     "run: gcloud auth application-default login --scopes="
-                    "https://www.googleapis.com/auth/admin.directory.customer.readonly,s"
+                    "https://www.googleapis.com/auth/admin.directory.customer.readonly,"
                     "https://www.googleapis.com/auth/admin.directory.user.readonly,"
-                    "https://www.googleapis.com/auth/admin.directory.group.readonly,"
-                    "https://www.googleapis.com/auth/admin.directory.group.member.readonly,"
                     "https://www.googleapis.com/auth/cloud-identity.devices.readonly,"
+                    "https://www.googleapis.com/auth/cloud-identity.groups.readonly,"
                     "https://www.googleapis.com/auth/cloud-platform"
                 )
             raise
@@ -78,7 +77,7 @@ def get_device_users(
             parent="devices/-",
             pageSize=100,
             orderBy="last_sync_time desc",
-            filter=f"sync:{from_date.isoformat(timespec='seconds')}..",
+            filter=f"sync:{from_date.strftime('%Y-%m-%dT%H:%M:%S')}..",
         )
     )
     response_objects = []
@@ -97,9 +96,8 @@ def get_device_users(
                     "run: gcloud auth application-default login --scopes="
                     "https://www.googleapis.com/auth/admin.directory.customer.readonly,"
                     "https://www.googleapis.com/auth/admin.directory.user.readonly,"
-                    "https://www.googleapis.com/auth/admin.directory.group.readonly,"
-                    "https://www.googleapis.com/auth/admin.directory.group.member.readonly,"
                     "https://www.googleapis.com/auth/cloud-identity.devices.readonly,"
+                    "https://www.googleapis.com/auth/cloud-identity.groups.readonly,"
                     "https://www.googleapis.com/auth/cloud-platform"
                 )
             raise

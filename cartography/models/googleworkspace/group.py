@@ -18,24 +18,23 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GoogleWorkspaceGroupNodeProperties(CartographyNodeProperties):
     """
     Google Workspace group node properties
+    Compatible with Cloud Identity API response structure
     """
 
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("name")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # Group identifiers and basic info
-    group_id: PropertyRef = PropertyRef("id")  # Alias for id
     email: PropertyRef = PropertyRef("email", extra_index=True)
-    name: PropertyRef = PropertyRef("name")
     description: PropertyRef = PropertyRef("description")
 
-    # Group settings
-    admin_created: PropertyRef = PropertyRef("adminCreated")
-    direct_members_count: PropertyRef = PropertyRef("directMembersCount")
-
-    # Metadata
-    etag: PropertyRef = PropertyRef("etag")
-    kind: PropertyRef = PropertyRef("kind")
+    # Cloud Identity API fields
+    name: PropertyRef = PropertyRef("name")
+    display_name: PropertyRef = PropertyRef("displayName")
+    parent: PropertyRef = PropertyRef("parent")
+    create_time: PropertyRef = PropertyRef("createTime")
+    update_time: PropertyRef = PropertyRef("updateTime")
+    labels: PropertyRef = PropertyRef("labels")
 
     # Tenant relationship
     customer_id: PropertyRef = PropertyRef("CUSTOMER_ID", set_in_kwargs=True)
@@ -89,7 +88,7 @@ class GoogleWorkspaceGroupToMemberRel(CartographyRelSchema):
     )
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("member_ids", one_to_many=True),
+            "primary_email": PropertyRef("member_ids", one_to_many=True),
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
@@ -117,7 +116,7 @@ class GoogleWorkspaceGroupToOwnerRel(CartographyRelSchema):
     target_node_label: str = "GoogleWorkspaceUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("owner_ids", one_to_many=True),
+            "primary_email": PropertyRef("owner_ids", one_to_many=True),
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
@@ -175,7 +174,7 @@ class GoogleWorkspaceGroupToGroupMemberRel(CartographyRelSchema):
     target_node_label: str = "GoogleWorkspaceGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("subgroup_id"),
+            "email": PropertyRef("subgroup_email"),
         }
     )
     source_node_label: str = "GoogleWorkspaceGroup"
@@ -214,7 +213,7 @@ class GoogleWorkspaceGroupToGroupOwnerRel(CartographyRelSchema):
     target_node_label: str = "GoogleWorkspaceGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("subgroup_id"),
+            "email": PropertyRef("subgroup_email"),
         }
     )
     source_node_label: str = "GoogleWorkspaceGroup"

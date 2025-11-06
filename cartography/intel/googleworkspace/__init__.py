@@ -24,9 +24,8 @@ from cartography.util import timeit
 OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/admin.directory.customer.readonly",
     "https://www.googleapis.com/auth/admin.directory.user.readonly",
-    "https://www.googleapis.com/auth/admin.directory.group.readonly",
-    "https://www.googleapis.com/auth/admin.directory.group.member",
     "https://www.googleapis.com/auth/cloud-identity.devices.readonly",
+    "https://www.googleapis.com/auth/cloud-identity.groups.readonly",
 ]
 
 logger = logging.getLogger(__name__)
@@ -169,7 +168,7 @@ def start_googleworkspace_ingestion(
     )
     groups.sync_googleworkspace_groups(
         neo4j_session,
-        resources.admin,
+        resources.cloudidentity,
         config.update_tag,
         common_job_parameters,
     )

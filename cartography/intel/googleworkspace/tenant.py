@@ -39,9 +39,8 @@ def get_tenant(admin: Resource) -> dict[str, Any]:
                 "run: gcloud auth application-default login --scopes="
                 "https://www.googleapis.com/auth/admin.directory.customer.readonly,"
                 "https://www.googleapis.com/auth/admin.directory.user.readonly,"
-                "https://www.googleapis.com/auth/admin.directory.group.readonly,"
-                "https://www.googleapis.com/auth/admin.directory.group.member.readonly,"
                 "https://www.googleapis.com/auth/cloud-identity.devices.readonly,"
+                "https://www.googleapis.com/auth/cloud-identity.groups.readonly,"
                 "https://www.googleapis.com/auth/cloud-platform"
             )
         raise

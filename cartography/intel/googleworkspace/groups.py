@@ -33,28 +33,27 @@ GOOGLE_API_NUM_RETRIES = 5
 
 
 @timeit
-def get_all_groups(admin: Resource) -> list[dict[str, Any]]:
+def get_all_groups(cloudidentity: Resource, customer_id: str) -> list[dict[str, Any]]:
     """
-    Return list of Google Groups in your organization
-    Returns empty list if we are unable to enumerate the groups for any reasons
+    Return list of Google Groups in your organization using Cloud Identity API.
+    Returns empty list if we are unable to enumerate the groups for any reasons.
 
-    googleapiclient.discovery.build('admin', 'directory_v1', credentials=credentials, cache_discovery=False)
-
-    :param admin: google's apiclient discovery resource object.  From googleapiclient.discovery.build
+    :param cloudidentity: Google Cloud Identity resource object from googleapiclient.discovery.build
     See https://googleapis.github.io/google-api-python-client/docs/epy/googleapiclient.discovery-module.html#build.
-    :return: list of Google groups in domain
+    :param customer_id: The customer ID for the organization
+    :return: list of Google groups in domain (transformed to match expected schema)
     """
-    request = admin.groups().list(
-        customer="my_customer",
-        maxResults=20,
-        orderBy="email",
+    request = cloudidentity.groups().list(
+        parent=f"customers/{customer_id}",
+        pageSize=100,
+        view="FULL",
     )
     response_objects = []
     while request is not None:
         try:
             resp = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
             response_objects.extend(resp.get("groups", []))
-            request = admin.groups().list_next(request, resp)
+            request = cloudidentity.groups().list_next(request, resp)
         except HttpError as e:
             if (
                 e.resp.status == 403
@@ -65,9 +64,8 @@ def get_all_groups(admin: Resource) -> list[dict[str, Any]]:
                     "run: gcloud auth application-default login --scopes="
                     "https://www.googleapis.com/auth/admin.directory.customer.readonly,"
                     "https://www.googleapis.com/auth/admin.directory.user.readonly,"
-                    "https://www.googleapis.com/auth/admin.directory.group.readonly,"
-                    "https://www.googleapis.com/auth/admin.directory.group.member.readonly,"
                     "https://www.googleapis.com/auth/cloud-identity.devices.readonly,"
+                    "https://www.googleapis.com/auth/cloud-identity.groups.readonly,"
                     "https://www.googleapis.com/auth/cloud-platform"
                 )
             raise
@@ -76,12 +74,12 @@ def get_all_groups(admin: Resource) -> list[dict[str, Any]]:
 
 @timeit
 def get_members_for_groups(
-    admin: Resource, groups_email: list[str]
+    cloudidentity: Resource, group_names: list[str]
 ) -> dict[str, list[dict[str, Any]]]:
-    """Get all members for given groups emails
+    """Get all members for given groups
 
     Args:
-        admin (Resource): google's apiclient discovery resource object.  From googleapiclient.discovery.build
+        cloudidentity (Resource): google's apiclient discovery resource object.  From googleapiclient.discovery.build
         See https://googleapis.github.io/google-api-python-client/docs/epy/googleapiclient.discovery-module.html#build.
         groups_email (list[str]): List of group email addresses to get members for
 
@@ -89,18 +87,22 @@ def get_members_for_groups(
     :return: list of dictionaries representing Users or Groups grouped by group email
     """
     results: dict[str, list[dict]] = {}
-    for group_email in groups_email:
-        request = admin.members().list(
-            groupKey=group_email,
-            maxResults=500,
+    for group_name in group_names:
+        request = (
+            cloudidentity.groups()
+            .memberships()
+            .list(
+                parent=group_name,
+                pageSize=100,
+                view="FULL",
+            )
         )
         members: list[dict] = []
         while request is not None:
             resp = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
-            members = members + resp.get("members", [])
-            request = admin.members().list_next(request, resp)
-        results[group_email] = members
-
+            members = members + resp.get("memberships", [])
+            request = cloudidentity.groups().memberships().list_next(request, resp)
+        results[group_name] = members
     return results
 
 
@@ -243,32 +245,56 @@ def transform_groups(
     group_owner_relationships: list[dict] = []
 
     for group in groups:
-        group_id = group["id"]
-        group_email = group["email"]
-        group["member_ids"] = []
-        group["owner_ids"] = []
+        transformed_group = group.copy()
+        # GroupKey.id can contains email address or not (for imported groups)
+        if (
+            "groupKey" in group
+            and "id" in group["groupKey"]
+            and "@" in group["groupKey"]["id"]
+        ):
+            transformed_group["email"] = group["groupKey"]["id"]
+        # Serialize labels
+        formated_labels: list[str] = []
+        for key, value in group.get("labels", {}).items():
+            if value:
+                formated_labels.append(f"{key}:{value}")
+            else:
+                formated_labels.append(key)
+        transformed_group["labels"] = formated_labels
 
-        for member in group_memberships.get(group_email, []):
+        transformed_group["member_ids"] = []
+        transformed_group["owner_ids"] = []
+
+        for member in group_memberships.get(group["name"], []):
+            is_owner: bool = False
+            member_key_id = member.get("preferredMemberKey", {}).get("id")
+            if member_key_id is None:
+                continue
+
+            for role_obj in member.get("roles", []):
+                if role_obj.get("name") == "OWNER":
+                    is_owner = True
+                    break
+
             if member["type"] == "GROUP":
                 # Create group-to-group relationships
                 relationship_data = {
-                    "parent_group_id": group_id,
-                    "subgroup_id": member.get("id"),
-                    "role": member.get("role"),
+                    "parent_group_id": group["name"],
+                    "subgroup_email": member_key_id,
                 }
 
-                if member.get("role") == "OWNER":
+                if is_owner:
                     group_owner_relationships.append(relationship_data)
                 else:
                     group_member_relationships.append(relationship_data)
                 continue
 
             # Handle user memberships
-            if member.get("role") == "OWNER":
-                group["owner_ids"].append(member.get("id"))
-            group["member_ids"].append(member.get("id"))
+            if is_owner:
+                transformed_group["owner_ids"].append(member_key_id)
+            transformed_group["member_ids"].append(member_key_id)
 
-        transformed_groups.append(group)
+        transformed_groups.append(transformed_group)
 
     return transformed_groups, group_member_relationships, group_owner_relationships
 
@@ -469,15 +495,19 @@ def cleanup_googleworkspace_groups(
 @timeit
 def sync_googleworkspace_groups(
     neo4j_session: neo4j.Session,
-    admin: Resource,
+    cloudidentity: Resource,
     googleworkspace_update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    GET Google Workspace group objects using the google admin api resource, load the data into Neo4j and clean up stale nodes.
+    GET Google Workspace group objects using the Cloud Identity API and Admin SDK,
+    load the data into Neo4j and clean up stale nodes.
 
     :param neo4j_session: The Neo4j session
-    :param admin: Google admin resource object created by `googleapiclient.discovery.build()`.
+    :param cloudidentity: Google Cloud Identity resource object created by `googleapiclient.discovery.build()`.
+    Used for fetching groups via Cloud Identity API.
+    :param admin: Google Admin SDK resource object created by `googleapiclient.discovery.build()`.
+    Used for fetching group members via Admin Directory API.
     See https://googleapis.github.io/google-api-python-client/docs/epy/googleapiclient.discovery-module.html#build.
     :param googleworkspace_update_tag: The timestamp value to set our new Neo4j nodes with
     :param common_job_parameters: Parameters to carry to the Neo4j jobs
@@ -487,8 +517,10 @@ def sync_googleworkspace_groups(
     customer_id = common_job_parameters["CUSTOMER_ID"]
 
     # 1. GET - Fetch data from API
-    resp_objs = get_all_groups(admin)
-    group_members = get_members_for_groups(admin, [resp["email"] for resp in resp_objs])
+    resp_objs = get_all_groups(cloudidentity, customer_id)
+    group_members = get_members_for_groups(
+        cloudidentity, [resp["name"] for resp in resp_objs]
+    )
 
     # 2. TRANSFORM - Shape data for ingestion
     groups, group_member_relationships, group_owner_relationships = transform_groups(
