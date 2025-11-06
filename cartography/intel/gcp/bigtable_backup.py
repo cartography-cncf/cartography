@@ -85,3 +85,7 @@ def sync_bigtable_backups(
     load_bigtable_backups(
         neo4j_session, all_backups_transformed, project_id, update_tag
     )
+
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["PROJECT_ID"] = project_id
+    cleanup_bigtable_backups(neo4j_session, cleanup_job_params)

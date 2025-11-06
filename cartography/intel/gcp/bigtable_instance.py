@@ -87,4 +87,9 @@ def sync_bigtable_instances(
 
     instances = transform_instances(instances_raw, project_id)
     load_bigtable_instances(neo4j_session, instances, project_id, update_tag)
+
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["PROJECT_ID"] = project_id
+    cleanup_bigtable_instances(neo4j_session, cleanup_job_params)
+
     return instances_raw

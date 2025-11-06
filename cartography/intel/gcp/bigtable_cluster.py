@@ -85,4 +85,9 @@ def sync_bigtable_clusters(
     load_bigtable_clusters(
         neo4j_session, all_clusters_transformed, project_id, update_tag
     )
+
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["PROJECT_ID"] = project_id
+    cleanup_bigtable_clusters(neo4j_session, cleanup_job_params)
+
     return all_clusters_raw

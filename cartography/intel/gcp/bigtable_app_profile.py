@@ -95,3 +95,7 @@ def sync_bigtable_app_profiles(
     load_bigtable_app_profiles(
         neo4j_session, all_app_profiles_transformed, project_id, update_tag
     )
+
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["PROJECT_ID"] = project_id
+    cleanup_bigtable_app_profiles(neo4j_session, cleanup_job_params)
