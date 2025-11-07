@@ -1,11 +1,13 @@
+import json
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-import logging
-import json
 
 from pydantic import BaseModel
-from pydantic import ConfigDict, field_validator, ValidationError
+from pydantic import ConfigDict
+from pydantic import model_validator
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -80,15 +82,25 @@ class FindingOutput(BaseModel):
     # Config to coerce numbers to strings during instantiation
     model_config = ConfigDict(coerce_numbers_to_str=True)
 
-    # Coerce lists to strings
-    @field_validator('*', mode='before')
+    # Coerce o strings
+    @model_validator(mode="before")
     @classmethod
-    def coerce_to_string(cls, v: Any) -> Any:
-        if isinstance(v, (list, tuple, set)):
-            return ", ".join(v)
-        if isinstance(v, dict):
-            return json.dumps(v)
-        return str(v)
+    def coerce_to_string(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        for name, field in cls.model_fields.items():
+            if field.annotation is not str:
+                continue
+            if name not in data:
+                continue
+            v = data[name]
+            if isinstance(v, (list, tuple, set)):
+                data[name] = ", ".join(v)
+            if isinstance(v, dict):
+                data[name] = json.dumps(v)
+
+        return data
 
 
 @dataclass(frozen=True)
@@ -125,7 +137,11 @@ class Finding:
                 result.append(self.output_model(**parsed_output))
             except ValidationError as e:
                 # Handle validation errors
-                logger.warning("Validation error parsing finding output for finding %s: %s", self.id, e)
+                logger.warning(
+                    "Validation error parsing finding output for finding %s: %s",
+                    self.id,
+                    e,
+                )
         return result
 
     @property
