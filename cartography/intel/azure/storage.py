@@ -11,6 +11,7 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.storage import StorageManagementClient
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -99,7 +100,8 @@ def load_storage_account_data(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_storage_account,
         storage_accounts_list=storage_account_list,
         AZURE_SUBSCRIPTION_ID=subscription_id,
@@ -395,7 +397,8 @@ def _load_queue_services(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_queue_services,
         queue_services_list=queue_services,
         azure_update_tag=update_tag,
@@ -424,7 +427,8 @@ def _load_table_services(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_table_services,
         table_services_list=table_services,
         azure_update_tag=update_tag,
@@ -453,7 +457,8 @@ def _load_file_services(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_file_services,
         file_services_list=file_services,
         azure_update_tag=update_tag,
@@ -482,7 +487,8 @@ def _load_blob_services(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_blob_services,
         blob_services_list=blob_services,
         azure_update_tag=update_tag,
@@ -595,7 +601,8 @@ def _load_queues(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_queues,
         queues_list=queues,
         azure_update_tag=update_tag,
@@ -709,7 +716,8 @@ def _load_tables(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_tables,
         tables_list=tables,
         azure_update_tag=update_tag,
@@ -833,7 +841,8 @@ def _load_shares(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_shares,
         shares_list=shares,
         azure_update_tag=update_tag,
@@ -964,7 +973,8 @@ def _load_blob_containers(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_blob_containers,
         blob_containers_list=blob_containers,
         azure_update_tag=update_tag,
