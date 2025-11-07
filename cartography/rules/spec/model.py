@@ -27,9 +27,6 @@ class Module(str, Enum):
     CLOUDFLARE = "Cloudflare"
     """Cloudflare services"""
 
-    SLACK = "Slack"
-    """Slack collaboration platform"""
-
     CROSS_CLOUD = "CROSS_CLOUD"
     """Multi-cloud or provider-agnostic rules"""
 
@@ -41,7 +38,6 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.GITHUB: "github",
     Module.OKTA: "okta",
     Module.CLOUDFLARE: "cloudflare",
-    Module.SLACK: "slack",
 }
 
 

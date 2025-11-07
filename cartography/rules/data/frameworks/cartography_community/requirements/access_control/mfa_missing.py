@@ -4,22 +4,6 @@ from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Module
 
 # Facts
-_missing_mfa_slack = Fact(
-    id="missing-mfa-slack",
-    name="Slack users with disabled MFA",
-    description="Finds Slack user accounts that have Multi-Factor Authentication disabled.",
-    module=Module.SLACK,
-    cypher_query="""
-    MATCH (u:SlackUser)
-    WHERE COALESCE(u.mfa_enabled, false) = false
-    RETURN u.id AS id, u.email AS email, u.first_name AS firstname, u.last_name AS lastname, u._module_name AS _source
-    """,
-    cypher_visual_query="""
-    MATCH (u:SlackUser)
-    WHERE COALESCE(u.mfa_enabled, false) = false
-    RETURN u
-    """,
-)
 _missing_mfa_cloudflare = Fact(
     id="missing-mfa-cloudflare",
     name="Cloudflare members with disabled MFA",
@@ -52,7 +36,7 @@ missing_mfa_finding = Finding(
     description="Detects user accounts that do not have Multi-Factor Authentication enabled.",
     tags=("identity",),
     facts=(
-        _missing_mfa_slack,
+        # TODO: _missing_mfa_slack,
         _missing_mfa_cloudflare,
     ),
     output_model=MFAFindingOutput,
