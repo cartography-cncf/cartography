@@ -34,7 +34,15 @@ class Module(str, Enum):
     """Multi-cloud or provider-agnostic rules"""
 
 
-# Fact related classes
+MODULE_TO_CARTOGRAPHY_INTEL = {
+    Module.AWS: "aws",
+    Module.AZURE: "azure",
+    Module.GCP: "gcp",
+    Module.GITHUB: "github",
+    Module.OKTA: "okta",
+    Module.CLOUDFLARE: "cloudflare",
+    Module.SLACK: "slack",
+}
 
 
 @dataclass(frozen=True)
