@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+from typing_extensions import Self
+import json
 
 from pydantic import BaseModel
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator
 
 
 class Module(str, Enum):
@@ -67,14 +69,43 @@ class Fact:
 class FindingOutput(BaseModel):
     """Base class for Finding output models."""
 
-    # Config to coerce numbers to strings during instantiation
-    model_config = ConfigDict(coerce_numbers_to_str=True)
-
     # TODO: make this property mandatory one all modules have been updated to new datamodel
     source: str | None = None
     """The source of the Fact data, e.g. the specific Cartography module that ingested the data. This field is useful especially for CROSS_CLOUD facts."""
     extra: dict[str, Any] = {}
     """A dictionary to hold any extra fields returned by the Fact query that are not explicitly defined in the output model."""
+
+    # Config to coerce numbers to strings during instantiation
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
+    # Coerce lists to strings
+    @field_validator('*', mode='before')
+    @classmethod
+    def coerce_to_string(cls, v: Any, info) -> Any:
+        if isinstance(v, (list, tuple, set)):
+            return ", ".join(v)
+        if isinstance(v, dict):
+            return json.dumps(v)
+        return str(v)
+    
+    @model_validator(mode='before')
+    def type_coerce_validator(self) -> Self:
+
+
+
+        if self.rank <= 0:
+            raise ValueError("Rank must be > 0")
+        elif self.rank == 1:
+            if self.contract_uid is not None:
+                raise ValueError("For rank 1, contract_uid must be None")
+            if self.subcontract_uid is None and self.subcontractor_uid is None:
+                raise ValueError("For rank 1, subcontract_uid and subcontractor_uid must not be None")
+        elif self.rank > 1:
+            if self.contract_uid is None:
+                raise ValueError("For rank > 1, contract_uid must not be None")
+            if self.subcontract_uid is None and self.subcontractor_uid is None:
+                raise ValueError("For rank > 1, subcontract_uid and subcontractor_uid must not be None")
+        return self
 
 
 @dataclass(frozen=True)

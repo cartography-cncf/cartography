@@ -51,7 +51,7 @@ _aws_trust_relationship_manipulation = Fact(
             policy.name AS policy_name,
             principal_type,
             collect(DISTINCT action) AS actions,
-            stmt.resource AS resource
+            stmt.resource AS resources
         ORDER BY account, principal_name
     """,
     cypher_visual_query="""
@@ -75,8 +75,8 @@ class DelegationBoundaryModifiable(FindingOutput):
     principal_identifier: str | None = None
     principal_type: str | None = None
     policy_name: str | None = None
-    actions: list[str] | None = None
-    resource: str | None = None
+    actions: list[str] = []
+    resources: list[str] = []
 
 
 delegation_boundary_modifiable = Finding(

@@ -148,7 +148,7 @@ _aws_service_account_manipulation_via_lambda = Fact(
             a.name AS account,
             a.id AS account_id,
             role.name AS role_name,
-            actions,
+            action,
             lambda.anonymous_access AS internet_accessible,
             lambda.description AS description
         ORDER BY account, workload_id, internet_accessible
@@ -181,7 +181,7 @@ class WorkloadIdentityAdminCapabilities(FindingOutput):
     account_id: str | None = None
     workload_id: str | None = None
     role_name: str | None = None
-    actions: list[str] | None = None
+    action: str | None = None
     internet_accessible: bool | None = None
     public_ip_address: str | None = None
 

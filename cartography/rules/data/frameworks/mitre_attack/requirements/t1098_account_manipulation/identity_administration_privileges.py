@@ -52,7 +52,7 @@ _aws_account_manipulation_permissions = Fact(
             principal_type,
             policy.name AS policy_name,
             collect(DISTINCT action) AS actions,
-            stmt.resource AS resource
+            stmt.resource AS resources
         ORDER BY account, principal_name
     """,
     cypher_visual_query="""
@@ -85,8 +85,8 @@ class IdentityAdministrationPrivileges(FindingOutput):
     principal_identifier: str | None = None
     principal_type: str | None = None
     policy_name: str | None = None
-    actions: list[str] | None = None
-    resource: str | None = None
+    actions: list[str] = []
+    resources: list[str] = []
 
 
 identity_administration_privileges = Finding(
