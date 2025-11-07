@@ -67,10 +67,9 @@ _aws_service_account_manipulation_via_ec2 = Fact(
             ec2.exposed_internet AS internet_accessible,
             ec2.publicipaddress AS public_ip_address,
             ec2.instanceid AS instance_id,
-
             ip.fromport AS from_port,
             ip.toport AS to_port
-        ORDER BY account, instance_id, internet_accessible, from_port
+        ORDER BY account, workload_id, internet_accessible, from_port
     """,
     cypher_visual_query="""
         MATCH p = (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
@@ -151,9 +150,8 @@ _aws_service_account_manipulation_via_lambda = Fact(
             role.name AS role_name,
             actions,
             lambda.anonymous_access AS internet_accessible,
-            lambda.description AS description,
-
-        ORDER BY account, arn, internet_accessible
+            lambda.description AS description
+        ORDER BY account, workload_id, internet_accessible
     """,
     cypher_visual_query="""
         MATCH p = (a:AWSAccount)-[:RESOURCE]->(lambda:AWSLambda)
