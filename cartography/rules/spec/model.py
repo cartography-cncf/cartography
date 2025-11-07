@@ -3,6 +3,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+from typing import no_type_check
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -82,10 +83,11 @@ class FindingOutput(BaseModel):
     # Config to coerce numbers to strings during instantiation
     model_config = ConfigDict(coerce_numbers_to_str=True)
 
-    # Coerce o strings
+    # Coerce to strings
+    @no_type_check
     @model_validator(mode="before")
     @classmethod
-    def coerce_to_string(cls, data: Any) -> Any:
+    def coerce_to_string(cls, data: Any):
         if not isinstance(data, dict):
             return data
 
