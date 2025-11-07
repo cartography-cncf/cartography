@@ -11,7 +11,12 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp import cloud_run
+from cartography.intel.gcp import cloud_run_domain_mapping
+from cartography.intel.gcp import cloud_run_execution
+from cartography.intel.gcp import cloud_run_job
+from cartography.intel.gcp import cloud_run_locations
+from cartography.intel.gcp import cloud_run_revision
+from cartography.intel.gcp import cloud_run_service
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
@@ -158,18 +163,72 @@ def _sync_project_resources(
             )
 
         if service_names.cloud_run in enabled_services:
-            logger.info("Syncing GCP project %s for Cloud Run.", project_id)
-            # Cloud Run requires both v1 (for locations/domains) and v2 (for services/jobs)
+            logger.info(f"Syncing GCP project {project_id} for Cloud Run.")
             run_client_v1 = build_client("run", "v1")
             run_client_v2 = build_client("run", "v2")
-            cloud_run.sync(
-                neo4j_session,
-                run_client_v2,  # Main client
-                run_client_v1,  # For domain mappings/locations
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
+            locations = cloud_run_locations.get_cloud_run_locations(
+                run_client_v1, project_id
             )
+            if not locations:
+                logger.info(f"No Cloud Run locations found for project {project_id}.")
+                cloud_run_service.cleanup_cloud_run_services(
+                    neo4j_session, common_job_parameters
+                )
+                cloud_run_job.cleanup_cloud_run_jobs(
+                    neo4j_session, common_job_parameters
+                )
+                cloud_run_domain_mapping.cleanup_cloud_run_domain_mappings(
+                    neo4j_session, common_job_parameters
+                )
+                cloud_run_revision.cleanup_cloud_run_revisions(
+                    neo4j_session, common_job_parameters
+                )
+                cloud_run_execution.cleanup_cloud_run_executions(
+                    neo4j_session, common_job_parameters
+                )
+            else:
+                services_raw = cloud_run_service.sync_cloud_run_services(
+                    neo4j_session,
+                    run_client_v2,
+                    locations,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+                jobs_raw = cloud_run_job.sync_cloud_run_jobs(
+                    neo4j_session,
+                    run_client_v2,
+                    locations,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+                cloud_run_domain_mapping.sync_cloud_run_domain_mappings(
+                    neo4j_session,
+                    run_client_v1,
+                    locations,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+                if services_raw:
+                    cloud_run_revision.sync_cloud_run_revisions(
+                        neo4j_session,
+                        run_client_v2,
+                        services_raw,
+                        project_id,
+                        gcp_update_tag,
+                        common_job_parameters,
+                    )
+                if jobs_raw:
+                    cloud_run_execution.sync_cloud_run_executions(
+                        neo4j_session,
+                        run_client_v2,
+                        jobs_raw,
+                        project_id,
+                        gcp_update_tag,
+                        common_job_parameters,
+                    )
 
         del common_job_parameters["PROJECT_ID"]
 
