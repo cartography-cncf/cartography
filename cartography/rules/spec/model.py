@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-from typing_extensions import Self
+import logging
 import json
 
 from pydantic import BaseModel
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, field_validator, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class Module(str, Enum):
@@ -81,31 +83,12 @@ class FindingOutput(BaseModel):
     # Coerce lists to strings
     @field_validator('*', mode='before')
     @classmethod
-    def coerce_to_string(cls, v: Any, info) -> Any:
+    def coerce_to_string(cls, v: Any) -> Any:
         if isinstance(v, (list, tuple, set)):
             return ", ".join(v)
         if isinstance(v, dict):
             return json.dumps(v)
         return str(v)
-    
-    @model_validator(mode='before')
-    def type_coerce_validator(self) -> Self:
-
-
-
-        if self.rank <= 0:
-            raise ValueError("Rank must be > 0")
-        elif self.rank == 1:
-            if self.contract_uid is not None:
-                raise ValueError("For rank 1, contract_uid must be None")
-            if self.subcontract_uid is None and self.subcontractor_uid is None:
-                raise ValueError("For rank 1, subcontract_uid and subcontractor_uid must not be None")
-        elif self.rank > 1:
-            if self.contract_uid is None:
-                raise ValueError("For rank > 1, contract_uid must not be None")
-            if self.subcontract_uid is None and self.subcontractor_uid is None:
-                raise ValueError("For rank > 1, subcontract_uid and subcontractor_uid must not be None")
-        return self
 
 
 @dataclass(frozen=True)
@@ -137,8 +120,12 @@ class Finding:
                     parsed_output["extra"][key] = value
                 else:
                     parsed_output[key] = value
-            # WIP: catch potential errors here
-            result.append(self.output_model(**parsed_output))
+            try:
+                # Try to parse normally
+                result.append(self.output_model(**parsed_output))
+            except ValidationError as e:
+                # Handle validation errors
+                logger.warning("Validation error parsing finding output for finding %s: %s", self.id, e)
         return result
 
     @property
