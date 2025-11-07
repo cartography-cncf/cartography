@@ -80,8 +80,8 @@ def sync_bigtable_tables(
         tables_raw = get_bigtable_tables(client, instance_id)
         all_tables_transformed.extend(transform_tables(tables_raw, instance_id))
 
+    load_bigtable_tables(neo4j_session, all_tables_transformed, project_id, update_tag)
+
     cleanup_job_params = common_job_parameters.copy()
     cleanup_job_params["PROJECT_ID"] = project_id
     cleanup_bigtable_tables(neo4j_session, cleanup_job_params)
-
-    load_bigtable_tables(neo4j_session, all_tables_transformed, project_id, update_tag)
