@@ -56,6 +56,7 @@ Representation of a user within a tailnet.
 | lastupdated |  Timestamp of the last time the node was updated |
 | display_name | The name of the user. |
 | login_name | The emailish login name of the user. |
+| email | The email of the user. |
 | profile_pic_url | The profile pic URL for the user. |
 | created | The time the user joined their tailnet. |
 | type | The type of relation this user has to the tailnet associated with the request. |
