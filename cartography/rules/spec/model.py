@@ -115,9 +115,9 @@ class Finding:
         return result
 
     @property
-    def modules(self) -> set[str]:
+    def modules(self) -> set[Module]:
         """Returns the set of modules associated with this finding."""
-        return {fact.module.value for fact in self.facts}
+        return {fact.module for fact in self.facts}
 
 
 @dataclass(frozen=True)
