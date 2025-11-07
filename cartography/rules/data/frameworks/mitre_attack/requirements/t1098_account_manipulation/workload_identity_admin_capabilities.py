@@ -149,12 +149,9 @@ _aws_service_account_manipulation_via_lambda = Fact(
             a.name AS account,
             a.id AS account_id,
             role.name AS role_name,
-            actions
+            actions,
             lambda.anonymous_access AS internet_accessible,
-
             lambda.description AS description,
-
-
 
         ORDER BY account, arn, internet_accessible
     """,
