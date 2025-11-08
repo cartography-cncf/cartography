@@ -169,6 +169,105 @@ def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, An
     return containers
 
 
+@timeit
+def resolve_container_image_manifests(neo4j_session: neo4j.Session) -> None:
+    """
+    Post-processing step: Resolve manifest list digests to platform-specific images.
+
+    For each ECSContainer and KubernetesContainer:
+    1. Check if imageDigest/status_image_sha points to a manifest_list
+    2. If so, follow CONTAINS_IMAGE to get the platform-specific image
+    3. Store resolvedImageDigest (actual image) and manifestListDigest (if applicable)
+    4. Create HAS_RESOLVED_IMAGE relationship
+
+    This eliminates the need for complex OR logic in vulnerability queries.
+    """
+    logger.info("Resolving manifest list digests for ECS and K8s containers...")
+
+    # Resolve ECS containers
+    ecs_resolution_query = """
+        MATCH (ecs:ECSContainer)
+        MATCH (img:ECRImage {digest: ecs.imageDigest})
+
+        // Case 1: imageDigest points directly to a platform-specific image
+        WITH ecs, img
+        WHERE img.type = 'image'
+        SET ecs.resolvedImageDigest = img.digest,
+            ecs.manifestListDigest = null
+
+        WITH count(*) as direct_count
+
+        // Case 2: imageDigest points to a manifest_list - resolve to platform image
+        MATCH (ecs2:ECSContainer)
+        MATCH (ml:ECRImage {digest: ecs2.imageDigest})
+        WHERE ml.type = 'manifest_list'
+        MATCH (ml)-[:CONTAINS_IMAGE]->(platform_img:ECRImage)
+        WHERE platform_img.type = 'image'
+
+        // Get task definition to determine architecture
+        OPTIONAL MATCH (ecs2)<-[:HAS_CONTAINER]-(task:ECSTask)-[:HAS_TASK_DEFINITION]->(td:ECSTaskDefinition)
+
+        // Match architecture or pick first if not specified
+        WITH ecs2, ml, platform_img, td.runtime_platform_cpu_architecture as task_arch
+        ORDER BY CASE
+            WHEN platform_img.architecture = task_arch THEN 0
+            WHEN platform_img.architecture = 'amd64' THEN 1  // Default to amd64 if no match
+            ELSE 2
+        END
+        LIMIT 1
+
+        SET ecs2.resolvedImageDigest = platform_img.digest,
+            ecs2.manifestListDigest = ml.digest
+
+        RETURN direct_count, count(ecs2) as resolved_count
+    """
+
+    result = neo4j_session.run(ecs_resolution_query)
+    summary = result.single()
+    logger.info(f"Resolved ECS containers: {summary}")
+
+    # Resolve K8s containers (similar logic)
+    k8s_resolution_query = """
+        MATCH (k8s:KubernetesContainer)
+        WHERE k8s.status_image_sha IS NOT NULL
+        MATCH (img:ECRImage {digest: k8s.status_image_sha})
+
+        // Case 1: status_image_sha points directly to a platform-specific image
+        WITH k8s, img
+        WHERE img.type = 'image'
+        SET k8s.resolvedImageDigest = img.digest,
+            k8s.manifestListDigest = null
+
+        WITH count(*) as direct_count
+
+        // Case 2: status_image_sha points to a manifest_list - resolve
+        MATCH (k8s2:KubernetesContainer)
+        WHERE k8s2.status_image_sha IS NOT NULL
+        MATCH (ml:ECRImage {digest: k8s2.status_image_sha})
+        WHERE ml.type = 'manifest_list'
+        MATCH (ml)-[:CONTAINS_IMAGE]->(platform_img:ECRImage)
+        WHERE platform_img.type = 'image'
+
+        // K8s doesn't always have arch metadata, so pick first (or match common architectures)
+        WITH k8s2, ml, platform_img
+        ORDER BY CASE
+            WHEN platform_img.architecture = 'amd64' THEN 0
+            WHEN platform_img.architecture = 'arm64' THEN 1
+            ELSE 2
+        END
+        LIMIT 1
+
+        SET k8s2.resolvedImageDigest = platform_img.digest,
+            k8s2.manifestListDigest = ml.digest
+
+        RETURN direct_count, count(k8s2) as resolved_count
+    """
+
+    result = neo4j_session.run(k8s_resolution_query)
+    summary = result.single()
+    logger.info(f"Resolved K8s containers: {summary}")
+
+
 def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Extract network interface ID from task attachments and service name from group.

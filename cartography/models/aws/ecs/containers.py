@@ -15,12 +15,14 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class ECSContainerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("containerArn")
     arn: PropertyRef = PropertyRef("containerArn", extra_index=True)
-    task_arn: PropertyRef = PropertyRef("taskArn")
+    task_arn: PropertyRef = PropertyRef("taskArn", extra_index=True)  # Used in container counting
     name: PropertyRef = PropertyRef("name")
     image: PropertyRef = PropertyRef("image")
     image_digest: PropertyRef = PropertyRef("imageDigest")
+    resolved_image_digest: PropertyRef = PropertyRef("resolvedImageDigest")  # NEW: Resolved platform-specific image (if manifest_list, follows CONTAINS_IMAGE)
+    manifest_list_digest: PropertyRef = PropertyRef("manifestListDigest")  # NEW: Original manifest list digest (null if direct image)
     runtime_id: PropertyRef = PropertyRef("runtimeId")
-    last_status: PropertyRef = PropertyRef("lastStatus")
+    last_status: PropertyRef = PropertyRef("lastStatus", extra_index=True)  # Filtered 19 times (WHERE last_status = 'RUNNING')
     exit_code: PropertyRef = PropertyRef("exitCode")
     reason: PropertyRef = PropertyRef("reason")
     health_status: PropertyRef = PropertyRef("healthStatus")
@@ -73,6 +75,11 @@ class ECSContainerToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerToECRImageRel(CartographyRelSchema):
+    """
+    DEPRECATED: Points to either manifest_list OR image (ambiguous).
+    Use HAS_RESOLVED_IMAGE instead for queries.
+    Kept for backward compatibility.
+    """
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("imageDigest")}
@@ -81,6 +88,51 @@ class ECSContainerToECRImageRel(CartographyRelSchema):
     rel_label: str = "HAS_IMAGE"
     properties: ECSContainerToECRImageRelProperties = (
         ECSContainerToECRImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ECSContainerToResolvedImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToResolvedImageRel(CartographyRelSchema):
+    """
+    NEW: Points to the actual platform-specific image (type='image').
+    If imageDigest is a manifest_list, this is resolved at ingest time
+    by following CONTAINS_IMAGE and matching architecture.
+    """
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("resolvedImageDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_RESOLVED_IMAGE"
+    properties: ECSContainerToResolvedImageRelProperties = (
+        ECSContainerToResolvedImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ECSContainerToManifestListRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSContainerToManifestListRel(CartographyRelSchema):
+    """
+    NEW: Points to manifest_list if the container uses a multi-arch image.
+    Null/not present if container uses a direct platform-specific image.
+    """
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("manifestListDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_MANIFEST_LIST"
+    properties: ECSContainerToManifestListRelProperties = (
+        ECSContainerToManifestListRelProperties()
     )
 
 
@@ -94,6 +146,8 @@ class ECSContainerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECSContainerToTaskRel(),
-            ECSContainerToECRImageRel(),
+            ECSContainerToECRImageRel(),  # DEPRECATED: kept for backward compat
+            ECSContainerToResolvedImageRel(),  # NEW: Always points to type='image'
+            ECSContainerToManifestListRel(),  # NEW: Points to manifest_list if applicable
         ]
     )

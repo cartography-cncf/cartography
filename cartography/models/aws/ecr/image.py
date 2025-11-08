@@ -14,11 +14,11 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class ECRImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("imageDigest")
-    digest: PropertyRef = PropertyRef("imageDigest")
+    digest: PropertyRef = PropertyRef("imageDigest", extra_index=True)  # Used in K8s joins
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
-    type: PropertyRef = PropertyRef("type")
+    type: PropertyRef = PropertyRef("type", extra_index=True)  # Filtered 32 times in queries
     architecture: PropertyRef = PropertyRef("architecture")
     os: PropertyRef = PropertyRef("os")
     variant: PropertyRef = PropertyRef("variant")
