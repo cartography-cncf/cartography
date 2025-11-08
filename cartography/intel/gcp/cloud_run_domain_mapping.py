@@ -17,8 +17,18 @@ logger = logging.getLogger(__name__)
 def get_cloud_run_domain_mappings(client: Resource, location_name: str) -> list[dict]:
     mappings: list[dict] = []
     request = client.projects().locations().domainmappings().list(parent=location_name)
-    response = request.execute()
-    mappings.extend(response.get("domainMappings", []))
+    while request is not None:
+        response = request.execute()
+        mappings.extend(response.get("domainMappings", []))
+        request = (
+            client.projects()
+            .locations()
+            .domainmappings()
+            .list_next(
+                previous_request=request,
+                previous_response=response,
+            )
+        )
     return mappings
 
 

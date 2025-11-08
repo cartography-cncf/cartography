@@ -211,24 +211,22 @@ def _sync_project_resources(
                     gcp_update_tag,
                     common_job_parameters,
                 )
-                if services_raw:
-                    cloud_run_revision.sync_cloud_run_revisions(
-                        neo4j_session,
-                        run_client_v2,
-                        services_raw,
-                        project_id,
-                        gcp_update_tag,
-                        common_job_parameters,
-                    )
-                if jobs_raw:
-                    cloud_run_execution.sync_cloud_run_executions(
-                        neo4j_session,
-                        run_client_v2,
-                        jobs_raw,
-                        project_id,
-                        gcp_update_tag,
-                        common_job_parameters,
-                    )
+                cloud_run_revision.sync_cloud_run_revisions(
+                    neo4j_session,
+                    run_client_v2,
+                    services_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+                cloud_run_execution.sync_cloud_run_executions(
+                    neo4j_session,
+                    run_client_v2,
+                    jobs_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         del common_job_parameters["PROJECT_ID"]
 
