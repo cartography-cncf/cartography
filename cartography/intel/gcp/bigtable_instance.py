@@ -1,9 +1,6 @@
 import logging
 
 import neo4j
-from google.api_core.exceptions import PermissionDenied
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
@@ -17,25 +14,19 @@ logger = logging.getLogger(__name__)
 @timeit
 def get_bigtable_instances(client: Resource, project_id: str) -> list[dict]:
     instances: list[dict] = []
-    try:
-        request = client.projects().instances().list(parent=f"projects/{project_id}")
-        while request is not None:
-            response = request.execute()
-            instances.extend(response.get("instances", []))
-            request = (
-                client.projects()
-                .instances()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
+    request = client.projects().instances().list(parent=f"projects/{project_id}")
+    while request is not None:
+        response = request.execute()
+        instances.extend(response.get("instances", []))
+        request = (
+            client.projects()
+            .instances()
+            .list_next(
+                previous_request=request,
+                previous_response=response,
             )
-        return instances
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Bigtable instances for project {project_id} due to permissions or auth error: {e}",
         )
-        raise
+    return instances
 
 
 def transform_instances(instances_data: list[dict], project_id: str) -> list[dict]:
