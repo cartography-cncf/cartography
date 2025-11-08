@@ -1,3 +1,4 @@
+from cartography.rules.data.frameworks import FRAMEWORKS
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import MODULE_TO_CARTOGRAPHY_INTEL
 from cartography.sync import TOP_LEVEL_MODULES
@@ -49,3 +50,19 @@ def test_mapping_values_exists():
         assert (
             intel_name in TOP_LEVEL_MODULES
         ), f"Value for {module} ('{intel_name}') should be a valid Cartography INTEL module"
+
+
+def test_finding_output_display_name_fields():
+    for fw_id, fw in FRAMEWORKS.items():
+        for req in fw.requirements:
+            for finding in req.findings:
+                assert (
+                    "id" in finding.output_model.model_fields
+                ), "You must add an 'id' field to all FindingOutput models."
+                
+                # Access display_name_fields via the model field's default value
+                display_name_field = finding.output_model.model_fields.get('display_name_fields')
+                assert display_name_field is not None, f"FindingOutput model '{finding.output_model.__name__}' in requirement '{req.id}' of framework '{fw_id}' must have a display_name_fields field."
+                
+                display_name_fields = display_name_field.default
+                assert display_name_fields and display_name_fields[-1] == "id", f"You must include 'id' as the ultimate fallback in the display_name_fields of FindingOutput model '{finding.output_model.__name__}' in requirement '{req.id}' of framework '{fw_id}'. Current display_name_fields: {display_name_fields}"

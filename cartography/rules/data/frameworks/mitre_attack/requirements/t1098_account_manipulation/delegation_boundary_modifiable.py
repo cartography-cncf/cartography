@@ -69,7 +69,6 @@ _aws_trust_relationship_manipulation = Fact(
 
 # Finding
 class DelegationBoundaryModifiable(FindingOutput):
-    id: str | None = None
     account: str | None = None
     principal_name: str | None = None
     principal_identifier: str | None = None
@@ -77,6 +76,12 @@ class DelegationBoundaryModifiable(FindingOutput):
     policy_name: str | None = None
     actions: list[str] = []
     resources: list[str] = []
+
+    display_name_fields: list[str | tuple[str, ...]] = [
+        "principal_name",
+        "principal_identifier",
+        "id",
+    ]
 
 
 delegation_boundary_modifiable = Finding(

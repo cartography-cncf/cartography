@@ -24,10 +24,15 @@ _missing_mfa_cloudflare = Fact(
 
 # Finding
 class MFAFindingOutput(FindingOutput):
-    id: str | None = None
     email: str | None = None
     firstname: str | None = None
     lastname: str | None = None
+
+    display_name_fields: list[str | tuple[str, ...]] = [
+        "email",
+        ("firstname", "lastname"),
+        "id",
+    ]
 
 
 missing_mfa_finding = Finding(

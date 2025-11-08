@@ -175,7 +175,6 @@ _aws_service_account_manipulation_via_lambda = Fact(
 
 # Finding
 class WorkloadIdentityAdminCapabilities(FindingOutput):
-    id: str | None = None
     instance_id: str | None = None
     account: str | None = None
     account_id: str | None = None
@@ -184,6 +183,12 @@ class WorkloadIdentityAdminCapabilities(FindingOutput):
     actions: list[str] | None = None
     internet_accessible: bool | None = None
     public_ip_address: str | None = None
+
+    display_name_fields: list[str | tuple[str, ...]] = [
+        "workload_id",
+        "instance_id",
+        "id",
+    ]
 
 
 workload_identity_admin_capabilities = Finding(

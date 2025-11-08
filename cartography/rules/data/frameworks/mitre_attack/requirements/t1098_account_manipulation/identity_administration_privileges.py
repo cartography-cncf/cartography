@@ -79,7 +79,6 @@ _aws_account_manipulation_permissions = Fact(
 
 # Finding
 class IdentityAdministrationPrivileges(FindingOutput):
-    id: str | None = None
     account: str | None = None
     principal_name: str | None = None
     principal_identifier: str | None = None
@@ -87,6 +86,12 @@ class IdentityAdministrationPrivileges(FindingOutput):
     policy_name: str | None = None
     actions: list[str] = []
     resources: list[str] = []
+
+    display_name_fields: list[str | tuple[str, ...]] = [
+        "principal_name",
+        "principal_identifier",
+        "id",
+    ]
 
 
 identity_administration_privileges = Finding(

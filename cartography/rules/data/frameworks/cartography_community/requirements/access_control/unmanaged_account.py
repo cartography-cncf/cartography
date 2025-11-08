@@ -24,8 +24,9 @@ _unmanaged_account_ontology = Fact(
 
 # Finding
 class UnmanagedAccountFindingOutput(FindingOutput):
-    id: str | None = None
     email: str | None = None
+
+    display_name_fields: list[str | tuple[str, ...]] = ["email", "id"]
 
 
 unmanaged_account = Finding(

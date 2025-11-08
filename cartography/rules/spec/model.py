@@ -74,11 +74,15 @@ class Fact:
 class FindingOutput(BaseModel):
     """Base class for Finding output models."""
 
+    id: str
     # TODO: make this property mandatory one all modules have been updated to new datamodel
     source: str | None = None
     """The source of the Fact data, e.g. the specific Cartography module that ingested the data. This field is useful especially for CROSS_CLOUD facts."""
     extra: dict[str, Any] = {}
     """A dictionary to hold any extra fields returned by the Fact query that are not explicitly defined in the output model."""
+
+    display_name_fields: list[str | tuple[str, ...]] = ["id"]
+    """List of field names to use for display purposes."""
 
     # Config to coerce numbers to strings during instantiation
     model_config = ConfigDict(coerce_numbers_to_str=True)

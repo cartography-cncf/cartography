@@ -83,7 +83,6 @@ _aws_policy_manipulation_capabilities = Fact(
 
 # Findings
 class PolicyAdministrationPrivileges(FindingOutput):
-    id: str | None = None
     account: str | None = None
     principal_name: str | None = None
     principal_identifier: str | None = None
@@ -91,6 +90,12 @@ class PolicyAdministrationPrivileges(FindingOutput):
     policy_name: str | None = None
     action: str | None = None
     resource: str | None = None
+
+    display_name_fields: list[str | tuple[str, ...]] = [
+        "principal_name",
+        "principal_identifier",
+        "id",
+    ]
 
 
 policy_administration_privileges = Finding(
