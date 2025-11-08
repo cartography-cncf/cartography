@@ -72,6 +72,9 @@
 ```{include} ../modules/kandji/schema.md
 ```
 
+```{include} ../modules/keycloak/schema.md
+```
+
 ```{include} ../modules/kubernetes/schema.md
 ```
 
@@ -99,11 +102,11 @@
 ```{include} ../modules/sentinelone/schema.md
 ```
 
+```{include} ../modules/slack/schema.md
+```
+
 ```{include} ../modules/snipeit/schema.md
 ```
 
 ```{include} ../modules/tailscale/schema.md
-```
-
-```{include} ../modules/keycloak/schema.md
 ```
