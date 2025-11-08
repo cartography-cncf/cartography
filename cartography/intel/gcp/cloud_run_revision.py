@@ -38,7 +38,9 @@ def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dic
     for rev in revisions_data:
         rev_id = rev.get("name")
         if not rev_id:
-            continue
+            raise ValueError(
+                "Cloud Run revision is missing the required 'name' field from the API response"
+            )
         containers = rev.get("containers", [])
         container_image = containers[0].get("image") if containers else None
         transformed.append(
@@ -94,7 +96,9 @@ def sync_cloud_run_revisions(
     for svc_raw in services_raw:
         service_name = svc_raw.get("name")
         if not service_name:
-            continue
+            raise ValueError(
+                "Cloud Run service is missing the required name from the API response"
+            )
         revisions_raw = get_cloud_run_revisions(client, service_name)
         all_revisions.extend(transform_revisions(revisions_raw, project_id))
 
