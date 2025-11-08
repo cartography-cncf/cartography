@@ -53,8 +53,7 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         common_job_parameters,
     )
 
-    common_job_parameters["SPACELIFT_ACCOUNT_ID"] = account_id
-    common_job_parameters["account_id"] = account_id
+    common_job_parameters["spacelift_account_id"] = account_id
 
     sync_spaces(
         neo4j_session,

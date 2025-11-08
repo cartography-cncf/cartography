@@ -259,3 +259,51 @@ EC2_INSTANCES_DATA = [
         "State": "running",
     },
 ]
+
+# Real CloudTrail events from Athena have fields as Hive struct strings,
+# but our code handles both string and dict formats.
+CLOUDTRAIL_EC2_OWNERSHIP_DATA = [
+    # Event 1: run-1 checks instance (DescribeInstances with requestparameters)
+    {
+        "eventid": "45f1164a-cba5-4169-8b09-8066a2634d9b",
+        "useridentity": "arn=arn:aws:sts::661250075859:assumed-role/SpaceLift-Administrator-Access/run-1@spacelift.io",
+        "eventtime": "2024-01-01T10:00:00Z",
+        "eventname": "DescribeInstances",
+        "account": "000000000000",
+        "awsregion": "us-east-1",
+        "requestparameters": '{"instancesSet":{"items":[{"instanceId":"i-01234567"}]}}',
+    },
+    # Event 2: run-1 creates instance (RunInstances with responseelements)
+    # Tests that same run can have multiple events for same instance
+    {
+        "eventid": "a1b2c3d4-e5f6-4a5b-9c8d-1234567890ab",
+        "useridentity": "arn=arn:aws:sts::661250075859:assumed-role/SpaceLift-Administrator-Access/run-1@spacelift.io",
+        "eventtime": "2024-01-01T11:00:00Z",
+        "eventname": "RunInstances",
+        "account": "000000000000",
+        "awsregion": "us-east-1",
+        "responseelements": '{"instancesSet":{"items":[{"instanceId":"i-01234567"}]}}',
+    },
+    # Event 3: run-1 checks instance again (DescribeInstances with resources - Hive format)
+    # Tests third event for same instance from same run
+    {
+        "eventid": "f7e8d9c0-b1a2-4d3e-8f9a-fedcba987654",
+        "useridentity": "arn=arn:aws:sts::661250075859:assumed-role/SpaceLift-Administrator-Access/run-1@spacelift.io",
+        "eventtime": "2024-01-01T12:00:00Z",
+        "eventname": "DescribeInstances",
+        "account": "000000000000",
+        "awsregion": "us-east-1",
+        "resources": "[{arn=arn:aws:ec2:us-east-1:000000000000:instance/i-01234567}]",
+    },
+    # Event 4: run-2 creates TWO instances in one call
+    # Tests one-to-many: single CloudTrail event affecting multiple EC2 instances
+    {
+        "eventid": "9a8b7c6d-5e4f-4321-ba09-876543210fed",
+        "useridentity": "arn=arn:aws:sts::661250075859:assumed-role/SpaceLift-Administrator-Access/run-2@spacelift.io",
+        "eventtime": "2024-01-01T13:00:00Z",
+        "eventname": "RunInstances",
+        "account": "000000000000",
+        "awsregion": "us-east-1",
+        "responseelements": '{"instancesSet":{"items":[{"instanceId":"i-89abcdef"},{"instanceId":"i-02345678"}]}}',
+    },
+]
