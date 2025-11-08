@@ -1300,3 +1300,49 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```
+
+### AzureSecurityAssessment
+
+Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Assessment.|
+|name| The name of the Assessment.|
+|display\_name| The user-friendly display name of the Assessment.|
+|description| The description of the security issue identified by the assessment.|
+|remediation\_description| The description of the steps required to remediate the issue.|
+
+#### Relationships
+
+  - An Azure Security Assessment is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[HAS_ASSESSMENT]->(AzureSecurityAssessment)
+    ```
+
+### AzureMonitorMetricAlert
+
+Representation of an Azure Monitor [Metric Alert](https://learn.microsoft.com/en-us/rest/api/monitor/metricalerts/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Metric Alert.|
+|name| The name of the Metric Alert.|
+|location| The Azure region where the Metric Alert is deployed.|
+|description| The description of the Metric Alert.|
+|severity| The severity of the alert, from 0 (critical) to 4 (verbose).|
+|enabled| A boolean indicating if the alert rule is enabled.|
+|window\_size| The period of time (in ISO 8601 duration format) that is used to monitor alert activity.|
+|evaluation\_frequency| The frequency (in ISO 8601 duration format) with which the metric data is collected.|
+|last\_updated\_time| The timestamp of when the alert rule was last modified.|
+
+#### Relationships
+
+  - An Azure Monitor Metric Alert is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:HAS_METRIC_ALERT]->(AzureMonitorMetricAlert)
+    ```

@@ -444,6 +444,21 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-monitor"
+version = "7.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0e/12/25874f6b894e972646244f570a23298969b58f57cfb7a188e2740017b43a/azure_mgmt_monitor-7.0.0.tar.gz", hash = "sha256:b75f536441d430f69ff873a1646e5f5dbcb3080a10768a59d0adc01541623816", size = 195496, upload-time = "2025-07-28T07:46:17.031Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c6/d1/f6ea4731edfa02c14756770d7c3d5202b40c5c72744f15142c0d89b6d957/azure_mgmt_monitor-7.0.0-py3-none-any.whl", hash = "sha256:ad63b5d187e21d2d34366271ade6abbeea1fcf76e313ff0f83d394d9c124aa1b", size = 245243, upload-time = "2025-07-28T07:46:18.594Z" },
+]
+
+[[package]]
 name = "azure-mgmt-resource"
 version = "24.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -456,6 +471,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/50/4c/b27a3dfbedebbcc8e346a956a803528bd94a19fdf14b1de4bd781b03a6cc/azure_mgmt_resource-24.0.0.tar.gz", hash = "sha256:cf6b8995fcdd407ac9ff1dd474087129429a1d90dbb1ac77f97c19b96237b265", size = 3030022, upload-time = "2025-06-17T08:04:01.731Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/14/18/f047cb553dad6fdb65c625c4fe48552e043c4e9a859416a70c5047d07475/azure_mgmt_resource-24.0.0-py3-none-any.whl", hash = "sha256:27b32cd223e2784269f5a0db3c282042886ee4072d79cedc638438ece7cd0df4", size = 3613790, upload-time = "2025-06-17T08:04:04.046Z" },
+]
+
+[[package]]
+name = "azure-mgmt-security"
+version = "7.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3d/90/13186657355452bdce44f27db6b194b99f78f8c185301b47624fff6d9531/azure-mgmt-security-7.0.0.tar.gz", hash = "sha256:5912eed7e9d3758fdca8d26e1dc26b41943dc4703208a1184266e2c252e1ad66", size = 684730, upload-time = "2024-05-20T05:23:17.392Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f5/d3/9541d871294dbc7c1eba3ffc9d4eb54cb651005ddbb1513a17f2a795bdfe/azure_mgmt_security-7.0.0-py3-none-any.whl", hash = "sha256:85a6d8b7a5cd74884a548ed53fed034449f54a9989edd64e9020c5837db96933", size = 1397437, upload-time = "2024-05-20T05:23:19.991Z" },
 ]
 
 [[package]]
@@ -646,7 +675,9 @@ dependencies = [
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-cosmosdb" },
     { name = "azure-mgmt-logic" },
+    { name = "azure-mgmt-monitor" },
     { name = "azure-mgmt-resource" },
+    { name = "azure-mgmt-security" },
     { name = "azure-mgmt-sql" },
     { name = "azure-mgmt-storage" },
     { name = "azure-mgmt-web" },
@@ -686,6 +717,8 @@ dependencies = [
 dev = [
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-logic" },
+    { name = "azure-mgmt-monitor" },
+    { name = "azure-mgmt-security" },
     { name = "azure-mgmt-web" },
     { name = "backoff" },
     { name = "black" },
@@ -718,7 +751,9 @@ requires-dist = [
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
+    { name = "azure-mgmt-security", specifier = ">=5.0.0" },
     { name = "azure-mgmt-sql", specifier = "<=1.0.0" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
@@ -758,6 +793,8 @@ requires-dist = [
 dev = [
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
+    { name = "azure-mgmt-security", specifier = ">=5.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
     { name = "backoff", specifier = ">=2.1.2" },
     { name = "black", specifier = "==25.9.0" },
