@@ -51,7 +51,7 @@ def transform_worker_pools(
             "description": pool.get("description"),
             "pool_type": None,  # WorkerPool type doesn't have a 'type' field in the API
             "space_id": pool.get("space"),
-            "account_id": account_id,
+            "spacelift_account_id": account_id,
         }
 
         result.append(transformed_pool)
@@ -74,7 +74,7 @@ def load_worker_pools(
         SpaceliftWorkerPoolSchema(),
         worker_pools_data,
         lastupdated=update_tag,
-        account_id=account_id,
+        spacelift_account_id=account_id,
     )
 
     logger.info(f"Loaded {len(worker_pools_data)} Spacelift worker pools")

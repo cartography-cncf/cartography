@@ -95,7 +95,7 @@ def _setup_spacelift_runs(
         TEST_SPACELIFT_ACCOUNT_ID,
         {
             "UPDATE_TAG": TEST_UPDATE_TAG,
-            "account_id": TEST_SPACELIFT_ACCOUNT_ID,
+            "spacelift_account_id": TEST_SPACELIFT_ACCOUNT_ID,
         },
     )
 

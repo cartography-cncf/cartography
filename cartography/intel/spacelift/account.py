@@ -60,10 +60,10 @@ def sync_account(
 
     account_id = get_account(api_endpoint)
 
-    # Transform account data (all fields are just account_id)
+    # Transform account data (all fields are just spacelift_account_id)
     account_data = {
         "id": account_id,
-        "account_id": account_id,
+        "spacelift_account_id": account_id,
         "name": account_id,
     }
 

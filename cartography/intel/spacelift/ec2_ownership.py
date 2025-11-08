@@ -227,7 +227,7 @@ def load_cloudtrail_events(
         CloudTrailSpaceliftEventSchema(),
         events,
         lastupdated=update_tag,
-        account_id=account_id,
+        spacelift_account_id=account_id,
     )
 
     logger.info(f"Successfully loaded {len(events)} CloudTrailSpaceliftEvent nodes")
@@ -273,7 +273,7 @@ def sync_ec2_ownership(
 
     common_job_parameters = {
         "UPDATE_TAG": update_tag,
-        "account_id": account_id,
+        "spacelift_account_id": account_id,
     }
     cleanup_cloudtrail_events(neo4j_session, common_job_parameters)
 

@@ -119,7 +119,7 @@ def test_spacelift_end_to_end(
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "account_id": TEST_ACCOUNT_ID,
+        "spacelift_account_id": TEST_ACCOUNT_ID,
     }
 
     # Act: Sync all Spacelift resources in the correct order

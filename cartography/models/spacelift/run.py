@@ -25,7 +25,7 @@ class SpaceliftRunNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef("created_at")
     stack_id: PropertyRef = PropertyRef("stack_id")
     triggered_by_user_id: PropertyRef = PropertyRef("triggered_by_user_id")
-    account_id: PropertyRef = PropertyRef("account_id")
+    spacelift_account_id: PropertyRef = PropertyRef("spacelift_account_id")
     affected_instance_ids: PropertyRef = PropertyRef("affected_instance_ids")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -48,7 +48,7 @@ class SpaceliftRunToAccountRel(CartographyRelSchema):
 
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("account_id", set_in_kwargs=True)},
+        {"id": PropertyRef("spacelift_account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
