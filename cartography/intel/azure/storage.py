@@ -12,9 +12,9 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.storage import StorageManagementClient
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.tags.storage_tag import AzureStorageTagsSchema
-from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
