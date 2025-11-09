@@ -52,6 +52,10 @@ class GraphStatement:
         self.parameters = parameters or {}
         self.iterative = iterative
         self.iterationsize = iterationsize
+        if iterationsize < 0:
+            raise ValueError(
+                f"iterationsize must be a positive integer, got {iterationsize}",
+            )
         self.parameters["LIMIT_SIZE"] = self.iterationsize
 
         self.parent_job_name = parent_job_name if parent_job_name else None

@@ -16,6 +16,7 @@ from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from policyuniverse.policy import Policy
 
+from cartography.client.core.tx import run_write_query
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
@@ -334,7 +335,8 @@ def _load_s3_acls(
     SET r.lastupdated = $UpdateTag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_acls,
         acls=acls,
         UpdateTag=update_tag,
@@ -368,7 +370,8 @@ def _load_s3_policies(
     s.lastupdated = $UpdateTag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_policies,
         policies=policies,
         UpdateTag=update_tag,
@@ -401,11 +404,12 @@ def _load_s3_policy_statements(
         MERGE (bucket)-[r:POLICY_STATEMENT]->(statement)
         SET r.lastupdated = $UpdateTag
         """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_policy_statement,
         Statements=statements,
         UpdateTag=update_tag,
-    ).consume()
+    )
 
 
 @timeit
@@ -427,7 +431,8 @@ def _load_s3_encryption(
     s.lastupdated = $UpdateTag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_encryption,
         encryption_configs=encryption_configs,
         UpdateTag=update_tag,
@@ -451,7 +456,8 @@ def _load_s3_versioning(
         s.lastupdated = $UpdateTag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_versioning,
         versioning_configs=versioning_configs,
         UpdateTag=update_tag,
@@ -477,7 +483,8 @@ def _load_s3_public_access_block(
         s.lastupdated = $UpdateTag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_public_access_block,
         public_access_block_configs=public_access_block_configs,
         UpdateTag=update_tag,
@@ -500,7 +507,8 @@ def _load_bucket_ownership_controls(
         s.lastupdated = $UpdateTag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_bucket_ownership_controls,
         bucket_ownership_controls_configs=bucket_ownership_controls_configs,
         UpdateTag=update_tag,
@@ -524,7 +532,8 @@ def _load_bucket_logging(
         bucket.logging_target_bucket = bucket_logging.target_bucket,
         bucket.lastupdated = $update_tag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_bucket_logging,
         bucket_logging_configs=bucket_logging_configs,
         update_tag=update_tag,
@@ -536,7 +545,8 @@ def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> No
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) where s.anonymous_actions IS NULL
     SET s.anonymous_access = false, s.anonymous_actions = []
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         set_defaults,
         AWS_ID=aws_account_id,
     )
@@ -545,7 +555,8 @@ def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> No
     MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) where s.default_encryption IS NULL
     SET s.default_encryption = false
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         set_encryption_defaults,
         AWS_ID=aws_account_id,
     )
@@ -993,7 +1004,8 @@ def _load_s3_notifications(
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $UpdateTag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_notifications,
         notifications=notifications,
         UpdateTag=update_tag,
@@ -1025,7 +1037,8 @@ def load_s3_buckets(
 
     for bucket in data["Buckets"]:
         arn = "arn:aws:s3:::" + bucket["Name"]
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_bucket,
             BucketName=bucket["Name"],
             BucketRegion=bucket["Region"],

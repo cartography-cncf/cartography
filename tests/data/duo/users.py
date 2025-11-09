@@ -1,4 +1,6 @@
-GET_USERS_RESPONSE = [
+from typing import Any
+
+GET_USERS_RESPONSE: list[dict[str, Any]] = [
     {
         "alias1": "alias1",
         "alias2": None,

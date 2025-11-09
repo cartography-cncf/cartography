@@ -25,14 +25,18 @@ def _authorized_http_with_timeout(
     return AuthorizedHttp(credentials, http=httplib2.Http(timeout=timeout))
 
 
-def build_client(service: str, version: str = "v1") -> Resource:
-    credentials = get_gcp_credentials()
-    if credentials is None:
+def build_client(
+    service: str,
+    version: str = "v1",
+    credentials: Optional[GoogleCredentials] = None,
+) -> Resource:
+    resolved_credentials = credentials or get_gcp_credentials()
+    if resolved_credentials is None:
         raise RuntimeError("GCP credentials are not available; cannot build client.")
     client = googleapiclient.discovery.build(
         service,
         version,
-        http=_authorized_http_with_timeout(credentials),
+        http=_authorized_http_with_timeout(resolved_credentials),
         cache_discovery=False,
     )
     return client

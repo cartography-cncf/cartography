@@ -6,6 +6,7 @@ import boto3
 import botocore
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -104,7 +105,8 @@ def load_load_balancer_v2s(
             logger.warning("Skipping load balancer entry with missing DNSName: %r", lb)
             continue
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_load_balancer_v2,
             ID=load_balancer_id,
             CREATED_TIME=str(lb["CreatedTime"]),
@@ -138,7 +140,8 @@ def load_load_balancer_v2s(
             SET r.lastupdated = $update_tag
             """
             for group in lb["SecurityGroups"]:
-                neo4j_session.run(
+                run_write_query(
+                    neo4j_session,
                     ingest_load_balancer_v2_security_group,
                     ID=load_balancer_id,
                     GROUP_ID=str(group),
@@ -182,7 +185,8 @@ def load_load_balancer_v2_subnets(
     SET r.lastupdated = $update_tag
     """
     for az in az_data:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_load_balancer_subnet,
             ID=load_balancer_id,
             SubnetId=az["SubnetId"],
@@ -219,7 +223,8 @@ def load_load_balancer_v2_target_groups(
             continue
 
         for instance in target_group["Targets"]:
-            neo4j_session.run(
+            run_write_query(
+                neo4j_session,
                 ingest_instances,
                 ID=load_balancer_id,
                 INSTANCE_ID=instance,
@@ -253,7 +258,8 @@ def load_load_balancer_v2_listeners(
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $update_tag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_listener,
         LoadBalancerId=load_balancer_id,
         Listeners=listener_data,

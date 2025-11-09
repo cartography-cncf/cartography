@@ -3,9 +3,11 @@ import logging
 from collections import namedtuple
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Set
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
@@ -82,6 +84,7 @@ def _sync_project_resources(
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
+    credentials: Optional[GoogleCredentials] = None,
 ) -> None:
     """
     Syncs GCP service-specific resources (Compute, Storage, GKE, DNS, IAM) for each project.
@@ -97,12 +100,13 @@ def _sync_project_resources(
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id
         enabled_services = _services_enabled_on_project(
-            build_client("serviceusage", "v1"), project_id
+            build_client("serviceusage", "v1", credentials=credentials),
+            project_id,
         )
 
         if service_names.compute in enabled_services:
             logger.info("Syncing GCP project %s for Compute.", project_id)
-            compute_cred = build_client("compute", "v1")
+            compute_cred = build_client("compute", "v1", credentials=credentials)
             compute.sync(
                 neo4j_session,
                 compute_cred,
@@ -113,7 +117,7 @@ def _sync_project_resources(
 
         if service_names.storage in enabled_services:
             logger.info("Syncing GCP project %s for Storage.", project_id)
-            storage_cred = build_client("storage", "v1")
+            storage_cred = build_client("storage", "v1", credentials=credentials)
             storage.sync_gcp_buckets(
                 neo4j_session,
                 storage_cred,
@@ -124,7 +128,7 @@ def _sync_project_resources(
 
         if service_names.gke in enabled_services:
             logger.info("Syncing GCP project %s for GKE.", project_id)
-            container_cred = build_client("container", "v1")
+            container_cred = build_client("container", "v1", credentials=credentials)
             gke.sync_gke_clusters(
                 neo4j_session,
                 container_cred,
@@ -135,7 +139,7 @@ def _sync_project_resources(
 
         if service_names.dns in enabled_services:
             logger.info("Syncing GCP project %s for DNS.", project_id)
-            dns_cred = build_client("dns", "v1")
+            dns_cred = build_client("dns", "v1", credentials=credentials)
             dns.sync(
                 neo4j_session,
                 dns_cred,
@@ -146,7 +150,7 @@ def _sync_project_resources(
 
         if service_names.iam in enabled_services:
             logger.info("Syncing GCP project %s for IAM.", project_id)
-            iam_cred = build_client("iam", "v1")
+            iam_cred = build_client("iam", "v1", credentials=credentials)
             iam.sync(
                 neo4j_session,
                 iam_cred,
@@ -159,7 +163,11 @@ def _sync_project_resources(
 
 
 @timeit
-def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+def start_gcp_ingestion(
+    neo4j_session: neo4j.Session,
+    config: Config,
+    credentials: Optional[GoogleCredentials] = None,
+) -> None:
     """
     Starts the GCP ingestion process by initializing Google Application Default Credentials, creating the necessary
     resource objects, listing all GCP organizations and projects available to the GCP identity, and supplying that
@@ -188,7 +196,10 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     # This ensures children are cleaned up before their parents.
 
     orgs = sync_gcp_organizations(
-        neo4j_session, config.update_tag, common_job_parameters
+        neo4j_session,
+        config.update_tag,
+        common_job_parameters,
+        credentials=credentials,
     )
 
     # Track org cleanup jobs to run at the very end
@@ -210,6 +221,7 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             common_job_parameters,
             org_resource_name,
+            credentials=credentials,
         )
 
         # Sync projects under org and each folder
@@ -219,11 +231,16 @@ def start_gcp_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             folders,
             config.update_tag,
             common_job_parameters,
+            credentials=credentials,
         )
 
         # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)
         _sync_project_resources(
-            neo4j_session, projects, config.update_tag, common_job_parameters
+            neo4j_session,
+            projects,
+            config.update_tag,
+            common_job_parameters,
+            credentials=credentials,
         )
 
         # Clean up projects and folders for this org (children before parents)
