@@ -39,6 +39,53 @@ def test_load_storage_account_data(neo4j_session):
     assert actual_nodes == expected_nodes
 
 
+def test_load_storage_tags(neo4j_session):
+    """
+    Test that tags are correctly loaded and linked to storage accounts.
+    """
+    # 1. Arrange: Load the storage accounts first so they exist to be tagged
+    storage.load_storage_account_data(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        DESCRIBE_STORAGE_ACCOUNTS,
+        TEST_UPDATE_TAG,
+    )
+
+    # 2. Act: Load the tags
+    storage.load_storage_tags(
+        neo4j_session,
+        DESCRIBE_STORAGE_ACCOUNTS,
+        TEST_UPDATE_TAG,
+    )
+
+    # 3. Assert: Check that the AzureTag nodes exist
+    expected_tags = {"env:prod", "dept:finance", "dept:engineering"}
+    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Assert: Check the relationships
+    shared_tag_rels = neo4j_session.run(
+        """
+        MATCH (sa:AzureStorageAccount)-[:TAGGED]->(t:AzureTag {id: 'env:prod'})
+        RETURN sa.id
+        """
+    )
+    actual_shared_rels = {r["sa.id"] for r in shared_tag_rels}
+    assert actual_shared_rels == {sa1, sa2}
+
+    # We verify the unique 'dept' tags are connected to the right accounts
+    finance_rel = neo4j_session.run(
+        "MATCH (sa:AzureStorageAccount)-[:TAGGED]->(t:AzureTag {id: 'dept:finance'}) RETURN sa.id"
+    ).single()
+    assert finance_rel["sa.id"] == sa1
+
+    eng_rel = neo4j_session.run(
+        "MATCH (sa:AzureStorageAccount)-[:TAGGED]->(t:AzureTag {id: 'dept:engineering'}) RETURN sa.id"
+    ).single()
+    assert eng_rel["sa.id"] == sa2
+
+
 def test_load_storage_account_data_relationships(neo4j_session):
     # Create Test Azure Subscription
     neo4j_session.run(

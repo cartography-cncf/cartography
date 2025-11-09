@@ -11,6 +11,9 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.storage import StorageManagementClient
 
+from cartography.client.core.tx import load
+from cartography.intel.azure.util.tag import transform_tags
+from cartography.models.azure.tags.storage_tag import AzureStorageTagsSchema
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -104,6 +107,24 @@ def load_storage_account_data(
         storage_accounts_list=storage_account_list,
         AZURE_SUBSCRIPTION_ID=subscription_id,
         azure_update_tag=azure_update_tag,
+    )
+
+
+@timeit
+def load_storage_tags(
+    neo4j_session: neo4j.Session,
+    storage_accounts: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Sync tags for storage accounts.
+    """
+    tags = transform_tags(storage_accounts)
+    load(
+        neo4j_session,
+        AzureStorageTagsSchema(),
+        tags,
+        lastupdated=update_tag,
     )
 
 
@@ -999,6 +1020,7 @@ def sync(
         storage_account_list,
         sync_tag,
     )
+    load_storage_tags(neo4j_session, storage_account_list, sync_tag)
     sync_storage_account_details(
         neo4j_session,
         credentials,

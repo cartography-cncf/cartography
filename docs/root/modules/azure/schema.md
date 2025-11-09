@@ -1300,3 +1300,14 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```
+
+### AzureTag
+
+Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
+
+| Field | Description |
+|---|---|
+| id | Unique identifier for the tag, formatted as `{key}:{value}`. |
+| key | The tag name (e.g., `Environment`). |
+| value | The tag value (e.g., `Production`). |
+| lastupdated | The timestamp of the last time this tag was seen on any resource. |
