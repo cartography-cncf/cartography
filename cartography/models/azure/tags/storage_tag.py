@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
-from cartography.models.azure.tags.tag import AzureTagSchema
+from cartography.models.azure.tags.tag import AzureTagProperties
 from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -27,12 +28,9 @@ class StorageAccountToTagRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AzureStorageTagsSchema(AzureTagSchema):
-    """
-    Inherits standard tag properties from AzureTagSchema and adds the
-    specific relationship to AzureStorageAccount.
-    """
-
+class AzureStorageTagsSchema(CartographyNodeSchema):
+    label: str = "AzureTag"
+    properties: AzureTagProperties = AzureTagProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             StorageAccountToTagRel(),
