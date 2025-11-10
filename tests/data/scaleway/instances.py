@@ -81,7 +81,6 @@ SCALEWAY_INSTANCES = [
             "0": VolumeServer(
                 id="7c37b328-247c-4668-8ee1-701a3a3cc2e4",
                 name="Ubuntu 24.04 Noble Numbat",
-                export_uri=None,
                 organization="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
                 server=ServerSummary(
                     id="345627e9-18ff-47e0-b73d-3f38fddb4390", name="demo-server"
