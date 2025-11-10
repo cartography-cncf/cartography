@@ -14,6 +14,7 @@ from azure.mgmt.sql.models import SecurityAlertPolicyName
 from azure.mgmt.sql.models import TransparentDataEncryptionName
 from msrestazure.azure_exceptions import CloudError
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -85,7 +86,8 @@ def load_server_data(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_server,
         server_list=server_list,
         AZURE_SUBSCRIPTION_ID=subscription_id,
@@ -504,7 +506,8 @@ def _load_server_dns_aliases(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_dns_aliases,
         dns_aliases_list=dns_aliases,
         azure_update_tag=update_tag,
@@ -535,7 +538,8 @@ def _load_server_ad_admins(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_ad_admins,
         ad_admins_list=ad_admins,
         azure_update_tag=update_tag,
@@ -567,7 +571,8 @@ def _load_recoverable_databases(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_recoverable_databases,
         recoverable_databases_list=recoverable_databases,
         azure_update_tag=update_tag,
@@ -603,7 +608,8 @@ def _load_restorable_dropped_databases(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_restorable_dropped_databases,
         restorable_dropped_databases_list=restorable_dropped_databases,
         azure_update_tag=update_tag,
@@ -634,7 +640,8 @@ def _load_failover_groups(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_failover_groups,
         failover_groups_list=failover_groups,
         azure_update_tag=update_tag,
@@ -669,7 +676,8 @@ def _load_elastic_pools(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_elastic_pools,
         elastic_pools_list=elastic_pools,
         azure_update_tag=update_tag,
@@ -710,7 +718,8 @@ def _load_databases(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_databases,
         databases_list=databases,
         azure_update_tag=update_tag,
@@ -982,7 +991,8 @@ def _load_replication_links(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_replication_links,
         replication_links_list=replication_links,
         azure_update_tag=update_tag,
@@ -1021,7 +1031,8 @@ def _load_db_threat_detection_policies(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_threat_detection_policies,
         threat_detection_policies_list=threat_detection_policies,
         azure_update_tag=update_tag,
@@ -1054,7 +1065,8 @@ def _load_restore_points(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_restore_points,
         restore_points_list=restore_points,
         azure_update_tag=update_tag,
@@ -1085,7 +1097,8 @@ def _load_transparent_data_encryptions(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_data_encryptions,
         transparent_data_encryptions_list=encryptions_list,
         azure_update_tag=update_tag,

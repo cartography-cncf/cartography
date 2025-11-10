@@ -13,6 +13,7 @@ import neo4j
 import yaml
 
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.client.core.tx import run_write_query
 from cartography.graph.statement import GraphStatement
 from cartography.util import timeit
@@ -300,12 +301,11 @@ def get_resource_arns(
     get_resource_query_template = get_resource_query.safe_substitute(
         node_label=node_label,
     )
-    results = neo4j_session.run(
+    return neo4j_session.execute_read(
+        read_list_of_values_tx,
         get_resource_query_template,
         AccountId=account_id,
     )
-    arns = [r["arn"] for r in results]
-    return arns
 
 
 def load_principal_mappings(

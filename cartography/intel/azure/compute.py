@@ -6,6 +6,7 @@ import neo4j
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.compute import ComputeManagementClient
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -63,7 +64,8 @@ def load_vms(
     SET r.lastupdated = $update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_vm,
         vms=vm_list,
         SUBSCRIPTION_ID=subscription_id,
@@ -103,7 +105,8 @@ def load_vm_data_disks(
     """
 
     # for disk in data_disks:
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_data_disk,
         disks=data_disks,
         VM_ID=vm_id,
@@ -162,7 +165,8 @@ def load_disks(
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $update_tag"""
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_disks,
         disks=disk_list,
         SUBSCRIPTION_ID=subscription_id,
@@ -217,7 +221,8 @@ def load_snapshots(
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $update_tag"""
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_snapshots,
         snapshots=snapshots,
         SUBSCRIPTION_ID=subscription_id,

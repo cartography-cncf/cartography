@@ -10,6 +10,7 @@ import neo4j
 import cartography.intel.analysis
 from cartography.config import Config
 from cartography.intel import create_indexes
+from cartography.intel import ontology
 from demo import seeds
 from demo.seeds.base import AsyncSeed
 from demo.seeds.base import Seed
@@ -38,6 +39,8 @@ def main(force_flag: bool, analysis_job_directory: str) -> None:
         neo4j_uri=NEO4J_URL,
         neo4j_user=NEO4J_USER,
         neo4j_password=NEO4J_PASSWORD,
+        ontology_users_source="duo",
+        ontology_devices_source="snipeit",
         analysis_job_directory=analysis_job_directory,
     )
 
@@ -104,6 +107,11 @@ def main(force_flag: bool, analysis_job_directory: str) -> None:
         except Exception:
             logger.exception("Seed %s failed", seed_cls.__name__)
 
+    # Ontology
+    logger.info("Building ontology ...")
+    ontology.run(neo4j_session, config)
+
+    # Analysis
     logger.info("Running analysis...")
     cartography.intel.analysis.run(neo4j_session, config)
 

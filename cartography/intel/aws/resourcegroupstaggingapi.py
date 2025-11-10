@@ -253,7 +253,7 @@ def _load_tags_tx(
         UpdateTag=aws_update_tag,
         Region=region,
         Account=current_aws_account_id,
-    )
+    ).consume()
 
 
 @timeit

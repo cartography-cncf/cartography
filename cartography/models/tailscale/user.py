@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -15,7 +16,8 @@ class TailscaleUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     display_name: PropertyRef = PropertyRef("displayName")
-    login_name: PropertyRef = PropertyRef("loginName", extra_index=True)
+    login_name: PropertyRef = PropertyRef("loginName")
+    email: PropertyRef = PropertyRef("loginName", extra_index=True)
     profile_pic_url: PropertyRef = PropertyRef("profilePicUrl")
     created: PropertyRef = PropertyRef("created")
     type: PropertyRef = PropertyRef("type")
@@ -48,5 +50,8 @@ class TailscaleUserToTailnetRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class TailscaleUserSchema(CartographyNodeSchema):
     label: str = "TailscaleUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: TailscaleUserNodeProperties = TailscaleUserNodeProperties()
     sub_resource_relationship: TailscaleUserToTailnetRel = TailscaleUserToTailnetRel()

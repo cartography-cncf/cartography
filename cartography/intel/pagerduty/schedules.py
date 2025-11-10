@@ -7,6 +7,7 @@ import dateutil.parser
 import neo4j
 from pdpyras import APISession
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,8 @@ def load_schedule_data(
                 layer["_schedule_id"] = schedule["id"]
                 layers.append(layer)
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Schedules=data,
         update_tag=update_tag,
@@ -87,7 +89,8 @@ def _attach_users(
         MERGE (u)-[r:MEMBER_OF]->(s)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
@@ -129,7 +132,8 @@ def _attach_layers(
                 users.append(
                     {"layer_id": layer["_layer_id"], "user": user["user"]["id"]},
                 )
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Layers=data,
         update_tag=update_tag,
@@ -152,7 +156,8 @@ def _attach_layer_users(
         MERGE (u)-[r:MEMBER_OF]->(l)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,

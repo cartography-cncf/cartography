@@ -100,6 +100,7 @@ def test_cleanup_interesting_asset_end_to_end_only_sub_res_remains(neo4j_session
     cleanup_job = GraphJob.from_node_schema(
         InterestingAssetSchema(),
         {"UPDATE_TAG": 2, "sub_resource_id": "sub-resource-id"},
+        iterationsize=1,
     )
     cleanup_job.run(neo4j_session)
 
@@ -237,6 +238,7 @@ def test_cleanup_interesting_asset_end_to_end_no_world_asset(neo4j_session):
     cleanup_job = GraphJob.from_node_schema(
         InterestingAssetSchema(),
         {"UPDATE_TAG": 2, "sub_resource_id": "sub-resource-id"},
+        iterationsize=1,
     )
     cleanup_job.run(neo4j_session)
 

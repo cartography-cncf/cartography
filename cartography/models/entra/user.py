@@ -85,5 +85,6 @@ class EntraUserSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "EntraIdentity",
-        ]
+            "UserAccount",
+        ]  # UserAccount label is used for ontology mapping
     )

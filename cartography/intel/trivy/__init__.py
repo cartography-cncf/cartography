@@ -11,13 +11,41 @@ from cartography.config import Config
 from cartography.intel.trivy.scanner import cleanup
 from cartography.intel.trivy.scanner import get_json_files_in_dir
 from cartography.intel.trivy.scanner import get_json_files_in_s3
-from cartography.intel.trivy.scanner import sync_single_image_from_file
-from cartography.intel.trivy.scanner import sync_single_image_from_s3
+from cartography.intel.trivy.scanner import sync_single_image
 from cartography.stats import get_stats_client
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client("trivy.scanner")
+
+
+def _get_scan_targets_and_aliases(
+    neo4j_session: Session,
+    account_ids: list[str] | None = None,
+) -> tuple[set[str], dict[str, str]]:
+    """
+    Return tag URIs and a mapping of digest-qualified URIs to tag URIs.
+    """
+    if not account_ids:
+        aws_accounts = list_accounts(neo4j_session)
+    else:
+        aws_accounts = account_ids
+
+    image_uris: set[str] = set()
+    digest_aliases: dict[str, str] = {}
+
+    for account_id in aws_accounts:
+        for _, _, image_uri, _, digest in get_ecr_images(neo4j_session, account_id):
+            if not image_uri:
+                continue
+            image_uris.add(image_uri)
+            if digest:
+                # repo URI is everything before the trailing ":" (if present)
+                repo_uri = image_uri.rsplit(":", 1)[0]
+                digest_uri = f"{repo_uri}@{digest}"
+                digest_aliases[digest_uri] = image_uri
+
+    return image_uris, digest_aliases
 
 
 @timeit
@@ -28,45 +56,56 @@ def get_scan_targets(
     """
     Return list of ECR images from all accounts in the graph.
     """
-    if not account_ids:
-        aws_accounts = list_accounts(neo4j_session)
-    else:
-        aws_accounts = account_ids
-
-    ecr_images: set[str] = set()
-    for account_id in aws_accounts:
-        for _, _, image_uri, _, _ in get_ecr_images(neo4j_session, account_id):
-            ecr_images.add(image_uri)
-
-    return ecr_images
+    image_uris, _ = _get_scan_targets_and_aliases(neo4j_session, account_ids)
+    return image_uris
 
 
-def _get_intersection(
-    image_uris: set[str], json_files: set[str], trivy_s3_prefix: str
-) -> list[tuple[str, str]]:
+def _prepare_trivy_data(
+    trivy_data: dict[str, Any],
+    image_uris: set[str],
+    digest_aliases: dict[str, str],
+    source: str,
+) -> tuple[dict[str, Any], str] | None:
     """
-    Get the intersection of ECR images in the graph and S3 scan results.
+    Determine the tag URI that corresponds to this Trivy payload.
 
-    Args:
-        image_uris: Set of ECR images in the graph
-        json_files: Set of S3 object keys for JSON files
-        trivy_s3_prefix: S3 prefix path containing scan results
-
-    Returns:
-        List of tuples (image_uri, s3_object_key)
+    Returns (trivy_data, display_uri) if the payload can be linked to an image present
+    in the graph; otherwise returns None so the caller can skip ingestion.
     """
-    intersection = []
-    prefix_len = len(trivy_s3_prefix)
-    for s3_object_key in json_files:
-        # Sample key "123456789012.dkr.ecr.us-west-2.amazonaws.com/other-repo:v1.0.json"
-        # Sample key "folder/derp/123456789012.dkr.ecr.us-west-2.amazonaws.com/other-repo:v1.0.json"
-        # Remove the prefix and the .json suffix
-        image_uri = s3_object_key[prefix_len:-5]
 
-        if image_uri in image_uris:
-            intersection.append((image_uri, s3_object_key))
+    artifact_name = (trivy_data.get("ArtifactName") or "").strip()
+    metadata = trivy_data.get("Metadata") or {}
+    candidates: list[str] = []
 
-    return intersection
+    if artifact_name:
+        candidates.append(artifact_name)
+
+    repo_tags = metadata.get("RepoTags", [])
+    repo_digests = metadata.get("RepoDigests", [])
+    stripped_tags_digests = [item.strip() for item in repo_tags + repo_digests]
+    candidates.extend(stripped_tags_digests)
+
+    display_uri: str | None = None
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if candidate in image_uris:
+            display_uri = candidate
+            break
+        alias = digest_aliases.get(candidate)
+        if alias:
+            display_uri = alias
+            break
+
+    if not display_uri:
+        logger.debug(
+            "Skipping Trivy results for %s because no matching image URI was found in the graph",
+            source,
+        )
+        return None
+
+    return trivy_data, display_uri
 
 
 @timeit
@@ -93,15 +132,12 @@ def sync_trivy_aws_ecr_from_s3(
         f"Using Trivy scan results from s3://{trivy_s3_bucket}/{trivy_s3_prefix}"
     )
 
-    image_uris: set[str] = get_scan_targets(neo4j_session)
+    image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
     json_files: set[str] = get_json_files_in_s3(
         trivy_s3_bucket, trivy_s3_prefix, boto3_session
     )
-    intersection: list[tuple[str, str]] = _get_intersection(
-        image_uris, json_files, trivy_s3_prefix
-    )
 
-    if len(intersection) == 0:
+    if len(json_files) == 0:
         logger.error(
             f"Trivy sync was configured, but there are no ECR images with S3 json scan results in bucket "
             f"'{trivy_s3_bucket}' with prefix '{trivy_s3_prefix}'. "
@@ -110,18 +146,33 @@ def sync_trivy_aws_ecr_from_s3(
             f"`<image_uri>.json` and to be in the same bucket and prefix as the scan results. If the prefix is "
             "a folder, it MUST end with a trailing slash '/'. "
         )
-        logger.error(f"JSON files in S3: {json_files}")
         raise ValueError("No ECR images with S3 json scan results found.")
 
-    logger.info(f"Processing {len(intersection)} ECR images with S3 scan results")
-    for image_uri, s3_object_key in intersection:
-        sync_single_image_from_s3(
+    logger.info(f"Processing {len(json_files)} Trivy result files from S3")
+    s3_client = boto3_session.client("s3")
+    for s3_object_key in json_files:
+        logger.debug(
+            f"Reading scan results from S3: s3://{trivy_s3_bucket}/{s3_object_key}"
+        )
+        response = s3_client.get_object(Bucket=trivy_s3_bucket, Key=s3_object_key)
+        scan_data_json = response["Body"].read().decode("utf-8")
+        trivy_data = json.loads(scan_data_json)
+
+        prepared = _prepare_trivy_data(
+            trivy_data,
+            image_uris=image_uris,
+            digest_aliases=digest_aliases,
+            source=f"s3://{trivy_s3_bucket}/{s3_object_key}",
+        )
+        if prepared is None:
+            continue
+
+        prepared_data, display_uri = prepared
+        sync_single_image(
             neo4j_session,
-            image_uri,
+            prepared_data,
+            display_uri,
             update_tag,
-            trivy_s3_bucket,
-            s3_object_key,
-            boto3_session,
         )
 
     cleanup(neo4j_session, common_job_parameters)
@@ -137,7 +188,7 @@ def sync_trivy_aws_ecr_from_dir(
     """Sync Trivy scan results from local files for AWS ECR images."""
     logger.info(f"Using Trivy scan results from {results_dir}")
 
-    image_uris: set[str] = get_scan_targets(neo4j_session)
+    image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
     json_files: set[str] = get_json_files_in_dir(results_dir)
 
     if not json_files:
@@ -149,27 +200,27 @@ def sync_trivy_aws_ecr_from_dir(
     logger.info(f"Processing {len(json_files)} local Trivy result files")
 
     for file_path in json_files:
-        # First, check if the image exists in the graph before syncing
         try:
-            # Peek at the artifact name without processing the file
             with open(file_path, encoding="utf-8") as f:
                 trivy_data = json.load(f)
-                artifact_name = trivy_data.get("ArtifactName")
-
-            if artifact_name and artifact_name not in image_uris:
-                logger.debug(
-                    f"Skipping results for {artifact_name} since the image is not present in the graph"
-                )
-                continue
-
-        except (json.JSONDecodeError, KeyError) as e:
-            logger.error(f"Failed to read artifact name from {file_path}: {e}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to read Trivy data from {file_path}: {e}")
             continue
 
-        # Now sync the file since we know the image exists in the graph
-        sync_single_image_from_file(
+        prepared = _prepare_trivy_data(
+            trivy_data,
+            image_uris=image_uris,
+            digest_aliases=digest_aliases,
+            source=file_path,
+        )
+        if prepared is None:
+            continue
+
+        prepared_data, display_uri = prepared
+        sync_single_image(
             neo4j_session,
-            file_path,
+            prepared_data,
+            display_uri,
             update_tag,
         )
 

@@ -16,7 +16,8 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 from googleapiclient.discovery import Resource
 
 from cartography.config import Config
-from cartography.intel.gsuite import api
+from cartography.intel.gsuite import groups
+from cartography.intel.gsuite import users
 from cartography.util import timeit
 
 OAUTH_SCOPES = [
@@ -148,15 +149,18 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             return
 
     resources = _initialize_resources(creds)
-    api.sync_gsuite_users(
+    customer_ids = users.sync_gsuite_users(
         neo4j_session,
         resources.admin,
         config.update_tag,
         common_job_parameters,
     )
-    api.sync_gsuite_groups(
-        neo4j_session,
-        resources.admin,
-        config.update_tag,
-        common_job_parameters,
-    )
+    for customer_id in customer_ids:
+        scoped_job_parameters = common_job_parameters.copy()
+        scoped_job_parameters["CUSTOMER_ID"] = customer_id
+        groups.sync_gsuite_groups(
+            neo4j_session,
+            resources.admin,
+            config.update_tag,
+            scoped_job_parameters,
+        )

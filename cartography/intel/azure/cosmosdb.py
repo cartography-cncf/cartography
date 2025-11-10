@@ -12,6 +12,7 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -132,7 +133,8 @@ def load_database_account_data(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_database_account,
         database_accounts_list=database_account_list,
         AZURE_SUBSCRIPTION_ID=subscription_id,
@@ -218,7 +220,8 @@ def _load_database_account_write_locations(
         SET r.lastupdated = $azure_update_tag
         """
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_write_location,
             write_locations_list=write_locations,
             DatabaseAccountId=database_account_id,
@@ -259,7 +262,8 @@ def _load_database_account_read_locations(
         SET r.lastupdated = $azure_update_tag
         """
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_read_location,
             read_locations_list=read_locations,
             DatabaseAccountId=database_account_id,
@@ -297,7 +301,8 @@ def _load_database_account_associated_locations(
         SET r.lastupdated = $azure_update_tag
         """
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_associated_location,
             associated_locations_list=associated_locations,
             DatabaseAccountId=database_account_id,
@@ -348,7 +353,8 @@ def _load_cosmosdb_cors_policy(
         SET r.lastupdated = $azure_update_tag
         """
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_cors_policy,
             cors_policies_list=cors_policies,
             DatabaseAccountId=database_account_id,
@@ -386,7 +392,8 @@ def _load_cosmosdb_failover_policies(
         SET r.lastupdated = $azure_update_tag
         """
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_failover_policies,
             failover_policies_list=failover_policies,
             DatabaseAccountId=database_account_id,
@@ -429,7 +436,8 @@ def _load_cosmosdb_private_endpoint_connections(
         SET r.lastupdated = $azure_update_tag
         """
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_private_endpoint_connections,
             private_endpoint_connections_list=private_endpoint_connections,
             DatabaseAccountId=database_account_id,
@@ -466,7 +474,8 @@ def _load_cosmosdb_virtual_network_rules(
         SET r.lastupdated = $azure_update_tag
         """
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_virtual_network_rules,
             virtual_network_rules_list=virtual_network_rules,
             DatabaseAccountId=database_account_id,
@@ -822,7 +831,8 @@ def _load_sql_databases(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_sql_databases,
         sql_databases_list=sql_databases,
         azure_update_tag=update_tag,
@@ -854,7 +864,8 @@ def _load_cassandra_keyspaces(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_cassandra_keyspaces,
         cassandra_keyspaces_list=cassandra_keyspaces,
         azure_update_tag=update_tag,
@@ -886,7 +897,8 @@ def _load_mongodb_databases(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_mongodb_databases,
         mongodb_databases_list=mongodb_databases,
         azure_update_tag=update_tag,
@@ -918,7 +930,8 @@ def _load_table_resources(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_tables,
         table_resources_list=table_resources,
         azure_update_tag=update_tag,
@@ -1046,7 +1059,8 @@ def _load_sql_containers(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_containers,
         sql_containers_list=containers,
         azure_update_tag=update_tag,
@@ -1175,7 +1189,8 @@ def _load_cassandra_tables(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_cassandra_tables,
         cassandra_tables_list=cassandra_tables,
         azure_update_tag=update_tag,
@@ -1299,7 +1314,8 @@ def _load_collections(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_collections,
         mongodb_collections_list=collections,
         azure_update_tag=update_tag,

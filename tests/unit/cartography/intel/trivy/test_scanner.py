@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import pytest
 
-from cartography.intel.trivy import _get_intersection
 from cartography.intel.trivy import sync_trivy_aws_ecr_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
@@ -401,83 +400,19 @@ def test_sync_single_image_from_s3_load_error(
     mock_sync_single_image.assert_called_once()
 
 
-def test_get_intersection():
-    """Test the _get_intersection function with matching ECR image and S3 scan result."""
-    # Arrange
-    images_in_graph = {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"}
-    json_files = {
-        "trivy-scans/987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d.json"
-    }
-    trivy_s3_prefix = "trivy-scans/"  # Note the trailing slash
-
-    # Act
-    result = _get_intersection(images_in_graph, json_files, trivy_s3_prefix)
-
-    # Assert that we retrieve the correct key
-    expected = [
-        (
-            "987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d",
-            "trivy-scans/987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d.json",
-        )
-    ]
-    assert result == expected
-
-
-def test_get_intersection_empty_prefix():
-    """Test the _get_intersection function with an empty prefix."""
-    # Arrange
-    images_in_graph = {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"}
-    json_files = {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d.json"}
-    trivy_s3_prefix = ""  # Empty prefix
-
-    # Act
-    result = _get_intersection(images_in_graph, json_files, trivy_s3_prefix)
-
-    # Assert that we retrieve the correct key
-    expected = [
-        (
-            "987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d",
-            "987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d.json",
-        )
-    ]
-    assert result == expected
-
-
-def test_get_intersection_no_matches():
-    """Test the _get_intersection function when there are no matching images."""
-    # Arrange
-    images_in_graph = {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"}
-    json_files = {
-        "trivy-scans/111111111111.dkr.ecr.us-east-1.amazonaws.com/other-repo:latest.json"
-    }
-    trivy_s3_prefix = "trivy-scans/"
-
-    # Act
-    result = _get_intersection(images_in_graph, json_files, trivy_s3_prefix)
-
-    # Assert that we get an empty list when there are no matches
-    assert result == []
-
-
-@patch("cartography.intel.trivy.get_scan_targets")
-@patch("cartography.intel.trivy.scanner.get_json_files_in_s3")
-@patch("cartography.intel.trivy._get_intersection")
+@patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+@patch("cartography.intel.trivy.get_json_files_in_s3")
 def test_sync_trivy_aws_ecr_from_s3_no_matches(
-    mock_get_intersection,
     mock_get_json_files,
-    mock_get_scan_targets,
+    mock_get_targets_and_aliases,
 ):
-    """Test that sync_trivy_aws_ecr_from_s3 raises an error when no images match."""
-    # Arrange
-    mock_get_scan_targets.return_value = {
-        "987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"
-    }
-    mock_get_json_files.return_value = {
-        "trivy-scans/111111111111.dkr.ecr.us-east-1.amazonaws.com/other-repo:latest.json"
-    }
-    mock_get_intersection.return_value = []  # No matches found
+    """Test that sync_trivy_aws_ecr_from_s3 raises when no JSON files are present."""
+    mock_get_targets_and_aliases.return_value = (
+        {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"},
+        {},
+    )
+    mock_get_json_files.return_value = set()  # No scan results available
 
-    # Act & Assert
     with pytest.raises(
         ValueError, match="No ECR images with S3 json scan results found"
     ):
@@ -489,3 +424,57 @@ def test_sync_trivy_aws_ecr_from_s3_no_matches(
             common_job_parameters={},
             boto3_session=MagicMock(),
         )
+
+
+@patch("cartography.intel.trivy.cleanup")
+@patch("cartography.intel.trivy.sync_single_image")
+@patch("cartography.intel.trivy._get_scan_targets_and_aliases")
+@patch("cartography.intel.trivy.get_json_files_in_s3")
+@patch("boto3.Session")
+def test_sync_trivy_aws_ecr_from_s3_digest_files(
+    mock_boto_session,
+    mock_get_json_files,
+    mock_get_targets_and_aliases,
+    mock_sync_single_image,
+    mock_cleanup,
+):
+    """Ensure digest-named files are processed and mapped to the tag URI."""
+    display_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/app:1.2.3"
+    digest_uri = (
+        "123456789012.dkr.ecr.us-west-2.amazonaws.com/app@sha256:abcdefabcdefabcdef"
+    )
+
+    mock_get_targets_and_aliases.return_value = (
+        {display_uri},
+        {digest_uri: display_uri},
+    )
+    mock_get_json_files.return_value = {"trivy-scans/app@sha256abcdef.json"}
+
+    scan_payload = {
+        "ArtifactName": digest_uri,
+        "Metadata": {
+            "RepoDigests": [digest_uri],
+            "RepoTags": [],
+            "SubImagePlatforms": ["linux/amd64"],
+        },
+        "Results": [{"Target": "app", "Vulnerabilities": []}],
+    }
+
+    body = MagicMock()
+    body.read.return_value.decode.return_value = json.dumps(scan_payload)
+    mock_boto_session.return_value.client.return_value.get_object.return_value = {
+        "Body": body
+    }
+
+    sync_trivy_aws_ecr_from_s3(
+        neo4j_session=MagicMock(),
+        trivy_s3_bucket="test-bucket",
+        trivy_s3_prefix="trivy-scans/",
+        update_tag=123,
+        common_job_parameters={},
+        boto3_session=mock_boto_session.return_value,
+    )
+
+    mock_sync_single_image.assert_called_once()
+    normalized_payload = mock_sync_single_image.call_args[0][1]
+    assert normalized_payload["ArtifactName"] == digest_uri

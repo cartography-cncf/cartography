@@ -9,6 +9,7 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.models.aws.ssm.instance_information import SSMInstanceInformationSchema
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
@@ -31,15 +32,12 @@ def get_instance_ids(
     WHERE i.region = $Region
     RETURN i.id
     """
-    results = neo4j_session.run(
+    return neo4j_session.execute_read(
+        read_list_of_values_tx,
         get_instances_query,
         AWS_ACCOUNT_ID=current_aws_account_id,
         Region=region,
     )
-    instance_ids = []
-    for r in results:
-        instance_ids.append(r["i.id"])
-    return instance_ids
 
 
 @timeit

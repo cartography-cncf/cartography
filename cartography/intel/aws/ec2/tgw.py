@@ -6,6 +6,7 @@ import boto3
 import botocore.exceptions
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -120,7 +121,8 @@ def load_transit_gateways(
     for tgw in data:
         tgw_id = tgw["TransitGatewayId"]
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_transit_gateway,
             TgwId=tgw_id,
             ARN=tgw["TransitGatewayArn"],
@@ -161,7 +163,8 @@ def _attach_shared_transit_gateway(
     """
 
     if tgw["OwnerId"] != current_aws_account_id:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             attach_tgw,
             ARN=tgw["TransitGatewayArn"],
             TransitGatewayId=tgw["TransitGatewayId"],
@@ -202,7 +205,8 @@ def load_tgw_attachments(
     for tgwa in data:
         tgwa_id = tgwa["TransitGatewayAttachmentId"]
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_transit_gateway,
             TgwAttachmentId=tgwa_id,
             TransitGatewayId=tgwa["TransitGatewayId"],
@@ -261,7 +265,8 @@ def _attach_tgw_vpc_attachment_to_vpc_subnets(
     SET p.lastupdated = $update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         attach_vpc_tgw_attachment_to_vpc,
         VpcId=tgw_vpc_attachment["VpcId"],
         TgwAttachmentId=tgw_vpc_attachment["TransitGatewayAttachmentId"],
@@ -269,7 +274,8 @@ def _attach_tgw_vpc_attachment_to_vpc_subnets(
     )
 
     for subnet_id in tgw_vpc_attachment["SubnetIds"]:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             attach_vpc_tgw_attachment_to_subnet,
             SubnetId=subnet_id,
             TgwAttachmentId=tgw_vpc_attachment["TransitGatewayAttachmentId"],

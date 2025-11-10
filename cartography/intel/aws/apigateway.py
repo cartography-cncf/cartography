@@ -178,11 +178,24 @@ def get_rest_api_resources_methods_integrations(
                 method["apiId"] = api["id"]
                 method["httpMethod"] = http_method
                 methods.append(method)
-                integration = client.get_integration(
-                    restApiId=api["id"],
-                    resourceId=resource_id,
-                    httpMethod=http_method,
-                )
+                try:
+                    integration = client.get_integration(
+                        restApiId=api["id"],
+                        resourceId=resource_id,
+                        httpMethod=http_method,
+                    )
+                except ClientError as e:
+                    error_code = e.response.get("Error", {}).get("Code")
+                    if error_code == "NotFoundException":
+                        logger.warning(
+                            "No integration found for API %s resource %s method %s: %s",
+                            api["id"],
+                            resource_id,
+                            http_method,
+                            e,
+                        )
+                        continue
+                    raise
                 integration["resourceId"] = resource_id
                 integration["apiId"] = api["id"]
                 integration["integrationHttpMethod"] = integration.get("httpMethod")

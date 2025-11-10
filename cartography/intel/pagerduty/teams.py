@@ -6,6 +6,7 @@ from typing import List
 import neo4j
 from pdpyras import APISession
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,8 @@ def load_team_data(
     """
     logger.info(f"Loading {len(data)} pagerduty teams.")
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Teams=data,
         update_tag=update_tag,
@@ -90,7 +92,8 @@ def load_team_relations(
         ON CREATE SET r.firstseen = timestamp()
         SET r.role = relation.role
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,

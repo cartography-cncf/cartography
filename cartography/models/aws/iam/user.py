@@ -51,4 +51,9 @@ class AWSUserSchema(CartographyNodeSchema):
     label: str = "AWSUser"
     properties: AWSUserNodeProperties = AWSUserNodeProperties()
     sub_resource_relationship: AWSUserToAWSAccountRel = AWSUserToAWSAccountRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            "AWSPrincipal",
+            "UserAccount",
+        ]  # UserAccount label is used for ontology mapping
+    )

@@ -35,6 +35,22 @@ from cartography.stats import ScopedStatsClient
 logger = logging.getLogger(__name__)
 
 
+def is_service_control_policy_explicit_deny(
+    error: botocore.exceptions.ClientError,
+) -> bool:
+    """Return True if the ClientError was caused by an explicit service control policy deny."""
+    error_code = error.response.get("Error", {}).get("Code")
+    if error_code not in {"AccessDenied", "AccessDeniedException"}:
+        return False
+
+    message = error.response.get("Error", {}).get("Message")
+    if not message:
+        return False
+
+    lowered = message.lower()
+    return "explicit deny" in lowered and "service control policy" in lowered
+
+
 STATUS_SUCCESS = 0
 STATUS_FAILURE = 1
 STATUS_KEYBOARD_INTERRUPT = 130
@@ -153,6 +169,9 @@ def merge_module_sync_metadata(
     :param synced_type: The sub-module's type
     :param update_tag: Timestamp used to determine data freshness
     """
+    # Import here to avoid circular import with cartography.client.core.tx
+    from cartography.client.core.tx import run_write_query
+
     template = Template(
         """
         MERGE (n:ModuleSyncMetadata{id:'${group_type}_${group_id}_${synced_type}'})
@@ -164,7 +183,8 @@ def merge_module_sync_metadata(
             n.lastupdated=$UPDATE_TAG
     """,
     )
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         template.safe_substitute(
             group_type=group_type,
             group_id=group_id,
@@ -255,6 +275,20 @@ def backoff_handler(details: Dict) -> None:
     )
 
 
+# Error codes that indicate a service is unavailable in a region or blocked by policies
+AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
+    "AccessDenied",
+    "AccessDeniedException",
+    "AuthFailure",
+    "AuthorizationError",
+    "AuthorizationErrorException",
+    "InvalidClientTokenId",
+    "UnauthorizedOperation",
+    "UnrecognizedClientException",
+    "InternalServerErrorException",
+]
+
+
 # TODO Move this to cartography.intel.aws.util.common
 def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
     """
@@ -266,17 +300,6 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
 
     This should be used on `get_` functions that normally return a list of items.
     """
-    ERROR_CODES = [
-        "AccessDenied",
-        "AccessDeniedException",
-        "AuthFailure",
-        "AuthorizationError",
-        "AuthorizationErrorException",
-        "InvalidClientTokenId",
-        "UnauthorizedOperation",
-        "UnrecognizedClientException",
-        "InternalServerErrorException",
-    ]
 
     @wraps(func)
     # fix for AWS TooManyRequestsException
@@ -303,12 +326,20 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                 ) from e
             # The account is not authorized to use this service in this region
             # so we can continue without raising an exception
-            if error_code in ERROR_CODES:
-                logger.warning(
-                    "{} in this region. Skipping...".format(
-                        e.response["Error"]["Message"],
-                    ),
-                )
+            if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
+                error_message = e.response.get("Error", {}).get("Message")
+                if is_service_control_policy_explicit_deny(e):
+                    logger.warning(
+                        "Service control policy denied access while calling %s: %s",
+                        func.__name__,
+                        error_message,
+                    )
+                else:
+                    logger.warning(
+                        "{} in this region. Skipping...".format(
+                            error_message,
+                        ),
+                    )
                 return []
             else:
                 raise
@@ -316,7 +347,6 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             logger.warning(
                 "Encountered an EndpointConnectionError. This means that the AWS "
                 "resource is not available in this region. Skipping.",
-                exc_info=True,
             )
             return []
 
