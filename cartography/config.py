@@ -206,6 +206,8 @@ class Config:
     :param proxmox_password_env_var: Environment variable containing Proxmox password. Optional.
     :type proxmox_verify_ssl: bool
     :param proxmox_verify_ssl: Verify SSL certificates when connecting to Proxmox (default: True). Optional.
+    :type proxmox_enable_guest_agent: bool
+    :param proxmox_enable_guest_agent: Enable QEMU Guest Agent data collection for VMs (default: False). Optional.
     """
 
     def __init__(
@@ -306,11 +308,12 @@ class Config:
         keycloak_url=None,
         proxmox_host=None,
         proxmox_port=8006,
-        proxmox_user='root@pam',
+        proxmox_user="root@pam",
         proxmox_token_name_env_var=None,
         proxmox_token_value_env_var=None,
         proxmox_password_env_var=None,
         proxmox_verify_ssl=True,
+        proxmox_enable_guest_agent=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -415,7 +418,7 @@ class Config:
         self.proxmox_token_value_env_var = proxmox_token_value_env_var
         self.proxmox_password_env_var = proxmox_password_env_var
         self.proxmox_verify_ssl = proxmox_verify_ssl
-        # Resolved credential values (set by CLI after reading env vars)
+        self.proxmox_enable_guest_agent = proxmox_enable_guest_agent
         self.proxmox_token_name = None
         self.proxmox_token_value = None
         self.proxmox_password = None

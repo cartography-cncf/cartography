@@ -265,7 +265,7 @@ def load_graph_data(
     if batch_size <= 0:
         raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
     for data_batch in batch(dict_list, size=batch_size):
-        neo4j_session.write_transaction(
+        neo4j_session.execute_write(
             write_list_of_dicts_tx,
             query,
             DictList=data_batch,

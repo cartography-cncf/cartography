@@ -5,7 +5,9 @@ Follows Cartography's Get → Transform → Load pattern.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 from cartography.client.core.tx import load
 from cartography.models.proxmox.storage import ProxmoxStorageSchema
@@ -18,8 +20,9 @@ logger = logging.getLogger(__name__)
 # GET functions
 # ============================================================================
 
+
 @timeit
-def get_storage(proxmox_client) -> List[Dict[str, Any]]:
+def get_storage(proxmox_client: Any) -> List[Dict[str, Any]]:
     """
     Get all storage definitions from Proxmox.
 
@@ -31,7 +34,7 @@ def get_storage(proxmox_client) -> List[Dict[str, Any]]:
 
 
 @timeit
-def get_storage_status(proxmox_client, node_name: str) -> List[Dict[str, Any]]:
+def get_storage_status(proxmox_client: Any, node_name: str) -> List[Dict[str, Any]]:
     """
     Get storage status for a specific node.
 
@@ -50,6 +53,7 @@ def get_storage_status(proxmox_client, node_name: str) -> List[Dict[str, Any]]:
 # TRANSFORM functions
 # ============================================================================
 
+
 def transform_storage_data(
     storage_list: List[Dict[str, Any]],
     storage_status_map: Dict[str, List[Dict[str, Any]]],
@@ -67,18 +71,18 @@ def transform_storage_data(
 
     for storage in storage_list:
         # Required fields
-        storage_id = storage['storage']
+        storage_id = storage["storage"]
 
         # Parse content types
         content_types = []
-        if storage.get('content'):
-            content_types = [c.strip() for c in storage['content'].split(',')]
+        if storage.get("content"):
+            content_types = [c.strip() for c in storage["content"].split(",")]
 
         # Determine which nodes have access to this storage
         nodes = []
-        if storage.get('nodes'):
+        if storage.get("nodes"):
             # Specific nodes listed
-            nodes = [n.strip() for n in storage['nodes'].split(',')]
+            nodes = [n.strip() for n in storage["nodes"].split(",")]
         else:
             # All nodes have access
             nodes = list(storage_status_map.keys())
@@ -90,25 +94,27 @@ def transform_storage_data(
 
         for node_name, status_list in storage_status_map.items():
             for status in status_list:
-                if status.get('storage') == storage_id:
-                    total = max(total, status.get('total', 0))
-                    used = max(used, status.get('used', 0))
-                    available = max(available, status.get('avail', 0))
+                if status.get("storage") == storage_id:
+                    total = max(total, status.get("total", 0))
+                    used = max(used, status.get("used", 0))
+                    available = max(available, status.get("avail", 0))
                     break
 
-        transformed_storage.append({
-            'id': storage_id,
-            'name': storage_id,
-            'cluster_id': cluster_id,
-            'type': storage.get('type'),
-            'content_types': content_types,
-            'shared': storage.get('shared', 0) == 1,
-            'enabled': storage.get('disable', 0) == 0,
-            'total': total,
-            'used': used,
-            'available': available,
-            'nodes': nodes,
-        })
+        transformed_storage.append(
+            {
+                "id": storage_id,
+                "name": storage_id,
+                "cluster_id": cluster_id,
+                "type": storage.get("type"),
+                "content_types": content_types,
+                "shared": storage.get("shared", 0) == 1,
+                "enabled": storage.get("disable", 0) == 0,
+                "total": total,
+                "used": used,
+                "available": available,
+                "nodes": nodes,
+            }
+        )
 
     return transformed_storage
 
@@ -117,7 +123,10 @@ def transform_storage_data(
 # LOAD functions - using modern data model
 # ============================================================================
 
-def load_storage(neo4j_session, storage_list: List[Dict[str, Any]], cluster_id: str, update_tag: int) -> None:
+
+def load_storage(
+    neo4j_session: "neo4j.Session", storage_list: List[Dict[str, Any]], cluster_id: str, update_tag: int  # type: ignore[name-defined]
+) -> None:
     """
     Load storage data into Neo4j using modern data model.
 
@@ -136,13 +145,13 @@ def load_storage(neo4j_session, storage_list: List[Dict[str, Any]], cluster_id: 
 
 
 def load_storage_node_relationships(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     storage_list: List[Dict[str, Any]],
     update_tag: int,
 ) -> None:
     """
     Create relationships between storage and nodes.
-    
+
     This creates many-to-many relationships between storage and nodes.
     We handle this separately after storage load since it's a many-to-many mapping.
 
@@ -151,15 +160,17 @@ def load_storage_node_relationships(
     :param update_tag: Sync timestamp
     """
     from cartography.client.core.tx import run_write_query
-    
+
     # Flatten storage -> nodes into individual relationships
     relationships = []
     for storage in storage_list:
-        for node_name in storage['nodes']:
-            relationships.append({
-                'storage_id': storage['id'],
-                'node_id': node_name,
-            })
+        for node_name in storage["nodes"]:
+            relationships.append(
+                {
+                    "storage_id": storage["id"],
+                    "node_id": node_name,
+                }
+            )
 
     if not relationships:
         return
@@ -185,10 +196,11 @@ def load_storage_node_relationships(
 # SYNC function
 # ============================================================================
 
+
 @timeit
 def sync(
-    neo4j_session,
-    proxmox_client,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    proxmox_client: Any,
     cluster_id: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
@@ -212,12 +224,14 @@ def sync(
     storage_status_map = {}
 
     for node in nodes:
-        node_name = node['node']
+        node_name = node["node"]
         storage_status = get_storage_status(proxmox_client, node_name)
         storage_status_map[node_name] = storage_status
 
     # TRANSFORM - manipulate data for ingestion
-    transformed_storage = transform_storage_data(storage_list, storage_status_map, cluster_id)
+    transformed_storage = transform_storage_data(
+        storage_list, storage_status_map, cluster_id
+    )
 
     # LOAD - ingest to Neo4j
     load_storage(neo4j_session, transformed_storage, cluster_id, update_tag)

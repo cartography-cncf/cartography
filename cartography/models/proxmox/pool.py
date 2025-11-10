@@ -1,5 +1,5 @@
 """
-Data models for Proxmox storage resources.
+Data models for Proxmox resource pools.
 
 Follows Cartography's modern data model pattern.
 """
@@ -16,44 +16,40 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 # ============================================================================
-# ProxmoxStorage Node Schema
+# ProxmoxPool Node Schema
 # ============================================================================
 
 
 @dataclass(frozen=True)
-class ProxmoxStorageNodeProperties(CartographyNodeProperties):
+class ProxmoxPoolNodeProperties(CartographyNodeProperties):
     """
-    Properties for a ProxmoxStorage node.
+    Properties for a ProxmoxPool node.
+
+    Resource pools are used to organize VMs, containers, and storage.
     """
 
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
+    poolid: PropertyRef = PropertyRef("poolid", extra_index=True)
+    comment: PropertyRef = PropertyRef("comment")
     cluster_id: PropertyRef = PropertyRef("cluster_id")
-    type: PropertyRef = PropertyRef("type")
-    content_types: PropertyRef = PropertyRef("content_types")
-    shared: PropertyRef = PropertyRef("shared")
-    enabled: PropertyRef = PropertyRef("enabled")
-    total: PropertyRef = PropertyRef("total")
-    used: PropertyRef = PropertyRef("used")
-    available: PropertyRef = PropertyRef("available")
 
 
 @dataclass(frozen=True)
-class ProxmoxStorageToClusterRelProperties(CartographyRelProperties):
+class ProxmoxPoolToClusterRelProperties(CartographyRelProperties):
     """
-    Properties for relationship from ProxmoxStorage to ProxmoxCluster.
+    Properties for relationship from ProxmoxPool to ProxmoxCluster.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class ProxmoxStorageToClusterRel(CartographyRelSchema):
+class ProxmoxPoolToClusterRel(CartographyRelSchema):
     """
-    Relationship: (:ProxmoxStorage)-[:RESOURCE]->(:ProxmoxCluster)
+    Relationship: (:ProxmoxPool)-[:RESOURCE]->(:ProxmoxCluster)
 
-    Storage belongs to clusters.
+    Pools belong to clusters.
     """
 
     target_node_label: str = "ProxmoxCluster"
@@ -64,21 +60,17 @@ class ProxmoxStorageToClusterRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: ProxmoxStorageToClusterRelProperties = (
-        ProxmoxStorageToClusterRelProperties()
-    )
+    properties: ProxmoxPoolToClusterRelProperties = ProxmoxPoolToClusterRelProperties()
 
 
 @dataclass(frozen=True)
-class ProxmoxStorageSchema(CartographyNodeSchema):
+class ProxmoxPoolSchema(CartographyNodeSchema):
     """
-    Schema for ProxmoxStorage.
+    Schema for ProxmoxPool.
 
-    Storage resources belong to clusters and are available on nodes.
-    Note: The AVAILABLE_ON relationship to nodes is created separately via
-    load_storage_node_relationships() since it's a many-to-many relationship.
+    Pools organize VMs, containers, and storage resources.
     """
 
-    label: str = "ProxmoxStorage"
-    properties: ProxmoxStorageNodeProperties = ProxmoxStorageNodeProperties()
-    sub_resource_relationship: ProxmoxStorageToClusterRel = ProxmoxStorageToClusterRel()
+    label: str = "ProxmoxPool"
+    properties: ProxmoxPoolNodeProperties = ProxmoxPoolNodeProperties()
+    sub_resource_relationship: ProxmoxPoolToClusterRel = ProxmoxPoolToClusterRel()
