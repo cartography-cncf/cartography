@@ -72,6 +72,34 @@ class ProxmoxUserToClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ProxmoxUserToGroupRelProperties(CartographyRelProperties):
+    """
+    Properties for relationship from ProxmoxUser to ProxmoxGroup.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ProxmoxUserToGroupRel(CartographyRelSchema):
+    """
+    Relationship: (:ProxmoxUser)-[:MEMBER_OF_GROUP]->(:ProxmoxGroup)
+
+    Users are members of groups.
+    """
+
+    target_node_label: str = "ProxmoxGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "groupid": PropertyRef("groups", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF_GROUP"
+    properties: ProxmoxUserToGroupRelProperties = ProxmoxUserToGroupRelProperties()
+
+
+@dataclass(frozen=True)
 class ProxmoxUserSchema(CartographyNodeSchema):
     """
     Schema for ProxmoxUser.
@@ -82,6 +110,11 @@ class ProxmoxUserSchema(CartographyNodeSchema):
     label: str = "ProxmoxUser"
     properties: ProxmoxUserNodeProperties = ProxmoxUserNodeProperties()
     sub_resource_relationship: ProxmoxUserToClusterRel = ProxmoxUserToClusterRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ProxmoxUserToGroupRel(),
+        ]
+    )
 
 
 # ============================================================================
@@ -227,8 +260,11 @@ class ProxmoxACLNodeProperties(CartographyNodeProperties):
     path: PropertyRef = PropertyRef("path", extra_index=True)
     cluster_id: PropertyRef = PropertyRef("cluster_id")
     roleid: PropertyRef = PropertyRef("roleid")
-    ugid: PropertyRef = PropertyRef("ugid")  # User or group ID
+    ugid: PropertyRef = PropertyRef("ugid", extra_index=True)  # User or group ID (indexed for queries)
     propagate: PropertyRef = PropertyRef("propagate")  # Propagate to children
+    principal_type: PropertyRef = PropertyRef("principal_type")  # "user" or "group"
+    resource_type: PropertyRef = PropertyRef("resource_type")  # Type of resource (vm, storage, pool, node, etc.)
+    resource_id: PropertyRef = PropertyRef("resource_id")  # Specific resource ID if applicable
 
 
 @dataclass(frozen=True)
@@ -274,6 +310,7 @@ class ProxmoxACLToRoleRel(CartographyRelSchema):
     Relationship: (:ProxmoxACL)-[:GRANTS_ROLE]->(:ProxmoxRole)
 
     ACLs grant roles to users/groups.
+    Includes metadata about permission scope and propagation.
     """
 
     target_node_label: str = "ProxmoxRole"

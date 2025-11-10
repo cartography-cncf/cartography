@@ -95,4 +95,22 @@ MOCK_ACL_DATA = [
         "ugid": "readonly@pam",
         "propagate": 0,
     },
+    {
+        "path": "/storage/local-lvm",
+        "roleid": "PVEAuditor",
+        "ugid": "auditors",
+        "propagate": 1,
+    },
+    {
+        "path": "/pool/production",
+        "roleid": "CustomRole",
+        "ugid": "admin@pve",
+        "propagate": 1,
+    },
+    {
+        "path": "/nodes/node1",
+        "roleid": "PVEAuditor",
+        "ugid": "operators",
+        "propagate": 0,
+    },
 ]

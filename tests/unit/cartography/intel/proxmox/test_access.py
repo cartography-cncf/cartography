@@ -129,23 +129,65 @@ def test_transform_acl_data():
             "ugid": "auditors",
             "propagate": 0,
         },
+        {
+            "path": "/storage/local-lvm",
+            "roleid": "CustomRole",
+            "ugid": "admin@pve",
+            "propagate": 1,
+        },
+        {
+            "path": "/pool/production",
+            "roleid": "PVEAuditor",
+            "ugid": "operators",
+            "propagate": 1,
+        },
+        {
+            "path": "/nodes/node1",
+            "roleid": "CustomRole",
+            "ugid": "admin@pve",
+            "propagate": 0,
+        },
     ]
 
     cluster_id = "test-cluster"
     result = transform_acl_data(raw_acls, cluster_id)
 
-    assert len(result) == 2
+    assert len(result) == 5
 
-    # Test root ACL
+    # Test root ACL with cluster resource type
     root_acl = next(a for a in result if a["ugid"] == "root@pam")
     assert root_acl["id"] == "/:root@pam:Administrator"
     assert root_acl["path"] == "/"
     assert root_acl["roleid"] == "Administrator"
     assert root_acl["propagate"] is True
     assert root_acl["cluster_id"] == cluster_id
+    assert root_acl["principal_type"] == "user"
+    assert root_acl["resource_type"] == "cluster"
+    assert root_acl["resource_id"] is None
 
-    # Test group ACL
-    group_acl = next(a for a in result if a["ugid"] == "auditors")
+    # Test group ACL with VM resource type
+    group_acl = next(a for a in result if a["path"] == "/vms/100")
     assert group_acl["id"] == "/vms/100:auditors:PVEAuditor"
     assert group_acl["path"] == "/vms/100"
     assert group_acl["propagate"] is False
+    assert group_acl["principal_type"] == "group"
+    assert group_acl["resource_type"] == "vm"
+    assert group_acl["resource_id"] == "100"
+
+    # Test storage ACL
+    storage_acl = next(a for a in result if a["path"] == "/storage/local-lvm")
+    assert storage_acl["principal_type"] == "user"
+    assert storage_acl["resource_type"] == "storage"
+    assert storage_acl["resource_id"] == "local-lvm"
+
+    # Test pool ACL
+    pool_acl = next(a for a in result if a["path"] == "/pool/production")
+    assert pool_acl["principal_type"] == "group"
+    assert pool_acl["resource_type"] == "pool"
+    assert pool_acl["resource_id"] == "production"
+
+    # Test node ACL
+    node_acl = next(a for a in result if a["path"] == "/nodes/node1")
+    assert node_acl["principal_type"] == "user"
+    assert node_acl["resource_type"] == "node"
+    assert node_acl["resource_id"] == "node1"

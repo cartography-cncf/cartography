@@ -641,25 +641,40 @@ Representation of an Access Control List entry in Proxmox VE.
 | roleid | Role granted by this ACL |
 | ugid | User or group ID this ACL applies to |
 | propagate | Boolean indicating if permissions propagate to children |
+| principal_type | Type of principal (user or group) |
+| resource_type | Type of resource (cluster, vm, storage, pool, node, access) |
+| resource_id | ID of specific resource if applicable |
 
 #### Relationships
 
 - ProxmoxACL grants ProxmoxRoles.
 
     ```
-    (ProxmoxACL)-[GRANTS_ROLE]->(ProxmoxRole)
+    (ProxmoxACL)-[GRANTS_ROLE {propagate, path}]->(ProxmoxRole)
     ```
 
 - ProxmoxACL applies to ProxmoxUsers.
 
     ```
-    (ProxmoxACL)-[APPLIES_TO_USER]->(ProxmoxUser)
+    (ProxmoxACL)-[APPLIES_TO_USER {path, propagate, resource_type}]->(ProxmoxUser)
     ```
 
 - ProxmoxACL applies to ProxmoxGroups.
 
     ```
-    (ProxmoxACL)-[APPLIES_TO_GROUP]->(ProxmoxGroup)
+    (ProxmoxACL)-[APPLIES_TO_GROUP {path, propagate, resource_type}]->(ProxmoxGroup)
+    ```
+
+- ProxmoxACL grants access to resources.
+
+    ```
+    (ProxmoxACL)-[GRANTS_ACCESS_TO {propagate, path}]->(ProxmoxVM|ProxmoxStorage|ProxmoxPool|ProxmoxNode|ProxmoxCluster)
+    ```
+
+- Effective permissions (derived relationships for easy querying).
+
+    ```
+    (ProxmoxUser|ProxmoxGroup)-[HAS_PERMISSION {via_acl, role, privileges, path, propagate, via_group?}]->(Resource)
     ```
 
 ### ProxmoxFirewallRule
@@ -805,4 +820,218 @@ MATCH (acl)-[:GRANTS_ROLE]->(r:ProxmoxRole)
 WHERE 'VM.Config' IN r.privs OR 'VM.Allocate' IN r.privs
 RETURN u.userid, u.email, r.roleid, acl.path, r.privs
 ORDER BY u.userid
+```
+
+## RBAC and Permission Queries
+
+The Proxmox module includes comprehensive RBAC (Role-Based Access Control) support with rich relationship metadata. These queries help you understand and audit user permissions.
+
+### Understanding Permission Propagation
+
+Proxmox ACLs can propagate to child resources. For example, a permission on `/pool/production` can propagate to all VMs in that pool.
+
+```cypher
+// Find ACLs with propagation enabled
+MATCH (acl:ProxmoxACL)-[r:GRANTS_ACCESS_TO]->(resource)
+WHERE acl.propagate = true
+RETURN acl.path, acl.ugid, resource, r.propagate
+```
+
+### What can a specific user access?
+
+```cypher
+// Direct permissions via ACLs
+MATCH (u:ProxmoxUser {userid: 'admin@pam'})-[p:HAS_PERMISSION]->(resource)
+RETURN resource, p.role, p.privileges, p.path, p.via_group
+ORDER BY labels(resource)[0], resource.name
+```
+
+### Who can access a specific VM?
+
+```cypher
+// Find all users and groups with permissions to a VM
+MATCH (vm:ProxmoxVM {vmid: 100})
+MATCH (principal)-[p:HAS_PERMISSION]->(vm)
+WHERE principal:ProxmoxUser OR principal:ProxmoxGroup
+RETURN principal.userid, principal.groupid, p.role, p.privileges, p.path
+ORDER BY principal.userid, principal.groupid
+```
+
+### Find users with administrative privileges
+
+```cypher
+// Users with Administrator role
+MATCH (u:ProxmoxUser)-[:HAS_PERMISSION {role: 'Administrator'}]->(resource)
+RETURN DISTINCT u.userid, u.email, u.enable,
+       collect(DISTINCT labels(resource)[0]) as resource_types
+ORDER BY u.userid
+```
+
+### Audit group membership and inherited permissions
+
+```cypher
+// Find users, their groups, and what the groups can access
+MATCH (u:ProxmoxUser)-[:MEMBER_OF_GROUP]->(g:ProxmoxGroup)
+OPTIONAL MATCH (g)-[p:HAS_PERMISSION]->(resource)
+RETURN u.userid, g.groupid, 
+       collect(DISTINCT {
+         resource: coalesce(resource.name, resource.id),
+         role: p.role,
+         path: p.path
+       }) as group_permissions
+ORDER BY u.userid
+```
+
+### Find over-privileged accounts
+
+```cypher
+// Users with cluster-wide admin rights
+MATCH (u:ProxmoxUser)-[p:HAS_PERMISSION]->(c:ProxmoxCluster)
+MATCH (u)<-[:APPLIES_TO_USER]-(acl:ProxmoxACL)-[:GRANTS_ROLE]->(r:ProxmoxRole)
+WHERE acl.path = '/' AND r.roleid IN ['Administrator', 'PVEAdmin']
+RETURN u.userid, u.email, u.enable, u.expire,
+       CASE WHEN u.expire > 0 THEN datetime({epochSeconds: u.expire}) ELSE 'Never' END as expires_at,
+       collect(DISTINCT r.roleid) as roles
+ORDER BY u.expire DESC
+```
+
+### Find resources without specific ACL protection
+
+```cypher
+// VMs that don't have specific ACL entries (rely on parent path permissions)
+MATCH (vm:ProxmoxVM)
+WHERE NOT EXISTS {
+  MATCH (:ProxmoxACL {resource_type: 'vm', resource_id: toString(vm.vmid)})
+}
+RETURN vm.name, vm.vmid, vm.node, vm.tags
+ORDER BY vm.name
+```
+
+### Permission coverage by resource type
+
+```cypher
+// Show ACL coverage across different resource types
+MATCH (acl:ProxmoxACL)
+RETURN acl.resource_type, 
+       count(*) as acl_count,
+       count(DISTINCT acl.ugid) as unique_principals,
+       collect(DISTINCT acl.roleid) as roles_granted
+ORDER BY acl_count DESC
+```
+
+### Find accounts with specific privileges
+
+```cypher
+// Users who can create/modify VMs
+MATCH (u:ProxmoxUser)-[p:HAS_PERMISSION]->(resource)
+WHERE ANY(priv IN p.privileges WHERE priv IN ['VM.Allocate', 'VM.Config.Disk', 'VM.Config.CPU'])
+RETURN DISTINCT u.userid, u.email, 
+       collect(DISTINCT {resource: coalesce(resource.name, resource.id), privileges: p.privileges}) as access
+ORDER BY u.userid
+```
+
+### Audit trail: Map ACL to effective permissions
+
+```cypher
+// Full permission chain from ACL to user to resource
+MATCH (acl:ProxmoxACL)-[:APPLIES_TO_USER]->(u:ProxmoxUser)
+MATCH (acl)-[:GRANTS_ROLE]->(r:ProxmoxRole)
+MATCH (acl)-[:GRANTS_ACCESS_TO]->(resource)
+RETURN u.userid, 
+       acl.path, 
+       r.roleid, 
+       r.privs,
+       labels(resource)[0] as resource_type,
+       coalesce(resource.name, resource.id) as resource_name,
+       acl.propagate
+ORDER BY u.userid, acl.path
+```
+
+### Group-based permission analysis
+
+```cypher
+// Analyze what each group can access
+MATCH (g:ProxmoxGroup)
+OPTIONAL MATCH (g)<-[:MEMBER_OF_GROUP]-(u:ProxmoxUser)
+OPTIONAL MATCH (g)-[p:HAS_PERMISSION]->(resource)
+RETURN g.groupid,
+       count(DISTINCT u) as member_count,
+       collect(DISTINCT u.userid) as members,
+       count(DISTINCT resource) as resource_count,
+       collect(DISTINCT {
+         resource_type: labels(resource)[0],
+         resource_name: coalesce(resource.name, resource.id),
+         role: p.role
+       })[0..5] as sample_permissions
+ORDER BY member_count DESC
+```
+
+### Find permissions on specific storage
+
+```cypher
+// Who can access a specific storage backend
+MATCH (storage:ProxmoxStorage {name: 'local-lvm'})
+MATCH (principal)-[p:HAS_PERMISSION]->(storage)
+WHERE principal:ProxmoxUser OR principal:ProxmoxGroup
+RETURN principal.userid, principal.groupid, p.role, p.privileges, p.via_group
+ORDER BY principal.userid, principal.groupid
+```
+
+### Permission inheritance through pools
+
+```cypher
+// Find permissions on pools and what VMs are affected
+MATCH (pool:ProxmoxPool)-[:CONTAINS_VM]->(vm:ProxmoxVM)
+MATCH (principal)-[p:HAS_PERMISSION]->(pool)
+WHERE principal:ProxmoxUser OR principal:ProxmoxGroup
+RETURN pool.poolid,
+       count(DISTINCT vm) as vm_count,
+       principal.userid, principal.groupid,
+       p.role, p.privileges,
+       collect(DISTINCT vm.name)[0..3] as sample_vms
+ORDER BY pool.poolid, principal.userid
+```
+
+### Security audit: Accounts with backup restore capability
+
+```cypher
+// Users who can restore backups (potential data access risk)
+MATCH (u:ProxmoxUser)-[p:HAS_PERMISSION]->(resource)
+WHERE ANY(priv IN p.privileges WHERE priv IN ['VM.Backup', 'Datastore.Allocate'])
+RETURN u.userid, u.email, u.enable,
+       collect(DISTINCT {
+         resource: coalesce(resource.name, resource.id),
+         role: p.role,
+         privileges: p.privileges
+       }) as access_details
+ORDER BY u.userid
+```
+
+### Find dormant accounts with active permissions
+
+```cypher
+// Users who are disabled but still have ACL entries
+MATCH (u:ProxmoxUser)
+WHERE u.enable = false
+OPTIONAL MATCH (acl:ProxmoxACL)-[:APPLIES_TO_USER]->(u)
+OPTIONAL MATCH (acl)-[:GRANTS_ROLE]->(r:ProxmoxRole)
+OPTIONAL MATCH (acl)-[:GRANTS_ACCESS_TO]->(resource)
+WITH u, collect(DISTINCT {acl: acl.id, role: r.roleid, resource: resource}) as permissions
+WHERE size(permissions) > 0 AND permissions[0].acl IS NOT NULL
+RETURN u.userid, u.email, 
+       CASE WHEN u.expire > 0 THEN datetime({epochSeconds: u.expire}) ELSE 'Never' END as expired_at,
+       size(permissions) as permission_count,
+       permissions
+ORDER BY permission_count DESC
+```
+
+### Compare permissions between users
+
+```cypher
+// Compare what two users can access
+MATCH (u1:ProxmoxUser {userid: 'user1@pam'})-[:HAS_PERMISSION]->(r1)
+MATCH (u2:ProxmoxUser {userid: 'user2@pam'})-[:HAS_PERMISSION]->(r2)
+WHERE id(r1) = id(r2)  // Same resource
+RETURN r1, labels(r1)[0] as resource_type, coalesce(r1.name, r1.id) as resource_name
+ORDER BY resource_type, resource_name
 ```

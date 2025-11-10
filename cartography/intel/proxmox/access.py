@@ -203,12 +203,46 @@ def transform_role_data(
     return transformed_roles
 
 
+def _parse_acl_path(path: str) -> tuple[str, str | None]:
+    """
+    Parse Proxmox ACL path to determine resource type and ID.
+
+    Proxmox ACL paths follow patterns:
+    - "/" = entire cluster
+    - "/vms/<vmid>" = specific VM
+    - "/storage/<storage_id>" = specific storage
+    - "/pool/<pool_id>" = specific pool
+    - "/nodes/<node_name>" = specific node
+    - "/access" = access control itself
+
+    :param path: ACL path
+    :return: Tuple of (resource_type, resource_id)
+    """
+    if path == "/":
+        return "cluster", None
+    elif path.startswith("/vms/"):
+        return "vm", path.split("/")[-1]
+    elif path.startswith("/storage/"):
+        return "storage", path.split("/")[-1]
+    elif path.startswith("/pool/"):
+        return "pool", path.split("/")[-1]
+    elif path.startswith("/nodes/"):
+        return "node", path.split("/")[-1]
+    elif path.startswith("/access"):
+        return "access", None
+    else:
+        # Unknown path format
+        return "unknown", None
+
+
 def transform_acl_data(
     acls: list[dict[str, Any]],
     cluster_id: str,
 ) -> list[dict[str, Any]]:
     """
     Transform ACL data into standard format.
+
+    Parses ACL paths to determine resource types and IDs for better relationship mapping.
 
     :param acls: Raw ACL data from API
     :param cluster_id: Parent cluster ID
@@ -225,6 +259,12 @@ def transform_acl_data(
         # Create unique ID from path + ugid + roleid
         acl_id = f"{path}:{ugid}:{roleid}"
 
+        # Determine principal type (user has @, group doesn't)
+        principal_type = "user" if "@" in ugid else "group"
+
+        # Parse path to extract resource type and ID
+        resource_type, resource_id = _parse_acl_path(path)
+
         transformed_acls.append(
             {
                 "id": acl_id,
@@ -233,6 +273,9 @@ def transform_acl_data(
                 "roleid": roleid,
                 "ugid": ugid,
                 "propagate": bool(acl.get("propagate", True)),
+                "principal_type": principal_type,
+                "resource_type": resource_type,
+                "resource_id": resource_id,
             }
         )
 
@@ -336,49 +379,7 @@ def load_acls(
     )
 
 
-def load_user_group_relationships(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
-    users: list[dict[str, Any]],
-    update_tag: int,
-) -> None:
-    """
-    Create relationships between users and their groups.
 
-    :param neo4j_session: Neo4j session
-    :param users: List of user dicts with group memberships
-    :param update_tag: Sync timestamp
-    """
-    from cartography.client.core.tx import run_write_query
-
-    # Flatten user -> groups into individual relationships
-    user_groups = []
-    for user in users:
-        for group in user.get("groups", []):
-            user_groups.append(
-                {
-                    "userid": user["userid"],
-                    "groupid": group,
-                }
-            )
-
-    if not user_groups:
-        return
-
-    query = """
-    UNWIND $UserGroups as ug
-    MATCH (u:ProxmoxUser{userid: ug.userid})
-    MATCH (g:ProxmoxGroup{groupid: ug.groupid})
-    MERGE (u)-[r:MEMBER_OF_GROUP]->(g)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
-        neo4j_session,
-        query,
-        UserGroups=user_groups,
-        UpdateTag=update_tag,
-    )
 
 
 def load_acl_principal_relationships(
@@ -389,6 +390,8 @@ def load_acl_principal_relationships(
     """
     Create relationships between ACLs and users/groups they apply to.
 
+    Includes rich metadata about the permission scope and propagation.
+
     :param neo4j_session: Neo4j session
     :param acls: List of ACL dicts
     :param update_tag: Sync timestamp
@@ -398,12 +401,11 @@ def load_acl_principal_relationships(
     if not acls:
         return
 
-    # Separate user ACLs from group ACLs based on ugid format
-    # Users have @ in their ID, groups don't
-    user_acls = [acl for acl in acls if "@" in acl["ugid"]]
-    group_acls = [acl for acl in acls if "@" not in acl["ugid"]]
+    # Separate user ACLs from group ACLs based on principal_type
+    user_acls = [acl for acl in acls if acl["principal_type"] == "user"]
+    group_acls = [acl for acl in acls if acl["principal_type"] == "group"]
 
-    # Create relationships to users
+    # Create relationships to users with rich metadata
     if user_acls:
         query = """
         UNWIND $ACLs as acl
@@ -411,7 +413,10 @@ def load_acl_principal_relationships(
         MATCH (u:ProxmoxUser{userid: acl.ugid})
         MERGE (a)-[r:APPLIES_TO_USER]->(u)
         ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $UpdateTag
+        SET r.lastupdated = $UpdateTag,
+            r.path = acl.path,
+            r.propagate = acl.propagate,
+            r.resource_type = acl.resource_type
         """
         run_write_query(
             neo4j_session,
@@ -420,7 +425,7 @@ def load_acl_principal_relationships(
             UpdateTag=update_tag,
         )
 
-    # Create relationships to groups
+    # Create relationships to groups with rich metadata
     if group_acls:
         query = """
         UNWIND $ACLs as acl
@@ -428,7 +433,10 @@ def load_acl_principal_relationships(
         MATCH (g:ProxmoxGroup{groupid: acl.ugid})
         MERGE (a)-[r:APPLIES_TO_GROUP]->(g)
         ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $UpdateTag
+        SET r.lastupdated = $UpdateTag,
+            r.path = acl.path,
+            r.propagate = acl.propagate,
+            r.resource_type = acl.resource_type
         """
         run_write_query(
             neo4j_session,
@@ -436,6 +444,198 @@ def load_acl_principal_relationships(
             ACLs=group_acls,
             UpdateTag=update_tag,
         )
+
+
+def load_acl_resource_relationships(
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    acls: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    """
+    Create relationships between ACLs and the resources they grant permissions to.
+
+    Maps ACL paths to actual resource nodes (VMs, storage, pools, nodes).
+
+    :param neo4j_session: Neo4j session
+    :param acls: List of ACL dicts
+    :param update_tag: Sync timestamp
+    """
+    from cartography.client.core.tx import run_write_query
+
+    if not acls:
+        return
+
+    # Group ACLs by resource type
+    vm_acls = [acl for acl in acls if acl["resource_type"] == "vm" and acl["resource_id"]]
+    storage_acls = [acl for acl in acls if acl["resource_type"] == "storage" and acl["resource_id"]]
+    pool_acls = [acl for acl in acls if acl["resource_type"] == "pool" and acl["resource_id"]]
+    node_acls = [acl for acl in acls if acl["resource_type"] == "node" and acl["resource_id"]]
+    cluster_acls = [acl for acl in acls if acl["resource_type"] == "cluster"]
+
+    # Create relationships to VMs
+    if vm_acls:
+        query = """
+        UNWIND $ACLs as acl
+        MATCH (a:ProxmoxACL{id: acl.id})
+        MATCH (v:ProxmoxVM{vmid: toInteger(acl.resource_id)})
+        MERGE (a)-[r:GRANTS_ACCESS_TO]->(v)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UpdateTag,
+            r.propagate = acl.propagate,
+            r.path = acl.path
+        """
+        run_write_query(
+            neo4j_session,
+            query,
+            ACLs=vm_acls,
+            UpdateTag=update_tag,
+        )
+
+    # Create relationships to storage
+    if storage_acls:
+        query = """
+        UNWIND $ACLs as acl
+        MATCH (a:ProxmoxACL{id: acl.id})
+        MATCH (s:ProxmoxStorage{id: acl.resource_id})
+        MERGE (a)-[r:GRANTS_ACCESS_TO]->(s)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UpdateTag,
+            r.propagate = acl.propagate,
+            r.path = acl.path
+        """
+        run_write_query(
+            neo4j_session,
+            query,
+            ACLs=storage_acls,
+            UpdateTag=update_tag,
+        )
+
+    # Create relationships to pools
+    if pool_acls:
+        query = """
+        UNWIND $ACLs as acl
+        MATCH (a:ProxmoxACL{id: acl.id})
+        MATCH (p:ProxmoxPool{poolid: acl.resource_id})
+        MERGE (a)-[r:GRANTS_ACCESS_TO]->(p)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UpdateTag,
+            r.propagate = acl.propagate,
+            r.path = acl.path
+        """
+        run_write_query(
+            neo4j_session,
+            query,
+            ACLs=pool_acls,
+            UpdateTag=update_tag,
+        )
+
+    # Create relationships to nodes
+    if node_acls:
+        query = """
+        UNWIND $ACLs as acl
+        MATCH (a:ProxmoxACL{id: acl.id})
+        MATCH (n:ProxmoxNode{id: acl.resource_id})
+        MERGE (a)-[r:GRANTS_ACCESS_TO]->(n)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UpdateTag,
+            r.propagate = acl.propagate,
+            r.path = acl.path
+        """
+        run_write_query(
+            neo4j_session,
+            query,
+            ACLs=node_acls,
+            UpdateTag=update_tag,
+        )
+
+    # Create relationships to cluster (root level permissions)
+    if cluster_acls:
+        query = """
+        UNWIND $ACLs as acl
+        MATCH (a:ProxmoxACL{id: acl.id})
+        MATCH (c:ProxmoxCluster{id: acl.cluster_id})
+        MERGE (a)-[r:GRANTS_ACCESS_TO]->(c)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UpdateTag,
+            r.propagate = acl.propagate,
+            r.path = acl.path
+        """
+        run_write_query(
+            neo4j_session,
+            query,
+            ACLs=cluster_acls,
+            UpdateTag=update_tag,
+        )
+
+
+def load_effective_permissions(
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    update_tag: int,
+) -> None:
+    """
+    Create derived relationships showing effective permissions.
+
+    This creates direct HAS_PERMISSION relationships from users/groups to resources,
+    making it easier to query "what can this user access?" or "who can access this VM?"
+
+    :param neo4j_session: Neo4j session
+    :param update_tag: Sync timestamp
+    """
+    from cartography.client.core.tx import run_write_query
+
+    # Create direct user -> resource permissions (through ACLs)
+    query = """
+    MATCH (u:ProxmoxUser)<-[:APPLIES_TO_USER]-(acl:ProxmoxACL)-[:GRANTS_ROLE]->(role:ProxmoxRole)
+    MATCH (acl)-[:GRANTS_ACCESS_TO]->(resource)
+    WHERE resource:ProxmoxVM OR resource:ProxmoxStorage OR resource:ProxmoxPool OR 
+          resource:ProxmoxNode OR resource:ProxmoxCluster
+    WITH u, resource, role, acl
+    MERGE (u)-[r:HAS_PERMISSION]->(resource)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $UpdateTag,
+        r.via_acl = acl.id,
+        r.role = role.roleid,
+        r.privileges = role.privs,
+        r.path = acl.path,
+        r.propagate = acl.propagate
+    """
+    run_write_query(neo4j_session, query, UpdateTag=update_tag)
+
+    # Create group -> resource permissions
+    query = """
+    MATCH (g:ProxmoxGroup)<-[:APPLIES_TO_GROUP]-(acl:ProxmoxACL)-[:GRANTS_ROLE]->(role:ProxmoxRole)
+    MATCH (acl)-[:GRANTS_ACCESS_TO]->(resource)
+    WHERE resource:ProxmoxVM OR resource:ProxmoxStorage OR resource:ProxmoxPool OR 
+          resource:ProxmoxNode OR resource:ProxmoxCluster
+    WITH g, resource, role, acl
+    MERGE (g)-[r:HAS_PERMISSION]->(resource)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $UpdateTag,
+        r.via_acl = acl.id,
+        r.role = role.roleid,
+        r.privileges = role.privs,
+        r.path = acl.path,
+        r.propagate = acl.propagate
+    """
+    run_write_query(neo4j_session, query, UpdateTag=update_tag)
+
+    # Create inherited permissions: user -> group -> resource
+    query = """
+    MATCH (u:ProxmoxUser)-[:MEMBER_OF_GROUP]->(g:ProxmoxGroup)-[gp:HAS_PERMISSION]->(resource)
+    WHERE resource:ProxmoxVM OR resource:ProxmoxStorage OR resource:ProxmoxPool OR 
+          resource:ProxmoxNode OR resource:ProxmoxCluster
+    WITH u, resource, gp
+    MERGE (u)-[r:HAS_PERMISSION]->(resource)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $UpdateTag,
+        r.via_acl = gp.via_acl,
+        r.via_group = true,
+        r.role = gp.role,
+        r.privileges = gp.privileges,
+        r.path = gp.path,
+        r.propagate = gp.propagate
+    """
+    run_write_query(neo4j_session, query, UpdateTag=update_tag)
 
 
 # ============================================================================
@@ -481,17 +681,24 @@ def sync(
         load_groups(neo4j_session, transformed_groups, cluster_id, update_tag)
 
     if transformed_users:
+        # User-to-Group relationships are now handled by the schema via one_to_many
         load_users(neo4j_session, transformed_users, cluster_id, update_tag)
-        load_user_group_relationships(neo4j_session, transformed_users, update_tag)
 
     if transformed_roles:
         load_roles(neo4j_session, transformed_roles, cluster_id, update_tag)
 
     if transformed_acls:
         load_acls(neo4j_session, transformed_acls, cluster_id, update_tag)
+        # Create relationships between ACLs and principals (users/groups)
         load_acl_principal_relationships(neo4j_session, transformed_acls, update_tag)
+        # Create relationships between ACLs and resources they grant access to
+        load_acl_resource_relationships(neo4j_session, transformed_acls, update_tag)
+
+    # Create derived effective permission relationships
+    # This makes it easy to query "what can this user access?"
+    load_effective_permissions(neo4j_session, update_tag)
 
     logger.info(
         f"Synced {len(transformed_users)} users, {len(transformed_groups)} groups, "
-        f"{len(transformed_roles)} roles, and {len(transformed_acls)} ACLs"
+        f"{len(transformed_roles)} roles, and {len(transformed_acls)} ACLs with full permission graph"
     )
