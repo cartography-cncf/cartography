@@ -29,12 +29,9 @@ def get_node_certificates(proxmox_client: Any, node_name: str) -> list[dict[str,
     :param proxmox_client: Proxmox API client
     :param node_name: Node name
     :return: List of certificate dicts
+    :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.nodes(node_name).certificates.info.get()
-    except Exception as e:
-        logger.warning(f"Could not get certificates for node {node_name}: {e}")
-        return []
+    return proxmox_client.nodes(node_name).certificates.info.get()
 
 
 # ============================================================================

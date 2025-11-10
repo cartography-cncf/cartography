@@ -30,11 +30,7 @@ def get_backup_jobs(proxmox_client: Any) -> list[dict[str, Any]]:
     :return: List of backup job dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.cluster.backup.get()
-    except Exception as e:
-        logger.warning(f"Could not get backup jobs: {e}")
-        return []
+    return proxmox_client.cluster.backup.get()
 
 
 # ============================================================================

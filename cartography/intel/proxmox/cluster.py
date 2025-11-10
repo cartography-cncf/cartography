@@ -74,11 +74,7 @@ def get_node_network(proxmox_client: Any, node_name: str) -> List[Dict[str, Any]
     :return: List of network interface dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.nodes(node_name).network.get()
-    except Exception as e:
-        logger.warning(f"Could not get network config for node {node_name}: {e}")
-        return []
+    return proxmox_client.nodes(node_name).network.get()
 
 
 @timeit
@@ -90,11 +86,7 @@ def get_cluster_options(proxmox_client: Any) -> Dict[str, Any]:
     :return: Cluster options dict
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.cluster.options.get()
-    except Exception as e:
-        logger.warning(f"Could not get cluster options: {e}")
-        return {}
+    return proxmox_client.cluster.options.get()
 
 
 @timeit
@@ -106,11 +98,7 @@ def get_cluster_resources(proxmox_client: Any) -> List[Dict[str, Any]]:
     :return: List of resource dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.cluster.resources.get()
-    except Exception as e:
-        logger.warning(f"Could not get cluster resources: {e}")
-        return []
+    return proxmox_client.cluster.resources.get()
 
 
 @timeit
@@ -122,12 +110,8 @@ def get_cluster_config(proxmox_client: Any) -> Any:
     :return: Cluster config (can be dict or list depending on API response)
     :raises: Exception if API call fails
     """
-    try:
-        # Get corosync configuration
-        return proxmox_client.cluster.config.get()
-    except Exception as e:
-        logger.warning(f"Could not get cluster config: {e}")
-        return {}
+    # Get corosync configuration
+    return proxmox_client.cluster.config.get()
 
 
 @timeit
@@ -139,11 +123,7 @@ def get_replication_jobs(proxmox_client: Any) -> List[Dict[str, Any]]:
     :return: List of replication job dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.cluster.replication.get()
-    except Exception as e:
-        logger.warning(f"Could not get replication jobs: {e}")
-        return []
+    return proxmox_client.cluster.replication.get()
 
 
 # ============================================================================

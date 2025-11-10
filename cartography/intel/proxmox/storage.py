@@ -43,12 +43,9 @@ def get_storage_status(proxmox_client: Any, node_name: str) -> List[Dict[str, An
     :param proxmox_client: Proxmox API client
     :param node_name: Node name
     :return: List of storage status dicts
+    :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.nodes(node_name).storage.get()
-    except Exception as e:
-        logger.warning(f"Could not get storage status for node {node_name}: {e}")
-        return []
+    return proxmox_client.nodes(node_name).storage.get()
 
 
 # ============================================================================

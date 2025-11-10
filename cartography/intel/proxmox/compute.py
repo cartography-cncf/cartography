@@ -33,16 +33,13 @@ def get_vms_for_node(proxmox_client: Any, node_name: str) -> List[Dict[str, Any]
     :param proxmox_client: Proxmox API client
     :param node_name: Node name
     :return: List of VM dicts
+    :raises: Exception if API call fails
     """
-    try:
-        vms = proxmox_client.nodes(node_name).qemu.get()
-        for vm in vms:
-            vm["type"] = "qemu"
-            vm["node"] = node_name
-        return vms
-    except Exception as e:
-        logger.warning(f"Could not get VMs for node {node_name}: {e}")
-        return []
+    vms = proxmox_client.nodes(node_name).qemu.get()
+    for vm in vms:
+        vm["type"] = "qemu"
+        vm["node"] = node_name
+    return vms
 
 
 @timeit
@@ -55,16 +52,13 @@ def get_containers_for_node(
     :param proxmox_client: Proxmox API client
     :param node_name: Node name
     :return: List of container dicts
+    :raises: Exception if API call fails
     """
-    try:
-        containers = proxmox_client.nodes(node_name).lxc.get()
-        for ct in containers:
-            ct["type"] = "lxc"
-            ct["node"] = node_name
-        return containers
-    except Exception as e:
-        logger.warning(f"Could not get containers for node {node_name}: {e}")
-        return []
+    containers = proxmox_client.nodes(node_name).lxc.get()
+    for ct in containers:
+        ct["type"] = "lxc"
+        ct["node"] = node_name
+    return containers
 
 
 @timeit
@@ -79,15 +73,12 @@ def get_vm_config(
     :param vmid: VM ID
     :param vm_type: 'qemu' or 'lxc'
     :return: VM configuration dict
+    :raises: Exception if API call fails
     """
-    try:
-        if vm_type == "qemu":
-            return proxmox_client.nodes(node_name).qemu(vmid).config.get()
-        else:
-            return proxmox_client.nodes(node_name).lxc(vmid).config.get()
-    except Exception as e:
-        logger.warning(f"Could not get config for {vm_type} {vmid} on {node_name}: {e}")
-        return {}
+    if vm_type == "qemu":
+        return proxmox_client.nodes(node_name).qemu(vmid).config.get()
+    else:
+        return proxmox_client.nodes(node_name).lxc(vmid).config.get()
 
 
 @timeit
@@ -98,55 +89,41 @@ def get_guest_agent_info(
     Get guest agent information for a VM.
 
     Requires QEMU Guest Agent installed and running in the VM.
-    Returns empty dict if agent not available or any error occurs.
 
     :param proxmox_client: Proxmox API client
     :param node_name: Node name
     :param vmid: VM ID
     :return: Guest agent data dict
+    :raises: Exception if API call fails
     """
     guest_data: Dict[str, Any] = {}
 
-    try:
-        # Get OS information
-        os_info = proxmox_client.nodes(node_name).qemu(vmid).agent("get-osinfo").get()
-        if os_info and "result" in os_info:
-            result = os_info["result"]
-            guest_data["guest_os_name"] = result.get("name") or result.get("id")
-            guest_data["guest_os_version"] = result.get("version") or result.get(
-                "version-id"
-            )
-            guest_data["guest_kernel_release"] = result.get("kernel-release")
-            guest_data["guest_kernel_version"] = result.get("kernel-version")
-            guest_data["guest_machine"] = result.get("machine")
-    except Exception as e:
-        logger.debug(f"Could not get OS info via guest agent for VM {vmid}: {e}")
+    # Get OS information
+    os_info = proxmox_client.nodes(node_name).qemu(vmid).agent("get-osinfo").get()
+    if os_info and "result" in os_info:
+        result = os_info["result"]
+        guest_data["guest_os_name"] = result.get("name") or result.get("id")
+        guest_data["guest_os_version"] = result.get("version") or result.get(
+            "version-id"
+        )
+        guest_data["guest_kernel_release"] = result.get("kernel-release")
+        guest_data["guest_kernel_version"] = result.get("kernel-version")
+        guest_data["guest_machine"] = result.get("machine")
 
-    try:
-        # Get hostname
-        hostname_info = (
-            proxmox_client.nodes(node_name).qemu(vmid).agent("get-host-name").get()
-        )
-        if hostname_info and "result" in hostname_info:
-            guest_data["guest_hostname"] = hostname_info["result"].get("host-name")
-    except Exception as e:
-        logger.debug(f"Could not get hostname via guest agent for VM {vmid}: {e}")
+    # Get hostname
+    hostname_info = (
+        proxmox_client.nodes(node_name).qemu(vmid).agent("get-host-name").get()
+    )
+    if hostname_info and "result" in hostname_info:
+        guest_data["guest_hostname"] = hostname_info["result"].get("host-name")
 
-    try:
-        # Get network interfaces with actual IPs
-        network_info = (
-            proxmox_client.nodes(node_name)
-            .qemu(vmid)
-            .agent("network-get-interfaces")
-            .get()
-        )
-        if network_info and "result" in network_info:
-            # Store raw network interface data for later processing
-            guest_data["guest_network_interfaces"] = network_info["result"]
-    except Exception as e:
-        logger.debug(
-            f"Could not get network interfaces via guest agent for VM {vmid}: {e}"
-        )
+    # Get network interfaces with actual IPs
+    network_info = (
+        proxmox_client.nodes(node_name).qemu(vmid).agent("network-get-interfaces").get()
+    )
+    if network_info and "result" in network_info:
+        # Store raw network interface data for later processing
+        guest_data["guest_network_interfaces"] = network_info["result"]
 
     # Mark agent as enabled if we got any data
     guest_data["agent_enabled"] = bool(guest_data)

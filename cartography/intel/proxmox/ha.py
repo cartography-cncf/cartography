@@ -31,11 +31,7 @@ def get_ha_groups(proxmox_client: Any) -> list[dict[str, Any]]:
     :return: List of HA group dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.cluster.ha.groups.get()
-    except Exception as e:
-        logger.warning(f"Could not get HA groups: {e}")
-        return []
+    return proxmox_client.cluster.ha.groups.get()
 
 
 @timeit
@@ -47,11 +43,7 @@ def get_ha_resources(proxmox_client: Any) -> list[dict[str, Any]]:
     :return: List of HA resource dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.cluster.ha.resources.get()
-    except Exception as e:
-        logger.warning(f"Could not get HA resources: {e}")
-        return []
+    return proxmox_client.cluster.ha.resources.get()
 
 
 # ============================================================================

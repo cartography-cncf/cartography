@@ -29,12 +29,9 @@ def get_cluster_firewall_rules(proxmox_client: Any) -> list[dict[str, Any]]:
 
     :param proxmox_client: Proxmox API client
     :return: List of firewall rule dicts
+    :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.cluster.firewall.rules.get()
-    except Exception as e:
-        logger.warning(f"Could not get cluster firewall rules: {e}")
-        return []
+    return proxmox_client.cluster.firewall.rules.get()
 
 
 @timeit
@@ -47,12 +44,9 @@ def get_node_firewall_rules(
     :param proxmox_client: Proxmox API client
     :param node_name: Node name
     :return: List of firewall rule dicts
+    :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.nodes(node_name).firewall.rules.get()
-    except Exception as e:
-        logger.warning(f"Could not get firewall rules for node {node_name}: {e}")
-        return []
+    return proxmox_client.nodes(node_name).firewall.rules.get()
 
 
 @timeit
@@ -66,12 +60,9 @@ def get_vm_firewall_rules(
     :param node_name: Node name
     :param vmid: VM ID
     :return: List of firewall rule dicts
+    :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.nodes(node_name).qemu(vmid).firewall.rules.get()
-    except Exception as e:
-        logger.debug(f"Could not get firewall rules for VM {vmid} on {node_name}: {e}")
-        return []
+    return proxmox_client.nodes(node_name).qemu(vmid).firewall.rules.get()
 
 
 @timeit
@@ -81,12 +72,9 @@ def get_cluster_ipsets(proxmox_client: Any) -> list[dict[str, Any]]:
 
     :param proxmox_client: Proxmox API client
     :return: List of IP set dicts
+    :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.cluster.firewall.ipset.get()
-    except Exception as e:
-        logger.warning(f"Could not get cluster IP sets: {e}")
-        return []
+    return proxmox_client.cluster.firewall.ipset.get()
 
 
 @timeit
@@ -97,12 +85,9 @@ def get_ipset_cidrs(proxmox_client: Any, ipset_name: str) -> list[dict[str, Any]
     :param proxmox_client: Proxmox API client
     :param ipset_name: IP set name
     :return: List of CIDR entry dicts
+    :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.cluster.firewall.ipset(ipset_name).get()
-    except Exception as e:
-        logger.debug(f"Could not get CIDR entries for IP set {ipset_name}: {e}")
-        return []
+    return proxmox_client.cluster.firewall.ipset(ipset_name).get()
 
 
 # ============================================================================
