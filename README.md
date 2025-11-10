@@ -43,6 +43,7 @@ You can learn more about the story behind Cartography in our [presentation at BS
 - [OpenAI](https://cartography-cncf.github.io/cartography/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
 - [Oracle Cloud Infrastructure](https://cartography-cncf.github.io/cartography/modules/oci/index.html) - IAM
 - [PagerDuty](https://cartography-cncf.github.io/cartography/modules/pagerduty/index.html) - Users, teams, services, schedules, escalation policies, integrations, vendors
+- [Proxmox](https://cartography-cncf.github.io/cartography/modules/proxmox/index.html) - Cluster, Nodes, VMs, Containers, Storage, Pools, Networks, Backups, HA, Firewall, Certificates, Users, Groups, Roles, ACLs
 - [Scaleway](https://cartography-cncf.github.io/cartography/modules/scaleway/index.html) - Projects, IAM, Local Storage, Instances
 - [SentinelOne](https://cartography-cncf.github.io/cartography/modules/sentinelone/index.html) - Accounts, Agents
 - [SnipeIT](https://cartography-cncf.github.io/cartography/modules/snipeit/index.html) - Users, Assets
