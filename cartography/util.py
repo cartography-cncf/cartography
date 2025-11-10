@@ -488,9 +488,15 @@ def to_asynchronous(func: Callable[..., R], *args: Any, **kwargs: Any) -> Awaita
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        # No event loop running, create a new one
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # No event loop running, get or create one
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
     return loop.run_in_executor(None, call)
 
 
@@ -521,7 +527,13 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        # No event loop running, create a new one
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # No event loop running, get or create one
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
     return loop.run_until_complete(asyncio.gather(*awaitables))
