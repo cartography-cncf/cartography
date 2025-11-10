@@ -1,5 +1,6 @@
 import logging
 import time
+from functools import partial
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -149,7 +150,6 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 }
             )
             time.sleep(wait)
-            del exc
             continue
         except neo4j.exceptions.ClientError as exc:
             if not _is_retryable_client_error(exc):
@@ -173,7 +173,6 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 }
             )
             time.sleep(wait)
-            del exc
             continue
 
 
@@ -229,11 +228,8 @@ def execute_write_with_retry(
     """
 
     target = getattr(tx_func, "__qualname__", repr(tx_func))
-
-    def _operation() -> Any:
-        return neo4j_session.execute_write(tx_func, *args, **kwargs)
-
-    return _run_with_retry(_operation, target)
+    operation = partial(neo4j_session.execute_write, tx_func, *args, **kwargs)
+    return _run_with_retry(operation, target)
 
 
 def run_write_query(
@@ -436,7 +432,7 @@ def write_list_of_dicts_tx(
         neo4j_driver = neo4j.driver(... args ...)
         neo4j_session = neo4j_driver.Session(... args ...)
 
-        neo4j_session.write_transaction(
+        neo4j_session.execute_write(
             write_list_of_dicts_tx,
             '''
             UNWIND $DictList as data
@@ -457,37 +453,6 @@ def write_list_of_dicts_tx(
     :return: None
     """
     tx.run(query, kwargs).consume()
-
-
-def _write_batch_with_retry(
-    neo4j_session: neo4j.Session,
-    query: str,
-    data_batch: List[Dict[str, Any]],
-    **kwargs,
-) -> None:
-    """
-    Write a single batch of data with retry logic for transient errors.
-
-    This wraps the write_transaction call with retry logic that handles both
-    standard transient errors and EntityNotFound ClientErrors that occur during
-    concurrent operations.
-
-    :param neo4j_session: The Neo4j session
-    :param query: The Neo4j write query to run
-    :param data_batch: A batch of data to write
-    :param kwargs: Additional keyword args for the query
-    :return: None
-    """
-
-    def _operation() -> None:
-        neo4j_session.write_transaction(
-            write_list_of_dicts_tx,
-            query,
-            DictList=data_batch,
-            **kwargs,
-        )
-
-    _run_with_retry(_operation, write_list_of_dicts_tx.__qualname__)
 
 
 def load_graph_data(
@@ -522,7 +487,13 @@ def load_graph_data(
         raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
 
     for data_batch in batch(dict_list, size=batch_size):
-        _write_batch_with_retry(neo4j_session, query, data_batch, **kwargs)
+        execute_write_with_retry(
+            neo4j_session,
+            write_list_of_dicts_tx,
+            query,
+            DictList=data_batch,
+            **kwargs,
+        )
 
 
 def ensure_indexes(
