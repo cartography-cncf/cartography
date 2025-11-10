@@ -52,8 +52,8 @@ def transform_spaces(
             "name": space.get("name"),
             "description": space.get("description"),
             "is_root": is_root,
-            "account_id": account_id,
-            "parent_account_id": account_id if is_root else None,
+            "spacelift_account_id": account_id,
+            "parent_spacelift_account_id": account_id if is_root else None,
             "parent_space_id": parent_space,
         }
 
@@ -74,7 +74,7 @@ def load_spaces(
         SpaceliftSpaceSchema(),
         spaces_data,
         lastupdated=update_tag,
-        account_id=account_id,
+        spacelift_account_id=account_id,
     )
 
     logger.info(f"Loaded {len(spaces_data)} Spacelift spaces")

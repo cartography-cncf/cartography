@@ -67,7 +67,7 @@ def transform_workers(
             "name": worker_id,  # Use ID as name since Worker type doesn't have a name field
             "status": worker.get("status"),
             "worker_pool_id": worker.get("workerPool"),
-            "account_id": account_id,
+            "spacelift_account_id": account_id,
         }
 
         result.append(transformed_worker)
@@ -88,7 +88,7 @@ def load_workers(
         SpaceliftWorkerSchema(),
         workers_data,
         lastupdated=update_tag,
-        account_id=account_id,
+        spacelift_account_id=account_id,
     )
 
     logger.info(f"Loaded {len(workers_data)} Spacelift workers")

@@ -119,8 +119,7 @@ def test_spacelift_end_to_end(
 
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
-        "SPACELIFT_ACCOUNT_ID": TEST_ACCOUNT_ID,
-        "account_id": TEST_ACCOUNT_ID,
+        "spacelift_account_id": TEST_ACCOUNT_ID,
     }
 
     # Act: Sync all Spacelift resources in the correct order
@@ -239,7 +238,7 @@ def test_spacelift_end_to_end(
     assert actual_run_nodes is not None
     assert expected_run_nodes == actual_run_nodes
 
-    # Check that Run-[:AFFECTED]->EC2Instance relationships were created
+    # Check that Run-[:AFFECTED]->EC2Instance relationships were created (from Spacelift entities API)
     expected_run_ec2_relationships = {
         ("run-1", "i-01"),
         ("run-1", "i-02"),

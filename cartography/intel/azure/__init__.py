@@ -14,7 +14,9 @@ from . import cosmosdb
 from . import data_lake
 from . import functions
 from . import logic_apps
+from . import monitor
 from . import resource_groups
+from . import security_center
 from . import sql
 from . import storage
 from . import subscription
@@ -96,6 +98,20 @@ def _sync_one_subscription(
         common_job_parameters,
     )
     data_lake.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    monitor.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    security_center.sync(
         neo4j_session,
         credentials,
         subscription_id,

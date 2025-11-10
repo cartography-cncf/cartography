@@ -58,7 +58,7 @@ def transform_stacks(
             "branch": stack.get("branch"),
             "project_root": stack.get("projectRoot"),
             "space_id": stack.get("space"),
-            "account_id": account_id,
+            "spacelift_account_id": account_id,
         }
 
         result.append(transformed_stack)
@@ -79,7 +79,7 @@ def load_stacks(
         SpaceliftStackSchema(),
         stacks_data,
         lastupdated=update_tag,
-        account_id=account_id,
+        spacelift_account_id=account_id,
     )
 
     logger.info(f"Loaded {len(stacks_data)} Spacelift stacks")

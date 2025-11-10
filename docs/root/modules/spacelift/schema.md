@@ -18,10 +18,11 @@ WP -- CONTAINS --> W2(SpaceliftWorker)
 St -- GENERATES --> R
 U -- TRIGGERED --> R
 W -- EXECUTES --> R
+C -- COMMITTED --> R
 R -- AFFECTS --> EC2(EC2Instance)
 
 U -- HAS_ROLE_IN --> S
-U -- CONFIRMED --> C
+C -- CONFIRMED --> U
 ```
 
 ### SpaceliftAccount
@@ -276,14 +277,37 @@ Representation of a job that can touch infrastructure. It is the execution insta
     (SpaceliftRun)<-[EXECUTED]-(SpaceliftWorker)
     ```
 
+- SpaceliftRuns are linked to the Git commit that triggered them:
+
+    ```
+    (SpaceliftRun)<-[COMMITTED]-(SpaceliftGitCommit)
+    ```
+
 - SpaceliftRuns can affect EC2 Instances:
 
     ```
-    (SpaceliftRun)-[AFFECTED{action}]->(EC2Instance)
+    (SpaceliftRun)-[AFFECTED]->(EC2Instance)
     ```
 
-    The `action` property indicates the action taken on the instance (e.g., "create", "update", "delete").
-    This relationship uses the `one_to_many` pattern to connect a single run to multiple EC2 instances it manages.
+    This relationship is created from **two sources**, and a single EC2 instance may have multiple `AFFECTED` relationships to different runs:
+
+    **Source 1: Spacelift Entities API (always created during runs sync)**
+    - Created automatically when Spacelift reports managed resources via its entities API
+    - Properties: `lastupdated` only
+    - Represents the current Terraform state view of managed instances
+    - The Instance Id from spacelift is often seen in hex format (seen when using workerpools), causing a mistmatch with the InstanceID on an EC2 Node. (Hence the need for Source 2)
+
+    **Source 2: CloudTrail Data (optional, requires EC2 ownership configuration)**
+    - Created via MatchLink using CloudTrail data from S3
+    - Additional properties with CloudTrail metadata:
+      - `event_time`: Timestamp of the CloudTrail event
+      - `event_name`: Name of the AWS API call (e.g., "RunInstances", "TerminateInstances")
+      - `aws_account`: AWS account ID where the event occurred
+      - `aws_region`: AWS region where the event occurred
+    - Loaded separately by the `ec2_ownership` module
+    - Requires CLI configuration: `--spacelift-ec2-ownership-s3-bucket`, `--spacelift-ec2-ownership-s3-key`, and optionally `--spacelift-ec2-ownership-aws-profile`
+
+    Both relationships provide complementary views: the entities API shows current Terraform state, while CloudTrail shows historical AWS API interactions.
 
 ### SpaceliftGitCommit
 
@@ -316,3 +340,9 @@ Representation of a Git commit that triggered a Spacelift run. It contains metad
     ```
 
     This links commits to the human developers who wrote and confirmed the code, even when the deployment was triggered by an automated system (vcs/commit).
+
+- SpaceliftGitCommits are linked to the runs that use them:
+
+    ```
+    (SpaceliftGitCommit)-[COMMITTED]->(SpaceliftRun)
+    ```
