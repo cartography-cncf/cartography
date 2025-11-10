@@ -9,11 +9,12 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-from cartography.config import Config
+import neo4j
 
 if TYPE_CHECKING:
-    import neo4j
     from proxmoxer import ProxmoxAPI
+
+from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.proxmox import access
 from cartography.intel.proxmox import backup
@@ -120,7 +121,7 @@ def _get_proxmox_client(config: Config) -> "ProxmoxAPI":
 
 
 @timeit
-def start_proxmox_ingestion(neo4j_session: "neo4j.Session", config: Config) -> None:
+def start_proxmox_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
     Main entry point for Proxmox data ingestion.
 

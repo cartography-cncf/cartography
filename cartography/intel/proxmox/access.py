@@ -6,10 +6,8 @@ Follows Cartography's Get → Transform → Load pattern.
 
 import logging
 from typing import Any
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import neo4j
+import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.proxmox.access import ProxmoxACLSchema
@@ -352,7 +350,7 @@ def transform_acl_data(
 
 
 def load_users(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     users: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -375,7 +373,7 @@ def load_users(
 
 
 def load_groups(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     groups: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -398,7 +396,7 @@ def load_groups(
 
 
 def load_roles(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     roles: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -421,7 +419,7 @@ def load_roles(
 
 
 def load_acls(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     acls: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -444,7 +442,7 @@ def load_acls(
 
 
 def load_acl_principal_relationships(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     acls: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -509,7 +507,7 @@ def load_acl_principal_relationships(
 
 
 def load_acl_resource_relationships(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     acls: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -639,7 +637,7 @@ def load_acl_resource_relationships(
 
 
 def load_effective_permissions(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     update_tag: int,
 ) -> None:
     """
@@ -715,7 +713,7 @@ def load_effective_permissions(
 
 @timeit
 def sync(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     proxmox_client: Any,
     cluster_id: str,
     update_tag: int,

@@ -8,10 +8,8 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import neo4j
+import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.proxmox.storage import ProxmoxStorageSchema
@@ -129,7 +127,7 @@ def transform_storage_data(
 
 
 def load_storage(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     storage_list: List[Dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -152,7 +150,7 @@ def load_storage(
 
 
 def load_storage_node_relationships(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     storage_list: List[Dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -206,7 +204,7 @@ def load_storage_node_relationships(
 
 @timeit
 def sync(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     proxmox_client: Any,
     cluster_id: str,
     update_tag: int,

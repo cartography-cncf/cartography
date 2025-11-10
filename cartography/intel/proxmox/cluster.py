@@ -8,10 +8,8 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import neo4j
+import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -407,7 +405,7 @@ def transform_node_network_data(
 
 
 def load_cluster(
-    neo4j_session: "neo4j.Session", cluster_data: Dict[str, Any], update_tag: int
+    neo4j_session: neo4j.Session, cluster_data: Dict[str, Any], update_tag: int
 ) -> None:
     """
     Load cluster data into Neo4j using modern data model.
@@ -425,7 +423,7 @@ def load_cluster(
 
 
 def load_nodes(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     nodes: List[Dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -448,7 +446,7 @@ def load_nodes(
 
 
 def load_node_networks(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     network_interfaces: List[Dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -483,7 +481,7 @@ def load_node_networks(
 
 @timeit
 def sync(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     proxmox_client: Any,
     proxmox_host: str,
     update_tag: int,
@@ -559,7 +557,7 @@ def sync(
 
 
 def cleanup(
-    neo4j_session: "neo4j.Session", common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
     """
     Remove stale cluster, node, and network interface data.

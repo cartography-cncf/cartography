@@ -6,10 +6,8 @@ Follows Cartography's Get → Transform → Load pattern.
 
 import logging
 from typing import Any
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import neo4j
+import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.proxmox.firewall import ProxmoxFirewallIPSetSchema
@@ -217,7 +215,7 @@ def transform_ipset_data(
 
 
 def load_firewall_rules(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     rules: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -243,7 +241,7 @@ def load_firewall_rules(
 
 
 def load_ipsets(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     ipsets: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -269,7 +267,7 @@ def load_ipsets(
 
 
 def load_firewall_scope_relationships(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     rules: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -336,7 +334,7 @@ def load_firewall_scope_relationships(
 
 @timeit
 def sync(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     proxmox_client: Any,
     cluster_id: str,
     update_tag: int,

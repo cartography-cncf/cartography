@@ -8,10 +8,8 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import neo4j
+import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.proxmox.compute import ProxmoxDiskSchema
@@ -574,7 +572,7 @@ def enrich_interfaces_with_guest_data(
 
 
 def load_vms(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     vms: List[Dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -597,7 +595,7 @@ def load_vms(
 
 
 def load_disks(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     disks: List[Dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -623,7 +621,7 @@ def load_disks(
 
 
 def load_network_interfaces(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     interfaces: List[Dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -655,7 +653,7 @@ def load_network_interfaces(
 
 @timeit
 def sync(
-    neo4j_session: "neo4j.Session",
+    neo4j_session: neo4j.Session,
     proxmox_client: Any,
     cluster_id: str,
     update_tag: int,
