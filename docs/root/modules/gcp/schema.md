@@ -715,3 +715,82 @@ Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/
     ```
     (GCPRole)-[RESOURCE]->(GCPProject)
     ```
+
+### GCPSqlInstance
+
+Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The instance's `selfLink`, which is its unique URI. |
+| name | The user-assigned name of the instance. |
+| database\_version | The database engine type and version (e.g., `POSTGRES_15`). |
+| region | The GCP region the instance lives in. |
+| gce\_zone | The specific Compute Engine zone the instance is serving from. |
+| state | The current state of the instance (e.g., `RUNNABLE`). |
+| backend\_type | The type of instance (e.g., `SECOND_GEN`). |
+| service\_account\_email | The email of the service account used by this instance. |
+
+#### Relationships
+
+  - GCPSqlInstances are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPSqlInstance)
+    ```
+  - GCPSqlInstances are associated with GCPVpcs.
+    ```
+    (GCPSqlInstance)-[:ASSOCIATED_WITH]->(GCPVpc)
+    ```
+  - GCPSqlInstances use GCPServiceAccounts.
+    ```
+    (GCPSqlInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPSqlDatabase
+
+Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/databases).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID and database name. |
+| name | The name of the database. |
+| charset | The character set for the database. |
+| collation | The collation for the database. |
+
+#### Relationships
+
+  - GCPSqlDatabases are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPSqlDatabase)
+    ```
+  - GCPSqlInstances contain GCPSqlDatabases.
+    ```
+    (GCPSqlInstance)-[:CONTAINS]->(GCPSqlDatabase)
+    ```
+
+### GCPSqlUser
+
+Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/users).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID and the user's name and host. |
+| name | The name of the user. |
+| host | The host from which the user is allowed to connect. |
+
+#### Relationships
+
+  - GCPSqlUsers are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPSqlUser)
+    ```
+  - GCPSqlInstances have GCPSqlUsers.
+    ```
+    (GCPSqlInstance)-[:HAS_USER]->(GCPSqlUser)
+    ```
